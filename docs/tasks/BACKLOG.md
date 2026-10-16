@@ -11,7 +11,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | ready | – |
 | [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | ready | TASK-001 |
 | [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | ready | TASK-001 |
-| [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | ready | – |
+| [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | to playtest | – |
 | [TASK-003](TASK-003-unit-info-panel.md) | Info panel for the selected unit | to playtest | TASK-001 |
 | [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | ready | TASK-001 |
 | [TASK-010](TASK-010-counterattack.md) | Counterattack | ready | TASK-001 (soft: TASK-002) |

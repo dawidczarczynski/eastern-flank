@@ -17,6 +17,8 @@ var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
 var _info_panel: PanelContainer
 var _info_label: Label
+var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
+var _last_camera_transform := Transform3D()
 
 @onready var _map_view: MapView = $MapView
 @onready var _units_root: Node3D = $Units
@@ -43,7 +45,20 @@ func _ready() -> void:
 	_refresh_selection_ui()
 
 
+## The camera can move under a still cursor (keys, wheel) – re-pick the hovered tile then.
+func _process(_delta: float) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if camera == null or camera.global_transform == _last_camera_transform:
+		return
+	_last_camera_transform = camera.global_transform
+	_on_mouse_motion(get_viewport().get_mouse_position())
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	var motion := event as InputEventMouseMotion
+	if motion != null:
+		_on_mouse_motion(motion.position)
+		return
 	if _sim.state.winner != -1 or _sim.state.current_player != HUMAN_PLAYER:
 		return
 	var mouse := event as InputEventMouseButton
@@ -93,6 +108,42 @@ func _pick_hex(screen_position: Vector2) -> Variant:
 	return coord
 
 
+## Tracks the hovered tile; the path preview is recomputed only when it changes.
+func _on_mouse_motion(screen_position: Vector2) -> void:
+	_set_hovered_hex(_pick_hex(screen_position))
+
+
+func _set_hovered_hex(coord: Variant) -> void:
+	if typeof(coord) == typeof(_hovered_hex) and coord == _hovered_hex:
+		return
+	_hovered_hex = coord
+	_refresh_path_preview()
+
+
+## Path and cost come from HexGrid.path_to()/reachable() – the view only draws them.
+func _refresh_path_preview() -> void:
+	var state := _sim.state
+	var unit := state.get_unit(_selected_unit_id)
+	if (
+		_hovered_hex == null
+		or unit == null
+		or not unit.is_alive()
+		or unit.owner_id != HUMAN_PLAYER
+		or state.current_player != HUMAN_PLAYER
+		or state.winner != -1
+	):
+		_map_view.clear_path()
+		return
+	var target: Vector2i = _hovered_hex
+	var blocked := state.occupied()
+	var path := state.grid.path_to(unit.coord, target, unit.moves_left, blocked)
+	if path.is_empty():
+		_map_view.clear_path()
+		return
+	var cost: int = state.grid.reachable(unit.coord, unit.moves_left, blocked)[target]
+	_map_view.show_path(path, "%d/%d" % [cost, unit.moves_left])
+
+
 func _on_hex_clicked(coord: Vector2i) -> void:
 	var clicked := _sim.state.unit_at(coord)
 	if clicked != null and clicked.owner_id == HUMAN_PLAYER:
@@ -120,8 +171,11 @@ func _select(unit_id: int) -> void:
 	_refresh_selection_ui()
 
 
-## Everything that depends on the selected unit: move highlights and the info panel.
+## Everything that depends on the selected unit: move highlights, the info panel
+## and the path preview (recomputed for the hovered tile; it hides itself when there is
+## no valid target, e.g. after a move, on turn end or game over).
 func _refresh_selection_ui() -> void:
+	_refresh_path_preview()
 	_refresh_highlights()
 	_refresh_unit_info()
 

@@ -35,10 +35,39 @@ func move_cost(c: Vector2i) -> int:
 ## Returns a Vector2i -> path cost dictionary (also contains `origin` with cost 0).
 ## `blocked` – tiles that can't be entered (e.g. occupied by units).
 func reachable(origin: Vector2i, budget: int, blocked: Dictionary = {}) -> Dictionary:
+	return _search(origin, budget, blocked)["costs"]
+
+
+## Cheapest path from `origin` to `target` within `budget` (same search as `reachable`).
+## The result excludes `origin` and ends with `target`. Empty when `target == origin`
+## or `target` is off the map, impassable, blocked or not reachable within `budget`.
+## Ties are broken deterministically by discovery order (`Hex.DIRECTIONS`).
+func path_to(
+	origin: Vector2i, target: Vector2i, budget: int, blocked: Dictionary = {}
+) -> Array[Vector2i]:
+	var path: Array[Vector2i] = []
+	if target == origin:
+		return path
+	var parents: Dictionary = _search(origin, budget, blocked)["parents"]
+	if not parents.has(target):
+		return path
+	var current := target
+	while current != origin:
+		path.append(current)
+		current = parents[current]
+	path.reverse()
+	return path
+
+
+## Shared Dijkstra. Returns {"costs": Vector2i -> int, "parents": Vector2i -> Vector2i}.
+## A parent is replaced only on a strictly lower cost, so the first discovery wins.
+func _search(origin: Vector2i, budget: int, blocked: Dictionary) -> Dictionary:
 	var costs := {origin: 0}
+	var parents := {}
 	var frontier: Array[Vector2i] = [origin]
 	while not frontier.is_empty():
 		# Maps are small – linear minimum search instead of a heap.
+		# The first minimum by index is taken, which keeps the search deterministic.
 		var best_i := 0
 		for i in range(1, frontier.size()):
 			if costs[frontier[i]] < costs[frontier[best_i]]:
@@ -52,5 +81,6 @@ func reachable(origin: Vector2i, budget: int, blocked: Dictionary = {}) -> Dicti
 			var new_cost: int = costs[current] + step
 			if new_cost <= budget and new_cost < costs.get(n, _INF):
 				costs[n] = new_cost
+				parents[n] = current
 				frontier.append(n)
-	return costs
+	return {"costs": costs, "parents": parents}

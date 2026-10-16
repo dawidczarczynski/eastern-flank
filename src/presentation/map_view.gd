@@ -1,6 +1,7 @@
 class_name MapView
 extends Node3D
-## Map view: builds tile geometry from a HexGrid and highlights movement range.
+## Map view: builds tile geometry from a HexGrid, highlights movement range
+## and draws the movement path preview (separate marker set, see show_path()).
 ## Primitives for now (hexagonal prisms) – to be replaced with models from assets/models.
 
 ## Height of the plane used for picking tiles with the mouse.
@@ -17,6 +18,11 @@ const TERRAIN_HEIGHTS := {
 	Terrain.Type.HILLS: 0.45,
 	Terrain.Type.WATER: 0.08,
 }
+## Height of the movement highlight above the tile top.
+const HIGHLIGHT_OFFSET := 0.02
+## Path markers sit slightly above the movement highlight to avoid z-fighting.
+const PATH_MARKER_OFFSET := 0.05
+const PATH_LABEL_HEIGHT := 0.6
 
 @export var hex_size: float = 1.0
 
@@ -24,13 +30,21 @@ var _grid: HexGrid
 var _tiles_root := Node3D.new()
 var _highlight_root := Node3D.new()
 var _highlight_mesh: CylinderMesh
+var _path_root := Node3D.new()
+var _path_mesh: CylinderMesh
+var _path_label: Label3D
 
 
 func _ready() -> void:
 	add_child(_tiles_root)
 	add_child(_highlight_root)
+	add_child(_path_root)
 	var highlight_material := _make_material(Color(1.0, 0.85, 0.2, 0.45), true)
 	_highlight_mesh = _make_hex_mesh(hex_size * 0.8, 0.03, highlight_material)
+	var path_material := _make_material(Color(1.0, 0.97, 0.8, 0.75), true)
+	_path_mesh = _make_hex_mesh(hex_size * 0.35, 0.03, path_material)
+	_path_label = _make_path_label()
+	add_child(_path_label)
 
 
 func build(grid: HexGrid) -> void:
@@ -81,13 +95,51 @@ func show_highlights(coords: Array[Vector2i]) -> void:
 	for c in coords:
 		var marker := MeshInstance3D.new()
 		marker.mesh = _highlight_mesh
-		marker.position = tile_top_position(c) + Vector3.UP * 0.02
+		marker.position = tile_top_position(c) + Vector3.UP * HIGHLIGHT_OFFSET
 		_highlight_root.add_child(marker)
 
 
+## Clears only the movement highlight; the path preview has its own clear_path().
 func clear_highlights() -> void:
 	for child in _highlight_root.get_children():
 		child.queue_free()
+
+
+## Draws a small marker on every tile of the path and a label above the last tile.
+## The path and the label text come from the caller (no path logic here).
+func show_path(coords: Array[Vector2i], label_text: String) -> void:
+	clear_path()
+	if coords.is_empty():
+		return
+	for c in coords:
+		var marker := MeshInstance3D.new()
+		marker.mesh = _path_mesh
+		marker.position = tile_top_position(c) + Vector3.UP * PATH_MARKER_OFFSET
+		_path_root.add_child(marker)
+	_path_label.text = label_text
+	_path_label.position = tile_top_position(coords.back()) + Vector3.UP * PATH_LABEL_HEIGHT
+	_path_label.show()
+
+
+func clear_path() -> void:
+	for child in _path_root.get_children():
+		_path_root.remove_child(child)
+		child.queue_free()
+	_path_label.hide()
+
+
+static func _make_path_label() -> Label3D:
+	var label := Label3D.new()
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.fixed_size = false
+	label.pixel_size = 0.005
+	label.font_size = 56
+	label.outline_size = 14
+	label.modulate = Color(1.0, 0.97, 0.8)
+	label.outline_modulate = Color(0.0, 0.0, 0.0)
+	label.hide()
+	return label
 
 
 static func _make_hex_mesh(radius: float, height: float, material: Material) -> CylinderMesh:
