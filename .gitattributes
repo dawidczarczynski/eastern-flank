@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Binaries (consider Git LFS once there are more assets: git lfs track "*.glb" ...)
+*.png binary
+*.jpg binary
+*.glb binary
+*.blend binary
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.otf binary

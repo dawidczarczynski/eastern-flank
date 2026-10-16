@@ -1,0 +1,15 @@
+# Godot
+.godot/
+*.translation
+/android/
+
+# Export
+/export/
+export_credentials.cfg
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# System
+.DS_Store
+Thumbs.db
