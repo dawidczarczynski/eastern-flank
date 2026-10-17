@@ -188,3 +188,14 @@ func test_regression_pin_seed_12345() -> void:
 		var label := "offset %s: %s %.3f" % [offset, grid.get_terrain(c), grid.elevation(c)]
 		assert_eq(grid.get_terrain(c), row[1], label)
 		assert_eq(snappedf(grid.elevation(c), 0.001), row[2], label)
+
+
+func test_axial_to_offset_round_trip_on_every_tile() -> void:
+	for col in range(12):
+		for row in range(10):
+			var axial := MapGenerator.offset_to_axial(col, row)
+			assert_eq(MapGenerator.axial_to_offset(axial), Vector2i(col, row), "%d,%d" % [col, row])
+
+
+func test_axial_to_offset_inverts_a_known_tile() -> void:
+	assert_eq(MapGenerator.axial_to_offset(MapGenerator.offset_to_axial(3, 5)), Vector2i(3, 5))

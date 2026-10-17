@@ -65,3 +65,8 @@ static func force_terrain(
 ## Converts from "offset" layout (rectangular map: column, row) to axial coordinates.
 static func offset_to_axial(col: int, row: int) -> Vector2i:
 	return Vector2i(col - floori(row / 2.0), row)
+
+
+## Inverse of `offset_to_axial`: axial coordinates to (column, row) offset.
+static func axial_to_offset(c: Vector2i) -> Vector2i:
+	return Vector2i(c.x + floori(c.y / 2.0), c.y)

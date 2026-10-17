@@ -23,3 +23,15 @@ Blue Force,Blue Force,Siły Niebieskie
 Red Force,Red Force,Siły Czerwone
 BF,BF,SN
 RF,RF,SC
+TERRAIN,TERRAIN,TEREN
+HEX %s,HEX %s,HEKS %s
+MOVE,MOVE,RUCH
+DEFENSE,DEFENSE,OBRONA
+ELEV.,ELEV.,WYS.
+PATH COST,PATH COST,KOSZT TRASY
+%d / %d MP,%d / %d MP,%d / %d PR
+Impassable,Impassable,Niedostępny
+Plains,Plains,Równina
+Forest,Forest,Las
+Hills,Hills,Wzgórza
+Water,Water,Akwen

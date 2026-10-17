@@ -9,6 +9,7 @@ const MAP_HEIGHT := 10
 const INFANTRY := preload("res://data/units/infantry.tres")
 const CAVALRY := preload("res://data/units/cavalry.tres")
 const INFO_PANEL_MARGIN := 16
+const INFO_PANEL_GAP := 8
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
@@ -19,6 +20,7 @@ var _hud_root: Control
 var _info_panel: PanelContainer
 var _info_label: Label
 var _hud: BattleHud
+var _terrain_panel: TerrainPanel
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
 var _last_camera_transform := Transform3D()
 # Event playback: the simulation runs ahead synchronously, the view replays its events one by one.
@@ -165,7 +167,21 @@ func _set_hovered_hex(coord: Variant) -> void:
 
 
 ## Path and cost come from HexGrid.path_to()/reachable() – the view only draws them.
+## Also feeds the terrain panel (hovered tile + path cost, -1 without a valid path).
 func _refresh_path_preview() -> void:
+	var cost := _draw_path_preview()
+	if _hovered_hex == null:
+		_terrain_panel.hide()
+		return
+	var unit := _sim.state.get_unit(_selected_unit_id)
+	var moves_left := unit.moves_left if unit != null else 0
+	_terrain_panel.show_tile(
+		TerrainPanelModel.build(_sim.state.grid, _hovered_hex, cost, moves_left)
+	)
+
+
+## Draws the path dots to the hovered tile; returns the path cost or -1 when there is none.
+func _draw_path_preview() -> int:
 	var state := _sim.state
 	var unit := state.get_unit(_selected_unit_id)
 	if (
@@ -178,15 +194,16 @@ func _refresh_path_preview() -> void:
 		or state.winner != -1
 	):
 		_map_view.clear_path()
-		return
+		return -1
 	var target: Vector2i = _hovered_hex
 	var blocked := state.occupied()
 	var path := state.grid.path_to(unit.coord, target, unit.moves_left, blocked)
 	if path.is_empty():
 		_map_view.clear_path()
-		return
+		return -1
 	var cost: int = state.grid.reachable(unit.coord, unit.moves_left, blocked)[target]
-	_map_view.show_path(unit.coord, path, "%d/%d" % [cost, unit.moves_left])
+	_map_view.show_path(unit.coord, path)
+	return cost
 
 
 func _on_hex_clicked(coord: Vector2i) -> void:
@@ -294,18 +311,32 @@ func _build_hud_root() -> void:
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
 
 
-## Bottom-left HUD panel with the selected unit's stats (text from UnitInfo).
+## Bottom-left stack (VBox, bottom-anchored): the TASK-003 unit info panel above the terrain
+## panel, 8 px apart. Hidden children collapse, so neither can overlap the other.
 func _build_info_panel() -> void:
+	var stack := VBoxContainer.new()
+	stack.name = "BottomLeftStack"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.alignment = BoxContainer.ALIGNMENT_END
+	stack.add_theme_constant_override(&"separation", INFO_PANEL_GAP)
+	stack.set_anchors_and_offsets_preset(
+		Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, INFO_PANEL_MARGIN
+	)
+	stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hud_root.add_child(stack)
 	_info_panel = PanelContainer.new()
 	_info_panel.name = "UnitInfoPanel"
 	# Clicks over the panel must still reach the map (_unhandled_input).
 	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_info_label = Label.new()
 	_info_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_info_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_info_panel.add_child(_info_label)
-	_hud_root.add_child(_info_panel)
+	stack.add_child(_info_panel)
 	_info_panel.hide()
+	_terrain_panel = TerrainPanel.new()
+	stack.add_child(_terrain_panel)
 
 
 func _refresh_unit_info() -> void:
@@ -315,11 +346,7 @@ func _refresh_unit_info() -> void:
 		return
 	_info_label.text = "\n".join(UnitInfo.lines(unit))
 	_info_panel.show()
-	# Re-anchor after the text changes so the panel hugs the bottom-left corner.
 	_info_panel.reset_size()
-	_info_panel.set_anchors_and_offsets_preset(
-		Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, INFO_PANEL_MARGIN
-	)
 
 
 ## Events are only queued here; playback starts deferred, so everything emitted in this frame

@@ -19,8 +19,6 @@ const GRID_LINE_COLOR := Color("#0d120c", 0.2)
 ## lines follow the slopes.
 const GRID_LINE_OFFSET := 0.025
 const GRID_LINE_SEGMENTS := 5
-const PATH_LABEL_HEIGHT := 0.6
-const PATH_LABEL_FONT := preload("res://assets/fonts/ibm_plex/IBMPlexMono-Medium.ttf")
 ## Overlay design values (TASK-017): patch scale, ring radii, alpha and lift above the ground.
 ## Overlay shapes: Vector2(scale, 0) is a hex patch, Vector2(r0, r1) a hex ring.
 const REACH_FILL_SHAPE := Vector2(0.9, 0.0)
@@ -79,7 +77,6 @@ var _hover_coord: Variant = null
 ## The terrain never changes, so each tile is draped once instead of on every rebuild.
 var _shape_cache: Dictionary = {}
 var _dots := MultiMeshInstance3D.new()
-var _path_label: Label3D
 
 
 func _ready() -> void:
@@ -93,8 +90,6 @@ func _ready() -> void:
 	_hover_ring.material_override = _hover_ring_material
 	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, 0.1))
 	_setup_dots()
-	_path_label = _make_path_label()
-	add_child(_path_label)
 
 
 ## The hover ring pulses; geometry is only rebuilt in set_hover().
@@ -566,9 +561,9 @@ func _setup_dots() -> void:
 
 
 ## Draws white dots along a smooth curve from `from` (the unit's tile) through `path`
-## (excludes `from`, as HexGrid.path_to returns it) and a label above the last dot.
-## The path and the label text come from the caller (no path logic here).
-func show_path(from: Vector2i, path: Array[Vector2i], label_text: String) -> void:
+## (excludes `from`, as HexGrid.path_to returns it).
+## The path comes from the caller (no path logic here).
+func show_path(from: Vector2i, path: Array[Vector2i]) -> void:
 	clear_path()
 	if path.is_empty():
 		return
@@ -588,26 +583,7 @@ func show_path(from: Vector2i, path: Array[Vector2i], label_text: String) -> voi
 		var s := LAST_DOT_SCALE if i == dots - 1 else 1.0
 		multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * s), last))
 	multi.visible_instance_count = dots
-	_path_label.text = label_text
-	_path_label.position = last + Vector3.UP * PATH_LABEL_HEIGHT
-	_path_label.visible = dots > 0
 
 
 func clear_path() -> void:
 	_dots.multimesh.visible_instance_count = 0
-	_path_label.hide()
-
-
-func _make_path_label() -> Label3D:
-	var label := Label3D.new()
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.fixed_size = false
-	label.pixel_size = 0.005
-	label.font = PATH_LABEL_FONT
-	label.font_size = 56
-	label.outline_size = 14
-	label.modulate = Color.WHITE
-	label.outline_modulate = Color(0.0, 0.0, 0.0)
-	label.hide()
-	return label
