@@ -9,12 +9,12 @@ const MAP_HEIGHT := 10
 const INFANTRY := preload("res://data/units/infantry.tres")
 const CAVALRY := preload("res://data/units/cavalry.tres")
 const INFO_PANEL_MARGIN := 16
-const HUD_FONT_SIZE := 18
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
+var _hud_root: Control
 var _info_panel: PanelContainer
 var _info_label: Label
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
@@ -41,6 +41,7 @@ func _ready() -> void:
 	_sim.event_emitted.connect(_on_event)
 	_sim.command_rejected.connect(_on_command_rejected)
 
+	_build_hud_root()
 	_build_info_panel()
 	_map_view.build(state.grid)
 	_camera_rig.position = _map_view.center()
@@ -212,6 +213,18 @@ func _refresh_attack_targets(unit: Unit) -> void:
 	_map_view.show_attack_targets(coords)
 
 
+## Full-rect themed root under the HUD layer; HUD elements live below it and ignore the mouse.
+func _build_hud_root() -> void:
+	_hud_root = Control.new()
+	_hud_root.name = "Root"
+	_hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_root.theme = HudTheme.build()
+	$HUD.add_child(_hud_root)
+	_status_label.reparent(_hud_root, false)
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
 ## Bottom-left HUD panel with the selected unit's stats (text from UnitInfo).
 func _build_info_panel() -> void:
 	_info_panel = PanelContainer.new()
@@ -220,9 +233,8 @@ func _build_info_panel() -> void:
 	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_info_label = Label.new()
 	_info_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info_label.add_theme_font_size_override(&"font_size", HUD_FONT_SIZE)
 	_info_panel.add_child(_info_label)
-	$HUD.add_child(_info_panel)
+	_hud_root.add_child(_info_panel)
 	_info_panel.hide()
 
 
