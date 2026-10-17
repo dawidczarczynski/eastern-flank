@@ -5,7 +5,7 @@ Your turn,Your turn,Twoja tura
 AI turn,AI turn,Tura przeciwnika
 Victory!,Victory!,Zwycięstwo!
 Defeat!,Defeat!,Porażka!
-LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera,LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera,LPM – wybór/ruch/atak · Enter – koniec tury · WASD/QE/kółko – kamera
+LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury
 HP %d/%d,HP %d/%d,PŻ %d/%d
 Moves %d/%d,Moves %d/%d,Ruch %d/%d
 Attack %d · Defense %d · Range %d,Attack %d · Defense %d · Range %d,Atak %d · Obrona %d · Zasięg %d

@@ -44,7 +44,10 @@ func _ready() -> void:
 	_build_hud_root()
 	_build_info_panel()
 	_map_view.build(state.grid)
-	_camera_rig.position = _map_view.center()
+	_camera_rig.set_bounds(_map_bounds())
+	var center := _map_view.center()
+	_camera_rig.set_target(Vector2(center.x, center.z))
+	_camera_rig.clicked.connect(_on_camera_clicked)
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
 	_update_status()
@@ -65,19 +68,41 @@ func _unhandled_input(event: InputEvent) -> void:
 	if motion != null:
 		_on_mouse_motion(motion.position)
 		return
-	if _is_playing_events():
-		return  # clicks and Enter are dropped (not buffered) while animations play
-	if _sim.state.winner != -1 or _sim.state.current_player != HUMAN_PLAYER:
-		return
-	var mouse := event as InputEventMouseButton
-	if mouse != null and mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT:
-		var coord: Variant = _pick_hex(mouse.position)
-		if coord != null:
-			_on_hex_clicked(coord)
+	if not _input_allowed():
 		return
 	var key := event as InputEventKey
-	if key != null and key.pressed and not key.echo and key.keycode == KEY_ENTER:
+	if key == null or not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_ENTER:
 		_end_human_turn()
+	elif key.keycode == KEY_ESCAPE:
+		_select(-1)
+
+
+## A click that never became a camera drag: LMB selects/moves/attacks, RMB deselects.
+func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
+	if not _input_allowed():
+		return
+	if button == MOUSE_BUTTON_RIGHT:
+		_select(-1)
+		return
+	var coord: Variant = _pick_hex(screen_position)
+	if coord != null:
+		_on_hex_clicked(coord)
+
+
+## Clicks and keys are dropped (not buffered) while animations play or it isn't the human's turn.
+func _input_allowed() -> bool:
+	if _is_playing_events():
+		return false
+	return _sim.state.winner == -1 and _sim.state.current_player == HUMAN_PLAYER
+
+
+func _map_bounds() -> Rect2:
+	var centers: Array[Vector3] = []
+	for c in _sim.state.grid.coords():
+		centers.append(Hex.to_world(c, _map_view.hex_size))
+	return CameraMath.map_bounds(centers, _map_view.hex_size)
 
 
 func _spawn_start_units(state: GameState) -> void:
@@ -352,5 +377,10 @@ func _update_status() -> void:
 ## Status text for an ongoing game; called with event data during playback.
 func _show_turn_status(turn: int, player: int) -> void:
 	var who := tr("Your turn") if player == HUMAN_PLAYER else tr("AI turn")
-	var hint := tr("LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera")
+	var hint := tr(
+		(
+			"LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom"
+			+ " · WASD/QE – camera · Enter – end turn"
+		)
+	)
 	_status_label.text = "%s\n%s" % [tr("Turn %d · %s") % [turn, who], hint]

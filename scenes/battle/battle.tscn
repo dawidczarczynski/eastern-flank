@@ -30,7 +30,9 @@ script = ExtResource("2_map")
 script = ExtResource("3_camera")
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig"]
-fov = 50.0
+fov = 34.0
+near = 0.1
+far = 220.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

@@ -1,6 +1,6 @@
 # TASK-015: Camera like the design (drag-pan, RMB rotate, distance-based pitch, map clamp)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure `CameraMath` helper tested in `tests/unit/`)
 - **Depends on**: nothing hard. Soft: TASK-023 (the new controls hint goes through `tr()`). Reference: `docs/design/game_screen.scene.js` lines 510–518 (camera), 572–614 (input).
 - **Model**: sonnet
@@ -67,4 +67,18 @@ The camera feels like the mock-up: a narrow-FOV view that tilts down more the fu
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `src/presentation/camera_math.gd` holds every formula. Beyond the spec it adds `key_pan(input, yaw)`, the unit XZ direction for WASD, which shares the basis vectors with `pan_delta`. Tests are in `tests/unit/test_camera_math.gd`.
+- `CameraRig` was rewritten:
+  - It emits `clicked(screen_position, button)` for LMB/RMB releases that never became a drag.
+  - `set_bounds(rect)` and `set_target(xz)` are called by `BattleController` after `MapView.build`.
+  - FOV 34 / near 0.1 / far 220 are set in `battle.tscn` only.
+  - The press state is reset on window/app focus loss. A new press also replaces a stale one whose release never arrived (`Input.is_mouse_button_pressed`), so input can't get stuck.
+- `BattleController` changes:
+  - It no longer handles raw mouse buttons. `clicked` LMB runs `_on_hex_clicked`, and RMB or Escape calls `_select(-1)`.
+  - The shared turn/winner/playback guard is `_input_allowed()`.
+- The controls hint goes through `tr()`. The old row in `assets/i18n/strings.csv` was replaced by the new en + pl row.
+- **Known / deviations**:
+  - `docs/design/reference.png` does not exist, so the screenshot was not compared against it.
+  - At the spec default d = 24, the 1280×720 screenshot cuts off the bottom 1–2 map rows. The mock-up's map is 26×18 and never fits on screen, so the "whole 12×10 map visible" criterion conflicts with d = 24. The spec value was kept; a default of ~28–30 would fit the whole map if preferred.
+  - The first motion after the 4 px threshold applies only its own delta, so up to 4 px of movement is not panned.
+- Drag, rotate and click behaviour was not verified by the agent. See the Playtest section.
