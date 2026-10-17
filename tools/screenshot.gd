@@ -1,0 +1,79 @@
+extends SceneTree
+## Renders the battle scene in a window, saves the viewport as PNG and quits.
+## Run via tools/screenshot.sh. Manually:
+##   godot --path . --resolution 1280x720 --script res://tools/screenshot.gd -- /abs/out.png
+## Exit codes: 0 saved, 1 blank image / render or save failure, 2 invalid arguments.
+
+const ScreenshotOptions := preload("res://tools/screenshot_options.gd")
+const ScreenshotImage := preload("res://tools/screenshot_image.gd")
+const SCENE_PATH := "res://scenes/battle/battle.tscn"
+const USAGE := "Usage: tools/screenshot.sh [out.png] [--frames=N]"
+const EXPECTED_SIZE := Vector2i(1280, 720)
+
+var _output := ""
+var _frames_left := 0
+var _finished := false  # capture started or run failed – quit() only takes effect after this frame
+
+
+func _initialize() -> void:
+	var options := ScreenshotOptions.parse(OS.get_cmdline_user_args())
+	if options["error"] != "":
+		_fail("invalid arguments (%s). %s" % [options["error"], USAGE], 2)
+		return
+	_output = String(options["output"]).simplify_path()
+	if _output == "" or not _output.is_absolute_path():
+		_fail(
+			"the output path must be absolute (tools/screenshot.sh resolves it): '%s'" % _output, 2
+		)
+		return
+	_frames_left = options["frames"]
+	# No simulated input: stray events from the real mouse/keyboard must not change the scene.
+	root.gui_disable_input = true
+	root.set_disable_input(true)
+	var scene: PackedScene = load(SCENE_PATH)
+	if scene == null:
+		_fail("could not load %s" % SCENE_PATH, 1)
+		return
+	var battle := scene.instantiate()
+	root.add_child(battle)
+	# The scene is set up in _ready; stop its processing so that polled input (Input singleton,
+	# mouse position) can't move the camera or add a hover highlight. Rendering continues.
+	battle.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func _process(_delta: float) -> bool:
+	if _finished:
+		return false
+	_frames_left -= 1
+	if _frames_left <= 0:
+		_finished = true
+		_capture()
+	return false
+
+
+func _capture() -> void:
+	# Wait until the current frame has really been drawn, otherwise the texture may be stale.
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	if image == null or image.is_empty():
+		_fail("could not read the viewport texture", 1)
+		return
+	if image.get_size() != EXPECTED_SIZE:
+		_fail("screenshot is %s, expected %s" % [image.get_size(), EXPECTED_SIZE], 1)
+		return
+	if ScreenshotImage.is_blank(image):
+		_fail("blank screenshot", 1)
+		return
+	DirAccess.make_dir_recursive_absolute(_output.get_base_dir())
+	var error := image.save_png(_output)
+	if error != OK:
+		_fail("could not save '%s' (%s)" % [_output, error_string(error)], 1)
+		return
+	print("Screenshot saved: ", _output)
+	quit(0)
+
+
+func _fail(message: String, exit_code: int) -> void:
+	_finished = true
+	printerr("ERROR: ", message)
+	quit(exit_code)

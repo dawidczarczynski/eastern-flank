@@ -10,8 +10,8 @@ if ! command -v gdformat >/dev/null 2>&1; then
 fi
 
 if [[ "${1:-}" == "--fix" ]]; then
-	gdformat src tests
+	gdformat src tests tools
 else
-	gdformat --check src tests
+	gdformat --check src tests tools
 fi
-gdlint src tests
+gdlint src tests tools

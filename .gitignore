@@ -13,3 +13,6 @@ export_credentials.cfg
 # System
 .DS_Store
 Thumbs.db
+
+# Screenshots (tools/screenshot.sh)
+.screenshots/
