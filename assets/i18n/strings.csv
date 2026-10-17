@@ -1,10 +1,5 @@
 keys,en,pl
 LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury
-HP %d/%d,HP %d/%d,PŻ %d/%d
-Moves %d/%d,Moves %d/%d,Ruch %d/%d
-Attack %d · Defense %d · Range %d,Attack %d · Defense %d · Range %d,Atak %d · Obrona %d · Zasięg %d
-Ready to attack,Ready to attack,Gotowa do ataku
-Already attacked,Already attacked,Już atakowała
 Infantry,Infantry,Piechota
 Cavalry,Cavalry,Kawaleria
 INF,INF,PIECH
@@ -35,3 +30,12 @@ Plains,Plains,Równina
 Forest,Forest,Las
 Hills,Hills,Wzgórza
 Water,Water,Akwen
+STRENGTH,STRENGTH,SIŁA JEDNOSTKI
+Attack,Attack,Atak
+Defense,Defense,Obrona
+Moves,Moves,Punkty ruchu
+Range,Range,Zasięg (heks)
+Enemy unit,Enemy unit,Jednostka przeciwnika
+Done this turn,Done this turn,Wykonała ruch w tej turze
+Ready,Ready,Gotowa do działania
+Ready · already attacked,Ready · already attacked,Gotowa · już atakowała

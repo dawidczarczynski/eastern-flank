@@ -8,8 +8,7 @@ const MAP_WIDTH := 12
 const MAP_HEIGHT := 10
 const INFANTRY := preload("res://data/units/infantry.tres")
 const CAVALRY := preload("res://data/units/cavalry.tres")
-const INFO_PANEL_MARGIN := 16
-const INFO_PANEL_GAP := 8
+const BOTTOM_LEFT_MARGIN := 16
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
@@ -17,8 +16,8 @@ var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
 var _hovered_unit_id := -1
 var _hud_root: Control
-var _info_panel: PanelContainer
-var _info_label: Label
+var _unit_popup: UnitPopup
+var _popup_unit_id := -1  # unit shown on the hover card, -1 = hidden
 var _hud: BattleHud
 var _terrain_panel: TerrainPanel
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
@@ -45,7 +44,7 @@ func _ready() -> void:
 	_sim.command_rejected.connect(_on_command_rejected)
 
 	_build_hud_root()
-	_build_info_panel()
+	_build_bottom_left_stack()
 	_map_view.build(state.grid)
 	_camera_rig.set_bounds(_map_bounds())
 	var center := _map_view.center()
@@ -59,6 +58,7 @@ func _ready() -> void:
 
 ## The camera can move under a still cursor (keys, wheel) – re-pick the hovered tile then.
 func _process(_delta: float) -> void:
+	_update_unit_popup()
 	var camera := get_viewport().get_camera_3d()
 	if camera == null or camera.global_transform == _last_camera_transform:
 		return
@@ -88,6 +88,7 @@ func debug_select_and_hover(unit_id: int) -> void:
 	var unit := _sim.state.get_unit(unit_id)
 	if unit != null:
 		_set_hovered_hex(unit.coord + Vector2i(2, 0))
+	_update_unit_popup()  # _process is disabled in the screenshot tool
 
 
 ## A click that never became a camera drag: LMB selects/moves/attacks, RMB deselects.
@@ -241,7 +242,6 @@ func _refresh_selection_ui() -> void:
 	_refresh_unit_markers()
 	_refresh_path_preview()
 	_refresh_highlights()
-	_refresh_unit_info()
 
 
 ## Marks the unit under the cursor (brighter marker fill).
@@ -311,42 +311,49 @@ func _build_hud_root() -> void:
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
 
 
-## Bottom-left stack (VBox, bottom-anchored): the TASK-003 unit info panel above the terrain
-## panel, 8 px apart. Hidden children collapse, so neither can overlap the other.
-func _build_info_panel() -> void:
+## Bottom-left stack (VBox, bottom-anchored) holding the terrain panel, plus the unit hover
+## card (positioned next to the cursor, drawn above everything else in the HUD).
+func _build_bottom_left_stack() -> void:
 	var stack := VBoxContainer.new()
 	stack.name = "BottomLeftStack"
 	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stack.alignment = BoxContainer.ALIGNMENT_END
-	stack.add_theme_constant_override(&"separation", INFO_PANEL_GAP)
 	stack.set_anchors_and_offsets_preset(
-		Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, INFO_PANEL_MARGIN
+		Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, BOTTOM_LEFT_MARGIN
 	)
 	stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_hud_root.add_child(stack)
-	_info_panel = PanelContainer.new()
-	_info_panel.name = "UnitInfoPanel"
-	# Clicks over the panel must still reach the map (_unhandled_input).
-	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	_info_label = Label.new()
-	_info_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_info_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_info_panel.add_child(_info_label)
-	stack.add_child(_info_panel)
-	_info_panel.hide()
 	_terrain_panel = TerrainPanel.new()
 	stack.add_child(_terrain_panel)
+	_unit_popup = UnitPopup.new()
+	_hud_root.add_child(_unit_popup)
 
 
-func _refresh_unit_info() -> void:
-	var unit := _sim.state.get_unit(_selected_unit_id)
+## Shows the hover card while the hovered tile holds a living unit, follows the cursor and hides
+## during a camera drag, event playback and after game over. The card is rebuilt when the shown
+## unit changes (and after every event burst, because hiding resets it).
+func _update_unit_popup() -> void:
+	var state := _sim.state
+	var unit: Unit = null
+	if (
+		_hovered_hex != null
+		and state.winner == -1
+		and not _camera_rig.is_dragging()
+		and not _is_playing_events()
+	):
+		unit = state.unit_at(_hovered_hex)
 	if unit == null or not unit.is_alive():
-		_info_panel.hide()
+		_popup_unit_id = -1
+		_unit_popup.hide()
 		return
-	_info_label.text = "\n".join(UnitInfo.lines(unit))
-	_info_panel.show()
-	_info_panel.reset_size()
+	if unit.id != _popup_unit_id or not _unit_popup.visible:
+		_popup_unit_id = unit.id
+		_unit_popup.show_model(UnitPopupModel.build(state, unit, HUMAN_PLAYER))
+	_unit_popup.position = UnitPopupModel.placement(
+		get_viewport().get_mouse_position(),
+		get_viewport().get_visible_rect().size,
+		_unit_popup.card_size()
+	)
 
 
 ## Events are only queued here; playback starts deferred, so everything emitted in this frame

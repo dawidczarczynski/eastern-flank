@@ -78,17 +78,15 @@ func test_all_source_literals_are_keys() -> void:
 func test_polish_translations() -> void:
 	TranslationServer.set_locale("pl")
 	assert_eq(String(TranslationServer.translate("End turn")), "Zakończ turę")
-	var lines := UnitInfo.lines(Unit.new(1, 0, INFANTRY, Vector2i.ZERO))
-	assert_eq(lines[0], "Piechota")
-	assert_eq(lines[2], "Ruch 3/3")
+	assert_eq(String(TranslationServer.translate(INFANTRY.display_name)), "Piechota")
+	assert_eq(String(TranslationServer.translate("Ready")), "Gotowa do działania")
 
 
 func test_english_translations() -> void:
 	TranslationServer.set_locale("en")
 	assert_eq(String(TranslationServer.translate("End turn")), "End turn")
-	var lines := UnitInfo.lines(Unit.new(1, 0, INFANTRY, Vector2i.ZERO))
-	assert_eq(lines[0], "Infantry")
-	assert_eq(lines[2], "Moves 3/3")
+	assert_eq(String(TranslationServer.translate(INFANTRY.display_name)), "Infantry")
+	assert_eq(String(TranslationServer.translate("Ready")), "Ready")
 
 
 func test_unknown_key_translates_to_itself() -> void:

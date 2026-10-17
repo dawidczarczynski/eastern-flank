@@ -37,6 +37,11 @@ func _notification(what: int) -> void:
 		_dragging = false
 
 
+## True while a pressed mouse button is being dragged (pan / rotate), not for plain clicks.
+func is_dragging() -> bool:
+	return _dragging
+
+
 ## Limits the target to the map rectangle (see CameraMath.map_bounds).
 func set_bounds(rect: Rect2) -> void:
 	_bounds = rect
