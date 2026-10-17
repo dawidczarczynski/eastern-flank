@@ -14,6 +14,7 @@ var _sim: GameSimulation
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
+var _hovered_unit_id := -1
 var _hud_root: Control
 var _info_panel: PanelContainer
 var _info_label: Label
@@ -131,7 +132,7 @@ func _spawn_start_units(state: GameState) -> void:
 func _create_unit_view(unit: Unit) -> void:
 	var view := UnitView.new()
 	_units_root.add_child(view)
-	view.setup(unit, _map_view.tile_top_position(unit.coord))
+	view.setup(unit, _map_view.tile_top_position(unit.coord), _hud_root, _map_view.mesh_height_at)
 	_unit_views[unit.id] = view
 
 
@@ -159,6 +160,7 @@ func _set_hovered_hex(coord: Variant) -> void:
 		return
 	_hovered_hex = coord
 	_map_view.set_hover(coord)
+	_refresh_hovered_unit()
 	_refresh_path_preview()
 
 
@@ -219,9 +221,40 @@ func _select(unit_id: int) -> void:
 ## and the path preview (recomputed for the hovered tile; it hides itself when there is
 ## no valid target, e.g. after a move, on turn end or game over).
 func _refresh_selection_ui() -> void:
+	_refresh_unit_markers()
 	_refresh_path_preview()
 	_refresh_highlights()
 	_refresh_unit_info()
+
+
+## Marks the unit under the cursor (brighter marker fill).
+func _refresh_hovered_unit() -> void:
+	var id := -1
+	if _hovered_hex != null:
+		var unit := _sim.state.unit_at(_hovered_hex)
+		if unit != null and _unit_views.has(unit.id):
+			id = unit.id
+	if id == _hovered_unit_id:
+		return
+	if _unit_views.has(_hovered_unit_id):
+		(_unit_views[_hovered_unit_id] as UnitView).set_hovered(false)
+	_hovered_unit_id = id
+	if _unit_views.has(id):
+		(_unit_views[id] as UnitView).set_hovered(true)
+
+
+## "Done" dimming applies to units that have nothing left to do on their owner's turn.
+func _refresh_unit_markers() -> void:
+	var state := _sim.state
+	for id: int in _unit_views:
+		var unit := state.get_unit(id)
+		var done := (
+			unit != null
+			and unit.is_alive()
+			and unit.owner_id == state.current_player
+			and UnitStatus.is_done(state, unit)
+		)
+		(_unit_views[id] as UnitView).set_done(done)
 
 
 func _refresh_highlights() -> void:

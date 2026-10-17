@@ -28,6 +28,7 @@ static func build() -> Theme:
 	_label_variation(theme, &"TitleLabel", "IBMPlexSansCondensed-SemiBold", 20, UiPalette.TEXT, 0)
 	_label_variation(theme, &"CaptionLabel", "IBMPlexMono-Medium", 10, UiPalette.TEXT_SECONDARY, 2)
 	_label_variation(theme, &"ValueLabel", "IBMPlexMono-Medium", 13, UiPalette.TEXT, 0)
+	_label_variation(theme, &"UnitTagLabel", "IBMPlexMono-SemiBold", 9, UiPalette.TEXT, 1)
 	_label_variation(theme, &"MonoLabel", "IBMPlexMono-Regular", 11, UiPalette.TEXT_MUTED, 0)
 
 	var button := StyleBoxFlat.new()

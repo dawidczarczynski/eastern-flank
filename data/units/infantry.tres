@@ -6,6 +6,7 @@
 script = ExtResource("1_def")
 id = &"infantry"
 display_name = "Infantry"
+short_name = "INF"
 max_hp = 10
 move_points = 3
 attack = 4

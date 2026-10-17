@@ -4,6 +4,7 @@ extends Resource
 
 @export var id: StringName
 @export var display_name: String
+@export var short_name: String
 @export var max_hp: int = 10
 @export var move_points: int = 3
 @export var attack: int = 4

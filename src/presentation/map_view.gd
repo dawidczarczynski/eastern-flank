@@ -111,6 +111,11 @@ func surface() -> TerrainSurface:
 	return _surface
 
 
+## Height of the drawn terrain mesh at (x, z) – what overlays and markers drape onto.
+func mesh_height_at(x: float, z: float) -> float:
+	return _mesh_ground_height(x, z)
+
+
 func tile_top_position(c: Vector2i) -> Vector3:
 	var p := Hex.to_world(c, hex_size)
 	p.y = _surface.ground_height(p.x, p.z)
