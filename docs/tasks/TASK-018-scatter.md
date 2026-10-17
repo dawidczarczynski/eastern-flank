@@ -1,6 +1,6 @@
 # TASK-018: Scatter – trees and rocks
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure placement planner tested in `tests/unit/`)
 - **Depends on**: **TASK-016b** (surface heights). Reference: `docs/design/game_screen.scene.js` lines 351–392.
 - **Model**: sonnet
@@ -47,4 +47,9 @@ Forests read as forests – dense clumps of small conifers and leafy trees – a
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `ScatterPlanner` (`src/presentation/scatter_planner.gd`) is a pure `RefCounted` planner with a local `RandomNumberGenerator`. It never touches `GameState.rng`. `MapView` uses the constant seed `SCATTER_SEED = 20240518`, so the same map gets the same scatter on every run.
+- `MapView._build_scatter` runs right after the terrain mesh. It builds 4 `MultiMeshInstance3D`s (ConiferCrowns, DeciduousCrowns, Trunks, Rocks) from shared meshes and materials. Crowns use `use_colors` with `vertex_color_use_as_albedo`, and all four cast shadows. The meshes are centred on their origin, and the base offsets (0.19 / 0.14 / 0.05) are applied in the instance transform, so they scale with the tree. Rock rotation uses Euler XYZ to match the mock-up.
+- Measured `MapView.build` on the battle map: **964 ms**, with terrain, water, grid lines and scatter (limit 2 s).
+- Test deviation: trees can land up to 0.95 from a centre, which is past the hex inradius, so on a generated map a tree's `Hex.from_world` tile can be a neighbour. The generated-map test therefore checks three things: every tree lies in the 0.3–0.95 ring of some forest or plains tile; no tree lies within 0.3 of a hills or water centre; the total stays within the budget. Exact per-tile counts are tested on hand-made grids with isolated tiles.
+- Visual check: `docs/design/reference.png` does not exist, so I couldn't compare against it. On the screenshot, forests read as dense clumps of cones and blobs, lone trees dot the plains, and units on forest tiles are visible in their clearings. Rocks show only as tiny pale dots at the default camera distance. The deciduous blobs look rather bright and lime against the terrain, so check that in the playtest.
+- Known limitation: no test counts the `MultiMeshInstance3D` nodes in `MapView`. The criterion was checked by code review.

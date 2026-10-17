@@ -45,6 +45,17 @@ const RING_SEGMENTS := 5
 const DOT_RADIUS := 0.05
 const DOT_LIFT := 0.1
 const LAST_DOT_SCALE := 1.8
+## Scatter (TASK-018): view-local seed (never the simulation RNG) and mesh values.
+const SCATTER_SEED := 20240518
+const CONIFER_COLOR_A := Color("#2c4626")
+const CONIFER_COLOR_B := Color("#3d5a30")
+const DECIDUOUS_COLOR_A := Color("#41602c")
+const DECIDUOUS_COLOR_B := Color("#6b7f36")
+const TRUNK_COLOR := Color("#4a3b2a")
+const ROCK_COLOR := Color("#7d776a")
+const CONIFER_CENTER := 0.19
+const DECIDUOUS_CENTER := 0.14
+const TRUNK_CENTER := 0.05
 
 @export var hex_size: float = 1.0
 
@@ -102,6 +113,7 @@ func build(grid: HexGrid) -> void:
 		centers.append(Hex.to_world(c, hex_size))
 	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
 	_tiles_root.add_child(_build_terrain(rect))
+	_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED))
 	_tiles_root.add_child(_build_water(rect))
 	_tiles_root.add_child(_build_grid_lines())
 
@@ -202,6 +214,133 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	instance.mesh = mesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	return instance
+
+
+## Trees and rocks as four MultiMeshInstance3Ds (conifer crowns, deciduous crowns, trunks,
+## rocks) – no node per tree.
+func _build_scatter(plan: Dictionary) -> void:
+	var trees: Array = plan["trees"]
+	var cones: Array = []
+	var blobs: Array = []
+	for tree: Dictionary in trees:
+		(cones if tree["conifer"] else blobs).append(tree)
+
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.0
+	cone.bottom_radius = 0.075
+	cone.height = 0.3
+	cone.radial_segments = 7
+	cone.rings = 1
+	var blob := SphereMesh.new()
+	blob.radius = 0.085
+	blob.height = 0.17
+	blob.radial_segments = 8
+	blob.rings = 4
+	var trunk := CylinderMesh.new()
+	trunk.top_radius = 0.01
+	trunk.bottom_radius = 0.014
+	trunk.height = 0.1
+	trunk.radial_segments = 5
+	trunk.rings = 1
+	var rock := SphereMesh.new()
+	rock.radius = 0.05
+	rock.height = 0.1
+	rock.radial_segments = 6
+	rock.rings = 3
+
+	var crown_material := _scatter_material(Color.WHITE, 0.9, true)
+	_add_scatter(
+		"ConiferCrowns",
+		cone,
+		crown_material,
+		_tree_transforms(cones, CONIFER_CENTER),
+		_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
+	)
+	_add_scatter(
+		"DeciduousCrowns",
+		blob,
+		crown_material,
+		_tree_transforms(blobs, DECIDUOUS_CENTER),
+		_tree_colors(blobs, DECIDUOUS_COLOR_A, DECIDUOUS_COLOR_B)
+	)
+	_add_scatter(
+		"Trunks",
+		trunk,
+		_scatter_material(TRUNK_COLOR, 1.0, false),
+		_tree_transforms(trees, TRUNK_CENTER),
+		PackedColorArray()
+	)
+	var rock_transforms: Array[Transform3D] = []
+	for r: Dictionary in plan["rocks"]:
+		var s: float = r["scale"]
+		var basis := (
+			Basis.from_euler(r["rotation"], EULER_ORDER_XYZ)
+			* Basis.from_scale(Vector3(s, 0.7 * s, s))
+		)
+		rock_transforms.append(Transform3D(basis, r["position"]))
+	_add_scatter(
+		"Rocks",
+		rock,
+		_scatter_material(ROCK_COLOR, 0.95, false),
+		rock_transforms,
+		PackedColorArray()
+	)
+
+
+## Tree transforms; `center` lifts the mesh (centred on its origin) so its base sits on the
+## planted position.
+static func _tree_transforms(trees: Array, center: float) -> Array[Transform3D]:
+	var result: Array[Transform3D] = []
+	for tree: Dictionary in trees:
+		var s: float = tree["scale"]
+		var basis := (
+			Basis(Vector3.UP, tree["yaw"]) * Basis.from_scale(Vector3(s, tree["height_scale"], s))
+		)
+		var origin: Vector3 = tree["position"] + basis * Vector3(0.0, center, 0.0)
+		result.append(Transform3D(basis, origin))
+	return result
+
+
+static func _tree_colors(trees: Array, a: Color, b: Color) -> PackedColorArray:
+	var colors := PackedColorArray()
+	for tree: Dictionary in trees:
+		colors.append(a.lerp(b, tree["k"]))
+	return colors
+
+
+static func _scatter_material(
+	color: Color, roughness: float, use_vertex_color: bool
+) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	material.metallic = 0.0
+	material.vertex_color_use_as_albedo = use_vertex_color
+	return material
+
+
+func _add_scatter(
+	node_name: String,
+	mesh: Mesh,
+	material: Material,
+	transforms: Array[Transform3D],
+	colors: PackedColorArray
+) -> void:
+	mesh.material = material
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = not colors.is_empty()
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	for i in transforms.size():
+		multi.set_instance_transform(i, transforms[i])
+		if multi.use_colors:
+			multi.set_instance_color(i, colors[i])
+	var instance := MultiMeshInstance3D.new()
+	instance.name = node_name
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	_tiles_root.add_child(instance)
 
 
 func _build_water(rect: Rect2) -> MeshInstance3D:
