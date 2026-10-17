@@ -1,0 +1,21 @@
+[gd_resource type="Environment" format=3]
+
+[resource]
+background_mode = 1
+background_color = Color(0.6627451, 0.7058824, 0.69803923, 1)
+background_energy_multiplier = 0.55
+ambient_light_source = 2
+ambient_light_color = Color(0.7254902, 0.7490196, 0.7529412, 1)
+ambient_light_energy = 0.32
+tonemap_mode = 3
+tonemap_exposure = 1.05
+fog_enabled = true
+fog_mode = 1
+fog_light_color = Color(0.6627451, 0.7058824, 0.69803923, 1)
+fog_light_energy = 0.55
+fog_sun_scatter = 0.0
+fog_density = 1.0
+fog_aerial_perspective = 0.0
+fog_depth_curve = 1.0
+fog_depth_begin = 38.0
+fog_depth_end = 90.0

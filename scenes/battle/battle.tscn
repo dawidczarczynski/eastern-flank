@@ -1,29 +1,25 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/presentation/battle_controller.gd" id="1_battle"]
 [ext_resource type="Script" path="res://src/presentation/map_view.gd" id="2_map"]
 [ext_resource type="Script" path="res://src/presentation/camera_rig.gd" id="3_camera"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
-
-[sub_resource type="Sky" id="Sky_main"]
-sky_material = SubResource("ProceduralSkyMaterial_sky")
-
-[sub_resource type="Environment" id="Environment_main"]
-background_mode = 2
-sky = SubResource("Sky_main")
-ambient_light_source = 3
-tonemap_mode = 2
+[ext_resource type="Environment" path="res://assets/environments/battle_environment.tres" id="4_env"]
 
 [node name="Battle" type="Node3D"]
 script = ExtResource("1_battle")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_main")
+environment = ExtResource("4_env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.5736, -0.8192, 0, 0.8192, 0.5736, 0, 10, 0)
+transform = Transform3D(0.613941, 0.593442, -0.520483, 0, 0.65938, 0.751809, 0.789352, -0.461566, 0.40482, 0, 10, 0)
+light_color = Color(1, 0.9411765, 0.84705883, 1)
+light_energy = 0.86
+light_angular_distance = 1.0
 shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.0
+directional_shadow_max_distance = 80.0
 
 [node name="MapView" type="Node3D" parent="."]
 script = ExtResource("2_map")

@@ -1,6 +1,6 @@
 # TASK-013: Lighting & atmosphere like the visual design
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (scene + environment resource; resource values checked in `tests/unit/`)
 - **Depends on**: nothing. Best done before TASK-016b (terrain colours are judged under this light). Reference: `docs/design/README.md` ("Scene"), `docs/design/game_screen.scene.js` lines 265–276.
 - **Model**: sonnet
@@ -18,6 +18,7 @@ The battle looks like a hazy, warm late-morning day: grey-green sky that the map
 | ACES tone mapping, exposure 1.05 | `tonemap_mode = TONE_MAPPER_ACES`, `tonemap_exposure = 1.05` (white left at default) |
 | `HemisphereLight(#dde7ee, #4b4534, 1.0)` | No hemisphere light in Godot → `ambient_light_source = AMBIENT_SOURCE_COLOR`, `ambient_light_color = #b9bfc0` (75 % sky + 25 % ground colour, because the terrain faces mostly up), `ambient_light_energy = 0.32` (starting value, see note) |
 | `DirectionalLight(#fff0d8, 2.7)` at `(-18, 26, 14)` looking at the origin | `Sun` (DirectionalLight3D): `light_color = #fff0d8`, `light_energy = 0.86` (starting value), forward direction (`-basis.z`) = normalize(18, −26, −14) ≈ (0.520, −0.752, −0.405) |
+| (Godot only) background/fog not tonemapped in three.js | `background_energy_multiplier = fog_light_energy = 0.55` – compensates ACES so the rendered haze is `#a9b4b2` (see implementation notes) |
 | `PCFSoftShadowMap`, map 4096, bias −0.0004, normalBias 0.03 | `shadow_enabled = true`, `light_angular_distance = 1.0` (soft penumbra), `shadow_bias = 0.03`, `shadow_normal_bias = 1.0`, `directional_shadow_max_distance = 80`, project setting `rendering/lights_and_shadows/directional_shadow/size = 4096`, `.../soft_shadow_filter_quality = 3` |
 
 Note on intensities: three.js r160 (physical lights) divides light contributions by π compared with Godot's energy convention, so 2.7 → ≈ 0.86 and 1.0 → ≈ 0.32. These are **starting values**: tune `light_energy` in 0.7–1.4 and `ambient_light_energy` in 0.25–0.6 against the reference screenshot and record the final numbers in the implementation notes.
@@ -46,4 +47,7 @@ Note on intensities: three.js r160 (physical lights) divides light contributions
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Environment moved to `assets/environments/battle_environment.tres` (table values; `fog_density = 1.0` = fully fogged at depth 90). `battle.tscn` references it; the procedural sky is gone. Sun: colour, angular distance 1.0, bias 0.03, normal bias 1.0, max distance 80, basis with forward ≈ (0.520, −0.752, −0.405). Shadow atlas 4096 + soft filter quality 3 in `project.godot`.
+- Final intensities: `light_energy = 0.86`, `ambient_light_energy = 0.32` (starting values kept; can't be judged fairly until the TASK-016b terrain palette).
+- **Deviation – tonemapped haze**: in three.js the clear colour isn't tonemapped and fog is applied *after* tonemapping, so the design shows exactly `#a9b4b2`. In Godot the background and fog go through ACES (and `fog_sky_affect = 1` fogs the background), which rendered `#d6dedc`. Fix: keep `background_color`/`fog_light_color = #a9b4b2` and scale `background_energy_multiplier` and `fog_light_energy` to 0.55 – calibrated by reading the screenshot pixel (0.54 → `#a8b2b0`, 0.55 → `#aab4b2`, 0.56 → `#abb5b3`). If exposure or tonemapper change, recalibrate. The test asserts both energies stay equal.
+- Visual check (`tools/screenshot.sh`): background measured `#aab4b2`; unit shadows fall right/bottom-right with soft edges; shaded sides not black. `docs/design/reference.png` is not in the repo, so comparison was against the value table only. Not verified on screenshot: the far-fog fade (default camera barely reaches depth 38) – playtest step 2. Still differs from the design: very saturated tile colours (TASK-016b), primitive units (TASK-019).
