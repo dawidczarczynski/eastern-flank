@@ -1,7 +1,7 @@
 class_name TerrainDefinition
 extends Resource
 ## Static data for a terrain type. Instances are kept as .tres files in data/terrain/.
-## Core rules read only the gameplay properties; the "Presentation" group is for the view layer.
+## Only gameplay data: the view derives terrain looks from type and elevation (TerrainColors).
 
 @export var id: StringName
 @export var display_name: String
@@ -12,7 +12,3 @@ extends Resource
 ## Elevation of a tile of this type when the map has no generated elevation
 ## (hand-made/test grids). Generated maps store per-tile elevation in HexGrid.
 @export var default_elevation: float = 0.2
-
-@export_group("Presentation")
-@export var color: Color = Color.WHITE
-@export var height: float = 0.2

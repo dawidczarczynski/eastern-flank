@@ -10,5 +10,3 @@ move_cost = 1
 impassable = true
 defense_bonus = 0
 default_elevation = -0.3
-color = Color(0.2, 0.42, 0.7, 1)
-height = 0.08

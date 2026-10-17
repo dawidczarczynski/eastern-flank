@@ -1,6 +1,6 @@
 # TASK-016b: Continuous terrain mesh, water plane, grid lines, surface picking
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure colour function tested) + core (pure surface raycast tested)
 - **Depends on**: **TASK-016a** (elevation, `TerrainSurface`). Soft: TASK-013 (judge colours under the final light), TASK-015 (default framing). Reference: `docs/design/README.md` ("Terrain colours"), `docs/design/game_screen.scene.js` lines 278–330 (terrain mesh, colours, water, grid lines) and 519–529 (`pickGround`).
 - **Model**: opus
@@ -13,7 +13,7 @@ The hex prisms are replaced by one continuous, softly lit landscape coloured lik
 
 - Mesh: a regular grid covering the map bounds (`CameraMath.map_bounds` if TASK-015 is done, else the same formula) **plus 6 units** on every side (`EXTENT = 6`), `RESOLUTION = 5` vertices per world unit (the mock-up uses 9 and 6; 5 keeps the GDScript build fast – raise if the build time allows). Vertex height = `TerrainSurface.height_at` (not clamped: lake beds go below the water plane).
 - Material: `StandardMaterial3D`, `vertex_color_use_as_albedo = true`, roughness 0.95, metallic 0, receives and casts shadows. Colours are mixed in **linear** space like three.js (convert the sRGB palette with `srgb_to_linear()` once), `vertex_color_is_srgb = false`.
-- Palette (sRGB): deep `#17323b`, shoal `#5d8778`, sand `#c6b78a`, grass `#627c33` / `#87974b`, forest `#2f4a26` / `#3f5a2d`, hill `#837b50`, rock `#756e5e` / `#a29c8f`, snow `#eef0ef`.
+- Palette (sRGB): deep `#17323b`, shoal `#5d8778`, sand `#c6b78a`, grass `#627c33` / `#87974b`, forest `#46672f` / `#587a38` (lightened from the mock-up's `#2f4a26` / `#3f5a2d`, see implementation notes), hill `#837b50`, rock `#756e5e` / `#a29c8f`, snow `#eef0ef`.
 - Colour per vertex (port of the mock-up, `k = fbm(x·0.35, z·0.35, 61, 3)`, `ny` = normal Y):
   - `y < 0.03`: `deep → shoal` by `smooth(−0.7, −0.05, y)`, then `→ sand` by `smooth(−0.06, 0.03, y)`;
   - else: `grass1 → grass2` by `smooth(0.35, 0.7, k)`; if the tile at the **jittered** position (`x + (fbm(x·0.8, z·0.8, 71, 2) − 0.5)·0.55`, `z + (fbm(x·0.8 + 9, z·0.8, 72, 2) − 0.5)·0.55`) is FOREST: lerp to `forest1 → forest2 (by k)` by 0.85; then `→ sand` by `smooth(0.16, 0.04, y)`; `→ hill` by `smooth(0.6, 1.1, y)·0.6`; `→ rock1/rock2 (by k)` by `min(1, smooth(0.18, 0.42, 1 − ny) + smooth(1.3, 1.8, y)·0.85)`; `→ snow` by `smooth(1.85, 2.15, y + (k − 0.5)·0.35) · smooth(0.55, 0.8, ny)`;
@@ -60,4 +60,23 @@ The hex prisms are replaced by one continuous, softly lit landscape coloured lik
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Logic part:
+
+- `TerrainSurface.raycast(origin, direction)` ports `pickGround`: it normalises the direction, returns null when it points up or sideways, starts at `y = 3`, marches in 0.25 steps up to 120 units and then bisects 8 times against `ground_height`. Tests cover a flat grid, the water, and a hill on a generated map (seed 6).
+- `TerrainColors` (pure, presentation): `color_at` returns a linear colour; the palette is converted from sRGB once. `noise_k` and `jitter` are helpers for the per-vertex inputs, with the noise seeds as named constants.
+
+Visual part (presentation):
+
+- `MapView.build(grid)` creates one `TerrainSurface` (`surface()`), then three nodes under the tiles root: `Terrain` (an `ArrayMesh` built from packed arrays over `CameraMath.map_bounds` grown by `EXTENT = 6`), `Water` (`PlaneMesh` at `y = 0`, mesh size + 80) and `GridLines` (one `PRIMITIVE_LINES` `ArrayMesh`, 6 edges × 5 segments per tile). Hex prisms and tree cones are gone.
+- Normals come from central differences on the height grid (computed before colouring, as `color_at` needs `normal_y`); colours from `TerrainColors.color_at` with `noise_k`, the tile type at `jitter(x, z)` and `on_map` of the vertex itself.
+- **`RESOLUTION = 3`, not 5.** `TerrainField.height` costs ~75 µs per call in GDScript (`noise_k` ~9 µs, `jitter` ~15 µs, `color_at` ~4.5 µs), so at 5 vertices/unit (~23.5k vertices) the build took ~3.5 s. At 3 (~10.5k vertices) `MapView.build` takes **~1.0 s** for the 12×10 battle map (headless, 3 runs: 1039/1035/987 ms).
+- Grid line heights are interpolated on the terrain mesh triangles (same diagonal split as the mesh, clamped to the water surface) instead of calling `ground_height` 7,200 times (~0.6 s). The lines sit exactly on the drawn mesh.
+- `tile_top_position(c)` = tile centre at `surface.ground_height`; units, highlights, attack markers, path markers and the path label use it. `PICK_HEIGHT` was removed; `BattleController._pick_hex` uses `surface().raycast` + `Hex.from_world` (null on miss or off the map).
+- TASK-002 presentation fields `color`/`height` were removed from `TerrainDefinition` and `data/terrain/*.tres` (nothing read them any more); ADR 0002 got an "Amended by TASK-016b" note.
+
+Known limitations:
+
+- The mesh is coarser than the design (3 vs 6 vertices/unit), so it can differ from `TerrainSurface.ground_height` by a few centimetres between vertices: units/markers (exact surface) may sit slightly above or below the drawn mesh on rough slopes. Raising the resolution needs a faster `TerrainField.height` (e.g. caching or a C++/shader port) or building the mesh on worker threads.
+- Vertex colours are stored as 8-bit, so in linear space the darkest water colours may band slightly.
+- **Deviation – lighter forest palette** (after playtest feedback "looks like fog of war"): the mock-up's forest `#2f4a26`/`#3f5a2d` is ~3× darker than grass in linear light and ACES crushes it to near-black; the mock-up hides that under trees. Now `#46672f`/`#587a38`. Raising the TASK-013 light (ambient 0.55, sun 1.1) was tried first and barely helped the forest, so the light was left as it was. Re-check after TASK-018 adds trees (the ground under trees may then be darkened again).
+

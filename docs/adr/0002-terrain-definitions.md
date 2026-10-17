@@ -21,3 +21,7 @@ Terrain numbers lived in code (`src/core/terrain.gd`, colour/height constants in
 - (+) A single damage function reusable by counterattacks.
 - (−) The enum and the `_PATHS` table must be kept in sync when adding a terrain.
 - (−) Presentation data sits in a core class, kept harmless by the read rule above.
+
+## Amended by TASK-016b
+
+The Presentation group (`color`, `height`) was removed from `TerrainDefinition` and `data/terrain/*.tres`. The view no longer draws per-tile prisms: one continuous terrain mesh takes its heights from `TerrainSurface` (core elevation) and its colours from `TerrainColors` (`src/presentation/terrain_colors.gd`), which ports the design palette and depends on the terrain type and height. `TerrainDefinition` now holds gameplay data only (`default_elevation` is gameplay data: it drives the surface height on hand-made grids). The read rule above still applies if presentation fields are ever added again.

@@ -132,7 +132,7 @@ func _pick_hex(screen_position: Vector2) -> Variant:
 	var camera := get_viewport().get_camera_3d()
 	var origin := camera.project_ray_origin(screen_position)
 	var direction := camera.project_ray_normal(screen_position)
-	var hit: Variant = Plane(Vector3.UP, MapView.PICK_HEIGHT).intersects_ray(origin, direction)
+	var hit: Variant = _map_view.surface().raycast(origin, direction)
 	if hit == null:
 		return null
 	var coord := Hex.from_world(hit, _map_view.hex_size)

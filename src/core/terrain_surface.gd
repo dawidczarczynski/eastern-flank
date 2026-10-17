@@ -11,6 +11,12 @@ const WATER_SURFACE := 0.0
 const _CORRECTION_FULL := 0.35
 ## ...fading to none at this distance (below the hex inradius 0.866).
 const _CORRECTION_NONE := 0.8
+## Raycast: marching starts where the ray is at this height (nothing on the map is higher)...
+const _RAY_START_HEIGHT := 3.0
+## ...in steps of this length, for at most this distance, then refines the hit by bisection.
+const _RAY_STEP := 0.25
+const _RAY_MAX_DISTANCE := 120.0
+const _RAY_BISECTION_STEPS := 8
 
 var _grid: HexGrid
 ## Vector2i -> float (field height at the tile centre). Not invalidated: assumes
@@ -41,6 +47,36 @@ func height_at(x: float, z: float) -> float:
 ## Height that units, overlays and picking sit on: never below the water surface.
 func ground_height(x: float, z: float) -> float:
 	return maxf(height_at(x, z), WATER_SURFACE)
+
+
+## First point where the ray from `origin` along `direction` (need not be normalised)
+## meets `ground_height`, or null if it points up/sideways or misses within the range.
+## Port of the design's pickGround (docs/design/game_screen.scene.js).
+func raycast(origin: Vector3, direction: Vector3) -> Variant:
+	if direction.y >= 0.0:
+		return null
+	var d := direction.normalized()
+	var t0 := maxf(0.0, (origin.y - _RAY_START_HEIGHT) / -d.y)
+	var prev := t0
+	var t := t0
+	while t < t0 + _RAY_MAX_DISTANCE:
+		if _is_below_ground(origin + d * t):
+			var a := prev
+			var b := t
+			for i in _RAY_BISECTION_STEPS:
+				var m := (a + b) * 0.5
+				if _is_below_ground(origin + d * m):
+					b = m
+				else:
+					a = m
+			return origin + d * b
+		prev = t
+		t += _RAY_STEP
+	return null
+
+
+func _is_below_ground(p: Vector3) -> bool:
+	return p.y <= ground_height(p.x, p.z)
 
 
 func _center_height(c: Vector2i, center: Vector3) -> float:
