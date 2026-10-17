@@ -9,5 +9,6 @@ display_name = "Forest"
 move_cost = 2
 impassable = false
 defense_bonus = 1
+default_elevation = 0.25
 color = Color(0.24, 0.45, 0.22, 1)
 height = 0.25

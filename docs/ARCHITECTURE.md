@@ -53,13 +53,13 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 
 | Directory | Contents |
 |---|---|
-| `src/core/` | Game state and rules (pure GDScript) |
+| `src/core/` | Game state and rules (pure GDScript), incl. map generation and terrain elevation (`TerrainNoise`, `TerrainField`, `TerrainSurface` – the 3D surface height query) |
 | `src/core/commands/` | Commands – the only way to change state |
 | `src/core/data/` | Resource classes (`Resource`) holding data |
 | `src/ai/` | Computer opponents |
 | `src/presentation/` | Node scripts: views, camera, scene controllers |
 | `scenes/` | `.tscn` scenes (battle, UI) |
-| `data/` | `.tres` data instances (units, later terrain, factions) |
+| `data/` | `.tres` data instances (units, terrain, map generation settings; later factions) |
 | `assets/` | `.glb` models, textures, materials, shaders, audio, fonts |
 | `addons/` | Godot plugins |
 | `tests/` | Runner, `TestCase`, fixtures, `unit/` and `integration/` tests |

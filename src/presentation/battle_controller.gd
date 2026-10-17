@@ -116,7 +116,7 @@ func _spawn_start_units(state: GameState) -> void:
 	]
 	for spawn: Array in spawns:
 		var coord := MapGenerator.offset_to_axial(spawn[2], spawn[3])
-		state.grid.set_terrain(coord, Terrain.Type.PLAINS)
+		MapGenerator.force_terrain(state.grid, coord, Terrain.Type.PLAINS)
 		state.add_unit(spawn[0], spawn[1], coord)
 
 

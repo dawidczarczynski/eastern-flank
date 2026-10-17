@@ -29,7 +29,18 @@
 
   Terrain numbers (move cost, impassable, defense bonus) and look (colour, height) live in `data/terrain/*.tres` (`TerrainDefinition`), the source of truth; see ADR 0002.
 
-- Planned (TASK-016a): terrain is derived from a deterministic per-hex **elevation** and **moisture** (fbm noise ported from the visual design, offset by the map seed): low ground → water (lakes, no sea edge), high ground → hills, wet ground → forest, the rest plains. Spawn tiles are forced to plains with their elevation clamped into the land band. Generator numbers live in `data/map/terrain_generation.tres`. Elevation has **no rule effect** yet (see Open questions).
+- **Terrain generation** (TASK-016a, implemented): terrain is derived from a deterministic per-hex **elevation** and **moisture** (fbm/ridged value noise ported from the visual design, `TerrainNoise`; the map seed only picks a world-space offset). Elevation = base + rolling hills + ridged mountains (inside a large-scale mask) + fine detail − lakes (a separate noise; there is no sea edge). Classification: elevation below `water_level` → water; above `hills_level` → hills, or forest when moisture > `highland_forest_moisture`; otherwise forest when moisture > `forest_moisture`, else plains. Spawn tiles are forced to plains with their elevation clamped into the land band (`MapGenerator.force_terrain`). The same height field, corrected around forced tiles, is exposed as a continuous surface (`TerrainSurface.height_at` / `ground_height`) for the 3D view. Elevation has **no rule effect** yet (see Open questions).
+- Generator numbers live in `data/map/terrain_generation.tres` (`TerrainGenerationSettings`), hex size 1.0. Current values (the design's starting values; no tuning was needed):
+
+  | group | values |
+  |---|---|
+  | height | base 0.2; hills freq 0.11, gain 2.4, weight 0.85; mountain mask freq 0.05, from 0.62, to 0.85; mountain freq 0.17, gain 2.1; lake freq 0.09, from 0.6, to 0.75, depth 1.0; detail freq 0.7, amplitude 0.07 |
+  | moisture | freq 0.13 |
+  | classification | water level 0.02, hills level 0.7, forest moisture 0.61, highland forest moisture 0.66 |
+  | forcing bands | land [0.12, 0.7], hills [0.71, 2.2], water [−0.75, −0.05] |
+
+  Resulting mix on 12×10 maps over seeds 1–50: water ≈ 11 %, forest ≈ 18 %, hills ≈ 5.5 %, plains ≈ 66 %; in 46 of 50 maps ≥ 90 % of the land is one connected region. Hills sit at the low end of the tested 5–25 % band – a candidate for tuning once elevation affects rules.
+- Tiles without generated elevation (hand-made maps, tests) use a per-type default from `data/terrain/*.tres` (`default_elevation`: plains 0.2, forest 0.25, hills 0.9, water −0.3).
 
 ## Visual direction
 

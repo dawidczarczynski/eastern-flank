@@ -1,10 +1,14 @@
 class_name HexGrid
 extends RefCounted
-## Map: a set of hex tiles with a terrain type.
+## Map: a set of hex tiles with a terrain type and an elevation.
 
 const _INF := 1 << 30
 
+## Continuous height field the map was generated from; null for hand-made/test grids.
+var field: TerrainField
+
 var _terrain: Dictionary = {}  # Vector2i -> Terrain.Type
+var _elevation: Dictionary = {}  # Vector2i -> float
 
 
 func set_terrain(c: Vector2i, t: Terrain.Type) -> void:
@@ -17,6 +21,19 @@ func has_tile(c: Vector2i) -> bool:
 
 func get_terrain(c: Vector2i) -> Terrain.Type:
 	return _terrain.get(c, Terrain.Type.WATER)
+
+
+func set_elevation(c: Vector2i, e: float) -> void:
+	_elevation[c] = e
+
+
+## Stored elevation of the tile; if never set, the terrain type's default; 0 off the map.
+func elevation(c: Vector2i) -> float:
+	if not has_tile(c):
+		return 0.0
+	if _elevation.has(c):
+		return _elevation[c]
+	return Terrain.default_elevation(get_terrain(c))
 
 
 func coords() -> Array[Vector2i]:

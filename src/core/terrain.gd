@@ -24,3 +24,8 @@ static func definition(t: Type) -> TerrainDefinition:
 static func move_cost(t: Type) -> int:
 	var def := definition(t)
 	return IMPASSABLE if def.impassable else def.move_cost
+
+
+## Elevation of a tile of type `t` that has no stored elevation (see HexGrid.elevation).
+static func default_elevation(t: Type) -> float:
+	return definition(t).default_elevation

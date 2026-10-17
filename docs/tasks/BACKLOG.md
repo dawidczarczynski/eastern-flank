@@ -18,7 +18,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-023](TASK-023-localization.md) | Localization setup: CSV en + pl, `tr()` for HUD strings | done | – (before the HUD tasks) |
 | [TASK-015](TASK-015-camera.md) | Camera like the design: drag-pan, RMB rotate, pitch by distance, map clamp | done | – (soft: TASK-023) |
 | [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | done | TASK-001 |
-| [TASK-016a](TASK-016a-terrain-elevation.md) | Deterministic terrain elevation in core (`TerrainField`, `TerrainSurface`) | ready | – (after TASK-002 recommended) |
+| [TASK-016a](TASK-016a-terrain-elevation.md) | Deterministic terrain elevation in core (`TerrainField`, `TerrainSurface`) | done | – (after TASK-002 recommended) |
 | [TASK-016b](TASK-016b-terrain-mesh.md) | Continuous terrain mesh, water plane, grid lines, surface picking | ready | **TASK-016a** (soft: TASK-013, TASK-015) |
 | [TASK-017](TASK-017-map-overlays.md) | Map overlays: reach wash + rings, pulsing hover ring, path dots | ready | **TASK-016b**, TASK-014 (soft: TASK-009) |
 | [TASK-019](TASK-019-unit-models.md) | Unit models from primitives, faction markers, unit labels (+ upright check) | ready | **TASK-016b**, **TASK-017**, TASK-014 (soft: TASK-008, TASK-009) |

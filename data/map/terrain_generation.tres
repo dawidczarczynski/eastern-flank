@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="TerrainGenerationSettings" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/terrain_generation_settings.gd" id="1_settings"]
+
+[resource]
+script = ExtResource("1_settings")
+base_height = 0.2
+hills_frequency = 0.11
+hills_gain = 2.4
+hills_weight = 0.85
+mountain_mask_frequency = 0.05
+mountain_mask_from = 0.62
+mountain_mask_to = 0.85
+mountain_frequency = 0.17
+mountain_gain = 2.1
+lake_frequency = 0.09
+lake_from = 0.6
+lake_to = 0.75
+lake_depth = 1.0
+detail_frequency = 0.7
+detail_amplitude = 0.07
+moisture_frequency = 0.13
+water_level = 0.02
+hills_level = 0.7
+forest_moisture = 0.61
+highland_forest_moisture = 0.66
+land_min = 0.12
+land_max = 0.7
+hills_min = 0.71
+hills_max = 2.2
+water_min = -0.75
+water_max = -0.05
