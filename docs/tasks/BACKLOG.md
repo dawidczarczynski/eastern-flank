@@ -9,7 +9,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | TASK-000 | Skeleton: hex map, movement, turns, simple AI, camera | to playtest | – |
 | [TASK-001](TASK-001-combat.md) | Basic melee combat | to playtest | – |
 | [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | done | – |
-| [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | ready | TASK-001 |
+| [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | to playtest | TASK-001 |
 | [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | ready | TASK-001 |
 | [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | to playtest | – |
 | [TASK-003](TASK-003-unit-info-panel.md) | Info panel for the selected unit | to playtest | TASK-001 |
