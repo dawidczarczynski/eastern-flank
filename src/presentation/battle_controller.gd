@@ -79,6 +79,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select(-1)
 
 
+## Screenshot debug hook (tools/screenshot.gd): selects a unit and hovers a tile near it.
+func debug_select_and_hover(unit_id: int) -> void:
+	_select(unit_id)
+	var unit := _sim.state.get_unit(unit_id)
+	if unit != null:
+		_set_hovered_hex(unit.coord + Vector2i(2, 0))
+
+
 ## A click that never became a camera drag: LMB selects/moves/attacks, RMB deselects.
 func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 	if not _input_allowed():
@@ -150,6 +158,7 @@ func _set_hovered_hex(coord: Variant) -> void:
 	if typeof(coord) == typeof(_hovered_hex) and coord == _hovered_hex:
 		return
 	_hovered_hex = coord
+	_map_view.set_hover(coord)
 	_refresh_path_preview()
 
 
@@ -175,7 +184,7 @@ func _refresh_path_preview() -> void:
 		_map_view.clear_path()
 		return
 	var cost: int = state.grid.reachable(unit.coord, unit.moves_left, blocked)[target]
-	_map_view.show_path(path, "%d/%d" % [cost, unit.moves_left])
+	_map_view.show_path(unit.coord, path, "%d/%d" % [cost, unit.moves_left])
 
 
 func _on_hex_clicked(coord: Vector2i) -> void:
@@ -224,7 +233,7 @@ func _refresh_highlights() -> void:
 	reach.erase(unit.coord)
 	var coords: Array[Vector2i] = []
 	coords.assign(reach.keys())
-	_map_view.show_highlights(coords)
+	_map_view.show_reach(coords, unit.owner_id)
 	_refresh_attack_targets(unit)
 
 

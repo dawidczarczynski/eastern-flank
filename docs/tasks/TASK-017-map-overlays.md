@@ -1,6 +1,6 @@
 # TASK-017: Map overlays like the design (reach, hover ring, path dots)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure geometry/curve helpers tested in `tests/unit/`)
 - **Depends on**: **TASK-016b** (overlays drape over `TerrainSurface`). Soft: TASK-009 (its attack-target markers are restyled here if it is done), TASK-004 (replaces its path markers). Reference: `docs/design/game_screen.scene.js` lines 131–159 (`patchGeo`, `ringGeo`, `overlayMat`), 430–474 (reach, path dots), 530–541 and 630 (hover ring pulse).
 - **Model**: sonnet
@@ -62,4 +62,28 @@ Selection feedback matches the mock-up and hugs the terrain: the reachable area 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `OverlayGeometry` (`src/presentation/overlay_geometry.gd`) implements the helper API from the criteria, plus `drape_with(points, height: Callable, lift)`. Tests are in `tests/unit/test_overlay_geometry.gd` (7 tests, including one for `drape_with`).
+- `MapView`:
+  - `show_reach(coords, player_id)` replaces `show_highlights`. It builds one merged `ArrayMesh` for the fills and one for the rings, coloured with `UiPalette.FACTION`.
+  - `show_attack_targets` is restyled to `#e07c5e`.
+  - `set_hover(coord)` shows the hover ring and fill. The geometry is rebuilt only when the tile changes, and `_process` animates only the material alpha.
+  - `show_path(from, path, label)` draws the dots with one `MultiMeshInstance3D` (80 instances). The label uses the white Mono font.
+  - All design values are named constants.
+- **Deviation – draping height**: overlays are draped on the *rendered* coarse terrain mesh (`MapView._mesh_ground_height`, the same lookup the grid lines use), not on `TerrainSurface.ground_height`. Reasons:
+  - The mesh is linear with `RESOLUTION` 3, so the exact surface would sink into convex hills between mesh vertices.
+  - `ground_height` costs about 75 µs per call, and a reach wash has about 14k vertices, so a rebuild would take about 1 s.
+  - `OverlayGeometry.drape(points, surface, lift)` still exists as the criteria API.
+  - Later tasks that place objects with `TerrainSurface.ground_height` / `tile_top_position` (TASK-019, TASK-022) may differ slightly from the overlay heights.
+- **API change**: `show_path` takes the unit's tile, because `HexGrid.path_to` excludes the origin and the curve needs `[unit tile] + path`.
+- **Lifts**: the table values are kept. The screenshots showed no clipping, but they covered only a mostly flat area; hills are left to the playtest.
+- **Screenshot debug hook**: `SCREENSHOT_SELECT_UNIT=<id> tools/screenshot.sh out.png --frames=20` selects that unit and hovers the tile two columns to its right, through `BattleController.debug_select_and_hover`. It does nothing when the variable is unset.
+- **Agent visual check**:
+  - Default screenshot: no yellow discs and no artefacts.
+  - Selection screenshot: blue-grey wash with light-blue outlines, a smooth row of dots ending in a bigger one, the `2/3` label, and the brighter hover tile.
+  - Not checked: the comparison with `reference.png`, the pulse, the attack rings and the hills.
+- **Known limitation**: calling `build()` a second time does not reset the hover, reach or attack overlays, so they would keep the old heights. The map is built once today.
+- **Playtest fix – stutter while hovering**: in the playtest the animations were not smooth. Measured headlessly on the battle map:
+  - Moving the cursor to another tile while a unit was selected took about 38 ms. Most of that was `HexGrid.path_to` and `reachable`, about 19 ms each, because `Terrain.definition()` called `load()` on every `move_cost` lookup. It now caches the definitions in a static dictionary (`src/core/terrain.gd`), and a search takes about 0.5 ms.
+  - `MapView` caches the draped vertices per shape and tile (`_shape_cache`) and applies the lift through the instance's `position.y`. A reach rebuild went from about 19 ms to about 0.4 ms once tiles are cached. The hover rebuild went from about 0.8 ms to about 0.3 ms.
+  - A tile change now costs about 2 ms in total. Picking still costs about 1.6 ms per mouse-motion event (`TerrainSurface.raycast`), which was left as it is.
+- **Playtest**: passed on Windows (GPU). The earlier "choppy" report came from WSLg falling back to software rendering (llvmpipe, Mesa 20.0.4), at about 2.5 FPS even before this task. `tools/run_windows.sh` runs the game with the Windows Godot build.

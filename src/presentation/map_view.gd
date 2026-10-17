@@ -2,7 +2,7 @@ class_name MapView
 extends Node3D
 ## Map view: builds one continuous terrain mesh (heights from TerrainSurface, vertex colours
 ## from TerrainColors), a translucent water plane and faint hex grid lines from a HexGrid,
-## highlights movement range and draws the movement path preview (see show_path()).
+## draws the reach wash, attack-target rings, hover ring and path dots (TASK-017).
 ## Port of the design's terrain (docs/design/game_screen.scene.js, "terrain mesh").
 
 ## The terrain mesh covers the map bounds plus this margin (world units) on every side.
@@ -19,13 +19,32 @@ const GRID_LINE_COLOR := Color("#0d120c", 0.2)
 ## lines follow the slopes.
 const GRID_LINE_OFFSET := 0.025
 const GRID_LINE_SEGMENTS := 5
-## Height of the movement highlight above the tile top.
-const HIGHLIGHT_OFFSET := 0.02
-## Path markers sit slightly above the movement highlight to avoid z-fighting.
-const PATH_MARKER_OFFSET := 0.05
-## Attack-target markers sit above the path markers.
-const ATTACK_MARKER_OFFSET := 0.07
 const PATH_LABEL_HEIGHT := 0.6
+const PATH_LABEL_FONT := preload("res://assets/fonts/ibm_plex/IBMPlexMono-Medium.ttf")
+## Overlay design values (TASK-017): patch scale, ring radii, alpha and lift above the ground.
+## Overlay shapes: Vector2(scale, 0) is a hex patch, Vector2(r0, r1) a hex ring.
+const REACH_FILL_SHAPE := Vector2(0.9, 0.0)
+const REACH_FILL_ALPHA := 0.2
+const REACH_FILL_LIFT := 0.03
+const REACH_RING_SHAPE := Vector2(0.86, 0.92)
+const REACH_RING_ALPHA := 0.55
+const REACH_RING_LIFT := 0.035
+const ATTACK_COLOR := Color("#e07c5e")
+const ATTACK_FILL_SHAPE := Vector2(0.9, 0.0)
+const ATTACK_FILL_ALPHA := 0.25
+const ATTACK_FILL_LIFT := 0.035
+const ATTACK_RING_SHAPE := Vector2(0.86, 0.98)
+const ATTACK_RING_ALPHA := 0.9
+const ATTACK_RING_LIFT := 0.04
+const HOVER_FILL_SHAPE := Vector2(0.92, 0.0)
+const HOVER_FILL_LIFT := 0.035
+const HOVER_RING_SHAPE := Vector2(0.9, 0.98)
+const HOVER_RING_LIFT := 0.04
+const PATCH_SUBDIVISIONS := 4
+const RING_SEGMENTS := 5
+const DOT_RADIUS := 0.05
+const DOT_LIFT := 0.1
+const LAST_DOT_SCALE := 1.8
 
 @export var hex_size: float = 1.0
 
@@ -37,34 +56,46 @@ var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
 var _mesh_heights := PackedFloat32Array()
 var _tiles_root := Node3D.new()
-var _highlight_root := Node3D.new()
-var _highlight_mesh: CylinderMesh
-var _attack_root := Node3D.new()
-var _attack_mesh: CylinderMesh
-var _path_root := Node3D.new()
-var _path_mesh: CylinderMesh
+var _reach_fill := MeshInstance3D.new()
+var _reach_ring := MeshInstance3D.new()
+var _attack_fill := MeshInstance3D.new()
+var _attack_ring := MeshInstance3D.new()
+var _hover_fill := MeshInstance3D.new()
+var _hover_ring := MeshInstance3D.new()
+var _hover_ring_material: StandardMaterial3D
+var _hover_coord: Variant = null
+## Draped overlay vertices (lift 0) per shape and tile: shape -> {Vector2i -> PackedVector3Array}.
+## The terrain never changes, so each tile is draped once instead of on every rebuild.
+var _shape_cache: Dictionary = {}
+var _dots := MultiMeshInstance3D.new()
 var _path_label: Label3D
 
 
 func _ready() -> void:
 	add_child(_tiles_root)
-	add_child(_highlight_root)
-	add_child(_path_root)
-	add_child(_attack_root)
-	var highlight_material := _make_material(Color(1.0, 0.85, 0.2, 0.45), true)
-	_highlight_mesh = _make_hex_mesh(hex_size * 0.8, 0.03, highlight_material)
-	var path_material := _make_material(Color(1.0, 0.97, 0.8, 0.75), true)
-	_path_mesh = _make_hex_mesh(hex_size * 0.35, 0.03, path_material)
-	# Red translucent disc, larger than the yellow movement highlight.
-	var attack_material := _make_material(Color(0.9, 0.12, 0.1, 0.6), true)
-	_attack_mesh = _make_hex_mesh(hex_size * 0.9, 0.03, attack_material)
+	for overlay in [_reach_fill, _reach_ring, _attack_fill, _attack_ring, _hover_fill, _hover_ring]:
+		var instance: MeshInstance3D = overlay
+		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		instance.visible = false
+		add_child(instance)
+	_hover_ring_material = _overlay_material(Color(1, 1, 1, 0.6))
+	_hover_ring.material_override = _hover_ring_material
+	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, 0.1))
+	_setup_dots()
 	_path_label = _make_path_label()
 	add_child(_path_label)
+
+
+## The hover ring pulses; geometry is only rebuilt in set_hover().
+func _process(_delta: float) -> void:
+	if _hover_ring.visible:
+		_hover_ring_material.albedo_color.a = OverlayGeometry.hover_alpha(Time.get_ticks_msec())
 
 
 func build(grid: HexGrid) -> void:
 	_grid = grid
 	_surface = TerrainSurface.new(grid)
+	_shape_cache.clear()
 	_clear_children(_tiles_root)
 	var centers: Array[Vector3] = []
 	for c in grid.coords():
@@ -252,91 +283,187 @@ func center() -> Vector3:
 	return sum / maxf(tiles.size(), 1.0)
 
 
-## Movement highlight (yellow). Replaces only the previous movement highlight.
-func show_highlights(coords: Array[Vector2i]) -> void:
-	_clear_children(_highlight_root)
-	for c in coords:
-		var marker := MeshInstance3D.new()
-		marker.mesh = _highlight_mesh
-		marker.position = tile_top_position(c) + Vector3.UP * HIGHLIGHT_OFFSET
-		_highlight_root.add_child(marker)
-
-
-## Marks tiles holding attackable enemies (red). Replaces only the previous attack markers.
-func show_attack_targets(coords: Array[Vector2i]) -> void:
-	_clear_children(_attack_root)
-	for c in coords:
-		var marker := MeshInstance3D.new()
-		marker.mesh = _attack_mesh
-		marker.position = tile_top_position(c) + Vector3.UP * ATTACK_MARKER_OFFSET
-		_attack_root.add_child(marker)
-
-
-## Clears the movement highlight and the attack-target markers; the path preview has its own
-## clear_path().
-func clear_highlights() -> void:
-	_clear_children(_highlight_root)
-	_clear_children(_attack_root)
-
-
 func _clear_children(root: Node3D) -> void:
 	for child in root.get_children():
 		root.remove_child(child)
 		child.queue_free()
 
 
-## Draws a small marker on every tile of the path and a label above the last tile.
-## The path and the label text come from the caller (no path logic here).
-func show_path(coords: Array[Vector2i], label_text: String) -> void:
-	clear_path()
-	if coords.is_empty():
+## Reach wash and outlines in the faction colour of `player_id` (one mesh each, rebuilt here).
+func show_reach(coords: Array[Vector2i], player_id: int) -> void:
+	var color := UiPalette.FACTION[clampi(player_id, 0, UiPalette.FACTION.size() - 1)]
+	_set_overlay(
+		_reach_fill, coords, REACH_FILL_SHAPE, Color(color, REACH_FILL_ALPHA), REACH_FILL_LIFT
+	)
+	_set_overlay(
+		_reach_ring, coords, REACH_RING_SHAPE, Color(color, REACH_RING_ALPHA), REACH_RING_LIFT
+	)
+
+
+## Marks tiles holding attackable enemies (ring + wash). Replaces only the previous markers.
+func show_attack_targets(coords: Array[Vector2i]) -> void:
+	_set_overlay(
+		_attack_fill,
+		coords,
+		ATTACK_FILL_SHAPE,
+		Color(ATTACK_COLOR, ATTACK_FILL_ALPHA),
+		ATTACK_FILL_LIFT
+	)
+	_set_overlay(
+		_attack_ring,
+		coords,
+		ATTACK_RING_SHAPE,
+		Color(ATTACK_COLOR, ATTACK_RING_ALPHA),
+		ATTACK_RING_LIFT
+	)
+
+
+## Clears the reach wash and the attack-target markers; the path preview has its own
+## clear_path().
+func clear_highlights() -> void:
+	for instance in [_reach_fill, _reach_ring, _attack_fill, _attack_ring]:
+		(instance as MeshInstance3D).visible = false
+		(instance as MeshInstance3D).mesh = null
+
+
+## Hover ring + fill on `coord` (Vector2i), or hidden for null. Geometry is rebuilt only
+## when the tile changes.
+func set_hover(coord: Variant) -> void:
+	if typeof(coord) == typeof(_hover_coord) and coord == _hover_coord:
 		return
+	_hover_coord = coord
+	var show := coord != null
+	_hover_ring.visible = show
+	_hover_fill.visible = show
+	if not show:
+		return
+	_hover_ring.mesh = _triangles_mesh(_tile_shape(coord, HOVER_RING_SHAPE))
+	_hover_ring.position.y = HOVER_RING_LIFT
+	_hover_fill.mesh = _triangles_mesh(_tile_shape(coord, HOVER_FILL_SHAPE))
+	_hover_fill.position.y = HOVER_FILL_LIFT
+
+
+## One merged mesh of `shape` over all `coords`, lifted by moving the instance.
+func _set_overlay(
+	instance: MeshInstance3D, coords: Array[Vector2i], shape: Vector2, color: Color, lift: float
+) -> void:
+	instance.visible = not coords.is_empty()
+	if coords.is_empty():
+		instance.mesh = null
+		return
+	var vertices := PackedVector3Array()
 	for c in coords:
-		var marker := MeshInstance3D.new()
-		marker.mesh = _path_mesh
-		marker.position = tile_top_position(c) + Vector3.UP * PATH_MARKER_OFFSET
-		_path_root.add_child(marker)
+		vertices.append_array(_tile_shape(c, shape))
+	instance.mesh = _triangles_mesh(vertices)
+	instance.position.y = lift
+	instance.material_override = _overlay_material(color)
+
+
+## Draped (lift 0) triangle list of `shape` on tile `c`, cached (see _shape_cache).
+func _tile_shape(c: Vector2i, shape: Vector2) -> PackedVector3Array:
+	var per_tile: Dictionary = _shape_cache.get_or_add(shape, {})
+	if not per_tile.has(c):
+		var center := Hex.to_world(c, hex_size)
+		var c2 := Vector2(center.x, center.z)
+		var flat := (
+			OverlayGeometry.hex_patch(c2, shape.x, PATCH_SUBDIVISIONS)
+			if shape.y == 0.0
+			else OverlayGeometry.hex_ring(c2, shape.x, shape.y, RING_SEGMENTS)
+		)
+		per_tile[c] = _drape(flat, 0.0)
+	return per_tile[c]
+
+
+## Overlay points follow the drawn mesh (_mesh_ground_height), not TerrainSurface.ground_height:
+## the mesh is a coarse linear interpolation of the surface, so hills can poke through
+## overlays that follow the exact surface, and the mesh query is ~100x cheaper in GDScript
+## (thousands of vertices per rebuild).
+func _drape(points: PackedVector2Array, lift: float) -> PackedVector3Array:
+	return OverlayGeometry.drape_with(points, _mesh_ground_height, lift)
+
+
+static func _triangles_mesh(vertices: PackedVector3Array) -> ArrayMesh:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+static func _overlay_material(color: Color) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return material
+
+
+func _setup_dots() -> void:
+	var sphere := SphereMesh.new()
+	sphere.radius = DOT_RADIUS
+	sphere.height = DOT_RADIUS * 2.0
+	sphere.radial_segments = 10
+	sphere.rings = 8
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color.WHITE
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sphere.material = material
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = sphere
+	multi.instance_count = OverlayGeometry.MAX_DOTS_POINTS
+	multi.visible_instance_count = 0
+	_dots.multimesh = multi
+	_dots.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_dots)
+
+
+## Draws white dots along a smooth curve from `from` (the unit's tile) through `path`
+## (excludes `from`, as HexGrid.path_to returns it) and a label above the last dot.
+## The path and the label text come from the caller (no path logic here).
+func show_path(from: Vector2i, path: Array[Vector2i], label_text: String) -> void:
+	clear_path()
+	if path.is_empty():
+		return
+	var centers := PackedVector2Array()
+	for c in [from] + path:
+		var p := Hex.to_world(c, hex_size)
+		centers.append(Vector2(p.x, p.z))
+	var tiles := centers.size()
+	var count := mini(OverlayGeometry.MAX_DOTS_POINTS, (tiles - 1) * 5)
+	var points := OverlayGeometry.curve_points(centers, count)
+	var multi := _dots.multimesh
+	var dots := OverlayGeometry.path_dot_count(tiles)
+	var last := Vector3.ZERO
+	for i in dots:
+		var p := points[i + OverlayGeometry.SKIPPED_POINTS]
+		last = Vector3(p.x, _mesh_ground_height(p.x, p.y) + DOT_LIFT, p.y)
+		var s := LAST_DOT_SCALE if i == dots - 1 else 1.0
+		multi.set_instance_transform(i, Transform3D(Basis.from_scale(Vector3.ONE * s), last))
+	multi.visible_instance_count = dots
 	_path_label.text = label_text
-	_path_label.position = tile_top_position(coords.back()) + Vector3.UP * PATH_LABEL_HEIGHT
-	_path_label.show()
+	_path_label.position = last + Vector3.UP * PATH_LABEL_HEIGHT
+	_path_label.visible = dots > 0
 
 
 func clear_path() -> void:
-	for child in _path_root.get_children():
-		_path_root.remove_child(child)
-		child.queue_free()
+	_dots.multimesh.visible_instance_count = 0
 	_path_label.hide()
 
 
-static func _make_path_label() -> Label3D:
+func _make_path_label() -> Label3D:
 	var label := Label3D.new()
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.no_depth_test = true
 	label.fixed_size = false
 	label.pixel_size = 0.005
+	label.font = PATH_LABEL_FONT
 	label.font_size = 56
 	label.outline_size = 14
-	label.modulate = Color(1.0, 0.97, 0.8)
+	label.modulate = Color.WHITE
 	label.outline_modulate = Color(0.0, 0.0, 0.0)
 	label.hide()
 	return label
-
-
-static func _make_hex_mesh(radius: float, height: float, material: Material) -> CylinderMesh:
-	var mesh := CylinderMesh.new()
-	mesh.radial_segments = 6
-	mesh.rings = 0
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.material = material
-	return mesh
-
-
-static func _make_material(color: Color, transparent := false) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	if transparent:
-		material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return material

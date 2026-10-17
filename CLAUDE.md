@@ -8,6 +8,7 @@ Game design: docs/GDD.md · Architecture: docs/ARCHITECTURE.md · Agent workflow
 - `tools/test.sh [filter]` – headless tests only (e.g. `tools/test.sh test_commands`)
 - `tools/lint.sh [--fix]` – gdformat + gdlint
 - `tools/run.sh [--editor]` – run the game / editor (needs a GUI; usually done by the human)
+- `tools/run_windows.sh [--editor] [--import]` – run with the Windows Godot build from WSL (GPU rendering; the WSLg build falls back to slow software rendering)
 - `tools/screenshot.sh [out.png] [--frames=N]` – render the battle scene to a 1280×720 PNG (default `.screenshots/battle.png`) and read it with the Read tool to check visual changes (needs WSLg / a display)
 
 ## Hard architecture rules

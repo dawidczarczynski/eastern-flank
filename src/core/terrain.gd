@@ -16,9 +16,15 @@ const _PATHS: Dictionary = {
 	Type.WATER: "res://data/terrain/water.tres",
 }
 
+## Loaded definitions. load() goes through the resource cache by path on every call, which is
+## slow enough to matter in pathfinding (move_cost per neighbour): ~19 ms per HexGrid search.
+static var _definitions: Dictionary = {}  # Type -> TerrainDefinition
+
 
 static func definition(t: Type) -> TerrainDefinition:
-	return load(_PATHS[t] as String) as TerrainDefinition
+	if not _definitions.has(t):
+		_definitions[t] = load(_PATHS[t] as String) as TerrainDefinition
+	return _definitions[t]
 
 
 static func move_cost(t: Type) -> int:

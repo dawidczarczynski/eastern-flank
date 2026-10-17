@@ -12,6 +12,7 @@ const EXPECTED_SIZE := Vector2i(1280, 720)
 
 var _output := ""
 var _frames_left := 0
+var _battle: Node
 var _finished := false  # capture started or run failed – quit() only takes effect after this frame
 
 
@@ -34,17 +35,19 @@ func _initialize() -> void:
 	if scene == null:
 		_fail("could not load %s" % SCENE_PATH, 1)
 		return
-	var battle := scene.instantiate()
-	root.add_child(battle)
+	_battle = scene.instantiate()
+	root.add_child(_battle)
 	# The scene is set up in _ready; stop its processing so that polled input (Input singleton,
 	# mouse position) can't move the camera or add a hover highlight. Rendering continues.
-	battle.process_mode = Node.PROCESS_MODE_DISABLED
+	_battle.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
 	_frames_left -= 1
+	if _frames_left == 1:
+		_apply_debug_selection()
 	if _frames_left <= 0:
 		_finished = true
 		_capture()
@@ -77,3 +80,11 @@ func _fail(message: String, exit_code: int) -> void:
 	_finished = true
 	printerr("ERROR: ", message)
 	quit(exit_code)
+
+
+## Debug aid: SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
+## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
+func _apply_debug_selection() -> void:
+	var select_id := OS.get_environment("SCREENSHOT_SELECT_UNIT")
+	if select_id.is_valid_int():
+		_battle.call("debug_select_and_hover", select_id.to_int())
