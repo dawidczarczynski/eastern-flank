@@ -42,7 +42,7 @@ Hex grid, axial coordinates `(q, r)` as `Vector2i`, "pointy-top" layout. World â
 
 | type | fields | emitted by |
 |---|---|---|
-| `unit_moved` | `unit_id`, `from`, `to` | MoveUnitCommand |
+| `unit_moved` | `unit_id`, `from`, `to`, `path` (`Array[Vector2i]`: tiles walked, excludes `from`, ends with `to`) | MoveUnitCommand |
 | `turn_ended` | `player` | EndTurnCommand |
 | `turn_started` | `player`, `turn` | EndTurnCommand |
 | `unit_attacked` | `attacker_id`, `target_id`, `damage` (before clamping HP at 0), `target_hp` | AttackCommand |

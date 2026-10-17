@@ -52,3 +52,13 @@ func test_turn_events_have_no_duration() -> void:
 	var queue := _queue_of([&"turn_ended", &"turn_started"])
 	assert_eq(queue.pending_duration(), 0.0)
 	assert_eq(queue.begin_burst(), 1.0)
+
+
+func test_move_with_path_lasts_per_tile() -> void:
+	var path: Array[Vector2i] = [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
+	var event := {"type": &"unit_moved", "path": path}
+	assert_true(absf(EventQueue.base_duration(event) - 0.78) < TOLERANCE)
+
+
+func test_move_without_path_keeps_default_duration() -> void:
+	assert_true(absf(EventQueue.base_duration({"type": &"unit_moved"}) - 0.25) < TOLERANCE)

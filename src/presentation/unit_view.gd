@@ -3,8 +3,8 @@ extends Node3D
 ## Visual representation of a unit: primitive model, faction marker on the ground and a HUD
 ## label. Holds no game state – only unit_id and appearance.
 
-## Durations match EventQueue.base_duration() so the burst speed estimate stays accurate.
-const MOVE_DURATION := EventQueue.MOVE_DURATION
+## Durations match EventQueue.base_duration() so the burst speed estimate stays accurate
+## (a move lasts MoveAnimation.duration(), i.e. EventQueue.SECONDS_PER_TILE per tile).
 const HIT_DURATION := EventQueue.ATTACK_DURATION
 const HIT_SHAKE := 0.12
 const HIT_FLASH_ALPHA := 0.8
@@ -51,7 +51,9 @@ var _selected := false
 var _hovered := false
 var _done := false
 var _move_tween: Tween
-var _move_target: Vector3
+var _move_points := PackedVector3Array()  # world points of the running move
+var _move_elapsed := 0.0
+var _move_height: Callable  # (x, z) -> ground height the unit walks on
 var _hit_tween: Tween
 var _hp := 0
 var _max_hp := 0
@@ -71,7 +73,11 @@ func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height
 	_pivot = Node3D.new()
 	_pivot.name = "Body"
 	add_child(_pivot)
-	_pivot.add_child(UnitModels.build(unit.definition.id, unit.owner_id))
+	var model := UnitModels.build(unit.definition.id, unit.owner_id)
+	# Facing lives on the pivot so moves can turn the whole model (TASK-022).
+	_pivot.rotation.y = model.rotation.y
+	model.rotation.y = 0.0
+	_pivot.add_child(model)
 	_collect_meshes(_pivot)
 
 	for marker: MeshInstance3D in [_ring, _fill]:
@@ -93,7 +99,7 @@ func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height
 func _process(_delta: float) -> void:
 	if _dying:
 		return
-	if global_position != _marker_origin:
+	if _ring.visible and global_position != _marker_origin:
 		_rebuild_marker_geometry()  # the unit is sliding: keep the marker on the ground
 	_update_label()
 
@@ -103,19 +109,65 @@ func _exit_tree() -> void:
 		_label.queue_free()
 
 
-## Slides the unit to `world_position`. Returns the tween (the caller may scale its speed and
-## wait for `finished`), or null when nothing is animated.
-func move_to(world_position: Vector3) -> Tween:
-	if _dying:
+## Walks the unit along `world_points` (tile centres, the first one being its current tile),
+## MoveAnimation.SECONDS_PER_TILE per segment, turning to face each segment. `ground_height`
+## is a Callable (x, z) -> float the unit's feet follow (the terrain surface). The marker is
+## hidden on the way and reappears at the destination. Returns the tween (the caller may
+## scale its speed and wait for `finished`), or null when nothing is animated.
+func move_along(world_points: PackedVector3Array, ground_height: Callable) -> Tween:
+	if _dying or world_points.is_empty():
 		return null
+	_finish_move()
+	_move_points = world_points
+	_move_height = ground_height
+	_move_elapsed = 0.0
+	_set_markers_visible(false)
+	_move_tween = create_tween()
+	# The tween drives `elapsed`; its speed scale (burst speed) therefore also speeds up turning.
+	var duration := MoveAnimation.duration(world_points)
+	_move_tween.tween_method(_step_move, 0.0, duration, duration)
+	_move_tween.tween_callback(_end_move)
+	return _move_tween
+
+
+func _step_move(elapsed: float) -> void:
+	var dt := maxf(0.0, elapsed - _move_elapsed)
+	_move_elapsed = elapsed
+	var p := MoveAnimation.sample(_move_points, elapsed)
+	if _move_height.is_valid():
+		p.y = _move_height.call(p.x, p.z)
+	var target := MoveAnimation.segment_target(_move_points, elapsed)
+	if Vector2(target.x - p.x, target.z - p.z).length_squared() > 0.000001:
+		var yaw := MoveAnimation.facing_yaw(p, target)
+		_pivot.rotation.y = MoveAnimation.turn_towards(_pivot.rotation.y, yaw, dt)
+	position = p
+
+
+## Arrival: snap to the last point, keep the facing, show the marker there.
+func _end_move() -> void:
+	if not _move_points.is_empty():
+		var last := _move_points[_move_points.size() - 1]
+		if _move_height.is_valid():
+			last.y = _move_height.call(last.x, last.z)
+		position = last
+	_move_points = PackedVector3Array()
+	if not _dying:
+		_set_markers_visible(true)
+
+
+## Stops a running move and puts the unit at its destination.
+func _finish_move() -> void:
 	if _move_tween != null and _move_tween.is_valid():
 		_move_tween.kill()
-	_move_target = world_position
-	_move_tween = create_tween()
-	_move_tween.tween_property(self, "position", world_position, MOVE_DURATION).set_trans(
-		Tween.TRANS_SINE
-	)
-	return _move_tween
+		_end_move()
+	_move_tween = null
+
+
+func _set_markers_visible(markers_visible: bool) -> void:
+	_ring.visible = markers_visible
+	_fill.visible = markers_visible
+	if markers_visible and global_position != _marker_origin:
+		_rebuild_marker_geometry()
 
 
 ## Short "got hit" reaction: sideways shake of the model plus a white flash, then the new HP.
@@ -147,10 +199,8 @@ func play_death() -> Tween:
 	if _dying:
 		return null
 	_dying = true
-	if _move_tween != null and _move_tween.is_valid():
-		# Defensive: a unit may die while its move tween is still running – snap to its target.
-		_move_tween.kill()
-		position = _move_target
+	# Defensive: a unit may die while its move tween is still running – snap to its target.
+	_finish_move()
 	_reset_hit()
 	_ring.queue_free()
 	_fill.queue_free()

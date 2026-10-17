@@ -6,7 +6,10 @@ extends RefCounted
 
 ## Upper bound for the playback time of one burst at its computed speed, in seconds.
 const MAX_BURST_SECONDS := 3.0
+## Duration of a move event without a `path` (old events).
 const MOVE_DURATION := 0.25
+## Duration of one tile of a move along its `path` (TASK-022); MoveAnimation aliases it.
+const SECONDS_PER_TILE := 0.26
 const ATTACK_DURATION := 0.25
 const DEATH_DURATION := 0.4
 
@@ -36,6 +39,8 @@ func size() -> int:
 static func base_duration(event: Dictionary) -> float:
 	match event.get("type", &""):
 		&"unit_moved":
+			if event.has("path"):
+				return SECONDS_PER_TILE * (event["path"] as Array).size()
 			return MOVE_DURATION
 		&"unit_attacked":
 			return ATTACK_DURATION

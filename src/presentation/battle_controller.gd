@@ -366,7 +366,7 @@ func _play_event(event: Dictionary) -> Tween:
 		&"unit_moved":
 			var view: UnitView = _unit_views.get(event["unit_id"])
 			if view != null:
-				return view.move_to(_map_view.tile_top_position(event["to"]))
+				return view.move_along(_move_points(event), _map_view.surface().ground_height)
 		&"unit_attacked":
 			var target: UnitView = _unit_views.get(event["target_id"])
 			if target != null:
@@ -381,6 +381,16 @@ func _play_event(event: Dictionary) -> Tween:
 		&"game_over":
 			_select(-1)
 	return null
+
+
+## Tile centres of `[from] + path` of a `unit_moved` event (`[from, to]` for events without
+## a path).
+func _move_points(event: Dictionary) -> PackedVector3Array:
+	var points := PackedVector3Array([_map_view.tile_top_position(event["from"])])
+	var path: Array = event.get("path", [event["to"]])
+	for c: Vector2i in path:
+		points.append(_map_view.tile_top_position(c))
+	return points
 
 
 func _on_unit_died(unit_id: int) -> Tween:

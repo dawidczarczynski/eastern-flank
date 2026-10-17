@@ -1,6 +1,6 @@
 # TASK-022: Unit movement along the path with turning
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (path in the `unit_moved` event) / presentation (pure helpers tested in `tests/unit/`)
 - **Depends on**: **TASK-008** (event queue – movement duration now depends on the path length), TASK-016b (ground height), TASK-019 (models with a facing). Reference: `docs/design/game_screen.scene.js` lines 475–480 and 616–625.
 - **Model**: opus
@@ -48,4 +48,12 @@ A moving unit walks tile by tile along the route the player saw in the preview, 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `MoveUnitCommand.apply` computes `grid.path_to(from, to, moves_left, occupied)` before mutating state and adds `path` to `unit_moved` (the unit's own occupied tile doesn't block – the search only checks `blocked` for entered neighbours). Tests: `tests/unit/test_move_path.gd`.
+- `EventQueue.SECONDS_PER_TILE = 0.26`; `base_duration` = 0.26 × `path.size()`, falls back to `MOVE_DURATION` (0.25) without `path`.
+- `MoveAnimation` (`src/presentation/move_animation.gd`): `facing_yaw`, `turn_towards`, `wrap_angle`, `sample`, plus `duration(points)` (= `base_duration` of the event for `[from] + path`), `segment_index`, `segment_target`. Tests: `tests/unit/test_move_animation.gd`.
+- `UnitView.move_along(points, ground_height: Callable)` – **deviation**: takes the `TerrainSurface.ground_height` Callable instead of a `TerrainSurface` (keeps the view decoupled; same height as `tile_top_position`, so start/end match standing units). One linear tween drives `elapsed` over `MoveAnimation.duration`, so the controller's burst `set_speed_scale` applies unchanged and `finished` still chains the queue.
+- Turning `dt` is the tween's elapsed delta (not raw frame delta), so turning also speeds up with the burst scale (deliberate).
+- Facing moved from the model root onto `_pivot` ("Body") in `setup`. The hit shake still tweens `_pivot.position:x`, which is in the (unrotated) UnitView's space, so it stays a world-X shake regardless of facing.
+- Ring/fill hidden during the move (no per-frame marker rebuild while hidden), rebuilt once at arrival; label follows every frame. A death mid-move snaps to the last point (`_finish_move`).
+- `BattleController._move_points(event)` uses only `from` / `path` (fallback `[to]`).
+- Agent screenshot check: all units stand on their tiles with unchanged facing (blue east, red west). Motion not verified by the agent.

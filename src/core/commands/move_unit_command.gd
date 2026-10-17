@@ -26,10 +26,13 @@ func validate(state: GameState) -> String:
 func apply(state: GameState) -> Array[Dictionary]:
 	var unit := state.get_unit(unit_id)
 	var from := unit.coord
+	# Computed before the state changes; the search never re-enters its origin, so the
+	# moving unit's own (occupied) tile doesn't block it – same as `_reach`.
+	var path := state.grid.path_to(from, target, unit.moves_left, state.occupied())
 	unit.moves_left -= _reach(state, unit)[target]
 	unit.coord = target
 	var events: Array[Dictionary] = [
-		{"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": target},
+		{"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": target, "path": path},
 	]
 	return events
 
