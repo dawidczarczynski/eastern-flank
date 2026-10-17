@@ -12,6 +12,17 @@ func _init(p_attacker_id: int, p_target_id: int) -> void:
 	target_id = p_target_id
 
 
+## Ids of living units the attacker can attack right now, ascending.
+## Built on validate(), so every attack rule applies automatically.
+static func valid_targets(state: GameState, attacker_id: int) -> Array[int]:
+	var result: Array[int] = []
+	for unit: Unit in state.units.values():
+		if unit.is_alive() and AttackCommand.new(attacker_id, unit.id).validate(state) == "":
+			result.append(unit.id)
+	result.sort()
+	return result
+
+
 func validate(state: GameState) -> String:
 	if state.winner != -1:
 		return "game_over"

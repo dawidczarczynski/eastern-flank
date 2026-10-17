@@ -10,7 +10,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-001](TASK-001-combat.md) | Basic melee combat | to playtest | – |
 | [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | done | – |
 | [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | done | TASK-001 |
-| [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | ready | TASK-001 |
+| [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | done | TASK-001 |
 | [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | done | – |
 | [TASK-003](TASK-003-unit-info-panel.md) | Info panel for the selected unit | done | TASK-001 |
 | [TASK-013](TASK-013-lighting-atmosphere.md) | Lighting & atmosphere like the design (fog, ACES, sun, ambient) | ready | – |

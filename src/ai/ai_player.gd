@@ -50,14 +50,10 @@ func _nearest_enemy(state: GameState, unit: Unit) -> Unit:
 
 ## Living enemy within attack range with the lowest hp; ties broken by the lowest unit id.
 func _weakest_enemy_in_range(state: GameState, unit: Unit) -> Unit:
-	if unit.has_attacked:
-		return null
 	var best: Unit = null
-	for other: Unit in state.units.values():
-		if other.owner_id == unit.owner_id or not other.is_alive():
-			continue
-		if Hex.distance(unit.coord, other.coord) > unit.definition.attack_range:
-			continue
-		if best == null or other.hp < best.hp or (other.hp == best.hp and other.id < best.id):
+	# valid_targets is ascending, so the strict < keeps the lowest id on hp ties.
+	for id: int in AttackCommand.valid_targets(state, unit.id):
+		var other := state.get_unit(id)
+		if best == null or other.hp < best.hp:
 			best = other
 	return best

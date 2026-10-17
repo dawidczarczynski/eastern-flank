@@ -199,6 +199,17 @@ func _refresh_highlights() -> void:
 	var coords: Array[Vector2i] = []
 	coords.assign(reach.keys())
 	_map_view.show_highlights(coords)
+	_refresh_attack_targets(unit)
+
+
+## Red markers on enemies the selected unit can attack now (ids from AttackCommand, tiles here).
+## valid_targets is empty on the AI's turn and after game over, so no extra guards are needed.
+func _refresh_attack_targets(unit: Unit) -> void:
+	var state := _sim.state
+	var coords: Array[Vector2i] = []
+	for id: int in AttackCommand.valid_targets(state, unit.id):
+		coords.append(state.get_unit(id).coord)
+	_map_view.show_attack_targets(coords)
 
 
 ## Bottom-left HUD panel with the selected unit's stats (text from UnitInfo).

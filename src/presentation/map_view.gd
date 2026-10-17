@@ -22,6 +22,8 @@ const TERRAIN_HEIGHTS := {
 const HIGHLIGHT_OFFSET := 0.02
 ## Path markers sit slightly above the movement highlight to avoid z-fighting.
 const PATH_MARKER_OFFSET := 0.05
+## Attack-target markers sit above the path markers.
+const ATTACK_MARKER_OFFSET := 0.07
 const PATH_LABEL_HEIGHT := 0.6
 
 @export var hex_size: float = 1.0
@@ -30,6 +32,8 @@ var _grid: HexGrid
 var _tiles_root := Node3D.new()
 var _highlight_root := Node3D.new()
 var _highlight_mesh: CylinderMesh
+var _attack_root := Node3D.new()
+var _attack_mesh: CylinderMesh
 var _path_root := Node3D.new()
 var _path_mesh: CylinderMesh
 var _path_label: Label3D
@@ -39,10 +43,14 @@ func _ready() -> void:
 	add_child(_tiles_root)
 	add_child(_highlight_root)
 	add_child(_path_root)
+	add_child(_attack_root)
 	var highlight_material := _make_material(Color(1.0, 0.85, 0.2, 0.45), true)
 	_highlight_mesh = _make_hex_mesh(hex_size * 0.8, 0.03, highlight_material)
 	var path_material := _make_material(Color(1.0, 0.97, 0.8, 0.75), true)
 	_path_mesh = _make_hex_mesh(hex_size * 0.35, 0.03, path_material)
+	# Red translucent disc, larger than the yellow movement highlight.
+	var attack_material := _make_material(Color(0.9, 0.12, 0.1, 0.6), true)
+	_attack_mesh = _make_hex_mesh(hex_size * 0.9, 0.03, attack_material)
 	_path_label = _make_path_label()
 	add_child(_path_label)
 
@@ -90,8 +98,9 @@ func center() -> Vector3:
 	return sum / maxf(tiles.size(), 1.0)
 
 
+## Movement highlight (yellow). Replaces only the previous movement highlight.
 func show_highlights(coords: Array[Vector2i]) -> void:
-	clear_highlights()
+	_clear_children(_highlight_root)
 	for c in coords:
 		var marker := MeshInstance3D.new()
 		marker.mesh = _highlight_mesh
@@ -99,9 +108,26 @@ func show_highlights(coords: Array[Vector2i]) -> void:
 		_highlight_root.add_child(marker)
 
 
-## Clears only the movement highlight; the path preview has its own clear_path().
+## Marks tiles holding attackable enemies (red). Replaces only the previous attack markers.
+func show_attack_targets(coords: Array[Vector2i]) -> void:
+	_clear_children(_attack_root)
+	for c in coords:
+		var marker := MeshInstance3D.new()
+		marker.mesh = _attack_mesh
+		marker.position = tile_top_position(c) + Vector3.UP * ATTACK_MARKER_OFFSET
+		_attack_root.add_child(marker)
+
+
+## Clears the movement highlight and the attack-target markers; the path preview has its own
+## clear_path().
 func clear_highlights() -> void:
-	for child in _highlight_root.get_children():
+	_clear_children(_highlight_root)
+	_clear_children(_attack_root)
+
+
+func _clear_children(root: Node3D) -> void:
+	for child in root.get_children():
+		root.remove_child(child)
 		child.queue_free()
 
 
