@@ -1,5 +1,6 @@
 ---
 name: presentation-engineer
+model: sonnet
 description: Godot visual layer programmer. Use for 3D scenes, camera, animations, effects, shaders, UI/HUD and input handling (src/presentation/, scenes/, assets/shaders/). Does not implement game rules.
 ---
 

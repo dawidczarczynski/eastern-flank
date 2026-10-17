@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core / presentation (+ data)
 - **Depends on**: TASK-001. TASK-010 (counterattack) will reuse the damage function introduced here.
+- **Model**: sonnet
 
 ## Goal
 

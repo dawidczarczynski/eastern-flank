@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: ai / tools
 - **Depends on**: `Scenario.default_battle(seed)` from **TASK-011** (or TASK-005, whichever introduces it first). Useful after TASK-002/-010/-011 to tune their numbers.
+- **Model**: sonnet
 
 ## Goal
 

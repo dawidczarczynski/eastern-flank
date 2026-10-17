@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core / ai / presentation (+ data)
 - **Depends on**: **TASK-010** (counterattack – the archer's advantage is that melee units can't hit back at range 2). Soft: TASK-009 (`valid_targets` already handles range).
+- **Model**: sonnet
 
 ## Goal
 

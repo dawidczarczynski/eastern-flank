@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core (tiny pure coordinate helper) / presentation (pure panel model tested in `tests/unit/`)
 - **Depends on**: **TASK-014**, **TASK-016a** (elevation), TASK-023 (strings), TASK-017 (the path label it replaces). Soft: TASK-002 (defense column and terrain display names), TASK-020 (same HUD root). Reference: `docs/design/game_screen.template.html` lines 326–347; `game_screen.scene.js` lines 542–550.
+- **Model**: sonnet
 
 ## Why a separate task
 

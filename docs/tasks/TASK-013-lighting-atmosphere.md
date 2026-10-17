@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (scene + environment resource; resource values checked in `tests/unit/`)
 - **Depends on**: nothing. Best done before TASK-016b (terrain colours are judged under this light). Reference: `docs/design/README.md` ("Scene"), `docs/design/game_screen.scene.js` lines 265–276.
+- **Model**: sonnet
 
 ## Goal
 

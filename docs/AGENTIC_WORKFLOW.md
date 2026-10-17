@@ -27,6 +27,8 @@ An AI agent cannot see the game window and doesn't "feel" the gameplay. So every
 
 Definitions: `.claude/agents/*.md`, process: `.claude/skills/implement-task/SKILL.md`.
 
+Models: the engineers and the reviewer default to Sonnet, `game-designer` to Opus. Each task file has a `- **Model**:` line (`sonnet` or `opus`); `/implement-task` passes it to the engineers, reviews always run on Sonnet. Opus is reserved for hard tasks (tricky algorithms, determinism, timing between systems, large refactors). Start a fresh session per task – a long session makes every orchestrator turn more expensive.
+
 ## Work loop
 
 ```

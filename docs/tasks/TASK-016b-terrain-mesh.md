@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure colour function tested) + core (pure surface raycast tested)
 - **Depends on**: **TASK-016a** (elevation, `TerrainSurface`). Soft: TASK-013 (judge colours under the final light), TASK-015 (default framing). Reference: `docs/design/README.md` ("Terrain colours"), `docs/design/game_screen.scene.js` lines 278–330 (terrain mesh, colours, water, grid lines) and 519–529 (`pickGround`).
+- **Model**: opus
 
 ## Goal
 

@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core / presentation
 - **Depends on**: TASK-001. Soft: TASK-002 (if done, counter damage uses `AttackCommand.compute_damage`, i.e. includes the terrain bonus of the original attacker's tile; if not, create `compute_damage` here with the TASK-001 formula). TASK-008 makes the counter readable (hit, then counter-hit) but is not required.
+- **Model**: sonnet
 
 ## Goal
 

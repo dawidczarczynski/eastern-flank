@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (+ translation data, project settings; checks in `tests/unit/`)
 - **Depends on**: nothing hard. Recommended right after TASK-014 and **before** the HUD tasks (TASK-015, -020, -024, -021), so they add their strings through `tr()` from the start instead of retrofitting.
+- **Model**: sonnet
 
 ## Goal
 

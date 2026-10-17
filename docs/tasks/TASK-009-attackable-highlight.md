@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core / ai / presentation
 - **Depends on**: TASK-001. Optional: TASK-008 (refresh after the event queue drains).
+- **Model**: sonnet
 
 ## Goal
 

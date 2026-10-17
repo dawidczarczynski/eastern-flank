@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure geometry/curve helpers tested in `tests/unit/`)
 - **Depends on**: **TASK-016b** (overlays drape over `TerrainSurface`). Soft: TASK-009 (its attack-target markers are restyled here if it is done), TASK-004 (replaces its path markers). Reference: `docs/design/game_screen.scene.js` lines 131–159 (`patchGeo`, `ringGeo`, `overlayMat`), 430–474 (reach, path dots), 530–541 and 630 (hover ring pulse).
+- **Model**: sonnet
 
 ## Goal
 

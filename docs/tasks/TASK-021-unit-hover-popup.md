@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure model + placement tested in `tests/unit/`)
 - **Depends on**: **TASK-014**, TASK-003 (replaces its panel), TASK-019 (`UnitStatus`, `short_name`), TASK-023 (strings). Soft: TASK-024 (layout next to the terrain panel), TASK-002 (terrain defense row), TASK-015 (hidden while dragging). Reference: `docs/design/game_screen.template.html` lines 359–394 and 435–440; `game_screen.scene.js` lines 488–508.
+- **Model**: sonnet
 
 ## Goal
 

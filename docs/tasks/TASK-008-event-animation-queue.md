@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure queue class tested in `tests/unit/`)
 - **Depends on**: TASK-001 (events `unit_attacked`, `unit_died`, `game_over`). Not required by later tasks, but makes TASK-009/-004/-003/-010 visuals easier to read.
+- **Model**: opus
 
 ## Goal
 

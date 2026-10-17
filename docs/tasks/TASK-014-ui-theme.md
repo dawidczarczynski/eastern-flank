@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure palette/theme builder tested in `tests/unit/`)
 - **Depends on**: nothing. Used by every later HUD task (TASK-020, -021, -024) and by unit labels (TASK-019). Reference: `docs/design/README.md` ("Palette", "Fonts"), `docs/design/game_screen.template.html`.
+- **Model**: sonnet
 
 ## Goal
 

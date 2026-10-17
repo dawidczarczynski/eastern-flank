@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure HUD model tested in `tests/unit/`)
 - **Depends on**: **TASK-014** (theme), TASK-023 (strings through `tr()`), TASK-015 (the hint describes its controls). Soft: TASK-008 (button disabled while the queue plays), TASK-019 (`UnitStatus.is_done` for "ready units"). Reference: `docs/design/game_screen.template.html` lines 300–324 (top bar), 349–357 (hint, end turn), 396–401 (banner), 424–426 and 444–448 (logic).
+- **Model**: sonnet
 
 ## Goal
 

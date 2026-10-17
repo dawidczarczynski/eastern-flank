@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core (+ data; one-line change in `BattleController` spawns)
 - **Depends on**: nothing hard. Recommended after TASK-002 (both touch terrain; no code conflict expected). Required by TASK-016b, -017, -018, -019, -022, -024. Reference: `docs/design/game_screen.scene.js` lines 7–16 (noise), 41–59 (`terr`), 81–95 (`buildHexes`).
+- **Model**: opus
 
 ## Goal
 

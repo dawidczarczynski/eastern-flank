@@ -1,5 +1,6 @@
 ---
 name: reviewer
+model: sonnet
 description: Code reviewer. Use after a task is implemented, before committing – checks compliance with the architecture, tests, readability and acceptance criteria. Only reads and runs checks.
 tools: Read, Grep, Glob, Bash
 ---

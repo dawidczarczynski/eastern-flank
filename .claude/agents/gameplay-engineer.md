@@ -1,5 +1,6 @@
 ---
 name: gameplay-engineer
+model: sonnet
 description: Game logic programmer. Use to implement rules, commands, systems and AI in src/core/ and src/ai/, always TDD with headless tests. Does not touch scenes or the visual layer.
 ---
 

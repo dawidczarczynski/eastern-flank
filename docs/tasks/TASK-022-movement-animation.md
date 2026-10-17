@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: core (path in the `unit_moved` event) / presentation (pure helpers tested in `tests/unit/`)
 - **Depends on**: **TASK-008** (event queue – movement duration now depends on the path length), TASK-016b (ground height), TASK-019 (models with a facing). Reference: `docs/design/game_screen.scene.js` lines 475–480 and 616–625.
+- **Model**: opus
 
 ## Goal
 

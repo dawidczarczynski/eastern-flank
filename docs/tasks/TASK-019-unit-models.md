@@ -3,6 +3,7 @@
 - **Status**: ready
 - **Layers**: presentation (pure helpers tested in `tests/unit/`) + data (`short_name` in unit definitions)
 - **Depends on**: **TASK-016b** (units stand on the surface), **TASK-017** (`OverlayGeometry` for the markers), TASK-014 (fonts/palette). Soft: TASK-008 (removes the hit `delay`; do 008 first so the new hit animation is written once), TASK-009 (`valid_targets` for the "done" state), TASK-023 (abbreviations through `tr()`). Reference: `docs/design/game_screen.scene.js` lines 161–215 (`makeTank`, `soldier`, `makeInf`), 398–428 (markers, labels), 626–627 (label position/opacity).
+- **Model**: sonnet
 
 ## Goal
 
