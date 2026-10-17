@@ -54,6 +54,15 @@ for arg in "$@"; do
 	esac
 done
 
-# Detached, so the terminal is free right away; Godot's own window shows the output.
-nohup "$GODOT_WIN" --path "$(wslpath -w "$PWD")" "${editor[@]}" >/dev/null 2>&1 &
-echo "Started $(basename "$GODOT_WIN") ${editor[*]}"
+# Started through PowerShell's Start-Process, so Godot doesn't depend on this WSL session:
+# a process backgrounded here is killed when the session ends (e.g. `wsl tools/run_windows.sh`
+# from Windows), and `cmd.exe /c start` blocks until Godot exits. The working directory is
+# C: because Windows programs can't start in a WSL (UNC) directory.
+args="'--path','$(wslpath -w "$PWD")'"
+for arg in "${editor[@]}"; do
+	args+=",'$arg'"
+done
+pid="$(cd /mnt/c && powershell.exe -NoProfile -NonInteractive -Command \
+	"(Start-Process -FilePath '$(wslpath -w "$GODOT_WIN")' -ArgumentList $args -PassThru).Id" \
+	</dev/null | tr -d '\r')"
+echo "Started $(basename "$GODOT_WIN")${editor[*]:+ ${editor[*]}} (PID $pid)"
