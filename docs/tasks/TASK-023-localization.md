@@ -1,6 +1,6 @@
 # TASK-023: Localization setup (English + Polish)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (+ translation data, project settings; checks in `tests/unit/`)
 - **Depends on**: nothing hard. Recommended right after TASK-014 and **before** the HUD tasks (TASK-015, -020, -024, -021), so they add their strings through `tr()` from the start instead of retrofitting.
 - **Model**: sonnet
@@ -19,7 +19,7 @@ The game can be played in Polish (the language of the mock-up) while all strings
 
 ## Acceptance criteria (testable)
 
-- [ ] `assets/i18n/strings.csv` (UTF-8, comma-separated, header exactly `keys,en,pl`) with one row per UI string that exists at the time of implementation. At minimum (Polish proposals – the human may correct them):
+- [x] `assets/i18n/strings.csv` (UTF-8, comma-separated, header exactly `keys,en,pl`) with one row per UI string that exists at the time of implementation. At minimum (Polish proposals – the human may correct them):
 
   | keys | en | pl |
   |---|---|---|
@@ -37,15 +37,15 @@ The game can be played in Polish (the language of the mock-up) while all strings
   | `Infantry` | Infantry | Piechota |
   | `Cavalry` | Cavalry | Kawaleria |
 
-- [ ] The CSV is imported by Godot (`--import`) into `strings.en.translation` / `strings.pl.translation`; `project.godot` has `internationalization/locale/translations` listing both and `internationalization/locale/fallback = "en"`. (Whether the generated `.translation` files are committed follows what `--import` produces; don't hand-edit `*.import`.)
-- [ ] All HUD strings in `src/presentation/` go through `tr()` / `TranslationServer.translate()`: `BattleController._update_status`, `UnitInfo.lines()` (all 5 lines, including the translated `display_name`; the fallback to `String(definition.id)` for an empty name stays untranslated).
-- [ ] Tests `tests/unit/test_localization.gd`:
+- [x] The CSV is imported by Godot (`--import`) into `strings.en.translation` / `strings.pl.translation`; `project.godot` has `internationalization/locale/translations` listing both and `internationalization/locale/fallback = "en"`. (Whether the generated `.translation` files are committed follows what `--import` produces; don't hand-edit `*.import`.)
+- [x] All HUD strings in `src/presentation/` go through `tr()` / `TranslationServer.translate()`: `BattleController._update_status`, `UnitInfo.lines()` (all 5 lines, including the translated `display_name`; the fallback to `String(definition.id)` for an empty name stays untranslated).
+- [x] Tests `tests/unit/test_localization.gd`:
   - CSV integrity: header `keys,en,pl`; every row has 3 non-empty fields; no duplicate keys; for every row the `printf` placeholders (`%d`, `%s`, `%%`) in `en` and `pl` are the same multiset as in the key.
   - Coverage: every string literal `X` in `tr("X")` / `TranslationServer.translate("X")` in `src/**/*.gd` (scan files with `RegEx`) is a key in the CSV.
   - With `TranslationServer.set_locale("pl")`: `TranslationServer.translate("Your turn") == "Twoja tura"`; `UnitInfo.lines(<fresh infantry>)[0] == "Piechota"` and `[2] == "Ruch 3/3"`. With `"en"`: the existing `test_unit_info.gd` expectations hold. The test restores the previous locale afterwards (also on failure paths – restore in the test's cleanup).
   - Unknown key `"__missing__"` translates to itself.
-- [ ] `docs/ARCHITECTURE.md` gets a short "Localization" paragraph (where the CSV is, key convention, `AUTO_TRANSLATE_MODE_DISABLED` for composed labels, "every new UI string = a CSV row with en + pl").
-- [ ] Agent visual check: take a screenshot with `tools/screenshot.sh` (English) – identical to before. Then temporarily set `internationalization/locale/test="pl"`, take another screenshot and check the status text is Polish with correct diacritics (`ę`, `ż`, `ł` rendered by IBM Plex, no tofu boxes); revert the setting.
+- [x] `docs/ARCHITECTURE.md` gets a short "Localization" paragraph (where the CSV is, key convention, `AUTO_TRANSLATE_MODE_DISABLED` for composed labels, "every new UI string = a CSV row with en + pl").
+- [x] Agent visual check: take a screenshot with `tools/screenshot.sh` (English) – identical to before. Then temporarily set `internationalization/locale/test="pl"`, take another screenshot and check the status text is Polish with correct diacritics (`ę`, `ż`, `ł` rendered by IBM Plex, no tofu boxes); revert the setting.
 
 ## Playtest (for the human)
 
@@ -61,4 +61,11 @@ The game can be played in Polish (the language of the mock-up) while all strings
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `assets/i18n/strings.csv` (`keys,en,pl`, 14 rows): the table rows plus `Turn %d` (pl `Tura %d`), which the game-over status line uses. The old composed strings (`"Turn %d · %s\n<hint>"`, `"%s\nTurn %d"`) were split into separate keys and joined with `\n` after translation.
+- `project.godot` `[internationalization]`: `locale/fallback="en"` and `locale/translations` list both `.translation` files. `locale/test` is not set.
+- `*.translation` files are git-ignored (`.gitignore`). They are generated by `--import`, which `tools/test.sh` / `tools/screenshot.sh` already run. Commit `strings.csv.import`.
+- `BattleController`: `tr()` for status strings. `_status_label` and `_info_label` use `AUTO_TRANSLATE_MODE_DISABLED`.
+- `UnitInfo.lines()`: every line goes through a private static `_t()` (`TranslationServer.translate` → `String`), including `display_name`. The `String(definition.id)` fallback is not translated. The coverage test scans `tr(`, `TranslationServer.translate(` and `_t(` literals.
+- Test harness: `TestCase.after_each()` was added, and `run_tests.gd` calls it after every test method. `test_localization.gd` uses it to restore the locale.
+- Visual check: the English screenshot shows the same status text as before. With a temporary `locale/test="pl"` the status reads "Tura 1 · Twoja tura" and "LPM – wybór/ruch/atak … kółko – kamera", with diacritics rendered by IBM Plex (no tofu). The unit panel (`PŻ`, `ę`) was not in the screenshot, so it is a playtest item.
+- Known limitations: unit `display_name`s are not caught by the coverage test (they are not literals), so a new unit type needs its own CSV row added by hand. The ObjectDB/resource leak warnings at test exit were there before this task.

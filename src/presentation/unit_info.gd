@@ -10,15 +10,22 @@ static func lines(unit: Unit) -> PackedStringArray:
 	var name := definition.display_name
 	if name.is_empty():
 		name = String(definition.id)
+	else:
+		name = _t(name)
 	return PackedStringArray(
 		[
 			name,
-			"HP %d/%d" % [unit.hp, definition.max_hp],
-			"Moves %d/%d" % [unit.moves_left, definition.move_points],
+			_t("HP %d/%d") % [unit.hp, definition.max_hp],
+			_t("Moves %d/%d") % [unit.moves_left, definition.move_points],
 			(
-				"Attack %d · Defense %d · Range %d"
+				_t("Attack %d · Defense %d · Range %d")
 				% [definition.attack, definition.defense, definition.attack_range]
 			),
-			"Already attacked" if unit.has_attacked else "Ready to attack",
+			_t("Already attacked") if unit.has_attacked else _t("Ready to attack"),
 		]
 	)
+
+
+## Static helper (no Object.tr()). test_localization.gd also scans string literals passed to `_t`.
+static func _t(key: String) -> String:
+	return String(TranslationServer.translate(key))

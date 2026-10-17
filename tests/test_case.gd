@@ -10,6 +10,10 @@ func before_each() -> void:
 	pass
 
 
+func after_each() -> void:
+	pass
+
+
 func assert_true(condition: bool, message := "") -> void:
 	if not condition:
 		_fail("expected true. " + message)

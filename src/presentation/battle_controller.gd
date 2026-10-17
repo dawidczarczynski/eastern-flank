@@ -223,6 +223,8 @@ func _build_hud_root() -> void:
 	$HUD.add_child(_hud_root)
 	_status_label.reparent(_hud_root, false)
 	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Text is composed in code from already translated parts.
+	_status_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 
 
 ## Bottom-left HUD panel with the selected unit's stats (text from UnitInfo).
@@ -233,6 +235,7 @@ func _build_info_panel() -> void:
 	_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_info_label = Label.new()
 	_info_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_info_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_info_panel.add_child(_info_label)
 	_hud_root.add_child(_info_panel)
 	_info_panel.hide()
@@ -340,16 +343,14 @@ func _on_command_rejected(command: Command, reason: String) -> void:
 func _update_status() -> void:
 	var state := _sim.state
 	if state.winner != -1:
-		var result := "Victory!" if state.winner == HUMAN_PLAYER else "Defeat!"
-		_status_label.text = "%s\nTurn %d" % [result, state.turn]
+		var result := tr("Victory!") if state.winner == HUMAN_PLAYER else tr("Defeat!")
+		_status_label.text = "%s\n%s" % [result, tr("Turn %d") % state.turn]
 		return
 	_show_turn_status(state.turn, state.current_player)
 
 
 ## Status text for an ongoing game; called with event data during playback.
 func _show_turn_status(turn: int, player: int) -> void:
-	var who := "Your turn" if player == HUMAN_PLAYER else "AI turn"
-	_status_label.text = (
-		"Turn %d · %s\nLMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera"
-		% [turn, who]
-	)
+	var who := tr("Your turn") if player == HUMAN_PLAYER else tr("AI turn")
+	var hint := tr("LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera")
+	_status_label.text = "%s\n%s" % [tr("Turn %d · %s") % [turn, who], hint]

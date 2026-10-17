@@ -27,6 +27,7 @@ func _initialize() -> void:
 				var instance: TestCase = script.new()
 				instance.before_each()
 				instance.call(method_name)
+				instance.after_each()
 				total += 1
 				if instance.failures.is_empty():
 					print("  PASS ", label)

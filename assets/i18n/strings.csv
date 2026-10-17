@@ -1,0 +1,15 @@
+keys,en,pl
+Turn %d · %s,Turn %d · %s,Tura %d · %s
+Turn %d,Turn %d,Tura %d
+Your turn,Your turn,Twoja tura
+AI turn,AI turn,Tura przeciwnika
+Victory!,Victory!,Zwycięstwo!
+Defeat!,Defeat!,Porażka!
+LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera,LMB – select/move/attack · Enter – end turn · WASD/QE/wheel – camera,LPM – wybór/ruch/atak · Enter – koniec tury · WASD/QE/kółko – kamera
+HP %d/%d,HP %d/%d,PŻ %d/%d
+Moves %d/%d,Moves %d/%d,Ruch %d/%d
+Attack %d · Defense %d · Range %d,Attack %d · Defense %d · Range %d,Atak %d · Obrona %d · Zasięg %d
+Ready to attack,Ready to attack,Gotowa do ataku
+Already attacked,Already attacked,Już atakowała
+Infantry,Infantry,Piechota
+Cavalry,Cavalry,Kawaleria

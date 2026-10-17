@@ -45,6 +45,10 @@ Hex grid, axial coordinates `(q, r)` as `Vector2i`, "pointy-top" layout. World â
 | `unit_died` | `unit_id` | AttackCommand |
 | `game_over` | `winner` (only one player has living units left) | AttackCommand |
 
+## Localization
+
+All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot imports it into `strings.<locale>.translation`, registered in `project.godot` (fallback `en`). Keys are the English source strings (gettext style): `tr("Your turn")`, format strings are keys too and values are substituted after translation: `tr("Turn %d") % turn`. Static/pure helpers without `Object.tr()` call `TranslationServer.translate(key)`. Labels whose text is composed in code set `auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED` so the text is not translated twice. Every new UI string = a CSV row with `en` + `pl` (`tests/unit/test_localization.gd` checks coverage and placeholders). To try Polish, set the project setting `internationalization/locale/test="pl"` (do not commit it).
+
 ## Directory layout
 
 | Directory | Contents |
