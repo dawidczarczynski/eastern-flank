@@ -1,6 +1,6 @@
 # TASK-020: HUD layout – turn bar, end-turn button, controls hint, turn banner
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure HUD model tested in `tests/unit/`)
 - **Depends on**: **TASK-014** (theme), TASK-023 (strings through `tr()`), TASK-015 (the hint describes its controls). Soft: TASK-008 (button disabled while the queue plays), TASK-019 (`UnitStatus.is_done` for "ready units"). Reference: `docs/design/game_screen.template.html` lines 300–324 (top bar), 349–357 (hint, end turn), 396–401 (banner), 424–426 and 444–448 (logic).
 - **Model**: sonnet
@@ -29,18 +29,18 @@ The screen frames the battle like the mock-up: whose turn it is and the turn num
 
 ## Acceptance criteria (testable)
 
-- [ ] Pure model `src/presentation/hud_model.gd` (`class_name HudModel`, static): `top_bar(state: GameState, human_player: int) -> Dictionary` with `turn_text` (`"01"`), `active_player`, and per player `{units: int, ready: int, status: String, active: bool}` (`status` is the untranslated key, e.g. `"YOUR TURN"`, `"AI TURN"`, `"WAITING"`); `banner_for(prev_turn: int, prev_player: int, turn: int, player: int) -> bool`; `result_banner(state, human_player) -> String` (`""`, `"VICTORY"`, `"DEFEAT"`).
-- [ ] Tests `tests/unit/test_hud_model.gd` (3v3 setup on `Fixtures.plains_grid(3)`):
+- [x] Pure model `src/presentation/hud_model.gd` (`class_name HudModel`, static): `top_bar(state: GameState, human_player: int) -> Dictionary` with `turn_text` (`"01"`), `active_player`, and per player `{units: int, ready: int, status: String, active: bool}` (`status` is the untranslated key, e.g. `"YOUR TURN"`, `"AI TURN"`, `"WAITING"`); `banner_for(prev_turn: int, prev_player: int, turn: int, player: int) -> bool`; `result_banner(state, human_player) -> String` (`""`, `"VICTORY"`, `"DEFEAT"`).
+- [x] Tests `tests/unit/test_hud_model.gd` (3v3 setup on `Fixtures.plains_grid(3)`):
   - start: `turn_text == "01"`, player 0 active, `units == 3`, `ready == 3`, status `"YOUR TURN"`; player 1 `"WAITING"`.
   - after one unit moves all its points and attacks → player 0 `ready == 2`; after it dies → `units == 2`.
   - `current_player = 1` → player 1 status `"AI TURN"`, player 0 `"WAITING"`.
   - turn 12 → `"12"`; turn 7 → `"07"`.
   - `banner_for(1, 0, 1, 1) == true`, `(1, 1, 2, 0) == true`, `(1, 0, 1, 0) == false`.
   - `result_banner`: `winner == -1` → `""`; `winner == 0` (human 0) → `"VICTORY"`; `winner == 1` → `"DEFEAT"`.
-- [ ] The HUD is built in code (e.g. `src/presentation/ui/battle_hud.gd`, a `Control` under `HUD/Root`) and refreshed from `turn_started`, `turn_ended`, `game_over` and after every executed command / drained queue; it reads state only through `HudModel`.
-- [ ] The old `StatusLabel` is removed from `battle.tscn` (keep ext/sub resource ids consistent) and from `BattleController`.
-- [ ] Every new string (`TURN`, `MOVE: %s`, `YOUR TURN`, `AI TURN`, `WAITING`, `%d UNITS`, `READY UNITS`, `End turn`, `VICTORY`, `DEFEAT`, faction names) is a CSV row with en + pl (`TURA`, `RUCH: %s`, `TWOJA TURA`, `TURA SI`, `OCZEKUJE`, `%d JEDN.`, `GOTOWE JEDNOSTKI`, `Zakończ turę`, `ZWYCIĘSTWO`, `PORAŻKA`); the localization coverage test passes.
-- [ ] Agent visual check: take a screenshot with `tools/screenshot.sh` and compare with `docs/design/reference.png` / the values above: top bar centred with the blue side highlighted, `TURN 01`, `MOVE: BLUE FORCE`; bottom-right `READY UNITS 3 / 3` + blue `END TURN`; hint box above it; dark shade at the top edge; nothing overlaps at 1280×720. (The banner is not visible at start – by design.)
+- [x] The HUD is built in code (e.g. `src/presentation/ui/battle_hud.gd`, a `Control` under `HUD/Root`) and refreshed from `turn_started`, `turn_ended`, `game_over` and after every executed command / drained queue; it reads state only through `HudModel`.
+- [x] The old `StatusLabel` is removed from `battle.tscn` (keep ext/sub resource ids consistent) and from `BattleController`.
+- [x] Every new string (`TURN`, `MOVE: %s`, `YOUR TURN`, `AI TURN`, `WAITING`, `%d UNITS`, `READY UNITS`, `End turn`, `VICTORY`, `DEFEAT`, faction names) is a CSV row with en + pl (`TURA`, `RUCH: %s`, `TWOJA TURA`, `TURA SI`, `OCZEKUJE`, `%d JEDN.`, `GOTOWE JEDNOSTKI`, `Zakończ turę`, `ZWYCIĘSTWO`, `PORAŻKA`); the localization coverage test passes.
+- [x] Agent visual check: take a screenshot with `tools/screenshot.sh` and compare with `docs/design/reference.png` / the values above: top bar centred with the blue side highlighted, `TURN 01`, `MOVE: BLUE FORCE`; bottom-right `READY UNITS 3 / 3` + blue `END TURN`; hint box above it; dark shade at the top edge; nothing overlaps at 1280×720. (The banner is not visible at start – by design.)
 
 ## Playtest (for the human)
 
@@ -57,4 +57,13 @@ The screen frames the battle like the mock-up: whose turn it is and the turn num
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `HudModel` (`src/presentation/hud_model.gd`) is a pure static model. It also has `top_bar_at(state, human, turn, player)`, because playback lags behind the simulation: a played-back `turn_started` shows its own turn and active side. Tested in `tests/unit/test_hud_model.gd`.
+- `BattleHud` (`src/presentation/ui/battle_hud.gd`) builds everything in code under the HUD root. It is refreshed at start, on `turn_started` during playback and when the event queue drains. The END TURN button is disabled as soon as an event is queued and re-enabled from `BattleController._input_allowed()`. A press goes through the same `_end_human_turn()` path as Enter. The button has `FOCUS_NONE`, so Enter is not handled twice.
+- `StatusLabel` was removed from `battle.tscn` and `BattleController`. The old status strings were removed from the CSV, and the localization test now checks `End turn`.
+- `UiPalette.FACTION_NAMES` / `FACTION_SHORT` hold the placeholder faction names. `HudTheme.font(file, spacing)` was made public.
+- **Known limitations**:
+  - During AI playback, the unit/ready counts come from the simulation state, which is already at the end of the AI turn. The counts are correct again once the queue drains.
+  - Font sizes are integers in Godot, so 10.5 px became 10.
+  - Glyph spacing is rounded to whole pixels.
+  - The Mono Bold weight is not bundled, so the badge uses Mono SemiBold.
+  - `docs/design/reference.png` does not exist. The visual check was done against the spec values with `tools/screenshot.sh`: layout as specified, no overlaps at 1280×720.

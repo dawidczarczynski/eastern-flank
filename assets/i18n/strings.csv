@@ -1,10 +1,4 @@
 keys,en,pl
-Turn %d · %s,Turn %d · %s,Tura %d · %s
-Turn %d,Turn %d,Tura %d
-Your turn,Your turn,Twoja tura
-AI turn,AI turn,Tura przeciwnika
-Victory!,Victory!,Zwycięstwo!
-Defeat!,Defeat!,Porażka!
 LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury
 HP %d/%d,HP %d/%d,PŻ %d/%d
 Moves %d/%d,Moves %d/%d,Ruch %d/%d
@@ -15,3 +9,17 @@ Infantry,Infantry,Piechota
 Cavalry,Cavalry,Kawaleria
 INF,INF,PIECH
 CAV,CAV,KAW
+TURN,TURN,TURA
+MOVE: %s,MOVE: %s,RUCH: %s
+YOUR TURN,YOUR TURN,TWOJA TURA
+AI TURN,AI TURN,TURA SI
+WAITING,WAITING,OCZEKUJE
+%d UNITS,%d UNITS,%d JEDN.
+READY UNITS,READY UNITS,GOTOWE JEDNOSTKI
+End turn,End turn,Zakończ turę
+VICTORY,VICTORY,ZWYCIĘSTWO
+DEFEAT,DEFEAT,PORAŻKA
+Blue Force,Blue Force,Siły Niebieskie
+Red Force,Red Force,Siły Czerwone
+BF,BF,SN
+RF,RF,SC

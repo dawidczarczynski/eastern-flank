@@ -18,6 +18,7 @@ var _hovered_unit_id := -1
 var _hud_root: Control
 var _info_panel: PanelContainer
 var _info_label: Label
+var _hud: BattleHud
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
 var _last_camera_transform := Transform3D()
 # Event playback: the simulation runs ahead synchronously, the view replays its events one by one.
@@ -29,7 +30,6 @@ var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
 @onready var _map_view: MapView = $MapView
 @onready var _units_root: Node3D = $Units
 @onready var _camera_rig: CameraRig = $CameraRig
-@onready var _status_label: Label = $HUD/StatusLabel
 
 
 func _ready() -> void:
@@ -51,7 +51,7 @@ func _ready() -> void:
 	_camera_rig.clicked.connect(_on_camera_clicked)
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
-	_update_status()
+	_refresh_hud()
 	_refresh_selection_ui()
 
 
@@ -288,10 +288,10 @@ func _build_hud_root() -> void:
 	_hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_root.theme = HudTheme.build()
 	$HUD.add_child(_hud_root)
-	_status_label.reparent(_hud_root, false)
-	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# Text is composed in code from already translated parts.
-	_status_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_hud = BattleHud.new()
+	_hud_root.add_child(_hud)
+	_hud.setup(HUMAN_PLAYER)
+	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
 
 
 ## Bottom-left HUD panel with the selected unit's stats (text from UnitInfo).
@@ -326,6 +326,7 @@ func _refresh_unit_info() -> void:
 ## (e.g. a whole AI turn) is queued before the burst speed is computed.
 func _on_event(event: Dictionary) -> void:
 	_event_queue.push(event)
+	_hud.set_end_enabled(false)  # the queue is non-empty from now on
 	if not _playing and not _playback_scheduled:
 		_playback_scheduled = true
 		_start_burst.call_deferred()
@@ -377,7 +378,7 @@ func _play_event(event: Dictionary) -> Tween:
 			if event["player"] == HUMAN_PLAYER:
 				_select(-1)
 		&"turn_started":
-			_show_turn_status(event["turn"], event["player"])
+			_hud.on_turn_started(_sim.state, event["turn"], event["player"])
 		&"game_over":
 			_select(-1)
 	return null
@@ -409,7 +410,7 @@ func _on_queue_drained() -> void:
 	var selected := _sim.state.get_unit(_selected_unit_id)
 	if selected != null and (not selected.is_alive() or not _unit_views.has(selected.id)):
 		_select(-1)
-	_update_status()
+	_refresh_hud()
 	_refresh_selection_ui()
 
 
@@ -417,22 +418,11 @@ func _on_command_rejected(command: Command, reason: String) -> void:
 	print("Rejected %s: %s" % [command.get_script().get_global_name(), reason])
 
 
-func _update_status() -> void:
-	var state := _sim.state
-	if state.winner != -1:
-		var result := tr("Victory!") if state.winner == HUMAN_PLAYER else tr("Defeat!")
-		_status_label.text = "%s\n%s" % [result, tr("Turn %d") % state.turn]
-		return
-	_show_turn_status(state.turn, state.current_player)
+func _refresh_hud() -> void:
+	_hud.refresh(_sim.state)
+	_hud.set_end_enabled(_input_allowed())
 
 
-## Status text for an ongoing game; called with event data during playback.
-func _show_turn_status(turn: int, player: int) -> void:
-	var who := tr("Your turn") if player == HUMAN_PLAYER else tr("AI turn")
-	var hint := tr(
-		(
-			"LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom"
-			+ " · WASD/QE – camera · Enter – end turn"
-		)
-	)
-	_status_label.text = "%s\n%s" % [tr("Turn %d · %s") % [turn, who], hint]
+func _on_end_turn_pressed() -> void:
+	if _input_allowed():
+		_end_human_turn()

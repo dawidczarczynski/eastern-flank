@@ -24,6 +24,10 @@ const FACTION: Array[Color] = [Color("#5b93d6"), Color("#d76a52")]
 ## Text colour on a faction-coloured badge.
 const FACTION_INK: Array[Color] = [Color("#0f1a26"), Color("#2a110b")]
 
+## Placeholder faction names (translation keys) and badge abbreviations, indexed by player id.
+const FACTION_NAMES: Array[String] = ["Blue Force", "Red Force"]
+const FACTION_SHORT: Array[String] = ["BF", "RF"]
+
 
 static func hp_color(hp: int, max_hp: int) -> Color:
 	if max_hp <= 0:

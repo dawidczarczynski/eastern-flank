@@ -41,6 +41,11 @@ static func build() -> Theme:
 	return theme
 
 
+## Public font access for code-built HUD widgets; `spacing` is extra glyph spacing in px.
+static func font(file: String, spacing: int = 0) -> Font:
+	return _spaced_font(file, spacing)
+
+
 static func _label_variation(
 	theme: Theme, name: StringName, file: String, size: int, color: Color, spacing: int
 ) -> void:
