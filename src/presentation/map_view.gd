@@ -6,18 +6,6 @@ extends Node3D
 
 ## Height of the plane used for picking tiles with the mouse.
 const PICK_HEIGHT := 0.2
-const TERRAIN_COLORS := {
-	Terrain.Type.PLAINS: Color(0.56, 0.71, 0.36),
-	Terrain.Type.FOREST: Color(0.24, 0.45, 0.22),
-	Terrain.Type.HILLS: Color(0.6, 0.53, 0.38),
-	Terrain.Type.WATER: Color(0.2, 0.42, 0.7),
-}
-const TERRAIN_HEIGHTS := {
-	Terrain.Type.PLAINS: 0.2,
-	Terrain.Type.FOREST: 0.25,
-	Terrain.Type.HILLS: 0.45,
-	Terrain.Type.WATER: 0.08,
-}
 ## Height of the movement highlight above the tile top.
 const HIGHLIGHT_OFFSET := 0.02
 ## Path markers sit slightly above the movement highlight to avoid z-fighting.
@@ -61,9 +49,9 @@ func build(grid: HexGrid) -> void:
 		child.queue_free()
 
 	var meshes := {}
-	for t: int in TERRAIN_COLORS:
-		var material := _make_material(TERRAIN_COLORS[t])
-		meshes[t] = _make_hex_mesh(hex_size * 0.96, TERRAIN_HEIGHTS[t], material)
+	for t: Terrain.Type in Terrain.Type.values():
+		var def := Terrain.definition(t)
+		meshes[t] = _make_hex_mesh(hex_size * 0.96, def.height, _make_material(def.color))
 
 	var tree_mesh := CylinderMesh.new()
 	tree_mesh.top_radius = 0.0
@@ -73,7 +61,7 @@ func build(grid: HexGrid) -> void:
 
 	for c in grid.coords():
 		var t := grid.get_terrain(c)
-		var h: float = TERRAIN_HEIGHTS[t]
+		var h := Terrain.definition(t).height
 		var tile := MeshInstance3D.new()
 		tile.mesh = meshes[t]
 		tile.position = Hex.to_world(c, hex_size) + Vector3.UP * (h / 2.0)
@@ -86,7 +74,9 @@ func build(grid: HexGrid) -> void:
 
 
 func tile_top_position(c: Vector2i) -> Vector3:
-	var h: float = TERRAIN_HEIGHTS.get(_grid.get_terrain(c), 0.0)
+	var h := 0.0
+	if _grid.has_tile(c):
+		h = Terrain.definition(_grid.get_terrain(c)).height
 	return Hex.to_world(c, hex_size) + Vector3.UP * h
 
 

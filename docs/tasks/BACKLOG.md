@@ -17,7 +17,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-014](TASK-014-ui-theme.md) | UI theme: IBM Plex fonts, palette, panel styles (`HudTheme`) | done | – |
 | [TASK-023](TASK-023-localization.md) | Localization setup: CSV en + pl, `tr()` for HUD strings | done | – (before the HUD tasks) |
 | [TASK-015](TASK-015-camera.md) | Camera like the design: drag-pan, RMB rotate, pitch by distance, map clamp | done | – (soft: TASK-023) |
-| [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | ready | TASK-001 |
+| [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | done | TASK-001 |
 | [TASK-016a](TASK-016a-terrain-elevation.md) | Deterministic terrain elevation in core (`TerrainField`, `TerrainSurface`) | ready | – (after TASK-002 recommended) |
 | [TASK-016b](TASK-016b-terrain-mesh.md) | Continuous terrain mesh, water plane, grid lines, surface picking | ready | **TASK-016a** (soft: TASK-013, TASK-015) |
 | [TASK-017](TASK-017-map-overlays.md) | Map overlays: reach wash + rings, pulsing hover ring, path dots | ready | **TASK-016b**, TASK-014 (soft: TASK-009) |

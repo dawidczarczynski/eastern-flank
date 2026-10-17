@@ -189,3 +189,32 @@ func test_commands_rejected_after_game_over() -> void:
 	assert_false(sim.execute(EndTurnCommand.new()))
 	assert_eq(rejections, ["game_over", "game_over", "game_over"] as Array[String])
 	assert_eq(state.current_player, 0)
+
+
+func _damage_on(terrain: Terrain.Type, attack: int, attacker_terrain := Terrain.Type.PLAINS) -> int:
+	state.grid.set_terrain(Vector2i(0, 0), attacker_terrain)
+	state.grid.set_terrain(Vector2i(1, 0), terrain)
+	var striker := state.add_unit(0, Fixtures.fighter(attack, 2), Vector2i(0, 0))
+	return AttackCommand.compute_damage(state, striker, enemy)
+
+
+func test_compute_damage_attack_four_by_terrain() -> void:
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 4), 2)
+	assert_eq(_damage_on(Terrain.Type.FOREST, 4), 1)
+	assert_eq(_damage_on(Terrain.Type.HILLS, 4), 1)
+
+
+func test_compute_damage_attack_seven_by_terrain() -> void:
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 7), 5)
+	assert_eq(_damage_on(Terrain.Type.FOREST, 7), 4)
+	assert_eq(_damage_on(Terrain.Type.HILLS, 7), 3)
+
+
+func test_attacker_tile_is_ignored() -> void:
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 7, Terrain.Type.HILLS), 5)
+
+
+func test_attack_applies_terrain_defense() -> void:
+	state.grid.set_terrain(enemy.coord, Terrain.Type.HILLS)
+	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
+	assert_eq(enemy.hp, 9)  # max(1, 4 - (2 + 2))

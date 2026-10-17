@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="TerrainDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/terrain_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"forest"
+display_name = "Forest"
+move_cost = 2
+impassable = false
+defense_bonus = 1
+color = Color(0.24, 0.45, 0.22, 1)
+height = 0.25

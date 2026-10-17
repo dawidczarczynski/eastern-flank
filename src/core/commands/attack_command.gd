@@ -1,6 +1,7 @@
 class_name AttackCommand
 extends Command
-## Melee attack: the attacker deals max(1, attack - defense) damage to an enemy within range.
+## Attack: the attacker deals compute_damage() damage to an enemy within range
+## (max(1, attack - (defense + terrain defense bonus of the defender's tile))).
 ## Attacking is allowed once per turn and ends the attacker's movement.
 
 var attacker_id: int
@@ -21,6 +22,12 @@ static func valid_targets(state: GameState, attacker_id: int) -> Array[int]:
 			result.append(unit.id)
 	result.sort()
 	return result
+
+
+## Damage the attacker would deal to the defender now. The attacker's own tile is ignored.
+static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
+	var defense := defender.definition.defense + state.grid.defense_bonus(defender.coord)
+	return maxi(1, attacker.definition.attack - defense)
 
 
 func validate(state: GameState) -> String:
@@ -49,7 +56,7 @@ func _combat_rule_violation(attacker: Unit, target: Unit) -> String:
 func apply(state: GameState) -> Array[Dictionary]:
 	var attacker := state.get_unit(attacker_id)
 	var target := state.get_unit(target_id)
-	var damage := maxi(1, attacker.definition.attack - target.definition.defense)
+	var damage := AttackCommand.compute_damage(state, attacker, target)
 	target.hp = maxi(0, target.hp - damage)
 	attacker.has_attacked = true
 	attacker.moves_left = 0

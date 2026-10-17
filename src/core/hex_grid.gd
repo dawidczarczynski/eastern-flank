@@ -25,6 +25,13 @@ func coords() -> Array[Vector2i]:
 	return result
 
 
+## Defense bonus of the tile's terrain; 0 off the map.
+func defense_bonus(c: Vector2i) -> int:
+	if not has_tile(c):
+		return 0
+	return Terrain.definition(get_terrain(c)).defense_bonus
+
+
 func move_cost(c: Vector2i) -> int:
 	if not has_tile(c):
 		return Terrain.IMPASSABLE

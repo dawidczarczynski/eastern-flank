@@ -22,12 +22,12 @@
 
   | Terrain | Move cost | Defense bonus | Status |
   |---|---|---|---|
-  | Plains | 1 | 0 | cost implemented; bonus planned (TASK-002) |
-  | Forest | 2 | +1 | cost implemented; bonus planned (TASK-002) |
-  | Hills | 2 | +2 | cost implemented; bonus planned (TASK-002) |
+  | Plains | 1 | 0 | implemented |
+  | Forest | 2 | +1 | implemented |
+  | Hills | 2 | +2 | implemented |
   | Water | impassable | – | implemented |
 
-  Move costs are currently hardcoded in `src/core/terrain.gd`; TASK-002 moves them to `data/terrain/*.tres`, which then becomes the source of truth.
+  Terrain numbers (move cost, impassable, defense bonus) and look (colour, height) live in `data/terrain/*.tres` (`TerrainDefinition`), the source of truth; see ADR 0002.
 
 - Planned (TASK-016a): terrain is derived from a deterministic per-hex **elevation** and **moisture** (fbm noise ported from the visual design, offset by the map seed): low ground → water (lakes, no sea edge), high ground → hills, wet ground → forest, the rest plains. Spawn tiles are forced to plains with their elevation clamped into the land band. Generator numbers live in `data/map/terrain_generation.tres`. Elevation has **no rule effect** yet (see Open questions).
 
@@ -49,17 +49,16 @@ Starting armies (prototype battle): each side has infantry, cavalry, infantry (+
 
 ## Combat
 
-Implemented in TASK-001 (`AttackCommand`):
+Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 
 - **Attack**: a unit may attack one living enemy unit within its `attack_range` (hex distance; 1 = adjacent). Rejection codes: `game_over`, `unit_not_found`, `not_your_unit`, `not_an_enemy`, `already_attacked`, `out_of_range`.
 - **Once per turn**: each unit attacks at most once per turn. Attacking sets the attacker's remaining movement to 0 – a unit can move then attack, but not attack then move. Both are reset at the start of the owner's turn.
-- **Damage** = `max(1, attack − defense)`, **deterministic**, no RNG **[ASSUMPTION]** (see Open questions: randomness). Current matchups: infantry→infantry 1, infantry→cavalry 2, cavalry→infantry 2, cavalry→cavalry 3.
+- **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter), **deterministic**, no RNG **[ASSUMPTION]** (see Open questions: randomness). Matchups on plains: infantry→infantry 1, infantry→cavalry 2, cavalry→infantry 2, cavalry→cavalry 3.
 - **Death**: a unit whose HP drops to 0 dies (`unit_died`), is removed from the map and no longer blocks its tile.
 - **Victory**: when exactly one player has living units left, that player wins (`game_over`, `GameState.winner`); after that every command is rejected with `game_over` **[ASSUMPTION]**.
 
 Planned:
 
-- **Terrain defense** (TASK-002): damage = `max(1, attack − (defense + defense bonus of the defender's tile))`; the attacker's tile doesn't matter.
 - **Counterattack** (TASK-010): a defender that survives and has the attacker within its own `attack_range` hits back once with the same formula; deterministic **[ASSUMPTION]**; doesn't use the defender's attack for the turn; a unit counters every attack it survives.
 - **Ranged units** (TASK-011): an archer with range 2 can attack melee units (range 1) from distance 2 without being countered.
 
