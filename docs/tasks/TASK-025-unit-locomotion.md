@@ -1,6 +1,6 @@
 # TASK-025: Unit locomotion – marching soldiers, driving tank
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation only (pure helpers tested in `tests/unit/`); no core changes, no new events
 - **Depends on**: **TASK-022** (hard – path movement and its `elapsed`/duration driver), TASK-019 (models in `src/presentation/unit_models.gd`). Soft: TASK-008 (burst speed scale), TASK-016b (`TerrainSurface.ground_height`).
 - **Model**: sonnet
@@ -107,4 +107,11 @@ Integration (`UnitView`, checked by reading code + playtest; adapt names to TASK
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- New pure helper `src/presentation/locomotion.gd` (`Locomotion`): `travelled`, `envelope`, `step_phase`, `step_bob`, `step_sway`, `wheel_angle`, `hull_bob`, `slope_tilt`; tests in `tests/unit/test_locomotion.gd` (helper values, model node structure, `pose_infantry` / `pose_tank`).
+- `UnitModels`: soldiers are `Soldier0..4` with a `Rig` child; kneelers (1, 4) have `Rig/Kneel` + hidden `Rig/Stand`. Tank wheels are `Wheel0..11` pivots (wheel mesh + `TANK_DARK` hub bar). New static `pose_infantry` / `pose_tank`; they accept either the built root or its `Model` child.
+- `UnitView`: `_step_move` calls `_pose_moving(elapsed)` every frame (distance and envelope from the move's `elapsed` only, so burst speed scale applies). `_apply_rest_pose()` runs in `setup` and `_end_move`; `_end_move` is also reached on interruption (`play_death`, a new `move_along`) via `_finish_move`. `_wheel_distance` accumulates the full path length in `_end_move` and is never reset.
+- Decisions / deviations:
+  - Hull bob is sampled from the accumulated wheel distance (that is the only distance `pose_tank` receives); its phase therefore carries over between moves – invisible, since the envelope starts at 0.
+  - The `pose_tank` rest test compares the tilt with 0.001 tolerance instead of exact equality: `Node3D.rotation` is read back from a float32 basis, so `0.1` comes back as `0.10000000149`. Bob residue (up to 0.012 rad) would still fail it. The zero-tilt case and the infantry `Rig.transform == IDENTITY` are asserted exactly.
+  - Slope tilt uses `_pivot.rotation.y` as yaw; during a turn it lags the path direction slightly (cosmetic).
+- Known limitations: wheel spin may alias at high burst speeds (as noted in the spec); kneelers keep a duplicate (hidden) standing mesh set.

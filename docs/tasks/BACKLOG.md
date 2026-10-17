@@ -23,7 +23,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-017](TASK-017-map-overlays.md) | Map overlays: reach wash + rings, pulsing hover ring, path dots | done | **TASK-016b**, TASK-014 (soft: TASK-009) |
 | [TASK-019](TASK-019-unit-models.md) | Unit models from primitives, faction markers, unit labels (+ upright check) | done | **TASK-016b**, **TASK-017**, TASK-014 (soft: TASK-008, TASK-009) |
 | [TASK-022](TASK-022-movement-animation.md) | Unit movement along the path with turning (0.26 s/tile) | done | **TASK-008**, TASK-016b, TASK-019 |
-| [TASK-025](TASK-025-unit-locomotion.md) | Unit locomotion: marching soldiers (step bob, kneelers stand), tank wheels + slope tilt | ready | **TASK-022**, TASK-019 (soft: TASK-008, TASK-016b) |
+| [TASK-025](TASK-025-unit-locomotion.md) | Unit locomotion: marching soldiers (step bob, kneelers stand), tank wheels + slope tilt | done | **TASK-022**, TASK-019 (soft: TASK-008, TASK-016b) |
 | [TASK-018](TASK-018-scatter.md) | Scatter: trees and rocks (MultiMesh, view-local RNG) | ready | **TASK-016b** |
 | [TASK-020](TASK-020-hud-layout.md) | HUD layout: turn bar, end-turn button, controls hint, turn banner | ready | **TASK-014**, TASK-023, TASK-015 (soft: TASK-008, TASK-019) |
 | [TASK-024](TASK-024-terrain-panel.md) | Terrain panel (bottom-left) with path cost, replaces the path `Label3D` | ready | **TASK-014**, **TASK-016a**, TASK-017, TASK-023 (soft: TASK-002) |

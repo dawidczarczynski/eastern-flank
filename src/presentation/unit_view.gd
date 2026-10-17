@@ -54,6 +54,9 @@ var _move_tween: Tween
 var _move_points := PackedVector3Array()  # world points of the running move
 var _move_elapsed := 0.0
 var _move_height: Callable  # (x, z) -> ground height the unit walks on
+var _model: Node3D  # the "Model" node locomotion poses
+var _is_tank := false
+var _wheel_distance := 0.0  # accumulated across moves, never reset
 var _hit_tween: Tween
 var _hp := 0
 var _max_hp := 0
@@ -78,6 +81,9 @@ func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height
 	_pivot.rotation.y = model.rotation.y
 	model.rotation.y = 0.0
 	_pivot.add_child(model)
+	_model = model.get_node("Model")
+	_is_tank = unit.definition.id == UnitModels.CAVALRY
+	_apply_rest_pose()
 	_collect_meshes(_pivot)
 
 	for marker: MeshInstance3D in [_ring, _fill]:
@@ -141,6 +147,28 @@ func _step_move(elapsed: float) -> void:
 		var yaw := MoveAnimation.facing_yaw(p, target)
 		_pivot.rotation.y = MoveAnimation.turn_towards(_pivot.rotation.y, yaw, dt)
 	position = p
+	_pose_moving(elapsed)
+
+
+## Locomotion pose for the move's animation time (distance and envelope derive from `elapsed`
+## only, so the burst speed scale applies automatically).
+func _pose_moving(elapsed: float) -> void:
+	var distance := Locomotion.travelled(_move_points, elapsed)
+	var env := Locomotion.envelope(elapsed, MoveAnimation.duration(_move_points))
+	if _is_tank:
+		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)
+		UnitModels.pose_tank(_model, _wheel_distance + distance, env, tilt)
+	else:
+		UnitModels.pose_infantry(_model, distance, env, true)
+
+
+## Rest pose: no bob / sway / lean, kneelers kneel, tank hull follows the slope at its tile.
+func _apply_rest_pose() -> void:
+	if _is_tank:
+		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)
+		UnitModels.pose_tank(_model, _wheel_distance, 0.0, tilt)
+	else:
+		UnitModels.pose_infantry(_model, 0.0, 0.0, false)
 
 
 ## Arrival: snap to the last point, keep the facing, show the marker there.
@@ -150,7 +178,9 @@ func _end_move() -> void:
 		if _move_height.is_valid():
 			last.y = _move_height.call(last.x, last.z)
 		position = last
+		_wheel_distance += Locomotion.travelled(_move_points, MoveAnimation.duration(_move_points))
 	_move_points = PackedVector3Array()
+	_apply_rest_pose()
 	if not _dying:
 		_set_markers_visible(true)
 

@@ -15,6 +15,7 @@ const SKIN := Color("#b98d6c")
 const SOLDIER_DARK := Color("#1f201c")
 const TANK_DARK := Color("#22231f")
 const TANK_METAL := Color("#3c3e38")
+const WHEELS_PER_SIDE := 6
 ## Squad layout: [x, z, kneeling].
 const SQUAD: Array = [
 	[0.13, 0.0, false],
@@ -72,7 +73,21 @@ static func _make_infantry(owner_id: int) -> Node3D:
 	var g := Node3D.new()
 	for i in SQUAD.size():
 		var entry: Array = SQUAD[i]
-		var s := _make_soldier(owner_id, entry[2], i == 1)
+		var s := Node3D.new()
+		s.name = "Soldier%d" % i
+		var rig := Node3D.new()
+		rig.name = "Rig"
+		s.add_child(rig)
+		if entry[2]:
+			var kneel := _make_soldier(owner_id, true, i == 1)
+			kneel.name = "Kneel"
+			var stand := _make_soldier(owner_id, false, i == 1)
+			stand.name = "Stand"
+			stand.visible = false
+			rig.add_child(kneel)
+			rig.add_child(stand)
+		else:
+			_make_soldier(owner_id, false, i == 1, rig)
 		s.scale = Vector3.ONE * SOLDIER_SCALE
 		s.position = Vector3(entry[0], 0.0, entry[1])
 		s.rotation.y = (TerrainNoise.hash(i, 3, 1) - 0.5) * 0.6
@@ -80,8 +95,9 @@ static func _make_infantry(owner_id: int) -> Node3D:
 	return g
 
 
-static func _make_soldier(owner_id: int, kneel: bool, gun: bool) -> Node3D:
-	var s := Node3D.new()
+## Builds a soldier's meshes under `into` (a new Node3D when null) and returns it.
+static func _make_soldier(owner_id: int, kneel: bool, gun: bool, into: Node3D = null) -> Node3D:
+	var s := into if into != null else Node3D.new()
 	var uni := _material(_faction_color(BODY_COLORS, owner_id), 0.9, 0.0)
 	var vest := _material(_faction_color(VEST_COLORS, owner_id), 0.9, 0.0)
 	var skin := _material(SKIN, 0.8, 0.0)
@@ -108,12 +124,18 @@ static func _make_tank(owner_id: int) -> Node3D:
 	var acc := _material(
 		UiPalette.FACTION[clampi(owner_id, 0, UiPalette.FACTION.size() - 1)], 0.5, 0.1
 	)
+	var wheel_index := 0
 	for s: float in [-1.0, 1.0]:
 		_box(g, Vector3(0.74, 0.1, 0.1), dark, 0.0, 0.06, s * 0.17)
-		for i in 6:
-			var wheel_pos := Vector3(-0.27 + i * 0.108, 0.055, s * 0.2)
-			var wheel := _cyl(g, 0.045, 0.045, 0.03, 12, metal, wheel_pos)
+		for i in WHEELS_PER_SIDE:
+			var pivot := Node3D.new()
+			pivot.name = "Wheel%d" % wheel_index
+			wheel_index += 1
+			pivot.position = Vector3(-0.27 + i * 0.108, 0.055, s * 0.2)
+			g.add_child(pivot)
+			var wheel := _cyl(pivot, 0.045, 0.045, 0.03, 12, metal, Vector3.ZERO)
 			wheel.rotation.x = PI / 2.0
+			_box(pivot, Vector3(0.07, 0.012, 0.006), dark, 0.0, 0.0, s * 0.017)
 		_box(g, Vector3(0.62, 0.065, 0.012), body, 0.0, 0.135, s * 0.226)
 	_box(g, Vector3(0.7, 0.09, 0.36), body, 0.0, 0.13, 0.0)
 	_box(g, Vector3(0.64, 0.05, 0.46), body, -0.02, 0.195, 0.0)
@@ -138,6 +160,52 @@ static func _make_tank(owner_id: int) -> Node3D:
 			var pos := Vector3(0.06 - i * 0.025, 0.08, s * 0.15)
 			_cyl(tur, 0.012, 0.012, 0.04, 6, dark, pos).rotation.x = 0.4 * s
 	return g
+
+
+## Root may be the built root or its "Model" child.
+static func _model_of(node: Node3D) -> Node3D:
+	var inner := node.get_node_or_null("Model") as Node3D
+	return inner if inner != null else node
+
+
+## Poses a squad: `moving` makes kneelers stand; at env 0 / not moving every Rig is exactly
+## the identity transform.
+static func pose_infantry(model: Node3D, distance: float, env: float, moving: bool) -> void:
+	var m := _model_of(model)
+	for i in SQUAD.size():
+		var rig := m.get_node_or_null("Soldier%d/Rig" % i) as Node3D
+		if rig == null:
+			continue
+		var kneel := rig.get_node_or_null("Kneel") as Node3D
+		if kneel != null:
+			kneel.visible = not moving
+			(rig.get_node("Stand") as Node3D).visible = moving
+		if not moving or env <= 0.0:
+			rig.transform = Transform3D.IDENTITY
+			continue
+		var phase := Locomotion.step_phase(i)
+		rig.position = Vector3(0.0, Locomotion.step_bob(distance, phase) * env, 0.0)
+		rig.rotation = Vector3(
+			Locomotion.step_sway(distance, phase) * env, 0.0, Locomotion.LEAN * env
+		)
+
+
+## Spins the wheels to the accumulated `wheel_distance` and sets the hull's pitch/roll to the
+## slope `tilt` (x pitch, y roll) plus the env-scaled rocking.
+static func pose_tank(model: Node3D, wheel_distance: float, env: float, tilt: Vector2) -> void:
+	var m := _model_of(model)
+	var angle := Locomotion.wheel_angle(wheel_distance)
+	for i in WHEELS_PER_SIDE * 2:
+		var pivot := m.get_node_or_null("Wheel%d" % i) as Node3D
+		if pivot != null:
+			pivot.rotation.z = angle
+	var pitch := tilt.x
+	var roll := tilt.y
+	if env > 0.0:
+		var bob := Locomotion.hull_bob(wheel_distance)
+		pitch += bob.x * env
+		roll += bob.y * env
+	m.rotation = Vector3(roll, 0.0, pitch)
 
 
 static func _add(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3) -> MeshInstance3D:
