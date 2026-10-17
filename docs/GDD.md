@@ -46,6 +46,8 @@
 
 Target look of the battle screen: `docs/design/` (mock-up made in Claude Design, key values in `docs/design/README.md`). Ported by TASK-013 … TASK-024 **onto the current mechanics** ("look first, rules later"). Gameplay ideas visible in the mock-up are not adopted automatically – they are listed under "Ideas from the visual design" below and wait for a decision.
 
+**Unit feel** (presentation only, no rule effect): moving units walk tile by tile along their path and turn to face it (TASK-022); while moving, infantry marches (per-soldier step bob and sway, kneeling soldiers stand up and kneel again on arrival) and the tank drives (wheels turn with the distance covered, the hull rocks slightly and tilts with the terrain slope, also at rest) (TASK-025). Dust and track tread animation are possible follow-ups.
+
 ## Units
 
 | Unit | HP | Move | Attack | Defense | Range | Status |
