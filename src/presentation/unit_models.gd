@@ -16,10 +16,24 @@ const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
 const NEUTRAL_BODY := Color("#5a5a52")
 const NEUTRAL_VEST := Color("#44443d")
 const NEUTRAL_ACCENT := Color("#a8a598")
-const SKIN := Color("#b98d6c")
-const SOLDIER_DARK := Color("#1f201c")
-const TANK_DARK := Color("#22231f")
-const TANK_METAL := Color("#3c3e38")
+const CAMO_SHADER := preload("res://assets/shaders/camo.gdshader")
+## PBR palette: [colour, roughness, metallic] (TASK-029, docs/design/v2 "PBR materials").
+const DARK := [Color("#24251f"), 0.85, 0.15]
+const STEEL := [Color("#55564f"), 0.42, 0.75]
+const RUBBER := [Color("#171715"), 0.95, 0.0]
+const GLASS := [Color("#0b1820"), 0.06, 0.9]
+const TRACK := [Color("#2f2d28"), 0.7, 0.55]
+const SKIN := [Color("#a87c5f"), 0.75, 0.0]
+const GUN := [Color("#1b1c19"), 0.45, 0.55]
+const ACCENT_ROUGHNESS := 0.55
+const ACCENT_METALLIC := 0.1
+## Camo presets: pattern scale, mud height, base roughness, metallic.
+const CAMO_VEHICLE := {"scale": 9.0, "dirt": 0.12, "rough": 0.8, "metal": 0.12}
+const CAMO_TRUCK := {"scale": 9.0, "dirt": 0.11, "rough": 0.8, "metal": 0.12}
+const CAMO_UNIFORM := {"scale": 70.0, "dirt": 0.03, "rough": 0.95, "metal": 0.0}
+## Shader pattern mode (0 = blotches, 1 = digital). Not per faction yet: change the
+## `pattern_mode` uniform of a camo material to switch.
+const PATTERN_BLOTCHES := 0
 const WHEELS_PER_SIDE := 6
 ## Rocket artillery layout: truck axle x positions, pod elevation (rad) and pod length.
 const TRUCK_AXLES: Array[float] = [-0.3, -0.12, 0.27]
@@ -49,7 +63,7 @@ static var _meshes: Dictionary = {}  # key string -> Mesh
 static var _materials: Dictionary = {}  # key string -> StandardMaterial3D
 ## Keyed by faction id, not owner: a faction resource edited at runtime under the same id keeps
 ## its old materials until the game restarts.
-static var _faction_materials: Dictionary = {}  # "faction_id:role" -> StandardMaterial3D
+static var _faction_materials: Dictionary = {}  # "faction_id:role" -> Material
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.
@@ -84,24 +98,27 @@ static func build(definition_id: StringName, owner_id: int, faction: FactionDefi
 	return root
 
 
-## Shared faction material for `role` (&"body", &"vest" or &"accent"), cached per faction id.
-static func _faction_material(faction: FactionDefinition, role: StringName) -> StandardMaterial3D:
+## Shared faction material for `role` (&"body", &"truck_body", &"uniform", &"vest" or
+## &"accent"), cached per faction id.
+static func _faction_material(faction: FactionDefinition, role: StringName) -> Material:
 	var faction_id: StringName = faction.id if faction != null else &""
 	var key := "%s:%s" % [faction_id, role]
 	if _faction_materials.has(key):
 		return _faction_materials[key]
-	var material: StandardMaterial3D
+	var material: Material
 	match role:
 		&"vest":
 			var vest := faction.vest_color if faction != null else NEUTRAL_VEST
 			material = _material(vest, 0.9, 0.0)
 		&"accent":
 			var accent := faction.color if faction != null else NEUTRAL_ACCENT
-			material = _material(accent, 0.5, 0.1)
+			material = _material(accent, ACCENT_ROUGHNESS, ACCENT_METALLIC)
 		&"uniform":
-			material = _material(_body_color(faction), 0.9, 0.0)
+			material = _camo_material(faction, CAMO_UNIFORM)
 		&"body":
-			material = _material(_body_color(faction), 0.8, 0.15)
+			material = _camo_material(faction, CAMO_VEHICLE)
+		&"truck_body":
+			material = _camo_material(faction, CAMO_TRUCK)
 		_:
 			push_error("UnitModels: unknown material role '%s'" % role)
 			material = _material(NEUTRAL_BODY, 0.8, 0.15)
@@ -109,11 +126,31 @@ static func _faction_material(faction: FactionDefinition, role: StringName) -> S
 	return material
 
 
-## Flat body colour until camo materials exist (TASK-029): the first camo colour.
-static func _body_color(faction: FactionDefinition) -> Color:
-	if faction == null or faction.camo.is_empty():
-		return NEUTRAL_BODY
-	return faction.camo[0]
+## Three camo colours of the faction; a null faction or incomplete camo gets neutral tones.
+static func _camo_colors(faction: FactionDefinition) -> Array[Color]:
+	if faction == null or faction.camo.size() < 3:
+		return [NEUTRAL_BODY, NEUTRAL_BODY.darkened(0.3), NEUTRAL_BODY.lightened(0.2)]
+	return [faction.camo[0], faction.camo[1], faction.camo[2]]
+
+
+static func _camo_material(faction: FactionDefinition, preset: Dictionary) -> ShaderMaterial:
+	var colors := _camo_colors(faction)
+	var m := ShaderMaterial.new()
+	m.shader = CAMO_SHADER
+	m.set_shader_parameter(&"color_a", colors[0])
+	m.set_shader_parameter(&"color_b", colors[1])
+	m.set_shader_parameter(&"color_c", colors[2])
+	m.set_shader_parameter(&"pattern_scale", preset["scale"])
+	m.set_shader_parameter(&"dirt_height", preset["dirt"])
+	m.set_shader_parameter(&"base_roughness", preset["rough"])
+	m.set_shader_parameter(&"metallic", preset["metal"])
+	m.set_shader_parameter(&"pattern_mode", PATTERN_BLOTCHES)
+	return m
+
+
+## Plain PBR material from a palette entry ([colour, roughness, metallic]).
+static func _pbr(spec: Array) -> StandardMaterial3D:
+	return _material(spec[0], spec[1], spec[2])
 
 
 static func _make_infantry(faction: FactionDefinition) -> Node3D:
@@ -149,8 +186,8 @@ static func _make_soldier(
 	var s := into if into != null else Node3D.new()
 	var uni := _faction_material(faction, &"uniform")
 	var vest := _faction_material(faction, &"vest")
-	var skin := _material(SKIN, 0.8, 0.0)
-	var dark := _material(SOLDIER_DARK, 0.7, 0.3)
+	var skin := _pbr(SKIN)
+	var dark := _pbr(GUN)
 	var lh := 0.05 if kneel else 0.085
 	_box(s, Vector3(0.024, lh, 0.026), uni, 0.02 if kneel else 0.0, lh / 2.0, -0.017)
 	_box(s, Vector3(0.024, lh, 0.026), uni, -0.015 if kneel else 0.0, lh / 2.0, 0.017)
@@ -170,9 +207,11 @@ static func _make_soldier(
 ## volley effect spawns rockets there. Wheels are named Wheel0..5 (see pose_tank).
 static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
-	var body := _faction_material(faction, &"body")
-	var dark := _material(TANK_DARK, 0.95, 0.05)
-	var metal := _material(TANK_METAL, 0.55, 0.45)
+	var body := _faction_material(faction, &"truck_body")
+	var dark := _pbr(DARK)
+	var metal := _pbr(STEEL)
+	var rubber := _pbr(RUBBER)
+	var glass := _pbr(GLASS)
 	var acc := _faction_material(faction, &"accent")
 	var wheel_index := 0
 	for s: float in [-1.0, 1.0]:
@@ -182,7 +221,7 @@ static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 			wheel_index += 1
 			pivot.position = Vector3(x, 0.055, s * 0.17)
 			g.add_child(pivot)
-			var wheel := _cyl(pivot, 0.055, 0.055, 0.04, 12, dark, Vector3.ZERO)
+			var wheel := _cyl(pivot, 0.055, 0.055, 0.04, 12, rubber, Vector3.ZERO)
 			wheel.rotation.x = PI / 2.0
 			_box(pivot, Vector3(0.08, 0.014, 0.006), metal, 0.0, 0.0, s * 0.022)
 		_box(g, Vector3(0.7, 0.03, 0.03), dark, -0.04, 0.13, s * 0.11)  # mudguard rail
@@ -190,7 +229,7 @@ static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 	_box(g, Vector3(0.82, 0.06, 0.24), dark, 0.0, 0.1, 0.0)
 	_box(g, Vector3(0.17, 0.15, 0.28), body, 0.27, 0.21, 0.0)
 	_box(g, Vector3(0.1, 0.08, 0.26), body, 0.4, 0.17, 0.0)
-	_box(g, Vector3(0.012, 0.07, 0.22), dark, 0.358, 0.255, 0.0).rotation.z = 0.25  # windscreen
+	_box(g, Vector3(0.012, 0.07, 0.22), glass, 0.358, 0.255, 0.0).rotation.z = 0.25  # windscreen
 	_box(g, Vector3(0.1, 0.012, 0.2), acc, 0.27, 0.292, 0.0)  # faction roof panel
 	_box(g, Vector3(0.52, 0.03, 0.3), body, -0.14, 0.145, 0.0)
 	_box(g, Vector3(0.04, 0.05, 0.3), dark, -0.42, 0.11, 0.0)  # rear stabiliser bar
@@ -202,8 +241,9 @@ static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 	pod.rotation.z = POD_ELEVATION
 	g.add_child(pod)
 	_box(pod, Vector3(0.52, 0.17, 0.28), body, 0.0, 0.0, 0.0)
-	_box(pod, Vector3(0.5, 0.012, 0.3), metal, 0.0, 0.092, 0.0)
-	_box(pod, Vector3(0.5, 0.012, 0.3), metal, 0.0, -0.092, 0.0)
+	# Large flat plates stay matte: a big steel panel only mirrors the dark ground.
+	_box(pod, Vector3(0.5, 0.012, 0.3), dark, 0.0, 0.092, 0.0)
+	_box(pod, Vector3(0.5, 0.012, 0.3), dark, 0.0, -0.092, 0.0)
 	_box(pod, Vector3(0.08, 0.175, 0.285), acc, -0.12, 0.0, 0.0)  # faction band
 	var mouth_index := 0
 	for row: float in [1.0, -1.0]:
@@ -224,21 +264,23 @@ static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 static func _make_tank(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
 	var body := _faction_material(faction, &"body")
-	var dark := _material(TANK_DARK, 0.95, 0.05)
-	var metal := _material(TANK_METAL, 0.55, 0.45)
+	var dark := _pbr(DARK)
+	var metal := _pbr(STEEL)
+	var rubber := _pbr(RUBBER)
+	var track := _pbr(TRACK)
 	var acc := _faction_material(faction, &"accent")
 	var wheel_index := 0
 	for s: float in [-1.0, 1.0]:
-		_box(g, Vector3(0.74, 0.1, 0.1), dark, 0.0, 0.06, s * 0.17)
+		_box(g, Vector3(0.74, 0.1, 0.1), track, 0.0, 0.06, s * 0.17)
 		for i in WHEELS_PER_SIDE:
 			var pivot := Node3D.new()
 			pivot.name = "Wheel%d" % wheel_index
 			wheel_index += 1
 			pivot.position = Vector3(-0.27 + i * 0.108, 0.055, s * 0.2)
 			g.add_child(pivot)
-			var wheel := _cyl(pivot, 0.045, 0.045, 0.03, 12, metal, Vector3.ZERO)
+			var wheel := _cyl(pivot, 0.045, 0.045, 0.03, 12, rubber, Vector3.ZERO)
 			wheel.rotation.x = PI / 2.0
-			_box(pivot, Vector3(0.07, 0.012, 0.006), dark, 0.0, 0.0, s * 0.017)
+			_box(pivot, Vector3(0.07, 0.012, 0.006), metal, 0.0, 0.0, s * 0.017)
 		_box(g, Vector3(0.62, 0.065, 0.012), body, 0.0, 0.135, s * 0.226)
 	_box(g, Vector3(0.7, 0.09, 0.36), body, 0.0, 0.13, 0.0)
 	_box(g, Vector3(0.64, 0.05, 0.46), body, -0.02, 0.195, 0.0)
@@ -318,7 +360,22 @@ static func _add(parent: Node3D, mesh: Mesh, material: Material, pos: Vector3) -
 	instance.position = pos
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(instance)
+	if material is ShaderMaterial:
+		instance.set_instance_shader_parameter(&"part_origin", _model_offset(instance))
 	return instance
+
+
+## Position of `node` relative to the root of the (sub)tree it is being built in: sums the local
+## positions of the node and its ancestors at build time, so pivots (Turret, Pod, wheels) must
+## get their `position` before parts are added to them. Rotations and scales are ignored on
+## purpose – it only has to line up the camo pattern and mud line between neighbouring parts.
+static func _model_offset(node: Node3D) -> Vector3:
+	var offset := Vector3.ZERO
+	var current := node
+	while current != null:
+		offset += current.position
+		current = current.get_parent() as Node3D
+	return offset
 
 
 static func _box(

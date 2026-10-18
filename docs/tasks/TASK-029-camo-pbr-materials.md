@@ -1,6 +1,6 @@
 # TASK-029: Unit materials – procedural camouflage shader and PBR material palette
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`assets/shaders/`, `src/presentation/unit_models.gd`; material set-up tested in `tests/unit/`)
 - **Depends on**: TASK-019 (unit models), soft: TASK-026 (reflections make metal and glass read correctly). Reference: `docs/design/v2/README.md` ("Camouflage", "PBR materials"), `docs/design/v2/game_screen.scene.js` lines 188–205 (`GLSL_NOISE`, `camo`), 162 (`mat`), 208, 294, 301 (material lists per unit).
 - **Model**: sonnet
@@ -46,4 +46,11 @@ Vehicles and uniforms get a real three-tone camouflage with grain and mud near t
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `assets/shaders/camo.gdshader`: port of `GLSL_NOISE`/`camo()`, uniforms as in the spec plus `digital_cells` (6) and `pattern_mode` (0 blotches, 1 digital). `pattern_mode` is not per faction in the data yet (it is a plain uniform, set to 0 in `UnitModels._camo_material`); Russian EMR can be switched on by one data field later.
+- `UnitModels`: PBR palette constants (`[colour, roughness, metallic]` arrays) replace SKIN/SOLDIER_DARK/TANK_DARK/TANK_METAL. Camo `ShaderMaterial`s are built from `FactionDefinition.camo` and cached per faction id in `_faction_materials` (roles `body`, `truck_body` for the MLRS dirt 0.11, `uniform`). Null faction / fewer than 3 camo colours = neutral grey tones. Vests stay `StandardMaterial3D`. Tank: wheels rubber with steel hubs, barrel steel, tracks `TRACK`. MLRS: wheels rubber, windscreen glass, cradle/rails steel. Rifles use `GUN`. LAMP, TAIL_LIGHT, BOOT and AT_TUBE from the spec are not added yet (no matching geometry – dead code); add them with the parts in TASK-031 … TASK-033. The MLRS pod's large top/bottom plates use DARK, not STEEL: a big flat metal panel only mirrored the dark ground and read black (review finding).
+- Parts are separate primitives, so model-space `VERTEX` would restart the pattern and the mud line per box. A per-instance uniform `part_origin` (sum of the ancestors' local positions at build time, rotation ignored) is added in the shader, which keeps the mud height and pattern roughly continuous. TASK-030 (baked meshes) can drop it.
+- Hit flash: unchanged. It is a shared unshaded `material_overlay`, applied on top of any surface material, so `ShaderMaterial` surfaces flash like before and `material_override` is never touched. `test_hit_reset_leaves_no_flash_behind` still passes; `test_hit_reset_works_on_camo_surfaces` checks it on real camo surfaces.
+- Headless tests use the dummy renderer, so they cannot prove the shader compiles on a GPU; that was checked with `tools/screenshot.sh` (OpenGL fallback) – no shader errors logged, camo visible.
+- Camo presets and the palette are code constants (presentation-only, as the spec asks); faction colours come from `data/factions/*.tres`.
+- Review: removed unused palette constants, pod plates → DARK, renamed the headless shader test to `test_camo_shader_exposes_both_pattern_modes` (the dummy renderer compiles nothing), documented the pivot-ordering requirement of `_model_offset`.
+- Playtest focus: mud along the lower hull at close zoom, steel highlights on barrel/hubs, MLRS pod brightness (Poland), hit flash on camo units.
