@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Unit catalog entry (docs/design/units/units/<id>/unit.json)",
+  "description": "Documents the format; catalog.py validates against the same rules. Empty values are omitted when saving. Lengths in metres.",
+  "type": "object",
+  "required": ["id", "real_name", "class", "mobility", "status"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9_]{2,48}$"},
+    "real_name": {"type": "string", "minLength": 1},
+    "variant_note": {"type": "string"},
+    "class": {"type": "string", "description": "id from classes.json"},
+    "mobility": {"enum": ["tracked", "wheeled", "foot"]},
+    "operators": {"type": "array", "items": {"type": "string", "description": "faction id from factions/"}},
+    "in_service": {"type": "string"},
+    "country_of_origin": {"type": "string"},
+    "crew": {"type": ["string", "number"]},
+    "weight_t": {"type": "number", "minimum": 0},
+    "armament": {
+      "type": "object",
+      "properties": {"main": {"type": "string"}, "secondary": {"type": "string"}},
+      "additionalProperties": false
+    },
+    "protection": {"type": "string"},
+    "speed_road_kmh": {"type": "number", "minimum": 0},
+    "speed_offroad_kmh": {"type": "number", "minimum": 0},
+    "range_km": {"type": "number", "minimum": 0},
+    "fire_range_km": {"type": "number", "minimum": 0},
+    "notes": {"type": "string"},
+    "dimensions": {
+      "type": "object",
+      "properties": {
+        "hull_length": {"type": "number", "minimum": 0},
+        "overall_length": {"type": "number", "minimum": 0},
+        "width": {"type": "number", "minimum": 0},
+        "height": {"type": "number", "minimum": 0},
+        "sources": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "silhouette_features": {"type": "array", "items": {"type": "string"}, "description": "most recognisable first"},
+    "details": {"type": "array", "items": {"type": "string"}},
+    "skip": {"type": "array", "items": {"type": "string"}},
+    "camo_note": {"type": "string"},
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "view"],
+        "properties": {
+          "file": {"type": "string", "pattern": "^(side|front|rear|top|three_quarter|detail|drawing)_[0-9]+\\.(jpg|png|webp)$"},
+          "view": {"enum": ["side", "front", "rear", "top", "three_quarter", "detail", "drawing"]},
+          "source_url": {"type": "string"},
+          "license": {"type": "string"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "status": {"enum": ["draft", "ready_for_model", "modeled", "in_game"]},
+    "feedback": {"type": "string", "description": "the human's remarks on the latest render, read by the modeler"},
+    "updated": {"type": "string", "description": "ISO date of the last save"},
+    "revision": {"type": "integer", "minimum": 0, "description": "incremented by the tool on every content change; used to detect concurrent edits (409)"}
+  },
+  "additionalProperties": false,
+  "$comment": "ready_for_model additionally requires: real_name, class, operators (>=1), dimensions.height/width/hull_length > 0, >=3 silhouette_features and >=1 side or drawing image."
+}

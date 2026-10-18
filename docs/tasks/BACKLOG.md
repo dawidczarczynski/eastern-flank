@@ -37,13 +37,14 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-028](TASK-028-foliage.md) | Foliage v2: lobed crowns with baked AO, bush layer, better rocks | ready | TASK-018 (soft: TASK-026, TASK-027) |
 | [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | ready | TASK-019 (soft: TASK-026) |
 | [TASK-030](TASK-030-mesh-kit.md) | `MeshKit`: bevelled profile extrusion, lathe, taper, rods, bake per material | ready | – (soft: TASK-029) |
-| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | ready | – |
+| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | to playtest | – |
 | [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | ready | – (soft: TASK-005, TASK-020) |
 | [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | ready | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
-| [TASK-039](TASK-039-real-units-and-countries.md) | Real countries and real units: unit classes, per-vehicle definitions, first rosters | idea | **TASK-038**, **TASK-037**, game-designer pass (era, countries, rosters, stat rules) |
-| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | ready | **TASK-036** (soft: TASK-039) |
-| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | ready | **TASK-036** (soft: TASK-039) |
-| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | ready | **TASK-036** (soft: TASK-039) |
+| [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | ready | **TASK-038**, TASK-037 |
+| [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | ready | **TASK-039a** |
+| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
+| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
+| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | ready | **TASK-021** (soft: TASK-031 … TASK-033) |
 | TASK-007 | Fog of war | idea | GDD open questions: scale, modes |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | idea | GDD decision ("Ideas from the visual design"), hand-made maps |
@@ -60,15 +61,15 @@ Visual design port (TASK-013 … TASK-024, target look in `docs/design/`): "look
 - 016 is split (016a core elevation + tests, 016b mesh) – each half is one session. The terrain panel was split out of the HUD task as TASK-024 for the same reason.
 - 011 after 016a: its `Scenario` must force spawn tiles with `MapGenerator.force_terrain` (not `set_terrain`).
 
-Visual design v2 and real units (TASK-026 … TASK-039, references in `docs/design/v2/` and `docs/design/units/`): more detailed terrain, foliage and unit models, everything procedural. Factions are **real countries**, units are **real equipment with their own stats** (GDD: "Factions and units"). Recommended order:
+Visual design v2 and real units (TASK-026 … TASK-039b, references in `docs/design/v2/` and `docs/design/units/`): more detailed terrain, foliage and unit models, everything procedural. Factions are **real countries**, units are **real equipment with their own stats** (GDD: "Factions and units"). Recommended order:
 
-026 → 027 → 028 → 029 → 030 → 037 → 038 → 036 → 031 → 032 → 033 → 039 → 034, then `/model-unit <id>` per catalog entry.
+026 → 027 → 028 → 029 → 030 → 037 → 038 → 036 → 031 → 032 → 033 → 039a → 039b → 034, then `/model-unit <id>` per catalog entry.
 
 - 026 first: the later material tasks are judged under the sky-based ambient and reflections.
 - 027/028 (terrain) and 029/030 (units) are independent tracks.
 - 037 (catalog tool) has no dependencies – it can be done any time, even first, so the human can start collecting units early.
 - 038 moves the current two placeholder factions into data; 036 builds on it (camo from the faction).
-- 031–033 build the first model of each class from the v2 design and create the reusable parts; if TASK-039 has picked the real vehicles by then, they model those, otherwise the current generic units.
-- 039 needs a game-designer pass first (era, first two countries, rosters, stat derivation rules) and the catalog entries for those units.
+- 031–033 build the first model of each class from the v2 design and create the reusable parts; if TASK-039a has picked the real vehicles by then, they model those, otherwise the current generic units.
+- 039a/039b: stats, rosters and balance approved by the human (GDD "Stat derivation rules"); 039a can go right after 038 – it doesn't need the new models. 031–033 then model the real vehicles directly.
 - Every further unit: catalog entry (`tools/unit_catalog.sh`) → `/model-unit <id>` → stats `.tres` + roster (game-designer). The catalog statuses (`draft` → `ready_for_model` → `modeled` → `in_game`) are the backlog for models; they don't get task files.
 - 035 (rivers, roads, cities) changes rules – game-designer pass first; fits the hand-made map direction.

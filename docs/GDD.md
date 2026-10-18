@@ -60,10 +60,12 @@ Source of truth for the numbers: `data/units/*.tres`.
 
 Starting armies (prototype battle): each side has infantry, cavalry, infantry + rocket artillery (built by `Scenario.default_battle`) on opposite map edges; spawn tiles are always plains.
 
+These three generic units are replaced by the real units of TASK-039a (stats in "Stat derivation rules" below) and stay as the **calibration points** of those rules.
+
 ## Factions and units (decided 2026-10-18)
 
 - **Factions are real countries** (e.g. Poland, Germany, USA, Russia …), more than two over time. A faction has a name, a UI colour, a camouflage palette and a **roster** of units it can field. Players pick (or a scenario assigns) a faction; two players may not need to be enemies in reality – it's a game. Implemented as data: `data/factions/*.tres` (TASK-038).
-- **Units are real equipment with real names** ("Leopard 2A4", "T-72B3", "BM-21 Grad", "Mechanised infantry squad (Bundeswehr)" …), **each with its own stats** in its own `data/units/<id>.tres`. A unit belongs to a **class** (infantry, tank, IFV, MLRS …) that groups shared behaviour (movement type, model contract, AI role, translated class label); the real name is shown as-is and is not translated. The same vehicle may appear in several factions' rosters (e.g. Leopard 2A4: Poland, Germany) with the faction's camouflage. (TASK-039)
+- **Units are real equipment with real names** ("Leopard 2A4", "T-72B3", "BM-21 Grad", "Mechanised infantry squad (Bundeswehr)" …), **each with its own stats** in its own `data/units/<id>.tres`. A unit belongs to a **class** (infantry, tank, IFV, MLRS …) that groups shared behaviour (movement type, model contract, AI role, translated class label); the real name is shown as-is and is not translated. The same vehicle may appear in several factions' rosters (e.g. Leopard 2A4: Poland, Germany) with the faction's camouflage. (TASK-039a)
 - **Stats are derived from real-world data** (armament, protection, mobility, crew, range) collected in the unit catalog, by explicit rules the game-designer writes down (e.g. main gun calibre → attack band, armour class → defense band), so new units can be added consistently.
 - **Unit catalog** (`docs/design/units/`, edited with `tools/unit_catalog.sh`, TASK-037): one entry per real unit with identity, real-world facts, dimensions, silhouette features and reference images. It is the input for the game-designer (stats) and for the `unit-modeler` agent (3D models). It is reference data, not game data: the game reads only `data/`.
 - **Era: present day.** A unit qualifies if it is in active service today – older designs still fighting (e.g. in the war in Ukraine) count; the variant is the one in service (T-72B3, not T-72A).
@@ -75,8 +77,112 @@ Starting armies (prototype battle): each side has infantry, cavalry, infantry + 
   | Rocket artillery | Homar-K (K239 Chunmoo launcher on a Jelcz 8×8 chassis) | 9K57 Uragan (BM-27, ZIL-135 8×8) |
   | Infantry | Mechanised infantry squad, wz. 93 Pantera camouflage, MSBS Grot rifles | Motor rifle squad, EMR ("Tsifra") digital camouflage, AK-74M / AK-12 rifles |
 
-  UI colours follow NATO symbology: Poland (the player's default side) blue `#5b93d6`, Russia red `#d76a52`. Camouflage palettes come from each faction's data (Pantera woodland and Polish vehicle green/brown/black vs. EMR digital and Russian vehicle green/black/sand). Exact unit names (infantry), AT weapons and stats: catalog + game-designer (TASK-039).
+  UI colours follow NATO symbology: Poland (the player's default side) blue `#5b93d6`, Russia red `#d76a52`. Camouflage palettes come from each faction's data (Pantera woodland and Polish vehicle green/brown/black vs. EMR digital and Russian vehicle green/black/sand). Stats: see "Stat derivation rules".
+- **Naming conventions** (approved by the human 2026-10-18):
+  - `display_name` = the real designation in its common English form ("M1A2 SEPv3 Abrams", "T-72B3", "Homar-K", "9K57 Uragan"), shown as-is in every language. Units without a designation (squads) get a **descriptive English name** that *is* translated: Poland "Mechanised Infantry Squad" (pl "Drużyna piechoty zmechanizowanej"), Russia "Motor Rifle Squad" (pl "Drużyna zmotoryzowana"). The view always calls `tr(display_name)`; only the descriptive names have CSV rows, designations fall through unchanged.
+  - `short_name` (the label above the unit, ≤ 6 characters) = a short real designation: `M1A2`, `T-72B3`, `HOMAR`, `BM-27`; squads use the translated class abbreviation `INF` (pl `PIECH`). With several vehicles per class in one roster later, the designation is what tells them apart; the side is already shown by colour.
+  - **Squad AT weapons are flavour, not stats**: a squad's unguided AT weapons are part of the infantry base attack; only a guided ATGM carried *by the squad itself* adds to attack (see rules). Poland: RPG-7 (Carl Gustaf M4 entering service (?)); Russia: RPG-7V2 plus disposable RPG-26 / RShG-2. Javelin / Spike (Poland) and Kornet / Metis (Russia) are platoon/company assets and are not counted. The `unit-modeler` may show the AT weapon on one soldier.
 - **3D models**: one procedural model per unit (`src/presentation/models/<unit_id>.gd`), camouflage from the faction, built and checked by the `unit-modeler` agent against the catalog (`/model-unit`, TASK-036).
+
+## Stat derivation rules
+
+> Proposed by the game-designer and **approved by the human on 2026-10-18** (TASK-039a). Uses the existing stat set (HP, move, attack, defense, attack range) and the current damage formula `max(1, attack − (defense + terrain bonus))`.
+
+### Principles
+
+1. **Stats come from catalog facts** (`docs/design/units/units/<id>/unit.json`) through the tables below: a class base plus named modifiers, each reading one catalog field. Changing one unit's stat means changing a rule, so every unit it applies to changes consistently.
+2. **Balance between countries comes from scenario composition** (unit counts), never from bending a unit's stats. Real-world asymmetry is kept.
+3. **Calibration points** are the generic units: infantry (HP 10, move 3, attack 4, defense 3, range 1) = a foot squad; cavalry (8 / 5 / 5 / 2 / 1) = the fast armoured strike unit, the base of the tank band (HP 8, move 5); rocket artillery (6 / 3 / 5 / 1 / 5) = a truck-mounted unguided MLRS.
+4. **Defense bands are coarse.** With a subtractive formula every defense point changes every matchup, so defense has only four bands and armour generations differ through **HP** (weight, ammunition isolation) instead. Attack may be finer.
+5. **Unknown fact → no modifier.** Facts marked (?) must be confirmed in the catalog before the stats are approved.
+6. **Standard equipment only**: the variant in service and its standard munition (no special rounds, no strategic missiles).
+
+### Tables
+
+**HP** (catalog: `class`, `weight_t`, `notes` on ammunition stowage)
+
+| Base | HP |
+|---|---|
+| Foot squad (any size of 6–10 dismounts) | 10 |
+| Tracked armoured vehicle (MBT) | 8 |
+| Unarmoured wheeled vehicle | 6 |
+
+Modifiers: +1 combat weight ≥ 60 t; +1 ammunition stowed isolated from the crew with blow-out panels.
+
+**Move** (catalog: `mobility`, engine power and `weight_t`, `class`)
+
+| Base | Move |
+|---|---|
+| Foot | 3 |
+| Wheeled | 4 |
+| Tracked | 4 |
+
+Modifiers: +1 tracked with power-to-weight ≥ 20 hp/t; −1 indirect-fire classes (`mlrs`, `sp_artillery`: emplacement, reload and displacement eat into the turn). Road speed is not used until roads exist (see "Ideas from the visual design"); then wheeled units should profit from roads.
+
+**Attack** (catalog: `armament`, fire control in `notes`)
+
+| Base | Attack |
+|---|---|
+| Infantry squad: rifles, MG, unguided AT weapons | 4 |
+| MBT with a 120/125 mm smoothbore and a thermal gunner's sight | 6 |
+| MLRS, unguided rockets < 200 mm | 5 |
+| (generic cavalry – the future light tank / recon band) | 5 |
+
+Modifiers: infantry +1 guided ATGM organic to the squad (not platoon/company assets); MBT +1 hunter-killer fire control (commander's independent thermal sight), −1 no thermal gunner's sight; MLRS +1 calibre ≥ 200 mm **or** guided rockets (one step at most – both mean a heavier effect of one salvo on one hex, the stat does not stack them).
+
+**Defense** (catalog: `protection`)
+
+| Band | Defense |
+|---|---|
+| Soft-skinned vehicle (trucks, wheeled launchers – also with an armoured cab, the launcher and ammunition stay exposed) | 1 |
+| Light armour, proof against small arms / heavy MG (APC, IFV, recon); generic cavalry | 2 |
+| Dismounted infantry (dispersion, cover; body armour does not add a band) | 3 |
+| MBT (composite and/or ERA) | 4 |
+
+**Attack range** (catalog: `armament`, `fire_range_km`) – a banded scale, not km per hex, because direct and indirect fire ranges differ by an order of magnitude:
+
+| Fire | Range |
+|---|---|
+| Direct fire (rifles, MG, tank guns, squad AT, ATGM ≤ ~5 km) | 1 |
+| Indirect, standard munition < 25 km | 4 |
+| Indirect, 25–60 km | 5 |
+| Indirect, > 60 km (cap) | 6 |
+
+### First rosters (TASK-039a)
+
+Facts are the ones used by the rules; sources are starting points, the catalog (TASK-037) is where they are confirmed. (?) = uncertain.
+
+| Unit (id) | Facts used | HP | Move | Attack | Defense | Range |
+|---|---|---|---|---|---|---|
+| **M1A2 SEPv3 Abrams** (`m1a2_sepv3`, Poland) | 120 mm M256 smoothbore; gunner's thermal sight + Commander's Independent Thermal Viewer (hunter-killer); composite armour (Polish export package without DU (?)); ≈ 66–67 t (?); AGT1500 1500 hp → ≈ 22.5 hp/t; turret-bustle ammunition behind doors with blow-out panels. [M1 Abrams](https://en.wikipedia.org/wiki/M1_Abrams) | 8 +1 (≥ 60 t) +1 (isolated ammo) = **10** | 4 +1 (≥ 20 hp/t) = **5** | 6 +1 (hunter-killer) = **7** | MBT **4** | direct **1** |
+| **T-72B3** (`t72b3`, Russia) | 125 mm 2A46M-5 smoothbore, carousel autoloader; Sosna-U gunner's sight with thermal channel, no independent commander's thermal sight (?); Kontakt-5 ERA (obr. 2016: Relikt (?)); ≈ 46 t; V-92S2F 1130 hp (obr. 2016; 2011 batch V-84-1 840 hp) → ≈ 24.6 hp/t (?); ammunition in the crew compartment, no blow-out panels. [T-72 – T-72B3](https://en.wikipedia.org/wiki/T-72) | **8** | 4 +1 (≥ 20 hp/t, obr. 2016) = **5** | **6** | MBT **4** | direct **1** |
+| **Homar-K** (`homar_k`, Poland) | K239 Chunmoo launcher on a Jelcz 8×8 (?) truck; 2 pods × 6 239 mm CGR-080 GPS/INS-guided rockets, ≈ 80 km (?) (KTSSM missile pods not counted); soft-skinned launcher (armoured cab (?), ignored by the rule). [K239 Chunmoo](https://en.wikipedia.org/wiki/K239_Chunmoo) | wheeled **6** | 4 −1 (indirect) = **3** | 5 +1 (≥ 200 mm / guided) = **6** | **1** | > 60 km **6** |
+| **9K57 Uragan** (`bm27_uragan`, Russia) | 9P140 launcher on ZIL-135LM 8×8; 16 × 220 mm unguided 9M27 rockets, max ≈ 35 km; unarmoured. [BM-27 Uragan](https://en.wikipedia.org/wiki/BM-27_Uragan) | wheeled **6** | 4 −1 (indirect) = **3** | 5 +1 (≥ 200 mm) = **6** | **1** | 25–60 km **5** |
+| **Mechanised Infantry Squad** (`pl_mech_infantry`, Poland) | ≈ 8 dismounts (?); MSBS Grot 5.56 mm rifles, squad MG, RPG-7 (Carl Gustaf M4 (?)), no squad-level ATGM; body armour; wz. 93 Pantera. [MSBS Grot](https://en.wikipedia.org/wiki/MSBS_Grot), [wz. 93 Pantera](https://en.wikipedia.org/wiki/Wz._93_Pantera) | foot squad **10** | foot **3** | **4** | **3** | direct **1** |
+| **Motor Rifle Squad** (`ru_motor_rifle`, Russia) | ≈ 6–9 dismounts (?); AK-74M / AK-12 5.45 mm, PKM/Pecheneg MG, RPG-7V2 + RPG-26 / RShG-2, no squad-level ATGM; Ratnik body armour; EMR camouflage. [AK-12](https://en.wikipedia.org/wiki/AK-12), [Ratnik](https://en.wikipedia.org/wiki/Ratnik_(program)) | foot squad **10** | foot **3** | **4** | **3** | direct **1** |
+
+The carrier (Rosomak / BMP / BTR) is not modelled: both squads are class `infantry` (foot). A future `mech_infantry` class with a carrier would get a vehicle move band.
+
+**Resulting matchups on plains** (damage, attacker row → defender column):
+
+| Attacker \ defender | Infantry (D3, 10 HP) | Abrams (D4, 10 HP) | T-72B3 (D4, 8 HP) | MLRS (D1, 6 HP) |
+|---|---|---|---|---|
+| Infantry (A4) | 1 | 1 | 1 | 3 |
+| Abrams (A7) | 4 | 3 | 3 | 6 (kills) |
+| T-72B3, Homar-K, Uragan (A6) | 3 | 2 | 2 | 5 |
+
+Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to every tank); an Abrams reaching an MLRS destroys it in one attack; Homar-K out-ranges the Uragan (6 vs 5) and can hit it without a counter; 1 Abrams ≈ 2 T-72B3 by HP × damage (10 × 3 vs 8 × 2).
+
+### Balance of the default battle
+
+- **Composition by faction** (quality vs. mass): Poland 2 × Mechanised Infantry Squad, 1 × M1A2 SEPv3, 1 × Homar-K (4 units, 36 HP); Russia 2 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan (5 units, 42 HP). The second T-72B3 compensates the Abrams; nothing compensates the Homar-K's range on purpose (it is the guided-rocket advantage) – the simulation decides whether that needs more Russian units.
+- The composition is balance data: an ordered `default_force` list in each faction's `.tres`, not code. Spawn slots: units with range 1 fill the front column, others the back column, in list order (exact slots in TASK-039a).
+- **Verification**: the AI-vs-AI simulation already shows a side bias with mirrored armies (TASK-012: player 1 won 59 % vs 34 %), so balance is measured with **both side assignments**: `tools/simulate.sh 200` (Poland = player 0) and `tools/simulate.sh 200 --factions=russia,poland`. Target: Poland's share of the decided matches over both runs together is 40–60 %, no errors, draws ≤ 15 % per run.
+- **Tuning ladder** if the target is missed (stats stay untouched; one step at a time, re-run both): Poland > 60 % → add a third Motor Rifle Squad; still > 60 % → add a third T-72B3. Russia > 60 % → replace the second T-72B3 with a Motor Rifle Squad; still > 60 % → mirrored counts (2 squads, 1 tank, 1 MLRS each). If no step lands in the band, record the results and ask the human (a rule change is needed, not a count change).
+
+### Option, not adopted: hard/soft attack
+
+Split `attack` into `attack_soft` (vs. infantry and soft-skinned targets) and `attack_hard` (vs. armoured), with an `armored` tag on units. **Gains**: squads with ATGMs and the Javelin-vs-RPG difference become meaningful against tanks; unguided rockets get weak against MBTs, guided ones less so; infantry stops being uniformly 1 damage against tanks. **Costs**: every unit gets two attack values and a tag, the damage formula and counterattack read the target type, the AI target choice and the popup change, all rules above need a second attack table, and every balance number gets re-derived. **Recommendation**: not now. Revisit after the TASK-039a simulations if infantry turns out useless against tanks – the cheaper alternative to try first is the "Damage scale" question (e.g. HP and attack ×2 with defense unchanged, which widens the spread between matchups so that fewer of them sit at the minimum of 1).
 
 ## Combat
 
@@ -103,11 +209,17 @@ Each question lists the tasks that depend on the answer.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
 - **Scale**: tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
-- **Setting**: modern military with real countries and real equipment (decided 2026-10-18). Era: present day; first factions Poland and Russia with their rosters (see "Factions and units"). → TASK-039.
+- **Setting**: modern military with real countries and real equipment (decided 2026-10-18). Era: present day; first factions Poland and Russia with their rosters (see "Factions and units"). → TASK-039a.
+- **Old match records** (decided 2026-10-18): records made before TASK-039a are unsupported – the loader rejects them with a clear message, and existing local saves are simply deleted. → TASK-039a.
 - **Modes**: vs AI only, hot-seat, network multiplayer? → TASK-005 (command serialization is the groundwork for network/replays), `HUMAN_PLAYER` constant in the battle controller, TASK-007 (hot-seat fog needs a hand-off screen).
 - **Fog of war**: yes/no, and per player vision rules? → TASK-007 (stays `idea` until scale and modes are decided).
-- **Cavalry's look**: the mock-up has no cavalry; TASK-019 uses the mock-up's **tank** model for cavalry as an interim (both are the fast 5-move unit). Keep, rename the unit (e.g. "Tank"), or make a horse model? Depends on the setting question. → TASK-019.
-- **Stat derivation rules**: how real-world data maps to attack/defense/move/range/HP bands, and whether new stats are needed (hard/soft attack, armour, ammo – see "Ideas from the visual design"). → TASK-039 (game-designer).
+- **Cavalry's look**: the mock-up has no cavalry; TASK-019 uses the mock-up's **tank** model for cavalry as an interim (both are the fast 5-move unit). Answered by the setting decision: cavalry is replaced by the tank class in TASK-039a. → TASK-019, TASK-039a.
+- **Stat derivation rules**: proposed 2026-10-18 (see "Stat derivation rules"), no new stats; hard/soft attack recorded as a non-adopted option. **Waiting for the human's approval** of the rules and the six stat lines. → TASK-039a.
+- **T-72B3 variant** (decided 2026-10-18): obr. 2016 (V-92S2F 1130 hp → move 5). The 2011 batch could become a separate unit later.
+- **Squad facts to confirm**: Polish mechanised squad size and whether Carl Gustaf M4 is a squad weapon; whether either side has a squad-level guided ATGM (it would give +1 attack). → TASK-039a (catalog).
+- **Infantry vs. tanks** (accepted 2026-10-18, revisit after simulations): with the derived stats infantry deals the minimum 1 damage to every tank and takes 3–4. Acceptable for now (tanks *should* beat infantry in the open), but if simulations show infantry is pointless, look at the "Damage scale" question or hard/soft attack. → TASK-039a follow-up.
+- **One-shot kills** (accepted 2026-10-18, revisit after simulations): an Abrams destroys a full-HP MLRS in one attack on plains (7 − 1 = 6 HP). Kept as the reward for reaching the artillery; revisit if it dominates the AI matches. → TASK-039a.
+- **Side bias in the simulation**: mirrored armies gave player 1 a 59 % vs 34 % win rate (TASK-012), cause unknown. TASK-039a measures balance over both side assignments; the bias itself is a separate follow-up. → TASK-012, TASK-039a.
 - **UI scaling**: HUD sizes are the mock-up's CSS pixels 1:1 (matches 1280×720 screenshots). Stretch mode / scaling for larger or smaller windows is undecided. → TASK-014, TASK-020.
 - **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (rocket artillery) could use it.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.

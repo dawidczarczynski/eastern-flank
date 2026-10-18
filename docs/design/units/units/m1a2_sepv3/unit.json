@@ -1,0 +1,13 @@
+{
+  "id": "m1a2_sepv3",
+  "real_name": "M1A2 SEPv3 Abrams",
+  "class": "tank",
+  "mobility": "tracked",
+  "operators": [
+    "poland"
+  ],
+  "country_of_origin": "USA",
+  "status": "draft",
+  "updated": "2026-10-18",
+  "revision": 1
+}

@@ -1,0 +1,13 @@
+{
+  "id": "russia",
+  "name": "Russia",
+  "iso_code": "RU",
+  "color": "#d76a52",
+  "camo": [
+    "#4d5a3a",
+    "#23221d",
+    "#8a8466"
+  ],
+  "vest_color": "#7a7354",
+  "notes": ""
+}

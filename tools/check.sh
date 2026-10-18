@@ -7,4 +7,6 @@ echo "== lint =="
 tools/lint.sh
 echo "== tests =="
 tools/test.sh
+echo "== catalog tests =="
+python3 -m unittest discover -s tools/unit_catalog -p 'test_*.py'
 echo "== OK =="

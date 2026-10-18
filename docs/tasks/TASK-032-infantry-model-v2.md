@@ -1,8 +1,8 @@
 # TASK-032: First detailed infantry squad (from the v2 design) + reusable soldier
 
-- **Status**: ready – target: the Polish **mechanised infantry squad** (`pl_mech_infantry`): wz. 93 Pantera uniforms, MSBS Grot rifles – the v2 design soldiers; the Russian motor rifle squad (EMR digital camo via `pattern_mode = 1`, AK rifles, RPG) follows via `/model-unit ru_motor_rifle` as a new kit parameter set. Until TASK-039 adds the definition, the model is built under the current id `infantry` and renamed with TASK-039
+- **Status**: ready – target: the Polish **mechanised infantry squad** (`pl_mech_infantry`): wz. 93 Pantera uniforms, MSBS Grot rifles – the v2 design soldiers; the Russian motor rifle squad (EMR digital camo via `pattern_mode = 1`, AK rifles, RPG) follows via `/model-unit ru_motor_rifle` as a new kit parameter set. Until TASK-039a adds the definition, the model is built under the current id `infantry` and renamed with TASK-039a
 - **Layers**: presentation (`src/presentation/models/<unit_id>.gd`, soldier parts in `model_parts.gd` / `models/parts/`; contract test)
-- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-025 (march animation per soldier). Soft: TASK-039, TASK-037. Reference: `docs/design/v2/game_screen.scene.js` lines 267–299 (`rifleGeo`, `soldier`, `makeInf`).
+- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-025 (march animation per soldier). Soft: TASK-039a, TASK-037. Reference: `docs/design/v2/game_screen.scene.js` lines 267–299 (`rifleGeo`, `soldier`, `makeInf`).
 - **Agent**: `unit-modeler`, run via `/model-unit <unit_id>`
 - **Model**: opus
 

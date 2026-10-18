@@ -1,8 +1,8 @@
 # TASK-031: First detailed tank model (from the v2 design, adjusted to a real tank)
 
-- **Status**: ready – target: the Polish **M1A2 SEPv3 Abrams** (`m1a2_sepv3`): 7 road wheels per side, flat angular turret with a large bustle rack, long 120 mm gun – the v2 design tank is close in style; the Russian T-72B3 follows via `/model-unit t72b3`, reusing the running gear with other parameters. Until TASK-039 adds the definition, the model is built under the current id `cavalry` and renamed with TASK-039
+- **Status**: ready – target: the Polish **M1A2 SEPv3 Abrams** (`m1a2_sepv3`): 7 road wheels per side, flat angular turret with a large bustle rack, long 120 mm gun – the v2 design tank is close in style; the Russian T-72B3 follows via `/model-unit t72b3`, reusing the running gear with other parameters. Until TASK-039a adds the definition, the model is built under the current id `cavalry` and renamed with TASK-039a
 - **Layers**: presentation (`src/presentation/models/<unit_id>.gd`, shared parts in `model_parts.gd`; contract test in `tests/unit/test_unit_models.gd`)
-- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-025 (locomotion pivots). Soft: TASK-039 (which real tank), TASK-037 (its catalog entry). Reference: `docs/design/v2/game_screen.scene.js` lines 207–266 (`makeTank`), portraits `docs/design/v2/shots/01-v2-units.jpg`, `hover.jpg`.
+- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-025 (locomotion pivots). Soft: TASK-039a (which real tank), TASK-037 (its catalog entry). Reference: `docs/design/v2/game_screen.scene.js` lines 207–266 (`makeTank`), portraits `docs/design/v2/shots/01-v2-units.jpg`, `hover.jpg`.
 - **Agent**: `unit-modeler`, run via `/model-unit <unit_id>`
 - **Model**: opus
 

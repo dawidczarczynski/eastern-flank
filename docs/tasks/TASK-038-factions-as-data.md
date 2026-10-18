@@ -7,12 +7,12 @@
 
 ## Goal
 
-Factions stop being "player 0 = blue, player 1 = red" constants and become data, so adding a country later is adding a `.tres` file. Rules and unit look stay the same in this task; the two current placeholder factions become **Poland** and **Russia** (names only – the real units come in TASK-039).
+Factions stop being "player 0 = blue, player 1 = red" constants and become data, so adding a country later is adding a `.tres` file. Rules and unit look stay the same in this task; the two current placeholder factions become **Poland** and **Russia** (names only – the real units come in TASK-039a).
 
 ## Design
 
 - **`src/core/data/faction_definition.gd`** (`class_name FactionDefinition`, `Resource`): `id: StringName`, `display_name: String` (translated in the UI), `short_name: String` (2–3 letters, HUD badge), `roster: Array[UnitDefinition]`; `@export_group("Presentation")`: `color: Color` (UI), `camo: PackedColorArray` (3 colours), `vest_color: Color`. Core and AI never read the Presentation group (ADR-0002 rule).
-- **Data**: `data/factions/poland.tres` ("Poland", `PL`, `#5b93d6`, camo `#4c5632`/`#3b3325`/`#22251d`, vest `#3d4529`) and `russia.tres` ("Russia", `RU`, `#d76a52`, camo `#8a7f5a`/`#6b6446`/`#a89c76`, vest `#5d5840`); both rosters = the three current unit definitions. The camo values are the design's for now; the real palettes (Pantera / EMR) are set from the catalog in TASK-039. New CSV rows en + pl: `Poland`/`Polska`, `Russia`/`Rosja`. A registry `FactionRegistry` (core, static, like the unit definitions' loader) loads `data/factions/*.tres` by id.
+- **Data**: `data/factions/poland.tres` ("Poland", `PL`, `#5b93d6`, camo `#4c5632`/`#3b3325`/`#22251d`, vest `#3d4529`) and `russia.tres` ("Russia", `RU`, `#d76a52`, camo `#8a7f5a`/`#6b6446`/`#a89c76`, vest `#5d5840`); both rosters = the three current unit definitions. The camo values are the design's for now; the real palettes (Pantera / EMR) are set from the catalog in TASK-039a. New CSV rows en + pl: `Poland`/`Polska`, `Russia`/`Rosja`. A registry `FactionRegistry` (core, static, like the unit definitions' loader) loads `data/factions/*.tres` by id.
 - **State**: `GameState` stores `player_factions: Array[StringName]` (one per player) and exposes `faction_of(player_id) -> FactionDefinition`. `Scenario.default_battle(seed, factions := [&"poland", &"russia"])` assigns them; spawning validates that each unit's definition is in its player's roster (`push_error` + skip in release, assert in tests).
 - **Match record / replay** (ADR-0005): the record stores the faction ids; old records without factions load with the default pair (backward compatible). Update the replay fixture if needed (`tools/make_replay_fixture.sh`).
 - **Presentation**: replace `UiPalette.FACTION`, `UiPalette.FACTION_NAMES`, `UnitModels.BODY_COLORS`/`VEST_COLORS` and every owner-indexed colour/name lookup with the faction's data (`UiPalette.faction_color(state, player_id)` or similar). The TASK-029 camo materials (if done) take their colours from `faction.camo` and are cached per faction id, not per owner.
@@ -35,7 +35,7 @@ Factions stop being "player 0 = blue, player 1 = red" constants and become data,
 
 ## Out of scope
 
-- Real countries and per-vehicle definitions (TASK-039), faction selection screen, flags.
+- Real countries and per-vehicle definitions (TASK-039a), faction selection screen, flags.
 
 ## Implementation notes
 

@@ -1,8 +1,8 @@
 # TASK-033: First detailed rocket artillery model (from the v2 design) + reusable truck parts
 
-- **Status**: ready – target: the Polish **Homar-K** (`homar_k`): Jelcz 8×8 chassis (**4 axles**, not the design's 3), armoured cab-over cab, two closed K239 launcher pods – the design's closed pod style fits; the Russian 9K57 Uragan (ZIL-135 8×8, open bank of 16 tubes) follows via `/model-unit bm27_uragan` from the same parts. Until TASK-039 adds the definition, the model is built under the current id `rocket_artillery` and renamed with TASK-039
+- **Status**: ready – target: the Polish **Homar-K** (`homar_k`): Jelcz 8×8 chassis (**4 axles**, not the design's 3), armoured cab-over cab, two closed K239 launcher pods – the design's closed pod style fits; the Russian 9K57 Uragan (ZIL-135 8×8, open bank of 16 tubes) follows via `/model-unit bm27_uragan` from the same parts. Until TASK-039a adds the definition, the model is built under the current id `rocket_artillery` and renamed with TASK-039a
 - **Layers**: presentation (`src/presentation/models/<unit_id>.gd`, truck parts in `model_parts.gd` / `models/parts/`; contract test)
-- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-011/rocket volley (`Pod` / `Mouth*`). Soft: TASK-039, TASK-037. Reference: `docs/design/v2/game_screen.scene.js` lines 300–350 (`makeMLRS`), portrait `docs/design/v2/shots/02-v2-units.jpg`.
+- **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-011/rocket volley (`Pod` / `Mouth*`). Soft: TASK-039a, TASK-037. Reference: `docs/design/v2/game_screen.scene.js` lines 300–350 (`makeMLRS`), portrait `docs/design/v2/shots/02-v2-units.jpg`.
 - **Agent**: `unit-modeler`, run via `/model-unit <unit_id>`
 - **Model**: opus
 

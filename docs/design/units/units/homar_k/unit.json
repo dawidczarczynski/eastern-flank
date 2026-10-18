@@ -1,0 +1,11 @@
+{
+  "id": "homar_k",
+  "real_name": "Homar-K",
+  "class": "mlrs",
+  "mobility": "wheeled",
+  "operators": [
+    "poland"
+  ],
+  "status": "draft",
+  "updated": "2026-10-18"
+}

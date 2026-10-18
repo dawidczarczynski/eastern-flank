@@ -1,6 +1,6 @@
 # TASK-037: Unit catalog – local web tool for collecting unit references (`tools/unit_catalog.sh`)
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: tools (Python stdlib server + static HTML/JS UI; catalog logic tested with `unittest`, wired into `tools/check.sh`). No game code changes.
 - **Depends on**: – (can start any time). Data layout: `docs/design/units/README.md`. GDD: "Factions and units".
 - **Model**: sonnet
@@ -48,17 +48,17 @@ docs/design/units/
 
 ## Acceptance criteria (testable)
 
-- [ ] `tools/unit_catalog/test_catalog.py` (`unittest`, run by `tools/check.sh` via `python3 -m unittest discover -s tools/unit_catalog`):
+- [x] `tools/unit_catalog/test_catalog.py` (`unittest`, run by `tools/check.sh` via `python3 -m unittest discover -s tools/unit_catalog`):
   - id rules: `leopard_2a4` ok; `Leopard 2A4` → slug `leopard_2a4`; `../x`, `a`, empty → rejected;
   - safe paths: an image file name or id with `/`, `..` or absolute paths is rejected;
   - unit validation: unknown class / unknown operator faction → error listing the field; negative dimension → error;
   - readiness: a unit missing `height` and side images reports exactly those two items and can't be saved as `ready_for_model`; a complete one can;
   - save/load round trip keeps data and produces byte-identical output when saved twice (stable formatting);
   - image upload: PNG/JPEG magic bytes accepted, a text file renamed `.png` rejected; file names `side_1.png`, `side_2.png` increment.
-- [ ] Server smoke test in the same suite: start on a free port in a thread, `GET /api/catalog` returns the seeded classes; `PUT` a unit then `GET` returns it; `GET /files/../../project.godot` → 403/404.
-- [ ] The server refuses non-localhost binds (no flag to change it).
-- [ ] `docs/design/units/` is seeded with `classes.json`, the factions `poland` (`PL`, `#5b93d6`) and `russia` (`RU`, `#d76a52`) with starting camo palettes (Poland vehicles `#4b5320` / `#3b2f22` / `#1e1f1a`, Russia vehicles `#4d5a3a` / `#23221d` / `#8a8466` – the human adjusts them), and **draft entries for the six first-roster units** with id, real name, class, operators and status `draft` (`m1a2_sepv3` "M1A2 SEPv3 Abrams", `homar_k` "Homar-K", `pl_mech_infantry` "Mechanised Infantry Squad", `t72b3` "T-72B3", `bm27_uragan` "9K57 Uragan", `ru_motor_rifle` "Motor Rifle Squad") – facts, dimensions and images are filled in by the human in the tool.
-- [ ] `CLAUDE.md` "Commands" and `docs/AGENTIC_WORKFLOW.md` mention `tools/unit_catalog.sh`; `docs/design/units/README.md` describes the layout above (replacing the old `<faction>/<unit>/specs.md` layout).
+- [x] Server smoke test in the same suite: start on a free port in a thread, `GET /api/catalog` returns the seeded classes; `PUT` a unit then `GET` returns it; `GET /files/../../project.godot` → 403/404.
+- [x] The server refuses non-localhost binds (no flag to change it).
+- [x] `docs/design/units/` is seeded with `classes.json`, the factions `poland` (`PL`, `#5b93d6`) and `russia` (`RU`, `#d76a52`) with starting camo palettes (Poland vehicles `#4b5320` / `#3b2f22` / `#1e1f1a`, Russia vehicles `#4d5a3a` / `#23221d` / `#8a8466` – the human adjusts them), and **draft entries for the six first-roster units** with id, real name, class, operators and status `draft` (`m1a2_sepv3` "M1A2 SEPv3 Abrams", `homar_k` "Homar-K", `pl_mech_infantry` "Mechanised Infantry Squad", `t72b3` "T-72B3", `bm27_uragan` "9K57 Uragan", `ru_motor_rifle` "Motor Rifle Squad") – facts, dimensions and images are filled in by the human in the tool.
+- [x] `CLAUDE.md` "Commands" and `docs/AGENTIC_WORKFLOW.md` mention `tools/unit_catalog.sh`; `docs/design/units/README.md` describes the layout above (replacing the old `<faction>/<unit>/specs.md` layout).
 
 ## Playtest (for the human)
 
@@ -76,4 +76,20 @@ docs/design/units/
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Files**: `tools/unit_catalog/` (`catalog.py` pure logic, `server.py` HTTP API, `index.html`/`app.js`/`style.css` vanilla UI with no CDN, `unit.schema.json`, `test_catalog.py`, `.gdignore`) and `tools/unit_catalog.sh`. `tools/check.sh` gained a `== catalog tests ==` step: 51 `unittest` tests on Python 3.8, including a server smoke test on a free port.
+- **Data format decisions**: `dimensions` is a nested object (`hull_length`, `overall_length`, `width`, `height`, `sources`) and `armament` is `{main, secondary}`. Unknown keys are rejected in both `validate_unit` and the schema. `unit.json` has an integer `revision`, bumped only when the content changes, so saving twice gives byte-identical files. Files are written atomically with mode 0644.
+- **Concurrency (after review)**: one lock covers every write. The client sends `revision`, and a stale PUT gets 409 (the UI then reloads the unit). Saves, uploads and deletes run through one client-side queue. An upload picks the file name and saves `unit.json` under the lock, and removes the file if the save fails. A delete saves `unit.json` before unlinking, and refuses to remove the last side or drawing image of a `ready_for_model` unit.
+- **Security**:
+  - The server binds to 127.0.0.1 only and rejects foreign `Host` headers.
+  - Writes need `Content-Type: application/json` and a localhost `Origin` when one is sent, which blocks CSRF.
+  - Ids and file names are matched with fullmatch, and paths must resolve inside the allowed folders.
+  - `/files/` is read-only with an extension allowlist.
+  - Uploads are checked by magic bytes, with a 15 MB image limit and a 25 MB body limit.
+- **API notes**:
+  - Factions are created with `POST /api/factions` (409 if the id exists) and edited with `PUT /api/factions/<id>`.
+  - `PUT /api/classes` takes `{"classes": [...]}` and refuses to remove a class that units still use.
+  - `PUT /api/units/<id>` edits only existing images' metadata; images are added and removed via the image routes.
+  - Only `ready_for_model` is gated by readiness.
+- **Extras**: a Classes screen (`#/classes`), a warning when leaving with unsaved edits, and up/down reordering of silhouette features.
+- **Seed**: `classes.json` (11 classes), `factions/poland.json`, `factions/russia.json`, and six draft units (`m1a2_sepv3`, `homar_k`, `pl_mech_infantry`, `t72b3`, `bm27_uragan`, `ru_motor_rifle`).
+- **Verification**: the orchestrator rendered the overview, the unit editor and the faction editor with headless Edge from Windows against a scratch copy of the data; they display correctly. Drag & drop, Ctrl+V paste and the image flow were exercised only through the API (curl), not in a real browser.

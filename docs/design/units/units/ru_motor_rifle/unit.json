@@ -1,0 +1,11 @@
+{
+  "id": "ru_motor_rifle",
+  "real_name": "Motor Rifle Squad",
+  "class": "mech_infantry",
+  "mobility": "foot",
+  "operators": [
+    "russia"
+  ],
+  "status": "draft",
+  "updated": "2026-10-18"
+}

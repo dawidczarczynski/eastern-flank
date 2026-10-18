@@ -1,0 +1,13 @@
+{
+  "id": "poland",
+  "name": "Poland",
+  "iso_code": "PL",
+  "color": "#5b93d6",
+  "camo": [
+    "#4b5320",
+    "#3b2f22",
+    "#1e1f1a"
+  ],
+  "vest_color": "#4f5934",
+  "notes": ""
+}

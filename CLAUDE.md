@@ -11,6 +11,7 @@ Game design: docs/GDD.md · Architecture: docs/ARCHITECTURE.md · Agent workflow
 - `tools/run_windows.sh [--editor] [--import]` – run with the Windows Godot build from WSL (GPU rendering; the WSLg build falls back to slow software rendering)
 - `tools/screenshot.sh [out.png] [--frames=N]` – render the battle scene to a 1280×720 PNG (default `.screenshots/battle.png`) and read it with the Read tool to check visual changes (needs WSLg / a display)
 - `tools/simulate.sh N [--seed=S] [--max-turns=T] [--verbose]` – N headless AI-vs-AI matches: win rates and average match length (balancing)
+- `tools/unit_catalog.sh [--port=8765]` – local web tool (Python stdlib, 127.0.0.1 only) for the human to collect real-unit references (facts, dimensions, images, factions) into `docs/design/units/`; Python tests run in `tools/check.sh`
 
 ## Hard architecture rules
 

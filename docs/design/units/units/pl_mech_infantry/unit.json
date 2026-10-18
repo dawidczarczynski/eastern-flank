@@ -1,0 +1,11 @@
+{
+  "id": "pl_mech_infantry",
+  "real_name": "Mechanised Infantry Squad",
+  "class": "mech_infantry",
+  "mobility": "foot",
+  "operators": [
+    "poland"
+  ],
+  "status": "draft",
+  "updated": "2026-10-18"
+}

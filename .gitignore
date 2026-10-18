@@ -16,3 +16,5 @@ Thumbs.db
 
 # Screenshots (tools/screenshot.sh)
 .screenshots/
+__pycache__/
+docs/design/units/**/.tmp_*

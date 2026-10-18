@@ -17,8 +17,10 @@ docs/design/units/
   units/<unit_id>/
     unit.json                   # identity, real-world facts, dimensions, silhouette features, images, status, feedback
     side_1.jpg  front_1.png  drawing_1.png  …
-    blueprint.md                # written by unit-modeler
+    blueprint.md                # written by unit-modeler, shown read-only in the tool
 ```
+
+`unit.json` omits empty values and is written by the tool with a fixed key order and 2-space indent, so git diffs stay small. `dimensions` (metres) is a nested object (`hull_length`, `overall_length`, `width`, `height`, `sources`), `armament` is `{main, secondary}`, and image names are `<view>_<n>.<jpg|png|webp>` (views: side, front, rear, top, three_quarter, detail, drawing). The tool also keeps a `revision` counter (concurrent-edit detection) and `updated` date in each `unit.json`. The JSON Schema is `tools/unit_catalog/unit.schema.json`. The tool also shows the latest `.screenshots/units/<id>_*_sheet.png` render sheet next to the side reference in its Model review section.
 
 Ids: lowercase `a-z0-9_` (`poland`, `leopard_2a4`, `t72b3`). The unit id is also the name of the stats file and the model file.
 

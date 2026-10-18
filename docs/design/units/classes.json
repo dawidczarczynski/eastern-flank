@@ -1,0 +1,107 @@
+[
+  {
+    "id": "infantry",
+    "label": "Infantry",
+    "mobility": "foot",
+    "required_views": [
+      "side",
+      "front"
+    ]
+  },
+  {
+    "id": "mech_infantry",
+    "label": "Mechanised infantry (foot + carrier)",
+    "mobility": "foot",
+    "required_views": [
+      "side",
+      "front"
+    ]
+  },
+  {
+    "id": "tank",
+    "label": "Main battle tank",
+    "mobility": "tracked",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "ifv",
+    "label": "Infantry fighting vehicle",
+    "mobility": "tracked",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "apc",
+    "label": "Armoured personnel carrier",
+    "mobility": "wheeled",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "recon",
+    "label": "Reconnaissance vehicle",
+    "mobility": "wheeled",
+    "required_views": [
+      "side",
+      "front"
+    ]
+  },
+  {
+    "id": "sp_artillery",
+    "label": "Self-propelled artillery",
+    "mobility": "tracked",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "mlrs",
+    "label": "Multiple launch rocket system",
+    "mobility": "wheeled",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "air_defense",
+    "label": "Air defence",
+    "mobility": "tracked",
+    "required_views": [
+      "side",
+      "front",
+      "top"
+    ]
+  },
+  {
+    "id": "atgm",
+    "label": "Anti-tank guided missile team/vehicle",
+    "mobility": "wheeled",
+    "required_views": [
+      "side",
+      "front"
+    ]
+  },
+  {
+    "id": "engineer",
+    "label": "Engineer",
+    "mobility": "foot",
+    "required_views": [
+      "side",
+      "front"
+    ]
+  }
+]

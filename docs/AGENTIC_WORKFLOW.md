@@ -22,7 +22,7 @@ An AI agent cannot see the game window and doesn't "feel" the gameplay. So every
 | `game-designer` | subagent | GDD, writing up tasks, balance in `data/` |
 | `gameplay-engineer` | subagent | `src/core`, `src/ai`, tests (TDD) |
 | `presentation-engineer` | subagent | 3D scenes, camera, animations, UI, shaders |
-| `unit-modeler` | subagent | Procedural model per real unit (`src/presentation/models/`), render-compare loop against the unit catalog; run via `/model-unit <id>` |
+| `unit-modeler` | subagent | Procedural model per real unit (`src/presentation/models/`), render-compare loop against the unit catalog; run via `/model-unit <id>`; the catalog is edited with the local web tool `tools/unit_catalog.sh` |
 | `reviewer` | subagent | Checks compliance with the architecture and criteria, read-only |
 | Orchestrator | main Claude Code session | Drives a task with the `/implement-task` skill, delegates, verifies |
 

@@ -26,7 +26,7 @@ Everything is procedural – there are no imported 3D models or image textures. 
 | Detailed soldiers (capsule limbs, helmet, vest, pack, rifle, AT launcher) | 267–299 | TASK-032 |
 | Detailed MLRS truck (6 wheels with lugs, cab, 12-tube pod) | 300–350 | TASK-033 |
 | Unit portraits rendered from the 3D model for the popup | 414–431 | TASK-034 |
-| (not in the design) Real units with a model each, faction camouflage, unit catalog tool, render-compare pipeline for the `unit-modeler` agent | – | TASK-036 … TASK-039, `docs/design/units/` |
+| (not in the design) Real units with a model each, faction camouflage, unit catalog tool, render-compare pipeline for the `unit-modeler` agent | – | TASK-036 … TASK-039b, `docs/design/units/` |
 | Rivers, roads, named cities with instanced buildings (window shader, gable roofs) | 41–130, 504–533, 581–594 | idea – needs a GDD decision (TASK-035) |
 
 ## Key values (v2 only – the rest as in v1)
