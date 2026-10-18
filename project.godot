@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Game"
+config/name="Eastern Flank"
 config/description="Turn-based 3D strategy"
 run/main_scene="res://scenes/battle/battle.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")

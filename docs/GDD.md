@@ -1,4 +1,4 @@
-# Game Design Document
+# Eastern Flank – Game Design Document
 
 > Living document. Assumptions marked **[ASSUMPTION]** are the starting point for the prototype – to be confirmed or changed.
 

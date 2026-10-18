@@ -1,4 +1,4 @@
-# Game
+# Eastern Flank
 
 Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with the help of AI agents (Claude Code).
 
