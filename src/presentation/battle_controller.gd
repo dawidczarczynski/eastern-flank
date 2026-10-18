@@ -66,10 +66,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if motion != null:
 		_on_mouse_motion(motion.position)
 		return
-	if not _input_allowed():
-		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_F5:  # saving only reads the history, so it works at any time
+		_save_match()
+		return
+	if not _input_allowed():
 		return
 	if key.keycode == KEY_ENTER:
 		_end_human_turn()
@@ -84,6 +87,14 @@ func debug_select_and_hover(unit_id: int) -> void:
 	if unit != null:
 		_set_hovered_hex(unit.coord + Vector2i(2, 0))
 	_update_unit_popup()  # _process is disabled in the screenshot tool
+
+
+## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.
+func _save_match() -> void:
+	var record := MatchRecord.from_simulation(_sim, MAP_SEED)
+	if MatchSaver.save(record) == OK:
+		var path := ProjectSettings.globalize_path(MatchSaver.LAST_MATCH_PATH)
+		print("Match saved (%d commands): %s" % [record.commands.size(), path])
 
 
 ## A click that never became a camera drag: LMB selects/moves/attacks, RMB deselects.
@@ -360,6 +371,8 @@ func _update_unit_popup() -> void:
 ## Events are only queued here; playback starts deferred, so everything emitted in this frame
 ## (e.g. a whole AI turn) is queued before the burst speed is computed.
 func _on_event(event: Dictionary) -> void:
+	if event["type"] == &"game_over":
+		_save_match()  # the winning command is already in the history
 	_event_queue.push(_annotate(event))
 	_hud.set_end_enabled(false)  # the queue is non-empty from now on
 	if not _playing and not _playback_scheduled:

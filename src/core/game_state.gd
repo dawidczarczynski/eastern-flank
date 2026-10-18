@@ -54,3 +54,33 @@ func occupied() -> Dictionary:
 		if u.is_alive():
 			result[u.coord] = true
 	return result
+
+
+## Comparable, JSON-compatible description of the state (replay checks, regression fixtures).
+## Units are sorted by id and include dead ones. `rng_state` is `str(rng.state)`: the state is a
+## full 64-bit integer that a JSON number (a double) cannot hold exactly.
+func snapshot() -> Dictionary:
+	var ids: Array = units.keys()
+	ids.sort()
+	var unit_list: Array[Dictionary] = []
+	for id: int in ids:
+		unit_list.append(_unit_snapshot(units[id]))
+	return {
+		"turn": turn,
+		"current_player": current_player,
+		"winner": winner,
+		"rng_state": str(rng.state),
+		"units": unit_list,
+	}
+
+
+func _unit_snapshot(u: Unit) -> Dictionary:
+	return {
+		"id": u.id,
+		"owner": u.owner_id,
+		"definition": String(u.definition.id),
+		"coord": [u.coord.x, u.coord.y],
+		"hp": u.hp,
+		"moves_left": u.moves_left,
+		"has_attacked": u.has_attacked,
+	}

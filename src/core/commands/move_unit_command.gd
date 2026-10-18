@@ -10,6 +10,10 @@ func _init(p_unit_id: int, p_target: Vector2i) -> void:
 	target = p_target
 
 
+func to_dict() -> Dictionary:
+	return {"type": "move", "unit_id": unit_id, "target": [target.x, target.y]}
+
+
 func validate(state: GameState) -> String:
 	if state.winner != -1:
 		return "game_over"

@@ -42,6 +42,10 @@ static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> 
 	return maxi(1, attacker.definition.attack - defense)
 
 
+func to_dict() -> Dictionary:
+	return {"type": "attack", "attacker_id": attacker_id, "target_id": target_id}
+
+
 func validate(state: GameState) -> String:
 	if state.winner != -1:
 		return "game_over"

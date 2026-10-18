@@ -2,6 +2,10 @@ class_name EndTurnCommand
 extends Command
 
 
+func to_dict() -> Dictionary:
+	return {"type": "end_turn"}
+
+
 func validate(state: GameState) -> String:
 	if state.winner != -1:
 		return "game_over"
