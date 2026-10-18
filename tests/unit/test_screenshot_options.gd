@@ -58,3 +58,40 @@ func test_two_paths_are_too_many() -> void:
 func _assert_error(args: Array, expected: String) -> void:
 	var options := ScreenshotOptions.parse(PackedStringArray(args))
 	assert_eq(options["error"], expected, str(args))
+
+
+func test_camera_spec_unit_yaw_distance() -> void:
+	var camera := ScreenshotOptions.parse_camera("3,-30,12.5")
+	assert_eq(camera["unit_id"], 3)
+	assert_eq(camera["yaw_degrees"], -30.0)
+	assert_eq(camera["distance"], 12.5)
+	assert_eq(camera["error"], "")
+
+
+func test_camera_spec_with_spaces() -> void:
+	var camera := ScreenshotOptions.parse_camera(" 1, 45 ,14 ")
+	assert_eq(camera["unit_id"], 1)
+	assert_eq(camera["yaw_degrees"], 45.0)
+	assert_eq(camera["distance"], 14.0)
+	assert_eq(camera["error"], "")
+
+
+func test_empty_camera_spec_means_default_camera() -> void:
+	assert_eq(ScreenshotOptions.parse_camera("")["error"], "none")
+
+
+func test_camera_spec_needs_three_values() -> void:
+	assert_eq(ScreenshotOptions.parse_camera("1,30")["error"], "invalid_camera")
+
+
+func test_camera_spec_unit_must_be_an_integer() -> void:
+	assert_eq(ScreenshotOptions.parse_camera("a,30,12")["error"], "invalid_camera")
+
+
+func test_camera_spec_numbers_must_be_numeric() -> void:
+	assert_eq(ScreenshotOptions.parse_camera("1,x,12")["error"], "invalid_camera")
+	assert_eq(ScreenshotOptions.parse_camera("1,30,")["error"], "invalid_camera")
+
+
+func test_camera_spec_distance_must_be_positive() -> void:
+	assert_eq(ScreenshotOptions.parse_camera("1,30,0")["error"], "invalid_camera")

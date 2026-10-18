@@ -54,6 +54,14 @@ func set_target(target: Vector2) -> void:
 	_apply()
 
 
+## Places the camera in one go (screenshot tool); the distance is clamped like a zoom.
+func set_view(target: Vector2, yaw: float, distance: float) -> void:
+	_target = target
+	_yaw = yaw
+	_distance = clampf(distance, CameraMath.MIN_DISTANCE, CameraMath.MAX_DISTANCE)
+	_apply()
+
+
 func _process(delta: float) -> void:
 	var changed := false
 	var input := Vector2.ZERO

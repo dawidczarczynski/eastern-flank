@@ -116,6 +116,11 @@ func _process(_delta: float) -> void:
 	_update_label()
 
 
+## Re-places the HUD label after a camera jump while _process is off (screenshot tool).
+func refresh_label() -> void:
+	_update_label()
+
+
 func _exit_tree() -> void:
 	if _label != null and is_instance_valid(_label):
 		_label.queue_free()

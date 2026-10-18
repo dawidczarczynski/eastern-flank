@@ -5,6 +5,8 @@
 
 Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with the help of AI agents (Claude Code).
 
+![Gameplay: the Polish force with the tank selected – reach and move path on the hex map](docs/images/gameplay.png)
+
 ## Getting started
 
 ```bash

@@ -89,6 +89,18 @@ func debug_select_and_hover(unit_id: int) -> void:
 	_update_unit_popup()  # _process is disabled in the screenshot tool
 
 
+## Screenshot debug hook (tools/screenshot.gd): points the camera at a unit's tile.
+func debug_focus_camera(unit_id: int, yaw: float, distance: float) -> void:
+	var unit := _sim.state.get_unit(unit_id)
+	if unit == null:
+		push_error("debug_focus_camera: no unit %d" % unit_id)
+		return
+	var focus := _map_view.tile_top_position(unit.coord)
+	_camera_rig.set_view(Vector2(focus.x, focus.z), yaw, distance)
+	for view: UnitView in _unit_views.values():
+		view.refresh_label()  # _process is disabled in the screenshot tool
+
+
 ## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.
 func _save_match() -> void:
 	var record := MatchRecord.from_simulation(_sim, MAP_SEED)

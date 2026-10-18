@@ -10,6 +10,7 @@ Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/
 - `tools/run.sh [--editor]` – run the game / editor (needs a GUI; usually done by the human)
 - `tools/run_windows.sh [--editor] [--import]` – run with the Windows Godot build from WSL (GPU rendering; the WSLg build falls back to slow software rendering)
 - `tools/screenshot.sh [out.png] [--frames=N]` – render the battle scene to a 1280×720 PNG (default `.screenshots/battle.png`) and read it with the Read tool to check visual changes (needs WSLg / a display)
+- `tools/readme_screenshot.sh` – re-render the README gameplay shot `docs/images/gameplay.png` (fixed close-up framing, same requirements as `tools/screenshot.sh`)
 - `tools/simulate.sh N [--seed=S] [--max-turns=T] [--verbose]` – N headless AI-vs-AI matches: win rates and average match length (balancing)
 - `tools/unit_catalog.sh [--port=8765]` – local web tool (Python stdlib, 127.0.0.1 only) for the human to collect real-unit references (facts, dimensions, images, factions) into `docs/design/units/`; it can run `/research-unit` and `/model-unit` as headless Claude Code jobs (ADR 0008); Python tests run in `tools/check.sh`
 
@@ -46,3 +47,4 @@ The agent cannot see the game window. After changes to the visual layer, describ
 2. Update the status in docs/tasks/BACKLOG.md and in the task file ("Implementation notes" section).
 3. If the task is player-facing, docs/MANUAL.md is updated (by `game-designer`).
 4. Record architectural decisions as ADRs in docs/adr/.
+5. If the change is visible in the battle scene (presentation, shaders, HUD, unit models, terrain, scenario), re-run `tools/readme_screenshot.sh`, Read `docs/images/gameplay.png` to check it still looks good, and commit it with the change.

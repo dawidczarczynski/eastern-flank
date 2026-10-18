@@ -82,9 +82,21 @@ func _fail(message: String, exit_code: int) -> void:
 	quit(exit_code)
 
 
-## Debug aid: SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
+## Debug aid: SCREENSHOT_CAMERA=<unit id>,<yaw degrees>,<distance> points the camera at a unit's
+## tile (e.g. the README shot, tools/readme_screenshot.sh); unset = the default overview camera.
+## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
+	var camera := ScreenshotOptions.parse_camera(OS.get_environment("SCREENSHOT_CAMERA"))
+	if camera["error"] == "":
+		_battle.call(
+			"debug_focus_camera",
+			camera["unit_id"],
+			deg_to_rad(camera["yaw_degrees"]),
+			camera["distance"]
+		)
+	elif camera["error"] != "none":
+		printerr("ERROR: invalid SCREENSHOT_CAMERA (expected <unit id>,<yaw degrees>,<distance>)")
 	var select_id := OS.get_environment("SCREENSHOT_SELECT_UNIT")
 	if select_id.is_valid_int():
 		_battle.call("debug_select_and_hover", select_id.to_int())

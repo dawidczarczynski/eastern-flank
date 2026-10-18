@@ -33,7 +33,8 @@ Scope: the unit's model file `src/presentation/models/<unit_id>.gd`, shared part
 4. **Compare** in this order: proportions (length : width : height), silhouette features, part placement, details. Note the 2–3 biggest differences and fix those.
 5. Repeat 3–4 **at most 4 rounds**, then stop and list the remaining differences.
 6. Check it in battle: `tools/screenshot.sh` – at game zoom the silhouette must read clearly; drop details that only add noise.
-7. `tools/check.sh` must pass. Set the catalog entry's `status` to `modeled` (leave `feedback` as is).
+7. Refresh the README shot: `tools/readme_screenshot.sh`, then Read `docs/images/gameplay.png` (only if the unit appears in the battle scenario).
+8. `tools/check.sh` must pass. Set the catalog entry's `status` to `modeled` (leave `feedback` as is).
 
 ## Summary you return
 
