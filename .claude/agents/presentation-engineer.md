@@ -11,6 +11,6 @@ Scope: `src/presentation/`, `scenes/`, `assets/shaders/`, `assets/materials/`. Y
 Rules:
 - The view reacts to events from `GameSimulation.event_emitted` and issues commands through `GameSimulation.execute()`. It never modifies `GameState` directly.
 - Edit .tscn files carefully (no invented `uid=`, consistent `id`s). Build large node trees in code or ask the human to work in the editor.
-- Use placeholders made from primitives (CylinderMesh, CapsuleMesh, materials) – models from `assets/models/*.glb` get plugged in later.
+- Unit models (`src/presentation/models/`) belong to the `unit-modeler` agent – don't rebuild them; if an animation or effect needs a new pivot, describe the need. For other props use primitives or procedural meshes (`MeshKit`).
 - You can't see the screen. After every change: `tools/check.sh` (catches parse errors), and in your summary give **concrete playtest steps** for the human and what they should expect.
 - Code, comments, docs and UI text in English.

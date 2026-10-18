@@ -22,6 +22,7 @@ An AI agent cannot see the game window and doesn't "feel" the gameplay. So every
 | `game-designer` | subagent | GDD, writing up tasks, balance in `data/` |
 | `gameplay-engineer` | subagent | `src/core`, `src/ai`, tests (TDD) |
 | `presentation-engineer` | subagent | 3D scenes, camera, animations, UI, shaders |
+| `unit-modeler` | subagent | Procedural model per real unit (`src/presentation/models/`), render-compare loop against the unit catalog; run via `/model-unit <id>` |
 | `reviewer` | subagent | Checks compliance with the architecture and criteria, read-only |
 | Orchestrator | main Claude Code session | Drives a task with the `/implement-task` skill, delegates, verifies |
 
@@ -64,10 +65,10 @@ Avoid parallel work on the same `.tscn` file – scene conflicts merge badly.
 
 ## 3D graphics – realistically
 
-The agent won't model decent 3D models. Suggested path:
-1. **Now**: procedural primitives (already in place – hexagonal tiles, capsules as units). Good enough to polish the gameplay.
-2. **Later**: free CC0 packs in `.glb` format (e.g. Kenney – "Hexagon Kit", Quaternius) into `assets/models/`. The agent wires them into `MapView`/`UnitView`.
-3. **What the agent does well**: shaders (water, fog of war, highlights), procedural map generation, materials, lighting, Blender Python scripts for batch processing of models.
+The agent can't sculpt or texture-paint, but it builds convincing **procedural** miniatures from code (the v2 design shows the level: bevelled profile extrusions, lathes, a camouflage shader, PBR materials). The chosen path:
+1. **Terrain and scatter**: procedural (height field, vertex colours, generated detail textures, instanced foliage) – TASK-016b, 018, 026 … 028.
+2. **Units**: one procedural model per real unit (the faction only supplies camouflage), built with `MeshKit` (TASK-030) by the `unit-modeler` agent via `/model-unit <id>`. Input is the **unit catalog** (`docs/design/units/`, edited by the human in the local web tool `tools/unit_catalog.sh`, TASK-037): real dimensions, silhouette features, reference images, and the human's feedback on the last render. The agent iterates with `tools/render_unit.sh` (TASK-036): orthographic side/front/top views on a 1 m grid next to the reference image, dimensions vs. the real ones, triangle/mesh budgets, and a contract test (pivots, upright, footprint). Side-view line drawings and real dimensions give the best results; perspective photos only help with details.
+3. **Fallback**: CC0 `.glb` packs (Kenney, Quaternius) in `assets/models/` if a procedural model can't reach the needed quality – a model file can then load a glTF instead, as long as it keeps the pivot contract.
 
 ## Next steps for the process (optional)
 

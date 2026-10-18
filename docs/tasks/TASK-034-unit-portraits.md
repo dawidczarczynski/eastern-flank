@@ -1,0 +1,43 @@
+# TASK-034: Unit portraits in the hover popup (rendered from the 3D model)
+
+- **Status**: ready
+- **Layers**: presentation (`src/presentation/ui/unit_popup.gd`, a portrait renderer; camera framing maths tested in `tests/unit/`)
+- **Depends on**: **TASK-021** (popup), soft: TASK-031 … TASK-033 (the portraits are worth it once the models are detailed). Reference: `docs/design/v2/game_screen.scene.js` lines 414–431 (`makePortraits`), `docs/design/v2/game_screen.template.html` lines 86–91, screenshots `docs/design/v2/shots/01-v2-units.jpg`, `02-v2-units.jpg`, `hover.jpg`.
+- **Model**: sonnet
+
+## Goal
+
+The hover card shows a lit 3D portrait of the unit (its actual model in faction camouflage), like the design, so units are recognisable at a glance.
+
+## Design → Godot
+
+- **Renderer** `src/presentation/portrait_renderer.gd` (Node): one `SubViewport` 640 × 340 (own `World3D`, `transparent_bg = false`), rendered once per (unit type, owner) and cached as `ImageTexture` (`get_texture().get_image()` after the frame is drawn – use `RenderingServer.frame_post_draw` or `await` here, this is the presentation layer). Scene in the viewport, port of `makePortraits`:
+  - background and fog `#3a3f35`, fog depth 2.2–6; environment with the TASK-026 sky for ambient/reflections, ambient ~0.7 of the battle value.
+  - `DirectionalLight3D` `#fff0d8` at `(1.2, 2.4, 1.6)` looking at the origin, shadows on.
+  - ground disc radius 5, colour `#6b7150`, roughness 1, receives shadows.
+  - model from `UnitModels.build(type, owner)`, `rotation.y = −0.6` (relative to the design's +X forward).
+  - camera FOV 24°: from the model's AABB `size = aabb.size.length()`, `c = aabb center`: position `c + (size·0.82, size·0.4, size·1.02)`, look at `c − (0, 0.02, 0)`.
+- **Popup**: a 170 px high portrait area under the header, background `#2a2e27`, `TextureRect` with `STRETCH_KEEP_ASPECT_COVERED`. Portraits are pre-rendered at battle start (3 types × 2 owners) so the first hover has no hitch; while not ready, show the plain background.
+- Update the TASK-021 placement test values if the card height changes (`h` is measured, the rule stays).
+
+## Acceptance criteria (testable)
+
+- [ ] Pure framing function `PortraitRenderer.camera_transform(aabb: AABB) -> Transform3D` (static) tested in `tests/unit/test_portrait_renderer.gd`: for `AABB((-0.5, 0, -0.25), (1, 0.5, 0.5))` the camera position equals `c + size·(0.82, 0.4, 1.02)` and its forward vector points at `c − (0, 0.02, 0)` (±1e-4).
+- [ ] The cache returns the same `Texture2D` for repeated requests of the same (type, owner) and different ones per owner.
+- [ ] The popup shows the portrait area for every unit type; `test_unit_popup_model.gd` still passes (the model may gain a `portrait_key`).
+- [ ] Agent visual check: a screenshot with a scripted hover (TASK-021's `debug_select_and_hover`) shows the portrait; compare with `docs/design/v2/shots/hover.jpg`. If the screenshot tool can't capture the `SubViewport`, save one portrait to `.screenshots/portrait_*.png` and read it.
+
+## Playtest (for the human)
+
+1. Hover each of your units: the card shows a lit 3D view of the unit, angled from the front-right, with a soft shadow on a dark green ground and fog behind it.
+2. Hover enemy units: same models in sand camouflage.
+3. The first hover after the battle starts appears without a stutter.
+
+## Out of scope
+
+- Rank pips, unit names, designations, tags shown on the design's portrait card (GDD ideas: "Unit identity", "Experience ranks").
+- Animated / rotating portraits.
+
+## Implementation notes
+
+_Filled in by the agent when done._

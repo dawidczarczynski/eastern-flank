@@ -60,6 +60,24 @@ Source of truth for the numbers: `data/units/*.tres`.
 
 Starting armies (prototype battle): each side has infantry, cavalry, infantry + rocket artillery (built by `Scenario.default_battle`) on opposite map edges; spawn tiles are always plains.
 
+## Factions and units (decided 2026-10-18)
+
+- **Factions are real countries** (e.g. Poland, Germany, USA, Russia …), more than two over time. A faction has a name, a UI colour, a camouflage palette and a **roster** of units it can field. Players pick (or a scenario assigns) a faction; two players may not need to be enemies in reality – it's a game. Implemented as data: `data/factions/*.tres` (TASK-038).
+- **Units are real equipment with real names** ("Leopard 2A4", "T-72B3", "BM-21 Grad", "Mechanised infantry squad (Bundeswehr)" …), **each with its own stats** in its own `data/units/<id>.tres`. A unit belongs to a **class** (infantry, tank, IFV, MLRS …) that groups shared behaviour (movement type, model contract, AI role, translated class label); the real name is shown as-is and is not translated. The same vehicle may appear in several factions' rosters (e.g. Leopard 2A4: Poland, Germany) with the faction's camouflage. (TASK-039)
+- **Stats are derived from real-world data** (armament, protection, mobility, crew, range) collected in the unit catalog, by explicit rules the game-designer writes down (e.g. main gun calibre → attack band, armour class → defense band), so new units can be added consistently.
+- **Unit catalog** (`docs/design/units/`, edited with `tools/unit_catalog.sh`, TASK-037): one entry per real unit with identity, real-world facts, dimensions, silhouette features and reference images. It is the input for the game-designer (stats) and for the `unit-modeler` agent (3D models). It is reference data, not game data: the game reads only `data/`.
+- **Era: present day.** A unit qualifies if it is in active service today – older designs still fighting (e.g. in the war in Ukraine) count; the variant is the one in service (T-72B3, not T-72A).
+- **First factions and rosters** (prototype battle, one unit per current class):
+
+  | Class | Poland (player 0) | Russia (player 1) |
+  |---|---|---|
+  | Tank | M1A2 SEPv3 Abrams | T-72B3 |
+  | Rocket artillery | Homar-K (K239 Chunmoo launcher on a Jelcz 8×8 chassis) | 9K57 Uragan (BM-27, ZIL-135 8×8) |
+  | Infantry | Mechanised infantry squad, wz. 93 Pantera camouflage, MSBS Grot rifles | Motor rifle squad, EMR ("Tsifra") digital camouflage, AK-74M / AK-12 rifles |
+
+  UI colours follow NATO symbology: Poland (the player's default side) blue `#5b93d6`, Russia red `#d76a52`. Camouflage palettes come from each faction's data (Pantera woodland and Polish vehicle green/brown/black vs. EMR digital and Russian vehicle green/black/sand). Exact unit names (infantry), AT weapons and stats: catalog + game-designer (TASK-039).
+- **3D models**: one procedural model per unit (`src/presentation/models/<unit_id>.gd`), camouflage from the faction, built and checked by the `unit-modeler` agent against the catalog (`/model-unit`, TASK-036).
+
 ## Combat
 
 Implemented in TASK-001 and TASK-002 (`AttackCommand`):
@@ -85,11 +103,11 @@ Each question lists the tasks that depend on the answer.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
 - **Scale**: tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
-- **Setting**: fantasy, historical, sci-fi? → unit roster and art; no current task blocked.
+- **Setting**: modern military with real countries and real equipment (decided 2026-10-18). Era: present day; first factions Poland and Russia with their rosters (see "Factions and units"). → TASK-039.
 - **Modes**: vs AI only, hot-seat, network multiplayer? → TASK-005 (command serialization is the groundwork for network/replays), `HUMAN_PLAYER` constant in the battle controller, TASK-007 (hot-seat fog needs a hand-off screen).
 - **Fog of war**: yes/no, and per player vision rules? → TASK-007 (stays `idea` until scale and modes are decided).
 - **Cavalry's look**: the mock-up has no cavalry; TASK-019 uses the mock-up's **tank** model for cavalry as an interim (both are the fast 5-move unit). Keep, rename the unit (e.g. "Tank"), or make a horse model? Depends on the setting question. → TASK-019.
-- **Faction names**: placeholders "Blue Force" / "Red Force" (`BF`/`RF`) in the HUD until the setting is decided. → TASK-020, TASK-021.
+- **Stat derivation rules**: how real-world data maps to attack/defense/move/range/HP bands, and whether new stats are needed (hard/soft attack, armour, ammo – see "Ideas from the visual design"). → TASK-039 (game-designer).
 - **UI scaling**: HUD sizes are the mock-up's CSS pixels 1:1 (matches 1280×720 screenshots). Stretch mode / scaling for larger or smaller windows is undecided. → TASK-014, TASK-020.
 - **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (rocket artillery) could use it.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.

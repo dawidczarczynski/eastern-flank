@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#11130f;color:#ebe8df;-webkit-font-smoothing:antialiased}a{color:#9fc0e8}a:hover{color:#c7dbf3}</style>
+</helmet>
+<div style="position:relative;width:100vw;height:100vh;overflow:hidden;font-family:'IBM Plex Sans Condensed',sans-serif;background:#11130f;user-select:none">
+  <div ref="{{ mountRef }}" style="position:absolute;inset:0"></div>
+  <div ref="{{ labelsRef }}" style="position:absolute;inset:0;pointer-events:none;overflow:hidden"></div>
+
+  <div style="position:absolute;inset:0 0 auto 0;height:120px;pointer-events:none;background:linear-gradient(rgba(10,12,9,.55),rgba(10,12,9,0))"></div>
+
+  <div data-screen-label="HUD · tura" style="position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:stretch;background:rgba(17,19,15,.84);backdrop-filter:blur(10px);border:1px solid rgba(235,232,223,.12);box-shadow:0 8px 30px rgba(0,0,0,.35)">
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;width:230px;box-sizing:border-box;border-bottom:3px solid {{ bBar }};opacity:{{ bOpacity }};transition:opacity .3s">
+      <div style="width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;background:#5b93d6;color:#0f1a26;font:700 15px 'IBM Plex Mono',monospace">SP</div>
+      <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+        <div style="font-weight:600;font-size:16px;line-height:1.1">Sojusz Północny</div>
+        <div style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a8a598">{{ bStatus }} · {{ bUnits }} JEDN.</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 26px;border-left:1px solid rgba(235,232,223,.1);border-right:1px solid rgba(235,232,223,.1)">
+      <div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:#a8a598">TURA</div>
+      <div style="font:600 32px/1 'IBM Plex Mono',monospace;letter-spacing:.02em">{{ turnStr }}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:3px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#d8d5cb;white-space:nowrap">
+        <span style="width:7px;height:7px;background:{{ activeColor }}"></span>RUCH: {{ activeShort }}
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:10px 10px 10px 16px;width:230px;box-sizing:border-box;border-bottom:3px solid {{ rBar }};opacity:{{ rOpacity }};transition:opacity .3s">
+      <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end;min-width:0">
+        <div style="font-weight:600;font-size:16px;line-height:1.1">Pakt Wschodni</div>
+        <div style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#a8a598">{{ rUnits }} JEDN. · {{ rStatus }}</div>
+      </div>
+      <div style="width:42px;height:42px;flex:none;display:flex;align-items:center;justify-content:center;background:#d76a52;color:#2a110b;font:700 15px 'IBM Plex Mono',monospace">PW</div>
+    </div>
+  </div>
+
+  <sc-if value="{{ hasHex }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="HUD · teren" style="position:absolute;left:16px;bottom:16px;width:250px;background:rgba(17,19,15,.84);backdrop-filter:blur(10px);border:1px solid rgba(235,232,223,.12);pointer-events:none">
+      <div style="display:flex;justify-content:space-between;padding:9px 12px 0;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#a8a598"><span>TEREN</span><span>HEKS {{ hex.coord }}</span></div>
+      <div style="padding:4px 12px 10px;display:flex;flex-direction:column;gap:2px">
+        <div style="font-size:20px;font-weight:600">{{ hex.name }}</div>
+        <sc-if value="{{ hex.city }}"><div style="font-size:13px;color:#d8d5cb">{{ hex.city }}</div></sc-if>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid rgba(235,232,223,.1)">
+        <div style="padding:8px 12px;display:flex;flex-direction:column;gap:2px"><span style="font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#a8a598">RUCH</span><span style="font:500 13px 'IBM Plex Mono',monospace">{{ hex.cost }}</span></div>
+        <div style="padding:8px 12px;display:flex;flex-direction:column;gap:2px;border-left:1px solid rgba(235,232,223,.1)"><span style="font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#a8a598">OBRONA</span><span style="font:500 13px 'IBM Plex Mono',monospace">{{ hex.def }}</span></div>
+        <div style="padding:8px 12px;display:flex;flex-direction:column;gap:2px;border-left:1px solid rgba(235,232,223,.1)"><span style="font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#a8a598">WYS.</span><span style="font:500 13px 'IBM Plex Mono',monospace">{{ hex.elev }}</span></div>
+      </div>
+      <sc-if value="{{ hasHexTags }}">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;padding:0 12px 10px">
+          <sc-for list="{{ hex.tags }}" as="t"><span style="font:500 10px 'IBM Plex Mono',monospace;padding:2px 6px;background:rgba(235,232,223,.08);color:#d8d5cb">{{ t }}</span></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hex.path }}">
+        <div style="display:flex;justify-content:space-between;padding:8px 12px;background:rgba(235,232,223,.06);font:500 11px 'IBM Plex Mono',monospace"><span style="color:#a8a598">KOSZT TRASY</span><span>{{ hex.path }}</span></div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <div style="position:absolute;right:16px;bottom:88px;max-width:220px;font:400 10.5px/1.6 'IBM Plex Mono',monospace;color:#d8d5cb;letter-spacing:.02em;padding:7px 10px;background:rgba(17,19,15,.6);pointer-events:none;text-align:right">LPM wybór / ruch · przeciągnij — przesuń · PPM — obróć · kółko — zoom · Enter — koniec tury</div>
+
+  <div data-screen-label="HUD · koniec tury" style="position:absolute;right:16px;bottom:16px;display:flex;align-items:stretch;background:rgba(17,19,15,.84);backdrop-filter:blur(10px);border:1px solid rgba(235,232,223,.12)">
+    <div style="display:flex;flex-direction:column;justify-content:center;gap:2px;padding:8px 16px">
+      <span style="font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#a8a598">GOTOWE JEDNOSTKI</span>
+      <span style="font:600 20px 'IBM Plex Mono',monospace">{{ readyStr }}</span>
+    </div>
+    <button onClick="{{ endTurn }}" style="border:0;cursor:pointer;padding:0 26px;background:{{ activeColor }};color:#121410;font:700 15px 'IBM Plex Sans Condensed',sans-serif;letter-spacing:.12em;text-transform:uppercase;transition:filter .15s" style-hover="filter:brightness(1.12)" style-active="filter:brightness(.92)">Zakończ turę</button>
+  </div>
+
+  <sc-if value="{{ hasHover }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Popup jednostki" style="position:absolute;left:{{ popX }}px;top:{{ popY }}px;width:320px;pointer-events:none;background:rgba(17,19,15,.94);backdrop-filter:blur(12px);border:1px solid rgba(235,232,223,.14);box-shadow:0 18px 50px rgba(0,0,0,.5)">
+      <div style="height:3px;background:{{ hover.color }}"></div>
+      <div style="padding:10px 14px 10px;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;justify-content:space-between;gap:8px;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#a8a598"><span>{{ hover.typeLabel }}</span><span style="color:{{ hover.color }}">{{ hover.faction }}</span></div>
+        <div style="font-size:21px;font-weight:600;line-height:1.15">{{ hover.name }}</div>
+        <div style="font-size:12.5px;color:#c9c6bb">{{ hover.des }}</div>
+      </div>
+      <div style="position:relative;height:170px;background:#2a2e27">
+        <sc-if value="{{ hover.portrait }}" hint-placeholder-val="{{ false }}"><img src="{{ hover.portrait }}" alt="" style="display:block;width:100%;height:100%;object-fit:cover"></sc-if>
+        <div style="position:absolute;left:10px;bottom:8px;display:flex;align-items:center;gap:6px;padding:3px 7px;background:rgba(17,19,15,.8);font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">
+          <div style="display:flex;gap:2px"><sc-for list="{{ hover.rankPips }}" as="p"><span style="width:6px;height:6px;transform:rotate(45deg);background:{{ p.c }}"></span></sc-for></div>
+          <span>{{ hover.rank }}</span>
+        </div>
+      </div>
+      <div style="padding:10px 14px 4px;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between;font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#a8a598"><span>SIŁA JEDNOSTKI</span><span style="color:#ebe8df">{{ hover.hp }} / {{ hover.hpMax }}</span></div>
+        <div style="display:flex;gap:2px"><sc-for list="{{ hover.segs }}" as="s"><span style="flex:1;height:7px;background:{{ s.c }}"></span></sc-for></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px 16px;padding:10px 14px 12px">
+        <sc-for list="{{ hover.stats }}" as="st" hint-placeholder-count="8">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px"><span style="font-size:12px;color:#c9c6bb">{{ st.label }}</span><span style="font:600 12.5px 'IBM Plex Mono',monospace">{{ st.value }}</span></div>
+            <div style="height:2px;background:rgba(235,232,223,.1)"><div style="height:100%;width:{{ st.w }};background:#d8d5cb"></div></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding:0 14px 12px">
+        <sc-for list="{{ hover.tags }}" as="t"><span style="font:500 10px 'IBM Plex Mono',monospace;padding:3px 6px;border:1px solid rgba(235,232,223,.16);color:#d8d5cb">{{ t }}</span></sc-for>
+      </div>
+      <sc-if value="{{ hover.note }}"><div style="padding:0 14px 10px;font-size:12px;color:#e2c069">{{ hover.note }}</div></sc-if>
+      <div style="display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid rgba(235,232,223,.1);font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.04em">
+        <span style="width:7px;height:7px;border-radius:50%;background:{{ hover.statusColor }}"></span>{{ hover.status }}
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ banner }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;top:34%;display:flex;flex-direction:column;align-items:center;gap:6px;padding:22px 0;background:linear-gradient(90deg,rgba(17,19,15,0),rgba(17,19,15,.85) 30%,rgba(17,19,15,.85) 70%,rgba(17,19,15,0));pointer-events:none">
+      <div style="font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.3em;color:#a8a598">TURA {{ turnStr }}</div>
+      <div style="font-size:40px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{{ activeColor }}">{{ activeName }}</div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#11130f">
+      <div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.3em;color:#a8a598">OPERACJA</div>
+      <div style="font-size:30px;font-weight:700;letter-spacing:.08em">ŻELAZNY BRZEG</div>
+      <div style="font:400 12px 'IBM Plex Mono',monospace;color:#a8a598">{{ loadMsg }}</div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { loading: true, turn: 1, active: 0, factions: [], hover: null, hex: null, banner: false, err: null };
+  mountRef = React.createRef();
+  labelsRef = React.createRef();
+  componentDidMount() {
+    import(new URL('./scene.js', location.href).href).then(m => {
+      if (this._dead) return;
+      this.api = m.createGame(this.mountRef.current, this.labelsRef.current, {
+        onHover: hover => this.setState({ hover }),
+        onHex: hex => this.setState({ hex }),
+        onState: s => {
+          const changed = this.state.factions.length && (s.turn !== this.state.turn || s.active !== this.state.active);
+          this.setState(s);
+          if (changed) { this.setState({ banner: true }); clearTimeout(this._bt); this._bt = setTimeout(() => this.setState({ banner: false }), 1500); }
+        },
+        onReady: () => this.setState({ loading: false }),
+      });
+    }).catch(e => this.setState({ err: String((e && e.message) || e) }));
+  }
+  componentWillUnmount() { this._dead = true; clearTimeout(this._bt); this.api && this.api.dispose(); }
+  renderVals() {
+    const s = this.state, f = s.factions, A = s.active, fb = f[0] || {}, fr = f[1] || {}, act = f[A] || {};
+    const h = s.hover, W = window.innerWidth, H = window.innerHeight;
+    let popX = 0, popY = 0;
+    if (h) {
+      popX = h.x + 24; if (popX + 330 > W) popX = h.x - 344; popX = Math.max(8, popX);
+      popY = Math.max(96, Math.min(h.y - 80, H - 590));
+    }
+    return {
+      mountRef: this.mountRef, labelsRef: this.labelsRef,
+      loading: s.loading, loadMsg: s.err ? 'Błąd: ' + s.err : 'Generowanie terenu…',
+      turnStr: String(s.turn).padStart(2, '0'),
+      activeName: act.name, activeShort: (act.name || '').toUpperCase(), activeColor: act.color || '#5b93d6',
+      bBar: A === 0 ? fb.color : 'transparent', bOpacity: A === 0 ? 1 : 0.5, bStatus: A === 0 ? 'TWOJA TURA' : 'OCZEKUJE', bUnits: fb.units ?? 0,
+      rBar: A === 1 ? fr.color : 'transparent', rOpacity: A === 1 ? 1 : 0.5, rStatus: A === 1 ? 'TWOJA TURA' : 'OCZEKUJE', rUnits: fr.units ?? 0,
+      readyStr: (act.ready ?? 0) + ' / ' + (act.units ?? 0),
+      endTurn: () => this.api && this.api.endTurn(),
+      hasHex: !!s.hex, hex: s.hex || {}, hasHexTags: !!(s.hex && s.hex.tags.length),
+      hasHover: !!h, hover: h || {}, popX, popY,
+      banner: s.banner,
+    };
+  }
+}
+</script>
+</body>
+</html>
