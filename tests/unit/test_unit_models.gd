@@ -28,7 +28,7 @@ func _bounds(node: Node3D, to_root: Transform3D) -> AABB:
 
 
 func _check_upright(id: StringName, owner_id: int) -> void:
-	var model := UnitModels.build(id, owner_id)
+	var model := UnitModels.build(id, owner_id, _faction(owner_id))
 	var box := _bounds(model, Transform3D.IDENTITY)
 	assert_true(box.size.y > 0.15, "%s too short: %s" % [id, box])
 	assert_true(absf(box.position.y) <= 0.02, "%s not on y=0: %s" % [id, box])
@@ -43,7 +43,7 @@ func test_models_stand_upright_on_origin() -> void:
 
 
 func test_rocket_artillery_has_pod_with_six_mouths_and_no_placeholder() -> void:
-	var model := UnitModels.build(&"rocket_artillery", 0)
+	var model := UnitModels.build(&"rocket_artillery", 0, _faction(0))
 	var inner := model.get_node("Model")
 	var pod := inner.get_node_or_null("Pod")
 	assert_true(pod != null, "rocket artillery needs a Pod node")
@@ -58,15 +58,15 @@ func test_vehicles_use_wheel_locomotion() -> void:
 	assert_true(UnitModels.is_vehicle(&"cavalry"))
 	assert_true(UnitModels.is_vehicle(&"rocket_artillery"))
 	assert_false(UnitModels.is_vehicle(&"infantry"))
-	var model := UnitModels.build(&"rocket_artillery", 1)
+	var model := UnitModels.build(&"rocket_artillery", 1, _faction(1))
 	UnitModels.pose_tank(model.get_node("Model"), 2.0, 1.0, Vector2.ZERO)
 	assert_true(model.get_node("Model/Wheel0").rotation.z != 0.0, "wheels should spin")
 	model.free()
 
 
 func test_owner_sets_facing() -> void:
-	var west := UnitModels.build(&"infantry", 0)
-	var east := UnitModels.build(&"infantry", 1)
+	var west := UnitModels.build(&"infantry", 0, _faction(0))
+	var east := UnitModels.build(&"infantry", 1, _faction(1))
 	assert_true(absf(west.rotation.y) < 0.0001)
 	assert_true(absf(east.rotation.y - PI) < 0.0001)
 	west.free()
@@ -74,8 +74,8 @@ func test_owner_sets_facing() -> void:
 
 
 func test_meshes_are_shared_between_instances() -> void:
-	var a := UnitModels.build(&"cavalry", 0)
-	var b := UnitModels.build(&"cavalry", 0)
+	var a := UnitModels.build(&"cavalry", 0, _faction(0))
+	var b := UnitModels.build(&"cavalry", 0, _faction(0))
 	var ma := _first_mesh(a)
 	var mb := _first_mesh(b)
 	assert_true(ma.mesh == mb.mesh and ma.material_override == mb.material_override)
@@ -99,13 +99,13 @@ func _count_soldiers(model: Node3D) -> int:
 
 
 func test_infantry_has_five_soldiers() -> void:
-	var model := UnitModels.build(&"infantry", 0)
+	var model := UnitModels.build(&"infantry", 0, _faction(0))
 	assert_eq(_count_soldiers(model), 5)
 	model.free()
 
 
 func test_unknown_id_returns_fallback_node() -> void:
-	var model := UnitModels.build(&"no_such_unit", 0)
+	var model := UnitModels.build(&"no_such_unit", 0, _faction(0))
 	assert_true(model != null)
 	assert_true(_first_mesh(model) != null)
 	model.free()
@@ -116,7 +116,7 @@ func test_hit_reset_leaves_no_flash_behind() -> void:
 	var unit := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
 	var hud := Control.new()
 	var view := UnitView.new()
-	view.setup(unit, Vector3.ZERO, hud, Callable())
+	view.setup(unit, state.faction_of(0), Vector3.ZERO, hud, Callable())
 	var flash := UnitView._get_flash_material()
 	view._set_overlay(flash)
 	flash.albedo_color.a = 0.5
@@ -125,3 +125,34 @@ func test_hit_reset_leaves_no_flash_behind() -> void:
 	assert_eq(flash.albedo_color.a, 0.0)
 	view.free()
 	hud.free()
+
+
+func test_faction_colours_models_and_null_is_neutral() -> void:
+	var poland := _faction(0)
+	var tank := UnitModels.build(&"cavalry", 0, poland)
+	assert_eq(
+		_first_mesh(tank.get_node("Model/Turret")).material_override.albedo_color, poland.camo[0]
+	)
+	var neutral_tank := UnitModels.build(&"cavalry", 1, null)
+	assert_eq(
+		_first_mesh(neutral_tank.get_node("Model/Turret")).material_override.albedo_color,
+		UnitModels.NEUTRAL_BODY
+	)
+	tank.free()
+	neutral_tank.free()
+
+
+func test_faction_materials_are_shared_per_faction_not_owner() -> void:
+	var a := UnitModels.build(&"cavalry", 0, _faction(0))
+	var b := UnitModels.build(&"cavalry", 1, _faction(0))
+	var c := UnitModels.build(&"cavalry", 0, _faction(1))
+	var mat_a := _first_mesh(a.get_node("Model/Turret")).material_override
+	assert_true(mat_a == _first_mesh(b.get_node("Model/Turret")).material_override)
+	assert_true(mat_a != _first_mesh(c.get_node("Model/Turret")).material_override)
+	a.free()
+	b.free()
+	c.free()
+
+
+func _faction(owner_id: int) -> FactionDefinition:
+	return FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[owner_id])

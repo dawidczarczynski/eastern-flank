@@ -89,7 +89,7 @@ func test_slope_tilt() -> void:
 
 
 func test_infantry_structure() -> void:
-	var root := UnitModels.build(&"infantry", 0)
+	var root := UnitModels.build(&"infantry", 0, _faction(0))
 	for i in 5:
 		var rig := root.get_node_or_null("Model/Soldier%d/Rig" % i)
 		assert_true(rig != null)
@@ -104,7 +104,7 @@ func test_infantry_structure() -> void:
 
 
 func test_tank_structure() -> void:
-	var root := UnitModels.build(&"cavalry", 0)
+	var root := UnitModels.build(&"cavalry", 0, _faction(0))
 	for i in 12:
 		var pivot := root.get_node_or_null("Model/Wheel%d" % i)
 		assert_true(pivot != null)
@@ -113,7 +113,7 @@ func test_tank_structure() -> void:
 
 
 func test_pose_infantry() -> void:
-	var root := UnitModels.build(&"infantry", 0)
+	var root := UnitModels.build(&"infantry", 0, _faction(0))
 	UnitModels.pose_infantry(root, 1.0 / 3.0, 1.0, true)
 	var rig: Node3D = root.get_node("Model/Soldier0/Rig")
 	_near(rig.position.y, 0.012 * absf(sin(PI * (0.5 + Locomotion.step_phase(0)))))
@@ -131,7 +131,7 @@ func test_pose_infantry() -> void:
 
 
 func test_pose_tank() -> void:
-	var root := UnitModels.build(&"cavalry", 0)
+	var root := UnitModels.build(&"cavalry", 0, _faction(0))
 	UnitModels.pose_tank(root, 1.0, 1.0, Vector2.ZERO)
 	for i in 12:
 		_near((root.get_node("Model/Wheel%d" % i) as Node3D).rotation.z, -5.0)
@@ -142,3 +142,7 @@ func test_pose_tank() -> void:
 	UnitModels.pose_tank(root, 3.7, 0.0, Vector2.ZERO)
 	assert_eq(model.rotation, Vector3.ZERO)
 	root.free()
+
+
+func _faction(owner_id: int) -> FactionDefinition:
+	return FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[owner_id])

@@ -21,7 +21,7 @@ const HINT := (
 )
 
 var _human_player := 0
-var _sides: Array[Dictionary] = []  # per player: {panel, style, badge, name, status}
+var _sides: Array[Dictionary] = []  # per player: {panel, style, badge_style, badge, name, status}
 var _turn_label: Label
 var _move_swatch: ColorRect
 var _move_label: Label
@@ -69,7 +69,7 @@ func on_turn_started(state: GameState, turn: int, player: int) -> void:
 		and HudModel.banner_for(_prev_turn, _prev_player, turn, player)
 		and not _result_shown
 	):
-		_show_turn_banner(turn, player)
+		_show_turn_banner(state, turn, player)
 	_prev_turn = turn
 	_prev_player = player
 
@@ -87,12 +87,12 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	var players: Array = bar["players"]
 	for i in players.size():
 		_apply_side(i, players[i])
-	var color := UiPalette.FACTION[active_player]
-	var active_name := tr(UiPalette.FACTION_NAMES[active_player]).to_upper()
+	var active: Dictionary = players[active_player]
+	var color: Color = active["color"]
+	var active_name := tr(active["name"] as String).to_upper()
 	_turn_label.text = bar["turn_text"]
 	_move_swatch.color = color
 	_move_label.text = tr("MOVE: %s") % active_name
-	var active: Dictionary = players[active_player]
 	_ready_label.text = "%d / %d" % [active["ready"], active["units"]]
 	_style_button(color)
 
@@ -101,7 +101,9 @@ func _apply_side(index: int, data: Dictionary) -> void:
 	var side := _sides[index]
 	var style: StyleBoxFlat = side["style"]
 	var active: bool = data["active"]
-	style.border_color = UiPalette.FACTION[index] if active else Color(0, 0, 0, 0)
+	var color: Color = data["color"]
+	style.border_color = color if active else Color(0, 0, 0, 0)
+	(side["badge_style"] as StyleBoxFlat).bg_color = color
 	var panel: Control = side["panel"]
 	var previous: Tween = side.get("tween")
 	if previous != null:
@@ -109,8 +111,10 @@ func _apply_side(index: int, data: Dictionary) -> void:
 	var tween := create_tween()
 	tween.tween_property(panel, "modulate:a", 1.0 if active else 0.5, 0.3)
 	side["tween"] = tween
-	(side["name"] as Label).text = tr(UiPalette.FACTION_NAMES[index])
-	(side["badge"] as Label).text = tr(UiPalette.FACTION_SHORT[index])
+	(side["name"] as Label).text = tr(data["name"] as String)
+	var badge := side["badge"] as Label
+	badge.text = tr(data["short"] as String)
+	badge.add_theme_color_override(&"font_color", data["ink"] as Color)
 	var status := tr(data["status"] as String)
 	var units := tr("%d UNITS") % data["units"]
 	var line := "%s · %s" % [status, units] if index == 0 else "%s · %s" % [units, status]
@@ -120,10 +124,10 @@ func _apply_side(index: int, data: Dictionary) -> void:
 # --- turn banner ---------------------------------------------------------------------------
 
 
-func _show_turn_banner(turn: int, player: int) -> void:
+func _show_turn_banner(state: GameState, turn: int, player: int) -> void:
 	_banner_turn.text = "%s %02d" % [tr("TURN"), turn]
-	_banner_name.text = tr(UiPalette.FACTION_NAMES[player]).to_upper()
-	_banner_name.add_theme_color_override(&"font_color", UiPalette.FACTION[player])
+	_banner_name.text = tr(UiPalette.faction_name(state, player)).to_upper()
+	_banner_name.add_theme_color_override(&"font_color", UiPalette.faction_color(state, player))
 	_banner.show()
 	_banner_timer.start(BANNER_SECONDS)  # restarts a running timer
 
@@ -133,7 +137,9 @@ func _show_result(result: String, state: GameState) -> void:
 	_banner_timer.stop()
 	_banner_turn.text = "%s %02d" % [tr("TURN"), state.turn]
 	_banner_name.text = tr(result).to_upper()
-	_banner_name.add_theme_color_override(&"font_color", UiPalette.FACTION[state.winner])
+	_banner_name.add_theme_color_override(
+		&"font_color", UiPalette.faction_color(state, state.winner)
+	)
 	_banner.show()
 
 
@@ -186,12 +192,12 @@ func _build_top_bar() -> void:
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 0)
 	bar.add_child(row)
-	_sides.append(_build_side(row, 0, false))
+	_sides.append(_build_side(row, false))
 	row.add_child(_build_centre())
-	_sides.append(_build_side(row, 1, true))
+	_sides.append(_build_side(row, true))
 
 
-func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
+func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0)
 	style.border_width_bottom = 3
@@ -216,10 +222,10 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	badge_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge_box.custom_minimum_size = Vector2(42, 42)
 	badge_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	badge_box.add_theme_stylebox_override(
-		&"panel", _panel_style(UiPalette.FACTION[index], 0, 0, false)
-	)
-	var badge := _label(MONO_SEMIBOLD, 15, UiPalette.FACTION_INK[index])
+	# Faction colours are applied from the state in _apply_side().
+	var badge_style := _panel_style(UiPalette.NEUTRAL_FACTION, 0, 0, false)
+	badge_box.add_theme_stylebox_override(&"panel", badge_style)
+	var badge := _label(MONO_SEMIBOLD, 15, UiPalette.NEUTRAL_INK)
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	badge_box.add_child(badge)
@@ -242,7 +248,14 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	else:
 		row.add_child(badge_box)
 		row.add_child(texts)
-	return {"panel": panel, "style": style, "badge": badge, "name": name_label, "status": status}
+	return {
+		"panel": panel,
+		"style": style,
+		"badge_style": badge_style,
+		"badge": badge,
+		"name": name_label,
+		"status": status,
+	}
 
 
 func _build_centre() -> Control:
@@ -357,7 +370,7 @@ func _build_end_block() -> void:
 		_end_button.add_theme_color_override(color_name, TEXT_ON_FACTION)
 	_end_button.pressed.connect(func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_button)
-	_style_button(UiPalette.FACTION[0])
+	_style_button(UiPalette.NEUTRAL_FACTION)  # recoloured by the first refresh()
 
 
 func _style_button(color: Color) -> void:

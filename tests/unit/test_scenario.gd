@@ -61,3 +61,45 @@ func test_terrain_matches_map_generator_apart_from_spawn_tiles() -> void:
 	for c in expected.coords():
 		if not spawn_tiles.has(c):
 			assert_eq(state.grid.get_terrain(c), expected.get_terrain(c))
+
+
+func test_default_battle_assigns_poland_and_russia() -> void:
+	var state := Scenario.default_battle(12345)
+	assert_eq(state.player_factions, [&"poland", &"russia"] as Array[StringName])
+	assert_eq(state.faction_of(0).id, &"poland")
+	assert_eq(state.faction_of(1).id, &"russia")
+
+
+func test_default_battle_with_swapped_factions() -> void:
+	var state := Scenario.default_battle(12345, [&"russia", &"poland"])
+	assert_eq(state.faction_of(0).id, &"russia")
+	assert_eq(state.faction_of(1).id, &"poland")
+	assert_eq(state.units.size(), 8)
+
+
+func test_factions_do_not_change_the_battle() -> void:
+	var a := Scenario.default_battle(12345)
+	var b := Scenario.default_battle(12345, [&"russia", &"poland"])
+	assert_eq(a.snapshot(), b.snapshot())
+
+
+func test_every_spawned_unit_is_in_its_owners_roster() -> void:
+	var state := Scenario.default_battle(12345)
+	for unit: Unit in state.units.values():
+		assert_true(state.faction_of(unit.owner_id).has_unit(unit.definition), str(unit.id))
+
+
+func test_player_with_unknown_faction_gets_no_units() -> void:
+	# Expected engine output: push_error about the unknown faction / skipped spawns.
+	var state := Scenario.default_battle(12345, [&"poland", &"atlantis"])
+	assert_eq(state.units_of(0).size(), 4)
+	assert_eq(state.units_of(1).size(), 0)
+
+
+func test_can_spawn_checks_the_roster() -> void:
+	var state := GameState.new(HexGrid.new(), 2, 1)
+	assert_true(Scenario.can_spawn(state, 0, Scenario.INFANTRY))
+	assert_false(Scenario.can_spawn(state, 2, Scenario.INFANTRY), "no such player")
+	var other := UnitDefinition.new()
+	other.id = &"not_in_any_roster"
+	assert_false(Scenario.can_spawn(state, 1, other))

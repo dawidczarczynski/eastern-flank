@@ -16,7 +16,7 @@
 │ Scenario (headless battle setup from a seed) │  src/core/scenario.gd
 │ AiPlayer (issues commands like a player)     │  src/ai/
 ├──────────────────────────────────────────────┤
-│ Data: UnitDefinition (.tres)                 │  src/core/data/, data/
+│ Data: UnitDefinition, FactionDefinition, …   │  src/core/data/, data/
 └──────────────────────────────────────────────┘
 ```
 
@@ -35,13 +35,17 @@ The AI (`AiPlayer.take_turn`) does exactly the same, just without clicks.
 
 `UnitView` = model (`UnitModels.build`, primitives, shared meshes/materials, faces +X) + faction marker draped on the terrain (`OverlayGeometry`) + HUD `UnitLabel` (a `Control` projected via `Camera3D.unproject_position`). The "done" dimming uses the pure helper `UnitStatus.is_done`; `BattleController` pushes selected/hovered/done state into the views.
 
+## Factions
+
+`FactionDefinition` (`src/core/data/`, instances in `data/factions/*.tres`) holds a faction's `id`, `display_name` (translation key), `short_name`, `roster: Array[UnitDefinition]` and a Presentation group (`color`, `ink_color`, `camo`, `vest_color`) that core/AI never read. `FactionRegistry.get_faction(id)` / `all()` / `ids()` / `has_faction(id)` look them up (explicit path table, see ADR 0007). Each player has a faction id in `GameState.player_factions` (default `FactionRegistry.DEFAULT_IDS` = `poland`, `russia`); the view gets everything faction-specific from `state.faction_of(player_id)` – never from owner-indexed constants. `Scenario.default_battle(seed, factions)` assigns them and only spawns units from the owner's roster.
+
 ## Replays and match records
 
 A match is fully described by `scenario + seed + executed commands` (state is never serialized).
 
 - `Command.to_dict()` gives a JSON-compatible form (`{"type": "move", "unit_id", "target": [q, r]}`, `{"type": "attack", "attacker_id", "target_id"}`, `{"type": "end_turn"}`); `CommandCodec.from_dict(d)` (`src/core/commands/command_codec.gd`) rebuilds it and returns `null` on anything unknown or malformed. JSON parses every number as a float: integral floats become `int`, non-integral / non-finite / beyond ±2^53 values, bools and strings are rejected. A new command type = `to_dict()` + a branch in `CommandCodec` + a codec test.
-- `MatchRecord` (`src/core/match_record.gd`): `version` (1), `scenario`, `seed`, `commands: Array[Dictionary]`; `from_simulation(sim, seed)` copies `sim.history`, `to_json()` / `from_json(text)` (`null` on invalid JSON, version ≠ 1 or malformed fields; extra keys ignored). `MatchRecord.normalize(value)` turns integral floats of parsed JSON back into ints for comparisons.
-- `Replay.run(record)` (`src/core/replay.gd`) builds the scenario's state from the seed (only `"default_battle"` → `Scenario.default_battle`) and executes each decoded command through `GameSimulation.execute`. Errors: `unknown_scenario` (index -1), `invalid_command` (codec returned `null`), `diverged` (rejected; `reason` = the `validate()` code).
+- `MatchRecord` (`src/core/match_record.gd`): `version` (1), `scenario`, `seed`, `factions: Array[StringName]` (optional in JSON; missing → `poland`, `russia`), `commands: Array[Dictionary]`; `from_simulation(sim, seed)` copies `sim.history` and `sim.state.player_factions`, `to_json()` / `from_json(text)` (`null` on invalid JSON, version ≠ 1 or malformed fields; extra keys ignored). `MatchRecord.normalize(value)` turns integral floats of parsed JSON back into ints for comparisons.
+- `Replay.run(record)` (`src/core/replay.gd`) builds the scenario's state from the seed (only `"default_battle"` → `Scenario.default_battle(seed, record.factions)`) and executes each decoded command through `GameSimulation.execute`. Errors: `unknown_scenario` (index -1), `invalid_factions` (unknown id or not two ids; index -1), `invalid_command` (codec returned `null`), `diverged` (rejected; `reason` = the `validate()` code).
 - `GameState.snapshot()` is the comparable state description (turn, current player, winner, `rng_state`, units sorted by id incl. dead). `rng_state` is stored as a **String** because the 64-bit RNG state does not survive a JSON double.
 - Regression fixture `tests/fixtures/replays/default_battle_12345.json` (AI vs AI, seed 12345, until `game_over` or turn 30) = record + `"expected_final"` snapshot; `test_replay.gd` replays it. After an *intended* rule change, regenerate it with `tools/make_replay_fixture.sh` (headless `tools/make_replay_fixture.gd`) and commit the new file.
 
@@ -76,7 +80,7 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 | `src/ai/` | Computer opponents |
 | `src/presentation/` | Node scripts: views, camera, scene controllers |
 | `scenes/` | `.tscn` scenes (battle, UI) |
-| `data/` | `.tres` data instances (units, terrain, map generation settings; later factions) |
+| `data/` | `.tres` data instances (units, terrain, map generation settings, factions) |
 | `assets/` | `.glb` models, textures, materials, shaders, audio, fonts |
 | `addons/` | Godot plugins |
 | `tests/` | Runner, `TestCase`, fixtures, `unit/` and `integration/` tests |

@@ -78,3 +78,16 @@ func test_top_bar_at_uses_playback_turn_and_player() -> void:
 	assert_eq(bar["players"][1]["status"], "AI TURN")
 	assert_eq(bar["players"][0]["status"], "WAITING")
 	assert_eq(bar["players"][0]["units"], 3)
+
+
+func test_sides_use_faction_data() -> void:
+	var bar := HudModel.top_bar(state, 0)
+	var p0: Dictionary = bar["players"][0]
+	var p1: Dictionary = bar["players"][1]
+	assert_eq(p0["name"], "Poland")
+	assert_eq(p0["short"], "PL")
+	assert_eq(p0["color"], state.faction_of(0).color)
+	assert_eq(p0["ink"], state.faction_of(0).ink_color)
+	assert_eq(p1["name"], "Russia")
+	assert_eq(p1["short"], "RU")
+	assert_eq(p1["color"], state.faction_of(1).color)

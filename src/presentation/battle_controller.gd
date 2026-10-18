@@ -126,7 +126,13 @@ func _map_bounds() -> Rect2:
 func _create_unit_view(unit: Unit) -> void:
 	var view := UnitView.new()
 	_units_root.add_child(view)
-	view.setup(unit, _map_view.tile_top_position(unit.coord), _hud_root, _map_view.mesh_height_at)
+	view.setup(
+		unit,
+		_sim.state.faction_of(unit.owner_id),
+		_map_view.tile_top_position(unit.coord),
+		_hud_root,
+		_map_view.mesh_height_at
+	)
 	_unit_views[unit.id] = view
 
 
@@ -294,7 +300,7 @@ func _refresh_highlights() -> void:
 	reach.erase(unit.coord)
 	var coords: Array[Vector2i] = []
 	coords.assign(reach.keys())
-	_map_view.show_reach(coords, unit.owner_id)
+	_map_view.show_reach(coords, UiPalette.faction_color(_sim.state, unit.owner_id))
 	_refresh_attack_targets(unit)
 	_refresh_range_overlay()
 

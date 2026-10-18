@@ -11,6 +11,9 @@ var turn: int = 1
 ## Id of the player who won the match; -1 while the game is still running.
 var winner: int = -1
 var rng := RandomNumberGenerator.new()
+## Faction id of each player (index = player id). Defaults to FactionRegistry.DEFAULT_IDS;
+## the scenario assigns the match's factions. Static per match, so not part of snapshot().
+var player_factions: Array[StringName] = []
 
 var _next_unit_id: int = 1
 
@@ -19,6 +22,16 @@ func _init(p_grid: HexGrid, p_player_count: int = 2, seed_value: int = 0) -> voi
 	grid = p_grid
 	player_count = p_player_count
 	rng.seed = seed_value
+	for player in player_count:
+		var defaults := FactionRegistry.DEFAULT_IDS
+		player_factions.append(defaults[player % defaults.size()])
+
+
+## The faction of `player_id`; null for an unknown player or faction id.
+func faction_of(player_id: int) -> FactionDefinition:
+	if player_id < 0 or player_id >= player_factions.size():
+		return null
+	return FactionRegistry.get_faction(player_factions[player_id])
 
 
 func add_unit(owner_id: int, definition: UnitDefinition, coord: Vector2i) -> Unit:

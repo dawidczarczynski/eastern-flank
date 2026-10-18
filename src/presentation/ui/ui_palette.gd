@@ -19,14 +19,10 @@ const HP_MID := Color("#e2c069")
 const HP_LOW := Color("#e07c5e")
 const HP_EMPTY := Color(233 / 255.0, 231 / 255.0, 223 / 255.0, 0.12)
 
-## Indexed by player id.
-const FACTION: Array[Color] = [Color("#5b93d6"), Color("#d76a52")]
-## Text colour on a faction-coloured badge.
-const FACTION_INK: Array[Color] = [Color("#0f1a26"), Color("#2a110b")]
-
-## Placeholder faction names (translation keys) and badge abbreviations, indexed by player id.
-const FACTION_NAMES: Array[String] = ["Blue Force", "Red Force"]
-const FACTION_SHORT: Array[String] = ["BF", "RF"]
+## Faction colours/names come from FactionDefinition (data/factions/, TASK-038). These are
+## the neutral stand-ins for a player without a known faction.
+const NEUTRAL_FACTION := Color("#a8a598")
+const NEUTRAL_INK := Color("#11130f")
 
 
 static func hp_color(hp: int, max_hp: int) -> Color:
@@ -38,3 +34,31 @@ static func hp_color(hp: int, max_hp: int) -> Color:
 	if ratio > 0.35:
 		return HP_MID
 	return HP_LOW
+
+
+## UI colour of `faction`; neutral when null.
+static func color_of(faction: FactionDefinition) -> Color:
+	return faction.color if faction != null else NEUTRAL_FACTION
+
+
+## UI colour of `player_id`'s faction in `state`; neutral for an unknown player or faction.
+static func faction_color(state: GameState, player_id: int) -> Color:
+	return color_of(state.faction_of(player_id))
+
+
+## Text colour on a badge filled with faction_color().
+static func faction_ink(state: GameState, player_id: int) -> Color:
+	var faction := state.faction_of(player_id)
+	return faction.ink_color if faction != null else NEUTRAL_INK
+
+
+## Untranslated faction name (a translation key) of `player_id`; "Player N" when unknown.
+static func faction_name(state: GameState, player_id: int) -> String:
+	var faction := state.faction_of(player_id)
+	return faction.display_name if faction != null else "Player %d" % (player_id + 1)
+
+
+## Badge abbreviation of `player_id`'s faction; "P<N>" when unknown.
+static func faction_short(state: GameState, player_id: int) -> String:
+	var faction := state.faction_of(player_id)
+	return faction.short_name if faction != null else "P%d" % (player_id + 1)

@@ -4,14 +4,16 @@
 
 ## 1. Overview
 
-Eastern Flank is a turn-based tactical battle on a hex map. You command **Blue Force** against **Red Force**, which the computer plays. Each side starts with four units. You and the opponent take turns moving and attacking.
+Eastern Flank is a turn-based tactical battle on a hex map. You command **Poland** (blue) against **Russia** (red), which the computer plays. Each side starts with four units. (In the Polish version of the game the sides are called "Polska" and "Rosja".)
+
+For now the two sides differ only in name, colour and look: both field the same units with the same stats and follow the same rules. You and the opponent take turns moving and attacking.
 
 **Goal:** destroy every enemy unit. The last side with units left on the map wins.
 
 ## 2. The battle
 
 - The map is **12 × 10 hexes**. It is the same map every time you start the game.
-- Blue Force starts on one short edge of the map, Red Force on the opposite edge. Every unit starts on a plains tile.
+- Poland starts on one short edge of the map, Russia on the opposite edge. Every unit starts on a plains tile.
 - Each side has the same army:
 
   | Unit | Count | Position |
@@ -22,8 +24,8 @@ Eastern Flank is a turn-based tactical battle on a hex map. You command **Blue F
 
 ## 3. Turn structure
 
-1. **Blue Force (you) always moves first.** During your turn you can give orders to all your units, in any order.
-2. When you are done, end your turn. The turn bar shows "AI TURN" and Red Force acts. Its moves and attacks are replayed as animations (sped up if there are many, so the enemy turn takes only a few seconds).
+1. **Poland (you) always moves first.** During your turn you can give orders to all your units, in any order.
+2. When you are done, end your turn. The turn bar shows "AI TURN" and Russia acts. Its moves and attacks are replayed as animations (sped up if there are many, so the enemy turn takes only a few seconds).
 3. Then it is your turn again, and the **turn counter** goes up by one. A banner in the middle of the screen announces each new turn and side.
 
 At the start of a side's turn, all of its units get their full movement points back and may attack again. Points you don't use are not saved for later.
@@ -45,7 +47,7 @@ There is no turn limit.
 
 Roles in short: **infantry** is tough and slow, **cavalry** is fast and hits hard but is fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
 
-Every unit has a small tag above it: a coloured tab for its side (blue or red), a short name (INF, CAV, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
+Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name (INF, CAV, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
 
 ## 5. The map and terrain
 
@@ -123,11 +125,11 @@ Damage dealt by the attacker to the defender, depending on the defender's tile (
 
 ## 9. The opponent
 
-Red Force is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay about 5 hexes away from your nearest unit, so it can fire without being hit back.
+Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay about 5 hexes away from your nearest unit, so it can fire without being hit back.
 
 ## 10. Screen
 
-- **Top bar**: the turn number in the centre with the side whose turn it is ("MOVE: BLUE FORCE"). On each side: the faction's name, its status (YOUR TURN / AI TURN / WAITING) and how many units it has left. The active side is highlighted.
+- **Top bar**: the turn number in the centre with the side whose turn it is ("MOVE: POLAND"). On each side: a badge with the side's short code (PL for Poland, RU for Russia), its name, its status (YOUR TURN / AI TURN / WAITING) and how many units it has left. The active side is highlighted.
 - **Bottom right**: **READY UNITS** (your units that can still do something / all your units) and the **End turn** button. The button is greyed out while animations play and during the enemy turn.
 - **Unit card**: hover any unit (yours or the enemy's) to see its type, side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus the path cost when you have a unit selected and the tile is reachable.

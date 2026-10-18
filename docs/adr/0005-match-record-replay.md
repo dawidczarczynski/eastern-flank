@@ -21,3 +21,7 @@ Playtest bug reports and a rules regression test both need a whole match reprodu
 - (+) Any rule change that alters the outcome of the recorded match fails a test with a pointer to the regeneration command.
 - (−) Records are only valid for the rules, data and scenario they were recorded with; changing unit ids, spawn order, balance data or AI-relevant rules invalidates the fixture (regenerate it).
 - (−) The seed must fit within ±2^53 to survive JSON exactly.
+
+## Amended by TASK-038 (ADR 0007)
+
+Records gained an optional `"factions"` field (faction id per player). It is additive, so the version stays 1 and records without it load with the default pair (`poland`, `russia`).

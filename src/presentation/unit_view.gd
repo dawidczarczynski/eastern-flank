@@ -63,20 +63,26 @@ var _max_hp := 0
 var _dying := false
 
 
-## `ground_height` is a Callable (x: float, z: float) -> float for draping the marker;
-## `hud_root` receives the unit's label.
-func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height: Callable) -> void:
+## `faction` is the owner's faction (colours; null = neutral); `ground_height` is a Callable
+## (x: float, z: float) -> float for draping the marker; `hud_root` receives the unit's label.
+func setup(
+	unit: Unit,
+	faction: FactionDefinition,
+	world_position: Vector3,
+	hud_root: Control,
+	ground_height: Callable
+) -> void:
 	unit_id = unit.id
 	position = world_position
 	_ground_height = ground_height
-	_owner_color = UiPalette.FACTION[clampi(unit.owner_id, 0, UiPalette.FACTION.size() - 1)]
+	_owner_color = UiPalette.color_of(faction)
 	_max_hp = unit.definition.max_hp
 	_hp = unit.hp
 
 	_pivot = Node3D.new()
 	_pivot.name = "Body"
 	add_child(_pivot)
-	var model := UnitModels.build(unit.definition.id, unit.owner_id)
+	var model := UnitModels.build(unit.definition.id, unit.owner_id, faction)
 	# Facing lives on the pivot so moves can turn the whole model (TASK-022).
 	_pivot.rotation.y = model.rotation.y
 	model.rotation.y = 0.0
@@ -97,7 +103,7 @@ func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height
 	_label = UnitLabel.new()
 	hud_root.add_child(_label)
 	hud_root.move_child(_label, 0)  # below the other HUD panels
-	_label.setup(tr(unit.definition.short_name), unit.owner_id, _hp, _max_hp)
+	_label.setup(tr(unit.definition.short_name), _owner_color, _hp, _max_hp)
 	_refresh_markers()
 	_update_label()
 

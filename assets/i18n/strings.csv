@@ -16,10 +16,8 @@ READY UNITS,READY UNITS,GOTOWE JEDNOSTKI
 End turn,End turn,Zakończ turę
 VICTORY,VICTORY,ZWYCIĘSTWO
 DEFEAT,DEFEAT,PORAŻKA
-Blue Force,Blue Force,Siły Niebieskie
-Red Force,Red Force,Siły Czerwone
-BF,BF,SN
-RF,RF,SC
+Poland,Poland,Polska
+Russia,Russia,Rosja
 TERRAIN,TERRAIN,TEREN
 HEX %s,HEX %s,HEKS %s
 MOVE,MOVE,RUCH

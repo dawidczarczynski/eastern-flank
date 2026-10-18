@@ -4,12 +4,15 @@ extends RefCounted
 ## recorded command through GameSimulation.execute – the same path as live play.
 ## Result: {"ok": true, "simulation": GameSimulation} or
 ##         {"ok": false, "error": <code>, "index": <command index, -1 if none>, "reason": <String>}
-## Error codes: "unknown_scenario", "invalid_command" (CommandCodec could not decode it),
+## Error codes: "unknown_scenario", "invalid_factions" (an unknown faction id or not one per
+## player), "invalid_command" (CommandCodec could not decode it),
 ## "diverged" (the simulation rejected it; "reason" is the validate() code).
 
 
 static func run(record: MatchRecord) -> Dictionary:
-	var state := _build_state(record.scenario, record.seed)
+	if not _valid_factions(record.factions):
+		return _failure("invalid_factions", -1, "")
+	var state := _build_state(record.scenario, record.seed, record.factions)
 	if state == null:
 		return _failure("unknown_scenario", -1, "")
 	var sim := GameSimulation.new(state)
@@ -24,11 +27,23 @@ static func run(record: MatchRecord) -> Dictionary:
 	return {"ok": true, "simulation": sim}
 
 
+## Every scenario is a 2-player battle for now.
+static func _valid_factions(factions: Array[StringName]) -> bool:
+	if factions.size() != 2:
+		return false
+	for faction_id in factions:
+		if not FactionRegistry.has_faction(faction_id):
+			return false
+	return true
+
+
 ## Starting state of a named scenario; null for an unknown name.
-static func _build_state(scenario: String, seed_value: int) -> GameState:
+static func _build_state(
+	scenario: String, seed_value: int, factions: Array[StringName]
+) -> GameState:
 	match scenario:
 		"default_battle":
-			return Scenario.default_battle(seed_value)
+			return Scenario.default_battle(seed_value, factions)
 	return null
 
 

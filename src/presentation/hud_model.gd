@@ -4,7 +4,8 @@ extends RefCounted
 ## keys; the HUD translates them.
 
 
-## `{turn_text, active_player, players: [{units, ready, status, active}, ...]}` (by player id).
+## `{turn_text, active_player, players: [{units, ready, status, active, name, short, color,
+## ink}, ...]}` (by player id). `name` is an untranslated key; colours come from the faction.
 static func top_bar(state: GameState, human_player: int) -> Dictionary:
 	return top_bar_at(state, human_player, state.turn, state.current_player)
 
@@ -25,7 +26,17 @@ static func top_bar_at(
 		var status := "WAITING"
 		if active:
 			status = "YOUR TURN" if player == human_player else "AI TURN"
-		players.append({"units": living.size(), "ready": ready, "status": status, "active": active})
+		var entry := {
+			"units": living.size(),
+			"ready": ready,
+			"status": status,
+			"active": active,
+			"name": UiPalette.faction_name(state, player),
+			"short": UiPalette.faction_short(state, player),
+			"color": UiPalette.faction_color(state, player),
+			"ink": UiPalette.faction_ink(state, player),
+		}
+		players.append(entry)
 	return {
 		"turn_text": "%02d" % turn,
 		"active_player": current_player,

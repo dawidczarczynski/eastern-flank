@@ -26,3 +26,13 @@ func test_save_creates_folders_and_writes_loadable_record() -> void:
 
 func test_default_path() -> void:
 	assert_eq(MatchSaver.LAST_MATCH_PATH, "user://matches/last_match.json")
+
+
+func test_saved_record_keeps_the_factions() -> void:
+	var sim := GameSimulation.new(Scenario.default_battle(7, [&"russia", &"poland"]))
+	assert_eq(MatchSaver.save(MatchRecord.from_simulation(sim, 7), PATH), OK)
+	var loaded := MatchRecord.from_json(FileAccess.get_file_as_string(PATH))
+	assert_true(loaded != null, "saved file parses back")
+	if loaded == null:
+		return
+	assert_eq(loaded.factions, [&"russia", &"poland"] as Array[StringName])

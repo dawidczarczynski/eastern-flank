@@ -449,9 +449,8 @@ func _clear_children(root: Node3D) -> void:
 		child.queue_free()
 
 
-## Reach wash and outlines in the faction colour of `player_id` (one mesh each, rebuilt here).
-func show_reach(coords: Array[Vector2i], player_id: int) -> void:
-	var color := UiPalette.FACTION[clampi(player_id, 0, UiPalette.FACTION.size() - 1)]
+## Reach wash and outlines in the faction colour `color` (one mesh each, rebuilt here).
+func show_reach(coords: Array[Vector2i], color: Color) -> void:
 	_set_overlay(
 		_reach_fill, coords, REACH_FILL_SHAPE, Color(color, REACH_FILL_ALPHA), REACH_FILL_LIFT
 	)

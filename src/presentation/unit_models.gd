@@ -11,9 +11,11 @@ const CAVALRY := &"cavalry"
 const ROCKET_ARTILLERY := &"rocket_artillery"
 ## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
 const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
-## Indexed by owner id.
-const BODY_COLORS: Array[Color] = [Color("#4f5934"), Color("#7a7354")]
-const VEST_COLORS: Array[Color] = [Color("#3d4529"), Color("#5d5840")]
+## Faction colours come from FactionDefinition: body = camo[0], vest = vest_color, accent =
+## color (TASK-038). Neutral stand-ins for a null faction:
+const NEUTRAL_BODY := Color("#5a5a52")
+const NEUTRAL_VEST := Color("#44443d")
+const NEUTRAL_ACCENT := Color("#a8a598")
 const SKIN := Color("#b98d6c")
 const SOLDIER_DARK := Color("#1f201c")
 const TANK_DARK := Color("#22231f")
@@ -45,6 +47,9 @@ const TURRET_DEPTH := 0.085
 
 static var _meshes: Dictionary = {}  # key string -> Mesh
 static var _materials: Dictionary = {}  # key string -> StandardMaterial3D
+## Keyed by faction id, not owner: a faction resource edited at runtime under the same id keeps
+## its old materials until the game restarts.
+static var _faction_materials: Dictionary = {}  # "faction_id:role" -> StandardMaterial3D
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.
@@ -56,17 +61,18 @@ static func is_vehicle(definition_id: StringName) -> bool:
 	return definition_id in VEHICLES
 
 
-static func build(definition_id: StringName, owner_id: int) -> Node3D:
+## `faction` colours the model (null = neutral grey); `owner_id` only sets the facing.
+static func build(definition_id: StringName, owner_id: int, faction: FactionDefinition) -> Node3D:
 	var root := Node3D.new()
 	root.rotation.y = facing_yaw(owner_id)
 	var model: Node3D
 	match definition_id:
 		INFANTRY:
-			model = _make_infantry(owner_id)
+			model = _make_infantry(faction)
 		CAVALRY:
-			model = _make_tank(owner_id)
+			model = _make_tank(faction)
 		ROCKET_ARTILLERY:
-			model = _make_rocket_artillery(owner_id)
+			model = _make_rocket_artillery(faction)
 		_:
 			push_warning("UnitModels: no model for '%s', using a placeholder box" % definition_id)
 			model = Node3D.new()
@@ -78,11 +84,39 @@ static func build(definition_id: StringName, owner_id: int) -> Node3D:
 	return root
 
 
-static func _faction_color(colors: Array[Color], owner_id: int) -> Color:
-	return colors[clampi(owner_id, 0, colors.size() - 1)]
+## Shared faction material for `role` (&"body", &"vest" or &"accent"), cached per faction id.
+static func _faction_material(faction: FactionDefinition, role: StringName) -> StandardMaterial3D:
+	var faction_id: StringName = faction.id if faction != null else &""
+	var key := "%s:%s" % [faction_id, role]
+	if _faction_materials.has(key):
+		return _faction_materials[key]
+	var material: StandardMaterial3D
+	match role:
+		&"vest":
+			var vest := faction.vest_color if faction != null else NEUTRAL_VEST
+			material = _material(vest, 0.9, 0.0)
+		&"accent":
+			var accent := faction.color if faction != null else NEUTRAL_ACCENT
+			material = _material(accent, 0.5, 0.1)
+		&"uniform":
+			material = _material(_body_color(faction), 0.9, 0.0)
+		&"body":
+			material = _material(_body_color(faction), 0.8, 0.15)
+		_:
+			push_error("UnitModels: unknown material role '%s'" % role)
+			material = _material(NEUTRAL_BODY, 0.8, 0.15)
+	_faction_materials[key] = material
+	return material
 
 
-static func _make_infantry(owner_id: int) -> Node3D:
+## Flat body colour until camo materials exist (TASK-029): the first camo colour.
+static func _body_color(faction: FactionDefinition) -> Color:
+	if faction == null or faction.camo.is_empty():
+		return NEUTRAL_BODY
+	return faction.camo[0]
+
+
+static func _make_infantry(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
 	for i in SQUAD.size():
 		var entry: Array = SQUAD[i]
@@ -92,15 +126,15 @@ static func _make_infantry(owner_id: int) -> Node3D:
 		rig.name = "Rig"
 		s.add_child(rig)
 		if entry[2]:
-			var kneel := _make_soldier(owner_id, true, i == 1)
+			var kneel := _make_soldier(faction, true, i == 1)
 			kneel.name = "Kneel"
-			var stand := _make_soldier(owner_id, false, i == 1)
+			var stand := _make_soldier(faction, false, i == 1)
 			stand.name = "Stand"
 			stand.visible = false
 			rig.add_child(kneel)
 			rig.add_child(stand)
 		else:
-			_make_soldier(owner_id, false, i == 1, rig)
+			_make_soldier(faction, false, i == 1, rig)
 		s.scale = Vector3.ONE * SOLDIER_SCALE
 		s.position = Vector3(entry[0], 0.0, entry[1])
 		s.rotation.y = (TerrainNoise.hash(i, 3, 1) - 0.5) * 0.6
@@ -109,10 +143,12 @@ static func _make_infantry(owner_id: int) -> Node3D:
 
 
 ## Builds a soldier's meshes under `into` (a new Node3D when null) and returns it.
-static func _make_soldier(owner_id: int, kneel: bool, gun: bool, into: Node3D = null) -> Node3D:
+static func _make_soldier(
+	faction: FactionDefinition, kneel: bool, gun: bool, into: Node3D = null
+) -> Node3D:
 	var s := into if into != null else Node3D.new()
-	var uni := _material(_faction_color(BODY_COLORS, owner_id), 0.9, 0.0)
-	var vest := _material(_faction_color(VEST_COLORS, owner_id), 0.9, 0.0)
+	var uni := _faction_material(faction, &"uniform")
+	var vest := _faction_material(faction, &"vest")
 	var skin := _material(SKIN, 0.8, 0.0)
 	var dark := _material(SOLDIER_DARK, 0.7, 0.3)
 	var lh := 0.05 if kneel else 0.085
@@ -132,14 +168,12 @@ static func _make_soldier(owner_id: int, kneel: bool, gun: bool, into: Node3D = 
 ## Self-propelled rocket artillery: 6-wheel truck with a cab at the front and a tilted pod of
 ## six launch tubes on the back. The "Pod" node holds "Mouth0".."Mouth5" (tube ends) – the
 ## volley effect spawns rockets there. Wheels are named Wheel0..5 (see pose_tank).
-static func _make_rocket_artillery(owner_id: int) -> Node3D:
+static func _make_rocket_artillery(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
-	var body := _material(_faction_color(BODY_COLORS, owner_id), 0.8, 0.15)
+	var body := _faction_material(faction, &"body")
 	var dark := _material(TANK_DARK, 0.95, 0.05)
 	var metal := _material(TANK_METAL, 0.55, 0.45)
-	var acc := _material(
-		UiPalette.FACTION[clampi(owner_id, 0, UiPalette.FACTION.size() - 1)], 0.5, 0.1
-	)
+	var acc := _faction_material(faction, &"accent")
 	var wheel_index := 0
 	for s: float in [-1.0, 1.0]:
 		for x: float in TRUCK_AXLES:
@@ -187,14 +221,12 @@ static func _make_rocket_artillery(owner_id: int) -> Node3D:
 	return g
 
 
-static func _make_tank(owner_id: int) -> Node3D:
+static func _make_tank(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
-	var body := _material(_faction_color(BODY_COLORS, owner_id), 0.8, 0.15)
+	var body := _faction_material(faction, &"body")
 	var dark := _material(TANK_DARK, 0.95, 0.05)
 	var metal := _material(TANK_METAL, 0.55, 0.45)
-	var acc := _material(
-		UiPalette.FACTION[clampi(owner_id, 0, UiPalette.FACTION.size() - 1)], 0.5, 0.1
-	)
+	var acc := _faction_material(faction, &"accent")
 	var wheel_index := 0
 	for s: float in [-1.0, 1.0]:
 		_box(g, Vector3(0.74, 0.1, 0.1), dark, 0.0, 0.06, s * 0.17)

@@ -1,5 +1,7 @@
 extends TestCase
 
+const Fixtures := preload("res://tests/fixtures.gd")
+
 const TOLERANCE := 0.002
 
 
@@ -25,7 +27,7 @@ func test_palette_values() -> void:
 	assert_true(absf(UiPalette.PANEL_BG.g - expected.g) < TOLERANCE)
 	assert_true(absf(UiPalette.PANEL_BG.b - expected.b) < TOLERANCE)
 	assert_true(absf(UiPalette.PANEL_BG.a - expected.a) < TOLERANCE)
-	_assert_color(UiPalette.FACTION[0], Color.html("#5b93d6"))
+	_assert_color(FactionRegistry.get_faction(&"poland").color, Color.html("#5b93d6"))
 
 
 func test_default_font_is_plex_condensed() -> void:
@@ -85,3 +87,13 @@ func test_button_style() -> void:
 	assert_true(box != null)
 	assert_eq(box.corner_radius_top_left, 0)
 	assert_eq(box.corner_radius_bottom_right, 0)
+
+
+func test_faction_helpers_fall_back_to_neutral() -> void:
+	var state := GameState.new(Fixtures.plains_grid(1), 2, 1)
+	assert_eq(UiPalette.faction_color(state, 1), state.faction_of(1).color)
+	assert_eq(UiPalette.faction_color(state, 5), UiPalette.NEUTRAL_FACTION)
+	assert_eq(UiPalette.faction_ink(state, -1), UiPalette.NEUTRAL_INK)
+	assert_eq(UiPalette.faction_name(state, 5), "Player 6")
+	assert_eq(UiPalette.faction_short(state, 5), "P6")
+	assert_eq(UiPalette.color_of(null), UiPalette.NEUTRAL_FACTION)

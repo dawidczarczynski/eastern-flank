@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="FactionDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_efmh3"]
+[ext_resource type="Resource" path="res://data/units/infantry.tres" id="2_gabrq"]
+[ext_resource type="Resource" path="res://data/units/cavalry.tres" id="3_lex4s"]
+[ext_resource type="Resource" path="res://data/units/rocket_artillery.tres" id="4_w82j2"]
+[ext_resource type="Script" path="res://src/core/data/faction_definition.gd" id="5_4tv74"]
+
+[resource]
+script = ExtResource("5_4tv74")
+id = &"poland"
+display_name = "Poland"
+short_name = "PL"
+roster = Array[ExtResource("1_efmh3")]([ExtResource("2_gabrq"), ExtResource("3_lex4s"), ExtResource("4_w82j2")])
+color = Color(0.35686275, 0.5764706, 0.8392157, 1)
+ink_color = Color(0.05882353, 0.101960786, 0.14901961, 1)
+camo = PackedColorArray(0.29803923, 0.3372549, 0.19607843, 1, 0.23137255, 0.2, 0.14509805, 1, 0.13333334, 0.14509805, 0.11372549, 1)
+vest_color = Color(0.23921569, 0.27058825, 0.16078432, 1)

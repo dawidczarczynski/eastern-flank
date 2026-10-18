@@ -24,8 +24,8 @@ func test_fresh_own_infantry() -> void:
 	var unit := state.add_unit(0, INFANTRY, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["type"], "Infantry")
-	assert_eq(m["faction"], "Blue Force")
-	assert_eq(m["color"], UiPalette.FACTION[0])
+	assert_eq(m["faction"], "Poland")
+	assert_eq(m["color"], state.faction_of(0).color)
 	assert_eq(m["hp"], 10)
 	assert_eq(m["max_hp"], 10)
 	var segments: Array[Color] = m["segments"]
@@ -93,8 +93,8 @@ func test_enemy_status() -> void:
 	var unit := state.add_unit(1, CAVALRY, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["status"], "Enemy unit")
-	assert_eq(m["status_color"], UiPalette.FACTION[1])
-	assert_eq(m["faction"], "Red Force")
+	assert_eq(m["status_color"], state.faction_of(1).color)
+	assert_eq(m["faction"], "Russia")
 
 
 func test_placement() -> void:

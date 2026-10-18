@@ -60,9 +60,9 @@ func _init() -> void:
 	row.add_child(bar)
 
 
-func setup(short_name: String, owner_id: int, hp: int, max_hp: int) -> void:
+func setup(short_name: String, faction_color: Color, hp: int, max_hp: int) -> void:
 	_text.text = short_name
-	_tab.color = UiPalette.FACTION[clampi(owner_id, 0, UiPalette.FACTION.size() - 1)]
+	_tab.color = faction_color
 	set_hp(hp, max_hp)
 
 

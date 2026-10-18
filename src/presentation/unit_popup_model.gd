@@ -39,10 +39,10 @@ static func build(state: GameState, unit: Unit, viewer_player: int) -> Dictionar
 		_stat("Range", str(definition.attack_range), definition.attack_range / RANGE_SCALE),
 	]
 	var status := _status(state, unit, viewer_player)
-	var faction_color := _faction_color(unit.owner_id)
+	var faction_color := UiPalette.faction_color(state, unit.owner_id)
 	return {
 		"type": definition.display_name,
-		"faction": _faction_name(unit.owner_id),
+		"faction": UiPalette.faction_name(state, unit.owner_id),
 		"color": faction_color,
 		"name": definition.display_name,
 		"hp": unit.hp,
@@ -83,17 +83,9 @@ static func _stat(label: String, value: String, fill: float) -> Dictionary:
 ## [status key, colour].
 static func _status(state: GameState, unit: Unit, viewer_player: int) -> Array:
 	if unit.owner_id != viewer_player:
-		return ["Enemy unit", _faction_color(unit.owner_id)]
+		return ["Enemy unit", UiPalette.faction_color(state, unit.owner_id)]
 	if UnitStatus.is_done(state, unit):
 		return ["Done this turn", DONE_COLOR]
 	if unit.has_attacked:
 		return ["Ready · already attacked", UiPalette.HP_HIGH]
 	return ["Ready", UiPalette.HP_HIGH]
-
-
-static func _faction_color(player: int) -> Color:
-	return UiPalette.FACTION[clampi(player, 0, UiPalette.FACTION.size() - 1)]
-
-
-static func _faction_name(player: int) -> String:
-	return UiPalette.FACTION_NAMES[clampi(player, 0, UiPalette.FACTION_NAMES.size() - 1)]

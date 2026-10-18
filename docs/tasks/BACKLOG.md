@@ -38,7 +38,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | ready | TASK-019 (soft: TASK-026) |
 | [TASK-030](TASK-030-mesh-kit.md) | `MeshKit`: bevelled profile extrusion, lathe, taper, rods, bake per material | ready | – (soft: TASK-029) |
 | [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | done | – |
-| [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | ready | – (soft: TASK-005, TASK-020) |
+| [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | done | – (soft: TASK-005, TASK-020) |
 | [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | ready | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | ready | **TASK-038**, TASK-037 |
 | [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | ready | **TASK-039a** |
