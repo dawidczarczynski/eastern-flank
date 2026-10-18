@@ -72,8 +72,8 @@ The agent won't model decent 3D models. Suggested path:
 ## Next steps for the process (optional)
 
 - **Screenshots for the agent** (done, TASK-006): `tools/screenshot.sh [out.png] [--frames=N]` opens the battle scene in a 1280×720 window, waits N rendered frames (default 10), saves a PNG (default `.screenshots/battle.png`) and quits; the last stdout line is `Screenshot saved: <absolute path>`. The agent reads the PNG with its Read tool after a visual change instead of guessing. Same map, units and default camera every run (two runs give byte-identical PNGs). Exit codes: 0 saved, 1 blank/failed capture or script errors in the log, 2 no display or invalid arguments, 124 timeout (60 s for the whole run), 127 Godot not found. Needs a graphical environment (WSLg in WSL2). Follow-ups: custom camera position, capturing a scripted game situation.
+- **AI-vs-AI simulation** (TASK-012): `tools/simulate.sh N [--seed=S] [--max-turns=T] [--verbose]` plays N headless matches (seeds S..S+N-1, default S=1, T=50) with `MatchRunner` (`src/ai/match_runner.gd`) and prints per-player win counts, draws (turn limit), errors and average match length – use it to judge balance changes in `data/**/*.tres` by numbers. Exit codes: 0 ok, 1 a match ended with `error` or script errors, 2 invalid arguments, 127 Godot not found.
 - **Replay tests**: a recorded match (seed + commands) as a fixture; the test checks that replaying it produces the same final state. Protects against regressions in the rules.
-- **AI vs AI simulations**: a headless script playing N matches and reporting statistics (who wins, match length) – a balancing tool for `game-designer`.
 - **CI** (GitHub Actions): `tools/install_godot.sh` + `tools/check.sh` on every PR.
 - **MCP server for Godot**: there are community projects giving an agent access to the editor (scene tree, running, logs). Worth checking their current state once the simple flow becomes a limitation.
 
