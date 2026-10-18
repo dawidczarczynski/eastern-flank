@@ -62,3 +62,29 @@ func test_noise_helpers_are_deterministic_and_bounded() -> void:
 	var j := TerrainColors.jitter(1.3, -2.7)
 	assert_eq(j, TerrainColors.jitter(1.3, -2.7))
 	assert_true(absf(j.x - 1.3) <= 0.275 and absf(j.y + 2.7) <= 0.275, str(j))
+
+
+func _plains(mac: float) -> Color:
+	return TerrainColors.color_at(0.3, 1.0, 0.5, Terrain.Type.PLAINS, true, mac)
+
+
+func test_macro_dry_patch_moves_toward_dry() -> void:
+	assert_true(_plains(0.8).r > _plains(0.5).r, "dry patch must be redder")
+	_assert_color(_plains(0.5), _grass())
+
+
+func test_macro_moist_patch_moves_toward_moist() -> void:
+	assert_true(_plains(0.2).g < _plains(0.5).g, "moist patch must be darker green")
+	assert_true(_plains(0.2).r < _plains(0.5).r, "moist patch must be less red")
+
+
+func test_macro_does_not_change_forest() -> void:
+	var neutral := TerrainColors.color_at(0.3, 1.0, 0.5, Terrain.Type.FOREST, true, 0.5)
+	_assert_color(TerrainColors.color_at(0.3, 1.0, 0.5, Terrain.Type.FOREST, true, 0.9), neutral)
+	_assert_color(TerrainColors.color_at(0.3, 1.0, 0.5, Terrain.Type.FOREST, true, 0.1), neutral)
+
+
+func test_macro_k_is_in_unit_range() -> void:
+	for i in 20:
+		var m := TerrainColors.macro_k(i * 1.7, i * 0.9)
+		assert_true(m >= 0.0 and m <= 1.0)

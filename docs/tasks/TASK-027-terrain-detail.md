@@ -1,6 +1,6 @@
 # TASK-027: Terrain detail – tileable detail texture + normal map, denser mesh, macro colour, water normals
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure texture generator and colour rules tested in `tests/unit/`)
 - **Depends on**: TASK-016b (terrain mesh), soft: TASK-026 (judge it under the new light). Reference: `docs/design/v2/README.md` ("Terrain detail", "Macro variation", "Water"), `docs/design/v2/game_screen.scene.js` lines 361–379 (`tileH`, `canvasTex`, `normalTex`), 457–501 (terrain mesh, water).
 - **Model**: sonnet
@@ -21,15 +21,15 @@ Up close, the ground has grain and small bumps instead of smooth vertex-colour g
 
 ## Acceptance criteria (testable)
 
-- [ ] `tests/unit/test_detail_texture.gd`:
+- [x] `tests/unit/test_detail_texture.gd`:
   - `height_map(64, [4, 8], 1)` is deterministic (two calls equal) and differs for seed 2; all values in [0, 1].
   - Seamless: for every row, `|H[y][0] − H[y][63]|` is not larger than the largest step between neighbouring pixels inside the map (the wrap step is an ordinary step); same for columns.
   - `normal_image` of a constant height map is uniformly `(0.5, 0.5, 1.0)` (±1/255); of a ramp rising in +x every pixel has red < 0.5 (normal tilts toward −x) – fix the sign if Godot's convention requires it and document it.
   - `albedo_image` values in [0.73, 1.13] before clamping, i.e. pixels in [0.73, 1.0] after.
-- [ ] `test_terrain_colors.gd`: a plains vertex whose `mac` ≥ 0.75 moves toward `DRY` (its red channel is higher than with macro variation disabled at `mac = 0.5`); one with `mac` ≤ 0.28 moves toward `MOIST`; forest vertices are unaffected. (Expose `macro_k(x, z)` or inject `mac` so the test can pick values.)
-- [ ] The terrain mesh has UVs, the terrain material has `albedo_texture`, `normal_texture` and anisotropic filtering (checked in a test that builds `MapView` headless on a small grid, as existing tests do, or in `test_battle_look.gd`).
-- [ ] Hex picking (`mesh_height_at`, surface picking) still works with the denser mesh – existing tests pass.
-- [ ] Agent visual check: default screenshot and a close one (`--frames` / camera hook if available). The ground shows fine grain with no visible seams or tiling rectangles at default zoom, and large lighter/darker patches are visible on the plains. Compare with `docs/design/v2/shots/v2-map.jpg` and `01-v2-zoom.jpg`.
+- [x] `test_terrain_colors.gd`: a plains vertex whose `mac` ≥ 0.75 moves toward `DRY` (its red channel is higher than with macro variation disabled at `mac = 0.5`); one with `mac` ≤ 0.28 moves toward `MOIST`; forest vertices are unaffected. (Expose `macro_k(x, z)` or inject `mac` so the test can pick values.)
+- [x] The terrain mesh has UVs, the terrain material has `albedo_texture`, `normal_texture` and anisotropic filtering (checked in a test that builds `MapView` headless on a small grid, as existing tests do, or in `test_battle_look.gd`).
+- [x] Hex picking (`mesh_height_at`, surface picking) still works with the denser mesh – existing tests pass.
+- [x] Agent visual check: default screenshot and a close one (`--frames` / camera hook if available). The ground shows fine grain with no visible seams or tiling rectangles at default zoom, and large lighter/darker patches are visible on the plains. Compare with `docs/design/v2/shots/v2-map.jpg` and `01-v2-zoom.jpg`.
 
 ## Playtest (for the human)
 
@@ -46,4 +46,11 @@ Up close, the ground has grain and small bumps instead of smooth vertex-colour g
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `src/presentation/detail_texture.gd` (`DetailTexture`): `height_map` (value-noise octaves on a lattice that wraps modulo each period, `TerrainNoise.hash`), `albedo_image`, `normal_image`. Normal map convention is OpenGL (Godot): red = +x, green = toward image row 0; `n = normalize(−dx·k, +dy·k, 1)` with `dy` over increasing rows, as in the design's `normalTex`. Tests pin a +x ramp → red < 0.5, a ramp toward higher rows → green > 0.5.
+- `map_view.gd`: terrain gets UVs (world xz / `DETAIL_TILE` 1.45) and **tangents** (`(1, dh/dx, 0)` orthogonalised against the normal, `w = +1` so the binormal points −z = up the image, matching the normal map). Detail albedo + normal (0.9), anisotropic filtering; water per spec (normal scale 0.3, UV ×36). Textures are generated once and cached in static vars (`_ground_albedo`, `_ground_normal`, `_water_normal`), about 0.3 s once per run.
+- **`RESOLUTION` = 4, not 6.** Terrain build on the default map (12×10): 3 ≈ 0.95 s (before), 4 ≈ 1.6 s, 5 ≈ 2.5 s, 6 ≈ 3.7 s. Almost all of it is `TerrainField.height` per vertex. 4 is about 0.1 s over the ~1.5 s budget; the normal map carries the fine detail.
+- Macro variation (`TerrainColors.macro_k`, `color_at(..., mac := 0.5)`, 0.5 neutral) applies only to non-forest land. The design leaks about 15 % into forest; this follows the task text instead.
+- The leak warnings at the end of the test run ("RID allocations leaked", "resources still in use") predate this task and are unchanged.
+- Visual check (llvmpipe, default zoom only, no close-up camera hook): yellowish dry and dark moist patches are visible on the plains, with no seams or tiling rectangles. The fine grain is faint at this distance. Bump direction and water glints are **not verified**; the human checks them in the playtest. If the bumps look inverted, flip `w` in `_build_terrain` **or** `dy` in `DetailTexture.normal_image` (not both).
+- Tests: `test_detail_texture.gd`, `test_map_view_detail.gd` (UVs, tangents, materials, water normal), additions to `test_terrain_colors.gd`.
+- Playtested by the human on 2026-10-18: accepted.

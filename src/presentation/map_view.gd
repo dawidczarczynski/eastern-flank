@@ -9,11 +9,27 @@ extends Node3D
 const EXTENT := 6.0
 ## Terrain mesh vertices per world unit. The design uses 6 and the task suggests 5, but
 ## TerrainField.height costs ~75 µs per call in GDScript, so 5 took ~3.5 s for the 12×10
-## map; 3 keeps the build well under the 1.5 s budget (see TASK-016b notes).
-const RESOLUTION := 3.0
+## map. TASK-027 measured the default map: 3 -> ~0.95 s, 4 -> ~1.6 s, 5 -> ~2.5 s, 6 -> ~3.7 s
+## (excluding ~0.3 s once for the detail textures); 4 is the compromise, the normal map
+## supplies the fine detail.
+const RESOLUTION := 4.0
 ## The water plane is this much larger than the terrain mesh.
 const WATER_MARGIN := 80.0
-const WATER_COLOR := Color("#2c5866", 0.84)
+const WATER_COLOR := Color("#264f5c", 0.84)
+## Water surface ripples: UV repeats over the plane, normal strength and texture parameters.
+const WATER_UV_REPEAT := 36.0
+const WATER_NORMAL_SCALE := 0.3
+const WATER_NORMAL_PERIODS: Array[int] = [4, 8, 16, 32]
+const WATER_NORMAL_SEED := 303
+const WATER_NORMAL_STRENGTH := 5.0
+## Ground detail texture (shared by all land): world units per texture repeat (the design
+## repeats it ~44x over its terrain width), size, noise periods, seed, normal strength/scale.
+const DETAIL_TILE := 1.45
+const DETAIL_SIZE := 256
+const DETAIL_PERIODS: Array[int] = [8, 16, 32, 64]
+const DETAIL_SEED := 201
+const DETAIL_NORMAL_STRENGTH := 7.0
+const DETAIL_NORMAL_SCALE := 0.9
 const GRID_LINE_COLOR := Color("#0d120c", 0.2)
 ## Grid lines float this far above the ground; each hex edge is split into segments so the
 ## lines follow the slopes.
@@ -64,6 +80,11 @@ const ROCK_COLOR := Color("#7d776a")
 const CONIFER_CENTER := 0.19
 const DECIDUOUS_CENTER := 0.14
 const TRUNK_CENTER := 0.05
+
+## Generated once per run: ground albedo and normal textures and the water normal texture.
+static var _ground_albedo: ImageTexture
+static var _ground_normal: ImageTexture
+static var _water_normal: ImageTexture
 
 @export var hex_size: float = 1.0
 
@@ -175,6 +196,11 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	normals.resize(count)
 	var colors := PackedColorArray()
 	colors.resize(count)
+	var uvs := PackedVector2Array()
+	uvs.resize(count)
+	# Godot packs tangents as (x, y, z, w) with binormal = cross(normal, tangent) * w.
+	var tangents := PackedFloat32Array()
+	tangents.resize(count * 4)
 	for j in nz + 1:
 		var j0 := maxi(j - 1, 0)
 		var j1 := mini(j + 1, nz)
@@ -185,13 +211,27 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 			var dz := (vertices[j1 * row + i].y - vertices[j0 * row + i].y) / ((j1 - j0) * step.y)
 			var n := Vector3(-dx, 1.0, -dz).normalized()
 			normals[j * row + i] = n
+			# U runs along +x, so the tangent is the slope direction (1, dh/dx, 0), made
+			# perpendicular to the normal. With w = +1 the binormal is -z, i.e. up the
+			# normal map image (towards v = 0), the OpenGL convention DetailTexture writes.
+			var t := Vector3(1.0, dx, 0.0)
+			t = (t - n * n.dot(t)).normalized()
+			var ti := (j * row + i) * 4
+			tangents[ti] = t.x
+			tangents[ti + 1] = t.y
+			tangents[ti + 2] = t.z
+			tangents[ti + 3] = 1.0
+			uvs[j * row + i] = (
+				Vector2(vertices[j * row + i].x, vertices[j * row + i].z) / DETAIL_TILE
+			)
 			var v := vertices[j * row + i]
 			var k := TerrainColors.noise_k(v.x, v.z)
 			var jittered := TerrainColors.jitter(v.x, v.z)
 			var jc := Hex.from_world(Vector3(jittered.x, 0.0, jittered.y), hex_size)
 			var jittered_type := int(_grid.get_terrain(jc)) if _grid.has_tile(jc) else -1
 			var on_map := _grid.has_tile(Hex.from_world(v, hex_size))
-			colors[j * row + i] = TerrainColors.color_at(v.y, n.y, k, jittered_type, on_map)
+			var mac := TerrainColors.macro_k(v.x, v.z)
+			colors[j * row + i] = TerrainColors.color_at(v.y, n.y, k, jittered_type, on_map, mac)
 
 	var indices := PackedInt32Array()
 	indices.resize(nx * nz * 6)
@@ -216,6 +256,8 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colors
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
@@ -224,6 +266,12 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	material.vertex_color_is_srgb = false
 	material.roughness = 0.95
 	material.metallic = 0.0
+	_ensure_ground_textures()
+	material.albedo_texture = _ground_albedo
+	material.normal_enabled = true
+	material.normal_texture = _ground_normal
+	material.normal_scale = DETAIL_NORMAL_SCALE
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mesh.surface_set_material(0, material)
 	var instance := MeshInstance3D.new()
 	instance.name = "Terrain"
@@ -359,14 +407,43 @@ func _add_scatter(
 	_tiles_root.add_child(instance)
 
 
+## Generates the ground albedo and normal textures on first use.
+static func _ensure_ground_textures() -> void:
+	if _ground_albedo != null:
+		return
+	var heights := DetailTexture.height_map(DETAIL_SIZE, DETAIL_PERIODS, DETAIL_SEED)
+	_ground_albedo = ImageTexture.create_from_image(
+		DetailTexture.albedo_image(heights, DETAIL_SIZE)
+	)
+	_ground_normal = ImageTexture.create_from_image(
+		DetailTexture.normal_image(heights, DETAIL_SIZE, DETAIL_NORMAL_STRENGTH)
+	)
+
+
+static func _water_normal_texture() -> ImageTexture:
+	if _water_normal == null:
+		var heights := DetailTexture.height_map(
+			DETAIL_SIZE, WATER_NORMAL_PERIODS, WATER_NORMAL_SEED
+		)
+		_water_normal = ImageTexture.create_from_image(
+			DetailTexture.normal_image(heights, DETAIL_SIZE, WATER_NORMAL_STRENGTH)
+		)
+	return _water_normal
+
+
 func _build_water(rect: Rect2) -> MeshInstance3D:
 	var plane := PlaneMesh.new()
 	plane.size = rect.size + Vector2.ONE * WATER_MARGIN
 	var material := StandardMaterial3D.new()
 	material.albedo_color = WATER_COLOR
-	material.roughness = 0.12
-	material.metallic = 0.25
+	material.roughness = 0.07
+	material.metallic = 0.1
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.normal_enabled = true
+	material.normal_texture = _water_normal_texture()
+	material.normal_scale = WATER_NORMAL_SCALE
+	material.uv1_scale = Vector3(WATER_UV_REPEAT, WATER_UV_REPEAT, 1.0)
+	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	plane.material = material
 	var instance := MeshInstance3D.new()
 	instance.name = "Water"

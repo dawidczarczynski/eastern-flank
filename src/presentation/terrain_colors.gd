@@ -13,6 +13,10 @@ const _JITTER := 0.55
 const _K_SEED := 61.0
 const _JITTER_X_SEED := 71.0
 const _JITTER_Z_SEED := 72.0
+## Macro (dry/moist patch) noise seed and strengths from the design.
+const _MACRO_SEED := 91.0
+const _DRY_STRENGTH := 0.45
+const _MOIST_STRENGTH := 0.4
 
 ## Palette, converted from the design's sRGB hex values to linear once.
 static var _deep := Color("#17323b").srgb_to_linear()
@@ -22,6 +26,8 @@ static var _grass1 := Color("#627c33").srgb_to_linear()
 static var _grass2 := Color("#87974b").srgb_to_linear()
 static var _forest1 := Color("#46672f").srgb_to_linear()
 static var _forest2 := Color("#587a38").srgb_to_linear()
+static var _dry := Color("#9c9558").srgb_to_linear()
+static var _moist := Color("#4c6a2c").srgb_to_linear()
 static var _hill := Color("#837b50").srgb_to_linear()
 static var _rock1 := Color("#756e5e").srgb_to_linear()
 static var _rock2 := Color("#a29c8f").srgb_to_linear()
@@ -31,9 +37,10 @@ static var _snow := Color("#eef0ef").srgb_to_linear()
 ## Linear colour of a terrain vertex at height `y` with normal Y `normal_y`.
 ## `k` is the colour noise (see noise_k), `jittered_type` the Terrain.Type of the tile at
 ## the jittered position (see jitter) or -1 off the map, `on_map` whether the vertex
-## itself is on a map tile (off-map vertices are darkened).
+## itself is on a map tile (off-map vertices are darkened). `mac` is the macro noise (see
+## macro_k): high values tint non-forest land dry, low values moist; 0.5 is neutral.
 static func color_at(
-	y: float, normal_y: float, k: float, jittered_type: int, on_map: bool
+	y: float, normal_y: float, k: float, jittered_type: int, on_map: bool, mac := 0.5
 ) -> Color:
 	var c: Color
 	if y < _WATER_BELOW:
@@ -43,6 +50,9 @@ static func color_at(
 		c = _grass1.lerp(_grass2, TerrainNoise.smooth(0.35, 0.7, k))
 		if jittered_type == Terrain.Type.FOREST:
 			c = c.lerp(_forest1.lerp(_forest2, k), _FOREST_MIX)
+		else:
+			c = c.lerp(_dry, TerrainNoise.smooth(0.55, 0.75, mac) * _DRY_STRENGTH)
+			c = c.lerp(_moist, TerrainNoise.smooth(0.42, 0.28, mac) * _MOIST_STRENGTH)
 		c = c.lerp(_sand, TerrainNoise.smooth(0.16, 0.04, y))
 		c = c.lerp(_hill, TerrainNoise.smooth(0.6, 1.1, y) * 0.6)
 		var rock_weight := minf(
@@ -67,6 +77,11 @@ static func color_at(
 ## Colour noise `k` in [0, 1] at world (x, z).
 static func noise_k(x: float, z: float) -> float:
 	return TerrainNoise.fbm(x * 0.35, z * 0.35, _K_SEED, 3)
+
+
+## Macro noise in [0, 1] at world (x, z): large dry and moist patches on the plains.
+static func macro_k(x: float, z: float) -> float:
+	return TerrainNoise.fbm(x * 0.12 + 5.0, z * 0.12, _MACRO_SEED, 3)
 
 
 ## Jittered world position (x, z) whose tile type decides forest colouring, so forest
