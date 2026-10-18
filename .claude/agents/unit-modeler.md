@@ -16,20 +16,20 @@ Scope: the unit's model file `src/presentation/models/<unit_id>.gd`, shared part
 - Existing models of the same class – reuse their parts. Side views and line drawings (`drawing`) are the most reliable; perspective photos show features, not exact proportions.
 - If a dimension is missing you may look it up (WebSearch) and report it with the source – the human adds it to the catalog. Never download or commit images yourself.
 
-## Contract (checked by `tests/unit/test_unit_models.gd` – keep it green)
+## Contract (checked by `tests/unit/test_unit_model_contract.gd` and `tests/unit/test_unit_models.gd` – keep them green)
 
 - Model faces **+X**, stands on **y = 0** (lowest point = tracks / tyres / boots), centred in x/z.
 - Scale: **1 model unit = 10 m** before `UnitModels.MODEL_SCALE` (`UnitModels.METERS_PER_UNIT`). Convert real dimensions, keep the footprint budget.
 - Required pivots, exact names: vehicles `Wheel0…WheelN` (spin around local Z); tanks `Turret`; rocket artillery `Pod` with `Mouth0…MouthN` just in front of the tube openings; infantry `Soldier0…Soldier4`, each with `Rig`, kneelers with `Kneel` and `Stand` (hidden) – see `UnitModels.pose_*` and `UnitView`. New classes: follow `classes.json`; if it lacks a contract, propose one in your summary.
 - Materials only from `ModelParts` (faction camo `ShaderMaterial`, PBR palette); faction accent colour on at least one visible plate per side.
-- `static func build(faction: FactionDefinition) -> Node3D`; bake with `MeshKit.bake(root, keep_pivots)` through `ModelParts.cached`: instances share meshes.
-- Within the triangle and `MeshInstance3D` budgets (the test prints both). No randomness: `TerrainNoise.hash`, never `randf()`.
+- `static func build(faction: FactionDefinition) -> Node3D` (no `class_name` needed). `UnitModels.build` loads it and wraps it in `ModelParts.cached(unit id + faction id, ...)`: the result is built once and every unit gets a copy with its own node tree and shared meshes/materials. Build parts only through `ModelParts.add/box/cyl` (camo materials and the `part_origin` shader parameter are applied to the copies, not to the stored prototype), and call the model through `UnitModels.build` or `ModelParts.cached`, not directly. Once TASK-030 lands, bake with `MeshKit.bake(root, keep_pivots)` inside `build`.
+- Footprint after `MODEL_SCALE`: length <= 1.15, width <= 0.8, lowest point y = 0 (+-0.005), centred in x/z (+-0.05). Budgets: <= 25 000 triangles per vehicle, <= 20 000 per squad, <= 24 `MeshInstance3D` outside `Wheel*`/`Soldier*` pivots; `tests/unit/test_unit_model_contract.gd` prints the numbers per model and faction. No randomness: `TerrainNoise.hash`, never `randf()`.
 
 ## Workflow (render → compare → fix)
 
 1. **Blueprint first** – write `docs/design/units/units/<unit_id>/blueprint.md`: each major part with its size in model units (from the real dimensions), position, material, which shared part/parameters it uses, and how each listed silhouette feature is represented. Silhouette features matter more than small details.
 2. **Build** largest parts first, reusing shared parts with parameters.
-3. **Render**: `tools/render_unit.sh <unit_id> --faction=<one of operators>` (the catalog's side image is the default reference), then Read the sheet PNG (orthographic side / front / top on the 1 m grid, three-quarter view, reference next to the side view) and the stats line (AABB in metres vs. real, triangles, mesh instances).
+3. **Render**: `tools/render_unit.sh <unit_id> --faction=<one of operators>` (the catalog's first existing side image, else drawing, is the default reference; `--reference=<path>` overrides it; `--views=side,top` renders fewer views), then Read the sheet PNG (`.screenshots/units/<unit_id>_<faction>_sheet.png`, per-view PNGs next to it) (orthographic side / front / top on the 1 m grid, three-quarter view, reference next to the side view) and the stats line (AABB in metres vs. real, triangles, mesh instances).
 4. **Compare** in this order: proportions (length : width : height), silhouette features, part placement, details. Note the 2–3 biggest differences and fix those.
 5. Repeat 3–4 **at most 4 rounds**, then stop and list the remaining differences.
 6. Check it in battle: `tools/screenshot.sh` – at game zoom the silhouette must read clearly; drop details that only add noise.

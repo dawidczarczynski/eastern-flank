@@ -40,7 +40,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | done | – |
 | [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | done | – (soft: TASK-005, TASK-020) |
 | [TASK-040](TASK-040-catalog-ai-research.md) | Unit catalog: AI research (`/research-unit`) verified in the form; agent jobs from the UI | done | TASK-037 (soft: TASK-036) |
-| [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | ready | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
+| [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | done | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | ready | **TASK-038**, TASK-037 |
 | [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | ready | **TASK-039a** |
 | [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |

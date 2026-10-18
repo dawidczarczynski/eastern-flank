@@ -1,6 +1,6 @@
 # TASK-036: Unit model pipeline – model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit`
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation + tools (registry, render script options and contract tested in `tests/unit/`)
 - **Depends on**: **TASK-030** (`MeshKit`, baker), **TASK-029** (materials move into `ModelParts`), **TASK-038** (faction data for camo). Soft: TASK-037 (catalog – the render tool and skill read it when present). Agent: `.claude/agents/unit-modeler.md`; skill: `.claude/skills/model-unit/SKILL.md`.
 - **Model**: sonnet
@@ -47,4 +47,19 @@ Prepare the ground for many units and many factions: every unit has its own mode
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Models**: `src/presentation/models/model_parts.gd` (`ModelParts`: palette, cached `camo(faction, preset)`, `faction_material`, mesh caches, `add`/`box`/`cyl`, `placeholder()`, `cached(key, builder)`) and `infantry.gd`, `cavalry.gd`, `rocket_artillery.gd` (each `static func build(faction) -> Node3D`). Geometry, node names and transforms moved verbatim. `UnitModels` is the registry only (`build`, `has_model`, `METERS_PER_UNIT`, facing, pose); a unit id without a model file gets the magenta placeholder plus a warning.
+- **TASK-030 not done yet**: `ModelParts.cached` builds one prototype per unit+faction and returns `duplicate()`s that share meshes and materials, without baking. Builders can call `MeshKit.bake` once TASK-030 lands.
+- **Instance-uniform pitfall**: duplicating nodes that carry `set_instance_shader_parameter` ran out of the renderer's 4096 instance-uniform slots (camo shifted on Russian units). `ModelParts.add` now stores the camo material and `part_origin` as metadata, and `cached` applies them to each copy. Always build models through `UnitModels.build` / `ModelParts.cached`. Prototypes live for the whole process on purpose.
+- **Contract test**: `tests/unit/test_unit_model_contract.gd` is a separate file because of gdlint's 20-method cap. It runs every model × faction. The current placeholder models break some thresholds, so they are listed in `WAIVERS`; a waiver that is no longer needed fails the test:
+  - cavalry: min y 0.013, centre x 0.244, length 1.449, 25 meshes outside the pivots;
+  - rocket_artillery: length 1.157, 26 meshes.
+  
+  TASK-031/033 should remove these waivers. The test's `KINDS` map needs updating when TASK-039a renames the unit ids.
+- **`tools/render_unit.sh`** (+ `render_unit.gd`, pure `render_unit_options.gd`, tested in `test_render_unit_options.gd`):
+  - The sun is read from `battle.tscn`. Ambient is flat (the mean of the sky colours at battle energy), because sky ambient left the shadow sides black against the canvas.
+  - Renders are deterministic, and the ortho views share one scale.
+  - The `Real:` line prints three diffs (L/W/H); real length is `overall_length`, falling back to `hull_length`.
+  - Exit 2 on: unknown unit/faction/view, a missing id, an empty option value, or a missing `--reference`.
+  - The stats AABB covers visible nodes only; the triangle and mesh counts include hidden poses (`Stand`).
+- **Windows rendering** (after playtest feedback: WSLg software rendering is poor): under WSL `render_unit.sh` uses the Windows Godot console build by default (D3D12, Forward+, ~15 s, deterministic). Paths are translated with `wslpath` both ways, and a timeout kills the Windows process with `taskkill`. `--linux` / `--windows` override the choice. The exe lookup and the Windows run moved to the shared `tools/windows_godot.sh`. `tools/screenshot.sh` (and with it `readme_screenshot.sh`) got the same mode, with `SCREENSHOT_*` passed through `WSLENV`. `docs/images/gameplay.png` is now rendered with Forward+ and SSAO, so it is brighter and more saturated than the old Compatibility shot, and the reach wash looks stronger.
+- Battle `tools/screenshot.sh` output is byte-identical before and after, so the README screenshot was not re-rendered. Docs: CLAUDE.md, AGENTIC_WORKFLOW.md, ARCHITECTURE.md ("Unit visuals") and `.claude/agents/unit-modeler.md` are updated; `/model-unit` SKILL.md already matched.

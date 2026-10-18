@@ -11,7 +11,7 @@ TASK-026 enabled SSAO in the battle environment. On the human's machine (AMD Rad
 
 - `project.godot` sets `rendering/rendering_device/driver.windows="d3d12"`. Linux and other platforms keep Vulkan.
 - `test_battle_look.gd` asserts the setting, so it isn't dropped by accident.
-- To check SSAO visually, run `tools/screenshot.gd` with the Windows Godot console build (`--script res://tools/screenshot.gd -- C:/.../out.png`) instead of `tools/screenshot.sh`.
+- To check SSAO visually, use `tools/screenshot.sh`: under WSL it runs the Windows Godot console build (D3D12, Forward+) by default (added after TASK-036; `--linux` is the old WSLg path).
 
 ## Consequences
 

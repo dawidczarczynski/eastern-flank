@@ -136,7 +136,7 @@ func test_faction_colours_models_and_null_is_neutral() -> void:
 	var neutral_tank := UnitModels.build(&"cavalry", 1, null)
 	var neutral_mat := _first_mesh(neutral_tank.get_node("Model/Turret")).material_override
 	assert_eq(
-		(neutral_mat as ShaderMaterial).get_shader_parameter(&"color_a"), UnitModels.NEUTRAL_BODY
+		(neutral_mat as ShaderMaterial).get_shader_parameter(&"color_a"), ModelParts.NEUTRAL_BODY
 	)
 	tank.free()
 	neutral_tank.free()

@@ -6,36 +6,15 @@
 #   --import  refresh the class cache with the Linux Godot first (only needed after adding a
 #             class_name without running tools/check.sh)
 # The Windows Godot path can be set with GODOT_WIN (WSL path, e.g. /mnt/c/Godot/Godot_v4.5.1-stable_win64.exe);
-# otherwise the usual places on C: are searched for the version below.
+# otherwise the usual places on C: are searched (tools/windows_godot.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VERSION="4.5.1"
-EXE="Godot_v${VERSION}-stable_win64.exe"
+# shellcheck source=tools/windows_godot.sh
+source tools/windows_godot.sh
 
-find_godot() {
-	local candidate
-	for candidate in \
-		/mnt/c/Godot/"$EXE" \
-		/mnt/c/Godot/*/"$EXE" \
-		"/mnt/c/Program Files/Godot/$EXE" \
-		/mnt/c/Users/*/Downloads/"$EXE" \
-		/mnt/c/Users/*/Downloads/*/"$EXE" \
-		/mnt/c/Users/*/Desktop/"$EXE" \
-		/mnt/c/Users/*/Desktop/*/"$EXE"; do
-		# The zip extracts to a folder with the same name as the exe – skip that folder.
-		if [[ -f "$candidate" ]]; then
-			echo "$candidate"
-			return 0
-		fi
-	done
-	return 1
-}
-
-GODOT_WIN="${GODOT_WIN:-$(find_godot || true)}"
-if [[ -z "$GODOT_WIN" || ! -f "$GODOT_WIN" ]]; then
-	echo "Could not find $EXE. Download Godot $VERSION for Windows (standard, not .NET) from" >&2
-	echo "https://godotengine.org/download/archive/${VERSION}-stable/ and unzip it to C:\\Godot," >&2
-	echo "or set GODOT_WIN=/mnt/c/path/to/$EXE" >&2
+GODOT_WIN="$(find_windows_godot || true)"
+if [[ -z "$GODOT_WIN" ]]; then
+	windows_godot_missing_help
 	exit 127
 fi
 
