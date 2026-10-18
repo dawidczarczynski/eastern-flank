@@ -19,7 +19,7 @@ An AI agent cannot see the game window and doesn't "feel" the gameplay. So every
 | Role | Who | Scope |
 |---|---|---|
 | Product owner / playtester | **You** | Vision, priorities, acceptance, judging "feel" and looks |
-| `game-designer` | subagent | GDD, writing up tasks, balance in `data/` |
+| `game-designer` | subagent | GDD, writing up tasks, balance in `data/`, player manual (`docs/MANUAL.md`) kept in sync with what is implemented |
 | `gameplay-engineer` | subagent | `src/core`, `src/ai`, tests (TDD) |
 | `presentation-engineer` | subagent | 3D scenes, camera, animations, UI, shaders |
 | `unit-modeler` | subagent | Procedural model per real unit (`src/presentation/models/`), render-compare loop against the unit catalog; run via `/model-unit <id>`; the catalog is edited with the local web tool `tools/unit_catalog.sh` |
@@ -42,6 +42,8 @@ idea ──► game-designer ──► docs/tasks/TASK-NNN.md (acceptance criter
              presentation-engineer: view reacts to new events
                                    │
                 tools/check.sh ──► reviewer ──► fixes
+                                   │
+             game-designer: docs/MANUAL.md (player-facing changes)
                                    │
                   You: playtest (steps from the summary) ──► commit
 ```

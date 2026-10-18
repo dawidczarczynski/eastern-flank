@@ -19,6 +19,10 @@ One or two sentences: what the player gains.
 1. Steps to perform in the game.
 2. What to expect.
 
+## Player manual
+
+What to add or change in docs/MANUAL.md (mechanic, rule, numbers, controls) – or "none" for purely internal tasks.
+
 ## Out of scope
 
 -

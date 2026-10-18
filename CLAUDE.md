@@ -1,6 +1,6 @@
 # Eastern Flank – turn-based 3D strategy (Godot 4, GDScript)
 
-Game design: docs/GDD.md · Architecture: docs/ARCHITECTURE.md · Agent workflow: docs/AGENTIC_WORKFLOW.md · Tasks: docs/tasks/
+Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/ARCHITECTURE.md · Agent workflow: docs/AGENTIC_WORKFLOW.md · Tasks: docs/tasks/
 
 ## Commands
 
@@ -44,4 +44,5 @@ The agent cannot see the game window. After changes to the visual layer, describ
 
 1. `tools/check.sh` passes.
 2. Update the status in docs/tasks/BACKLOG.md and in the task file ("Implementation notes" section).
-3. Record architectural decisions as ADRs in docs/adr/.
+3. If the task is player-facing, docs/MANUAL.md is updated (by `game-designer`).
+4. Record architectural decisions as ADRs in docs/adr/.

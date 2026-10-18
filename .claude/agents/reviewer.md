@@ -14,6 +14,6 @@ Checklist:
 4. Every acceptance criterion in the task has a matching test; tests check behaviour, not implementation.
 5. Randomness only through `state.rng`; balance numbers in `data/`, not in code.
 6. Static typing, naming, no dead code or commented-out fragments; code, comments and docs in English.
-7. Documentation updated (event table in ARCHITECTURE.md, status in BACKLOG.md).
+7. Documentation updated (event table in ARCHITECTURE.md, status in BACKLOG.md). If the change is player-facing, docs/MANUAL.md describes it and its numbers match `data/**/*.tres`.
 
 Output: a list of problems sorted from most severe, each with `file:line` and a suggested fix. If you found nothing, say so plainly. You don't fix anything yourself.
