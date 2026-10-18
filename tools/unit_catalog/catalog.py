@@ -36,7 +36,8 @@ UNIT_KEY_ORDER = [
     "id", "real_name", "variant_note", "class", "mobility", "operators", "in_service",
     "country_of_origin", "crew", "weight_t", "armament", "protection", "speed_road_kmh",
     "speed_offroad_kmh", "range_km", "fire_range_km", "notes", "dimensions",
-    "silhouette_features", "details", "skip", "camo_note", "images", "status", "feedback", "updated", "revision",
+    "silhouette_features", "details", "skip", "camo_note", "images", "image_candidates", "provenance", "status",
+    "feedback", "updated", "revision",
 ]  # fmt: skip
 ARMAMENT_KEYS = ["main", "secondary"]
 DIMENSION_KEYS = ["hull_length", "overall_length", "width", "height", "sources"]
@@ -50,6 +51,20 @@ STRING_FIELDS = [
     "camo_note", "feedback", "updated",
 ]  # fmt: skip
 STRING_LIST_FIELDS = ["silhouette_features", "details", "skip"]
+
+# Fields an AI research run may fill in (dotted paths into unit.json). `class`, `mobility`, images and status
+# stay with the human. Each filled field gets a `provenance` entry until the human verifies it.
+RESEARCH_FIELDS = [
+    "variant_note", "in_service", "country_of_origin", "operators", "crew", "weight_t", "armament.main",
+    "armament.secondary", "protection", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km", "notes",
+    "dimensions.hull_length", "dimensions.overall_length", "dimensions.width", "dimensions.height",
+    "silhouette_features", "details", "skip", "camo_note",
+]  # fmt: skip
+# Unverified AI values in these fields block `ready_for_model` - the model is built from them.
+MODEL_CRITICAL_FIELDS = ["dimensions.hull_length", "dimensions.width", "dimensions.height", "silhouette_features"]
+PROVENANCE_KEYS = ["source", "verified", "suggested"]
+CANDIDATE_KEYS = ["url", "view", "license", "source_page", "note"]
+RESEARCH_FILE = "research.json"
 
 
 class CatalogError(Exception):
@@ -153,6 +168,10 @@ def normalize_unit(unit: Dict[str, Any]) -> Dict[str, Any]:
         u["dimensions"] = _ordered(u["dimensions"], DIMENSION_KEYS)
     if "images" in u:
         u["images"] = [_ordered(img, IMAGE_KEYS) for img in u["images"]]
+    if "image_candidates" in u:
+        u["image_candidates"] = [_ordered(c, CANDIDATE_KEYS) for c in u["image_candidates"]]
+    if "provenance" in u:
+        u["provenance"] = _ordered({k: _ordered(v, PROVENANCE_KEYS) for k, v in u["provenance"].items()}, RESEARCH_FIELDS)
     return _ordered(u, UNIT_KEY_ORDER)
 
 
@@ -402,12 +421,61 @@ def validate_unit(unit: Any, classes: List[Dict[str, Any]], faction_ids: List[st
             for k in ("source_url", "license", "note"):
                 if not isinstance(img.get(k, ""), str):
                     add("images[%d].%s" % (i, k), "must be a string")
+    errors.extend(_validate_candidates(unit.get("image_candidates", [])))
+    errors.extend(_validate_provenance(unit.get("provenance", {})))
     rev = unit.get("revision", 0)
     if not isinstance(rev, int) or isinstance(rev, bool) or rev < 0:
         add("revision", "must be a non-negative integer")
     if unit.get("status") not in STATUSES:
         add("status", "must be one of %s" % ", ".join(STATUSES))
     return errors
+
+
+def _validate_candidates(cands: Any) -> List[Dict[str, Any]]:
+    if not isinstance(cands, list):
+        return [{"field": "image_candidates", "message": "must be a list"}]
+    errors = []
+    for i, c in enumerate(cands):
+        f = "image_candidates[%d]" % i
+        if not isinstance(c, dict):
+            errors.append({"field": f, "message": "must be an object"})
+            continue
+        for key in c:
+            if key not in CANDIDATE_KEYS:
+                errors.append({"field": "%s.%s" % (f, key), "message": "unknown field"})
+        if not isinstance(c.get("url"), str) or not c["url"].startswith("https://"):
+            errors.append({"field": f + ".url", "message": "must be an https:// URL"})
+        if c.get("view") not in VIEWS:
+            errors.append({"field": f + ".view", "message": "must be one of %s" % ", ".join(VIEWS)})
+        for key in ("license", "source_page", "note"):
+            if not isinstance(c.get(key, ""), str):
+                errors.append({"field": "%s.%s" % (f, key), "message": "must be a string"})
+    return errors
+
+
+def _validate_provenance(prov: Any) -> List[Dict[str, Any]]:
+    if not isinstance(prov, dict):
+        return [{"field": "provenance", "message": "must be an object"}]
+    errors = []
+    for path, entry in prov.items():
+        f = "provenance.%s" % path
+        if path not in RESEARCH_FIELDS:
+            errors.append({"field": f, "message": "not a researchable field"})
+            continue
+        if not isinstance(entry, dict) or any(k not in PROVENANCE_KEYS for k in entry):
+            errors.append({"field": f, "message": "must be an object with source, verified, suggested"})
+            continue
+        if not isinstance(entry.get("source", ""), str):
+            errors.append({"field": f + ".source", "message": "must be a string"})
+        if not isinstance(entry.get("verified", False), bool):
+            errors.append({"field": f + ".verified", "message": "must be true or false"})
+    return errors
+
+
+def unverified_fields(unit: Dict[str, Any]) -> List[str]:
+    """Dotted paths whose current value came from AI research and was not verified by the human yet."""
+    prov = unit.get("provenance") or {}
+    return [p for p in RESEARCH_FIELDS if isinstance(prov.get(p), dict) and prov[p].get("verified") is False]
 
 
 def readiness_missing(unit: Dict[str, Any]) -> List[str]:
@@ -429,6 +497,10 @@ def readiness_missing(unit: Dict[str, Any]) -> List[str]:
         missing.append("silhouette_features (at least 3)")
     if not any(i.get("view") in ("side", "drawing") for i in (unit.get("images") or [])):
         missing.append("side or drawing image")
+    unverified = unverified_fields(unit)
+    for path in MODEL_CRITICAL_FIELDS:
+        if path in unverified:
+            missing.append("verify %s (AI)" % path)
     return missing
 
 
@@ -582,7 +654,6 @@ def next_image_name(directory: Path, view: str, ext: str) -> str:
 
 def add_image(root: Path, unit_id: str, view: str, data_b64: str, source_url: str = "",
               license: str = "", note: str = "") -> Dict[str, Any]:  # fmt: skip
-    udir = unit_dir(root, unit_id)
     if view not in VIEWS:
         raise _err("view", "must be one of %s" % ", ".join(VIEWS))
     if not isinstance(data_b64, str):
@@ -595,6 +666,15 @@ def add_image(root: Path, unit_id: str, view: str, data_b64: str, source_url: st
         data = base64.b64decode(data_b64, validate=True)
     except (binascii.Error, ValueError):
         raise _err("data", "invalid base64")
+    return add_image_bytes(root, unit_id, view, data, source_url, license, note)
+
+
+def add_image_bytes(root: Path, unit_id: str, view: str, data: bytes, source_url: str = "",
+                    license: str = "", note: str = "", drop_candidate: str = "") -> Dict[str, Any]:  # fmt: skip
+    """Store image bytes as the next `<view>_<n>` file; optionally remove the image candidate with that URL."""
+    udir = unit_dir(root, unit_id)
+    if view not in VIEWS:
+        raise _err("view", "must be one of %s" % ", ".join(VIEWS))
     if len(data) > MAX_IMAGE_BYTES:
         raise _err("data", "image larger than 15 MB", 413)
     ext = sniff_image(data)
@@ -608,6 +688,8 @@ def add_image(root: Path, unit_id: str, view: str, data_b64: str, source_url: st
         entry = {"file": name, "view": view, "source_url": str(source_url or ""),
                  "license": str(license or ""), "note": str(note or "")}  # fmt: skip
         unit.setdefault("images", []).append(entry)
+        if drop_candidate:
+            unit["image_candidates"] = [c for c in unit.get("image_candidates", []) if c.get("url") != drop_candidate]
         try:
             save_unit(root, unit)
         except BaseException:
@@ -615,6 +697,44 @@ def add_image(root: Path, unit_id: str, view: str, data_b64: str, source_url: st
                 path.unlink()
             raise
     return entry
+
+
+def missing_image_files(root: Path, unit: Dict[str, Any]) -> List[str]:
+    """Images listed in unit.json whose file is not on disk (image files are not in git - see README)."""
+    udir = unit_dir(root, unit["id"])
+    return [i["file"] for i in unit.get("images", []) if isinstance(i, dict) and not (udir / str(i.get("file"))).is_file()]
+
+
+def restore_image(root: Path, unit_id: str, file: str, data: bytes) -> None:
+    """Write the downloaded bytes of a listed-but-missing image under its recorded name."""
+    check_image_file_name(file)
+    if len(data) > MAX_IMAGE_BYTES:
+        raise _err("data", "image larger than 15 MB", 413)
+    ext = sniff_image(data)
+    if ext is None:
+        raise _err("data", "not a jpg, png or webp image")
+    if IMAGE_FILE_RE.fullmatch(file).group(3) != ext:  # type: ignore[union-attr]
+        raise _err("data", "the source is a %s now, the catalog expects %s" % (ext, file))
+    with _WRITE_LOCK:
+        unit = load_unit(root, unit_id)
+        if file not in missing_image_files(root, unit):
+            raise _err("file", "not a missing image of this unit", 409)
+        atomic_write(unit_dir(root, unit_id) / file, data)
+
+
+def find_candidate(root: Path, unit_id: str, url: Any) -> Dict[str, Any]:
+    for c in load_unit(root, unit_id).get("image_candidates", []):
+        if c.get("url") == url:
+            return c  # type: ignore[no-any-return]
+    raise _err("url", "image candidate not found", 404)
+
+
+def dismiss_candidate(root: Path, unit_id: str, url: Any) -> None:
+    with _WRITE_LOCK:
+        find_candidate(root, unit_id, url)
+        unit = load_unit(root, unit_id)
+        unit["image_candidates"] = [c for c in unit.get("image_candidates", []) if c.get("url") != url]
+        save_unit(root, unit)
 
 
 def delete_image(root: Path, unit_id: str, file: str) -> None:
@@ -634,6 +754,113 @@ def delete_image(root: Path, unit_id: str, file: str) -> None:
         path = udir / file
         if path.exists():
             path.unlink()
+
+
+# --------------------------------------------------------------------------- AI research
+
+
+def get_path(data: Dict[str, Any], path: str) -> Any:
+    for part in path.split("."):
+        if not isinstance(data, dict):
+            return None
+        data = data.get(part)  # type: ignore[assignment]
+    return data
+
+
+def set_path(data: Dict[str, Any], path: str, value: Any) -> None:
+    *parents, last = path.split(".")
+    for part in parents:
+        data = data.setdefault(part, {})
+    data[last] = value
+
+
+def merge_research(unit: Dict[str, Any], research: Any, classes: List[Dict[str, Any]],
+                   faction_ids: List[str]) -> Dict[str, Any]:  # fmt: skip
+    """Merge an AI research result into `unit` (in place). Returns a report.
+
+    `research` is `{"fields": {path: {"value", "source"}}, "image_candidates": [...], "summary": str}`.
+    Empty fields are filled and marked unverified; a different value in a field the human already filled
+    becomes a `suggested` value instead. Values that would make the unit invalid are rejected.
+    """
+    report: Dict[str, Any] = {"filled": [], "suggested": [], "rejected": [], "candidates": 0, "summary": ""}
+    if not isinstance(research, dict):
+        raise _err("research", "must be an object")
+    fields = research.get("fields", {})
+    if not isinstance(fields, dict):
+        raise _err("research.fields", "must be an object")
+    prov = unit.setdefault("provenance", {})
+
+    def reject(path: str, message: str) -> None:
+        report["rejected"].append({"field": path, "message": message})
+
+    for path, item in fields.items():
+        if path not in RESEARCH_FIELDS:
+            reject(str(path), "not a researchable field")
+            continue
+        if not isinstance(item, dict) or "value" not in item:
+            reject(path, "must be an object with a value")
+            continue
+        value, source = item["value"], item.get("source", "")
+        if not isinstance(source, str):
+            reject(path, "source must be a string")
+            continue
+        if _empty(value):
+            continue
+        trial = json.loads(json.dumps(unit))
+        set_path(trial, path, value)
+        problems = validate_unit(trial, classes, faction_ids)
+        if problems:
+            reject(path, "; ".join(e["message"] for e in problems))
+            continue
+        current = get_path(unit, path)
+        if _empty(current):
+            set_path(unit, path, value)
+            prov[path] = {"source": source, "verified": False}
+            report["filled"].append(path)
+            if path.startswith("dimensions.") and source.strip():
+                srcs = unit["dimensions"].setdefault("sources", [])
+                if source.strip() not in srcs:
+                    srcs.append(source.strip())
+        elif current != value:
+            old = prov.get(path) or {}
+            prov[path] = {"source": source, "verified": old.get("verified", True), "suggested": value}
+            report["suggested"].append(path)
+
+    cands = research.get("image_candidates", [])
+    if not isinstance(cands, list):
+        reject("image_candidates", "must be a list")
+        cands = []
+    known = {c.get("url") for c in unit.get("image_candidates", []) if isinstance(c, dict)}
+    known |= {i.get("source_url") for i in unit.get("images", []) if isinstance(i, dict)}
+    for i, c in enumerate(cands):
+        clean = {k: c[k] for k in CANDIDATE_KEYS if k in c} if isinstance(c, dict) else c
+        problems = _validate_candidates([clean])
+        if problems:
+            reject("image_candidates[%d]" % i, "; ".join(e["message"] for e in problems))
+        elif clean["url"] not in known:
+            known.add(clean["url"])
+            unit.setdefault("image_candidates", []).append(clean)
+            report["candidates"] += 1
+    summary = research.get("summary", "")
+    report["summary"] = summary if isinstance(summary, str) else ""
+    return report
+
+
+def apply_research(root: Path, unit_id: str) -> Dict[str, Any]:
+    """Merge the unit's pending `research.json` (written by /research-unit) into unit.json, then delete it."""
+    path = unit_dir(root, unit_id) / RESEARCH_FILE
+    with _WRITE_LOCK:
+        try:
+            research = _read_json(path, None)
+        except ValueError:
+            raise _err("research", "%s is not valid JSON" % RESEARCH_FILE)
+        if research is None:
+            raise _err("research", "no pending %s" % RESEARCH_FILE, 404)
+        unit = load_unit(root, unit_id)
+        report = merge_research(unit, research, load_classes(root), [f["id"] for f in load_factions(root)])
+        save_unit(root, unit)
+        path.unlink()
+    return report
 
 
 # --------------------------------------------------------------------------- catalog / review
@@ -659,7 +886,7 @@ def latest_sheet(screenshots_dir: Path, unit_id: str) -> Optional[str]:
     return max(found, key=lambda p: (p.stat().st_mtime, p.name)).name
 
 
-def unit_summary(unit: Dict[str, Any]) -> Dict[str, Any]:
+def unit_summary(unit: Dict[str, Any], root: Optional[Path] = None) -> Dict[str, Any]:
     return {
         "id": unit.get("id"),
         "real_name": unit.get("real_name", ""),
@@ -669,6 +896,7 @@ def unit_summary(unit: Dict[str, Any]) -> Dict[str, Any]:
         "image_count": len(unit.get("images", [])),
         "completeness": round(completeness(unit), 3),
         "status": unit.get("status", "draft"),
+        "missing_images": len(missing_image_files(root, unit)) if root is not None else 0,
     }
 
 
@@ -676,7 +904,7 @@ def catalog_summary(root: Path) -> Dict[str, Any]:
     units = []
     for uid in list_unit_ids(root):
         try:
-            units.append(unit_summary(load_unit(root, uid)))
+            units.append(unit_summary(load_unit(root, uid), root))
         except (CatalogError, ValueError):
             continue
     return {"classes": load_classes(root), "factions": load_factions(root), "units": units,
@@ -690,4 +918,6 @@ def unit_detail(root: Path, unit_id: str, screenshots_dir: Path) -> Dict[str, An
         "missing": readiness_missing(unit),
         "completeness": round(completeness(unit), 3),
         "review": {"blueprint": read_blueprint(root, unit_id), "sheet": latest_sheet(screenshots_dir, unit_id)},
+        "pending_research": (unit_dir(root, unit_id) / RESEARCH_FILE).is_file(),
+        "missing_images": missing_image_files(root, unit),
     }

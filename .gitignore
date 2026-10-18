@@ -18,3 +18,8 @@ Thumbs.db
 .screenshots/
 __pycache__/
 docs/design/units/**/.tmp_*
+# Unit catalog reference images: local only, re-downloadable from their source_url in unit.json (README there)
+docs/design/units/units/*/*.jpg
+docs/design/units/units/*/*.jpeg
+docs/design/units/units/*/*.png
+docs/design/units/units/*/*.webp

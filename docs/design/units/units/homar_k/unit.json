@@ -1,11 +1,128 @@
 {
   "id": "homar_k",
   "real_name": "Homar-K",
+  "variant_note": "Polish K239PL: Korean K239 Chunmoo launcher module (2 pods) on the Polish Jelcz P882.57 (TS T45 K-MLRS) 8×8 chassis with Polish Topaz fire control. Not the Korean K239L chassis. Prototypes at MSPO 2023 also showed a third-generation Jelcz P883.57 chassis.",
   "class": "mlrs",
   "mobility": "wheeled",
   "operators": [
     "poland"
   ],
+  "in_service": "2023-present",
+  "country_of_origin": "South Korea / Poland (Hanwha launcher, Jelcz chassis)",
+  "crew": 3,
+  "armament": {
+    "main": "2 × launch pod; per pod 6 × 239 mm CGR-080 guided rockets (80 km) or 1 × 600 mm CTM-290 tactical ballistic missile (290 km)"
+  },
+  "protection": "Armoured 3-seat cab (small arms and shell fragments); launcher module unarmoured",
+  "speed_road_kmh": 85,
+  "range_km": 650,
+  "fire_range_km": 290,
+  "notes": "Poland ordered 290 launchers (executive contracts for 218 in Nov 2022 and 72 in Apr 2024); deliveries from 2023, first to the 18th Artillery Regiment in Nowa Dęba.",
+  "dimensions": {
+    "overall_length": 11,
+    "width": 2.8,
+    "sources": [
+      "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/"
+    ]
+  },
+  "silhouette_features": [
+    "Long, low launcher deck with two box-shaped launch pods side by side behind the cab",
+    "Pod frames fully retract under a flat top cover when stowed (no visible rails, unlike M270)",
+    "Armoured three-seat forward-control cab of the Jelcz 882 family",
+    "Four axles, 8 large off-road wheels (8×8)"
+  ],
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/K239PL_MSPO24_1.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K239PL_MSPO24_1.jpg",
+      "note": "Polish Homar-K on Jelcz P882.57 (production chassis), MSPO 2024; view angle not checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/44/K239PL_MSPO24_2.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K239PL_MSPO24_2.jpg",
+      "note": "Same vehicle, MSPO 2024; view angle not checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/81/Homar-K_multiple_rocket_launcher_on_a_Jelcz_P882.57_chassis_at_MSPO_2026_in_Kielce.jpg",
+      "view": "three_quarter",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Homar-K_multiple_rocket_launcher_on_a_Jelcz_P882.57_chassis_at_MSPO_2026_in_Kielce.jpg",
+      "note": "Jelcz P882.57 chassis, MSPO 2026, 7008×4672; view angle not checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/cb/K239PL_MSPO23_140056323.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K239PL_MSPO23_140056323.jpg",
+      "note": "Prototype on Jelcz P882.57, MSPO 2023; view angle not checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/69/K239PL_MSPO24_3.jpg",
+      "view": "detail",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K239PL_MSPO24_3.jpg",
+      "note": "Caption only says 'K239 at MSPO 2024'; chassis not stated; view not checked"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
+      "verified": true
+    },
+    "in_service": {
+      "source": "http://www.armyrecognition.com/archives/archives-land-defense/land-defense-2023/new-homar-k-rocket-launcher-enters-into-service-with-artillery-units-of-polish-army",
+      "verified": true
+    },
+    "country_of_origin": {
+      "source": "https://motoryzacja.interia.pl/wiadomosci/news-tak-wyglada-najgrozniejszy-jelcz-w-historii-nazywa-sie-homar,nId,6949065",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/K239_Chunmoo",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://pl.wikipedia.org/wiki/Jelcz_882.57",
+      "verified": true
+    },
+    "range_km": {
+      "source": "https://pl.wikipedia.org/wiki/Jelcz_882.57",
+      "verified": false
+    },
+    "fire_range_km": {
+      "source": "https://motoryzacja.interia.pl/wiadomosci/news-tak-wyglada-najgrozniejszy-jelcz-w-historii-nazywa-sie-homar,nId,6949065",
+      "verified": false
+    },
+    "notes": {
+      "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
+      "verified": false
+    }
+  },
   "status": "draft",
-  "updated": "2026-10-18"
+  "updated": "2026-10-18",
+  "revision": 6
 }

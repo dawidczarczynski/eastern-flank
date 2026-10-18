@@ -1,10 +1,12 @@
 "use strict";
-// Unit catalog UI (TASK-037). Vanilla JS, no build step, no network except the local API.
+// Unit catalog UI (TASK-037). Vanilla JS, no build step, no network except the local API
+// (and thumbnails of AI image candidates, loaded straight from their https host).
 
 const app = document.getElementById("app");
 let catalog = { classes: [], factions: [], units: [], views: [], statuses: [], mobilities: [] };
 let cleanup = null; // called when leaving a screen
 const filters = { faction: "", cls: "", status: "", q: "" };
+let ai = { available: false, hint: "" }; // GET /api/ai: can the server run Claude Code jobs?
 
 // ---------------------------------------------------------------- helpers
 function h(tag, props, ...children) {
@@ -75,6 +77,11 @@ function openModal(title, fields, onSubmit, submitLabel) {
   const err = h("div", { class: "errors" });
   const close = () => { root.textContent = ""; };
   const body = fields.map((f) => {
+    if (f.checkbox) {
+      const cb = h("input", { type: "checkbox", checked: !!f.value });
+      inputs[f.key] = cb;
+      return h("label", { class: "check-row" }, cb, f.label);
+    }
     const input = f.options
       ? h("select", {}, f.options.map((o) => h("option", { value: o.value, text: o.label })))
       : h("input", { type: "text", value: f.value || "", placeholder: f.placeholder || "" });
@@ -84,7 +91,7 @@ function openModal(title, fields, onSubmit, submitLabel) {
   });
   const submit = async () => {
     const values = {};
-    for (const k of Object.keys(inputs)) values[k] = inputs[k].value;
+    for (const k of Object.keys(inputs)) values[k] = inputs[k].type === "checkbox" ? inputs[k].checked : inputs[k].value;
     try { await onSubmit(values); close(); } catch (e) { err.textContent = errText(e); }
   };
   const bg = h("div", { class: "modal-bg", onclick: (e) => { if (e.target === bg) close(); } },
@@ -109,19 +116,46 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const lb
 
 async function reloadCatalog() {
   catalog = await api("GET", "/api/catalog");
+  try { ai = await api("GET", "/api/ai"); } catch (e) { ai = { available: false, hint: errText(e) }; }
 }
+
+async function startJob(kind, unitId, faction) {
+  return api("POST", "/api/jobs", { kind, unit_id: unitId, faction: faction || "" });
+}
+const ACTIVE_JOB = ["queued", "running"];
+function jobBadge(state) { return h("span", { class: "badge job-" + state, text: state }); }
+function fmtTime(t) { return t ? new Date(t * 1000).toLocaleTimeString() : ""; }
+function fmtDuration(j) {
+  if (!j.started) return "";
+  const s = Math.round((j.finished || Date.now() / 1000) - j.started);
+  return Math.floor(s / 60) + "m " + (s % 60) + "s";
+}
+
+// Nav badge with the number of queued/running jobs.
+async function refreshJobCount() {
+  const el = document.getElementById("jobs-count");
+  if (!el) return;
+  try {
+    const n = (await api("GET", "/api/jobs")).jobs.filter((j) => ACTIVE_JOB.includes(j.state)).length;
+    el.textContent = n ? String(n) : "";
+  } catch (e) { el.textContent = ""; }
+}
+setInterval(refreshJobCount, 4000);
 
 // ---------------------------------------------------------------- routing
 async function route() {
   if (cleanup) { try { await cleanup(); } catch (e) { /* ignore */ } cleanup = null; }
   const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
-  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (parts[0] === "classes" ? "classes" : "overview")));
+  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("active", a.dataset.nav === (parts[0] === "classes" ? "classes" : parts[0] === "jobs" || parts[0] === "job" ? "jobs" : "overview")));
   app.textContent = "";
+  refreshJobCount();
   try {
     await reloadCatalog();
     if (parts[0] === "unit" && parts[1]) await unitScreen(parts[1]);
     else if (parts[0] === "faction" && parts[1]) factionScreen(parts[1]);
     else if (parts[0] === "classes") classesScreen();
+    else if (parts[0] === "jobs") await jobsScreen();
+    else if (parts[0] === "job" && parts[1]) await jobScreen(parts[1]);
     else overviewScreen();
   } catch (e) {
     app.append(h("div", { class: "panel" }, h("h2", { text: "Error" }), h("div", { class: "errors", text: errText(e) }), h("p", {}, h("a", { href: "#/", text: "Back to overview" }))));
@@ -133,6 +167,17 @@ window.addEventListener("beforeunload", (e) => { if (window.__pendingSave && win
 // ---------------------------------------------------------------- overview
 function overviewScreen() {
   const tableBox = h("div");
+  const restoreBox = h("div", { class: "errors" });
+  const missingTotal = catalog.units.reduce((n, u) => n + (u.missing_images || 0), 0);
+  const restoreAll = async () => {
+    restoreBox.textContent = "Downloading...";
+    try {
+      const res = await api("POST", "/api/images/restore", {});
+      const failed = res.reports.flatMap((r) => r.failed.map((f) => r.unit_id + "/" + f.file + ": " + f.message));
+      if (failed.length) { await reloadCatalog(); restoreBox.textContent = "Not restored:\n" + failed.join("\n"); }
+      else route();
+    } catch (e) { restoreBox.textContent = errText(e); }
+  };
   const render = () => {
     const q = filters.q.trim().toLowerCase();
     const rows = catalog.units.filter((u) =>
@@ -158,7 +203,9 @@ function overviewScreen() {
     h("div", { class: "panel" },
       h("div", { class: "row", style: "margin-bottom:10px" },
         h("h1", { style: "margin:0;flex:1", text: "Units (" + catalog.units.length + ")" }),
+        missingTotal ? h("button", { text: "Restore missing images (" + missingTotal + ")", title: "Image files are not in git; this downloads them again from their source URLs", onclick: restoreAll }) : null,
         h("button", { class: "primary", text: "New unit", onclick: newUnitDialog })),
+      restoreBox,
       h("div", { class: "row", style: "margin-bottom:10px" },
         h("input", { type: "search", placeholder: "Search name or id...", value: filters.q, style: "max-width:260px", oninput: (e) => { filters.q = e.target.value; render(); } }),
         select("faction", catalog.factions.map((f) => ({ value: f.id, label: f.name })), "All factions"),
@@ -185,9 +232,10 @@ function newUnitDialog() {
     { key: "id", label: "Id (also the file name of stats and model)", onInput: (input) => { input.dataset.touched = "1"; } },
     { key: "class", label: "Class", options: catalog.classes.map((c) => ({ value: c.id, label: c.label })) },
     { key: "operator", label: "Operator", options: [{ value: "", label: "(none yet)" }].concat(catalog.factions.map((f) => ({ value: f.id, label: f.name }))) },
-  ], async (v) => {
+  ].concat(ai.available ? [{ key: "research", label: "Research the unit with AI (web search; you verify the result)", checkbox: true, value: true }] : []), async (v) => {
     const body = { real_name: v.real_name, id: v.id, class: v.class, operators: v.operator ? [v.operator] : [] };
     const created = await api("POST", "/api/units", body);
+    if (v.research) await startJob("research", created.unit.id);
     location.hash = "#/unit/" + encodeURIComponent(created.unit.id);
   });
 }
@@ -296,9 +344,96 @@ function classesScreen() {
   render();
 }
 
+// ---------------------------------------------------------------- agent jobs
+async function jobsScreen() {
+  const box = h("div");
+  const render = async () => {
+    const list = (await api("GET", "/api/jobs")).jobs;
+    box.textContent = "";
+    if (!list.length) { box.append(h("p", { class: "muted", text: "No jobs since the tool was started. Start one from a unit screen (AI panel)." })); return; }
+    box.append(h("table", {},
+      h("thead", {}, h("tr", {}, ["Job", "Kind", "Unit", "State", "Started", "Duration", "Cost"].map((t) => h("th", { text: t })))),
+      h("tbody", {}, list.map((j) => h("tr", { class: "clickable", onclick: () => { location.hash = "#/job/" + encodeURIComponent(j.id); } },
+        h("td", { class: "mono", text: j.id }), h("td", { text: j.kind + (j.faction ? " (" + j.faction + ")" : "") }),
+        h("td", { class: "mono", text: j.unit_id }), h("td", {}, jobBadge(j.state)),
+        h("td", { class: "mono", text: fmtTime(j.started) }), h("td", { class: "mono", text: fmtDuration(j) }),
+        h("td", { class: "num", text: j.cost_usd ? "$" + j.cost_usd.toFixed(2) : "" }))))));
+  };
+  app.append(h("div", { class: "panel" }, h("h1", { text: "Agent jobs" }),
+    ai.available ? h("p", { class: "muted", text: "Claude Code: " + ai.claude + " - one job runs at a time, the rest wait in the queue. Jobs are kept in memory until the tool is restarted." })
+      : h("p", { class: "errors", text: ai.hint }), box));
+  await render();
+  const timer = setInterval(() => render().catch(() => {}), 3000);
+  cleanup = () => clearInterval(timer);
+}
+
+async function jobScreen(jobId) {
+  let job = await api("GET", "/api/jobs/" + encodeURIComponent(jobId));
+  const log = h("div", { class: "joblog" });
+  const head = h("div", { class: "row" });
+  const tail = h("div");
+  let next = 0;
+  const appendLog = (entries) => {
+    const stick = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+    for (const e of entries) {
+      log.append(h("div", { class: "le le-" + e.kind + (e.sub ? " le-sub" : "") },
+        h("span", { class: "le-t", text: new Date(e.t * 1000).toLocaleTimeString() }), " ",
+        e.kind === "tool" ? "→ " : e.kind === "error" ? "✗ " : "", e.text));
+    }
+    if (stick) log.scrollTop = log.scrollHeight;
+  };
+  const renderHead = () => {
+    head.textContent = "";
+    head.append(h("h1", { style: "margin:0;flex:1", text: job.kind + " · " + job.unit_id }), jobBadge(job.state),
+      h("span", { class: "mono muted", text: fmtDuration(job) }),
+      h("a", { class: "btn", href: "#/unit/" + encodeURIComponent(job.unit_id), text: "Open unit" }),
+      ACTIVE_JOB.includes(job.state) ? h("button", { class: "danger", text: "Stop", onclick: async () => { job = await api("POST", "/api/jobs/" + encodeURIComponent(jobId) + "/cancel", {}); renderHead(); } }) : null);
+  };
+  const renderTail = () => {
+    tail.textContent = "";
+    if (ACTIVE_JOB.includes(job.state)) return;
+    if (job.error) tail.append(h("div", { class: "errors", text: job.error }));
+    if (job.result) tail.append(h("h3", { text: "Agent summary" }), h("pre", { class: "jobresult", text: job.result }));
+    if (job.report) {
+      const r = job.report;
+      tail.append(h("h3", { text: "Merged into the unit" }), h("p", { text: "Filled " + r.filled.length + ", suggested " + r.suggested.length + ", image candidates " + r.candidates + ". Verify them on the unit screen." }),
+        r.rejected.length ? h("div", { class: "errors", text: "Rejected:\n" + r.rejected.map((x) => x.field + ": " + x.message).join("\n") }) : null);
+    }
+    if (job.changed_files && job.changed_files.length) tail.append(h("h3", { text: "Changed files (git status) - not committed" }), h("pre", { class: "jobresult", text: job.changed_files.join("\n") }));
+    if (job.session_id) tail.append(h("p", { class: "muted" }, "Continue in a terminal: ", h("code", { class: "mono", text: "claude --resume " + job.session_id })));
+    if (job.cost_usd) tail.append(h("p", { class: "muted", text: "Cost: $" + job.cost_usd.toFixed(2) }));
+  };
+  const update = (data) => { job = data; appendLog(data.log); next = data.log_from + data.log.length; renderHead(); renderTail(); };
+  app.append(h("div", { class: "editor-head" }, h("a", { href: "#/jobs", text: "< Jobs" })),
+    h("div", { class: "panel" }, head, h("p", { class: "mono muted", text: job.id }), log, tail));
+  update(job);
+  const timer = setInterval(async () => {
+    if (!ACTIVE_JOB.includes(job.state)) { clearInterval(timer); return; }
+    try { update(await api("GET", "/api/jobs/" + encodeURIComponent(jobId) + "?since=" + next)); } catch (e) { /* keep polling */ }
+  }, 1500);
+  cleanup = () => clearInterval(timer);
+}
+
 // ---------------------------------------------------------------- unit editor
 const NUM_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km"];
 const DIM_FIELDS = ["hull_length", "overall_length", "width", "height"];
+// Unverified AI values in these fields block ready_for_model (mirrors catalog.MODEL_CRITICAL_FIELDS).
+const MODEL_CRITICAL = ["dimensions.hull_length", "dimensions.width", "dimensions.height", "silhouette_features"];
+const researchReports = {}; // unit id -> report of the last "Apply research", shown once after the reload
+
+function getPath(obj, path) { return path.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), obj); }
+function setPath(obj, path, value) {
+  const keys = path.split(".");
+  const last = keys.pop();
+  for (const k of keys) obj = obj[k] = obj[k] || {};
+  obj[last] = value;
+}
+// Wikimedia originals can be 20+ MB: show a 330 px thumbnail (a standard size - others get HTTP 400): .../thumb/a/ab/F.jpg/330px-F.jpg.
+function thumbUrl(url) {
+  const m = /^(https:\/\/upload\.wikimedia\.org\/wikipedia\/[^/]+)\/([0-9a-f]\/[0-9a-f]{2})\/([^/]+\.(?:jpe?g|png|webp))$/i.exec(url);
+  return m ? m[1] + "/thumb/" + m[2] + "/" + m[3] + "/330px-" + m[3] : url;
+}
+function showValue(v) { return Array.isArray(v) ? v.join("; ") : String(v); }
 
 function readiness(u) {
   const dims = u.dimensions || {};
@@ -313,7 +448,7 @@ function readiness(u) {
     ["Hull length", pos(dims.hull_length)],
     ["At least 3 silhouette features (" + feats.length + ")", feats.length >= 3],
     ["A side or drawing image", (u.images || []).some((i) => i.view === "side" || i.view === "drawing")],
-  ];
+  ].concat(MODEL_CRITICAL.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]));
 }
 
 async function unitScreen(id) {
@@ -321,7 +456,8 @@ async function unitScreen(id) {
   const u = detail.unit;
   u.dimensions = u.dimensions || {};
   u.armament = u.armament || {};
-  for (const k of ["operators", "silhouette_features", "details", "skip", "images"]) u[k] = u[k] || [];
+  for (const k of ["operators", "silhouette_features", "details", "skip", "images", "image_candidates"]) u[k] = u[k] || [];
+  u.provenance = u.provenance || {};
   u.dimensions.sources = u.dimensions.sources || [];
   let serverStatus = u.status;
   let review = detail.review;
@@ -360,7 +496,18 @@ async function unitScreen(id) {
   });
   const save = debounce(doSave, 700);
   window.__pendingSave = save.pending;
-  cleanup = async () => { window.__pendingSave = null; save.flush(); window.removeEventListener("paste", onPaste); await chain; };
+  // While an agent job works on this unit the form is read-only; the screen reloads when the job ends.
+  const activeJob = detail.job;
+  let jobTimer = null;
+  if (activeJob) {
+    jobTimer = setInterval(async () => {
+      try {
+        const j = await api("GET", "/api/jobs/" + encodeURIComponent(activeJob.id) + "?since=999999999");
+        if (!ACTIVE_JOB.includes(j.state)) { clearInterval(jobTimer); route(); }
+      } catch (e) { /* keep polling */ }
+    }, 2000);
+  }
+  cleanup = async () => { if (jobTimer) clearInterval(jobTimer); window.__pendingSave = null; save.flush(); window.removeEventListener("paste", onPaste); await chain; };
   const changed = () => { state.className = "savestate saving"; state.textContent = "editing..."; renderChecklist(); save(); };
 
   function renderChecklist() {
@@ -379,7 +526,47 @@ async function unitScreen(id) {
   statusSel.addEventListener("change", () => { u.status = statusSel.value; changed(); });
 
   // ---- field builders
-  const field = (lbl, control, wide) => h("div", { class: "field" + (wide ? " wide" : "") }, h("label", { text: lbl }), control);
+  // `path` (dotted, e.g. "dimensions.height") marks a field AI research may fill: it shows where the value came
+  // from, whether the human verified it, and a different value the AI found for a field the human had filled.
+  const field = (lbl, control, wide, path) => {
+    const wrap = h("div", { class: "field" + (wide ? " wide" : "") }, h("label", { text: lbl }), control);
+    if (!path) return wrap;
+    const box = h("div", { class: "prov" });
+    wrap.append(box);
+    const render = () => {
+      const p = u.provenance[path];
+      box.textContent = "";
+      wrap.classList.toggle("ai-unverified", !!p && p.verified === false);
+      if (!p) return;
+      const src = p.source ? h("a", { href: p.source, target: "_blank", rel: "noopener noreferrer", text: "source" }) : h("span", { text: "no source" });
+      if (p.verified === false) {
+        box.append(h("span", { class: "ai-tag", text: "AI" }), " unverified · ", src, " ",
+          h("button", { class: "small", text: "✓ Verified", title: "I checked this value", onclick: () => { p.verified = true; render(); changed(); } }));
+      } else if (p.suggested === undefined) {
+        box.append(h("span", { class: "muted", text: "AI · verified · " }), src);
+      }
+      if (p.suggested !== undefined) {
+        box.append(h("div", { class: "suggest" }, h("span", { class: "ai-tag", text: "AI" }), " suggests: ", h("strong", { text: showValue(p.suggested) }), " · ", src, " ",
+          h("button", { class: "small", text: "Use", onclick: () => useSuggestion(path) }),
+          h("button", { class: "small", text: "Dismiss", onclick: () => { delete p.suggested; render(); changed(); } })));
+      }
+    };
+    // editing the value by hand counts as verifying it
+    const touched = () => { const p = u.provenance[path]; if (p && p.verified === false) { p.verified = true; render(); renderChecklist(); } };
+    wrap.addEventListener("input", touched);
+    wrap.addEventListener("change", touched);
+    render();
+    return wrap;
+  };
+  async function useSuggestion(path) {
+    const p = u.provenance[path];
+    setPath(u, path, p.suggested);
+    delete p.suggested;
+    p.verified = true;
+    save.flush();
+    await doSave();
+    route(); // rebuild the controls with the new value
+  }
   const textIn = (obj, key, ph) => h("input", { type: "text", value: obj[key] === undefined ? "" : obj[key], placeholder: ph || "", oninput: (e) => { obj[key] = e.target.value; changed(); } });
   const numIn = (obj, key, ph) => {
     const input = h("input", { type: "text", inputmode: "decimal", value: obj[key] === undefined ? "" : obj[key], placeholder: ph || "" });
@@ -461,6 +648,7 @@ async function unitScreen(id) {
     });
   }
   async function uploadFiles(files) {
+    if (activeJob) return; // read-only while an agent job runs
     for (const file of files) {
       if (file.size > 15 * 1024 * 1024) { errBox.textContent = file.name + ": larger than 15 MB"; continue; }
       state.className = "savestate saving"; state.textContent = "uploading...";
@@ -482,16 +670,72 @@ async function unitScreen(id) {
       }
     }
   }
+  const candBox = h("div");
+  function renderCandidates() {
+    candBox.textContent = "";
+    if (!u.image_candidates.length) return;
+    candBox.append(h("h3", { text: "AI image candidates (" + u.image_candidates.length + ") - check the licence and the view, then download" }),
+      h("div", { class: "cards", style: "margin-bottom:14px" }, u.image_candidates.map((c) => {
+        const img = h("img", { src: thumbUrl(c.url), alt: c.url.split("/").pop(), loading: "lazy", referrerpolicy: "no-referrer", onclick: () => showLightbox(c.url) });
+        img.addEventListener("error", () => { if (img.src !== c.url) img.src = c.url; else img.replaceWith(h("div", { class: "thumb-missing", text: "preview unavailable" })); });
+        return h("div", { class: "card candidate" }, img,
+          h("div", { class: "fname" }, h("span", { class: "badge", text: pretty(c.view) }),
+            h("a", { href: c.source_page || c.url, target: "_blank", rel: "noopener noreferrer", text: c.source_page ? "file page" : "open" })),
+          h("div", { style: "font-size:13px" }, c.license || h("span", { class: "bad", text: "licence unknown" })),
+          c.note ? h("div", { class: "muted", style: "font-size:12.5px", text: c.note }) : null,
+          h("div", { class: "row" },
+            h("button", { class: "small primary", text: "Download", onclick: () => candidateAction(c, "download") }),
+            h("button", { class: "small danger", text: "Dismiss", onclick: () => candidateAction(c, "dismiss") })));
+      })));
+  }
+  async function candidateAction(c, action) {
+    state.className = "savestate saving"; state.textContent = action === "download" ? "downloading..." : "saving...";
+    try {
+      save.flush();
+      await enqueue(async () => {
+        const res = await api("POST", "/api/units/" + encodeURIComponent(id) + "/candidates", { action, url: c.url });
+        if (res.image) u.images.push(res.image);
+        u.image_candidates = res.unit.image_candidates || [];
+        u.revision = res.unit.revision;
+        review = res.review;
+      });
+      errBox.textContent = ""; state.className = "savestate saved"; state.textContent = "saved";
+      renderCandidates(); renderImages(); renderChecklist(); renderReview();
+    } catch (e) {
+      if (e.status === 409) { onConflict(); return; }
+      state.className = "savestate error"; state.textContent = "not saved"; errBox.textContent = errText(e);
+    }
+  }
+
+  async function restoreImages() {
+    try {
+      save.flush();
+      await chain;
+      const res = await api("POST", "/api/units/" + encodeURIComponent(id) + "/images/restore", {});
+      if (res.report.failed.length) alert("Not restored:\n" + res.report.failed.map((f) => f.file + ": " + f.message).join("\n"));
+      route();
+    } catch (e) { errBox.textContent = errText(e); }
+  }
+
   function renderImages() {
     imagesBox.textContent = "";
+    if (detail.missing_images.length) {
+      imagesBox.append(h("div", { class: "row", style: "margin-bottom:10px" },
+        h("span", { class: "bad", text: detail.missing_images.length + " image file(s) missing on this computer." }),
+        h("button", { class: "small", text: "Restore from source URLs", onclick: restoreImages })));
+    }
     if (!u.images.length) { imagesBox.append(h("p", { class: "muted", text: "No images yet." })); return; }
     for (const view of catalog.views) {
       const group = u.images.filter((i) => i.view === view);
       if (!group.length) continue;
       imagesBox.append(h("h3", { text: pretty(view) + " (" + group.length + ")" }), h("div", { class: "cards", style: "margin-bottom:14px" }, group.map((img) => {
         const src = fileUrl(id, img.file, bust);
+        const missing = detail.missing_images.includes(img.file);
+        const localOnly = !/^https:\/\//.test(img.source_url || "");
         return h("div", { class: "card" },
-          h("img", { src, alt: img.file, onclick: () => showLightbox(src) }),
+          missing ? h("div", { class: "thumb-missing", text: "not on this computer" + (localOnly ? " (no source URL to restore from)" : " - use Restore") })
+            : h("img", { src, alt: img.file, onclick: () => showLightbox(src) }),
+          localOnly && !missing ? h("div", { class: "warn-note", text: "Only on this computer (images are not in git). Add the https source URL so it can be restored elsewhere." }) : null,
           h("div", { class: "fname" }, img.file, h("button", { class: "small danger", text: "delete", onclick: () => deleteImage(img) })),
           h("select", { onchange: (e) => { img.view = e.target.value; renderImages(); changed(); } }, catalog.views.map((v) => h("option", { value: v, text: pretty(v), selected: img.view === v }))),
           h("input", { type: "text", placeholder: "Source URL", value: img.source_url || "", oninput: (e) => { img.source_url = e.target.value; changed(); } }),
@@ -533,39 +777,95 @@ async function unitScreen(id) {
   const mainCol = h("div", {},
     section("Identity", h("div", { class: "grid" },
       field("Real name (shown in game)", textIn(u, "real_name", "Leopard 2A4")),
-      field("Variant note", textIn(u, "variant_note")),
+      field("Variant note", textIn(u, "variant_note"), false, "variant_note"),
       field("Class", classSel), field("Mobility", mobSel),
-      field("In service (years)", textIn(u, "in_service", "1985-present")),
-      field("Country of origin", textIn(u, "country_of_origin")),
-      h("div", { class: "field wide" }, h("label", { text: "Operators (factions)" }), operators))),
+      field("In service (years)", textIn(u, "in_service", "1985-present"), false, "in_service"),
+      field("Country of origin", textIn(u, "country_of_origin"), false, "country_of_origin"),
+      field("Operators (factions)", operators, true, "operators"))),
     section("Real-world facts", h("div", { class: "grid" },
-      field("Crew", textIn(u, "crew", "4")), field("Weight (t)", numIn(u, "weight_t")),
-      field("Speed road (km/h)", numIn(u, "speed_road_kmh")), field("Speed off-road (km/h)", numIn(u, "speed_offroad_kmh")),
-      field("Range (km)", numIn(u, "range_km")), field("Fire range (km, artillery)", numIn(u, "fire_range_km")),
-      field("Main armament", textIn(u.armament, "main")), field("Secondary armament", textIn(u.armament, "secondary")),
-      field("Protection", areaIn(u, "protection", "", 2), true), field("Notes", areaIn(u, "notes", "", 3), true))),
+      field("Crew", textIn(u, "crew", "4"), false, "crew"), field("Weight (t)", numIn(u, "weight_t"), false, "weight_t"),
+      field("Speed road (km/h)", numIn(u, "speed_road_kmh"), false, "speed_road_kmh"), field("Speed off-road (km/h)", numIn(u, "speed_offroad_kmh"), false, "speed_offroad_kmh"),
+      field("Range (km)", numIn(u, "range_km"), false, "range_km"), field("Fire range (km, artillery)", numIn(u, "fire_range_km"), false, "fire_range_km"),
+      field("Main armament", textIn(u.armament, "main"), false, "armament.main"), field("Secondary armament", textIn(u.armament, "secondary"), false, "armament.secondary"),
+      field("Protection", areaIn(u, "protection", "", 2), true, "protection"), field("Notes", areaIn(u, "notes", "", 3), true, "notes"))),
     section("Dimensions (metres)", h("div", { class: "grid" },
-      field("Hull length *", numIn(u.dimensions, "hull_length")), field("Overall length (with gun)", numIn(u.dimensions, "overall_length")),
-      field("Width *", numIn(u.dimensions, "width")), field("Height *", numIn(u.dimensions, "height")),
+      field("Hull length *", numIn(u.dimensions, "hull_length"), false, "dimensions.hull_length"), field("Overall length (with gun)", numIn(u.dimensions, "overall_length"), false, "dimensions.overall_length"),
+      field("Width *", numIn(u.dimensions, "width"), false, "dimensions.width"), field("Height *", numIn(u.dimensions, "height"), false, "dimensions.height"),
       field("Sources (one URL per line)", linesIn(u.dimensions, "sources", "https://..."), true))),
     section("For the modeler",
-      h("div", { class: "field" }, h("label", { text: "Silhouette features (most recognisable first)" }), featBox),
+      field("Silhouette features (most recognisable first)", featBox, false, "silhouette_features"),
       h("div", { class: "grid two", style: "margin-top:10px" },
-        field("Details (nice to have, one per line)", linesIn(u, "details", "")),
-        field("Skip (leave out, one per line)", linesIn(u, "skip", "")),
-        field("Camo note", areaIn(u, "camo_note", "How the real vehicle is painted / what to do with faction camo", 3), true))),
-    section("Images", dropzone, imagesBox),
+        field("Details (nice to have, one per line)", linesIn(u, "details", ""), false, "details"),
+        field("Skip (leave out, one per line)", linesIn(u, "skip", ""), false, "skip"),
+        field("Camo note", areaIn(u, "camo_note", "How the real vehicle is painted / what to do with faction camo", 3), true, "camo_note"))),
+    section("Images", candBox, dropzone, imagesBox),
     reviewBox,
     section("Status & feedback", h("div", { class: "grid two" },
       field("Status", statusSel),
       field("Feedback for the modeler (on the latest render)", areaIn(u, "feedback", "e.g. turret too tall, barrel too thin...", 4), true))));
   const side = h("div", { class: "side" }, h("div", { class: "panel" }, h("h2", { text: "Ready for model?" }), checkBox,
-    h("p", { class: "muted", style: "font-size:13px", text: "The status can only be set to ready_for_model when everything is checked. Going back is always allowed." })));
+    h("p", { class: "muted", style: "font-size:13px", text: "The status can only be set to ready_for_model when everything is checked. Going back is always allowed." })),
+    researchPanel());
+
+  function researchPanel() {
+    const box = h("div", { class: "panel" }, h("h2", { text: "AI" }));
+    const unverified = Object.keys(u.provenance).filter((p) => u.provenance[p].verified === false);
+    const suggested = Object.keys(u.provenance).filter((p) => u.provenance[p].suggested !== undefined);
+    if (activeJob) {
+      box.append(h("p", {}, jobBadge(activeJob.state), " ", activeJob.kind + " job - the form is read-only until it ends. ",
+        h("a", { href: "#/job/" + encodeURIComponent(activeJob.id), text: "Live log" })));
+    } else if (detail.pending_research) {
+      box.append(h("p", { text: "A research result (research.json) is waiting to be merged." }),
+        h("button", { class: "primary", text: "Apply research", onclick: applyResearch }));
+    } else if (ai.available) {
+      box.append(h("button", { class: "primary", text: "Research with AI", onclick: () => runJob("research") }),
+        h("p", { class: "muted", style: "font-size:13px" }, "Searches the web and fills empty fields; values are marked ", h("span", { class: "ai-tag", text: "AI" }), " until you verify them."));
+    } else {
+      box.append(h("p", { class: "muted", style: "font-size:13px" }, ai.hint, " Meanwhile: run ", h("code", { class: "mono", text: "/research-unit " + id }), " in Claude Code, the result appears here to apply."));
+    }
+    if (ai.available && !activeJob && (u.status === "ready_for_model" || u.status === "modeled")) {
+      const facs = u.operators.concat(catalog.factions.map((f) => f.id).filter((f) => !u.operators.includes(f)));
+      const facSel = h("select", { style: "width:auto" }, facs.map((f) => h("option", { value: f, text: label(catalog.factions, f, "name") })));
+      box.append(h("div", { class: "row", style: "margin-top:10px" },
+        h("button", { text: u.status === "modeled" ? "Rework model" : "Build model", onclick: () => runJob("model", facSel.value) }),
+        h("span", { class: "muted", text: "render as" }), facSel),
+        h("p", { class: "muted", style: "font-size:13px", text: u.status === "modeled" ? "Uses your Feedback below as the main input. Takes several minutes; changes are not committed." : "Runs /model-unit. Takes several minutes; changes are not committed." }));
+    }
+    if (unverified.length || suggested.length) {
+      box.append(h("p", { style: "font-size:13px" }, h("strong", { text: unverified.length + " unverified" }), ", " + suggested.length + " suggestion(s)"));
+    }
+    const report = researchReports[id];
+    if (report) {
+      delete researchReports[id];
+      box.append(h("div", { class: "report" },
+        h("div", { text: "Filled " + report.filled.length + ", suggested " + report.suggested.length + ", image candidates " + report.candidates + "." }),
+        report.rejected.length ? h("div", { class: "errors", text: "Rejected:\n" + report.rejected.map((r) => r.field + ": " + r.message).join("\n") }) : null,
+        report.summary ? h("pre", { text: report.summary }) : null));
+    }
+    return box;
+  }
+  async function runJob(kind, faction) {
+    try {
+      save.flush();
+      await chain;
+      await startJob(kind, id, faction);
+      route();
+    } catch (e) { errBox.textContent = errText(e); }
+  }
+  async function applyResearch() {
+    try {
+      save.flush();
+      await chain;
+      const res = await api("POST", "/api/units/" + encodeURIComponent(id) + "/research/apply");
+      researchReports[id] = res.report;
+      route();
+    } catch (e) { errBox.textContent = errText(e); }
+  }
   app.append(
     h("div", { class: "editor-head" }, h("a", { href: "#/", text: "< Overview" }), h("h1", { text: u.real_name }), h("span", { class: "mono muted", text: id }),
       h("a", { class: "btn", href: "/files/units/" + encodeURIComponent(id) + "/unit.json", target: "_blank", text: "unit.json" }), state),
-    errBox, h("div", { class: "layout" }, mainCol, side));
-  renderStatus(); renderFeatures(); renderImages(); renderReview();
+    errBox, h("div", { class: "layout" }, h("fieldset", { class: "lock", disabled: !!activeJob }, mainCol), side));
+  renderStatus(); renderFeatures(); renderCandidates(); renderImages(); renderReview();
 }
 
 route();
