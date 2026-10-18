@@ -12,6 +12,12 @@ const MOVE_DURATION := 0.25
 const SECONDS_PER_TILE := 0.26
 const ATTACK_DURATION := 0.25
 const DEATH_DURATION := 0.4
+## View-only event annotation: the controller sets it (seconds at speed 1) on events whose
+## animation is longer than the default, e.g. a rocket volley. See with_view_duration().
+const VIEW_DURATION_KEY := &"view_duration"
+## View-only event annotation naming the effect to play (e.g. FX_ROCKET_VOLLEY).
+const VIEW_FX_KEY := &"view_fx"
+const FX_ROCKET_VOLLEY := &"rocket_volley"
 
 var _events: Array[Dictionary] = []
 
@@ -35,8 +41,18 @@ func size() -> int:
 	return _events.size()
 
 
-## Animation time of an event at speed 1.0; events without an animation take 0.0.
+## Copy of `event` annotated with its animation time; the simulation's event stays untouched.
+static func with_view_duration(event: Dictionary, seconds: float) -> Dictionary:
+	var copy := event.duplicate()
+	copy[VIEW_DURATION_KEY] = seconds
+	return copy
+
+
+## Animation time of an event at speed 1.0; events without an animation take 0.0. An event
+## carrying VIEW_DURATION_KEY plays for exactly that long.
 static func base_duration(event: Dictionary) -> float:
+	if event.has(VIEW_DURATION_KEY):
+		return float(event[VIEW_DURATION_KEY])
 	match event.get("type", &""):
 		&"unit_moved":
 			if event.has("path"):

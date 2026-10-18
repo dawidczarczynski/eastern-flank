@@ -62,3 +62,21 @@ func test_move_with_path_lasts_per_tile() -> void:
 
 func test_move_without_path_keeps_default_duration() -> void:
 	assert_true(absf(EventQueue.base_duration({"type": &"unit_moved"}) - 0.25) < TOLERANCE)
+
+
+func test_view_duration_annotation_overrides_base_duration() -> void:
+	var event := {"type": &"unit_attacked", "attacker_id": 1}
+	var annotated := EventQueue.with_view_duration(event, 1.5)
+	assert_false(event.has(EventQueue.VIEW_DURATION_KEY), "original event must stay untouched")
+	assert_true(absf(EventQueue.base_duration(annotated) - 1.5) < TOLERANCE)
+	var queue := EventQueue.new()
+	queue.push(annotated)
+	queue.push({"type": &"unit_attacked"})
+	assert_true(absf(queue.pending_duration() - 1.75) < TOLERANCE)
+
+
+func test_long_volley_speeds_up_burst() -> void:
+	var queue := EventQueue.new()
+	for i in 4:
+		queue.push(EventQueue.with_view_duration({"type": &"unit_attacked"}, 1.5))
+	assert_true(absf(queue.begin_burst() - 2.0) < TOLERANCE)

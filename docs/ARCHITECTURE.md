@@ -13,6 +13,7 @@
 ├──────────────────────────────────────────────┤
 │ GameState · HexGrid · Unit · Terrain         │  src/core/
 │ Commands                                     │  src/core/commands/
+│ Scenario (headless battle setup from a seed) │  src/core/scenario.gd
 │ AiPlayer (issues commands like a player)     │  src/ai/
 ├──────────────────────────────────────────────┤
 │ Data: UnitDefinition (.tres)                 │  src/core/data/, data/
@@ -48,6 +49,8 @@ Hex grid, axial coordinates `(q, r)` as `Vector2i`, "pointy-top" layout. World �
 | `unit_attacked` | `attacker_id`, `target_id`, `damage` (before clamping HP at 0), `target_hp`, `counter` (bool; true when the event is a counterattack by the target) | AttackCommand |
 | `unit_died` | `unit_id` | AttackCommand |
 | `game_over` | `winner` (only one player has living units left) | AttackCommand |
+
+View-only annotations: `BattleController` adds `view_duration` (seconds) and `view_fx` (e.g. `rocket_volley`) to the copies of events it queues for playback (see `EventQueue`); the simulation's events are never modified.
 
 ## Localization
 

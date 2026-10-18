@@ -129,3 +129,54 @@ static func path_dot_count(tiles: int) -> int:
 ## Hover ring opacity: 0.6 + 0.25·sin(t / 260 ms).
 static func hover_alpha(time_ms: float) -> float:
 	return 0.6 + 0.25 * sin(time_ms / 260.0)
+
+
+## Outer boundary of a set of hex tiles: every tile edge whose neighbour is not in `coords`,
+## as consecutive point pairs (a0, b0, a1, b1, ...) in XZ. `size` is the hex corner distance.
+static func boundary_edges(coords: Array[Vector2i], size: float) -> PackedVector2Array:
+	var members := {}
+	for c in coords:
+		members[c] = true
+	var out := PackedVector2Array()
+	for c in coords:
+		var w := Hex.to_world(c, size)
+		var center := Vector2(w.x, w.z)
+		for d in Hex.DIRECTIONS:
+			if members.has(c + d):
+				continue
+			var edge := _edge_towards(d)
+			out.append(center + _corner_dir(edge) * size)
+			out.append(center + _corner_dir(edge + 1) * size)
+	return out
+
+
+## Index i of the edge (between corner i and i + 1) facing the neighbour in direction `d`.
+## Edge i faces the angle 60°·i.
+static func _edge_towards(d: Vector2i) -> int:
+	var w := Hex.to_world(d, 1.0)
+	return posmod(roundi(rad_to_deg(atan2(w.z, w.x)) / 60.0), 6)
+
+
+## Thin ribbon (triangle list in XZ) along each edge pair from boundary_edges(), `width` wide,
+## each edge split into `subdivisions` pieces so the draped ribbon follows the terrain. Pieces
+## overlap by half a width so corners stay closed.
+static func edge_ribbons(
+	edges: PackedVector2Array, width: float, subdivisions: int
+) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var half := width / 2.0
+	for e in edges.size() / 2:
+		var a := edges[e * 2]
+		var b := edges[e * 2 + 1]
+		var dir := (b - a).normalized()
+		var normal := Vector2(-dir.y, dir.x) * half
+		for s in subdivisions:
+			var p0 := a.lerp(b, float(s) / subdivisions)
+			var p1 := a.lerp(b, float(s + 1) / subdivisions)
+			if s == 0:
+				p0 -= dir * half
+			if s == subdivisions - 1:
+				p1 += dir * half
+			out.append_array([p0 - normal, p1 - normal, p0 + normal])
+			out.append_array([p0 + normal, p1 - normal, p1 + normal])
+	return out

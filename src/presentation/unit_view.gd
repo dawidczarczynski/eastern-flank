@@ -12,7 +12,7 @@ const DIE_DARKEN_DURATION := 0.1
 const DIE_DARKEN_ALPHA := 0.6
 const DIE_DURATION := EventQueue.DEATH_DURATION - DIE_DARKEN_DURATION
 ## Label anchor height above the unit's feet per definition id.
-const LABEL_HEIGHTS := {&"infantry": 0.5, &"cavalry": 0.62}
+const LABEL_HEIGHTS := {&"infantry": 0.5, &"cavalry": 0.62, &"rocket_artillery": 0.62}
 const DEFAULT_LABEL_HEIGHT := 0.5
 ## Marker design values (scene.js placeMarker / markerFill).
 const RING_INNER := 0.6
@@ -55,7 +55,7 @@ var _move_points := PackedVector3Array()  # world points of the running move
 var _move_elapsed := 0.0
 var _move_height: Callable  # (x, z) -> ground height the unit walks on
 var _model: Node3D  # the "Model" node locomotion poses
-var _is_tank := false
+var _is_vehicle := false  # uses wheel / hull locomotion (UnitModels.is_vehicle)
 var _wheel_distance := 0.0  # accumulated across moves, never reset
 var _hit_tween: Tween
 var _hp := 0
@@ -82,7 +82,7 @@ func setup(unit: Unit, world_position: Vector3, hud_root: Control, ground_height
 	model.rotation.y = 0.0
 	_pivot.add_child(model)
 	_model = model.get_node("Model")
-	_is_tank = unit.definition.id == UnitModels.CAVALRY
+	_is_vehicle = UnitModels.is_vehicle(unit.definition.id)
 	_apply_rest_pose()
 	_collect_meshes(_pivot)
 
@@ -155,16 +155,16 @@ func _step_move(elapsed: float) -> void:
 func _pose_moving(elapsed: float) -> void:
 	var distance := Locomotion.travelled(_move_points, elapsed)
 	var env := Locomotion.envelope(elapsed, MoveAnimation.duration(_move_points))
-	if _is_tank:
+	if _is_vehicle:
 		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)
 		UnitModels.pose_tank(_model, _wheel_distance + distance, env, tilt)
 	else:
 		UnitModels.pose_infantry(_model, distance, env, true)
 
 
-## Rest pose: no bob / sway / lean, kneelers kneel, tank hull follows the slope at its tile.
+## Rest pose: no bob / sway / lean, kneelers kneel, vehicle hull follows the slope at its tile.
 func _apply_rest_pose() -> void:
-	if _is_tank:
+	if _is_vehicle:
 		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)
 		UnitModels.pose_tank(_model, _wheel_distance, 0.0, tilt)
 	else:
@@ -198,6 +198,33 @@ func _set_markers_visible(markers_visible: bool) -> void:
 	_fill.visible = markers_visible
 	if markers_visible and global_position != _marker_origin:
 		_rebuild_marker_geometry()
+
+
+## World positions of the launch tubes (the "Mouth" nodes under the model's "Pod"), or empty
+## for units without a launcher.
+func launch_points() -> Array[Vector3]:
+	var points: Array[Vector3] = []
+	var pod := _model.get_node_or_null("Pod")
+	if pod != null:
+		for child in pod.get_children():
+			if (child as Node3D) != null and child.name.begins_with("Mouth"):
+				points.append((child as Node3D).global_position)
+	return points
+
+
+## Yaw (pivot rotation.y) that makes the model face the world point `target`.
+func yaw_towards(target: Vector3) -> float:
+	return MoveAnimation.facing_yaw(global_position, target)
+
+
+func facing_yaw() -> float:
+	return _pivot.rotation.y
+
+
+func set_facing_yaw(yaw: float) -> void:
+	if not _dying:
+		_pivot.rotation.y = yaw
+		_apply_rest_pose()  # slope tilt depends on the heading
 
 
 ## Short "got hit" reaction: sideways shake of the model plus a white flash, then the new HP.

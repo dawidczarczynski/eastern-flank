@@ -91,3 +91,37 @@ func test_hover_alpha_range() -> void:
 		lo = minf(lo, a)
 		hi = maxf(hi, a)
 	assert_true(hi <= 0.85 + TOL and lo >= 0.35 - TOL)
+
+
+func test_boundary_edges_of_one_hex_is_its_outline() -> void:
+	var coords: Array[Vector2i] = [Vector2i(0, 0)]
+	assert_eq(OverlayGeometry.boundary_edges(coords, 1.0).size(), 12)
+
+
+func test_boundary_edges_skip_shared_edges() -> void:
+	var pair: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0)]
+	assert_eq(OverlayGeometry.boundary_edges(pair, 1.0).size(), 20, "2 hexes: 10 edges")
+	var flower: Array[Vector2i] = [Vector2i(0, 0)]
+	flower.append_array(Hex.neighbors(Vector2i(0, 0)))
+	assert_eq(OverlayGeometry.boundary_edges(flower, 1.0).size(), 36, "7 hexes: 18 edges")
+
+
+func test_boundary_edges_lie_on_hex_corners_facing_outwards() -> void:
+	var coords: Array[Vector2i] = [Vector2i(0, 0)]
+	var edges := OverlayGeometry.boundary_edges(coords, 2.0)
+	for p in edges:
+		assert_true(absf(p.length() - 2.0) < 0.0001, "corner at distance size")
+	# Neighbour (1, 0) lies to the east: with a single hex all edges exist, so check the edge
+	# facing east is the one between corners at -30° and +30°.
+	var east := Vector2(2.0 * cos(deg_to_rad(-30.0)), 2.0 * sin(deg_to_rad(-30.0)))
+	var found := false
+	for i in edges.size() / 2:
+		if edges[i * 2].distance_to(east) < 0.0001:
+			found = absf(edges[i * 2 + 1].y - 1.0) < 0.0001
+	assert_true(found, "east edge runs from -30° to +30°")
+
+
+func test_edge_ribbons_triangle_count() -> void:
+	var coords: Array[Vector2i] = [Vector2i(0, 0)]
+	var edges := OverlayGeometry.boundary_edges(coords, 1.0)
+	assert_eq(OverlayGeometry.edge_ribbons(edges, 0.1, 3).size(), 6 * 3 * 6)

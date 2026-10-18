@@ -38,6 +38,16 @@ const HOVER_FILL_SHAPE := Vector2(0.92, 0.0)
 const HOVER_FILL_LIFT := 0.035
 const HOVER_RING_SHAPE := Vector2(0.9, 0.98)
 const HOVER_RING_LIFT := 0.04
+## Attack range (TASK-011): boundary outline + a very faint tint, in a warm threat colour that
+## differs from the faction reach wash and the red-orange attack-target markers.
+const RANGE_COLOR := Color("#f2b134")
+const RANGE_FILL_SHAPE := Vector2(0.98, 0.0)
+const RANGE_FILL_ALPHA := 0.07
+const RANGE_FILL_LIFT := 0.025
+const RANGE_LINE_WIDTH := 0.07
+const RANGE_LINE_ALPHA := 0.95
+const RANGE_LINE_LIFT := 0.045
+const RANGE_LINE_SEGMENTS := 3
 const PATCH_SUBDIVISIONS := 4
 const RING_SEGMENTS := 5
 const DOT_RADIUS := 0.05
@@ -69,6 +79,8 @@ var _reach_fill := MeshInstance3D.new()
 var _reach_ring := MeshInstance3D.new()
 var _attack_fill := MeshInstance3D.new()
 var _attack_ring := MeshInstance3D.new()
+var _range_fill := MeshInstance3D.new()
+var _range_line := MeshInstance3D.new()
 var _hover_fill := MeshInstance3D.new()
 var _hover_ring := MeshInstance3D.new()
 var _hover_ring_material: StandardMaterial3D
@@ -81,7 +93,16 @@ var _dots := MultiMeshInstance3D.new()
 
 func _ready() -> void:
 	add_child(_tiles_root)
-	for overlay in [_reach_fill, _reach_ring, _attack_fill, _attack_ring, _hover_fill, _hover_ring]:
+	for overlay in [
+		_reach_fill,
+		_reach_ring,
+		_attack_fill,
+		_attack_ring,
+		_range_fill,
+		_range_line,
+		_hover_fill,
+		_hover_ring
+	]:
 		var instance: MeshInstance3D = overlay
 		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		instance.visible = false
@@ -457,9 +478,31 @@ func show_attack_targets(coords: Array[Vector2i]) -> void:
 	)
 
 
-## Clears the reach wash and the attack-target markers; the path preview has its own
-## clear_path().
+## Marks the tiles a ranged unit can shoot at: a faint tint plus an outline along the outer
+## boundary of the area (edges not shared with another range tile).
+func show_attack_range(coords: Array[Vector2i]) -> void:
+	_set_overlay(
+		_range_fill, coords, RANGE_FILL_SHAPE, Color(RANGE_COLOR, RANGE_FILL_ALPHA), RANGE_FILL_LIFT
+	)
+	_range_line.visible = not coords.is_empty()
+	if coords.is_empty():
+		_range_line.mesh = null
+		return
+	var edges := OverlayGeometry.boundary_edges(coords, hex_size)
+	var ribbons := OverlayGeometry.edge_ribbons(edges, RANGE_LINE_WIDTH, RANGE_LINE_SEGMENTS)
+	_range_line.mesh = _triangles_mesh(_drape(ribbons, 0.0))
+	_range_line.position.y = RANGE_LINE_LIFT
+	_range_line.material_override = _overlay_material(Color(RANGE_COLOR, RANGE_LINE_ALPHA))
+
+
+func clear_attack_range() -> void:
+	show_attack_range([] as Array[Vector2i])
+
+
+## Clears the reach wash, the attack-target markers and the attack range; the path preview has
+## its own clear_path().
 func clear_highlights() -> void:
+	clear_attack_range()
 	for instance in [_reach_fill, _reach_ring, _attack_fill, _attack_ring]:
 		(instance as MeshInstance3D).visible = false
 		(instance as MeshInstance3D).mesh = null

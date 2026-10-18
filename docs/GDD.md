@@ -54,11 +54,11 @@ Target look of the battle screen: `docs/design/` (mock-up made in Claude Design,
 |---|---|---|---|---|---|---|
 | Infantry | 10 | 3 | 4 | 3 | 1 | implemented |
 | Cavalry | 8 | 5 | 5 | 2 | 1 | implemented |
-| Archer | 6 | 3 | 5 | 1 | 2 | planned (TASK-011) |
+| Rocket Artillery | 6 | 3 | 5 | 1 | 5 | implemented |
 
 Source of truth for the numbers: `data/units/*.tres`.
 
-Starting armies (prototype battle): each side has infantry, cavalry, infantry (+ an archer after TASK-011) on opposite map edges; spawn tiles are always plains.
+Starting armies (prototype battle): each side has infantry, cavalry, infantry + rocket artillery (built by `Scenario.default_battle`) on opposite map edges; spawn tiles are always plains.
 
 ## Combat
 
@@ -73,7 +73,7 @@ Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 Planned:
 
 - **Counterattack** (TASK-010): a defender that survives and has the attacker within its own `attack_range` hits back once with the same formula; deterministic **[ASSUMPTION]**; doesn't use the defender's attack for the turn; a unit counters every attack it survives.
-- **Ranged units** (TASK-011): an archer with range 2 can attack melee units (range 1) from distance 2 without being countered.
+- **Ranged units** (TASK-011): self-propelled rocket artillery with range 5 can attack melee units (range 1) from distance 2 to 5 without being countered.
 
 ## Open questions
 
@@ -81,9 +81,9 @@ Each question lists the tasks that depend on the answer.
 
 - **Victory condition**: elimination of all enemy units is the current **[ASSUMPTION]**. Alternatives: hold objectives, kill the leader, turn limit with points. → TASK-012 uses a harness-only turn limit (draw) and would change if a turn limit becomes a real rule; future scenario tasks.
 - **Turn limit as a game rule?** Not in the game yet; only the AI-vs-AI simulation (TASK-012) stops matches after N turns. → TASK-012.
-- **Randomness in combat**: deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (archer balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
+- **Randomness in combat**: deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
-- **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks archer shots, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
+- **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
 - **Scale**: tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
 - **Setting**: fantasy, historical, sci-fi? → unit roster and art; no current task blocked.
 - **Modes**: vs AI only, hot-seat, network multiplayer? → TASK-005 (command serialization is the groundwork for network/replays), `HUMAN_PLAYER` constant in the battle controller, TASK-007 (hot-seat fog needs a hand-off screen).
@@ -91,7 +91,7 @@ Each question lists the tasks that depend on the answer.
 - **Cavalry's look**: the mock-up has no cavalry; TASK-019 uses the mock-up's **tank** model for cavalry as an interim (both are the fast 5-move unit). Keep, rename the unit (e.g. "Tank"), or make a horse model? Depends on the setting question. → TASK-019.
 - **Faction names**: placeholders "Blue Force" / "Red Force" (`BF`/`RF`) in the HUD until the setting is decided. → TASK-020, TASK-021.
 - **UI scaling**: HUD sizes are the mock-up's CSS pixels 1:1 (matches 1280×720 screenshots). Stretch mode / scaling for larger or smaller windows is undecided. → TASK-014, TASK-020.
-- **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (archer) could use it.
+- **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (rocket artillery) could use it.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.
 
 ### Ideas from the visual design

@@ -2,8 +2,10 @@ keys,en,pl
 LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury
 Infantry,Infantry,Piechota
 Cavalry,Cavalry,Kawaleria
+Rocket Artillery,Rocket Artillery,Artyleria rakietowa
 INF,INF,PIECH
 CAV,CAV,KAW
+ART,ART,ART
 TURN,TURN,TURA
 MOVE: %s,MOVE: %s,RUCH: %s
 YOUR TURN,YOUR TURN,TWOJA TURA

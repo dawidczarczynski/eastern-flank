@@ -8,6 +8,9 @@ const MODEL_SCALE := 1.3
 const SOLDIER_SCALE := 1.5
 const INFANTRY := &"infantry"
 const CAVALRY := &"cavalry"
+const ROCKET_ARTILLERY := &"rocket_artillery"
+## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
+const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
 ## Indexed by owner id.
 const BODY_COLORS: Array[Color] = [Color("#4f5934"), Color("#7a7354")]
 const VEST_COLORS: Array[Color] = [Color("#3d4529"), Color("#5d5840")]
@@ -16,6 +19,10 @@ const SOLDIER_DARK := Color("#1f201c")
 const TANK_DARK := Color("#22231f")
 const TANK_METAL := Color("#3c3e38")
 const WHEELS_PER_SIDE := 6
+## Rocket artillery layout: truck axle x positions, pod elevation (rad) and pod length.
+const TRUCK_AXLES: Array[float] = [-0.3, -0.12, 0.27]
+const POD_ELEVATION := 0.5
+const POD_LENGTH := 0.52
 ## Squad layout: [x, z, kneeling].
 const SQUAD: Array = [
 	[0.13, 0.0, false],
@@ -45,6 +52,10 @@ static func facing_yaw(owner_id: int) -> float:
 	return 0.0 if owner_id == 0 else PI
 
 
+static func is_vehicle(definition_id: StringName) -> bool:
+	return definition_id in VEHICLES
+
+
 static func build(definition_id: StringName, owner_id: int) -> Node3D:
 	var root := Node3D.new()
 	root.rotation.y = facing_yaw(owner_id)
@@ -54,6 +65,8 @@ static func build(definition_id: StringName, owner_id: int) -> Node3D:
 			model = _make_infantry(owner_id)
 		CAVALRY:
 			model = _make_tank(owner_id)
+		ROCKET_ARTILLERY:
+			model = _make_rocket_artillery(owner_id)
 		_:
 			push_warning("UnitModels: no model for '%s', using a placeholder box" % definition_id)
 			model = Node3D.new()
@@ -114,6 +127,64 @@ static func _make_soldier(owner_id: int, kneel: bool, gun: bool, into: Node3D = 
 	var rifle := Vector3(0.15, 0.022, 0.022) if gun else Vector3(0.12, 0.012, 0.012)
 	_box(s, rifle, dark, 0.06, lh + 0.07, 0.01).rotation.z = 0.12
 	return s
+
+
+## Self-propelled rocket artillery: 6-wheel truck with a cab at the front and a tilted pod of
+## six launch tubes on the back. The "Pod" node holds "Mouth0".."Mouth5" (tube ends) – the
+## volley effect spawns rockets there. Wheels are named Wheel0..5 (see pose_tank).
+static func _make_rocket_artillery(owner_id: int) -> Node3D:
+	var g := Node3D.new()
+	var body := _material(_faction_color(BODY_COLORS, owner_id), 0.8, 0.15)
+	var dark := _material(TANK_DARK, 0.95, 0.05)
+	var metal := _material(TANK_METAL, 0.55, 0.45)
+	var acc := _material(
+		UiPalette.FACTION[clampi(owner_id, 0, UiPalette.FACTION.size() - 1)], 0.5, 0.1
+	)
+	var wheel_index := 0
+	for s: float in [-1.0, 1.0]:
+		for x: float in TRUCK_AXLES:
+			var pivot := Node3D.new()
+			pivot.name = "Wheel%d" % wheel_index
+			wheel_index += 1
+			pivot.position = Vector3(x, 0.055, s * 0.17)
+			g.add_child(pivot)
+			var wheel := _cyl(pivot, 0.055, 0.055, 0.04, 12, dark, Vector3.ZERO)
+			wheel.rotation.x = PI / 2.0
+			_box(pivot, Vector3(0.08, 0.014, 0.006), metal, 0.0, 0.0, s * 0.022)
+		_box(g, Vector3(0.7, 0.03, 0.03), dark, -0.04, 0.13, s * 0.11)  # mudguard rail
+	# Chassis, cab, hood and the flat deck behind the cab.
+	_box(g, Vector3(0.82, 0.06, 0.24), dark, 0.0, 0.1, 0.0)
+	_box(g, Vector3(0.17, 0.15, 0.28), body, 0.27, 0.21, 0.0)
+	_box(g, Vector3(0.1, 0.08, 0.26), body, 0.4, 0.17, 0.0)
+	_box(g, Vector3(0.012, 0.07, 0.22), dark, 0.358, 0.255, 0.0).rotation.z = 0.25  # windscreen
+	_box(g, Vector3(0.1, 0.012, 0.2), acc, 0.27, 0.292, 0.0)  # faction roof panel
+	_box(g, Vector3(0.52, 0.03, 0.3), body, -0.14, 0.145, 0.0)
+	_box(g, Vector3(0.04, 0.05, 0.3), dark, -0.42, 0.11, 0.0)  # rear stabiliser bar
+	# Launcher: cradle + tilted pod. The pod's +X side is the muzzle end.
+	_box(g, Vector3(0.16, 0.05, 0.24), metal, -0.2, 0.18, 0.0)
+	var pod := Node3D.new()
+	pod.name = "Pod"
+	pod.position = Vector3(-0.17, 0.25, 0.0)
+	pod.rotation.z = POD_ELEVATION
+	g.add_child(pod)
+	_box(pod, Vector3(0.52, 0.17, 0.28), body, 0.0, 0.0, 0.0)
+	_box(pod, Vector3(0.5, 0.012, 0.3), metal, 0.0, 0.092, 0.0)
+	_box(pod, Vector3(0.5, 0.012, 0.3), metal, 0.0, -0.092, 0.0)
+	_box(pod, Vector3(0.08, 0.175, 0.285), acc, -0.12, 0.0, 0.0)  # faction band
+	var mouth_index := 0
+	for row: float in [1.0, -1.0]:
+		for col: float in [-1.0, 0.0, 1.0]:
+			var mouth_pos := Vector3(POD_LENGTH / 2.0 + 0.01, row * 0.04, col * 0.085)
+			var tube := _cyl(pod, 0.034, 0.034, 0.03, 10, dark, mouth_pos - Vector3(0.015, 0, 0))
+			tube.rotation.z = PI / 2.0
+			var nose := _cyl(pod, 0.02, 0.02, 0.02, 8, acc, mouth_pos - Vector3(0.02, 0, 0))
+			nose.rotation.z = PI / 2.0
+			var mouth := Node3D.new()
+			mouth.name = "Mouth%d" % mouth_index
+			mouth_index += 1
+			mouth.position = mouth_pos + Vector3(0.03, 0, 0)
+			pod.add_child(mouth)
+	return g
 
 
 static func _make_tank(owner_id: int) -> Node3D:

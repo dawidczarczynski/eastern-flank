@@ -39,6 +39,29 @@ func test_models_stand_upright_on_origin() -> void:
 	for owner_id in 2:
 		_check_upright(&"infantry", owner_id)
 		_check_upright(&"cavalry", owner_id)
+		_check_upright(&"rocket_artillery", owner_id)
+
+
+func test_rocket_artillery_has_pod_with_six_mouths_and_no_placeholder() -> void:
+	var model := UnitModels.build(&"rocket_artillery", 0)
+	var inner := model.get_node("Model")
+	var pod := inner.get_node_or_null("Pod")
+	assert_true(pod != null, "rocket artillery needs a Pod node")
+	for i in 6:
+		assert_true(pod.get_node_or_null("Mouth%d" % i) != null, "missing Mouth%d" % i)
+	var box := _bounds(model, Transform3D.IDENTITY)
+	assert_true(box.size.x < 1.4 and box.size.z < 0.7, "unexpected size %s" % box)
+	model.free()
+
+
+func test_vehicles_use_wheel_locomotion() -> void:
+	assert_true(UnitModels.is_vehicle(&"cavalry"))
+	assert_true(UnitModels.is_vehicle(&"rocket_artillery"))
+	assert_false(UnitModels.is_vehicle(&"infantry"))
+	var model := UnitModels.build(&"rocket_artillery", 1)
+	UnitModels.pose_tank(model.get_node("Model"), 2.0, 1.0, Vector2.ZERO)
+	assert_true(model.get_node("Model/Wheel0").rotation.z != 0.0, "wheels should spin")
+	model.free()
 
 
 func test_owner_sets_facing() -> void:

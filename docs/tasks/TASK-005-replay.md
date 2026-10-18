@@ -2,7 +2,7 @@
 
 - **Status**: ready
 - **Layers**: core / presentation (save key) / tools (fixture regeneration)
-- **Depends on**: `Scenario.default_battle(seed)` from **TASK-011**. If TASK-011 is not done yet, extract `Scenario` here exactly as specified there, but without the archers (6 units, ids 1–6); TASK-011 then only adds the archers and regenerates the fixture.
+- **Depends on**: `Scenario.default_battle(seed)` from **TASK-011**. If TASK-011 is not done yet, extract `Scenario` here exactly as specified there, but without the rocket artillery (6 units, ids 1–6); TASK-011 then only adds the artillery and regenerates the fixture.
 - **Model**: opus
 
 ## Goal

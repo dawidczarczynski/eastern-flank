@@ -4,11 +4,9 @@ extends Node3D
 
 const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
-const MAP_WIDTH := 12
-const MAP_HEIGHT := 10
-const INFANTRY := preload("res://data/units/infantry.tres")
-const CAVALRY := preload("res://data/units/cavalry.tres")
 const BOTTOM_LEFT_MARGIN := 16
+## Time the launcher takes to turn towards its target before a volley (seconds at speed 1).
+const AIM_DURATION := 0.2
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
@@ -27,6 +25,7 @@ var _event_queue := EventQueue.new()
 var _playback_scheduled := false  # _start_burst() is deferred to the end of the frame
 var _playing := false  # an event animation is running
 var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
+var _fx_rng := RandomNumberGenerator.new()  # view-local (volley scatter), never GameState.rng
 
 @onready var _map_view: MapView = $MapView
 @onready var _units_root: Node3D = $Units
@@ -34,11 +33,7 @@ var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
 
 
 func _ready() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = MAP_SEED
-	var state := GameState.new(MapGenerator.generate(MAP_WIDTH, MAP_HEIGHT, rng), 2, MAP_SEED)
-	_spawn_start_units(state)
-
+	var state := Scenario.default_battle(MAP_SEED)
 	_sim = GameSimulation.new(state)
 	_sim.event_emitted.connect(_on_event)
 	_sim.command_rejected.connect(_on_command_rejected)
@@ -115,21 +110,6 @@ func _map_bounds() -> Rect2:
 	for c in _sim.state.grid.coords():
 		centers.append(Hex.to_world(c, _map_view.hex_size))
 	return CameraMath.map_bounds(centers, _map_view.hex_size)
-
-
-func _spawn_start_units(state: GameState) -> void:
-	var spawns := [
-		[0, INFANTRY, 1, 3],
-		[0, CAVALRY, 1, 5],
-		[0, INFANTRY, 1, 7],
-		[1, INFANTRY, MAP_WIDTH - 2, 2],
-		[1, CAVALRY, MAP_WIDTH - 2, 4],
-		[1, INFANTRY, MAP_WIDTH - 2, 6],
-	]
-	for spawn: Array in spawns:
-		var coord := MapGenerator.offset_to_axial(spawn[2], spawn[3])
-		MapGenerator.force_terrain(state.grid, coord, Terrain.Type.PLAINS)
-		state.add_unit(spawn[0], spawn[1], coord)
 
 
 func _create_unit_view(unit: Unit) -> void:
@@ -258,6 +238,25 @@ func _refresh_hovered_unit() -> void:
 	_hovered_unit_id = id
 	if _unit_views.has(id):
 		(_unit_views[id] as UnitView).set_hovered(true)
+	_refresh_range_overlay()
+
+
+## Shows the attack range of the selected unit, or – with nothing selected – of the hovered unit
+## (own or enemy), when its range is at least 2. Tiles come from AttackCommand.tiles_in_range.
+func _refresh_range_overlay() -> void:
+	var unit := _sim.state.get_unit(_selected_unit_id)
+	if unit == null:
+		unit = _sim.state.get_unit(_hovered_unit_id)
+	if (
+		unit == null
+		or not unit.is_alive()
+		or unit.definition.attack_range < 2
+		or _is_playing_events()
+		or _sim.state.winner != -1
+	):
+		_map_view.clear_attack_range()
+		return
+	_map_view.show_attack_range(AttackCommand.tiles_in_range(_sim.state, unit))
 
 
 ## "Done" dimming applies to units that have nothing left to do on their owner's turn.
@@ -278,6 +277,7 @@ func _refresh_highlights() -> void:
 	var unit := _sim.state.get_unit(_selected_unit_id)
 	if unit == null:
 		_map_view.clear_highlights()
+		_refresh_range_overlay()
 		return
 	var reach := _sim.state.grid.reachable(unit.coord, unit.moves_left, _sim.state.occupied())
 	reach.erase(unit.coord)
@@ -285,6 +285,7 @@ func _refresh_highlights() -> void:
 	coords.assign(reach.keys())
 	_map_view.show_reach(coords, unit.owner_id)
 	_refresh_attack_targets(unit)
+	_refresh_range_overlay()
 
 
 ## Red markers on enemies the selected unit can attack now (ids from AttackCommand, tiles here).
@@ -359,11 +360,31 @@ func _update_unit_popup() -> void:
 ## Events are only queued here; playback starts deferred, so everything emitted in this frame
 ## (e.g. a whole AI turn) is queued before the burst speed is computed.
 func _on_event(event: Dictionary) -> void:
-	_event_queue.push(event)
+	_event_queue.push(_annotate(event))
 	_hud.set_end_enabled(false)  # the queue is non-empty from now on
 	if not _playing and not _playback_scheduled:
 		_playback_scheduled = true
 		_start_burst.call_deferred()
+
+
+## Rocket volleys play longer than a plain hit: the queue learns the duration from the
+## annotation (the simulation's event is copied, not modified).
+func _annotate(event: Dictionary) -> Dictionary:
+	if event["type"] == &"unit_attacked" and _fires_volley(event["attacker_id"]):
+		var annotated := EventQueue.with_view_duration(event, _volley_event_duration())
+		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
+		return annotated
+	return event
+
+
+func _fires_volley(attacker_id: int) -> bool:
+	var attacker := _sim.state.get_unit(attacker_id)
+	return attacker != null and attacker.definition.id == UnitModels.ROCKET_ARTILLERY
+
+
+## Aim + salvo + impact; the hit reaction starts with the last impact and ends with the flashes.
+static func _volley_event_duration() -> float:
+	return AIM_DURATION + RocketVolley.total_duration()
 
 
 func _is_playing_events() -> bool:
@@ -404,6 +425,13 @@ func _play_event(event: Dictionary) -> Tween:
 				return view.move_along(_move_points(event), _map_view.surface().ground_height)
 		&"unit_attacked":
 			var target: UnitView = _unit_views.get(event["target_id"])
+			var shooter: UnitView = _unit_views.get(event["attacker_id"])
+			if (
+				target != null
+				and shooter != null
+				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
+			):
+				return _play_volley(shooter, target, event["target_hp"])
 			if target != null:
 				return target.play_hit(event["target_hp"])
 		&"unit_died":
@@ -416,6 +444,51 @@ func _play_event(event: Dictionary) -> Tween:
 		&"game_over":
 			_select(-1)
 	return null
+
+
+## Turn the launcher towards the target, fire the salvo from its tubes, then the hit reaction.
+## One tween lasts the whole event (_volley_event_duration), so the queue waits for all of it.
+func _play_volley(shooter: UnitView, target: UnitView, target_hp: int) -> Tween:
+	var aim_point := target.global_position
+	var from_yaw := shooter.facing_yaw()
+	var to_yaw := shooter.yaw_towards(aim_point)
+	var tween := create_tween()
+	tween.tween_method(
+		func(f: float) -> void: shooter.set_facing_yaw(lerp_angle(from_yaw, to_yaw, f)),
+		0.0,
+		1.0,
+		AIM_DURATION
+	)
+	var origins := shooter.launch_points()
+	if origins.is_empty():
+		origins.append(shooter.global_position + Vector3(0.0, 0.4, 0.0))
+	var impact_point := aim_point + Vector3(0.0, 0.15, 0.0)
+	var volley := RocketVolley.new()
+	volley.name = "RocketVolley"
+	add_child(volley)  # in the tree from the start (freed with the controller if the tween dies)
+	tween.tween_callback(
+		func() -> void:
+			# Tubes move with the turned model: read their positions after aiming.
+			var tubes := shooter.launch_points()
+			volley.setup(tubes if not tubes.is_empty() else origins, impact_point, _fx_rng)
+	)
+	tween.tween_method(
+		volley.update, 0.0, RocketVolley.total_duration(), RocketVolley.total_duration()
+	)
+	# The hit reaction starts with the last impact.
+	tween.parallel()
+	var hit_step := tween.tween_callback(_play_volley_hit.bind(target, target_hp))
+	hit_step.set_delay(RocketVolley.last_impact_time())
+	tween.tween_callback(volley.queue_free)
+	return tween
+
+
+func _play_volley_hit(target: UnitView, target_hp: int) -> void:
+	if not is_instance_valid(target):
+		return
+	var hit := target.play_hit(target_hp)
+	if hit != null:
+		hit.set_speed_scale(_burst_speed)
 
 
 ## Tile centres of `[from] + path` of a `unit_moved` event (`[from, to]` for events without
@@ -445,6 +518,8 @@ func _on_queue_drained() -> void:
 	if selected != null and (not selected.is_alive() or not _unit_views.has(selected.id)):
 		_select(-1)
 	_refresh_hud()
+	_hovered_unit_id = -1  # units may have moved under the cursor: re-pick the hovered unit
+	_refresh_hovered_unit()
 	_refresh_selection_ui()
 
 

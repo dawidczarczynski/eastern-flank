@@ -84,3 +84,57 @@ func test_ai_stops_after_winning() -> void:
 	assert_eq(state.winner, 1)
 	assert_eq(state.current_player, 1)
 	assert_eq(rejections.size(), 0)
+
+
+func test_ai_ranged_unit_keeps_distance_and_shoots_without_counter() -> void:
+	var state := GameState.new(Fixtures.plains_grid(5), 2, 1)
+	var enemy := state.add_unit(0, Fixtures.fighter(4, 3), Vector2i(4, 0))
+	var ranged := state.add_unit(1, Fixtures.fighter(5, 1, 6, 2), Vector2i(0, 0))
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	AiPlayer.new().take_turn(game)
+	assert_eq(Hex.distance(ranged.coord, enemy.coord), 2)
+	assert_eq(enemy.hp, 8)
+	assert_eq(ranged.hp, 6)
+
+
+func test_ai_ranged_unit_at_range_2_does_not_move() -> void:
+	var state := GameState.new(Fixtures.plains_grid(5), 2, 1)
+	var enemy := state.add_unit(0, Fixtures.fighter(4, 3), Vector2i(2, 0))
+	var ranged := state.add_unit(1, Fixtures.fighter(5, 1, 6, 2), Vector2i(0, 0))
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	var moved := [false]
+	game.event_emitted.connect(
+		func(e: Dictionary) -> void:
+			if e["type"] == &"unit_moved":
+				moved[0] = true
+	)
+	AiPlayer.new().take_turn(game)
+	assert_false(moved[0])
+	assert_eq(ranged.coord, Vector2i(0, 0))
+	assert_true(enemy.hp < 10)
+
+
+func test_ranged_destination_tie_prefers_inside_range_then_current_tile() -> void:
+	var ai := AiPlayer.new()
+	# Range 2: d=1 and d=3 both score 1; the tile inside range wins.
+	assert_true(ai._is_better(1, 3, 2))
+	assert_false(ai._is_better(3, 1, 2))
+	# Equal distance never replaces the current best (current tile kept).
+	assert_false(ai._is_better(1, 1, 2))
+	assert_false(ai._is_better(3, 3, 2))
+
+
+func test_ai_rocket_artillery_moves_away_from_adjacent_enemy_and_fires_uncountered() -> void:
+	var state := GameState.new(Fixtures.plains_grid(6), 2, 1)
+	var enemy := state.add_unit(0, load("res://data/units/infantry.tres"), Vector2i(1, 0))
+	var artillery := state.add_unit(
+		1, load("res://data/units/rocket_artillery.tres"), Vector2i(0, 0)
+	)
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	AiPlayer.new().take_turn(game)
+	assert_true(Hex.distance(artillery.coord, enemy.coord) > 1)
+	assert_true(enemy.hp < enemy.definition.max_hp)
+	assert_eq(artillery.hp, 6)

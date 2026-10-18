@@ -25,6 +25,17 @@ static func valid_targets(state: GameState, attacker_id: int) -> Array[int]:
 	return result
 
 
+## Every grid coordinate the unit could hit from where it stands: 1 <= distance <= attack_range,
+## own tile excluded. Future line-of-sight rules belong here.
+static func tiles_in_range(state: GameState, unit: Unit) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for c in state.grid.coords():
+		var d := Hex.distance(unit.coord, c)
+		if d >= 1 and d <= unit.definition.attack_range:
+			result.append(c)
+	return result
+
+
 ## Damage the attacker would deal to the defender now. The attacker's own tile is ignored.
 static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
 	var defense := defender.definition.defense + state.grid.defense_bonus(defender.coord)

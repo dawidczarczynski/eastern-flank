@@ -62,13 +62,13 @@ func test_out_of_range_is_rejected() -> void:
 
 
 func test_attack_range_comes_from_definition() -> void:
-	var archer := state.add_unit(0, Fixtures.fighter(4, 2, 10, 2), Vector2i(-1, 0))
-	assert_true(sim.execute(AttackCommand.new(archer.id, enemy.id)))  # distance 2
+	var ranged := state.add_unit(0, Fixtures.fighter(4, 2, 10, 2), Vector2i(-1, 0))
+	assert_true(sim.execute(AttackCommand.new(ranged.id, enemy.id)))  # distance 2
 
 
 func test_target_beyond_attack_range_is_rejected() -> void:
-	var archer := state.add_unit(0, Fixtures.fighter(4, 2, 10, 2), Vector2i(-2, 0))
-	assert_false(sim.execute(AttackCommand.new(archer.id, enemy.id)))  # distance 3
+	var ranged := state.add_unit(0, Fixtures.fighter(4, 2, 10, 2), Vector2i(-2, 0))
+	assert_false(sim.execute(AttackCommand.new(ranged.id, enemy.id)))  # distance 3
 	assert_eq(rejections, ["out_of_range"] as Array[String])
 
 
@@ -219,3 +219,34 @@ func test_attack_applies_terrain_defense() -> void:
 	state.grid.set_terrain(enemy.coord, Terrain.Type.HILLS)
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
 	assert_eq(enemy.hp, 9)  # max(1, 4 - (2 + 2))
+
+
+func test_tiles_in_range_one_in_the_middle_is_six_tiles() -> void:
+	var state := GameState.new(Fixtures.plains_grid(3), 2, 1)
+	var unit := state.add_unit(0, Fixtures.fighter(4, 2, 10, 1), Vector2i(0, 0))
+	var tiles := AttackCommand.tiles_in_range(state, unit)
+	assert_eq(tiles.size(), 6)
+	assert_false(tiles.has(unit.coord))
+
+
+func test_tiles_in_range_two_in_the_middle_is_eighteen_tiles() -> void:
+	var state := GameState.new(Fixtures.plains_grid(3), 2, 1)
+	var unit := state.add_unit(0, Fixtures.fighter(4, 2, 10, 2), Vector2i(0, 0))
+	assert_eq(AttackCommand.tiles_in_range(state, unit).size(), 18)
+
+
+func test_tiles_in_range_near_the_edge_only_contains_grid_tiles() -> void:
+	var grid := Fixtures.plains_grid(3)
+	var state := GameState.new(grid, 2, 1)
+	var unit := state.add_unit(0, Fixtures.fighter(4, 2, 10, 5), Vector2i(3, 0))
+	var tiles := AttackCommand.tiles_in_range(state, unit)
+	# Radius-3 grid has 37 tiles; all except the unit's own are within distance 5 of (3, 0).
+	var expected := 0
+	for c in grid.coords():
+		var d := Hex.distance(c, unit.coord)
+		if d >= 1 and d <= 5:
+			expected += 1
+	assert_eq(tiles.size(), expected)
+	for c in tiles:
+		assert_true(grid.has_tile(c))
+		assert_true(Hex.distance(c, unit.coord) <= 5)
