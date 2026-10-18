@@ -4,7 +4,7 @@ extends RefCounted
 ## hull rocking / slope tilt of tanks. Everything is a function of the move's animation time or
 ## travelled distance – nothing advances from frame delta. Feel constants, not balance.
 
-const ENVELOPE_RAMP := 0.08
+const ENVELOPE_RAMP := 0.25
 const STEPS_PER_UNIT := 1.5
 const STEP_BOB := 0.012
 const STEP_SWAY := 0.06

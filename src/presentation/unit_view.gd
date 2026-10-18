@@ -8,7 +8,7 @@ extends Node3D
 const HIT_DURATION := EventQueue.ATTACK_DURATION
 const HIT_SHAKE := 0.12
 const HIT_FLASH_ALPHA := 0.8
-const DIE_DARKEN_DURATION := 0.1
+const DIE_DARKEN_DURATION := 0.25
 const DIE_DARKEN_ALPHA := 0.6
 const DIE_DURATION := EventQueue.DEATH_DURATION - DIE_DARKEN_DURATION
 ## Label anchor height above the unit's feet per definition id.
@@ -150,21 +150,23 @@ func move_along(world_points: PackedVector3Array, ground_height: Callable) -> Tw
 func _step_move(elapsed: float) -> void:
 	var dt := maxf(0.0, elapsed - _move_elapsed)
 	_move_elapsed = elapsed
-	var p := MoveAnimation.sample(_move_points, elapsed)
+	# Path time runs slower at the start and end: the unit accelerates and brakes.
+	var path_time := MoveAnimation.path_time(elapsed, MoveAnimation.duration(_move_points))
+	var p := MoveAnimation.sample(_move_points, path_time)
 	if _move_height.is_valid():
 		p.y = _move_height.call(p.x, p.z)
-	var target := MoveAnimation.segment_target(_move_points, elapsed)
+	var target := MoveAnimation.segment_target(_move_points, path_time)
 	if Vector2(target.x - p.x, target.z - p.z).length_squared() > 0.000001:
 		var yaw := MoveAnimation.facing_yaw(p, target)
 		_pivot.rotation.y = MoveAnimation.turn_towards(_pivot.rotation.y, yaw, dt)
 	position = p
-	_pose_moving(elapsed)
+	_pose_moving(elapsed, path_time)
 
 
 ## Locomotion pose for the move's animation time (distance and envelope derive from `elapsed`
-## only, so the burst speed scale applies automatically).
-func _pose_moving(elapsed: float) -> void:
-	var distance := Locomotion.travelled(_move_points, elapsed)
+## and `path_time` only, so the burst speed scale applies automatically).
+func _pose_moving(elapsed: float, path_time: float) -> void:
+	var distance := Locomotion.travelled(_move_points, path_time)
 	var env := Locomotion.envelope(elapsed, MoveAnimation.duration(_move_points))
 	if _is_vehicle:
 		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)

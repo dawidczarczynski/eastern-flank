@@ -5,13 +5,13 @@ extends RefCounted
 ## (e.g. a whole AI turn) never takes noticeably longer than MAX_BURST_SECONDS. No nodes/tweens.
 
 ## Upper bound for the playback time of one burst at its computed speed, in seconds.
-const MAX_BURST_SECONDS := 3.0
+const MAX_BURST_SECONDS := 8.0
 ## Duration of a move event without a `path` (old events).
-const MOVE_DURATION := 0.25
+const MOVE_DURATION := 0.55
 ## Duration of one tile of a move along its `path` (TASK-022); MoveAnimation aliases it.
-const SECONDS_PER_TILE := 0.26
-const ATTACK_DURATION := 0.25
-const DEATH_DURATION := 0.4
+const SECONDS_PER_TILE := 0.55
+const ATTACK_DURATION := 0.4
+const DEATH_DURATION := 0.85
 ## View-only event annotation: the controller sets it (seconds at speed 1) on events whose
 ## animation is longer than the default, e.g. a rocket volley. See with_view_duration().
 const VIEW_DURATION_KEY := &"view_duration"

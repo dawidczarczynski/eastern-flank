@@ -14,22 +14,22 @@ func _path() -> PackedVector3Array:
 func test_travelled() -> void:
 	var p := _path()
 	_near(Locomotion.travelled(p, 0.0), 0.0)
-	_near(Locomotion.travelled(p, 0.13), 0.5)
-	_near(Locomotion.travelled(p, 0.39), 2.0)
+	_near(Locomotion.travelled(p, 0.13, 0.26), 0.5)
+	_near(Locomotion.travelled(p, 0.39, 0.26), 2.0)
 	_near(Locomotion.travelled(p, 10.0), 3.0)
 	_near(Locomotion.travelled(PackedVector3Array([Vector3.ZERO]), 1.0), 0.0)
 	var tall := PackedVector3Array([Vector3(0, 0, 0), Vector3(1, 5, 0)])
-	_near(Locomotion.travelled(tall, 0.26), 1.0)
+	_near(Locomotion.travelled(tall, 0.26, 0.26), 1.0)
 
 
 func test_envelope() -> void:
-	_near(Locomotion.envelope(0.0, 0.78), 0.0)
-	_near(Locomotion.envelope(0.04, 0.78), 0.5)
-	_near(Locomotion.envelope(0.39, 0.78), 1.0)
-	_near(Locomotion.envelope(0.74, 0.78), 0.5)
-	_near(Locomotion.envelope(0.78, 0.78), 0.0)
-	_near(Locomotion.envelope(1.0, 0.78), 0.0)
-	_near(Locomotion.envelope(0.1, 0.0), 0.0)
+	_near(Locomotion.envelope(0.0, 0.78, 0.08), 0.0)
+	_near(Locomotion.envelope(0.04, 0.78, 0.08), 0.5)
+	_near(Locomotion.envelope(0.39, 0.78, 0.08), 1.0)
+	_near(Locomotion.envelope(0.74, 0.78, 0.08), 0.5)
+	_near(Locomotion.envelope(0.78, 0.78, 0.08), 0.0)
+	_near(Locomotion.envelope(1.0, 0.78, 0.08), 0.0)
+	_near(Locomotion.envelope(0.1, 0.0, 0.08), 0.0)
 
 
 func test_step_phase() -> void:

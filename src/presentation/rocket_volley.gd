@@ -7,8 +7,8 @@ extends Node3D
 ## the only randomness is a view-local RandomNumberGenerator for the landing scatter.
 
 const ROCKET_COUNT := 6
-const GAP := 0.08
-const FLIGHT := 0.7
+const GAP := 0.15
+const FLIGHT := 1.0
 const MUZZLE_TIME := 0.14
 const IMPACT_TIME := 0.25
 const SCATTER := 0.3

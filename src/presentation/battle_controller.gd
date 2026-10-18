@@ -6,7 +6,7 @@ const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
 const BOTTOM_LEFT_MARGIN := 16
 ## Time the launcher takes to turn towards its target before a volley (seconds at speed 1).
-const AIM_DURATION := 0.2
+const AIM_DURATION := 0.5
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()

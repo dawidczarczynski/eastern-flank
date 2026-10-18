@@ -10,13 +10,6 @@ func _queue_of(types: Array[StringName]) -> EventQueue:
 	return queue
 
 
-func _repeat(type: StringName, count: int) -> Array[StringName]:
-	var types: Array[StringName] = []
-	for i in count:
-		types.append(type)
-	return types
-
-
 func test_pop_returns_events_in_fifo_order_then_empty() -> void:
 	var queue := _queue_of([&"unit_moved", &"unit_attacked", &"unit_died"])
 	assert_eq(queue.size(), 3)
@@ -29,18 +22,28 @@ func test_pop_returns_events_in_fifo_order_then_empty() -> void:
 
 func test_pending_duration_sums_base_durations() -> void:
 	var queue := _queue_of([&"unit_moved", &"unit_attacked", &"unit_died", &"turn_started"])
+	var expected := (
+		EventQueue.MOVE_DURATION + EventQueue.ATTACK_DURATION + EventQueue.DEATH_DURATION
+	)
 	assert_true(
-		absf(queue.pending_duration() - 0.9) < TOLERANCE, "got %f" % queue.pending_duration()
+		absf(queue.pending_duration() - expected) < TOLERANCE, "got %f" % queue.pending_duration()
 	)
 
 
-func test_burst_of_three_seconds_plays_at_normal_speed() -> void:
-	var queue := _queue_of(_repeat(&"unit_moved", 12))
+func _queue_lasting(seconds: float, count: int) -> EventQueue:
+	var queue := EventQueue.new()
+	for i in count:
+		queue.push(EventQueue.with_view_duration({"type": &"unit_moved"}, seconds / count))
+	return queue
+
+
+func test_burst_up_to_the_cap_plays_at_normal_speed() -> void:
+	var queue := _queue_lasting(EventQueue.MAX_BURST_SECONDS, 8)
 	assert_true(absf(queue.begin_burst() - 1.0) < TOLERANCE)
 
 
-func test_burst_of_six_seconds_plays_at_double_speed() -> void:
-	var queue := _queue_of(_repeat(&"unit_moved", 24))
+func test_burst_of_twice_the_cap_plays_at_double_speed() -> void:
+	var queue := _queue_lasting(EventQueue.MAX_BURST_SECONDS * 2.0, 8)
 	assert_true(absf(queue.begin_burst() - 2.0) < TOLERANCE)
 
 
@@ -57,11 +60,12 @@ func test_turn_events_have_no_duration() -> void:
 func test_move_with_path_lasts_per_tile() -> void:
 	var path: Array[Vector2i] = [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)]
 	var event := {"type": &"unit_moved", "path": path}
-	assert_true(absf(EventQueue.base_duration(event) - 0.78) < TOLERANCE)
+	assert_true(absf(EventQueue.base_duration(event) - EventQueue.SECONDS_PER_TILE * 3) < TOLERANCE)
 
 
 func test_move_without_path_keeps_default_duration() -> void:
-	assert_true(absf(EventQueue.base_duration({"type": &"unit_moved"}) - 0.25) < TOLERANCE)
+	var duration := EventQueue.base_duration({"type": &"unit_moved"})
+	assert_true(absf(duration - EventQueue.MOVE_DURATION) < TOLERANCE)
 
 
 func test_view_duration_annotation_overrides_base_duration() -> void:
@@ -72,11 +76,12 @@ func test_view_duration_annotation_overrides_base_duration() -> void:
 	var queue := EventQueue.new()
 	queue.push(annotated)
 	queue.push({"type": &"unit_attacked"})
-	assert_true(absf(queue.pending_duration() - 1.75) < TOLERANCE)
+	assert_true(absf(queue.pending_duration() - 1.5 - EventQueue.ATTACK_DURATION) < TOLERANCE)
 
 
 func test_long_volley_speeds_up_burst() -> void:
 	var queue := EventQueue.new()
 	for i in 4:
-		queue.push(EventQueue.with_view_duration({"type": &"unit_attacked"}, 1.5))
+		var seconds := EventQueue.MAX_BURST_SECONDS / 2.0
+		queue.push(EventQueue.with_view_duration({"type": &"unit_attacked"}, seconds))
 	assert_true(absf(queue.begin_burst() - 2.0) < TOLERANCE)
