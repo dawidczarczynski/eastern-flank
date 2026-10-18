@@ -1,4 +1,9 @@
-# Eastern Flank
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/branding/logo_light.png">
+    <img src="assets/branding/logo.png" alt="Eastern Flank" width="520">
+  </picture>
+</h1>
 
 Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with the help of AI agents (Claude Code).
 
