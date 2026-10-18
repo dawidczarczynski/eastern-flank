@@ -189,3 +189,53 @@ func test_elevation_exactly_at_threshold_is_not_a_mountain() -> void:
 	var c := Vector2i(0, 0)
 	var grid := _grid({c: Terrain.Type.HILLS}, {c: 1.45})
 	assert_eq(_plan(grid)["rocks"].size(), 3)
+
+
+func test_bush_counts_radius_scale_and_terrain() -> void:
+	var forest := Vector2i(0, 0)
+	var plains := Vector2i(10, 0)
+	var hills := Vector2i(0, 10)
+	var water := Vector2i(10, 10)
+	var grid := _grid(
+		{
+			forest: Terrain.Type.FOREST,
+			plains: Terrain.Type.PLAINS,
+			hills: Terrain.Type.HILLS,
+			water: Terrain.Type.WATER,
+		},
+		{forest: 1.0, plains: 1.0, hills: 1.0, water: 1.0}
+	)
+	var surface := TerrainSurface.new(grid)
+	var bushes: Array = _plan(grid)["bushes"]
+	assert_eq(_count_near(bushes, hills, 3.0), 0)
+	assert_eq(_count_near(bushes, water, 3.0), 0)
+	var n_forest := _count_near(bushes, forest, 3.0)
+	assert_true(n_forest > 0 and n_forest <= 8, "forest bushes: %d" % n_forest)
+	var n_plains := _count_near(bushes, plains, 3.0)
+	assert_true(n_plains > 0 and n_plains <= 2, "plains bushes: %d" % n_plains)
+	for bush: Dictionary in bushes:
+		var p: Vector3 = bush["position"]
+		assert_true(minf(_dist(p, forest), _dist(p, plains)) <= 0.92 + EPSILON)
+		var s: float = bush["scale"]
+		assert_true(s >= 0.28 - EPSILON and s <= 0.53 + EPSILON)
+		assert_true(absf(bush["height_scale"] - 0.6 * s) < EPSILON)
+		assert_true(absf(p.y - (surface.ground_height(p.x, p.z) - 0.06 * s)) < EPSILON)
+		assert_true(surface.ground_height(p.x, p.z) >= 0.05)
+
+
+func test_bushes_are_deterministic_per_seed() -> void:
+	var grid := _generate(12345)
+	var a := _plan(grid)
+	var b := _plan(grid)
+	assert_true(a["bushes"].size() > 0)
+	assert_eq(a["bushes"], b["bushes"])
+	assert_true(_plan(grid, SEED + 1)["bushes"] != a["bushes"])
+
+
+func test_no_bushes_on_ground_below_min_tree_ground() -> void:
+	var forest := Vector2i(0, 0)
+	var plains := Vector2i(10, 0)
+	var grid := _grid(
+		{forest: Terrain.Type.FOREST, plains: Terrain.Type.PLAINS}, {forest: 0.0, plains: 0.0}
+	)
+	assert_eq(_plan(grid)["bushes"].size(), 0)

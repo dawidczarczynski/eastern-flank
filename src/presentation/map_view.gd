@@ -72,14 +72,16 @@ const LAST_DOT_SCALE := 1.8
 ## Scatter (TASK-018): view-local seed (never the simulation RNG) and mesh values.
 const SCATTER_SEED := 20240518
 const CONIFER_COLOR_A := Color("#2c4626")
-const CONIFER_COLOR_B := Color("#3d5a30")
+const CONIFER_COLOR_B := Color("#40603a")
 const DECIDUOUS_COLOR_A := Color("#41602c")
-const DECIDUOUS_COLOR_B := Color("#6b7f36")
+const DECIDUOUS_COLOR_B := Color("#72853a")
+const BUSH_COLOR_A := Color("#3f5a28")
+const BUSH_COLOR_B := Color("#6f7a38")
 const TRUNK_COLOR := Color("#4a3b2a")
-const ROCK_COLOR := Color("#7d776a")
-const CONIFER_CENTER := 0.19
-const DECIDUOUS_CENTER := 0.14
-const TRUNK_CENTER := 0.05
+const ROCK_COLOR_A := Color("#7d776a")
+const ROCK_COLOR_B := Color("#9a958a")
+## Rocks have no k in the plan: their colour mix is a pseudo-random function of scale.
+const ROCK_SHADE_FREQ := 7.31
 
 ## Generated once per run: ground albedo and normal textures and the water normal texture.
 static var _ground_albedo: ImageTexture
@@ -280,61 +282,49 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	return instance
 
 
-## Trees and rocks as four MultiMeshInstance3Ds (conifer crowns, deciduous crowns, trunks,
-## rocks) – no node per tree.
+## Trees, bushes and rocks as MultiMeshInstance3Ds (two variants per crown type) – no node per
+## tree. Instance colours multiply the baked vertex colours of the foliage meshes.
 func _build_scatter(plan: Dictionary) -> void:
 	var trees: Array = plan["trees"]
-	var cones: Array = []
-	var blobs: Array = []
-	for tree: Dictionary in trees:
-		(cones if tree["conifer"] else blobs).append(tree)
-
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.0
-	cone.bottom_radius = 0.075
-	cone.height = 0.3
-	cone.radial_segments = 7
-	cone.rings = 1
-	var blob := SphereMesh.new()
-	blob.radius = 0.085
-	blob.height = 0.17
-	blob.radial_segments = 8
-	blob.rings = 4
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.01
-	trunk.bottom_radius = 0.014
-	trunk.height = 0.1
-	trunk.radial_segments = 5
-	trunk.rings = 1
-	var rock := SphereMesh.new()
-	rock.radius = 0.05
-	rock.height = 0.1
-	rock.radial_segments = 6
-	rock.rings = 3
-
-	var crown_material := _scatter_material(Color.WHITE, 0.9, true)
+	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
+	for variant in 2:
+		var cones: Array = []
+		var blobs: Array = []
+		for tree: Dictionary in trees:
+			if (tree["k"] < 0.5) != (variant == 0):
+				continue
+			(cones if tree["conifer"] else blobs).append(tree)
+		_add_scatter(
+			"ConiferCrowns%d" % variant,
+			FoliageMeshes.conifer(variant),
+			crown_material,
+			_tree_transforms(cones),
+			_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
+		)
+		_add_scatter(
+			"DeciduousCrowns%d" % variant,
+			FoliageMeshes.deciduous(variant),
+			crown_material,
+			_tree_transforms(blobs),
+			_tree_colors(blobs, DECIDUOUS_COLOR_A, DECIDUOUS_COLOR_B)
+		)
+	var bushes: Array = plan["bushes"]
 	_add_scatter(
-		"ConiferCrowns",
-		cone,
+		"Bushes",
+		FoliageMeshes.bush(),
 		crown_material,
-		_tree_transforms(cones, CONIFER_CENTER),
-		_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
-	)
-	_add_scatter(
-		"DeciduousCrowns",
-		blob,
-		crown_material,
-		_tree_transforms(blobs, DECIDUOUS_CENTER),
-		_tree_colors(blobs, DECIDUOUS_COLOR_A, DECIDUOUS_COLOR_B)
+		_tree_transforms(bushes),
+		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B)
 	)
 	_add_scatter(
 		"Trunks",
-		trunk,
+		FoliageMeshes.trunk(),
 		_scatter_material(TRUNK_COLOR, 1.0, false),
-		_tree_transforms(trees, TRUNK_CENTER),
+		_tree_transforms(trees),
 		PackedColorArray()
 	)
 	var rock_transforms: Array[Transform3D] = []
+	var rock_colors := PackedColorArray()
 	for r: Dictionary in plan["rocks"]:
 		var s: float = r["scale"]
 		var basis := (
@@ -342,26 +332,22 @@ func _build_scatter(plan: Dictionary) -> void:
 			* Basis.from_scale(Vector3(s, 0.7 * s, s))
 		)
 		rock_transforms.append(Transform3D(basis, r["position"]))
-	_add_scatter(
-		"Rocks",
-		rock,
-		_scatter_material(ROCK_COLOR, 0.95, false),
-		rock_transforms,
-		PackedColorArray()
-	)
+		rock_colors.append(ROCK_COLOR_A.lerp(ROCK_COLOR_B, fposmod(s * ROCK_SHADE_FREQ, 1.0)))
+	# The rock mesh has no vertex colours (white); the instance colour tints it.
+	var rock_material := _scatter_material(Color.WHITE, 0.95, true)
+	_add_scatter("Rocks", FoliageMeshes.rock(), rock_material, rock_transforms, rock_colors)
 
 
-## Tree transforms; `center` lifts the mesh (centred on its origin) so its base sits on the
-## planted position.
-static func _tree_transforms(trees: Array, center: float) -> Array[Transform3D]:
+## Tree and bush transforms: the meshes are built with their base at y = 0 and sit on the planted
+## position.
+static func _tree_transforms(trees: Array) -> Array[Transform3D]:
 	var result: Array[Transform3D] = []
 	for tree: Dictionary in trees:
 		var s: float = tree["scale"]
 		var basis := (
 			Basis(Vector3.UP, tree["yaw"]) * Basis.from_scale(Vector3(s, tree["height_scale"], s))
 		)
-		var origin: Vector3 = tree["position"] + basis * Vector3(0.0, center, 0.0)
-		result.append(Transform3D(basis, origin))
+		result.append(Transform3D(basis, tree["position"]))
 	return result
 
 
@@ -390,7 +376,6 @@ func _add_scatter(
 	transforms: Array[Transform3D],
 	colors: PackedColorArray
 ) -> void:
-	mesh.material = material
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.use_colors = not colors.is_empty()
@@ -403,6 +388,7 @@ func _add_scatter(
 	var instance := MultiMeshInstance3D.new()
 	instance.name = node_name
 	instance.multimesh = multi
+	instance.material_override = material
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_tiles_root.add_child(instance)
 
