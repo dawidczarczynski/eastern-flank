@@ -28,7 +28,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-020](TASK-020-hud-layout.md) | HUD layout: turn bar, end-turn button, controls hint, turn banner | done | **TASK-014**, TASK-023, TASK-015 (soft: TASK-008, TASK-019) |
 | [TASK-024](TASK-024-terrain-panel.md) | Terrain panel (bottom-left) with path cost, replaces the path `Label3D` | done | **TASK-014**, **TASK-016a**, TASK-017, TASK-023 (soft: TASK-002) |
 | [TASK-021](TASK-021-unit-hover-popup.md) | Unit hover popup (replaces the TASK-003 panel) | done | **TASK-014**, TASK-019, TASK-023 (soft: TASK-024, TASK-002) |
-| [TASK-010](TASK-010-counterattack.md) | Counterattack | ready | TASK-001 (soft: TASK-002) |
+| [TASK-010](TASK-010-counterattack.md) | Counterattack | done | TASK-001 (soft: TASK-002) |
 | [TASK-011](TASK-011-archer.md) | Ranged unit (archer) + starting setup in core (`Scenario`) | ready | **TASK-010** |
 | [TASK-005](TASK-005-replay.md) | Save/replay a match as seed + command list | ready | `Scenario` from TASK-011 (or extract it here) |
 | [TASK-012](TASK-012-ai-simulation.md) | Headless AI-vs-AI simulation (`tools/simulate.sh`) | ready | `Scenario` from TASK-011/TASK-005 |

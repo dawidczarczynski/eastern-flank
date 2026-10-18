@@ -3,6 +3,7 @@ extends Command
 ## Attack: the attacker deals compute_damage() damage to an enemy within range
 ## (max(1, attack - (defense + terrain defense bonus of the defender's tile))).
 ## Attacking is allowed once per turn and ends the attacker's movement.
+## A surviving target within its own attack range counters once (see apply()).
 
 var attacker_id: int
 var target_id: int
@@ -56,23 +57,37 @@ func _combat_rule_violation(attacker: Unit, target: Unit) -> String:
 func apply(state: GameState) -> Array[Dictionary]:
 	var attacker := state.get_unit(attacker_id)
 	var target := state.get_unit(target_id)
-	var damage := AttackCommand.compute_damage(state, attacker, target)
-	target.hp = maxi(0, target.hp - damage)
 	attacker.has_attacked = true
 	attacker.moves_left = 0
+	var events := _strike(state, attacker, target, false)
+	# A surviving target in range hits back once. It is not an action: the target's
+	# has_attacked / moves_left are untouched and a counter never provokes another counter.
+	if (
+		target.is_alive()
+		and Hex.distance(target.coord, attacker.coord) <= target.definition.attack_range
+	):
+		events.append_array(_strike(state, target, attacker, true))
+	return events
+
+
+## One hit: applies damage and returns unit_attacked (+ unit_died, game_over when it ends the game).
+func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) -> Array[Dictionary]:
+	var damage := AttackCommand.compute_damage(state, striker, victim)
+	victim.hp = maxi(0, victim.hp - damage)
 	var events: Array[Dictionary] = [
 		{
 			"type": &"unit_attacked",
-			"attacker_id": attacker_id,
-			"target_id": target_id,
+			"attacker_id": striker.id,
+			"target_id": victim.id,
 			"damage": damage,
-			"target_hp": target.hp,
+			"target_hp": victim.hp,
+			"counter": is_counter,
 		},
 	]
-	if not target.is_alive():
-		events.append({"type": &"unit_died", "unit_id": target_id})
-		if _players_with_units(state) == [attacker.owner_id]:
-			state.winner = attacker.owner_id
+	if not victim.is_alive():
+		events.append({"type": &"unit_died", "unit_id": victim.id})
+		if _players_with_units(state) == [striker.owner_id]:
+			state.winner = striker.owner_id
 			events.append({"type": &"game_over", "winner": state.winner})
 	return events
 

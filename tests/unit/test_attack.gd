@@ -45,9 +45,10 @@ func test_damage_is_at_least_one() -> void:
 
 func test_unit_attacked_event_fields() -> void:
 	sim.execute(AttackCommand.new(unit.id, enemy.id))
-	assert_eq(events.size(), 1)
+	assert_eq(events.size(), 2)  # the hit and the target's counter
 	var e := events[0]
 	assert_eq(e["type"], &"unit_attacked")
+	assert_false(e["counter"])
 	assert_eq(e["attacker_id"], unit.id)
 	assert_eq(e["target_id"], enemy.id)
 	assert_eq(e["damage"], 2)

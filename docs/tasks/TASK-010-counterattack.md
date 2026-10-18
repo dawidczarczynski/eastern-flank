@@ -1,6 +1,6 @@
 # TASK-010: Counterattack
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core / presentation
 - **Depends on**: TASK-001. Soft: TASK-002 (if done, counter damage uses `AttackCommand.compute_damage`, i.e. includes the terrain bonus of the original attacker's tile; if not, create `compute_damage` here with the TASK-001 formula). TASK-008 makes the counter readable (hit, then counter-hit) but is not required.
 - **Model**: sonnet
@@ -50,4 +50,10 @@ Tests in `tests/unit/test_counterattack.gd`, plains map, A = attacker (owner 0),
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `AttackCommand.apply` marks the attacker as having acted, then runs a private `_strike(state, striker, victim, is_counter)` twice: once for the hit and, if the target survives within its own `attack_range`, once for the counter. `_strike` holds the damage, `unit_attacked`, `unit_died` and win-check logic, so a counter that kills the last enemy unit ends the game for the defender's owner.
+- Every `unit_attacked` event now has `counter: bool` (ARCHITECTURE.md events table updated). The counter uses `compute_damage`, so the original attacker's tile terrain bonus counts.
+- The counter never touches the defender's `has_attacked`/`moves_left` and never triggers another counter (no recursion).
+- No presentation change was needed: `battle_controller._play_event` plays `unit_attacked` on `target_id` with `target_hp`, so a counter plays the hit/HP update on the original attacker, and `unit_died` plays its death. `EventQueue` gives the counter its own `ATTACK_DURATION`, so it plays after the first hit.
+- `AiPlayer` needed no change (it already skips dead units and stops on `game_over`). This is covered by a test.
+- Tests: `tests/unit/test_counterattack.gd` (10 tests). In `test_attack.gd` only `test_unit_attacked_event_fields` changed.
+- Known limitation: the view ignores `counter`/`attacker_id`. A future attacker-lunge animation must treat the counter's `attacker_id` as the striker.
