@@ -6,8 +6,8 @@ Rows after TASK-001 are in priority order (top = next to implement).
 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
-| TASK-000 | Skeleton: hex map, movement, turns, simple AI, camera | to playtest | – |
-| [TASK-001](TASK-001-combat.md) | Basic melee combat | to playtest | – |
+| TASK-000 | Skeleton: hex map, movement, turns, simple AI, camera | done | – |
+| [TASK-001](TASK-001-combat.md) | Basic melee combat | done | – |
 | [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | done | – |
 | [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | done | TASK-001 |
 | [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | done | TASK-001 |
@@ -32,12 +32,12 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-011](TASK-011-rocket-artillery.md) | Ranged unit (rocket artillery) + starting setup in core (`Scenario`) | done | **TASK-010** |
 | [TASK-005](TASK-005-replay.md) | Save/replay a match as seed + command list | done | `Scenario` from TASK-011 (or extract it here) |
 | [TASK-012](TASK-012-ai-simulation.md) | Headless AI-vs-AI simulation (`tools/simulate.sh`) | done | `Scenario` from TASK-011/TASK-005 |
-| [TASK-026](TASK-026-lighting-ibl.md) | Lighting v2: sky as ambient/reflection source, SSAO | ready | TASK-013 |
+| [TASK-026](TASK-026-lighting-ibl.md) | Lighting v2: sky as ambient/reflection source, SSAO | done | TASK-013 |
 | [TASK-027](TASK-027-terrain-detail.md) | Terrain detail: tileable detail texture + normal map, denser mesh, macro colour, water normals | ready | TASK-016b (soft: TASK-026) |
 | [TASK-028](TASK-028-foliage.md) | Foliage v2: lobed crowns with baked AO, bush layer, better rocks | ready | TASK-018 (soft: TASK-026, TASK-027) |
 | [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | ready | TASK-019 (soft: TASK-026) |
 | [TASK-030](TASK-030-mesh-kit.md) | `MeshKit`: bevelled profile extrusion, lathe, taper, rods, bake per material | ready | – (soft: TASK-029) |
-| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | to playtest | – |
+| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | done | – |
 | [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | ready | – (soft: TASK-005, TASK-020) |
 | [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | ready | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | ready | **TASK-038**, TASK-037 |

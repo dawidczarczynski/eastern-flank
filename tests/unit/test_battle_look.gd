@@ -44,10 +44,24 @@ func test_tonemap() -> void:
 	assert_true(is_equal_approx(_env.tonemap_exposure, 1.05))
 
 
-func test_ambient() -> void:
-	assert_eq(_env.ambient_light_source, Environment.AMBIENT_SOURCE_COLOR)
-	_assert_color(_env.ambient_light_color, Color.html("#b9bfc0"))
-	assert_true(_env.ambient_light_energy >= 0.25 and _env.ambient_light_energy <= 0.6)
+func test_ambient_and_reflections_from_sky() -> void:
+	assert_eq(_env.ambient_light_source, Environment.AMBIENT_SOURCE_SKY)
+	assert_true(_env.ambient_light_energy >= 0.3 and _env.ambient_light_energy <= 0.8)
+	assert_eq(_env.reflected_light_source, Environment.REFLECTION_SOURCE_SKY)
+
+
+func test_ssao() -> void:
+	assert_true(_env.ssao_enabled)
+
+
+func test_sky_material_colors() -> void:
+	assert_true(_env.sky is Sky, "environment needs a Sky")
+	var mat := _env.sky.sky_material as ProceduralSkyMaterial
+	assert_true(mat != null, "sky material must be a ProceduralSkyMaterial")
+	_assert_color(mat.sky_top_color, Color.html("#7f9bb5"))
+	_assert_color(mat.sky_horizon_color, Color.html("#d5d8cc"))
+	_assert_color(mat.ground_bottom_color, Color.html("#4f4a3a"))
+	_assert_color(mat.ground_horizon_color, Color.html("#d5d8cc"))
 
 
 func test_sun() -> void:
@@ -80,3 +94,9 @@ func test_shadow_project_settings() -> void:
 	)
 	assert_eq(size, 4096)
 	assert_eq(quality, 3)
+
+
+func test_windows_uses_d3d12() -> void:
+	# SSAO renders as grey blocks on Vulkan with an AMD RX 580 (Godot 4.5.1); D3D12 is correct.
+	var driver: String = ProjectSettings.get_setting("rendering/rendering_device/driver.windows")
+	assert_eq(driver, "d3d12")

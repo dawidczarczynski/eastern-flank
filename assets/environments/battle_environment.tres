@@ -1,12 +1,30 @@
-[gd_resource type="Environment" format=3]
+[gd_resource type="Environment" load_steps=3 format=3]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.4980392, 0.60784316, 0.70980394, 1)
+sky_horizon_color = Color(0.8352941, 0.84705883, 0.8, 1)
+sky_curve = 0.15
+ground_bottom_color = Color(0.30980393, 0.2901961, 0.22745098, 1)
+ground_horizon_color = Color(0.8352941, 0.84705883, 0.8, 1)
+ground_curve = 0.02
+sun_angle_max = 5.0
+
+[sub_resource type="Sky" id="Sky_battle"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
 
 [resource]
 background_mode = 1
 background_color = Color(0.6627451, 0.7058824, 0.69803923, 1)
 background_energy_multiplier = 0.55
-ambient_light_source = 2
-ambient_light_color = Color(0.7254902, 0.7490196, 0.7529412, 1)
-ambient_light_energy = 0.32
+sky = SubResource("Sky_battle")
+ambient_light_source = 3
+ambient_light_sky_contribution = 1.0
+ambient_light_energy = 0.5
+reflected_light_source = 2
+ssao_enabled = true
+ssao_radius = 1.0
+ssao_intensity = 1.5
+ssao_detail = 0.5
 tonemap_mode = 3
 tonemap_exposure = 1.05
 fog_enabled = true

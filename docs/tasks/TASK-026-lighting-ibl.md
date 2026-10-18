@@ -1,6 +1,6 @@
 # TASK-026: Lighting v2 – sky as ambient/reflection source, SSAO
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (environment resource + scene; values checked in `tests/unit/test_battle_look.gd`)
 - **Depends on**: TASK-013 (current environment). Reference: `docs/design/v2/README.md` ("Lighting"), `docs/design/v2/game_screen.scene.js` lines 352–360 and 444–454.
 - **Model**: sonnet
@@ -40,4 +40,9 @@ Surfaces get light and reflections from a sky instead of one flat ambient colour
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `battle_environment.tres`: `Sky` + `ProceduralSkyMaterial` (top #7f9bb5, horizon #d5d8cc, ground bottom #4f4a3a, ground horizon #d5d8cc; `sky_curve` 0.15, `ground_curve` 0.02, `sun_angle_max` 5.0). `ambient_light_source = SKY`, sky contribution 1.0, **`ambient_light_energy` 0.5**; `reflected_light_source = SKY`; **SSAO** on, radius 1.0, intensity 1.5, detail 0.5. Background (`BG_COLOR` #a9b4b2) and fog unchanged. The unused `ambient_light_color` was removed.
+- Sun `light_energy` unchanged (0.86). `project.godot` now sets `directional_shadow/size=4096` explicitly. This was already the engine default, so it changes nothing.
+- `test_battle_look.gd`: `test_ambient` replaced by `test_ambient_and_reflections_from_sky`, `test_ssao` and `test_sky_material_colors`. Only `ssao_enabled` is asserted, because the SSAO parameters are meant to be tuned.
+- Screenshot check (`tools/screenshot.sh`): mean luma (Rec.709) went from 0.148 to 0.136 (−8.4 %, inside the ~10 % budget, so nothing was tuned). The framing, the haze/background colour, the units and the HUD are unchanged, and shaded slopes are slightly deeper and cooler.
+- **SSAO on Vulkan is broken on the human's GPU** (RX 580, Godot 4.5.1). The playtest showed grey terrain and blocky foliage. The agent reproduced it with GPU screenshots taken with the Windows Godot build. The cause is SSAO itself: with SSAO off, or on D3D12, the image is correct, and the quality and half-size settings change nothing. Fix: `rendering/rendering_device/driver.windows="d3d12"` (ADR 0006, asserted in `test_windows_uses_d3d12`). The D3D12 GPU screenshot shows the colours restored and soft contact shadows under tree clusters.
+- GPU screenshot without SSAO vs. the pre-task baseline: the same overall brightness, slightly cooler shading. `tools/screenshot.sh` (WSLg) can't show SSAO; see ADR 0006 for the Windows-build screenshot command.
