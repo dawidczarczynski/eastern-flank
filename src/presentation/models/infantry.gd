@@ -1,6 +1,8 @@
 ## Infantry squad: five soldiers (Soldier0..4, each with a Rig; kneelers have Kneel + Stand).
 ## Port of makeInf / soldier in docs/design/game_screen.scene.js.
 
+## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
+const LABEL_HEIGHT := 0.5
 const SOLDIER_SCALE := 1.5
 ## Squad layout: [x, z, kneeling].
 const SQUAD: Array = [

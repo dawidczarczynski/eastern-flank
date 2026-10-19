@@ -1,11 +1,154 @@
 {
   "id": "t72b3",
   "real_name": "T-72B3",
+  "variant_note": "T-72B3 obr. 2011 (T-72B rebuilt with Sosna-U gunner's sight and Kontakt-5 ERA). Not the T-72B3 obr. 2016 / 'T-72B3M', which adds Relikt ERA side skirts with slat screens, a V-92S2F engine and a commander's panoramic sight.",
   "class": "tank",
   "mobility": "tracked",
   "operators": [
     "russia"
   ],
-  "status": "draft",
-  "updated": "2026-10-18"
+  "in_service": "2011-present",
+  "country_of_origin": "Russia",
+  "crew": 3,
+  "weight_t": 46.5,
+  "armament": {
+    "main": "125 mm 2A46M-5 smoothbore gun with autoloader (22 rounds in the carousel)",
+    "secondary": "7.62 mm PKTM coaxial machine gun, 12.7 mm NSVT anti-aircraft machine gun"
+  },
+  "protection": "Combined multilayer armour with Kontakt-5 explosive reactive armour on the turret and hull front; 80 mm hull sides behind rubber-fabric side screens",
+  "speed_road_kmh": 65,
+  "range_km": 500,
+  "dimensions": {
+    "hull_length": 6.86,
+    "overall_length": 9.53,
+    "width": 3.59,
+    "height": 2.226,
+    "sources": [
+      "https://ru.wikipedia.org/wiki/Т-72Б3"
+    ]
+  },
+  "silhouette_features": [
+    "Low rounded cast turret covered with sharp wedge-shaped Kontakt-5 ERA blocks on both sides of the long 125 mm gun",
+    "Boxy Sosna-U gunner's sight housing that clearly sticks out of the turret roof",
+    "Wind sensor mast on the turret roof",
+    "Low hull with rubber side skirts over the upper run of the tracks"
+  ],
+  "details": [
+    "Six large rubber-tyred road wheels and three return rollers per side, rear drive sprocket, front idler"
+  ],
+  "images": [
+    {
+      "file": "drawing_1.jpg",
+      "view": "drawing"
+    }
+  ],
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/05/T-72B3_mod._2011_in_Mulino.jpg",
+      "view": "three_quarter",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3_mod._2011_in_Mulino.jpg",
+      "note": "Explicitly obr. 2011, Mulino training ground (mil.ru); view angle NOT checked - set it in the tool"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d9/T-72B3.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3.jpg",
+      "note": "Lead image of the Wikipedia T-72 articles; view angle NOT checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/23/T-72B3_-_Parad2014NN-08.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3_-_Parad2014NN-08.jpg",
+      "note": "Victory parade, Nizhny Novgorod 2014 (series -08 to -11, -39, -40 may contain a side view); view angle NOT checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1b/T-72B3_-_Parad2014NN-09.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3_-_Parad2014NN-09.jpg",
+      "note": "Same parade series; view angle NOT checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d1/T-72B3_-_TankBiathlon2013-09.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3_-_TankBiathlon2013-09.jpg",
+      "note": "Tank biathlon 2013, Alabino; view angle NOT checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/4c/T-72B3_-_Tankbiathlon15finalp1-02.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-72B3_-_Tankbiathlon15finalp1-02.jpg",
+      "note": "Russian team, tank biathlon 2015 (biathlon tanks may carry non-standard paint); view angle NOT checked"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/T-72",
+      "verified": true
+    },
+    "in_service": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/T-72",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "weight_t": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "armament.secondary": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "protection": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "speed_road_kmh": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "range_km": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "dimensions.hull_length": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "dimensions.overall_length": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "dimensions.height": {
+      "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
+      "verified": true
+    },
+    "silhouette_features": {
+      "source": "https://www.bellingcat.com/resources/2015/05/28/tankspotting-how-to-identify-the-t-72b3/",
+      "verified": true
+    },
+    "details": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/t72tank.htm",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-10-19",
+  "revision": 18
 }

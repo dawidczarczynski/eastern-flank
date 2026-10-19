@@ -1,5 +1,7 @@
 ## Tank (the `cavalry` unit): tracked hull with six road wheels per side and a turret.
 
+## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
+const LABEL_HEIGHT := 0.62
 const WHEELS_PER_SIDE := 6
 
 

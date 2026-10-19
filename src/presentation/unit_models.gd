@@ -13,8 +13,9 @@ const INFANTRY := &"infantry"
 const CAVALRY := &"cavalry"
 const ROCKET_ARTILLERY := &"rocket_artillery"
 const M1A2_SEPV3 := &"m1a2_sepv3"
+const T72B3 := &"t72b3"
 ## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
-const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3]
+const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3]
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
 const MAX_WHEELS := 20
@@ -22,6 +23,8 @@ const MAX_WHEELS := 20
 const LAUNCHER_ELEVATION := 0.7
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
 const MAX_ACTUATORS := 4
+## Label anchor height above the unit's feet for a model file without a LABEL_HEIGHT constant.
+const DEFAULT_LABEL_HEIGHT := 0.5
 ## Temporary stand-ins until TASK-039a adds the real unit definitions (then delete this and
 ## model_id): "<unit id>:<faction id>" -> model file id.
 const MODEL_STAND_INS := {&"rocket_artillery:poland": &"homar_k"}
@@ -56,6 +59,16 @@ static func build(definition_id: StringName, owner_id: int, faction: FactionDefi
 ## Whether a model file exists for the unit id.
 static func has_model(definition_id: StringName) -> bool:
 	return ResourceLoader.exists(MODEL_PATH % definition_id)
+
+
+## Label anchor height above the unit's feet (world units): the model file's `LABEL_HEIGHT`,
+## or DEFAULT_LABEL_HEIGHT when there is no model file or the constant is missing.
+static func label_height(model_id: StringName) -> float:
+	if has_model(model_id):
+		var script := load(MODEL_PATH % model_id) as GDScript
+		if script != null:
+			return script.get_script_constant_map().get(&"LABEL_HEIGHT", DEFAULT_LABEL_HEIGHT)
+	return DEFAULT_LABEL_HEIGHT
 
 
 ## The unit's own model (cached per unit and faction), or the magenta placeholder when there is

@@ -12,12 +12,13 @@ const KINDS := {
 	&"rocket_artillery": &"rocket_artillery",
 	&"homar_k": &"rocket_artillery",
 	&"m1a2_sepv3": &"tank",
+	&"t72b3": &"tank",
 }
 ## Known violations of the current models (measured numbers, reported in TASK-036). The
 ## thresholds below stay as specified; a waiver is dropped from here when the model is fixed
 ## (the test fails if a waived check no longer fails).
 const WAIVERS := {
-	&"cavalry": ["ground", "centre_x", "length", "body_meshes"],
+	&"cavalry": ["ground", "centre_x", "length", "body_meshes", "label"],
 	&"rocket_artillery": ["length", "body_meshes"],
 }
 const MAX_LENGTH := 1.15
@@ -133,6 +134,8 @@ func test_every_model_meets_the_contract_for_every_faction() -> void:
 				violated.append("triangles")
 			if body_meshes > MAX_BODY_MESH_INSTANCES:
 				violated.append("body_meshes")
+			if UnitModels.label_height(id) < box.end.y:
+				violated.append("label")
 			_check_waivers(id, label, violated)
 			_check_pivots(label, kind, model)
 			root.free()
@@ -229,6 +232,19 @@ func test_model_cache_builds_once_per_key() -> void:
 	second.free()
 
 
+## The label anchor height belongs to the model file, so a model job sets it within its scope.
+func test_every_model_declares_its_label_height() -> void:
+	for id in _model_ids():
+		var script := load(UnitModels.MODEL_PATH % id) as GDScript
+		var height: Variant = script.get_script_constant_map().get(&"LABEL_HEIGHT")
+		assert_true(height is float and height > 0.0, "%s declares LABEL_HEIGHT > 0" % id)
+		assert_eq(UnitModels.label_height(id), height, "%s label height" % id)
+
+
+func test_missing_model_file_uses_the_default_label_height() -> void:
+	assert_eq(UnitModels.label_height(&"no_such_unit"), UnitModels.DEFAULT_LABEL_HEIGHT)
+
+
 func test_missing_model_file_builds_magenta_placeholder() -> void:
 	assert_false(UnitModels.has_model(&"no_such_unit"))
 	var model := UnitModels.build(&"no_such_unit", 0, _faction(0))
@@ -246,19 +262,34 @@ func test_polish_tank_is_its_own_unit_and_a_vehicle() -> void:
 	assert_true(UnitModels.is_vehicle(&"m1a2_sepv3"))
 
 
+## Abrams: 7 road wheels per side + idlers + sprockets = Wheel0..17.
 func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:
-	var model := UnitModels.build(&"m1a2_sepv3", 0, FactionRegistry.get_faction(&"poland"))
+	_assert_tank_pivots(&"m1a2_sepv3", &"poland", 18)
+
+
+## T-72B3: 6 road wheels per side + idlers + sprockets = Wheel0..15, a vehicle like the Abrams.
+func test_t72b3_gun_pivots_and_all_wheels_spin() -> void:
+	assert_true(UnitModels.is_vehicle(&"t72b3"))
+	_assert_tank_pivots(&"t72b3", &"russia", 16)
+
+
+## A level Turret/Gun with a Muzzle at the barrel end, and exactly `wheel_count` Wheel* pivots
+## that all spin in UnitModels.pose_tank.
+func _assert_tank_pivots(id: StringName, faction_id: StringName, wheel_count: int) -> void:
+	var model := UnitModels.build(id, 0, FactionRegistry.get_faction(faction_id))
 	var m := model.get_node("Model")
 	var gun := m.get_node("Turret/Gun") as Node3D
-	assert_true(gun.basis.is_equal_approx(Basis.IDENTITY), "gun is level when built")
-	assert_true((gun.get_node("Muzzle") as Node3D).position.x > 0.3, "muzzle at the barrel end")
+	assert_true(gun.basis.is_equal_approx(Basis.IDENTITY), "%s: gun is level when built" % id)
+	assert_true(
+		(gun.get_node("Muzzle") as Node3D).position.x > 0.3, "%s: muzzle at the barrel end" % id
+	)
 	UnitModels.pose_tank(m, 2.0, 0.0, Vector2.ZERO)
-	for i in 18:
+	for i in wheel_count:
 		var wheel := m.get_node_or_null("Wheel%d" % i) as Node3D
-		assert_true(wheel != null, "Wheel%d exists" % i)
+		assert_true(wheel != null, "%s: Wheel%d exists" % [id, i])
 		if wheel != null:
-			assert_true(wheel.rotation.z != 0.0, "Wheel%d spins" % i)
-	assert_true(m.get_node_or_null("Wheel18") == null)
+			assert_true(wheel.rotation.z != 0.0, "%s: Wheel%d spins" % [id, i])
+	assert_true(m.get_node_or_null("Wheel%d" % wheel_count) == null, "%s: no extra wheels" % id)
 	model.free()
 
 

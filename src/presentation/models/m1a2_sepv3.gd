@@ -3,6 +3,8 @@
 ## `x` from the hull front (glacis nose, 0) to the rear plate (HULL_LENGTH), `h` above the ground,
 ## `z` across (positive = vehicle's right). Turret at 12 o'clock, gun level.
 
+## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
+const LABEL_HEIGHT := 0.62
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")
 
@@ -24,36 +26,27 @@ const LOWER_HW := 1.12
 static func build(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
 	var frame := Frame.new(K, (HULL_LENGTH - GUN_OVERHANG) / 2.0)
-	var body := ModelParts.faction_material(faction, &"body")
-	var dark := ModelParts.pbr(ModelParts.DARK)
-	var steel := ModelParts.pbr(ModelParts.STEEL)
-	var glass := ModelParts.pbr(ModelParts.GLASS)
-	var acc := ModelParts.accent(faction)
-	var materials := {
-		&"body": body,
-		&"dark": dark,
-		&"steel": steel,
-		&"rubber": ModelParts.pbr(ModelParts.RUBBER),
-		&"track": ModelParts.pbr(ModelParts.TRACK),
-		&"accent": acc,
-	}
-	Gear.build(g, frame, running_gear(), materials)
-	_merged(g, "m1a2_sepv3:hull", _hull_parts(frame), body)
-	_merged(g, "m1a2_sepv3:hull_dark", _hull_dark_parts(frame), dark)
-	_merged(g, "m1a2_sepv3:hull_glass", _hull_glass_parts(frame), glass)
-	var turret := Node3D.new()
-	turret.name = "Turret"
-	turret.position = frame.p(TURRET_X, DECK_H)
-	g.add_child(turret)
-	var to_turret := turret.transform.affine_inverse()
-	_merged(turret, "m1a2_sepv3:turret", _turret_parts(frame), body, to_turret)
-	_merged(turret, "m1a2_sepv3:turret_dark", _turret_dark_parts(frame), dark, to_turret)
-	_merged(turret, "m1a2_sepv3:turret_glass", _turret_glass_parts(frame), glass, to_turret)
-	_merged(turret, "m1a2_sepv3:turret_steel", _turret_steel_parts(frame), steel, to_turret)
-	_merged(turret, "m1a2_sepv3:turret_accent", _turret_accent_parts(frame), acc, to_turret)
+	var m := Frame.tank_materials(faction)
+	Gear.build(g, frame, running_gear(), m)
+	Frame.merged(g, "m1a2_sepv3:hull", _hull_parts(frame), m[&"body"])
+	Frame.merged(g, "m1a2_sepv3:hull_dark", _hull_dark_parts(frame), m[&"dark"])
+	Frame.merged(g, "m1a2_sepv3:hull_glass", _hull_glass_parts(frame), m[&"glass"])
+	var turret := frame.add_turret(g, TURRET_X, DECK_H)
+	var to_turret := Frame.to_local(turret)
+	Frame.merged(turret, "m1a2_sepv3:turret", _turret_parts(frame), m[&"body"], to_turret)
+	Frame.merged(turret, "m1a2_sepv3:turret_dark", _turret_dark_parts(frame), m[&"dark"], to_turret)
+	Frame.merged(
+		turret, "m1a2_sepv3:turret_glass", _turret_glass_parts(frame), m[&"glass"], to_turret
+	)
+	Frame.merged(
+		turret, "m1a2_sepv3:turret_steel", _turret_steel_parts(frame), m[&"steel"], to_turret
+	)
+	Frame.merged(
+		turret, "m1a2_sepv3:turret_accent", _turret_accent_parts(frame), m[&"accent"], to_turret
+	)
 	var cloth := ModelParts.vest(faction)
-	_merged(turret, "m1a2_sepv3:bags", _bag_parts(frame), cloth, to_turret)
-	_build_gun(turret, frame, body, dark)
+	Frame.merged(turret, "m1a2_sepv3:bags", _bag_parts(frame), cloth, to_turret)
+	_build_gun(frame.add_gun(turret, TRUNNION, -GUN_OVERHANG - 0.05), frame, m)
 	return g
 
 
@@ -94,38 +87,6 @@ static func running_gear() -> Gear.Spec:
 	return spec
 
 
-static func _merged(
-	parent: Node3D, key: String, parts: Array, material: Material, base := Transform3D.IDENTITY
-) -> MeshInstance3D:
-	return ModelParts.add(parent, ModelParts.merged_mesh(key, parts, base), material, Vector3.ZERO)
-
-
-## Prism of a side profile (x, h pairs) across the hull, `hw` half width.
-static func _profile(parts: Array, frame: Frame, key: String, points: Array, hw: float) -> void:
-	var outline: Array[Vector2] = []
-	for point: Vector2 in points:
-		outline.append(frame.xy(point.x, point.y))
-	parts.append([ModelParts.prism_mesh(key, outline, hw * 2.0 * K), Transform3D.IDENTITY])
-
-
-## Model-space XZ point for turret plan outlines.
-static func _xz(frame: Frame, x: float, z: float) -> Vector2:
-	var p := frame.p(x, 0.0, z)
-	return Vector2(p.x, p.z)
-
-
-static func _loft(
-	parts: Array, frame: Frame, key: String, bottom: Array, top: Array, h0: float, h1: float
-) -> void:
-	var lo: Array[Vector2] = []
-	var hi: Array[Vector2] = []
-	for point: Vector2 in bottom:
-		lo.append(_xz(frame, point.x, point.y))
-	for point: Vector2 in top:
-		hi.append(_xz(frame, point.x, point.y))
-	parts.append([ModelParts.loft_mesh(key, lo, hi, h0 * K, h1 * K), Transform3D.IDENTITY])
-
-
 ## Camo hull: upper hull with the long shallow glacis and flat engine deck over the full width,
 ## lower hull with the lower front plate between the tracks, rear stowage boxes.
 static func _hull_parts(frame: Frame) -> Array:
@@ -138,7 +99,7 @@ static func _hull_parts(frame: Frame) -> Array:
 		Vector2(HULL_LENGTH, 1.55),
 		Vector2(HULL_LENGTH, 1.14),
 	]
-	_profile(p, frame, "m1a2_sepv3:upper_hull", upper, UPPER_HW)
+	frame.profile(p, "m1a2_sepv3:upper_hull", upper, UPPER_HW)
 	var lower := [
 		Vector2(0.04, 1.2),
 		Vector2(0.95, 0.52),
@@ -146,7 +107,7 @@ static func _hull_parts(frame: Frame) -> Array:
 		Vector2(7.88, 0.78),
 		Vector2(7.88, 1.2),
 	]
-	_profile(p, frame, "m1a2_sepv3:lower_hull", lower, LOWER_HW)
+	frame.profile(p, "m1a2_sepv3:lower_hull", lower, LOWER_HW)
 	frame.pair(p, 7.25, 7.9, 1.62, 1.82, 0.32, 1.32)  # rear fender stowage boxes
 	return p
 
@@ -199,14 +160,14 @@ static func _turret_parts(frame: Frame) -> Array:
 		Vector2(3.1, 1.56),
 		Vector2(2.5, 0.7),
 	]
-	_loft(p, frame, "m1a2_sepv3:turret_front", front_bottom, front_top, DECK_H, ROOF_H)
+	frame.loft(p, "m1a2_sepv3:turret_front", front_bottom, front_top, DECK_H, ROOF_H)
 	var bustle_bottom := [
 		Vector2(4.95, -1.66), Vector2(6.35, -1.52), Vector2(6.35, 1.52), Vector2(4.95, 1.66)
 	]
 	var bustle_top := [
 		Vector2(4.95, -1.56), Vector2(6.35, -1.44), Vector2(6.35, 1.44), Vector2(4.95, 1.56)
 	]
-	_loft(p, frame, "m1a2_sepv3:bustle", bustle_bottom, bustle_top, 1.8, ROOF_H)
+	frame.loft(p, "m1a2_sepv3:bustle", bustle_bottom, bustle_top, 1.8, ROOF_H)
 	frame.slab(p, 2.6, 3.3, ROOF_H - 0.05, 2.58, 0.22, 0.95)  # gunner's primary sight doghouse
 	frame.drum(p, 3.3, 2.45, -0.85, 0.12, 0.2, &"y", 10)  # CITV pedestal (left front)
 	frame.slab(p, 3.12, 3.45, 2.5, 2.64, 0.18, -0.85)  # CITV head
@@ -274,15 +235,10 @@ static func _bag_parts(frame: Frame) -> Array:
 	return p
 
 
-## "Gun" pivot at the trunnions (hinge = its local Z, level as built): mantlet and the long M256
-## barrel (thermal sleeve bands, no fume extractor, muzzle reference sensor); "Muzzle" just in
-## front of the bore.
-static func _build_gun(turret: Node3D, frame: Frame, body: Material, dark: Material) -> void:
-	var gun := Node3D.new()
-	gun.name = "Gun"
-	gun.position = turret.transform.affine_inverse() * frame.p(TRUNNION.x, TRUNNION.y)
-	turret.add_child(gun)
-	var to_gun := (turret.transform * gun.transform).affine_inverse()
+## On the "Gun" pivot (Frame.add_gun): mantlet and the long M256 barrel (thermal sleeve bands, no
+## fume extractor, muzzle reference sensor).
+static func _build_gun(gun: Node3D, frame: Frame, m: Dictionary) -> void:
+	var to_gun := Frame.to_local(gun)
 	var trunnion := frame.p(TRUNNION.x, TRUNNION.y)
 	var length := TRUNNION.x + GUN_OVERHANG  # trunnion to muzzle
 	var profile: Array[Vector2] = []
@@ -309,13 +265,9 @@ static func _build_gun(turret: Node3D, frame: Frame, body: Material, dark: Mater
 	var along_x := Transform3D(Basis(Vector3.BACK, -PI / 2.0), trunnion)
 	var shell: Array = [[barrel, along_x]]
 	frame.slab(shell, 1.8, 2.55, 1.8, 2.17, 0.32)  # mantlet / gun shield
-	_merged(gun, "m1a2_sepv3:gun", shell, body, to_gun)
+	Frame.merged(gun, "m1a2_sepv3:gun", shell, m[&"body"], to_gun)
 	var trim: Array = []
 	frame.drum(trim, -GUN_OVERHANG - 0.005, TRUNNION.y, 0.0, 0.07, 0.02, &"x", 12)  # bore
 	frame.slab(trim, -GUN_OVERHANG + 0.12, -GUN_OVERHANG + 0.3, 2.07, 2.13, 0.04)  # MRS
 	frame.drum(trim, 1.78, 1.9, 0.24, 0.04, 0.08, &"x", 8)  # coaxial M240 port
-	_merged(gun, "m1a2_sepv3:gun_dark", trim, dark, to_gun)
-	var muzzle := Node3D.new()
-	muzzle.name = "Muzzle"
-	muzzle.position = to_gun * frame.p(-GUN_OVERHANG - 0.05, TRUNNION.y)
-	gun.add_child(muzzle)
+	Frame.merged(gun, "m1a2_sepv3:gun_dark", trim, m[&"dark"], to_gun)

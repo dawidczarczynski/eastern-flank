@@ -4,6 +4,9 @@
 ## side photo: `x` from the front bumper (0) to the rear (LENGTH_M), `h` above the ground, `z`
 ## across (positive = vehicle's right). The pod is stowed (level, tube ends facing the rear).
 
+## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
+const LABEL_HEIGHT := 0.62
+
 ## Model units per metre: uniform, shrinks 11 m to 0.858 (x MODEL_SCALE 1.3 = 1.115 <= 1.15).
 const K := 0.078
 const LENGTH_M := 11.0

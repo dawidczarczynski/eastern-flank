@@ -1,5 +1,7 @@
 ## Self-propelled rocket artillery truck with a tilted pod of six launch tubes.
 
+## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
+const LABEL_HEIGHT := 0.62
 ## Rocket artillery layout: truck axle x positions, pod elevation (rad) and pod length.
 const TRUCK_AXLES: Array[float] = [-0.3, -0.12, 0.27]
 const POD_ELEVATION := 0.5

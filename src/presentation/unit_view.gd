@@ -11,11 +11,6 @@ const HIT_FLASH_ALPHA := 0.8
 const DIE_DARKEN_DURATION := 0.25
 const DIE_DARKEN_ALPHA := 0.6
 const DIE_DURATION := EventQueue.DEATH_DURATION - DIE_DARKEN_DURATION
-## Label anchor height above the unit's feet per definition id.
-const LABEL_HEIGHTS := {
-	&"infantry": 0.5, &"cavalry": 0.62, &"m1a2_sepv3": 0.62, &"rocket_artillery": 0.62
-}
-const DEFAULT_LABEL_HEIGHT := 0.5
 ## Marker design values (scene.js placeMarker / markerFill).
 const RING_INNER := 0.6
 const RING_OUTER := 0.72
@@ -47,7 +42,7 @@ var _fill_material := _marker_material()
 var _ground_height: Callable
 var _marker_origin := Vector3.INF  # where the marker geometry was last built
 var _marker_selected := false  # selected state the ring geometry was built for
-var _label_height := DEFAULT_LABEL_HEIGHT
+var _label_height := UnitModels.DEFAULT_LABEL_HEIGHT
 var _owner_color := Color.WHITE
 var _selected := false
 var _hovered := false
@@ -102,7 +97,7 @@ func setup(
 	_ring.material_override = _ring_material
 	_fill.material_override = _fill_material
 
-	_label_height = LABEL_HEIGHTS.get(unit.definition.id, DEFAULT_LABEL_HEIGHT)
+	_label_height = UnitModels.label_height(model_id)
 	_label = UnitLabel.new()
 	hud_root.add_child(_label)
 	hud_root.move_child(_label, 0)  # below the other HUD panels

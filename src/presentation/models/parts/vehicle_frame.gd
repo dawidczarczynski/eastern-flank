@@ -64,3 +64,86 @@ static func axis_basis(axis: Variant) -> Basis:
 ## Model-space profile point (x from the front, h) for prisms built in the XY plane.
 func xy(x: float, h: float) -> Vector2:
 	return Vector2((origin_x - x) * k, h * k)
+
+
+## Model-space plan point (x from the front, z across) for lofts built in the XZ plane.
+func xz(x: float, z: float) -> Vector2:
+	return Vector2((origin_x - x) * k, z * k)
+
+
+## Prism of a side profile (`points`: Vector2(x, h) pairs) across the vehicle, `hw` half width,
+## centred at `z0`.
+func profile(parts: Array, key: String, points: Array, hw: float, z0 := 0.0) -> void:
+	var outline: Array[Vector2] = []
+	for point: Vector2 in points:
+		outline.append(xy(point.x, point.y))
+	var t := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, z0 * k))
+	parts.append([ModelParts.prism_mesh(key, outline, hw * 2.0 * k), t])
+
+
+## Loft between two convex plan outlines (Vector2(x, z) pairs, same count): `bottom` at height
+## h0, `top` at h1 (wedges, tapered turrets, ERA blocks).
+func loft(parts: Array, key: String, bottom: Array, top: Array, h0: float, h1: float) -> void:
+	var lo: Array[Vector2] = []
+	var hi: Array[Vector2] = []
+	for point: Vector2 in bottom:
+		lo.append(xz(point.x, point.y))
+	for point: Vector2 in top:
+		hi.append(xz(point.x, point.y))
+	parts.append([ModelParts.loft_mesh(key, lo, hi, h0 * k, h1 * k), Transform3D.IDENTITY])
+
+
+## Materials of a tracked vehicle: faction camo &"body" and accent &"accent", PBR &"dark",
+## &"steel", &"glass", &"rubber", &"track" (the keys TrackedRunningGear.build needs, plus glass).
+static func tank_materials(faction: FactionDefinition) -> Dictionary:
+	return {
+		&"body": ModelParts.faction_material(faction, &"body"),
+		&"dark": ModelParts.pbr(ModelParts.DARK),
+		&"steel": ModelParts.pbr(ModelParts.STEEL),
+		&"glass": ModelParts.pbr(ModelParts.GLASS),
+		&"rubber": ModelParts.pbr(ModelParts.RUBBER),
+		&"track": ModelParts.pbr(ModelParts.TRACK),
+		&"accent": ModelParts.accent(faction),
+	}
+
+
+## "Turret" pivot on the model root at the turret ring (x, h); turns about its local Y.
+func add_turret(model: Node3D, x: float, h: float) -> Node3D:
+	var turret := Node3D.new()
+	turret.name = "Turret"
+	turret.position = p(x, h)
+	model.add_child(turret)
+	return turret
+
+
+## "Gun" pivot under `turret` at the trunnions (x, h; hinge = its local Z, level as built) with a
+## "Muzzle" marker at `muzzle_x` on the bore axis.
+func add_gun(turret: Node3D, trunnion: Vector2, muzzle_x: float) -> Node3D:
+	var gun := Node3D.new()
+	gun.name = "Gun"
+	gun.position = turret.transform.affine_inverse() * p(trunnion.x, trunnion.y)
+	turret.add_child(gun)
+	var muzzle := Node3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = to_local(gun) * p(muzzle_x, trunnion.y)
+	gun.add_child(muzzle)
+	return gun
+
+
+## Model space -> the space of `pivot` (a node below the model root): the `base` for merged parts
+## measured in model space.
+static func to_local(pivot: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var node := pivot
+	while node.get_parent() is Node3D:
+		t = node.transform * t
+		node = node.get_parent()
+	return t.affine_inverse()
+
+
+## One mesh instance of the merged `parts` (cached by `key`) under `parent`; `base` maps the
+## model-space parts into the parent's space (e.g. the inverse of a turret pivot's transform).
+static func merged(
+	parent: Node3D, key: String, parts: Array, material: Material, base := Transform3D.IDENTITY
+) -> MeshInstance3D:
+	return ModelParts.add(parent, ModelParts.merged_mesh(key, parts, base), material, Vector3.ZERO)
