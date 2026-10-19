@@ -480,6 +480,7 @@ async function unitScreen(id) {
   const checkBox = h("ul", { class: "check" });
   const statusSel = h("select");
   const reviewBox = h("div");
+  const aiBox = h("div");
   const imagesBox = h("div");
   const featBox = h("div");
   // All server writes of this screen go through one promise chain, so an older request never lands after a newer one.
@@ -497,7 +498,9 @@ async function unitScreen(id) {
       const res = await api("PUT", "/api/units/" + encodeURIComponent(id), u);
       u.revision = res.unit.revision;
       review = res.review;
+      const statusChanged = serverStatus !== u.status;
       serverStatus = u.status; errBox.textContent = "";
+      if (statusChanged) renderAi();
       state.className = "savestate saved"; state.textContent = "saved";
     } catch (e) {
       if (e.status === 409) { onConflict(); return; }
@@ -522,12 +525,14 @@ async function unitScreen(id) {
   cleanup = async () => { if (jobTimer) clearInterval(jobTimer); window.__pendingSave = null; save.flush(); window.removeEventListener("paste", onPaste); await chain; };
   const changed = () => { state.className = "savestate saving"; state.textContent = "editing..."; renderChecklist(); save(); };
 
+  let lastReady = null;
   function renderChecklist() {
     const items = readiness(u);
     checkBox.textContent = "";
     for (const [t, ok] of items) checkBox.append(h("li", { class: ok ? "ok" : "", text: t }));
     const ready = items.every((x) => x[1]);
     for (const opt of statusSel.options) if (opt.value === "ready_for_model") opt.disabled = !ready && u.status !== "ready_for_model";
+    if (ready !== lastReady) { lastReady = ready; renderAi(); }
     return ready;
   }
   function renderStatus() {
@@ -817,8 +822,10 @@ async function unitScreen(id) {
       field("Feedback for the modeler (on the latest render)", areaIn(u, "feedback", "e.g. turret too tall, barrel too thin...", 4), true))));
   const side = h("div", { class: "side" }, h("div", { class: "panel" }, h("h2", { text: "Ready for model?" }), checkBox,
     h("p", { class: "muted", style: "font-size:13px", text: "The status can only be set to ready_for_model when everything is checked. Going back is always allowed." })),
-    researchPanel());
+    aiBox);
 
+  // The AI panel depends on the saved status and the checklist, so it is rebuilt when either changes.
+  function renderAi() { aiBox.replaceChildren(researchPanel()); }
   function researchPanel() {
     const box = h("div", { class: "panel" }, h("h2", { text: "AI" }));
     const unverified = Object.keys(u.provenance).filter((p) => u.provenance[p].verified === false);
@@ -845,6 +852,14 @@ async function unitScreen(id) {
         h("button", { text: u.status === "modeled" ? "Rework model" : "Build model", onclick: () => runJob("model", facSel.value) }),
         h("span", { class: "muted", text: "render as" }), facSel),
         h("p", { class: "muted", style: "font-size:13px", text: u.status === "modeled" ? "Uses your Feedback below as the main input. Takes several minutes; changes are not committed." : "Runs /model-unit. Takes several minutes; changes are not committed." }));
+    } else if (ai.available && !activeJob && u.status === "draft") {
+      if (lastReady) {
+        box.append(h("div", { class: "row", style: "margin-top:10px" },
+          h("button", { text: "Mark ready for model", onclick: () => { u.status = "ready_for_model"; renderStatus(); doSave(); } })),
+          h("p", { class: "muted", style: "font-size:13px", text: "The checklist is complete. Building the model needs the status ready_for_model." }));
+      } else {
+        box.append(h("p", { class: "muted", style: "font-size:13px", text: "Build model unlocks when the Ready for model? checklist is complete and the status is ready_for_model." }));
+      }
     }
     if (unverified.length || suggested.length) {
       box.append(h("p", { style: "font-size:13px" }, h("strong", { text: unverified.length + " unverified" }), ", " + suggested.length + " suggestion(s)"));
