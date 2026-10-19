@@ -451,6 +451,8 @@ function readiness(u) {
   const dims = u.dimensions || {};
   const pos = (v) => typeof v === "number" && v > 0;
   const feats = (u.silhouette_features || []).filter((s) => s.trim());
+  const hasImage = (u.images || []).some((i) => i.view === "side" || i.view === "drawing");
+  const candidates = (u.image_candidates || []).filter((c) => c.view === "side" || c.view === "drawing").length;
   return [
     ["Real name", !!(u.real_name || "").trim()],
     ["Class", !!u.class],
@@ -459,7 +461,7 @@ function readiness(u) {
     ["Width", pos(dims.width)],
     ["Hull length", pos(dims.hull_length)],
     ["At least 3 silhouette features (" + feats.length + ")", feats.length >= 3],
-    ["A side or drawing image", (u.images || []).some((i) => i.view === "side" || i.view === "drawing")],
+    [hasImage || !candidates ? "A side or drawing image" : "A side or drawing image (Download one of the " + candidates + " candidate(s) under Images)", hasImage],
   ].concat(MODEL_CRITICAL.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]));
 }
 
