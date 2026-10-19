@@ -139,6 +139,7 @@ fieldset.lock:disabled { opacity: .6; }
 .badge.job-running { color: var(--accent); border-color: var(--accent); }
 .badge.job-done { color: var(--ok); border-color: var(--ok); }
 .badge.job-failed, .badge.job-cancelled { color: var(--bad); border-color: var(--bad); }
+.badge.job-interrupted { color: var(--warn); border-color: var(--warn); }
 .joblog { font-family: var(--mono); font-size: 12.5px; background: #0b0d09; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; height: 52vh; overflow: auto; margin: 10px 0; }
 .joblog .le { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
 .joblog .le-t { color: var(--muted); }

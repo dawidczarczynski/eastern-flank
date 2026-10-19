@@ -9,6 +9,7 @@ import argparse
 import json
 import mimetypes
 import re
+import signal
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +24,7 @@ import jobs  # noqa: E402
 HOST = "127.0.0.1"
 HERE = Path(__file__).resolve().parent
 FONTS_DIR = catalog.REPO_ROOT / "assets" / "fonts" / "ibm_plex"
+JOB_HISTORY = catalog.REPO_ROOT / ".unit_catalog" / "jobs.json"  # local, git-ignored
 STATIC = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/style.css": "style.css"}
 SERVED_EXTENSIONS = {".json", ".md", ".png", ".jpg", ".jpeg", ".webp", ".ttf"}
 MAX_BODY = 25 * 1024 * 1024
@@ -213,6 +215,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, self.jobs.get(parts[1], int(since) if since.isdigit() else 0))
         elif len(parts) == 3 and parts[0] == "jobs" and parts[2] == "cancel" and method == "POST":
             self._json(200, self.jobs.cancel(parts[1]))
+        elif len(parts) == 3 and parts[0] == "jobs" and parts[2] == "resume" and method == "POST":
+            self._json(201, self.jobs.resume(parts[1]))
         elif parts == ["factions"] and method == "POST":
             self._json(201, catalog.create_faction(r, self._body()))
         elif len(parts) == 2 and parts[0] == "factions" and method == "PUT":
@@ -223,6 +227,7 @@ class Handler(BaseHTTPRequestHandler):
     def _unit(self, unit_id: str) -> Any:
         detail = catalog.unit_detail(self.root, unit_id, self.screenshots)
         detail["job"] = self.jobs.active_for_unit(unit_id)
+        detail["last_job"] = None if detail["job"] else self.jobs.last_for_unit(unit_id)
         return detail
 
     def _fetch_reference(self, url: str) -> bytes:
@@ -295,7 +300,8 @@ def make_server(port: int, root: Optional[Path] = None, screenshots: Optional[Pa
                 job_manager: Optional[jobs.JobManager] = None) -> ThreadingHTTPServer:  # fmt: skip
     """Create (but don't start) the server. Always bound to 127.0.0.1; port 0 picks a free port."""
     data_root = Path(root) if root else catalog.DEFAULT_ROOT
-    manager = job_manager or jobs.JobManager(catalog.REPO_ROOT, data_root, jobs.find_claude())
+    manager = job_manager or jobs.JobManager(catalog.REPO_ROOT, data_root, jobs.find_claude(),
+                                             state_file=None if root else JOB_HISTORY)  # fmt: skip
     handler = type("BoundHandler", (Handler,), {
         "root": data_root,
         "screenshots": Path(screenshots) if screenshots else catalog.DEFAULT_SCREENSHOTS,
@@ -306,6 +312,10 @@ def make_server(port: int, root: Optional[Path] = None, screenshots: Optional[Pa
     httpd = ThreadingHTTPServer((HOST, port), handler)
     httpd.jobs = manager  # type: ignore[attr-defined]
     return httpd
+
+
+def _raise_interrupt(signum: int, frame: Any) -> None:
+    raise KeyboardInterrupt
 
 
 def main(argv: Optional[list] = None) -> int:
@@ -325,6 +335,9 @@ def main(argv: Optional[list] = None) -> int:
     print("Unit catalog: http://localhost:%d" % httpd.server_address[1], flush=True)
     ai = httpd.jobs.status()  # type: ignore[attr-defined]
     print("AI jobs: " + (ai["claude"] if ai["available"] else "unavailable - " + ai["hint"]), flush=True)
+    # closing the terminal or `kill` shut down like Ctrl+C, so running jobs are saved as interrupted
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, _raise_interrupt)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

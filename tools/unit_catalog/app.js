@@ -123,6 +123,11 @@ async function startJob(kind, unitId, faction) {
   return api("POST", "/api/jobs", { kind, unit_id: unitId, faction: faction || "" });
 }
 const ACTIVE_JOB = ["queued", "running"];
+async function resumeJob(jobId) {
+  const job = await api("POST", "/api/jobs/" + encodeURIComponent(jobId) + "/resume", {});
+  location.hash = "#/job/" + encodeURIComponent(job.id);
+}
+
 function jobBadge(state) { return h("span", { class: "badge job-" + state, text: state }); }
 function fmtTime(t) { return t ? new Date(t * 1000).toLocaleTimeString() : ""; }
 function fmtDuration(j) {
@@ -350,7 +355,7 @@ async function jobsScreen() {
   const render = async () => {
     const list = (await api("GET", "/api/jobs")).jobs;
     box.textContent = "";
-    if (!list.length) { box.append(h("p", { class: "muted", text: "No jobs since the tool was started. Start one from a unit screen (AI panel)." })); return; }
+    if (!list.length) { box.append(h("p", { class: "muted", text: "No jobs yet. Start one from a unit screen (AI panel)." })); return; }
     box.append(h("table", {},
       h("thead", {}, h("tr", {}, ["Job", "Kind", "Unit", "State", "Started", "Duration", "Cost"].map((t) => h("th", { text: t })))),
       h("tbody", {}, list.map((j) => h("tr", { class: "clickable", onclick: () => { location.hash = "#/job/" + encodeURIComponent(j.id); } },
@@ -360,7 +365,7 @@ async function jobsScreen() {
         h("td", { class: "num", text: j.cost_usd ? "$" + j.cost_usd.toFixed(2) : "" }))))));
   };
   app.append(h("div", { class: "panel" }, h("h1", { text: "Agent jobs" }),
-    ai.available ? h("p", { class: "muted", text: "Claude Code: " + ai.claude + " - one job runs at a time, the rest wait in the queue. Jobs are kept in memory until the tool is restarted." })
+    ai.available ? h("p", { class: "muted", text: "Claude Code: " + ai.claude + " - one job runs at a time, the rest wait in the queue. The history is saved in .unit_catalog/jobs.json; a job cut off by a restart shows as interrupted and can be continued." })
       : h("p", { class: "errors", text: ai.hint }), box));
   await render();
   const timer = setInterval(() => render().catch(() => {}), 3000);
@@ -400,7 +405,14 @@ async function jobScreen(jobId) {
         r.rejected.length ? h("div", { class: "errors", text: "Rejected:\n" + r.rejected.map((x) => x.field + ": " + x.message).join("\n") }) : null);
     }
     if (job.changed_files && job.changed_files.length) tail.append(h("h3", { text: "Changed files (git status) - not committed" }), h("pre", { class: "jobresult", text: job.changed_files.join("\n") }));
-    if (job.session_id) tail.append(h("p", { class: "muted" }, "Continue in a terminal: ", h("code", { class: "mono", text: "claude --resume " + job.session_id })));
+    if (job.resume_of) tail.append(h("p", { class: "muted" }, "Continues ", h("a", { href: "#/job/" + encodeURIComponent(job.resume_of), text: job.resume_of }), "."));
+    if (job.resumable && ai.available) {
+      const err = h("div", { class: "errors" });
+      tail.append(h("div", { class: "row", style: "margin-top:10px" },
+        h("button", { class: job.state === "done" ? "" : "primary", text: "Continue", onclick: async () => { try { await resumeJob(jobId); } catch (e) { err.textContent = errText(e); } } }),
+        h("span", { class: "muted", text: "resumes the same Claude Code session with all its context - nothing done so far is lost" })), err);
+    }
+    if (job.session_id) tail.append(h("p", { class: "muted" }, "Or continue in a terminal: ", h("code", { class: "mono", text: "claude --resume " + job.session_id })));
     if (job.cost_usd) tail.append(h("p", { class: "muted", text: "Cost: $" + job.cost_usd.toFixed(2) }));
   };
   const update = (data) => { job = data; appendLog(data.log); next = data.log_from + data.log.length; renderHead(); renderTail(); };
@@ -814,14 +826,17 @@ async function unitScreen(id) {
     if (activeJob) {
       box.append(h("p", {}, jobBadge(activeJob.state), " ", activeJob.kind + " job - the form is read-only until it ends. ",
         h("a", { href: "#/job/" + encodeURIComponent(activeJob.id), text: "Live log" })));
-    } else if (detail.pending_research) {
-      box.append(h("p", { text: "A research result (research.json) is waiting to be merged." }),
-        h("button", { class: "primary", text: "Apply research", onclick: applyResearch }));
-    } else if (ai.available) {
-      box.append(h("button", { class: "primary", text: "Research with AI", onclick: () => runJob("research") }),
-        h("p", { class: "muted", style: "font-size:13px" }, "Searches the web and fills empty fields; values are marked ", h("span", { class: "ai-tag", text: "AI" }), " until you verify them."));
     } else {
-      box.append(h("p", { class: "muted", style: "font-size:13px" }, ai.hint, " Meanwhile: run ", h("code", { class: "mono", text: "/research-unit " + id }), " in Claude Code, the result appears here to apply."));
+      if (detail.last_job && ai.available) continuePanel(box, detail.last_job);
+      if (detail.pending_research) {
+        box.append(h("p", { text: "A research result (research.json) is waiting to be merged." }),
+          h("button", { class: "primary", text: "Apply research", onclick: applyResearch }));
+      } else if (ai.available) {
+        box.append(h("button", { class: detail.last_job ? "" : "primary", text: "Research with AI", onclick: () => runJob("research") }),
+          h("p", { class: "muted", style: "font-size:13px" }, "Searches the web and fills empty fields; values are marked ", h("span", { class: "ai-tag", text: "AI" }), " until you verify them."));
+      } else {
+        box.append(h("p", { class: "muted", style: "font-size:13px" }, ai.hint, " Meanwhile: run ", h("code", { class: "mono", text: "/research-unit " + id }), " in Claude Code, the result appears here to apply."));
+      }
     }
     if (ai.available && !activeJob && (u.status === "ready_for_model" || u.status === "modeled")) {
       const facs = u.operators.concat(catalog.factions.map((f) => f.id).filter((f) => !u.operators.includes(f)));
@@ -843,6 +858,15 @@ async function unitScreen(id) {
         report.summary ? h("pre", { text: report.summary }) : null));
     }
     return box;
+  }
+  // The unit's newest job was cut off (tool restart, crash, stop): offer to resume its session.
+  function continuePanel(box, lj) {
+    box.append(h("div", { class: "report" },
+      h("p", { style: "margin-top:0" }, jobBadge(lj.state), " The last ", h("a", { href: "#/job/" + encodeURIComponent(lj.id), text: lj.kind + " job" }), " did not finish."),
+      h("button", { class: "primary", text: "Continue " + lj.kind + " job", onclick: async () => {
+        try { save.flush(); await chain; await resumeJob(lj.id); } catch (e) { errBox.textContent = errText(e); }
+      } }),
+      h("p", { class: "muted", style: "font-size:13px", text: "Resumes the same Claude Code session with all its context." })));
   }
   async function runJob(kind, faction) {
     try {

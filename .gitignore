@@ -23,3 +23,6 @@ docs/design/units/units/*/*.jpg
 docs/design/units/units/*/*.jpeg
 docs/design/units/units/*/*.png
 docs/design/units/units/*/*.webp
+
+# Unit catalog job history (tools/unit_catalog.sh)
+.unit_catalog/
