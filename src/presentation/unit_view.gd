@@ -12,7 +12,9 @@ const DIE_DARKEN_DURATION := 0.25
 const DIE_DARKEN_ALPHA := 0.6
 const DIE_DURATION := EventQueue.DEATH_DURATION - DIE_DARKEN_DURATION
 ## Label anchor height above the unit's feet per definition id.
-const LABEL_HEIGHTS := {&"infantry": 0.5, &"cavalry": 0.62, &"rocket_artillery": 0.62}
+const LABEL_HEIGHTS := {
+	&"infantry": 0.5, &"cavalry": 0.62, &"m1a2_sepv3": 0.62, &"rocket_artillery": 0.62
+}
 const DEFAULT_LABEL_HEIGHT := 0.5
 ## Marker design values (scene.js placeMarker / markerFill).
 const RING_INNER := 0.6

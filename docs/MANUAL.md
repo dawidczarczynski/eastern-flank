@@ -14,13 +14,13 @@ For now the two sides differ only in name, colour and look: both field the same 
 
 - The map is **12 × 10 hexes**. It is the same map every time you start the game.
 - Poland starts on one short edge of the map, Russia on the opposite edge. Every unit starts on a plains tile.
-- Each side has the same army:
+- Both sides have armies of the same shape. Only the tank differs: Poland has an **M1A2 SEPv3 Abrams**, Russia a generic tank (Cavalry). For now they have the same stats.
 
   | Unit | Count | Position |
   |---|---|---|
   | Infantry | 2 | front line |
-  | Cavalry | 1 | front line, between the two infantry |
-  | Rocket Artillery | 1 | behind the cavalry, on the map edge |
+  | Tank (Poland: M1A2 SEPv3 Abrams, Russia: Cavalry) | 1 | front line, between the two infantry |
+  | Rocket Artillery | 1 | behind the tank, on the map edge |
 
 ## 3. Turn structure
 
@@ -37,7 +37,8 @@ There is no turn limit.
 | Unit | HP | Movement | Attack | Defense | Range | Look on the map |
 |---|---|---|---|---|---|---|
 | Infantry | 10 | 3 | 4 | 3 | 1 | a squad of soldiers |
-| Cavalry | 8 | 5 | 5 | 2 | 1 | a tank |
+| Cavalry (Russia) | 8 | 5 | 5 | 2 | 1 | a tank |
+| M1A2 SEPv3 Abrams (Poland) | 8 | 5 | 5 | 2 | 1 | an Abrams tank |
 | Rocket Artillery | 6 | 3 | 5 | 1 | 5 | a truck with a rocket launcher |
 
 - **HP**: how much damage the unit can take. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
@@ -45,9 +46,9 @@ There is no turn limit.
 - **Attack** / **Defense**: used in the damage calculation (see Combat).
 - **Range**: how far away, in hexes, the unit can attack. Range 1 means adjacent tiles only.
 
-Roles in short: **infantry** is tough and slow, **cavalry** is fast and hits hard but is fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
+Roles in short: **infantry** is tough and slow, **tanks** (Cavalry, Abrams) are fast and hit hard but are fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
 
-Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name (INF, CAV, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
+Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name (INF, CAV or M1A2, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
 
 ## 5. The map and terrain
 

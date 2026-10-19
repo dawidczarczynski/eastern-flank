@@ -77,10 +77,41 @@ func test_default_battle_with_swapped_factions() -> void:
 	assert_eq(state.units.size(), 8)
 
 
-func test_factions_do_not_change_the_battle() -> void:
+func test_poland_fields_the_abrams_and_russia_the_generic_tank() -> void:
+	var state := Scenario.default_battle(12345)
+	assert_eq(state.get_unit(2).definition.id, &"m1a2_sepv3")
+	assert_eq(state.get_unit(2).coord, MapGenerator.offset_to_axial(1, 5))
+	assert_eq(state.get_unit(6).definition.id, &"cavalry")
+	assert_eq(state.get_unit(6).coord, MapGenerator.offset_to_axial(10, 4))
+
+
+## Factions pick the units (their default_force); the map, spawn tiles and unit ids stay the same.
+func test_swapped_factions_swap_only_the_units() -> void:
 	var a := Scenario.default_battle(12345)
 	var b := Scenario.default_battle(12345, [&"russia", &"poland"])
-	assert_eq(a.snapshot(), b.snapshot())
+	for c in a.grid.coords():
+		assert_eq(a.grid.get_terrain(c), b.grid.get_terrain(c))
+	for id in a.units:
+		assert_eq((a.units[id] as Unit).coord, (b.units[id] as Unit).coord, str(id))
+	assert_eq(b.get_unit(2).definition.id, &"cavalry")
+	assert_eq(b.get_unit(6).definition.id, &"m1a2_sepv3")
+
+
+func test_front_and_back_slots_follow_attack_range() -> void:
+	var state := Scenario.default_battle(12345)
+	var expected := {
+		1: Vector2i(1, 3),
+		2: Vector2i(1, 5),
+		3: Vector2i(1, 7),
+		4: Vector2i(0, 5),
+		5: Vector2i(10, 2),
+		6: Vector2i(10, 4),
+		7: Vector2i(10, 6),
+		8: Vector2i(11, 4),
+	}
+	for id: int in expected:
+		var slot: Vector2i = expected[id]
+		assert_eq(state.get_unit(id).coord, MapGenerator.offset_to_axial(slot.x, slot.y), str(id))
 
 
 func test_every_spawned_unit_is_in_its_owners_roster() -> void:
@@ -98,8 +129,9 @@ func test_player_with_unknown_faction_gets_no_units() -> void:
 
 func test_can_spawn_checks_the_roster() -> void:
 	var state := GameState.new(HexGrid.new(), 2, 1)
-	assert_true(Scenario.can_spawn(state, 0, Scenario.INFANTRY))
-	assert_false(Scenario.can_spawn(state, 2, Scenario.INFANTRY), "no such player")
+	var infantry: UnitDefinition = load("res://data/units/infantry.tres")
+	assert_true(Scenario.can_spawn(state, 0, infantry))
+	assert_false(Scenario.can_spawn(state, 2, infantry), "no such player")
 	var other := UnitDefinition.new()
 	other.id = &"not_in_any_roster"
 	assert_false(Scenario.can_spawn(state, 1, other))

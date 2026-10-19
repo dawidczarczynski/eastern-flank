@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"m1a2_sepv3"
+display_name = "M1A2 SEPv3 Abrams"
+short_name = "M1A2"
+max_hp = 8
+move_points = 5
+attack = 5
+defense = 2
+attack_range = 1

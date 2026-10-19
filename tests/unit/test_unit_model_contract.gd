@@ -238,12 +238,12 @@ func test_missing_model_file_builds_magenta_placeholder() -> void:
 	model.free()
 
 
-func test_polish_tank_uses_m1a2_sepv3_stand_in() -> void:
+## Poland fields its own m1a2_sepv3 unit: no stand-in, and a vehicle like the generic tank.
+func test_polish_tank_is_its_own_unit_and_a_vehicle() -> void:
 	var poland := FactionRegistry.get_faction(&"poland")
-	var russia := FactionRegistry.get_faction(&"russia")
-	assert_eq(UnitModels.model_id(&"cavalry", poland), &"m1a2_sepv3")
-	assert_eq(UnitModels.model_id(&"cavalry", russia), &"cavalry")
-	assert_eq(UnitModels.model_id(&"cavalry", null), &"cavalry")
+	assert_eq(UnitModels.model_id(&"m1a2_sepv3", poland), &"m1a2_sepv3")
+	assert_eq(UnitModels.model_id(&"cavalry", poland), &"cavalry")
+	assert_true(UnitModels.is_vehicle(&"m1a2_sepv3"))
 
 
 func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:

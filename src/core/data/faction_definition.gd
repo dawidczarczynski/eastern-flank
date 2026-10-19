@@ -11,6 +11,8 @@ extends Resource
 @export var short_name: String
 ## Unit types this faction may field.
 @export var roster: Array[UnitDefinition] = []
+## Units of the default battle in spawn order; every entry must be in `roster` (Scenario).
+@export var default_force: Array[UnitDefinition] = []
 
 @export_group("Presentation")
 ## Main UI colour (HUD strip, markers, labels).

@@ -76,3 +76,8 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
 ## Implementation notes
 
 _Filled in by the agent when done._
+
+- **Partial, done ahead (2026-10-19, at the human's request):**
+  - `FactionDefinition.default_force` and the front/back slot filling in `Scenario.default_battle` follow the design above.
+  - `data/units/m1a2_sepv3.tres` exists (display/short name as in the table) and replaces `cavalry` in Poland's roster and default force. It still has **cavalry's stats (8/5/5/2/1)** so the balance is unchanged; set the table's values here.
+  - Russia keeps `cavalry`. `UnitModels` treats `m1a2_sepv3` as a vehicle, and the `cavalry:poland` model stand-in is removed.

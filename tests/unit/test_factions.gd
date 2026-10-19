@@ -4,6 +4,7 @@ const FACTIONS_DIR := "res://data/factions"
 const INFANTRY := preload("res://data/units/infantry.tres")
 const CAVALRY := preload("res://data/units/cavalry.tres")
 const ARTILLERY := preload("res://data/units/rocket_artillery.tres")
+const ABRAMS := preload("res://data/units/m1a2_sepv3.tres")
 
 
 ## Every .tres in data/factions (headless runs from the source tree, no .remap files).
@@ -84,12 +85,37 @@ func test_every_faction_is_complete() -> void:
 
 
 func test_rosters_hold_the_current_unit_types() -> void:
+	assert_eq(
+		_ids(FactionRegistry.get_faction(&"poland").roster),
+		[&"infantry", &"m1a2_sepv3", &"rocket_artillery"]
+	)
+	assert_eq(
+		_ids(FactionRegistry.get_faction(&"russia").roster),
+		[&"infantry", &"cavalry", &"rocket_artillery"]
+	)
+	assert_eq(FactionRegistry.get_faction(&"poland").find_unit(&"m1a2_sepv3"), ABRAMS)
+	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"cavalry"), CAVALRY)
+
+
+func test_default_forces() -> void:
+	var poland := FactionRegistry.get_faction(&"poland")
+	var russia := FactionRegistry.get_faction(&"russia")
+	assert_eq(
+		_ids(poland.default_force), [&"infantry", &"m1a2_sepv3", &"infantry", &"rocket_artillery"]
+	)
+	assert_eq(
+		_ids(russia.default_force), [&"infantry", &"cavalry", &"infantry", &"rocket_artillery"]
+	)
 	for faction in FactionRegistry.all():
-		assert_eq(faction.roster.size(), 3, String(faction.id))
-		assert_true(faction.has_unit(INFANTRY), String(faction.id))
-		assert_true(faction.has_unit(CAVALRY), String(faction.id))
-		assert_true(faction.has_unit(ARTILLERY), String(faction.id))
-		assert_eq(faction.find_unit(&"cavalry"), CAVALRY)
+		for entry: UnitDefinition in faction.default_force:
+			assert_true(faction.has_unit(entry), "%s fields %s" % [faction.id, entry.id])
+
+
+func _ids(definitions: Array[UnitDefinition]) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for definition in definitions:
+		result.append(definition.id if definition != null else &"<null>")
+	return result
 
 
 func test_has_unit_compares_unit_ids() -> void:
