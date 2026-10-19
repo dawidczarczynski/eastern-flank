@@ -13,7 +13,7 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
 
 1. **Era: present day**; factions Poland and Russia; rosters below (2026-10-18, human).
 2. **Stats** follow GDD "Stat derivation rules"; no new stats (hard/soft attack stays a GDD option).
-3. **Names**: `display_name` = real designation, not translated; squads have descriptive English names that are translated. `short_name` = the class abbreviation (`TNK`, `ART`, `INF`) – changed by the human 2026-10-19, see GDD "Naming conventions". Squad AT weapons are flavour (no stat effect). See GDD "Naming conventions".
+3. **Names**: `display_name` = real designation, not translated; squads have descriptive English names that are translated. `short_name` = short designation (≤ 6 chars), squads use the class abbreviation `INF`. Squad AT weapons are flavour (no stat effect). See GDD "Naming conventions".
 4. **Balance by composition**, stored per faction as data (`default_force`); measured over both side assignments.
 5. **Pre-039 match records are unsupported** (rejected with a clear error, no id mapping; record in an ADR). Existing local saves are deleted (human, 2026-10-18).
 6. **T-72B3 = obr. 2016** (move 5); infantry dealing 1 damage to tanks and the Abrams one-shotting an MLRS are accepted (revisit after simulations).
@@ -41,10 +41,10 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
 
   | id | display_name | short_name | unit_class | mobility | max_hp | move_points | attack | defense | attack_range |
   |---|---|---|---|---|---|---|---|---|---|
-  | `m1a2_sepv3` | M1A2 SEPv3 Abrams | TNK | tank | tracked | 10 | 5 | 7 | 4 | 1 |
-  | `t72b3` | T-72B3 | TNK | tank | tracked | 8 | 5 | 6 | 4 | 1 |
-  | `homar_k` | Homar-K | ART | mlrs | wheeled | 6 | 3 | 6 | 1 | 6 |
-  | `bm27_uragan` | 9K57 Uragan | ART | mlrs | wheeled | 6 | 3 | 6 | 1 | 5 |
+  | `m1a2_sepv3` | M1A2 SEPv3 Abrams | M1A2 | tank | tracked | 10 | 5 | 7 | 4 | 1 |
+  | `t72b3` | T-72B3 | T-72B3 | tank | tracked | 8 | 5 | 6 | 4 | 1 |
+  | `homar_k` | Homar-K | HOMAR | mlrs | wheeled | 6 | 3 | 6 | 1 | 6 |
+  | `bm27_uragan` | 9K57 Uragan | BM-27 | mlrs | wheeled | 6 | 3 | 6 | 1 | 5 |
   | `pl_mech_infantry` | Mechanised Infantry Squad | INF | infantry | foot | 10 | 3 | 4 | 3 | 1 |
   | `ru_motor_rifle` | Motor Rifle Squad | INF | infantry | foot | 10 | 3 | 4 | 3 | 1 |
 
@@ -61,7 +61,7 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
 
 ## Playtest (for the human)
 
-1. Start a battle: left side (blue, Poland) 2 squads, an Abrams and a Homar-K; right side (red, Russia) 2 squads, 2 T-72B3 and an Uragan. Labels above units read `INF`, `TNK`, `ART` on both sides.
+1. Start a battle: left side (blue, Poland) 2 squads, an Abrams and a Homar-K; right side (red, Russia) 2 squads, 2 T-72B3 and an Uragan. Labels above units read `INF`, `M1A2`, `HOMAR` / `INF`, `T-72B3`, `BM-27`; check the 6-character `T-72B3` label fits.
 2. Attack a T-72B3 with the Abrams on plains: 3 damage, 2 back. Move the Homar-K to 6 hexes from the Uragan and fire: 5 damage, no counter.
 
 3. Run `tools/simulate.sh 20` – it prints a `Factions: poland vs russia` line and finishes without errors.
@@ -80,5 +80,5 @@ _Filled in by the agent when done._
 - **Partial, done ahead (2026-10-19, at the human's request):**
   - `FactionDefinition.default_force` and the front/back slot filling in `Scenario.default_battle` follow the design above.
   - `data/units/m1a2_sepv3.tres` exists (display/short name as in the table) and replaces `cavalry` in Poland's roster and default force. It still has **cavalry's stats (8/5/5/2/1)** so the balance is unchanged; set the table's values here.
-  - `UnitDefinition.unit_class` exists (infantry / tank / mlrs) and every `short_name` is the class abbreviation (2026-10-19); the popup shows the class key `CLASS_<CLASS>` above `display_name`.
+  - `UnitDefinition.unit_class` exists (infantry / tank / mlrs); real units show their designation on the label (`M1A2`), generic units their class abbreviation (`INF` / `TNK` / `ART`, 2026-10-19); the popup shows the class key `CLASS_<CLASS>` above `display_name`.
   - Russia keeps `cavalry`. `UnitModels` treats `m1a2_sepv3` as a vehicle, and the `cavalry:poland` model stand-in is removed.

@@ -48,7 +48,7 @@ There is no turn limit.
 
 Roles in short: **infantry** is tough and slow, **tanks** (Cavalry, Abrams) are fast and hit hard but are fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
 
-Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name for its class (INF infantry, TNK tank, ART rocket artillery; in Polish PIECH, CZOŁ, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
+Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name: the real designation for real vehicles (M1A2 for the Abrams), otherwise the class (INF infantry, TNK tank, ART rocket artillery; in Polish PIECH, CZOŁ, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
 
 ## 5. The map and terrain
 

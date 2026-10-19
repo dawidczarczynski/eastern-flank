@@ -6,7 +6,7 @@
 script = ExtResource("1_def")
 id = &"m1a2_sepv3"
 display_name = "M1A2 SEPv3 Abrams"
-short_name = "TNK"
+short_name = "M1A2"
 unit_class = &"tank"
 max_hp = 8
 move_points = 5

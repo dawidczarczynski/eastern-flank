@@ -2,8 +2,14 @@ extends TestCase
 
 const UNITS_DIR := "res://data/units"
 const CAVALRY := preload("res://data/units/cavalry.tres")
-## Label above the unit = the abbreviation of its class, the same for every unit of the class.
-const CLASS_SHORT_NAMES := {&"infantry": "INF", &"tank": "TNK", &"mlrs": "ART"}
+## Label above the unit: a real unit's short designation; generic units (no designation) use
+## their class abbreviation.
+const SHORT_NAMES := {
+	&"infantry": "INF",
+	&"cavalry": "TNK",
+	&"m1a2_sepv3": "M1A2",
+	&"rocket_artillery": "ART",
+}
 
 
 func _definitions() -> Array[UnitDefinition]:
@@ -27,13 +33,9 @@ func test_unit_classes() -> void:
 		assert_eq(definition.unit_class, expected.get(definition.id, &"?"), String(definition.id))
 
 
-func test_short_name_is_the_class_abbreviation() -> void:
+func test_short_names() -> void:
 	for definition in _definitions():
-		assert_eq(
-			definition.short_name,
-			CLASS_SHORT_NAMES.get(definition.unit_class, "?"),
-			String(definition.id)
-		)
+		assert_eq(definition.short_name, SHORT_NAMES.get(definition.id, "?"), String(definition.id))
 
 
 func test_class_labels_translate() -> void:
