@@ -4,7 +4,10 @@ extends Resource
 
 @export var id: StringName
 @export var display_name: String
+## Label above the unit (translation key): the class abbreviation, the same for the whole class.
 @export var short_name: String
+## Unit class id from docs/design/units/classes.json: infantry, tank or mlrs.
+@export var unit_class: StringName
 @export var max_hp: int = 10
 @export var move_points: int = 3
 @export var attack: int = 4

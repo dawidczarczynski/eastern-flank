@@ -48,7 +48,7 @@ There is no turn limit.
 
 Roles in short: **infantry** is tough and slow, **tanks** (Cavalry, Abrams) are fast and hit hard but are fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
 
-Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name (INF, CAV or M1A2, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
+Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name for its class (INF infantry, TNK tank, ART rocket artillery; in Polish PIECH, CZOŁ, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
 
 ## 5. The map and terrain
 
@@ -132,7 +132,7 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 
 - **Top bar**: the turn number in the centre with the side whose turn it is ("MOVE: POLAND"). On each side: a badge with the side's short code (PL for Poland, RU for Russia), its name, its status (YOUR TURN / AI TURN / WAITING) and how many units it has left. The active side is highlighted.
 - **Bottom right**: **READY UNITS** (your units that can still do something / all your units) and the **End turn** button. The button is greyed out while animations play and during the enemy turn.
-- **Unit card**: hover any unit (yours or the enemy's) to see its type, side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
+- **Unit card**: hover any unit (yours or the enemy's) to see its class (e.g. TANK) with the unit's name below it (e.g. M1A2 SEPv3 Abrams), its side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus the path cost when you have a unit selected and the tile is reachable.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.

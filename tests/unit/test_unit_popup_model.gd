@@ -23,7 +23,8 @@ func test_fresh_own_infantry() -> void:
 	var state := _state()
 	var unit := state.add_unit(0, INFANTRY, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
-	assert_eq(m["type"], "Infantry")
+	assert_eq(m["type"], "CLASS_INFANTRY")
+	assert_eq(m["name"], "Infantry")
 	assert_eq(m["faction"], "Poland")
 	assert_eq(m["color"], state.faction_of(0).color)
 	assert_eq(m["hp"], 10)
@@ -42,6 +43,15 @@ func test_fresh_own_infantry() -> void:
 	assert_true(is_equal_approx(_stat(m, "Range")["fill"], 1.0 / 6.0))
 	assert_eq(m["status"], "Ready")
 	assert_eq(m["status_color"], UiPalette.HP_HIGH)
+
+
+## Header = the class, below it the real name – never the same text twice.
+func test_abrams_shows_class_and_real_name() -> void:
+	var state := _state()
+	var unit := state.add_unit(0, load("res://data/units/m1a2_sepv3.tres"), Vector2i.ZERO)
+	var m := UnitPopupModel.build(state, unit, 0)
+	assert_eq(m["type"], "CLASS_TANK")
+	assert_eq(m["name"], "M1A2 SEPv3 Abrams")
 
 
 func test_defense_includes_terrain_bonus() -> void:

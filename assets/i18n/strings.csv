@@ -4,7 +4,10 @@ Infantry,Infantry,Piechota
 Cavalry,Cavalry,Kawaleria
 Rocket Artillery,Rocket Artillery,Artyleria rakietowa
 INF,INF,PIECH
-CAV,CAV,KAW
+TNK,TNK,CZOŁ
+CLASS_INFANTRY,Infantry,Piechota
+CLASS_TANK,Tank,Czołg
+CLASS_MLRS,Rocket Artillery,Artyleria rakietowa
 ART,ART,ART
 TURN,TURN,TURA
 MOVE: %s,MOVE: %s,RUCH: %s

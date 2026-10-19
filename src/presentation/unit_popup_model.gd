@@ -16,8 +16,9 @@ const _TOP := 96.0
 const _BOTTOM := 16.0
 
 
-## Keys: type, faction, color, name, hp, max_hp, segments (Array[Color]), stats (Array of
-## {label, value: String, fill: float}), status, status_color.
+## Keys: type (class label key, e.g. CLASS_TANK), faction, color, name (display_name), hp,
+## max_hp, segments (Array[Color]), stats (Array of {label, value: String, fill: float}),
+## status, status_color.
 static func build(state: GameState, unit: Unit, viewer_player: int) -> Dictionary:
 	var definition := unit.definition
 	var max_hp := definition.max_hp
@@ -41,7 +42,7 @@ static func build(state: GameState, unit: Unit, viewer_player: int) -> Dictionar
 	var status := _status(state, unit, viewer_player)
 	var faction_color := UiPalette.faction_color(state, unit.owner_id)
 	return {
-		"type": definition.display_name,
+		"type": "CLASS_%s" % String(definition.unit_class).to_upper(),
 		"faction": UiPalette.faction_name(state, unit.owner_id),
 		"color": faction_color,
 		"name": definition.display_name,
