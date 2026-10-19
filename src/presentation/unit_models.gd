@@ -17,6 +17,9 @@ const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..11).
 const SQUAD_SIZE := 5
 const MAX_WHEELS := 12
+## Temporary stand-ins until TASK-039a adds the real unit definitions (then delete this and
+## model_id): "<unit id>:<faction id>" -> model file id.
+const MODEL_STAND_INS := {&"rocket_artillery:poland": &"homar_k"}
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.
@@ -26,6 +29,12 @@ static func facing_yaw(owner_id: int) -> float:
 
 static func is_vehicle(definition_id: StringName) -> bool:
 	return definition_id in VEHICLES
+
+
+## Model file id for a unit of a faction: its own id unless MODEL_STAND_INS maps it.
+static func model_id(definition_id: StringName, faction: FactionDefinition) -> StringName:
+	var faction_id: StringName = faction.id if faction != null else &""
+	return MODEL_STAND_INS.get(StringName("%s:%s" % [definition_id, faction_id]), definition_id)
 
 
 ## `faction` colours the model (null = neutral grey); `owner_id` only sets the facing.

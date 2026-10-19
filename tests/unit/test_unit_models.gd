@@ -286,5 +286,14 @@ func test_hit_reset_works_on_camo_surfaces() -> void:
 	hud.free()
 
 
+func test_polish_rocket_artillery_uses_homar_k_stand_in() -> void:
+	var poland := FactionRegistry.get_faction(&"poland")
+	var russia := FactionRegistry.get_faction(&"russia")
+	assert_eq(UnitModels.model_id(&"rocket_artillery", poland), &"homar_k")
+	assert_eq(UnitModels.model_id(&"rocket_artillery", russia), &"rocket_artillery")
+	assert_eq(UnitModels.model_id(&"cavalry", poland), &"cavalry")
+	assert_eq(UnitModels.model_id(&"rocket_artillery", null), &"rocket_artillery")
+
+
 func _faction(owner_id: int) -> FactionDefinition:
 	return FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[owner_id])

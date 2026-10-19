@@ -243,6 +243,65 @@ static func cyl_mesh(top: float, bottom: float, height: float, segments: int) ->
 	return _meshes[key]
 
 
+## One mesh from many primitives (`parts`: [Mesh, Transform3D] pairs, each transform pre-multiplied
+## by `base`), cached by `key` – keeps a model under the mesh-instance budget: one instance per
+## material instead of one per box. `key` must name the geometry (e.g. "homar_k:body").
+static func merged_mesh(key: String, parts: Array, base := Transform3D.IDENTITY) -> ArrayMesh:
+	var cache_key := "merged:%s" % key
+	if _meshes.has(cache_key):
+		return _meshes[cache_key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for part: Array in parts:
+		var mesh := part[0] as Mesh
+		st.append_from(mesh, 0, base * (part[1] as Transform3D))
+	var merged := st.commit()
+	_meshes[cache_key] = merged
+	return merged
+
+
+## Wheel pivot "Wheel<index>" (spins around its local Z, see UnitModels.pose_tank) at `pos`: a tyre
+## of `radius` and `width` with `treads` tread blocks, and a hub on the outer face (`side` = sign of
+## z of the vehicle side). Shared by the wheeled vehicles.
+static func wheel(
+	parent: Node3D,
+	index: int,
+	pos: Vector3,
+	radius: float,
+	width: float,
+	side: float,
+	hub_material: Material,
+	treads := 16
+) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Wheel%d" % index
+	pivot.position = pos
+	parent.add_child(pivot)
+	var rubber := pbr(RUBBER)
+	var tyre := cyl(pivot, radius * 0.94, radius * 0.94, width, 20, rubber, Vector3.ZERO)
+	tyre.rotation.x = PI / 2.0
+	var blocks: Array = []
+	var block := box_mesh(Vector3(radius * 0.12, radius * 0.17, width * 0.96))
+	for k in treads:
+		var angle := TAU * k / treads
+		var t := Transform3D(
+			Basis(Vector3.BACK, angle), Vector3(cos(angle), sin(angle), 0.0) * radius * 0.94
+		)
+		blocks.append([block, t])
+	add(
+		pivot, merged_mesh("tread:%s:%s:%s" % [radius, width, treads], blocks), rubber, Vector3.ZERO
+	)
+	var hub := cyl(
+		pivot, radius * 0.5, radius * 0.5, 0.004, 12, hub_material, Vector3(0, 0, side * width / 2)
+	)
+	hub.rotation.x = PI / 2.0
+	var cap := cyl(
+		pivot, radius * 0.16, radius * 0.2, 0.008, 8, pbr(DARK), Vector3(0, 0, side * width / 2)
+	)
+	cap.rotation.x = PI / 2.0
+	return pivot
+
+
 static func sphere_mesh(radius: float, hemisphere: bool, segments: int, rings: int) -> SphereMesh:
 	var key := "sphere:%s:%s:%s:%s" % [radius, hemisphere, segments, rings]
 	if not _meshes.has(key):

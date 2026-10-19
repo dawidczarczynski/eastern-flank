@@ -10,6 +10,7 @@
   "in_service": "2023-present",
   "country_of_origin": "South Korea / Poland (Hanwha launcher, Jelcz chassis)",
   "crew": 3,
+  "weight_t": 31,
   "armament": {
     "main": "2 × launch pod; per pod 6 × 239 mm CGR-080 guided rockets (80 km) or 1 × 600 mm CTM-290 tactical ballistic missile (290 km)"
   },
@@ -19,8 +20,10 @@
   "fire_range_km": 290,
   "notes": "Poland ordered 290 launchers (executive contracts for 218 in Nov 2022 and 72 in Apr 2024); deliveries from 2023, first to the 18th Artillery Regiment in Nowa Dęba.",
   "dimensions": {
+    "hull_length": 11,
     "overall_length": 11,
     "width": 2.8,
+    "height": 3.3,
     "sources": [
       "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/"
     ]
@@ -30,6 +33,12 @@
     "Pod frames fully retract under a flat top cover when stowed (no visible rails, unlike M270)",
     "Armoured three-seat forward-control cab of the Jelcz 882 family",
     "Four axles, 8 large off-road wheels (8×8)"
+  ],
+  "images": [
+    {
+      "file": "side_1.png",
+      "view": "side"
+    }
   ],
   "image_candidates": [
     {
@@ -99,11 +108,11 @@
     },
     "range_km": {
       "source": "https://pl.wikipedia.org/wiki/Jelcz_882.57",
-      "verified": false
+      "verified": true
     },
     "fire_range_km": {
       "source": "https://motoryzacja.interia.pl/wiadomosci/news-tak-wyglada-najgrozniejszy-jelcz-w-historii-nazywa-sie-homar,nId,6949065",
-      "verified": false
+      "verified": true
     },
     "notes": {
       "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
@@ -111,18 +120,18 @@
     },
     "dimensions.overall_length": {
       "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
-      "verified": false
+      "verified": true
     },
     "dimensions.width": {
       "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
-      "verified": false
+      "verified": true
     },
     "silhouette_features": {
       "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
-      "verified": false
+      "verified": true
     }
   },
-  "status": "draft",
-  "updated": "2026-10-18",
-  "revision": 6
+  "status": "modeled",
+  "updated": "2026-10-19",
+  "revision": 16
 }

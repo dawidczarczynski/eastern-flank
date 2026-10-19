@@ -10,6 +10,7 @@ const KINDS := {
 	&"infantry": &"squad",
 	&"cavalry": &"tank",
 	&"rocket_artillery": &"rocket_artillery",
+	&"homar_k": &"rocket_artillery",
 }
 ## Known violations of the current models (measured numbers, reported in TASK-036). The
 ## thresholds below stay as specified; a waiver is dropped from here when the model is fixed
