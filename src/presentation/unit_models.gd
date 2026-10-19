@@ -17,6 +17,10 @@ const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..11).
 const SQUAD_SIZE := 5
 const MAX_WHEELS := 12
+## Elevation (rad) of a turntable launcher's pod while firing.
+const LAUNCHER_ELEVATION := 0.7
+## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
+const MAX_ACTUATORS := 4
 ## Temporary stand-ins until TASK-039a adds the real unit definitions (then delete this and
 ## model_id): "<unit id>:<faction id>" -> model file id.
 const MODEL_STAND_INS := {&"rocket_artillery:poland": &"homar_k"}
@@ -95,6 +99,62 @@ static func pose_infantry(model: Node3D, distance: float, env: float, moving: bo
 		rig.rotation = Vector3(
 			Locomotion.step_sway(distance, phase) * env, 0.0, Locomotion.LEAN * env
 		)
+
+
+## Whether the model's launcher turns and elevates ("Launcher" turntable with the "Pod" on it);
+## fixed launchers have the "Pod" directly on the model.
+static func has_launcher(model: Node3D) -> bool:
+	return _model_of(model).get_node_or_null("Launcher") is Node3D
+
+
+## The pod holding the "Mouth*" tube ends, on the turntable or fixed on the model; null if none.
+static func launcher_pod(model: Node3D) -> Node3D:
+	var m := _model_of(model)
+	var pod := m.get_node_or_null("Launcher/Pod") as Node3D
+	return pod if pod != null else m.get_node_or_null("Pod") as Node3D
+
+
+## Turntable angle (Launcher rotation.y) that points the tube ends, which face the rear when
+## stowed, towards the facing yaw `target_yaw` of a unit whose body has yaw `facing_yaw`;
+## wrapped to the shorter turn.
+static func launcher_traverse(facing_yaw: float, target_yaw: float) -> float:
+	return wrapf(target_yaw - facing_yaw - PI, -PI, PI)
+
+
+## Turntable launcher pose: "Launcher" turns by `traverse` about its Y, its "Pod" turns up by
+## `elevation` about the hinge (the Pod's local Z, from its built pose kept in the "rest" meta).
+## Each "Actuator<i>" (cylinder, at its anchor on the turntable) and "ActuatorRod<i>" (piston)
+## are aimed along their local Y at each other between the anchor and the Pod's
+## "ActuatorMount<i>". No-op for models without a launcher; (0, 0) is the stowed pose.
+static func pose_launcher(model: Node3D, traverse: float, elevation: float) -> void:
+	var m := _model_of(model)
+	var launcher := m.get_node_or_null("Launcher") as Node3D
+	var pod := launcher_pod(m)
+	if launcher == null or pod == null:
+		return
+	launcher.basis = Basis(Vector3.UP, traverse)
+	var rest: Transform3D = pod.get_meta(&"rest", pod.transform)
+	if not pod.has_meta(&"rest"):
+		pod.set_meta(&"rest", rest)
+	pod.transform = rest * Transform3D(Basis(Vector3.BACK, elevation), Vector3.ZERO)
+	for i in MAX_ACTUATORS:
+		var barrel := launcher.get_node_or_null("Actuator%d" % i) as Node3D
+		var rod := launcher.get_node_or_null("ActuatorRod%d" % i) as Node3D
+		var mount := pod.get_node_or_null("ActuatorMount%d" % i) as Node3D
+		if barrel == null or rod == null or mount == null:
+			continue
+		var top := pod.transform * mount.position
+		barrel.basis = _along(top - barrel.position)
+		rod.position = top
+		rod.basis = _along(barrel.position - top)
+
+
+## Rotation whose Y axis points along `direction`; the hinge axis (Z) stays as close to the
+## launcher's Z as possible.
+static func _along(direction: Vector3) -> Basis:
+	var y := direction.normalized()
+	var x := y.cross(Vector3.BACK).normalized()
+	return Basis(x, y, x.cross(y))
 
 
 ## Spins the wheels to the accumulated `wheel_distance` and sets the hull's pitch/roll to the

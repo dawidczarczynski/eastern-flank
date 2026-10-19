@@ -35,7 +35,7 @@ The first rocket artillery gets the v2 design's detailed truck with a launcher p
 
 ## Out of scope
 
-- Other wheeled vehicles (one `/model-unit` run each), raising the pod before firing, stabiliser animation.
+- Other wheeled vehicles (one `/model-unit` run each), stabiliser animation. (Raising and traversing the pod before firing is done for the Homar-K: `UnitModels.pose_launcher`.)
 
 ## Implementation notes
 

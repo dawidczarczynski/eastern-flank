@@ -155,7 +155,7 @@ func _check_pivots(label: String, kind: StringName, model: Node) -> void:
 	if kind == &"tank":
 		assert_true(model.get_node_or_null("Turret") is Node3D, "%s: needs Turret" % label)
 	if kind == &"rocket_artillery":
-		var pod := model.get_node_or_null("Pod") as Node3D
+		var pod := UnitModels.launcher_pod(model)
 		assert_true(pod != null, "%s: needs Pod" % label)
 		if pod != null:
 			var mouths := 0

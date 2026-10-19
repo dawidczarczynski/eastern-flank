@@ -218,7 +218,7 @@ func _set_markers_visible(markers_visible: bool) -> void:
 ## for units without a launcher.
 func launch_points() -> Array[Vector3]:
 	var points: Array[Vector3] = []
-	var pod := _model.get_node_or_null("Pod")
+	var pod := UnitModels.launcher_pod(_model)
 	if pod != null:
 		for child in pod.get_children():
 			if (child as Node3D) != null and child.name.begins_with("Mouth"):
@@ -229,6 +229,21 @@ func launch_points() -> Array[Vector3]:
 ## Yaw (pivot rotation.y) that makes the model face the world point `target`.
 func yaw_towards(target: Vector3) -> float:
 	return MoveAnimation.facing_yaw(global_position, target)
+
+
+## Whether the launcher turns and elevates before a volley (instead of the whole vehicle turning).
+func has_launcher() -> bool:
+	return UnitModels.has_launcher(_model)
+
+
+## Turntable angle that points the launcher at the world point `target` (see UnitModels).
+func launcher_traverse_towards(target: Vector3) -> float:
+	return UnitModels.launcher_traverse(facing_yaw(), yaw_towards(target))
+
+
+func set_launcher_pose(traverse: float, elevation: float) -> void:
+	if not _dying:
+		UnitModels.pose_launcher(_model, traverse, elevation)
 
 
 func facing_yaw() -> float:

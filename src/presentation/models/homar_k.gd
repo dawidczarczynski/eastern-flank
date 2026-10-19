@@ -23,11 +23,23 @@ const POD_CENTRES: Array[float] = [-0.7, 0.7]
 const TUBE_ROWS: Array[float] = [2.38, 2.96]
 const TUBE_COLUMNS: Array[float] = [-0.42, 0.0, 0.42]
 const TUBE_RADIUS := 0.17
+## Turntable centre (x, h) under the launcher: the "Launcher" node traverses about it.
+const TURNTABLE_X := 8.6
+const TURNTABLE_H := 2.0
+## Elevation actuators, one per side (|z|): anchor on the turntable, mount under the pod (x, h);
+## cylinder and piston lengths overlap at every elevation up to UnitModels.LAUNCHER_ELEVATION.
+const ACTUATOR_Z := 0.85
+const ACTUATOR_BASE := Vector2(7.25, 1.92)
+const ACTUATOR_MOUNT := Vector2(8.9, 2.0)
+const ACTUATOR_LENGTH := 1.1
+const CYLINDER_RADIUS := 0.13
+const PISTON_RADIUS := 0.07
 
 
-## The "Pod" node sits on the front-bottom edge of the launcher box, turned so its +X runs to
-## the rear: "Mouth0".."Mouth11" lie just behind the tube ends (the volley effect spawns rockets
-## there) and a later elevation animation can rotate it about its local Z (hinge at the front).
+## The "Launcher" turntable sits on the rear deck; its "Pod" child hinges on the front-bottom
+## edge of the launcher box, turned so its +X runs to the rear: "Mouth0".."Mouth11" lie just
+## behind the tube ends (the volley effect spawns rockets there). UnitModels.pose_launcher
+## traverses the Launcher, elevates the Pod about its local Z and aims the two actuators.
 static func build(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
 	var body := ModelParts.faction_material(faction, &"truck_body")
@@ -155,11 +167,17 @@ static func _accent_parts() -> Array:
 static func _build_pod(
 	g: Node3D, body: Material, dark: Material, steel: Material, acc: Material
 ) -> void:
+	var launcher := Node3D.new()
+	launcher.name = "Launcher"
+	launcher.position = _p(TURNTABLE_X, TURNTABLE_H, 0.0)
+	g.add_child(launcher)
+	var to_launcher := launcher.transform.affine_inverse()
 	var pod := Node3D.new()
 	pod.name = "Pod"
-	pod.transform = Transform3D(Basis(Vector3.UP, PI), _p(POD_X0, POD_H0, 0.0))
-	g.add_child(pod)
-	var to_pod := pod.transform.affine_inverse()
+	pod.transform = to_launcher * Transform3D(Basis(Vector3.UP, PI), _p(POD_X0, POD_H0, 0.0))
+	pod.set_meta(&"rest", pod.transform)
+	launcher.add_child(pod)
+	var to_pod := (launcher.transform * pod.transform).affine_inverse()
 	var shell: Array = []
 	_slab(shell, POD_X0, POD_X1, POD_H0, POD_H1, POD_HALF_W)  # launcher box
 	_slab(shell, 6.25, 6.55, 2.05, 3.22, 1.36, 0.0, 0.2)  # tilted front face
@@ -184,3 +202,37 @@ static func _build_pod(
 				mouth.position = to_pod * _p(POD_X1 + 0.15, h, zc + dz)
 				pod.add_child(mouth)
 	_merged(pod, "homar_k:pod_caps", caps, steel, to_pod)
+	_build_actuators(launcher, pod, to_launcher, to_pod, dark, steel)
+	UnitModels.pose_launcher(g, 0.0, 0.0)
+
+
+## Two elevation actuators: "Actuator<i>" (dark cylinder, from its turntable anchor) and
+## "ActuatorRod<i>" (steel piston, from the "ActuatorMount<i>" under the pod), both along +Y.
+static func _build_actuators(
+	launcher: Node3D,
+	pod: Node3D,
+	to_launcher: Transform3D,
+	to_pod: Transform3D,
+	dark: Material,
+	steel: Material
+) -> void:
+	var half := Vector3(0.0, ACTUATOR_LENGTH * K / 2.0, 0.0)
+	var cylinder := ModelParts.cyl_mesh(
+		CYLINDER_RADIUS * K, CYLINDER_RADIUS * K, ACTUATOR_LENGTH * K, 10
+	)
+	var piston := ModelParts.cyl_mesh(PISTON_RADIUS * K, PISTON_RADIUS * K, ACTUATOR_LENGTH * K, 8)
+	for i in 2:
+		var z := ACTUATOR_Z * (-1.0 if i == 0 else 1.0)
+		var barrel := Node3D.new()
+		barrel.name = "Actuator%d" % i
+		barrel.position = to_launcher * _p(ACTUATOR_BASE.x, ACTUATOR_BASE.y, z)
+		launcher.add_child(barrel)
+		ModelParts.add(barrel, cylinder, dark, half)
+		var rod := Node3D.new()
+		rod.name = "ActuatorRod%d" % i
+		launcher.add_child(rod)
+		ModelParts.add(rod, piston, steel, half)
+		var mount := Node3D.new()
+		mount.name = "ActuatorMount%d" % i
+		mount.position = to_pod * _p(ACTUATOR_MOUNT.x, ACTUATOR_MOUNT.y, z)
+		pod.add_child(mount)

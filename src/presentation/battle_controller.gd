@@ -7,6 +7,11 @@ const MAP_SEED := 12345
 const BOTTOM_LEFT_MARGIN := 16
 ## Time the launcher takes to turn towards its target before a volley (seconds at speed 1).
 const AIM_DURATION := 0.5
+## Turntable launchers (Homar-K) aim the launcher instead: the pod rises on its actuators, the
+## turntable turns to the target, and after the salvo both return to the stowed pose
+## (seconds at speed 1, each way).
+const LAUNCHER_RAISE_DURATION := 0.9
+const LAUNCHER_TRAVERSE_DURATION := 0.9
 
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
@@ -402,7 +407,9 @@ func _on_event(event: Dictionary) -> void:
 ## annotation (the simulation's event is copied, not modified).
 func _annotate(event: Dictionary) -> Dictionary:
 	if event["type"] == &"unit_attacked" and _fires_volley(event["attacker_id"]):
-		var annotated := EventQueue.with_view_duration(event, _volley_event_duration())
+		var shooter: UnitView = _unit_views.get(event["attacker_id"])
+		var launcher := shooter != null and shooter.has_launcher()
+		var annotated := EventQueue.with_view_duration(event, _volley_event_duration(launcher))
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
 	return event
@@ -414,7 +421,13 @@ func _fires_volley(attacker_id: int) -> bool:
 
 
 ## Aim + salvo + impact; the hit reaction starts with the last impact and ends with the flashes.
-static func _volley_event_duration() -> float:
+## A turntable `launcher` raises and traverses before the salvo and stows after it.
+static func _volley_event_duration(launcher: bool) -> float:
+	if launcher:
+		return (
+			2.0 * (LAUNCHER_RAISE_DURATION + LAUNCHER_TRAVERSE_DURATION)
+			+ RocketVolley.total_duration()
+		)
 	return AIM_DURATION + RocketVolley.total_duration()
 
 
@@ -481,15 +494,23 @@ func _play_event(event: Dictionary) -> Tween:
 ## One tween lasts the whole event (_volley_event_duration), so the queue waits for all of it.
 func _play_volley(shooter: UnitView, target: UnitView, target_hp: int) -> Tween:
 	var aim_point := target.global_position
-	var from_yaw := shooter.facing_yaw()
-	var to_yaw := shooter.yaw_towards(aim_point)
 	var tween := create_tween()
-	tween.tween_method(
-		func(f: float) -> void: shooter.set_facing_yaw(lerp_angle(from_yaw, to_yaw, f)),
-		0.0,
-		1.0,
-		AIM_DURATION
-	)
+	var traverse := 0.0
+	if shooter.has_launcher():
+		traverse = shooter.launcher_traverse_towards(aim_point)
+		_tween_launcher(tween, shooter, Vector2.ZERO, Vector2(0.0, 1.0), LAUNCHER_RAISE_DURATION)
+		_tween_launcher(
+			tween, shooter, Vector2(0.0, 1.0), Vector2(traverse, 1.0), LAUNCHER_TRAVERSE_DURATION
+		)
+	else:
+		var from_yaw := shooter.facing_yaw()
+		var to_yaw := shooter.yaw_towards(aim_point)
+		tween.tween_method(
+			func(f: float) -> void: shooter.set_facing_yaw(lerp_angle(from_yaw, to_yaw, f)),
+			0.0,
+			1.0,
+			AIM_DURATION
+		)
 	var origins := shooter.launch_points()
 	if origins.is_empty():
 		origins.append(shooter.global_position + Vector3(0.0, 0.4, 0.0))
@@ -511,7 +532,29 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int) -> Tween:
 	var hit_step := tween.tween_callback(_play_volley_hit.bind(target, target_hp))
 	hit_step.set_delay(RocketVolley.last_impact_time())
 	tween.tween_callback(volley.queue_free)
+	if shooter.has_launcher():
+		_tween_launcher(
+			tween, shooter, Vector2(traverse, 1.0), Vector2(0.0, 1.0), LAUNCHER_TRAVERSE_DURATION
+		)
+		_tween_launcher(tween, shooter, Vector2(0.0, 1.0), Vector2.ZERO, LAUNCHER_RAISE_DURATION)
 	return tween
+
+
+## Appends a launcher step from pose `from` to `to` (x traverse, y elevation as a fraction of
+## UnitModels.LAUNCHER_ELEVATION), eased in and out like a hydraulic drive.
+func _tween_launcher(
+	tween: Tween, shooter: UnitView, from: Vector2, to: Vector2, duration: float
+) -> void:
+	var step := tween.tween_method(
+		func(f: float) -> void:
+			if is_instance_valid(shooter):
+				var pose := from.lerp(to, f)
+				shooter.set_launcher_pose(pose.x, pose.y * UnitModels.LAUNCHER_ELEVATION),
+		0.0,
+		1.0,
+		duration
+	)
+	step.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _play_volley_hit(target: UnitView, target_hp: int) -> void:
