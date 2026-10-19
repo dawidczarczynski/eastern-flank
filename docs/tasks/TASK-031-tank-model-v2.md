@@ -19,6 +19,7 @@ Port `makeTank` part by part with `MeshKit` (`prof` → `extrude_profile`, `plan
 - **Turret** (pivot `Turret`): tapered plan outline (line 247), mantlet, gun barrel lathe (line 249), gunner sight, commander cupola with vision blocks, smoke dischargers, side boxes with accent plates, antennas, rear basket.
 - **Adjust to the real tank** from `docs/design/units/units/<unit_id>/unit.json` (`silhouette_features`, dimensions, images): e.g. number and size of road wheels, turret shape, gun length, presence of a bustle basket. The design gives the style; the catalog decides the shape.
 - **Reusable parts** go to `model_parts.gd` (or `models/parts/tracked_running_gear.gd`) with parameters (wheel count, spacing, radius, track length), so the next tank is mostly parameters + hull/turret.
+- **Mechanisms** (if TASK-041/043 are done first – recommended): the catalog entry declares `wheels` and `turret_traverse`; build the registry pivots `Turret`, `Turret/Gun` (hinge at the trunnions, level when built) and `Turret/Gun/Muzzle`, and copy the entry's `mechanisms` into `MECHANISMS` (`ModelParts.declare_mechanisms`). The turret animation itself is TASK-047.
 
 ## Acceptance criteria (testable)
 

@@ -43,10 +43,18 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | done | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | ready | **TASK-038**, TASK-037 |
 | [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | ready | **TASK-039a** |
-| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
-| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
-| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a) |
+| [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | ready | TASK-037, TASK-040 |
+| [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | ready | **TASK-041** |
+| [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on | ready | **TASK-041** (soft: TASK-042) |
+| [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction, elevation per unit | ready | **TASK-043** |
+| [TASK-045](TASK-045-stabilisers.md) | `stabilisers`: jacks lowered before a volley (generic deploy step), Homar-K jacks | ready | **TASK-044**, TASK-042 |
+| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a, TASK-043) |
+| [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | ready | **TASK-044**, **TASK-031** |
+| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a, TASK-043) |
+| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a, TASK-043 … TASK-045) |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | ready | **TASK-021** (soft: TASK-031 … TASK-033) |
+| [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | idea | **TASK-045**; Uragan research must confirm the shields |
+| [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | idea | **TASK-047**; look at 047 in game first |
 | TASK-007 | Fog of war | idea | GDD open questions: scale, modes |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | idea | GDD decision ("Ideas from the visual design"), hand-made maps |
 
@@ -64,7 +72,7 @@ Visual design port (TASK-013 … TASK-024, target look in `docs/design/`): "look
 
 Visual design v2 and real units (TASK-026 … TASK-039b, references in `docs/design/v2/` and `docs/design/units/`): more detailed terrain, foliage and unit models, everything procedural. Factions are **real countries**, units are **real equipment with their own stats** (GDD: "Factions and units"). Recommended order:
 
-026 → 027 → 028 → 029 → 030 → 037 → 038 → 036 → 031 → 032 → 033 → 039a → 039b → 034, then `/model-unit <id>` per catalog entry.
+026 → 027 → 028 → 029 → 030 → 037 → 038 → 036 → 031 → 032 → 033 → 039a → 039b → 034, then `/model-unit <id>` per catalog entry. Mechanisms (TASK-041 … TASK-048, see the last point) slot in before 031: 041 → 042 → 043 → 044 → 045 → 031 → 047.
 
 - 026 first: the later material tasks are judged under the sky-based ambient and reflections.
 - 027/028 (terrain) and 029/030 (units) are independent tracks.
@@ -74,3 +82,4 @@ Visual design v2 and real units (TASK-026 … TASK-039b, references in `docs/des
 - 039a/039b: stats, rosters and balance approved by the human (GDD "Stat derivation rules"); 039a can go right after 038 – it doesn't need the new models. 031–033 then model the real vehicles directly.
 - Every further unit: catalog entry (`tools/unit_catalog.sh`) → `/model-unit <id>` → stats `.tres` + roster (game-designer). The catalog statuses (`draft` → `ready_for_model` → `modeled` → `in_game`) are the backlog for models; they don't get task files.
 - 035 (rivers, roads, cities) changes rules – game-designer pass first; fits the hand-made map direction.
+- **Mechanisms (041 → 042 → 043 → 044 → 045, then 047 after 031; 046 / 048 are ideas)**: animations are declared per real unit in the catalog (`mechanisms` with parameters, registry `docs/design/units/mechanisms.json`), not per class – the Homar-K and the Uragan are both `mlrs` but animate differently. Do 041/043 before 031–033 and further `/model-unit` runs, so new models declare their mechanisms from the start. They don't depend on 039a (039a's model renames update the test's `LEGACY_MODELS` like `KINDS`). The Uragan model (`/model-unit bm27_uragan`) comes after 042 (verified entry), 044 (front-stowed, limited traverse) and 045 (jacks); 046 when its research confirms the window shields.

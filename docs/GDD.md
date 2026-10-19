@@ -48,6 +48,8 @@ Target look of the battle screen: `docs/design/` (mock-up made in Claude Design,
 
 **Unit feel** (presentation only, no rule effect): moving units walk tile by tile along their path and turn to face it (TASK-022); while moving, infantry marches (per-soldier step bob and sway, kneeling soldiers stand up and kneel again on arrival) and the tank drives (wheels turn with the distance covered, the hull rocks slightly and tilts with the terrain slope, also at rest) (TASK-025). Before a volley the Homar-K raises its launcher pod on hydraulic actuators and turns it towards the target on its turntable, and stows it after the salvo; launchers without a turntable turn the whole vehicle. Dust and track tread animation are possible follow-ups.
 
+**Planned (TASK-041 … TASK-048, decided 2026-10-19):** how a unit animates is a property of the real vehicle, declared per unit in the unit catalog as **mechanisms** with parameters (registry `docs/design/units/mechanisms.json`), not per class – the Homar-K and the 9K57 Uragan are both MLRS but are built differently. Mechanisms: `wheels`, `squad_march`, `launcher` (traverse range – full or limited, the vehicle turns first when the target is outside it; stowed tube direction; firing elevation), `stabilisers` (jacks lowered before a volley), `blast_shields` (cab window shields, if the Uragan research confirms them (?)), `turret_traverse` (tank turret and gun aim before firing, also on counters), `gun_recoil` (idea). The model file copies the unit's mechanisms; the game still reads only `data/` and the models.
+
 ## Units
 
 | Unit | HP | Move | Attack | Defense | Range | Status |
@@ -225,6 +227,7 @@ Each question lists the tasks that depend on the answer.
 - **Side bias in the simulation**: mirrored armies gave player 1 a 59 % vs 34 % win rate (TASK-012), cause unknown. TASK-039a measures balance over both side assignments; the bias itself is a separate follow-up. → TASK-012, TASK-039a.
 - **UI scaling**: HUD sizes are the mock-up's CSS pixels 1:1 (matches 1280×720 screenshots). Stretch mode / scaling for larger or smaller windows is undecided. → TASK-014, TASK-020.
 - **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (rocket artillery) could use it.
+- **Unit mechanisms (animation)**: real values to verify – Uragan launcher traverse range, maximum elevation, stowed facing forward over the cab, rear jacks, cab blast shields (?); Homar-K jack count/position and real maximum elevation (keep 40° for the look?) (?); tank gun elevation limits (?). Behaviour choices proposed but not confirmed: a limited-traverse launcher's vehicle stays turned after the volley; the launcher always fires at its maximum elevation (not scaled with range); durations are global, not per unit; the turret returns to the front after firing; feet of jacks may float slightly on slopes; the catalog ↔ model contract test fails on any parameter drift. → TASK-041 … TASK-047.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.
 
 ### Ideas from the visual design

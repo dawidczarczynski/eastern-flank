@@ -19,6 +19,8 @@ The first rocket artillery gets the v2 design's detailed truck with a launcher p
 - **Adjust to the real vehicle** from its catalog entry (cab-over vs bonneted cab, axle count, closed pod vs open tube bank, tube count).
 - **Reusable parts** with parameters: `wheeled_chassis(axles, track_width, tyre)`, `cab(kind)`, `launcher(kind, rows, cols)` – an Uragan-like configuration (4 axles, cab ahead of the engine, open bank of 16 tubes on a rotating mount) must be buildable from parameters (tested).
 
+- **Mechanisms** (TASK-041 … TASK-045): the launcher part builds the `launcher` pivots for the unit's declared params (stowed `rear` / `front`, actuators that reach `max_elevation_deg`), optional `Stabiliser<i>` jacks with a `deployed` pose; the model copies the entry's `mechanisms` into `MECHANISMS`. The Uragan (`/model-unit bm27_uragan`) needs TASK-042 (verified entry), TASK-044 (front-stowed, limited traverse) and TASK-045 (jacks) first.
+
 ## Acceptance criteria (testable)
 
 - [ ] Contract test passes for the model × every faction (pivots `Pod`, ≥ 6 `Mouth*` on the pod front face, `Wheel*`); the old six-mouth test is replaced by the contract check.
