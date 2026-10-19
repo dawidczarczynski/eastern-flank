@@ -343,9 +343,246 @@ static func turret_mesh() -> ArrayMesh:
 			var f := Vector3(ring[0].x, 0.0, ring[0].y)
 			_tri(st, f, a0, b0, center)
 			_tri(st, Vector3(f.x, TURRET_DEPTH, f.z), a1, b1, center)
+	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
 	var mesh := st.commit()
 	_meshes["turret"] = mesh
 	return mesh
+
+
+## Prism: closed `outline` in the XY plane (either winding, star-shaped around its centroid, e.g. a
+## side profile or a gear) extruded along Z from -depth/2 to +depth/2; flat normals. Cached by
+## `key` (must name the geometry). Stand-in for MeshKit.extrude_profile until TASK-030 lands.
+static func prism_mesh(key: String, outline: Array[Vector2], depth: float) -> ArrayMesh:
+	var cache_key := "prism:%s" % key
+	if _meshes.has(cache_key):
+		return _meshes[cache_key]
+	var ring := _ccw(outline)
+	var centre := Vector2.ZERO
+	for p in ring:
+		centre += p
+	centre /= ring.size()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hz := depth / 2.0
+	var n := ring.size()
+	for i in n:
+		var a := ring[i]
+		var b := ring[(i + 1) % n]
+		var d := b - a
+		var side := Vector3(d.y, -d.x, 0.0).normalized()
+		var a0 := Vector3(a.x, a.y, -hz)
+		var b0 := Vector3(b.x, b.y, -hz)
+		var a1 := Vector3(a.x, a.y, hz)
+		var b1 := Vector3(b.x, b.y, hz)
+		_face(st, a0, b0, b1, side)
+		_face(st, a0, b1, a1, side)
+		_face(st, Vector3(centre.x, centre.y, hz), a1, b1, Vector3.BACK)
+		_face(st, Vector3(centre.x, centre.y, -hz), a0, b0, Vector3.FORWARD)
+	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
+	var mesh := st.commit()
+	_meshes[cache_key] = mesh
+	return mesh
+
+
+## Loft between two convex outlines in the XZ plane with the same vertex count: `bottom` at
+## height y0, `top` at y1 (wedges, tapered turrets); flat normals, both ends capped.
+static func loft_mesh(
+	key: String, bottom: Array[Vector2], top: Array[Vector2], y0: float, y1: float
+) -> ArrayMesh:
+	var cache_key := "loft:%s" % key
+	if _meshes.has(cache_key):
+		return _meshes[cache_key]
+	var n := bottom.size()
+	var lo: Array[Vector3] = []
+	var hi: Array[Vector3] = []
+	var inside := Vector3.ZERO
+	for i in n:
+		lo.append(Vector3(bottom[i].x, y0, bottom[i].y))
+		hi.append(Vector3(top[i].x, y1, top[i].y))
+		inside += lo[i] + hi[i]
+	inside /= 2.0 * n
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in n:
+		var j := (i + 1) % n
+		_tri(st, lo[i], lo[j], hi[j], inside)
+		_tri(st, lo[i], hi[j], hi[i], inside)
+		if i >= 1 and i < n - 1:
+			_tri(st, lo[0], lo[i], lo[j], inside)
+			_tri(st, hi[0], hi[i], hi[j], inside)
+	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
+	var mesh := st.commit()
+	_meshes[cache_key] = mesh
+	return mesh
+
+
+## Lathe around +Y: `profile` points are Vector2(radius, y), ordered from the top down around the
+## outside (e.g. (0, top) -> (R, top) -> (R, bottom) -> (0, bottom)). Smooth around the axis, hard
+## edges between profile segments (machined look). Rotate the part to lay it along X or Z.
+static func lathe_mesh(key: String, profile: Array[Vector2], segments: int) -> ArrayMesh:
+	var cache_key := "lathe:%s:%s" % [key, segments]
+	if _meshes.has(cache_key):
+		return _meshes[cache_key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in profile.size() - 1:
+		var p0 := profile[j]
+		var p1 := profile[j + 1]
+		var d := p1 - p0
+		if d.length() < 1e-6:
+			continue
+		var n2 := Vector2(-d.y, d.x).normalized()
+		for i in segments:
+			var t0 := TAU * i / segments
+			var t1 := TAU * (i + 1) / segments
+			var c0 := Vector3(cos(t0), 0.0, sin(t0))
+			var c1 := Vector3(cos(t1), 0.0, sin(t1))
+			var v00 := c0 * p0.x + Vector3(0, p0.y, 0)
+			var v01 := c1 * p0.x + Vector3(0, p0.y, 0)
+			var v10 := c0 * p1.x + Vector3(0, p1.y, 0)
+			var v11 := c1 * p1.x + Vector3(0, p1.y, 0)
+			var n0 := c0 * n2.x + Vector3(0, n2.y, 0)
+			var n1 := c1 * n2.x + Vector3(0, n2.y, 0)
+			_smooth_face(st, [v00, v01, v11], [n0, n1, n1])
+			_smooth_face(st, [v00, v11, v10], [n0, n1, n0])
+	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
+	var mesh := st.commit()
+	_meshes[cache_key] = mesh
+	return mesh
+
+
+## Closed gear outline (`teeth` teeth between `root` and `tip` radius), counter-clockwise.
+static func gear_outline(root: float, tip: float, teeth: int) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	var step := TAU / teeth
+	for i in teeth:
+		var a := i * step
+		for f: Array in [[0.0, root], [0.3, tip], [0.55, tip], [0.85, root]]:
+			var angle: float = a + step * float(f[0])
+			points.append(Vector2(cos(angle), sin(angle)) * float(f[1]))
+	return points
+
+
+## Convex hull (counter-clockwise) of circles given as Vector3(x, y, radius), each sampled with
+## `samples` points – e.g. a track run around its wheels.
+static func circle_hull(circles: Array[Vector3], samples: int) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	for c in circles:
+		for i in samples:
+			var angle := TAU * i / samples
+			points.append(Vector2(c.x + cos(angle) * c.z, c.y + sin(angle) * c.z))
+	var hull: Array[Vector2] = []
+	for p in Geometry2D.convex_hull(PackedVector2Array(points)):
+		if hull.is_empty() or not p.is_equal_approx(hull[0]):
+			hull.append(p)
+	return _ccw(hull)
+
+
+## Closed band of `thickness` outside the convex path `inner` (counter-clockwise, XY plane),
+## `width` deep along Z (centred): a track loop around its wheels. Flat normals.
+static func band_mesh(
+	key: String, inner: Array[Vector2], thickness: float, width: float
+) -> ArrayMesh:
+	var cache_key := "band:%s" % key
+	if _meshes.has(cache_key):
+		return _meshes[cache_key]
+	var outer := offset_path(inner, thickness)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var hz := width / 2.0
+	var n := inner.size()
+	for i in n:
+		var j := (i + 1) % n
+		var d := inner[j] - inner[i]
+		var out := Vector3(d.y, -d.x, 0.0).normalized()
+		var ia := Vector3(inner[i].x, inner[i].y, 0.0)
+		var ib := Vector3(inner[j].x, inner[j].y, 0.0)
+		var oa := Vector3(outer[i].x, outer[i].y, 0.0)
+		var ob := Vector3(outer[j].x, outer[j].y, 0.0)
+		var z := Vector3(0, 0, hz)
+		_face(st, oa - z, ob - z, ob + z, out)
+		_face(st, oa - z, ob + z, oa + z, out)
+		_face(st, ia - z, ib - z, ib + z, -out)
+		_face(st, ia - z, ib + z, ia + z, -out)
+		for s: float in [-1.0, 1.0]:
+			var w := z * s
+			_face(st, ia + w, ib + w, ob + w, Vector3.BACK * s)
+			_face(st, ia + w, ob + w, oa + w, Vector3.BACK * s)
+	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
+	var mesh := st.commit()
+	_meshes[cache_key] = mesh
+	return mesh
+
+
+## `path` (convex, counter-clockwise) moved outwards by `distance` along its vertex normals.
+static func offset_path(path: Array[Vector2], distance: float) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	var n := path.size()
+	for i in n:
+		var before := path[i] - path[(i - 1 + n) % n]
+		var after := path[(i + 1) % n] - path[i]
+		var na := Vector2(before.y, -before.x).normalized()
+		var nb := Vector2(after.y, -after.x).normalized()
+		result.append(path[i] + (na + nb).normalized() * distance)
+	return result
+
+
+## Points every `spacing` along the closed `path` with the unit tangent at each:
+## [[point, tangent], ...] (grousers on a track).
+static func path_stations(path: Array[Vector2], spacing: float) -> Array:
+	var result: Array = []
+	var n := path.size()
+	var carry := 0.0
+	for i in n:
+		var a := path[i]
+		var b := path[(i + 1) % n]
+		var length := a.distance_to(b)
+		if length < 1e-6:
+			continue
+		var tangent := (b - a) / length
+		var at := carry
+		while at < length:
+			result.append([a + tangent * at, tangent])
+			at += spacing
+		carry = at - length
+	return result
+
+
+static func _ccw(outline: Array[Vector2]) -> Array[Vector2]:
+	var area := 0.0
+	for i in outline.size():
+		area += outline[i].cross(outline[(i + 1) % outline.size()])
+	if area >= 0.0:
+		return outline
+	var reversed := outline.duplicate()
+	reversed.reverse()
+	return reversed
+
+
+## Flat triangle with the given outward `normal` (wound clockwise seen from outside).
+static func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, normal: Vector3) -> void:
+	if (b - a).cross(c - a).dot(normal) > 0.0:
+		var t := b
+		b = c
+		c = t
+	for v in [a, b, c]:
+		st.set_normal(normal)
+		st.add_vertex(v)
+
+
+## Smooth-shaded triangle (per-vertex normals); skipped when degenerate (lathe axis points).
+static func _smooth_face(st: SurfaceTool, v: Array, n: Array) -> void:
+	var a: Vector3 = v[0]
+	var b: Vector3 = v[1]
+	var c: Vector3 = v[2]
+	var cross := (b - a).cross(c - a)
+	if cross.length_squared() < 1e-14:
+		return
+	var face: Vector3 = (n[0] as Vector3) + (n[1] as Vector3) + (n[2] as Vector3)
+	var order := [0, 1, 2] if cross.dot(face) <= 0.0 else [0, 2, 1]
+	for k: int in order:
+		st.set_normal(n[k])
+		st.add_vertex(v[k])
 
 
 ## Adds a flat-shaded triangle wound clockwise seen from outside (Godot's front face).

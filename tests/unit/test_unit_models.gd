@@ -291,7 +291,6 @@ func test_polish_rocket_artillery_uses_homar_k_stand_in() -> void:
 	var russia := FactionRegistry.get_faction(&"russia")
 	assert_eq(UnitModels.model_id(&"rocket_artillery", poland), &"homar_k")
 	assert_eq(UnitModels.model_id(&"rocket_artillery", russia), &"rocket_artillery")
-	assert_eq(UnitModels.model_id(&"cavalry", poland), &"cavalry")
 	assert_eq(UnitModels.model_id(&"rocket_artillery", null), &"rocket_artillery")
 
 

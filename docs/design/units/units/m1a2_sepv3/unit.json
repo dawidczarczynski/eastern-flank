@@ -1,13 +1,163 @@
 {
   "id": "m1a2_sepv3",
   "real_name": "M1A2 SEPv3 Abrams",
+  "variant_note": "M1A2 SEPv3 (System Enhancement Package v3, US Army designation M1A2C) – the version Poland bought (250 tanks, 2022 contract); not the M1A1 FEP Poland also operates",
   "class": "tank",
   "mobility": "tracked",
   "operators": [
     "poland"
   ],
+  "in_service": "2025-present (Polish Army deliveries)",
   "country_of_origin": "USA",
-  "status": "draft",
-  "updated": "2026-10-18",
-  "revision": 1
+  "crew": 4,
+  "weight_t": 66.8,
+  "armament": {
+    "main": "120 mm M256 smoothbore gun (M829A4 APFSDS, AMP multi-purpose rounds)",
+    "secondary": "12.7 mm M2HB in CROWS-LP remote weapon station; 7.62 mm M240 coaxial; 7.62 mm M240 at loader's hatch"
+  },
+  "protection": "Composite armour with a new hull and turret armour package against IEDs; optional reactive and slat armour; M250 smoke grenade dischargers on both sides of the turret",
+  "speed_road_kmh": 68,
+  "range_km": 425,
+  "notes": "Honeywell AGT1500 gas turbine, 1,500 hp; under-armour auxiliary power unit (small exhaust at rear left of hull) is the easiest external SEPv3 identifier",
+  "dimensions": {
+    "hull_length": 7.93,
+    "overall_length": 9.77,
+    "width": 3.7,
+    "height": 2.4,
+    "sources": [
+      "https://en.wikipedia.org/wiki/M1_Abrams",
+      "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154"
+    ]
+  },
+  "silhouette_features": [
+    "low, flat, wide angular turret with a sloped wedge front and a long rear bustle overhanging the engine deck",
+    "long 120 mm smoothbore gun without a fume extractor, protruding ~1.8 m beyond the hull front",
+    "low-profile CROWS remote weapon station (12.7 mm) on the commander's position, armoured shield around the loader's M240",
+    "7 road wheels with 2 return rollers per side, rear drive sprocket, front idler, deep side skirts covering most of the wheels",
+    "long, flat, low hull with a near-horizontal engine deck and a box-like rear grille",
+    "smoke grenade dischargers on both turret sides; small APU exhaust at the rear left of the hull"
+  ],
+  "images": [
+    {
+      "file": "side_1.jpg",
+      "view": "side",
+      "source_url": "https://zbiam.pl/wp-content/uploads/2025/02/m1a2-sepv3.jpg"
+    }
+  ],
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/ca/Cav._M1A2_SEPv3.jpg",
+      "view": "side",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Cav._M1A2_SEPv3.jpg",
+      "note": "US Army 2-8 Cavalry testing a SEPv3 at Fort Hood; very wide panorama (5471×2473), likely a near-side view – check the angle"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/M1A2_SEPv3_Abrams_tanks_arrive_in_CENTCOM_%288732126%29.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:M1A2_SEPv3_Abrams_tanks_arrive_in_CENTCOM_(8732126).jpg",
+      "note": "SEPv3 tanks arriving in CENTCOM, Oct 2024; view angle not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/36/M1A2_SEPv3_Abrams_tanks_arrive_in_CENTCOM_%288732129%29.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:M1A2_SEPv3_Abrams_tanks_arrive_in_CENTCOM_(8732129).jpg",
+      "note": "SEPv3 being parked, Oct 2024; view angle not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1b/M1A2_SEPV3_20150331_008.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:M1A2_SEPV3_20150331_008.jpg",
+      "note": "early M1A2C/SEPv3, 2015; view angle not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/M1A2_SEPv3.jpg",
+      "view": "detail",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:M1A2_SEPv3.jpg",
+      "note": "SEPv3 with the new low-profile RWS; small (720×540)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Recently_purchased_Polish_M1A2_Abrams.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Recently_purchased_Polish_M1A2_Abrams.jpg",
+      "note": "Polish M1A2 at Biedrusko, Sept 2023 – probably a SEPv2 training tank (pre-SEPv3 deliveries); useful for Polish markings/camo only"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/M1_Abrams_diagram_num.svg",
+      "view": "drawing",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:M1_Abrams_diagram_num.svg",
+      "note": "side diagram of an M1A2 with TUSK – not SEPv3 (TUSK reactive armour on the skirts), but good for proportions"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "in_service": {
+      "source": "https://pl.wikipedia.org/wiki/M1_Abrams",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://www.army-technology.com/?p=30800",
+      "verified": true
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/M1_Abrams",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://www.army-technology.com/?p=30800",
+      "verified": true
+    },
+    "armament.secondary": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "protection": {
+      "source": "https://www.army-technology.com/?p=30800",
+      "verified": true
+    },
+    "speed_road_kmh": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "range_km": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "notes": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/M1_Abrams",
+      "verified": true
+    },
+    "dimensions.overall_length": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "dimensions.width": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "dimensions.height": {
+      "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
+      "verified": true
+    },
+    "silhouette_features": {
+      "source": "https://www.army-technology.com/?p=30800",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-10-19",
+  "revision": 20
 }

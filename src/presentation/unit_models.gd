@@ -14,16 +14,19 @@ const CAVALRY := &"cavalry"
 const ROCKET_ARTILLERY := &"rocket_artillery"
 ## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
 const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY]
-## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..11).
+## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
-const MAX_WHEELS := 12
+const MAX_WHEELS := 20
 ## Elevation (rad) of a turntable launcher's pod while firing.
 const LAUNCHER_ELEVATION := 0.7
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
 const MAX_ACTUATORS := 4
 ## Temporary stand-ins until TASK-039a adds the real unit definitions (then delete this and
 ## model_id): "<unit id>:<faction id>" -> model file id.
-const MODEL_STAND_INS := {&"rocket_artillery:poland": &"homar_k"}
+const MODEL_STAND_INS := {
+	&"rocket_artillery:poland": &"homar_k",
+	&"cavalry:poland": &"m1a2_sepv3",
+}
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.

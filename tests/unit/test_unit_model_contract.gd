@@ -11,6 +11,7 @@ const KINDS := {
 	&"cavalry": &"tank",
 	&"rocket_artillery": &"rocket_artillery",
 	&"homar_k": &"rocket_artillery",
+	&"m1a2_sepv3": &"tank",
 }
 ## Known violations of the current models (measured numbers, reported in TASK-036). The
 ## thresholds below stay as specified; a waiver is dropped from here when the model is fixed
@@ -26,6 +27,8 @@ const MAX_TRIANGLES_SQUAD := 20000
 const MAX_BODY_MESH_INSTANCES := 24
 const GROUND_TOLERANCE := 0.005
 const CENTRE_TOLERANCE := 0.05
+const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")
+const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 
 
 func _model_ids() -> Array[StringName]:
@@ -233,6 +236,49 @@ func test_missing_model_file_builds_magenta_placeholder() -> void:
 	assert_true(instance != null)
 	assert_eq((instance.material_override as StandardMaterial3D).albedo_color, Color.MAGENTA)
 	model.free()
+
+
+func test_polish_tank_uses_m1a2_sepv3_stand_in() -> void:
+	var poland := FactionRegistry.get_faction(&"poland")
+	var russia := FactionRegistry.get_faction(&"russia")
+	assert_eq(UnitModels.model_id(&"cavalry", poland), &"m1a2_sepv3")
+	assert_eq(UnitModels.model_id(&"cavalry", russia), &"cavalry")
+	assert_eq(UnitModels.model_id(&"cavalry", null), &"cavalry")
+
+
+func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:
+	var model := UnitModels.build(&"m1a2_sepv3", 0, FactionRegistry.get_faction(&"poland"))
+	var m := model.get_node("Model")
+	var gun := m.get_node("Turret/Gun") as Node3D
+	assert_true(gun.basis.is_equal_approx(Basis.IDENTITY), "gun is level when built")
+	assert_true((gun.get_node("Muzzle") as Node3D).position.x > 0.3, "muzzle at the barrel end")
+	UnitModels.pose_tank(m, 2.0, 0.0, Vector2.ZERO)
+	for i in 18:
+		var wheel := m.get_node_or_null("Wheel%d" % i) as Node3D
+		assert_true(wheel != null, "Wheel%d exists" % i)
+		if wheel != null:
+			assert_true(wheel.rotation.z != 0.0, "Wheel%d spins" % i)
+	assert_true(m.get_node_or_null("Wheel18") == null)
+	model.free()
+
+
+## TASK-031: the running gear is a shared part; other parameters build without code changes.
+func test_tracked_running_gear_builds_from_other_parameters() -> void:
+	var spec := Gear.Spec.new()
+	spec.key = "test_gear"
+	spec.road_wheel_x = [1.0, 1.8, 2.6, 3.4, 4.2, 5.0] as Array[float]
+	spec.return_roller_x = [1.5, 3.0, 4.5] as Array[float]
+	spec.skirt_panels = 0
+	var root := Node3D.new()
+	var materials := {}
+	for key: StringName in [&"body", &"dark", &"steel", &"rubber", &"track", &"accent"]:
+		materials[key] = StandardMaterial3D.new()
+	var next := Gear.build(root, Frame.new(0.09, 3.3), spec, materials, 2)
+	assert_eq(next, 18)
+	assert_true(root.get_node_or_null("Wheel2") != null)
+	assert_true(root.get_node_or_null("Wheel17") != null)
+	assert_true(root.get_node_or_null("Wheel18") == null)
+	root.free()
 
 
 func _bounds(node: Node3D, to_root: Transform3D) -> AABB:
