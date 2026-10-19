@@ -9,6 +9,8 @@ const SHORT_NAMES := {
 	&"cavalry": "TNK",
 	&"m1a2_sepv3": "M1A2",
 	&"rocket_artillery": "ART",
+	&"t72b3": "T-72B3",
+	&"bm27_uragan": "BM-27",
 }
 
 
@@ -26,6 +28,8 @@ func test_unit_classes() -> void:
 		&"cavalry": &"tank",
 		&"m1a2_sepv3": &"tank",
 		&"rocket_artillery": &"mlrs",
+		&"t72b3": &"tank",
+		&"bm27_uragan": &"mlrs",
 	}
 	var definitions := _definitions()
 	assert_eq(definitions.size(), expected.size())
@@ -61,3 +65,22 @@ func test_m1a2_sepv3_definition() -> void:
 		[tank.max_hp, tank.move_points, tank.attack, tank.defense, tank.attack_range],
 		[cavalry.max_hp, cavalry.move_points, cavalry.attack, cavalry.defense, cavalry.attack_range]
 	)
+
+
+## Russia's real units: designation from the GDD, the generic unit's stats until TASK-039a
+## derives their own.
+func test_russian_real_unit_definitions() -> void:
+	var generic := {
+		&"t72b3": CAVALRY, &"bm27_uragan": load("res://data/units/rocket_artillery.tres")
+	}
+	var names := {&"t72b3": "T-72B3", &"bm27_uragan": "9K57 Uragan"}
+	for id: StringName in generic:
+		var unit: UnitDefinition = load("res://data/units/%s.tres" % id)
+		var base: UnitDefinition = generic[id]
+		assert_eq(unit.id, id)
+		assert_eq(unit.display_name, names[id])
+		assert_eq(
+			[unit.max_hp, unit.move_points, unit.attack, unit.defense, unit.attack_range],
+			[base.max_hp, base.move_points, base.attack, base.defense, base.attack_range],
+			String(id)
+		)

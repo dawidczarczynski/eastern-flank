@@ -65,3 +65,11 @@ func test_artillery_cannot_attack_at_distance_6() -> void:
 	var attacker := state.add_unit(0, ARTILLERY, Vector2i(0, 0))
 	var target := state.add_unit(1, INFANTRY, Vector2i(6, 0))
 	assert_eq(AttackCommand.new(attacker.id, target.id).validate(state), "out_of_range")
+
+
+## Rocket volleys follow the unit class, so every MLRS fires one, whatever its id.
+func test_volley_fire_follows_the_mlrs_class() -> void:
+	assert_true(UnitModels.fires_volley(ARTILLERY))
+	assert_true(UnitModels.fires_volley(load("res://data/units/bm27_uragan.tres")))
+	assert_false(UnitModels.fires_volley(load("res://data/units/t72b3.tres")))
+	assert_false(UnitModels.fires_volley(null))

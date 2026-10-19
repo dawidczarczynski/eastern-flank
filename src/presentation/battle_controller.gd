@@ -417,7 +417,7 @@ func _annotate(event: Dictionary) -> Dictionary:
 
 func _fires_volley(attacker_id: int) -> bool:
 	var attacker := _sim.state.get_unit(attacker_id)
-	return attacker != null and attacker.definition.id == UnitModels.ROCKET_ARTILLERY
+	return attacker != null and UnitModels.fires_volley(attacker.definition)
 
 
 ## Aim + salvo + impact; the hit reaction starts with the last impact and ends with the flashes.

@@ -235,7 +235,7 @@ func has_launcher() -> bool:
 
 ## Turntable angle that points the launcher at the world point `target` (see UnitModels).
 func launcher_traverse_towards(target: Vector3) -> float:
-	return UnitModels.launcher_traverse(facing_yaw(), yaw_towards(target))
+	return UnitModels.launcher_traverse_for(_model, facing_yaw(), yaw_towards(target))
 
 
 func set_launcher_pose(traverse: float, elevation: float) -> void:

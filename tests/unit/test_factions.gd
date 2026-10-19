@@ -90,11 +90,10 @@ func test_rosters_hold_the_current_unit_types() -> void:
 		[&"infantry", &"m1a2_sepv3", &"rocket_artillery"]
 	)
 	assert_eq(
-		_ids(FactionRegistry.get_faction(&"russia").roster),
-		[&"infantry", &"cavalry", &"rocket_artillery"]
+		_ids(FactionRegistry.get_faction(&"russia").roster), [&"infantry", &"t72b3", &"bm27_uragan"]
 	)
 	assert_eq(FactionRegistry.get_faction(&"poland").find_unit(&"m1a2_sepv3"), ABRAMS)
-	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"cavalry"), CAVALRY)
+	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"cavalry"), null)
 
 
 func test_default_forces() -> void:
@@ -103,9 +102,7 @@ func test_default_forces() -> void:
 	assert_eq(
 		_ids(poland.default_force), [&"infantry", &"m1a2_sepv3", &"infantry", &"rocket_artillery"]
 	)
-	assert_eq(
-		_ids(russia.default_force), [&"infantry", &"cavalry", &"infantry", &"rocket_artillery"]
-	)
+	assert_eq(_ids(russia.default_force), [&"infantry", &"t72b3", &"infantry", &"bm27_uragan"])
 	for faction in FactionRegistry.all():
 		for entry: UnitDefinition in faction.default_force:
 			assert_true(faction.has_unit(entry), "%s fields %s" % [faction.id, entry.id])

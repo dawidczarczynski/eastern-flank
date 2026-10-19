@@ -14,8 +14,11 @@ const CAVALRY := &"cavalry"
 const ROCKET_ARTILLERY := &"rocket_artillery"
 const M1A2_SEPV3 := &"m1a2_sepv3"
 const T72B3 := &"t72b3"
+const BM27_URAGAN := &"bm27_uragan"
 ## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
-const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3]
+const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3, BM27_URAGAN]
+## Unit class whose attacks play as a rocket volley.
+const VOLLEY_CLASS := &"mlrs"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
 const MAX_WHEELS := 20
@@ -37,6 +40,11 @@ static func facing_yaw(owner_id: int) -> float:
 
 static func is_vehicle(definition_id: StringName) -> bool:
 	return definition_id in VEHICLES
+
+
+## Whether the unit's attacks play as a rocket volley (every MLRS, whatever its id).
+static func fires_volley(definition: UnitDefinition) -> bool:
+	return definition != null and definition.unit_class == VOLLEY_CLASS
 
 
 ## Model file id for a unit of a faction: its own id unless MODEL_STAND_INS maps it.
@@ -128,11 +136,24 @@ static func launcher_pod(model: Node3D) -> Node3D:
 	return pod if pod != null else m.get_node_or_null("Pod") as Node3D
 
 
-## Turntable angle (Launcher rotation.y) that points the tube ends, which face the rear when
-## stowed, towards the facing yaw `target_yaw` of a unit whose body has yaw `facing_yaw`;
-## wrapped to the shorter turn.
-static func launcher_traverse(facing_yaw: float, target_yaw: float) -> float:
-	return wrapf(target_yaw - facing_yaw - PI, -PI, PI)
+## Direction of the stowed tube ends relative to the body (yaw about Y): the "Launcher" node's
+## "stowed_yaw" meta, PI (facing the rear, e.g. Homar-K) when absent; 0 = facing forward over the
+## cab (e.g. BM-27 Uragan).
+static func launcher_stowed_yaw(model: Node3D) -> float:
+	var launcher := _model_of(model).get_node_or_null("Launcher") as Node3D
+	return launcher.get_meta(&"stowed_yaw", PI) if launcher != null else PI
+
+
+## Turntable angle (Launcher rotation.y) that points the tube ends, which face `stowed_yaw` when
+## stowed (see launcher_stowed_yaw), towards the facing yaw `target_yaw` of a unit whose body has
+## yaw `facing_yaw`; wrapped to the shorter turn.
+static func launcher_traverse(facing_yaw: float, target_yaw: float, stowed_yaw := PI) -> float:
+	return wrapf(target_yaw - facing_yaw - stowed_yaw, -PI, PI)
+
+
+## launcher_traverse with the stowed direction of `model`'s own launcher.
+static func launcher_traverse_for(model: Node3D, facing_yaw: float, target_yaw: float) -> float:
+	return launcher_traverse(facing_yaw, target_yaw, launcher_stowed_yaw(model))
 
 
 ## Turntable launcher pose: "Launcher" turns by `traverse` about its Y, its "Pod" turns up by

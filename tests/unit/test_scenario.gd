@@ -13,7 +13,7 @@ func test_default_battle_has_one_rocket_artillery_per_player() -> void:
 	for player in 2:
 		var artillery := 0
 		for unit in state.units_of(player):
-			if unit.definition.id == &"rocket_artillery":
+			if unit.definition.unit_class == &"mlrs":
 				artillery += 1
 		assert_eq(artillery, 1)
 
@@ -77,12 +77,14 @@ func test_default_battle_with_swapped_factions() -> void:
 	assert_eq(state.units.size(), 8)
 
 
-func test_poland_fields_the_abrams_and_russia_the_generic_tank() -> void:
+func test_poland_fields_the_abrams_and_russia_the_t72b3_and_uragan() -> void:
 	var state := Scenario.default_battle(12345)
 	assert_eq(state.get_unit(2).definition.id, &"m1a2_sepv3")
 	assert_eq(state.get_unit(2).coord, MapGenerator.offset_to_axial(1, 5))
-	assert_eq(state.get_unit(6).definition.id, &"cavalry")
+	assert_eq(state.get_unit(6).definition.id, &"t72b3")
 	assert_eq(state.get_unit(6).coord, MapGenerator.offset_to_axial(10, 4))
+	assert_eq(state.get_unit(8).definition.id, &"bm27_uragan")
+	assert_eq(state.get_unit(8).coord, MapGenerator.offset_to_axial(11, 4))
 
 
 ## Factions pick the units (their default_force); the map, spawn tiles and unit ids stay the same.
@@ -93,7 +95,7 @@ func test_swapped_factions_swap_only_the_units() -> void:
 		assert_eq(a.grid.get_terrain(c), b.grid.get_terrain(c))
 	for id in a.units:
 		assert_eq((a.units[id] as Unit).coord, (b.units[id] as Unit).coord, str(id))
-	assert_eq(b.get_unit(2).definition.id, &"cavalry")
+	assert_eq(b.get_unit(2).definition.id, &"t72b3")
 	assert_eq(b.get_unit(6).definition.id, &"m1a2_sepv3")
 
 

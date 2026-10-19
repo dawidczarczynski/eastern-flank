@@ -11,6 +11,7 @@ const KINDS := {
 	&"cavalry": &"tank",
 	&"rocket_artillery": &"rocket_artillery",
 	&"homar_k": &"rocket_artillery",
+	&"bm27_uragan": &"rocket_artillery",
 	&"m1a2_sepv3": &"tank",
 	&"t72b3": &"tank",
 }
@@ -262,6 +263,14 @@ func test_polish_tank_is_its_own_unit_and_a_vehicle() -> void:
 	assert_true(UnitModels.is_vehicle(&"m1a2_sepv3"))
 
 
+## Russia fields its own t72b3 and bm27_uragan units: no stand-ins, both vehicles.
+func test_russian_units_are_their_own_models_and_vehicles() -> void:
+	var russia := FactionRegistry.get_faction(&"russia")
+	for id: StringName in [&"t72b3", &"bm27_uragan"]:
+		assert_eq(UnitModels.model_id(id, russia), id)
+		assert_true(UnitModels.is_vehicle(id), "%s is a vehicle" % id)
+
+
 ## Abrams: 7 road wheels per side + idlers + sprockets = Wheel0..17.
 func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:
 	_assert_tank_pivots(&"m1a2_sepv3", &"poland", 18)
@@ -310,6 +319,35 @@ func test_tracked_running_gear_builds_from_other_parameters() -> void:
 	assert_true(root.get_node_or_null("Wheel17") != null)
 	assert_true(root.get_node_or_null("Wheel18") == null)
 	root.free()
+
+
+## The rear skirt rake and the rubber edge strip are opt-in: off by default, other tanks unchanged.
+func test_skirt_rear_rake_and_edge_are_opt_in() -> void:
+	var spec := Gear.Spec.new()
+	var last := spec.skirt_panels - 1
+	var flat := Gear._skirt_bottom(spec, last)
+	assert_eq(flat.size(), 2, "default last panel has a straight bottom edge")
+	assert_true(is_equal_approx(flat[1].y, spec.skirt_h0), "default rear end stays level")
+	var plain := _gear_child_count(spec)
+	spec.skirt_rear_rake = 0.95
+	spec.skirt_rear_rise = 0.45
+	var raked := Gear._skirt_bottom(spec, last)
+	assert_eq(raked.size(), 3, "raked last panel adds a corner")
+	assert_true(is_equal_approx(raked[2].y, spec.skirt_h0 + 0.45), "rear end rises")
+	assert_eq(Gear._skirt_bottom(spec, 0).size(), 3, "first panel keeps only its front rake")
+	spec.skirt_edge = 0.07
+	assert_eq(_gear_child_count(spec), plain + 1, "edge strip is one extra mesh")
+
+
+func _gear_child_count(spec: Gear.Spec) -> int:
+	var root := Node3D.new()
+	var materials := {}
+	for key: StringName in [&"body", &"dark", &"steel", &"rubber", &"track", &"accent"]:
+		materials[key] = StandardMaterial3D.new()
+	Gear.build(root, Frame.new(0.09, 3.3), spec, materials, 0)
+	var count := root.get_child_count()
+	root.free()
+	return count
 
 
 func _bounds(node: Node3D, to_root: Transform3D) -> AABB:

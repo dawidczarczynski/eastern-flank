@@ -79,9 +79,9 @@
 			{"id":3,"owner":0,"definition":"infantry","coord":[5,5],"hp":0,"moves_left":0,"has_attacked":true},
 			{"id":4,"owner":0,"definition":"rocket_artillery","coord":[2,5],"hp":2,"moves_left":0,"has_attacked":true},
 			{"id":5,"owner":1,"definition":"infantry","coord":[7,1],"hp":0,"moves_left":0,"has_attacked":true},
-			{"id":6,"owner":1,"definition":"cavalry","coord":[6,4],"hp":0,"moves_left":0,"has_attacked":true},
+			{"id":6,"owner":1,"definition":"t72b3","coord":[6,4],"hp":0,"moves_left":0,"has_attacked":true},
 			{"id":7,"owner":1,"definition":"infantry","coord":[6,5],"hp":0,"moves_left":0,"has_attacked":true},
-			{"id":8,"owner":1,"definition":"rocket_artillery","coord":[7,4],"hp":0,"moves_left":0,"has_attacked":true}
+			{"id":8,"owner":1,"definition":"bm27_uragan","coord":[7,4],"hp":0,"moves_left":0,"has_attacked":true}
 		]
 	}
 }

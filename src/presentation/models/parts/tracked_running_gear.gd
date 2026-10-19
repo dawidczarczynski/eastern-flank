@@ -56,6 +56,14 @@ class Spec:
 	var skirt_thickness := 0.05
 	var skirt_front_thickness := 0.12
 	var skirt_front_rake := 0.35
+	## Cuts the rear-bottom corner of the last panel: the bottom edge rises by `skirt_rear_rise`
+	## over the last `skirt_rear_rake` metres (e.g. the T-72's skirt slanting up over the
+	## sprocket). No cut when skirt_rear_rake is 0.
+	var skirt_rear_rake := 0.0
+	var skirt_rear_rise := 0.0
+	## Height (m) of a dark rubber strip along the panels' bottom edges (rakes included), which
+	## separates the skirts from the hull side behind them. No strip when 0.
+	var skirt_edge := 0.0
 	## Skirt panel carrying the faction accent plate (both sides).
 	var accent_panel := 0
 
@@ -97,6 +105,10 @@ static func build(
 	if spec.skirt_panels > 0:
 		ModelParts.add(parent, _skirt_mesh(frame, spec), materials[&"body"], Vector3.ZERO)
 		ModelParts.add(parent, _accent_mesh(frame, spec), materials[&"accent"], Vector3.ZERO)
+		if spec.skirt_edge > 0.0:
+			ModelParts.add(
+				parent, _skirt_edge_mesh(frame, spec), materials[&"rubber"], Vector3.ZERO
+			)
 	return index
 
 
@@ -235,28 +247,71 @@ static func _roller_mesh(frame: Frame, spec: Spec) -> ArrayMesh:
 ## Skirt panels (prisms of their side outline) on both sides with small seams between them.
 static func _skirt_mesh(frame: Frame, spec: Spec) -> ArrayMesh:
 	var parts: Array = []
-	var length := (spec.skirt_x1 - spec.skirt_x0) / spec.skirt_panels
-	var seam := 0.03
 	for i in spec.skirt_panels:
-		var x0 := spec.skirt_x0 + i * length
-		var x1 := x0 + length - seam
-		var t := spec.skirt_front_thickness if i < spec.skirt_front_panels else spec.skirt_thickness
-		var outline: Array[Vector2] = [
-			frame.xy(x0, spec.skirt_h1),
-			frame.xy(x1, spec.skirt_h1),
-			frame.xy(x1, spec.skirt_h0),
-		]
-		if i == 0 and spec.skirt_front_rake > 0.0:
-			outline.append(frame.xy(x0 + spec.skirt_front_rake, spec.skirt_h0))
-			outline.append(frame.xy(x0, spec.skirt_h0 + spec.skirt_front_rake * 0.6))
-		else:
-			outline.append(frame.xy(x0, spec.skirt_h0))
+		var t := _skirt_panel_thickness(spec, i)
+		var bottom := _skirt_bottom(spec, i)
+		var x0: float = bottom[0].x
+		var x1: float = bottom[-1].x
+		var outline: Array[Vector2] = [frame.xy(x0, spec.skirt_h1), frame.xy(x1, spec.skirt_h1)]
+		for j in range(bottom.size() - 1, -1, -1):
+			outline.append(frame.xy(bottom[j].x, bottom[j].y))
 		var key := "%s:skirt%d" % [spec.key, i]
 		var panel := ModelParts.prism_mesh(key, outline, t * frame.k)
 		for s: float in [1.0, -1.0]:
 			var at := Vector3(0, 0, s * (spec.skirt_z - t / 2.0) * frame.k)
 			parts.append([panel, Transform3D(Basis.IDENTITY, at)])
 	return ModelParts.merged_mesh(spec.key + ":skirts", parts)
+
+
+static func _skirt_panel_thickness(spec: Spec, i: int) -> float:
+	return spec.skirt_front_thickness if i < spec.skirt_front_panels else spec.skirt_thickness
+
+
+## Bottom edge of skirt panel `i` from its front to its rear end: Vector2(x, h) points, with the
+## front rake on the first panel and the rear rake on the last.
+static func _skirt_bottom(spec: Spec, i: int) -> Array[Vector2]:
+	var length := (spec.skirt_x1 - spec.skirt_x0) / spec.skirt_panels
+	var x0 := spec.skirt_x0 + i * length
+	var seam := 0.03
+	var x1 := x0 + length - seam
+	var bottom: Array[Vector2] = []
+	if i == 0 and spec.skirt_front_rake > 0.0:
+		bottom.append(Vector2(x0, spec.skirt_h0 + spec.skirt_front_rake * 0.6))
+		bottom.append(Vector2(x0 + spec.skirt_front_rake, spec.skirt_h0))
+	else:
+		bottom.append(Vector2(x0, spec.skirt_h0))
+	if i == spec.skirt_panels - 1 and spec.skirt_rear_rake > 0.0:
+		bottom.append(Vector2(x1 - spec.skirt_rear_rake, spec.skirt_h0))
+		bottom.append(Vector2(x1, spec.skirt_h0 + spec.skirt_rear_rise))
+	else:
+		bottom.append(Vector2(x1, spec.skirt_h0))
+	return bottom
+
+
+## Dark rubber strip (`skirt_edge` high) along every bottom edge segment of the skirts, standing
+## slightly proud of the panel faces on both sides.
+static func _skirt_edge_mesh(frame: Frame, spec: Spec) -> ArrayMesh:
+	var parts: Array = []
+	var proud := 0.016
+	for i in spec.skirt_panels:
+		var t := _skirt_panel_thickness(spec, i) + proud
+		var bottom := _skirt_bottom(spec, i)
+		for j in bottom.size() - 1:
+			var a := bottom[j]
+			var b := bottom[j + 1]
+			var quad: Array[Vector2] = [
+				frame.xy(a.x, a.y),
+				frame.xy(b.x, b.y),
+				frame.xy(b.x, b.y + spec.skirt_edge),
+				frame.xy(a.x, a.y + spec.skirt_edge)
+			]
+			var strip := ModelParts.prism_mesh(
+				"%s:skirt_edge%d_%d" % [spec.key, i, j], quad, t * frame.k
+			)
+			for s: float in [1.0, -1.0]:
+				var at := Vector3(0, 0, s * (spec.skirt_z - (t - proud) / 2.0) * frame.k)
+				parts.append([strip, Transform3D(Basis.IDENTITY, at)])
+	return ModelParts.merged_mesh(spec.key + ":skirt_edges", parts)
 
 
 ## Faction plate on the outer face of skirt panel `accent_panel`, both sides.

@@ -1,11 +1,146 @@
 {
   "id": "bm27_uragan",
   "real_name": "9K57 Uragan",
+  "variant_note": "9P140 combat vehicle (launcher) of the 9K57 Uragan system on the ZIL-135LM 8×8 chassis – the baseline version Russia fields in numbers; not the 9K512 Uragan-1M (MZKT chassis, swappable 220/300 mm pods), not the Belarusian 9P140MB and not Ukrainian KrAZ/Tatra rebuilds",
   "class": "mlrs",
   "mobility": "wheeled",
   "operators": [
     "russia"
   ],
-  "status": "draft",
-  "updated": "2026-10-18"
+  "in_service": "1977-present",
+  "country_of_origin": "Soviet Union",
+  "crew": 4,
+  "weight_t": 20.2,
+  "armament": {
+    "main": "16 × 220 mm rocket launch tubes in three banks (6 + 6 lower, 4 upper) on a traversable mount at the rear"
+  },
+  "speed_road_kmh": 65,
+  "range_km": 500,
+  "fire_range_km": 35,
+  "notes": "Full 16-rocket salvo in 20 s; emplace/displace in 3 min; reload about 20 min from the 9T452 transloader (FAS: 15–20 min).",
+  "dimensions": {
+    "hull_length": 9.3,
+    "overall_length": 9.63,
+    "width": 2.8,
+    "height": 3.225,
+    "sources": [
+      "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "https://www.zr.ru/content/articles/973267-voennye-zily/"
+    ]
+  },
+  "silhouette_features": [
+    "long 8×8 truck (ZIL-135) with the rocket launcher box over the rear half",
+    "16 large 220 mm tubes in three banks: two lower rows of 6, an upper row of 4",
+    "in travel the launcher is traversed to point rearward over the tail, muzzles under a thin sheet-metal cover",
+    "forward cab with a blast shield that is raised over the windscreen for firing"
+  ],
+  "images": [
+    {
+      "file": "three_quarter_1.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/4thTankDivisionOpenDay17p1-36.jpg",
+      "license": "CC BY-SA 4.0",
+      "note": "9P140, 4th Guards Tank Division open day 2017 (Vitaly Kuzmin); camera angle not checked, neighbouring files -37/-38 show the same vehicle https://commons.wikimedia.org/wiki/File:4thTankDivisionOpenDay17p1-36.jpg"
+    },
+    {
+      "file": "three_quarter_2.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/ad/9K57_Uragan_1.jpg",
+      "license": "CC BY-SA 4.0",
+      "note": "Russian MoD exhibition IDELF-2008 (Vitaly Kuzmin); camera angle not checked, files 2 and 3 of the series show it from other angles https://commons.wikimedia.org/wiki/File:9K57_Uragan_1.jpg"
+    },
+    {
+      "file": "three_quarter_3.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/28/BM-27_Uragan_of_the_Russian_Army.jpg",
+      "license": "CC BY 3.0",
+      "note": "Russian Army, St. Petersburg 2010; camera angle not checked https://commons.wikimedia.org/wiki/File:BM-27_Uragan_of_the_Russian_Army.jpg"
+    },
+    {
+      "file": "three_quarter_4.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/95/Uragan_in_Patriot_Park_in_Luga.jpg",
+      "license": "CC BY-SA 3.0",
+      "note": "Museum vehicle, Patriot Park Luga 2018; camera angle not checked https://commons.wikimedia.org/wiki/File:Uragan_in_Patriot_Park_in_Luga.jpg"
+    },
+    {
+      "file": "side_1.jpg",
+      "view": "side",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/1/17/Parad2014NN-29.jpg",
+      "license": "CC BY-SA 4.0",
+      "note": "Russian 9P140 in travel order, Nizhny Novgorod Victory Day parade 2014 (Vitaly Kuzmin); camera angle not checked – parade shots are usually side or three-quarter https://commons.wikimedia.org/wiki/File:Parad2014NN-29.jpg"
+    },
+    {
+      "file": "drawing_1.jpg",
+      "view": "drawing",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/BM-27-Uragan-DIA.jpg",
+      "license": "Public domain",
+      "note": "1986 US DIA artwork (DIA Military Art Collection), Soviet era – an illustration, not a measured line drawing https://commons.wikimedia.org/wiki/File:BM-27-Uragan-DIA.jpg"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/BM-27_Uragan",
+      "verified": true
+    },
+    "in_service": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/BM-27_Uragan",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "weight_t": {
+      "source": "https://www.zr.ru/content/articles/973267-voennye-zily/",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "speed_road_kmh": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "range_km": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "fire_range_km": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "notes": {
+      "source": "https://en.wikipedia.org/wiki/BM-27_Uragan",
+      "verified": true
+    },
+    "dimensions.hull_length": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "dimensions.overall_length": {
+      "source": "https://www.zr.ru/content/articles/973267-voennye-zily/",
+      "verified": true
+    },
+    "dimensions.width": {
+      "source": "https://www.zr.ru/content/articles/973267-voennye-zily/",
+      "verified": true
+    },
+    "dimensions.height": {
+      "source": "https://www.zr.ru/content/articles/973267-voennye-zily/",
+      "verified": true
+    },
+    "silhouette_features": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-10-19",
+  "revision": 22
 }

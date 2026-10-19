@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_mx61n"]
 [ext_resource type="Resource" path="res://data/units/infantry.tres" id="2_o1khc"]
-[ext_resource type="Resource" path="res://data/units/cavalry.tres" id="3_f6x6t"]
-[ext_resource type="Resource" path="res://data/units/rocket_artillery.tres" id="4_7icko"]
+[ext_resource type="Resource" path="res://data/units/t72b3.tres" id="3_t72b3"]
+[ext_resource type="Resource" path="res://data/units/bm27_uragan.tres" id="4_uragan"]
 [ext_resource type="Script" path="res://src/core/data/faction_definition.gd" id="5_tgnu3"]
 
 [resource]
@@ -11,8 +11,8 @@ script = ExtResource("5_tgnu3")
 id = &"russia"
 display_name = "Russia"
 short_name = "RU"
-roster = Array[ExtResource("1_mx61n")]([ExtResource("2_o1khc"), ExtResource("3_f6x6t"), ExtResource("4_7icko")])
-default_force = Array[ExtResource("1_mx61n")]([ExtResource("2_o1khc"), ExtResource("3_f6x6t"), ExtResource("2_o1khc"), ExtResource("4_7icko")])
+roster = Array[ExtResource("1_mx61n")]([ExtResource("2_o1khc"), ExtResource("3_t72b3"), ExtResource("4_uragan")])
+default_force = Array[ExtResource("1_mx61n")]([ExtResource("2_o1khc"), ExtResource("3_t72b3"), ExtResource("2_o1khc"), ExtResource("4_uragan")])
 color = Color(0.84313726, 0.41568628, 0.32156864, 1)
 ink_color = Color(0.16470589, 0.06666667, 0.043137256, 1)
 camo = PackedColorArray(0.5411765, 0.49803922, 0.3529412, 1, 0.41960785, 0.39215687, 0.27450982, 1, 0.65882355, 0.6117647, 0.4627451, 1)

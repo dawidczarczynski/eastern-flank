@@ -28,6 +28,13 @@ const DOME_HW := 1.05
 ## Hull half widths: upper hull / fenders over the tracks, lower hull between the tracks.
 const UPPER_HW := 1.7
 const LOWER_HW := 1.08
+## Sosna-U housing front face (x) and the centre of its round window (h, z).
+const SOSNA_X0 := 2.62
+const SOSNA_H := 2.22
+const SOSNA_Z := 0.6
+## Lid heights of the turret's rear and side stowage bins.
+const BIN_REAR_TOP := 2.08
+const BIN_SIDE_TOP := 1.98
 
 
 static func build(faction: FactionDefinition) -> Node3D:
@@ -72,7 +79,7 @@ static func running_gear() -> Gear.Spec:
 	spec.track_thickness = 0.08
 	spec.grouser_spacing = 0.2
 	spec.skirt_x0 = 0.6
-	spec.skirt_x1 = 6.6
+	spec.skirt_x1 = 6.78
 	spec.skirt_h0 = 0.8
 	spec.skirt_h1 = 1.4
 	spec.skirt_z = 1.79
@@ -81,6 +88,9 @@ static func running_gear() -> Gear.Spec:
 	spec.skirt_thickness = 0.03
 	spec.skirt_front_thickness = 0.06
 	spec.skirt_front_rake = 0.25
+	spec.skirt_rear_rake = 0.95  # last panel slants up over the sprocket
+	spec.skirt_rear_rise = 0.45
+	spec.skirt_edge = 0.07
 	spec.accent_panel = 1
 	return spec
 
@@ -97,7 +107,8 @@ static func _hull_parts(frame: Frame) -> Array:
 		Vector2(4.6, DECK_H),
 		Vector2(6.7, 1.52),
 		Vector2(HULL_LENGTH, 1.4),
-		Vector2(HULL_LENGTH, 1.02),
+		Vector2(HULL_LENGTH, 1.3),
+		Vector2(5.8, 1.02),  # fenders rise over the sprocket: track and sprocket show under them
 	]
 	frame.profile(p, "t72b3:upper_hull", upper, UPPER_HW)
 	var lower := [
@@ -127,6 +138,8 @@ static func _hull_parts(frame: Frame) -> Array:
 ## headlights, tow hooks, block seams on the glacis ERA.
 static func _hull_dark_parts(frame: Frame) -> Array:
 	var p: Array = []
+	# Engine compartment sides between the tracks under the raised rear fenders (in shadow).
+	frame.slab(p, 5.8, HULL_LENGTH - 0.02, 1.0, 1.36, LOWER_HW)
 	frame.slab(p, HULL_LENGTH, HULL_LENGTH + 0.05, 1.18, 1.62, 1.0)  # drum bracket
 	for i in 6:
 		var x := 4.95 + i * 0.27
@@ -173,17 +186,83 @@ static func _turret_parts(frame: Frame) -> Array:
 	p.append([mesh, Transform3D(stretch, frame.p(DOME_X, DECK_H))])
 	for s: float in [-1.0, 1.0]:
 		_era_wedge(p, frame, s)
-	frame.slab(p, 2.62, 3.12, 1.95, 2.55, 0.24, 0.6)  # Sosna-U sight housing (right)
-	frame.drum(p, 3.6, 2.2, 0.52, 0.4, 0.18, &"y", 18)  # commander's cupola
+	# Sosna-U housing (right front roof): front corners chamfered, round window (glass parts).
+	var sosna := [
+		Vector2(SOSNA_X0, 0.48),
+		Vector2(SOSNA_X0, 0.72),
+		Vector2(SOSNA_X0 + 0.12, 0.84),
+		Vector2(3.12, 0.84),
+		Vector2(3.12, 0.36),
+		Vector2(SOSNA_X0 + 0.12, 0.36),
+	]
+	frame.loft(p, "t72b3:sosna", sosna, sosna, 1.8, 2.5)
+	frame.drum(p, SOSNA_X0 - 0.02, SOSNA_H, SOSNA_Z, 0.2, 0.04, &"x", 16)  # window collar
+	_cupola(p, frame)
 	frame.drum(p, 3.62, 2.16, -0.55, 0.34, 0.06, &"y", 16)  # gunner's hatch
+	frame.drum(p, 3.62, 2.2, -0.55, 0.24, 0.04, &"y", 14)  # gunner's hatch lid
+	_stowage(p, frame)
+	frame.drum(p, 4.6, 2.2, -0.62, 0.13, 1.3, &"x", 12)  # OPVT snorkel tube, stowed
 	return p
 
 
-## One side's Kontakt-5 wedge (`s` = side sign): three blocks along a front edge swept back 35 deg
-## from the gun (x 1.95, z 0.32) to the turret side (x 2.6, z 1.25). Each block is a prism of a
-## wedge cross-section (0.55 m deep, top sloping from 2.02 m at the back down to 1.74 m at the
-## sharp front edge), stepping up 0.04 m per block outwards: from the front the two packs form a
-## shallow V with the gun collar in the notch.
+## Commander's cupola (right): ring, hatch lid, TKN-3MK sight block, OU-3GA2M IR lamp beside it,
+## NSVT ammo box on the right of the mount.
+static func _cupola(p: Array, frame: Frame) -> void:
+	frame.drum(p, 3.6, 2.2, 0.52, 0.4, 0.18, &"y", 18)  # cupola ring
+	frame.drum(p, 3.66, 2.31, 0.52, 0.3, 0.05, &"y", 16)  # hatch lid
+	frame.slab(p, 3.18, 3.36, 2.26, 2.42, 0.13, 0.52)  # TKN-3MK sight block
+	frame.drum(p, 3.22, 2.52, 0.24, 0.11, 0.22, &"x", 12)  # OU-3GA2M lamp body
+	frame.slab(p, 3.6, 3.82, 2.34, 2.5, 0.08, 0.7)  # NSVT ammo box
+
+
+## U-shaped stowage bin around the turret rear: a wide box on the rear wall with chamfered
+## corners and a box along each rear side, all reaching back over the engine deck.
+static func _stowage(p: Array, frame: Frame) -> void:
+	frame.loft(p, "t72b3:bin_rear", _bin_rear(), _bin_rear(), 1.6, BIN_REAR_TOP)
+	for s: float in [-1.0, 1.0]:
+		var side := _bin_side(s)
+		frame.loft(p, "t72b3:bin_side%d" % int(s), side, side, 1.6, BIN_SIDE_TOP)
+
+
+## Plan outlines (x, z) of the rear bin and of the side bin on side `s`, grown by `d` metres.
+static func _bin_rear(d := 0.0) -> Array:
+	return [
+		Vector2(4.45 - d, -1.05 - d),
+		Vector2(4.45 - d, 1.05 + d),
+		Vector2(4.95 + d, 1.05 + d),
+		Vector2(5.18 + d, 0.82 + d),
+		Vector2(5.18 + d, -0.82 - d),
+		Vector2(4.95 + d, -1.05 - d),
+	]
+
+
+static func _bin_side(s: float, d := 0.0) -> Array:
+	return [
+		Vector2(3.82 - d, (0.8 - d) * s),
+		Vector2(4.6 + d, (0.8 - d) * s),
+		Vector2(4.6 + d, (1.2 + d) * s),
+		Vector2(3.98 - d, (1.2 + d) * s),
+	]
+
+
+## Dark lid seams: a band around each bin just under its lid, and a hinge strip along the front
+## edge of each lid, so the bins read as separate boxes from the side and from above.
+static func _bin_seams(p: Array, frame: Frame) -> void:
+	var rear := _bin_rear(0.015)
+	frame.loft(p, "t72b3:bin_rear_seam", rear, rear, BIN_REAR_TOP - 0.12, BIN_REAR_TOP - 0.08)
+	frame.slab(p, 4.45, 4.53, BIN_REAR_TOP, BIN_REAR_TOP + 0.015, 1.05)  # rear lid hinge
+	for s: float in [-1.0, 1.0]:
+		var side := _bin_side(s, 0.015)
+		var key := "t72b3:bin_side_seam%d" % int(s)
+		frame.loft(p, key, side, side, BIN_SIDE_TOP - 0.11, BIN_SIDE_TOP - 0.07)
+		frame.slab(p, 3.85, 4.6, BIN_SIDE_TOP, BIN_SIDE_TOP + 0.015, 0.03, 0.83 * s)  # side hinge
+
+
+## One side's Kontakt-5 wedge (`s` = side sign) along a front edge swept back 35 deg from the gun
+## (x 1.95, z 0.32) to the turret side (x 2.6, z 1.25): two rows of four blocks. The front row is
+## a wedge (sharp 1.74 m front edge, top sloping up backwards), the back row a taller block whose
+## top continues the slope up to 2.06 m; each block steps up 0.03 m outwards, so from the front
+## the two packs form a shallow V with the gun collar in the notch.
 static func _era_wedge(p: Array, frame: Frame, s: float) -> void:
 	var inner := Vector2(1.95, 0.32 * s)
 	var outer := Vector2(2.6, 1.25 * s)
@@ -191,46 +270,64 @@ static func _era_wedge(p: Array, frame: Frame, s: float) -> void:
 	var length := along.length()
 	var forward := Vector3(absf(along.z), 0.0, s * absf(along.x)).normalized()
 	var axis := forward.cross(Vector3.UP)  # block length; right-handed with forward and up
-	var section: Array[Vector2] = []
-	for point: Vector2 in [
-		Vector2(-0.55, 1.6), Vector2(0.08, 1.6), Vector2(0.0, 1.74), Vector2(-0.55, 2.02)
-	]:
-		section.append(point * K)
-	var gap := 0.03 * K
-	var block := ModelParts.prism_mesh("t72b3:k5_block", section, length / 3.0 - gap)
+	var gap := 0.04 * K
+	var rows := {
+		"front":
+		[Vector2(-0.29, 1.6), Vector2(0.08, 1.6), Vector2(0.0, 1.74), Vector2(-0.29, 1.89)],
+		"back":
+		[Vector2(-0.57, 1.6), Vector2(-0.33, 1.6), Vector2(-0.33, 1.95), Vector2(-0.57, 2.06)],
+	}
 	var basis := Basis(forward, Vector3.UP, axis)
-	for i in 3:
-		var t := (i + 0.5) / 3.0
-		var centre := frame.p(lerpf(inner.x, outer.x, t), 0.04 * i, lerpf(inner.y, outer.y, t))
-		p.append([block, Transform3D(basis, centre)])
+	for row: String in rows:
+		var section: Array[Vector2] = []
+		for point: Vector2 in rows[row]:
+			section.append(point * K)
+		var block := ModelParts.prism_mesh("t72b3:k5_" + row, section, length / 4.0 - gap)
+		for i in 4:
+			var t := (i + 0.5) / 4.0
+			var centre := frame.p(lerpf(inner.x, outer.x, t), 0.03 * i, lerpf(inner.y, outer.y, t))
+			p.append([block, Transform3D(basis, centre)])
 
 
-## Dark: NSVT on the commander's cupola, 902B smoke grenade launchers, wind sensor mast, turret
-## ring collar, Sosna-U armoured doors frame.
+## Dark: NSVT pintle and receiver, lamp bracket, 902B smoke grenade launchers (8 on the left in
+## two rows, 4 on the right), wind sensor mast, antenna base, bin latches, turret ring collar,
+## Sosna-U window rim.
 static func _turret_dark_parts(frame: Frame) -> Array:
 	var p: Array = []
-	frame.drum(p, 3.75, ROOF_H + 0.2, 0.52, 0.05, 0.16, &"y", 8)  # NSVT pintle
-	frame.slab(p, 3.5, 4.0, 2.4, 2.54, 0.07, 0.52)  # NSVT receiver
-	frame.slab(p, 3.55, 3.8, 2.33, 2.48, 0.08, 0.68)  # NSVT ammo box
+	frame.drum(p, 3.78, ROOF_H + 0.2, 0.52, 0.05, 0.2, &"y", 8)  # NSVT pintle
+	frame.slab(p, 3.48, 3.98, 2.42, 2.53, 0.05, 0.52)  # NSVT receiver
+	frame.slab(p, 3.6, 3.7, 2.28, 2.44, 0.03, 0.4)  # NSVT cradle arm
+	frame.slab(p, 3.2, 3.26, 2.29, 2.44, 0.03, 0.24)  # lamp bracket
 	for s: float in [-1.0, 1.0]:
 		var dir := Vector3(0.6, 0.45, s * 0.35)
-		for i in 4:
-			frame.drum(p, 3.3 + i * 0.13, 1.84, s * 0.92, 0.05, 0.3, dir, 8)  # 902B tubes
+		var rows := 2 if s < 0.0 else 1
+		for row in rows:
+			for i in 4:
+				var x := 3.25 + i * 0.13
+				frame.drum(p, x, 1.84 + row * 0.13, s * (0.94 - row * 0.05), 0.05, 0.3, dir, 8)
 	frame.drum(p, 4.35, 2.42, 0.0, 0.018, 0.6, &"y", 6)  # wind sensor mast
 	frame.drum(p, 4.35, 2.74, 0.0, 0.05, 0.08, &"y", 8)  # wind sensor head
+	frame.drum(p, 4.25, 2.03, -1.0, 0.06, 0.12, &"y", 8)  # radio antenna base
+	frame.pair(p, 5.18, 5.21, 1.84, 1.96, 0.07, 0.45)  # rear bin latches
+	_bin_seams(p, frame)
 	frame.drum(p, TURRET_X, DECK_H + 0.03, 0.0, 1.0, 0.06, &"y", 24)  # turret ring collar
+	frame.drum(p, SOSNA_X0 - 0.045, SOSNA_H, SOSNA_Z, 0.16, 0.02, &"x", 16)  # window rim
 	return p
 
 
+## Glass: round Sosna-U window, TKN-3MK and lamp lenses, gunner's periscope.
 static func _turret_glass_parts(frame: Frame) -> Array:
 	var p: Array = []
-	frame.slab(p, 2.59, 2.63, 2.28, 2.47, 0.17, 0.6)  # Sosna-U window
+	frame.drum(p, SOSNA_X0 - 0.06, SOSNA_H, SOSNA_Z, 0.12, 0.02, &"x", 16)  # Sosna-U window
+	frame.slab(p, 3.165, 3.185, 2.3, 2.38, 0.09, 0.52)  # TKN-3MK window
+	frame.drum(p, 3.105, 2.52, 0.24, 0.09, 0.02, &"x", 12)  # IR lamp lens
+	frame.slab(p, 3.2, 3.24, 2.13, 2.2, 0.08, -0.6)  # gunner's periscope
 	return p
 
 
 static func _turret_steel_parts(frame: Frame) -> Array:
 	var p: Array = []
-	frame.drum(p, 2.95, 2.47, 0.52, 0.03, 1.1, &"x", 6)  # NSVT barrel
+	frame.drum(p, 2.93, 2.48, 0.52, 0.03, 1.1, &"x", 6)  # NSVT barrel
 	return p
 
 

@@ -107,6 +107,25 @@ func test_traverse_turns_the_tubes_towards_the_target_yaw() -> void:
 	model.get_parent().free()
 
 
+## The Uragan's tubes are stowed facing forward over the cab ("stowed_yaw" meta 0), so the
+## traverse for a model must turn them by the model's own stowed direction.
+func test_uragan_traverse_uses_the_models_stowed_direction() -> void:
+	var root := UnitModels.build(&"bm27_uragan", 0, FactionRegistry.get_faction(&"russia"))
+	var model := root.get_node("Model") as Node3D
+	assert_eq(UnitModels.launcher_stowed_yaw(model), 0.0)
+	for target_yaw: float in [0.0, PI / 2.0, -2.0]:
+		var traverse := UnitModels.launcher_traverse_for(model, 0.0, target_yaw)
+		UnitModels.pose_launcher(model, traverse, UnitModels.LAUNCHER_ELEVATION)
+		var launcher := model.get_node("Launcher") as Node3D
+		var direction := _mouth_centre(model) - launcher.position
+		var flat := Vector2(direction.x, direction.z).normalized()
+		var expected := Vector2(cos(target_yaw), -sin(target_yaw))
+		assert_true(
+			flat.distance_to(expected) < 0.05, "tubes point %s, expected %s" % [flat, expected]
+		)
+	root.free()
+
+
 func test_traverse_is_wrapped_to_the_shortest_turn() -> void:
 	assert_true(absf(absf(UnitModels.launcher_traverse(0.0, 0.0)) - PI) < 0.001)
 	assert_true(absf(UnitModels.launcher_traverse(PI, 0.0)) < 0.001)
