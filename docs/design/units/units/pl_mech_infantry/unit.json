@@ -1,11 +1,138 @@
 {
   "id": "pl_mech_infantry",
   "real_name": "Mechanised Infantry Squad",
-  "class": "mech_infantry",
+  "variant_note": "Dismounted squad of a Polish mechanised brigade (KTO Rosomak / BWP-1 carriers, e.g. 12th Mechanized Brigade), current kit: MSBS Grot C rifle, wz. 2005 helmet (HP-05 / HBT-02 being fielded), KKZ-01 plate carrier, wz. 93 Pantera uniform. Dimensions describe one soldier.",
+  "class": "infantry",
   "mobility": "foot",
   "operators": [
     "poland"
   ],
-  "status": "draft",
-  "updated": "2026-10-18"
+  "in_service": "present",
+  "country_of_origin": "Poland",
+  "crew": 8,
+  "armament": {
+    "main": "MSBS Grot C 5.56 mm assault rifle (conventional layout; FB Beryl wz. 96C 5.56 mm still in service)",
+    "secondary": "UKM-2000 7.62 mm GPMG; Pallad / GPBO-40 40 mm underbarrel grenade launcher; RPG-7 (being replaced by Carl Gustaf M4 84 mm), M72 EC LAW"
+  },
+  "protection": "Hełm wz. 2005 aramid helmet (PASGT-like shape; high-cut HP-05 and HBT-02 being fielded); KKZ-01 plate carrier (Gryf plate carrier, older OLV / KWM-02 vests)",
+  "notes": "Dimensions are for one soldier in full kit. crew = 8 is the dismount capacity of the KTO Rosomak troop compartment, not a published table of organisation.",
+  "dimensions": {
+    "height": 1.82
+  },
+  "silhouette_features": [
+    "rounded PASGT-like helmet with a short brim over the ears (wz. 2005), often with a Pantera cover",
+    "bulky plate carrier with front pouches over the uniform",
+    "conventional-layout rifle with a long top rail and a polymer stock (Grot C)",
+    "one soldier with a shoulder-fired tube: RPG-7 with its conical warhead, or the longer Carl Gustaf",
+    "wz. 93 Pantera woodland camouflage on uniform and helmet cover"
+  ],
+  "details": [
+    "AT launcher on one soldier",
+    "machine gun on one soldier",
+    "small backpack / assault pack"
+  ],
+  "skip": [
+    "radios and antennas",
+    "insignia and flag patches",
+    "small pouches",
+    "night-vision mounts"
+  ],
+  "camo_note": "wz. 93 Pantera woodland (olive base, dark green, brown, black; soft shapes). Being replaced by K-03 Ryś from 2027 (about 220,000 sets by 2029).",
+  "images": [
+    {
+      "file": "side_1.jpg",
+      "view": "side",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/3/3f/A_Polish_soldier_provides_security_during_Saber_Junction_19_%285767842%29.jpg",
+      "license": "Public domain",
+      "note": "12th Mechanized Brigade soldier on guard, Saber Junction 19 (2019); portrait format, the angle was not checked https://commons.wikimedia.org/wiki/File:A_Polish_soldier_provides_security_during_Saber_Junction_19_(5767842).jpg"
+    },
+    {
+      "file": "detail_1.jpg",
+      "view": "detail",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Illinois_Army_National_Guard_trains_with_Polish_Territorial_Defence_Force_%289126183%29.jpg",
+      "license": "Public domain",
+      "note": "MSBS Grot being fired (2025) – rifle profile reference; Territorial Defence soldier, not mechanised infantry https://commons.wikimedia.org/wiki/File:Illinois_Army_National_Guard_trains_with_Polish_Territorial_Defence_Force_(9126183).jpg"
+    },
+    {
+      "file": "three_quarter_1.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/Polish_Soldiers_provide_security_during_Saber_Junction_19_%285773863%29.jpg",
+      "license": "Public domain",
+      "note": "several 12th Mechanized Brigade soldiers, Saber Junction 19 (2019) https://commons.wikimedia.org/wiki/File:Polish_Soldiers_provide_security_during_Saber_Junction_19_(5773863).jpg"
+    },
+    {
+      "file": "detail_2.jpg",
+      "view": "detail",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/57/Battle_Group_Poland_finishes_culminating_exercise_of_Saber_Strike_18_%284488161%29.jpg",
+      "license": "Public domain",
+      "note": "Polish soldier just after firing an RPG-7, Saber Strike 18 (2018) – AT soldier reference https://commons.wikimedia.org/wiki/File:Battle_Group_Poland_finishes_culminating_exercise_of_Saber_Strike_18_(4488161).jpg"
+    },
+    {
+      "file": "front_1.jpg",
+      "view": "front",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/a/a4/Patrol_with_Polish_Soldiers_%287945367%29.jpg",
+      "license": "Public domain",
+      "note": "Polish infantryman on patrol, KFOR 2023 (recent kit); the angle was not checked https://commons.wikimedia.org/wiki/File:Patrol_with_Polish_Soldiers_(7945367).jpg"
+    },
+    {
+      "file": "three_quarter_2.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Polish_soldier_standing_next_to_KTO_Rosomak_of_12th_Mechanized_Brigade_and_other_units_training_in_the_Lublin_and_Podlasie_region.jpg",
+      "license": "CC BY 3.0",
+      "note": "MON photo (2019), soldier standing next to a Rosomak; gives scale against the vehicle; the angle was not checked https://commons.wikimedia.org/wiki/File:Polish_soldier_standing_next_to_KTO_Rosomak_of_12th_Mechanized_Brigade_and_other_units_training_in_the_Lublin_and_Podlasie_region.jpg"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://mil.in.ua/en/articles/rosomak-modern-polish-apc-in-service-with-the-armed-forces-of-ukraine/",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/FB_MSBS_Grot",
+      "verified": true
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "notes": {
+      "source": "https://mil.in.ua/en/articles/rosomak-modern-polish-apc-in-service-with-the-armed-forces-of-ukraine/",
+      "verified": true
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/He%C5%82m_wz._2005",
+      "verified": true
+    },
+    "details": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": true
+    },
+    "skip": {
+      "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
+      "verified": false
+    },
+    "camo_note": {
+      "source": "https://en.wikipedia.org/wiki/Wz._93_Pantera",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-10-20",
+  "revision": 17
 }

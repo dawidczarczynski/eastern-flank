@@ -14,6 +14,8 @@ const KINDS := {
 	&"bm27_uragan": &"rocket_artillery",
 	&"m1a2_sepv3": &"tank",
 	&"t72b3": &"tank",
+	&"pl_mech_infantry": &"squad",
+	&"ru_motor_rifle": &"squad",
 }
 ## Known violations of the current models (measured numbers, reported in TASK-036). The
 ## thresholds below stay as specified; a waiver is dropped from here when the model is fixed

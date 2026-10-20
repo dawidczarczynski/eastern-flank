@@ -1,11 +1,132 @@
 {
   "id": "ru_motor_rifle",
   "real_name": "Motor Rifle Squad",
-  "class": "mech_infantry",
+  "variant_note": "Dismounted squad (otdeleniye) of a BMP-mounted motor rifle platoon of the Russian Ground Forces in Ratnik kit: AK-74M (AK-12 in some units), 6B47 helmet, 6B45 body armour, EMR uniform. Dimensions describe one soldier.",
+  "class": "infantry",
   "mobility": "foot",
   "operators": [
     "russia"
   ],
-  "status": "draft",
-  "updated": "2026-10-18"
+  "in_service": "present",
+  "country_of_origin": "Russia",
+  "crew": 6,
+  "armament": {
+    "main": "AK-74M 5.45 mm assault rifle (AK-12 5.45 mm issued first to elite units), some with GP-30 40 mm underbarrel grenade launchers",
+    "secondary": "RPK-74M or PKP Pecheneg machine gun; RPG-7V grenadier with an assistant"
+  },
+  "protection": "6B47 aramid helmet (Ratnik; successor of the 6B7-1M / 6B27, NVG mount); 6B45 body armour with MOLLE front (7.5 kg, GOST class 6); lighter 6B46 plate carrier",
+  "notes": "Dimensions are for one soldier in full kit. crew = 6 dismounts: a fire group (squad leader, RPG-7V grenadier, assistant grenadier, machine gunner) and a manoeuvre group (2 riflemen with GP-30). The BMP gunner and driver stay in the vehicle. Squads in Ukraine are often reported at 5–7 men.",
+  "dimensions": {
+    "height": 1.8
+  },
+  "silhouette_features": [
+    "rounded full-cut aramid helmet (6B47) with an EMR cover",
+    "bulky 6B45 body armour with MOLLE pouches on the front and a high collar",
+    "AK-profile rifle: curved magazine, gas tube over the barrel, folding stock",
+    "grenadier with an RPG-7V tube and its conical warhead over the shoulder",
+    "EMR digital camouflage (small green / brown / black pixels on a light green base)"
+  ],
+  "details": [
+    "RPG-7V on the grenadier",
+    "machine gun on one soldier",
+    "GP-30 underbarrel launcher on one or two rifles"
+  ],
+  "skip": [
+    "radios and antennas",
+    "patches and armbands (identification tape)",
+    "small pouches"
+  ],
+  "camo_note": "EMR (\"Tsifra\" / Digital Flora) digital camouflage, used with the Ratnik kit; the helmet has an EMR cover",
+  "images": [
+    {
+      "file": "side_1.jpg",
+      "view": "side",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/9/96/Russian_soldier_with_a_RPK-74.jpg",
+      "license": "CC BY 4.0",
+      "note": "Russian MoD (mil.ru) photo, soldier in Ratnik kit with an RPK-74; the angle was not checked https://commons.wikimedia.org/wiki/File:Russian_soldier_with_a_RPK-74.jpg"
+    },
+    {
+      "file": "front_1.jpg",
+      "view": "front",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Russian_Ground_Forces_Iveco_LMV.jpg",
+      "license": "CC BY 4.0",
+      "note": "mil.ru photo, Ground Forces soldiers next to a vehicle; useful for scale; the angle was not checked https://commons.wikimedia.org/wiki/File:Russian_Ground_Forces_Iveco_LMV.jpg"
+    },
+    {
+      "file": "three_quarter_1.jpg",
+      "view": "three_quarter",
+      "source_url": "https://upload.wikimedia.org/wikipedia/commons/b/bf/PeaceMission2018-01.jpg",
+      "license": "CC BY 4.0",
+      "note": "Peace Mission 2018 exercise (mil.ru) – several soldiers in kit https://commons.wikimedia.org/wiki/File:PeaceMission2018-01.jpg"
+    }
+  ],
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/43/An_AK-15_carried_by_Russian_soldier.jpg",
+      "view": "three_quarter",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:An_AK-15_carried_by_Russian_soldier.jpg",
+      "note": "mil.ru photo, soldier carrying an AK-12 (the file name says AK-15); the angle was not checked"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b2/RPG-7V2_-_ETIF-2010.jpg",
+      "view": "detail",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:RPG-7V2_-_ETIF-2010.jpg",
+      "note": "the RPG-7V2 itself, exhibition photo – launcher profile"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "crew": {
+      "source": "https://www.battleorder.org/rus-bmp-platoon",
+      "verified": true
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "armament.secondary": {
+      "source": "https://www.battleorder.org/rus-bmp-platoon",
+      "verified": true
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "notes": {
+      "source": "https://www.battleorder.org/rus-bmp-platoon",
+      "verified": true
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/6B47_helmet",
+      "verified": true
+    },
+    "details": {
+      "source": "https://www.battleorder.org/rus-bmp-platoon",
+      "verified": true
+    },
+    "skip": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    },
+    "camo_note": {
+      "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-10-20",
+  "revision": 15
 }
