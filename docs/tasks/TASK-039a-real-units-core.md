@@ -1,6 +1,6 @@
 # TASK-039a: Real units and countries – core, data, scenario, balance
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: core (`UnitDefinition`, `FactionDefinition.default_force`, `Scenario`, match record), ai (`MatchRunner` factions), tools (`simulate.sh --factions`), data
 - **Depends on**: **TASK-038** (factions as data), **TASK-037** (catalog entries – done). GDD: "Factions and units", "Stat derivation rules", "Balance of the default battle".
 - **Model**: opus
@@ -113,3 +113,4 @@ _Filled in by the agent when done._
     ```
     Poland won 205 of 389 decided matches (52.7 %). Player 1 is still favoured in both assignments (known side bias).
   - Known: the second T-72B3 at (10,8) sits under the controls help panel at the default camera (TASK-039b / presentation). `tools/screenshot.sh` with the Windows build exits 5 even though it saves the PNG; this already happened before this task.
+  - Playtested by the human (2026-10-20): all good.
