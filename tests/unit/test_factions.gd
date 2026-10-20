@@ -1,9 +1,8 @@
 extends TestCase
 
 const FACTIONS_DIR := "res://data/factions"
-const INFANTRY := preload("res://data/units/infantry.tres")
-const CAVALRY := preload("res://data/units/cavalry.tres")
-const ARTILLERY := preload("res://data/units/rocket_artillery.tres")
+const SQUAD := preload("res://data/units/pl_mech_infantry.tres")
+const T72B3 := preload("res://data/units/t72b3.tres")
 const ABRAMS := preload("res://data/units/m1a2_sepv3.tres")
 
 
@@ -84,25 +83,30 @@ func test_every_faction_is_complete() -> void:
 			assert_true(entry is UnitDefinition, "%s roster entry %s" % [faction.id, str(entry)])
 
 
-func test_rosters_hold_the_current_unit_types() -> void:
+func test_rosters_hold_the_real_units() -> void:
 	assert_eq(
-		_ids(FactionRegistry.get_faction(&"poland").roster),
-		[&"infantry", &"m1a2_sepv3", &"rocket_artillery"]
+		_sorted(_ids(FactionRegistry.get_faction(&"poland").roster)),
+		_sorted([&"pl_mech_infantry", &"m1a2_sepv3", &"homar_k"] as Array[StringName])
 	)
 	assert_eq(
-		_ids(FactionRegistry.get_faction(&"russia").roster), [&"infantry", &"t72b3", &"bm27_uragan"]
+		_sorted(_ids(FactionRegistry.get_faction(&"russia").roster)),
+		_sorted([&"ru_motor_rifle", &"t72b3", &"bm27_uragan"] as Array[StringName])
 	)
 	assert_eq(FactionRegistry.get_faction(&"poland").find_unit(&"m1a2_sepv3"), ABRAMS)
-	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"cavalry"), null)
+	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"m1a2_sepv3"), null)
 
 
 func test_default_forces() -> void:
 	var poland := FactionRegistry.get_faction(&"poland")
 	var russia := FactionRegistry.get_faction(&"russia")
 	assert_eq(
-		_ids(poland.default_force), [&"infantry", &"m1a2_sepv3", &"infantry", &"rocket_artillery"]
+		_ids(poland.default_force),
+		[&"pl_mech_infantry", &"m1a2_sepv3", &"pl_mech_infantry", &"homar_k"]
 	)
-	assert_eq(_ids(russia.default_force), [&"infantry", &"t72b3", &"infantry", &"bm27_uragan"])
+	assert_eq(
+		_ids(russia.default_force),
+		[&"ru_motor_rifle", &"t72b3", &"ru_motor_rifle", &"t72b3", &"bm27_uragan"]
+	)
 	for faction in FactionRegistry.all():
 		for entry: UnitDefinition in faction.default_force:
 			assert_true(faction.has_unit(entry), "%s fields %s" % [faction.id, entry.id])
@@ -115,13 +119,19 @@ func _ids(definitions: Array[UnitDefinition]) -> Array[StringName]:
 	return result
 
 
+func _sorted(ids: Array[StringName]) -> Array[StringName]:
+	var result := ids.duplicate()
+	result.sort()
+	return result
+
+
 func test_has_unit_compares_unit_ids() -> void:
 	var faction := FactionDefinition.new()
-	faction.roster = [INFANTRY]
-	assert_true(faction.has_unit(INFANTRY))
-	assert_false(faction.has_unit(CAVALRY))
+	faction.roster = [SQUAD]
+	assert_true(faction.has_unit(SQUAD))
+	assert_false(faction.has_unit(T72B3))
 	assert_false(faction.has_unit(null))
-	assert_eq(faction.find_unit(&"cavalry"), null)
+	assert_eq(faction.find_unit(&"t72b3"), null)
 
 
 func test_translations() -> void:

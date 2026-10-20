@@ -128,10 +128,8 @@ func test_ranged_destination_tie_prefers_inside_range_then_current_tile() -> voi
 
 func test_ai_rocket_artillery_moves_away_from_adjacent_enemy_and_fires_uncountered() -> void:
 	var state := GameState.new(Fixtures.plains_grid(6), 2, 1)
-	var enemy := state.add_unit(0, load("res://data/units/infantry.tres"), Vector2i(1, 0))
-	var artillery := state.add_unit(
-		1, load("res://data/units/rocket_artillery.tres"), Vector2i(0, 0)
-	)
+	var enemy := state.add_unit(0, load("res://data/units/pl_mech_infantry.tres"), Vector2i(1, 0))
+	var artillery := state.add_unit(1, load("res://data/units/bm27_uragan.tres"), Vector2i(0, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
 	AiPlayer.new().take_turn(game)

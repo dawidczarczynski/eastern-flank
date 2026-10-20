@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Plays N headless AI-vs-AI matches and prints win rates and average match length (TASK-012).
-# Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--verbose]
-#   seeds S..S+N-1 (default S=1), turn limit T (default 50); --verbose prints one line per match.
+# Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--factions=P0,P1] [--verbose]
+#   seeds S..S+N-1 (default S=1), turn limit T (default 50), faction ids of player 0 and 1
+#   (default poland,russia); --verbose prints one line per match.
 # The Godot path can be overridden with GODOT.
 # Exit codes: 0 ok, 1 a match ended with "error" / script errors, 2 invalid arguments, 127 Godot not found.
 set -uo pipefail

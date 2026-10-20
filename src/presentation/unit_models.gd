@@ -15,8 +15,12 @@ const ROCKET_ARTILLERY := &"rocket_artillery"
 const M1A2_SEPV3 := &"m1a2_sepv3"
 const T72B3 := &"t72b3"
 const BM27_URAGAN := &"bm27_uragan"
+const HOMAR_K := &"homar_k"
 ## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
-const VEHICLES: Array[StringName] = [CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3, BM27_URAGAN]
+## (TASK-039b chooses this by the unit's `mobility` instead.)
+const VEHICLES: Array[StringName] = [
+	CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3, BM27_URAGAN, HOMAR_K
+]
 ## Unit class whose attacks play as a rocket volley.
 const VOLLEY_CLASS := &"mlrs"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
@@ -28,9 +32,6 @@ const LAUNCHER_ELEVATION := 0.7
 const MAX_ACTUATORS := 4
 ## Label anchor height above the unit's feet for a model file without a LABEL_HEIGHT constant.
 const DEFAULT_LABEL_HEIGHT := 0.5
-## Temporary stand-ins until TASK-039a adds the real unit definitions (then delete this and
-## model_id): "<unit id>:<faction id>" -> model file id.
-const MODEL_STAND_INS := {&"rocket_artillery:poland": &"homar_k"}
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.
@@ -45,12 +46,6 @@ static func is_vehicle(definition_id: StringName) -> bool:
 ## Whether the unit's attacks play as a rocket volley (every MLRS, whatever its id).
 static func fires_volley(definition: UnitDefinition) -> bool:
 	return definition != null and definition.unit_class == VOLLEY_CLASS
-
-
-## Model file id for a unit of a faction: its own id unless MODEL_STAND_INS maps it.
-static func model_id(definition_id: StringName, faction: FactionDefinition) -> StringName:
-	var faction_id: StringName = faction.id if faction != null else &""
-	return MODEL_STAND_INS.get(StringName("%s:%s" % [definition_id, faction_id]), definition_id)
 
 
 ## `faction` colours the model (null = neutral grey); `owner_id` only sets the facing.

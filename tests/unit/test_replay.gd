@@ -3,6 +3,7 @@ extends TestCase
 const SEED := 12345
 const FIXTURE_PATH := "res://tests/fixtures/replays/default_battle_12345.json"
 const REGENERATE := "tools/make_replay_fixture.sh"
+const FACTIONS := '["poland", "russia"]'
 
 
 ## Simulation on seed 12345 after: move unit 1 by one tile, end_turn, end_turn.
@@ -33,7 +34,8 @@ func _record(commands: Array[Dictionary]) -> MatchRecord:
 
 func test_record_defaults() -> void:
 	var record := MatchRecord.new()
-	assert_eq(record.version, 1)
+	assert_eq(MatchRecord.VERSION, 2, "bumped by TASK-039a (ADR-0009)")
+	assert_eq(record.version, MatchRecord.VERSION)
 	assert_eq(record.scenario, "default_battle")
 	assert_eq(record.commands.size(), 0)
 
@@ -50,7 +52,7 @@ func test_json_round_trip() -> void:
 	var record := MatchRecord.from_simulation(_three_command_sim(), SEED)
 	var loaded := MatchRecord.from_json(record.to_json())
 	assert_true(loaded != null)
-	assert_eq(loaded.version, 1)
+	assert_eq(loaded.version, MatchRecord.VERSION)
 	assert_eq(loaded.scenario, "default_battle")
 	assert_eq(loaded.seed, SEED)
 	assert_eq(loaded.commands.size(), 3)
@@ -62,18 +64,53 @@ func test_from_json_rejects_invalid_json() -> void:
 	assert_eq(MatchRecord.from_json(""), null)
 
 
-func test_from_json_rejects_other_versions() -> void:
-	var text := '{"version": 2, "scenario": "default_battle", "seed": 1, "commands": []}'
-	assert_eq(MatchRecord.from_json(text), null)
-	assert_eq(
-		MatchRecord.from_json('{"scenario": "default_battle", "seed": 1, "commands": []}'), null
+## An empty record of format `version`.
+func _versioned(version: int) -> String:
+	return (
+		'{"version": %d, "scenario": "default_battle", "seed": 1, "factions": %s, "commands": []}'
+		% [version, FACTIONS]
 	)
 
 
+func test_from_json_rejects_other_versions() -> void:
+	assert_eq(MatchRecord.from_json(_versioned(3)), null)
+	assert_eq(
+		MatchRecord.from_json(
+			'{"scenario": "default_battle", "seed": 1, "factions": %s, "commands": []}' % FACTIONS
+		),
+		null
+	)
+
+
+## Records from before TASK-039a (version 1: generic infantry / cavalry / rocket artillery)
+## are rejected with a readable message instead of replaying into different units (ADR-0009).
+func test_pre_039_record_is_rejected_with_a_readable_error() -> void:
+	var text := _versioned(1)
+	var result := MatchRecord.parse_json(text)
+	assert_eq(result["record"], null)
+	var message: String = result["error"]
+	assert_true(message.contains("version 1"), message)
+	assert_true(message.contains("unsupported"), message)
+	assert_eq(MatchRecord.from_json(text), null)
+
+
+func test_parse_json_reports_every_failure_readably() -> void:
+	for bad in ["{not json", "[1]", '{"version": 2, "seed": 1}']:
+		var result := MatchRecord.parse_json(bad)
+		assert_eq(result["record"], null, bad)
+		assert_false((result["error"] as String).is_empty(), bad)
+	var ok := MatchRecord.parse_json(
+		MatchRecord.from_simulation(_three_command_sim(), SEED).to_json()
+	)
+	assert_true(ok["record"] is MatchRecord)
+	assert_eq(ok["error"], "")
+
+
 func test_from_json_rejects_malformed_fields() -> void:
-	var bad_seed := '{"version": 1, "scenario": "default_battle", "seed": 1.5, "commands": []}'
-	var bad_commands := '{"version": 1, "scenario": "default_battle", "seed": 1, "commands": {}}'
-	var bad_entry := '{"version": 1, "scenario": "default_battle", "seed": 1, "commands": [3]}'
+	var base := '{"version": 2, "scenario": "default_battle", "factions": %s, ' % FACTIONS
+	var bad_seed := base + '"seed": 1.5, "commands": []}'
+	var bad_commands := base + '"seed": 1, "commands": {}}'
+	var bad_entry := base + '"seed": 1, "commands": [3]}'
 	assert_eq(MatchRecord.from_json(bad_seed), null)
 	assert_eq(MatchRecord.from_json(bad_commands), null)
 	assert_eq(MatchRecord.from_json(bad_entry), null)
@@ -128,14 +165,14 @@ func test_snapshot_contents() -> void:
 	assert_eq(snap["winner"], -1)
 	assert_eq(snap["rng_state"], str(state.rng.state))
 	var units: Array = snap["units"]
-	assert_eq(units.size(), 8)
+	assert_eq(units.size(), 9)
 	for i in units.size():
 		assert_eq(units[i]["id"], i + 1)
 	var first := state.get_unit(1)
 	var expected := {
 		"id": 1,
 		"owner": 0,
-		"definition": "infantry",
+		"definition": "pl_mech_infantry",
 		"coord": [first.coord.x, first.coord.y],
 		"hp": first.hp,
 		"moves_left": first.moves_left,

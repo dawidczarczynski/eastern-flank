@@ -1,7 +1,6 @@
 extends TestCase
 
 const CSV_PATH := "res://assets/i18n/strings.csv"
-const INFANTRY := preload("res://data/units/infantry.tres")
 
 var _previous_locale: String
 
@@ -78,14 +77,14 @@ func test_all_source_literals_are_keys() -> void:
 func test_polish_translations() -> void:
 	TranslationServer.set_locale("pl")
 	assert_eq(String(TranslationServer.translate("End turn")), "Zakończ turę")
-	assert_eq(String(TranslationServer.translate(INFANTRY.display_name)), "Piechota")
+	assert_eq(String(TranslationServer.translate("CLASS_INFANTRY")), "Piechota")
 	assert_eq(String(TranslationServer.translate("Ready")), "Gotowa do działania")
 
 
 func test_english_translations() -> void:
 	TranslationServer.set_locale("en")
 	assert_eq(String(TranslationServer.translate("End turn")), "End turn")
-	assert_eq(String(TranslationServer.translate(INFANTRY.display_name)), "Infantry")
+	assert_eq(String(TranslationServer.translate("CLASS_INFANTRY")), "Infantry")
 	assert_eq(String(TranslationServer.translate("Ready")), "Ready")
 
 

@@ -21,3 +21,5 @@ Factions were implicit: "player 0 = blue, player 1 = red", with colours and name
 - (+) Old saved matches and the checked-in replay fixture (which has no `"factions"`) still replay unchanged.
 - (−) Faction data is not in the snapshot, so a replay check does not compare factions; the record does.
 - (−) The registry path table must be kept in sync with `data/factions/` (guarded by a test).
+
+Amended by ADR 0009 (2026-10-20): record format version 2 makes `"factions"` required; version 1 records (with or without factions) are rejected. Spawns now follow each faction's `default_force`, so unit ids depend on the forces (TASK-039a).

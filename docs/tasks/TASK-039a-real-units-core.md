@@ -1,6 +1,6 @@
 # TASK-039a: Real units and countries – core, data, scenario, balance
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: core (`UnitDefinition`, `FactionDefinition.default_force`, `Scenario`, match record), ai (`MatchRunner` factions), tools (`simulate.sh --factions`), data
 - **Depends on**: **TASK-038** (factions as data), **TASK-037** (catalog entries – done). GDD: "Factions and units", "Stat derivation rules", "Balance of the default battle".
 - **Model**: opus
@@ -37,7 +37,7 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
 
 ## Acceptance criteria (testable)
 
-- [ ] `tests/unit/test_unit_definitions.gd` (or the existing definitions test): each of the six files loads and has exactly these values:
+- [x] `tests/unit/test_unit_definitions.gd` (or the existing definitions test): each of the six files loads and has exactly these values:
 
   | id | display_name | short_name | unit_class | mobility | max_hp | move_points | attack | defense | attack_range |
   |---|---|---|---|---|---|---|---|---|---|
@@ -49,15 +49,15 @@ The battle is fought between Poland and Russia with real equipment ("M1A2 SEPv3 
   | `ru_motor_rifle` | Motor Rifle Squad | INF | infantry | foot | 10 | 3 | 4 | 3 | 1 |
 
   and `infantry.tres`, `cavalry.tres`, `rocket_artillery.tres` no longer exist in `data/units/`.
-- [ ] Damage spot checks on plains via `AttackCommand.compute_damage`: Abrams → T-72B3 = 3; T-72B3 → Abrams = 2; Abrams → Uragan = 6; Homar-K → Uragan = 5; Motor Rifle Squad → Abrams = 1; T-72B3 → Mechanised Infantry Squad = 3; on hills (+2) Abrams → squad = 2.
-- [ ] `test_factions.gd`: Poland roster = {`pl_mech_infantry`, `m1a2_sepv3`, `homar_k`}, Russia roster = {`ru_motor_rifle`, `t72b3`, `bm27_uragan`}; Poland `default_force` ids = [`pl_mech_infantry`, `m1a2_sepv3`, `pl_mech_infantry`, `homar_k`]; Russia `default_force` ids = [`ru_motor_rifle`, `t72b3`, `ru_motor_rifle`, `t72b3`, `bm27_uragan`]; every `default_force` entry is in its roster.
-- [ ] `test_scenario.gd`: `default_battle(1)` has 4 player-0 units at offset (1,3) squad, (1,5) Abrams, (1,7) squad, (0,5) Homar-K and 5 player-1 units at (10,2) squad, (10,4) T-72B3, (10,6) squad, (10,8) T-72B3, (11,4) Uragan; all spawn tiles are plains. `default_battle(1, [&"russia", &"poland"])` puts the 5 Russian units on player 0's slots ((1,3), (1,5), (1,7), (1,1), back (0,5)) and the 4 Polish units on player 1's slots.
-- [ ] Consistency test: every `data/units/*.tres` has `docs/design/units/units/<id>/unit.json` with `real_name == display_name`, `class == unit_class`, and its roster factions listed in `operators` (test-only JSON read).
-- [ ] `test_match_runner.gd`: `play(7, 50, [&"russia", &"poland"])` is deterministic (two calls equal) and never `error`; existing cases still pass (update expectations that depended on the old armies).
-- [ ] `test_simulate_options.gd`: `--factions=russia,poland` parses to `[&"russia", &"poland"]`; `--factions=poland` (one id) and an unknown faction id → usage error, exit code 2.
-- [ ] Old match record: loading a record with the previous format version fails with a readable error and does not crash (`test_match_saver.gd` / `test_replay.gd`); the replay fixture is regenerated (`tools/make_replay_fixture.sh`). The local `user://matches/last_match.json` (on Linux `~/.local/share/godot/app_userdata/<project name>/matches/`; also check the Windows build's `%APPDATA%\Godot\app_userdata\<project name>\matches\`) is deleted – the project was renamed from "Game" to "Eastern Flank" (2026-10-18), which changes the user-data folder name, so check both `.../app_userdata/Game/` and `.../app_userdata/Eastern Flank/`. ADR in `docs/adr/`.
-- [ ] **Balance**: run `tools/simulate.sh 200` and `tools/simulate.sh 200 --factions=russia,poland` (seeds 1..200, max 50 turns). Poland wins / decided matches over both runs together is **between 40 % and 60 %**, errors 0, draws ≤ 15 % in each run. If missed, follow the tuning ladder in GDD "Balance of the default battle" (only `default_force` changes, never unit stats) and record every run's output in the implementation notes; if no step lands in the band, stop and report to the human.
-- [ ] GDD "Units" table replaced by the six units (or pointing to "Stat derivation rules"), starting armies sentence updated; `ARCHITECTURE.md` mentions `unit_class` / `mobility` / `default_force`.
+- [x] Damage spot checks on plains via `AttackCommand.compute_damage`: Abrams → T-72B3 = 3; T-72B3 → Abrams = 2; Abrams → Uragan = 6; Homar-K → Uragan = 5; Motor Rifle Squad → Abrams = 1; T-72B3 → Mechanised Infantry Squad = 3; on hills (+2) Abrams → squad = 2.
+- [x] `test_factions.gd`: Poland roster = {`pl_mech_infantry`, `m1a2_sepv3`, `homar_k`}, Russia roster = {`ru_motor_rifle`, `t72b3`, `bm27_uragan`}; Poland `default_force` ids = [`pl_mech_infantry`, `m1a2_sepv3`, `pl_mech_infantry`, `homar_k`]; Russia `default_force` ids = [`ru_motor_rifle`, `t72b3`, `ru_motor_rifle`, `t72b3`, `bm27_uragan`]; every `default_force` entry is in its roster.
+- [x] `test_scenario.gd`: `default_battle(1)` has 4 player-0 units at offset (1,3) squad, (1,5) Abrams, (1,7) squad, (0,5) Homar-K and 5 player-1 units at (10,2) squad, (10,4) T-72B3, (10,6) squad, (10,8) T-72B3, (11,4) Uragan; all spawn tiles are plains. `default_battle(1, [&"russia", &"poland"])` puts the 5 Russian units on player 0's slots ((1,3), (1,5), (1,7), (1,1), back (0,5)) and the 4 Polish units on player 1's slots.
+- [x] Consistency test: every `data/units/*.tres` has `docs/design/units/units/<id>/unit.json` with `real_name == display_name`, `class == unit_class`, and its roster factions listed in `operators` (test-only JSON read).
+- [x] `test_match_runner.gd`: `play(7, 50, [&"russia", &"poland"])` is deterministic (two calls equal) and never `error`; existing cases still pass (update expectations that depended on the old armies).
+- [x] `test_simulate_options.gd`: `--factions=russia,poland` parses to `[&"russia", &"poland"]`; `--factions=poland` (one id) and an unknown faction id → usage error, exit code 2.
+- [x] Old match record: loading a record with the previous format version fails with a readable error and does not crash (`test_match_saver.gd` / `test_replay.gd`); the replay fixture is regenerated (`tools/make_replay_fixture.sh`). The local `user://matches/last_match.json` (on Linux `~/.local/share/godot/app_userdata/<project name>/matches/`; also check the Windows build's `%APPDATA%\Godot\app_userdata\<project name>\matches\`) is deleted – the project was renamed from "Game" to "Eastern Flank" (2026-10-18), which changes the user-data folder name, so check both `.../app_userdata/Game/` and `.../app_userdata/Eastern Flank/`. ADR in `docs/adr/`.
+- [x] **Balance**: run `tools/simulate.sh 200` and `tools/simulate.sh 200 --factions=russia,poland` (seeds 1..200, max 50 turns). Poland wins / decided matches over both runs together is **between 40 % and 60 %**, errors 0, draws ≤ 15 % in each run. If missed, follow the tuning ladder in GDD "Balance of the default battle" (only `default_force` changes, never unit stats) and record every run's output in the implementation notes; if no step lands in the band, stop and report to the human.
+- [x] GDD "Units" table replaced by the six units (or pointing to "Stat derivation rules"), starting armies sentence updated; `ARCHITECTURE.md` mentions `unit_class` / `mobility` / `default_force`.
 
 ## Playtest (for the human)
 
@@ -83,3 +83,33 @@ _Filled in by the agent when done._
   - `UnitDefinition.unit_class` exists (infantry / tank / mlrs); real units show their designation on the label (`M1A2`), generic units their class abbreviation (`INF` / `TNK` / `ART`, 2026-10-19); the popup shows the class key `CLASS_<CLASS>` above `display_name`.
   - `UnitModels` treats `m1a2_sepv3` as a vehicle, and the `cavalry:poland` model stand-in is removed.
   - Russia: `data/units/t72b3.tres` (`T-72B3`, label `T-72B3`) and `data/units/bm27_uragan.tres` (`9K57 Uragan`, label `BM-27`) replace `cavalry` and `rocket_artillery` in its roster and default force (2026-10-19). They still have **cavalry's (8/5/5/2/1) and rocket artillery's (6/3/5/1/5) stats**; set the table's values here. Both are vehicles; the `rocket_artillery:russia` model stand-in is removed. Rocket volleys follow `unit_class == mlrs` (`UnitModels.fires_volley`), and the launcher traverse uses the model's own stowed direction (`UnitModels.launcher_traverse_for`; the Uragan's tubes stow facing forward). Poland still fields the generic `rocket_artillery` with the Homar-K model stand-in.
+- **Completed (2026-10-20):**
+  - `UnitDefinition.mobility` (foot / wheeled / tracked). All six `data/units/<id>.tres` carry the table values; `homar_k`, `pl_mech_infantry` and `ru_motor_rifle` are new; `infantry`, `cavalry` and `rocket_artillery` `.tres` are deleted. Russia's `default_force` now has 2 × T-72B3. Logic tests use the real units or fixture-local definitions (`Fixtures.generic_infantry()` / `generic_tank()`).
+  - `Scenario.default_battle` already took the factions argument; tests now cover the exact slots, swapped factions and overflow. `MatchRunner.play(seed, max_turns, factions)` returns a `"factions"` key. `tools/simulate.sh --factions=P0,P1` accepts exactly two known ids, otherwise it exits 2 with usage; it prints a `Factions:` line after `Matches:`.
+  - Match record format version 2 with required `"factions"`. `MatchRecord.parse_json` / `parse_dict` return a readable error for version 1; `from_json` / `from_dict` still return null. See ADR 0009 (amends 0005 and 0007). The replay fixture is regenerated.
+  - Old saves deleted: the Windows `%APPDATA%/Godot/app_userdata/{Eastern Flank,Game}/matches/last_match.json` (both version 1); there were none under Linux.
+  - Consistency test `test_unit_catalog_consistency.gd` checks the `.tres` files against the catalog `unit.json` (name, class, operators, mobility).
+  - Presentation (minimal): `UnitModels.MODEL_STAND_INS` / `model_id` are removed, and `homar_k` is added to `VEHICLES`. The generic models (`infantry.gd`, `cavalry.gd`, `rocket_artillery.gd`) and their `VEHICLES` / contract-test entries remain, used only by tests; remove them in TASK-039b.
+  - Playtest step 4 can't be done in game: the game only saves (F5) and has no load UI, so the old-record rejection is covered by `test_replay.gd` only.
+  - Balance, first try with no ladder step needed (seeds 1..200, max 50 turns):
+    ```
+    tools/simulate.sh 200
+    Matches: 200 (seeds 1..200, max turns 50)
+    Factions: poland vs russia
+    Player 0 wins: 90 (45.0%)
+    Player 1 wins: 104 (52.0%)
+    Draws (turn limit): 6 (3.0%)
+    Errors: 0
+    Average length: 8.5 turns (decided), 9.8 turns (all)
+
+    tools/simulate.sh 200 --factions=russia,poland
+    Matches: 200 (seeds 1..200, max turns 50)
+    Factions: russia vs poland
+    Player 0 wins: 80 (40.0%)
+    Player 1 wins: 115 (57.5%)
+    Draws (turn limit): 5 (2.5%)
+    Errors: 0
+    Average length: 8.1 turns (decided), 9.1 turns (all)
+    ```
+    Poland won 205 of 389 decided matches (52.7 %). Player 1 is still favoured in both assignments (known side bias).
+  - Known: the second T-72B3 at (10,8) sits under the controls help panel at the default camera (TASK-039b / presentation). `tools/screenshot.sh` with the Windows build exits 5 even though it saves the PNG; this already happened before this task.

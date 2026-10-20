@@ -54,3 +54,16 @@ func test_summarize_empty() -> void:
 	assert_eq(s["matches"], 0)
 	assert_eq(s["avg_turns_decided"], 0.0)
 	assert_eq(s["avg_turns_all"], 0.0)
+
+
+func test_play_with_swapped_factions_is_deterministic_and_never_errors() -> void:
+	var factions: Array[StringName] = [&"russia", &"poland"]
+	var a := MatchRunner.play(7, 50, factions)
+	assert_eq(a, MatchRunner.play(7, 50, factions))
+	assert_true(a["result"] == "victory" or a["result"] == "turn_limit")
+
+
+func test_play_uses_the_given_factions() -> void:
+	var factions: Array[StringName] = [&"russia", &"poland"]
+	assert_eq(MatchRunner.play(7, 1, factions)["factions"], factions)
+	assert_eq(MatchRunner.play(7, 1)["factions"], FactionRegistry.DEFAULT_IDS)

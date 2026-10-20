@@ -1,11 +1,13 @@
 extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
-const INFANTRY := preload("res://data/units/infantry.tres")
-const CAVALRY := preload("res://data/units/cavalry.tres")
 
 const VIEWPORT := Vector2(1280, 720)
 const CARD := Vector2(320, 330)
+
+## The GDD calibration units (generic infantry and cavalry), local to the tests.
+var _infantry := Fixtures.generic_infantry()
+var _tank := Fixtures.generic_tank()
 
 
 func _state() -> GameState:
@@ -21,7 +23,7 @@ func _stat(model: Dictionary, label: String) -> Dictionary:
 
 func test_fresh_own_infantry() -> void:
 	var state := _state()
-	var unit := state.add_unit(0, INFANTRY, Vector2i.ZERO)
+	var unit := state.add_unit(0, _infantry, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["type"], "CLASS_INFANTRY")
 	assert_eq(m["name"], "Infantry")
@@ -58,8 +60,8 @@ func test_defense_includes_terrain_bonus() -> void:
 	var state := _state()
 	state.grid.set_terrain(Vector2i.ZERO, Terrain.Type.FOREST)
 	state.grid.set_terrain(Vector2i(1, 0), Terrain.Type.HILLS)
-	var in_forest := state.add_unit(0, INFANTRY, Vector2i.ZERO)
-	var on_hills := state.add_unit(0, INFANTRY, Vector2i(1, 0))
+	var in_forest := state.add_unit(0, _infantry, Vector2i.ZERO)
+	var on_hills := state.add_unit(0, _infantry, Vector2i(1, 0))
 	var forest_bonus := state.grid.defense_bonus(Vector2i.ZERO)
 	var hills_bonus := state.grid.defense_bonus(Vector2i(1, 0))
 	var m := UnitPopupModel.build(state, in_forest, 0)
@@ -73,7 +75,7 @@ func test_defense_includes_terrain_bonus() -> void:
 
 func test_damaged_cavalry_segments() -> void:
 	var state := _state()
-	var unit := state.add_unit(0, CAVALRY, Vector2i.ZERO)
+	var unit := state.add_unit(0, _tank, Vector2i.ZERO)
 	unit.hp = 3
 	var segments: Array[Color] = UnitPopupModel.build(state, unit, 0)["segments"]
 	assert_eq(segments.size(), 8)
@@ -88,7 +90,7 @@ func test_damaged_cavalry_segments() -> void:
 
 func test_done_and_attacked_status() -> void:
 	var state := _state()
-	var unit := state.add_unit(0, INFANTRY, Vector2i.ZERO)
+	var unit := state.add_unit(0, _infantry, Vector2i.ZERO)
 	unit.moves_left = 0
 	unit.has_attacked = true
 	var m := UnitPopupModel.build(state, unit, 0)
@@ -100,7 +102,7 @@ func test_done_and_attacked_status() -> void:
 
 func test_enemy_status() -> void:
 	var state := _state()
-	var unit := state.add_unit(1, CAVALRY, Vector2i.ZERO)
+	var unit := state.add_unit(1, _tank, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["status"], "Enemy unit")
 	assert_eq(m["status_color"], state.faction_of(1).color)
@@ -133,13 +135,13 @@ func _csv_keys() -> Dictionary:
 func test_all_model_strings_are_translation_keys() -> void:
 	var keys := _csv_keys()
 	var state := _state()
-	var fresh := state.add_unit(0, INFANTRY, Vector2i.ZERO)
-	var attacked := state.add_unit(0, CAVALRY, Vector2i(1, 0))
+	var fresh := state.add_unit(0, _infantry, Vector2i.ZERO)
+	var attacked := state.add_unit(0, _tank, Vector2i(1, 0))
 	attacked.has_attacked = true
-	var done := state.add_unit(0, INFANTRY, Vector2i(0, 1))
+	var done := state.add_unit(0, _infantry, Vector2i(0, 1))
 	done.moves_left = 0
 	done.has_attacked = true
-	var enemy := state.add_unit(1, CAVALRY, Vector2i(-1, 0))
+	var enemy := state.add_unit(1, _tank, Vector2i(-1, 0))
 	for pair: Array in [[fresh, 0], [attacked, 0], [done, 0], [enemy, 0]]:
 		var m := UnitPopupModel.build(state, pair[0], pair[1])
 		var texts: Array[String] = [m["type"], m["faction"], m["name"], m["status"]]

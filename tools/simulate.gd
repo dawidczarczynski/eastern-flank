@@ -3,7 +3,7 @@ extends SceneTree
 ## tools/simulate.sh. Exit codes: 0 ok, 1 some match ended with "error", 2 invalid arguments.
 
 const SimulateOptions := preload("res://tools/simulate_options.gd")
-const USAGE := "Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--verbose]"
+const USAGE := "Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--factions=A,B] [--verbose]"
 
 
 func _initialize() -> void:
@@ -15,9 +15,10 @@ func _initialize() -> void:
 	var count: int = options["count"]
 	var first_seed: int = options["seed"]
 	var max_turns: int = options["max_turns"]
+	var factions: Array[StringName] = options["factions"]
 	var results: Array[Dictionary] = []
 	for i in count:
-		var r := MatchRunner.play(first_seed + i, max_turns)
+		var r := MatchRunner.play(first_seed + i, max_turns, factions)
 		results.append(r)
 		if options["verbose"]:
 			print(
@@ -34,6 +35,7 @@ func _initialize() -> void:
 			% [count, first_seed, first_seed + count - 1, max_turns]
 		)
 	)
+	print("Factions: %s vs %s" % [factions[0], factions[1]])
 	for p in wins.size():
 		print("Player %d wins: %d (%s)" % [p, wins[p], _percent(wins[p], count)])
 	print("Draws (turn limit): %d (%s)" % [s["draws"], _percent(s["draws"], count)])

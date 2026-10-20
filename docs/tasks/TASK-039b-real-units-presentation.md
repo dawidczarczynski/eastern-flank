@@ -23,6 +23,9 @@ The view shows the real units properly: short designations on labels, the transl
 2. Hover each unit: the popup shows the class (Tank / MLRS / Infantry) and the real name; switch to Polish – class labels and squad names translate, vehicle names don't.
 3. Move the tanks and trucks: they still drive (wheels turn, hull tilts); squads march.
 
+- [ ] Generic models left over from TASK-039a are removed: `src/presentation/models/{infantry,cavalry,rocket_artillery}.gd`, their `UnitModels` constants and `VEHICLES` entries, and the `KINDS` / `WAIVERS` entries in `test_unit_model_contract.gd`; presentation tests build the real unit ids.
+- [ ] The second T-72B3 at offset (10,8) is not hidden behind the controls help panel at the default camera.
+
 ## Out of scope
 
 - New 3D models (TASK-031 … TASK-033, `/model-unit`), faction selection UI.

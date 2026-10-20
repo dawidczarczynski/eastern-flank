@@ -4,9 +4,9 @@
 
 ## 1. Overview
 
-Eastern Flank is a turn-based tactical battle on a hex map. You command **Poland** (blue) against **Russia** (red), which the computer plays. Each side starts with four units. (In the Polish version of the game the sides are called "Polska" and "Rosja".)
+Eastern Flank is a turn-based tactical battle on a hex map. You command **Poland** (blue) against **Russia** (red), which the computer plays. Poland starts with four units, Russia with five. (In the Polish version of the game the sides are called "Polska" and "Rosja".)
 
-For now the two sides differ only in name, colour and look: both field the same units with the same stats and follow the same rules. You and the opponent take turns moving and attacking.
+The two sides field different, real-world equipment with its own stats: Poland has fewer but stronger units, Russia has more of them. Both sides follow exactly the same rules. You and the opponent take turns moving and attacking.
 
 **Goal:** destroy every enemy unit. The last side with units left on the map wins.
 
@@ -14,13 +14,16 @@ For now the two sides differ only in name, colour and look: both field the same 
 
 - The map is **12 × 10 hexes**. It is the same map every time you start the game.
 - Poland starts on one short edge of the map, Russia on the opposite edge. Every unit starts on a plains tile.
-- Both sides have armies of the same shape, with real vehicles: Poland fields an **M1A2 SEPv3 Abrams**, Russia a **T-72B3** tank and a **9K57 Uragan** rocket launcher. For now the tanks have the same stats, and so do the two rocket artillery units.
+- The starting armies:
 
-  | Unit | Count | Position |
-  |---|---|---|
-  | Infantry | 2 | front line |
-  | Tank (Poland: M1A2 SEPv3 Abrams, Russia: T-72B3) | 1 | front line, between the two infantry |
-  | Rocket artillery (Poland: Rocket Artillery, Russia: 9K57 Uragan) | 1 | behind the tank, on the map edge |
+  | Side | Unit | Count | Position |
+  |---|---|---|---|
+  | Poland (left) | Mechanised Infantry Squad | 2 | front line |
+  | Poland (left) | M1A2 SEPv3 Abrams (tank) | 1 | front line, between the two squads |
+  | Poland (left) | Homar-K (rocket artillery) | 1 | behind the Abrams, on the map edge |
+  | Russia (right) | Motor Rifle Squad | 2 | front line |
+  | Russia (right) | T-72B3 (tank) | 2 | front line, alternating with the squads (squad, tank, squad, tank) |
+  | Russia (right) | 9K57 Uragan (rocket artillery) | 1 | behind the first T-72B3, on the map edge |
 
 ## 3. Turn structure
 
@@ -36,20 +39,21 @@ There is no turn limit.
 
 | Unit | HP | Movement | Attack | Defense | Range | Look on the map |
 |---|---|---|---|---|---|---|
-| Infantry | 10 | 3 | 4 | 3 | 1 | a squad of soldiers |
-| M1A2 SEPv3 Abrams (Poland) | 8 | 5 | 5 | 2 | 1 | an Abrams tank |
-| T-72B3 (Russia) | 8 | 5 | 5 | 2 | 1 | a T-72 tank |
-| Rocket Artillery (Poland) | 6 | 3 | 5 | 1 | 5 | a Homar-K truck with a turning rocket launcher |
-| 9K57 Uragan (Russia) | 6 | 3 | 5 | 1 | 5 | a BM-27 truck with sixteen rocket tubes over the cab |
+| Mechanised Infantry Squad (Poland) | 10 | 3 | 4 | 3 | 1 | a squad of soldiers |
+| Motor Rifle Squad (Russia) | 10 | 3 | 4 | 3 | 1 | a squad of soldiers |
+| M1A2 SEPv3 Abrams (Poland) | 10 | 5 | 7 | 4 | 1 | an Abrams tank |
+| T-72B3 (Russia) | 8 | 5 | 6 | 4 | 1 | a T-72 tank |
+| Homar-K (Poland) | 6 | 3 | 6 | 1 | 6 | a Homar-K truck with a turning rocket launcher |
+| 9K57 Uragan (Russia) | 6 | 3 | 6 | 1 | 5 | a BM-27 truck with sixteen rocket tubes over the cab |
 
 - **HP**: how much damage the unit can take. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
 - **Movement**: movement points per turn (see Movement).
 - **Attack** / **Defense**: used in the damage calculation (see Combat).
 - **Range**: how far away, in hexes, the unit can attack. Range 1 means adjacent tiles only.
 
-Roles in short: **infantry** is tough and slow, **tanks** (Abrams, T-72B3) are fast and hit hard but are fragile, **rocket artillery** hits from up to 5 hexes away but dies quickly if the enemy reaches it.
+Roles in short: **infantry squads** are tough and slow but barely scratch a tank; **tanks** are fast, well armoured and hit hard – the Abrams is stronger and tougher than the T-72B3, which is why Russia brings two; **rocket artillery** hits from a distance (Homar-K up to 6 hexes, Uragan up to 5) but dies quickly if the enemy reaches it. The two squads have the same stats.
 
-Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name: the real designation for real vehicles (M1A2, T-72B3, BM-27), otherwise the class (INF infantry, TNK tank, ART rocket artillery; in Polish PIECH, CZOŁ, ART) and an HP bar that turns from green to yellow to red as the unit loses HP.
+Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name – **INF** for the infantry squads (PIECH in the Polish version), the real designation for vehicles (**M1A2**, **HOMAR**, **T-72B3**, **BM-27**) – and an HP bar that turns from green to yellow to red as the unit loses HP.
 
 ## 5. The map and terrain
 
@@ -98,26 +102,37 @@ If the defender **survives** and the attacker is **within the defender's own ran
 - A counterattack doesn't use up the defender's attack or movement. A unit counterattacks **every** attack it survives, any number of times per turn.
 - A counterattack never triggers another counterattack.
 - A counterattack can destroy the attacker.
-- Melee units (range 1) can't hit back at rocket artillery that fires from 2 or more hexes away. Rocket artillery has no minimum range: it can also fire at an adjacent enemy (which then counterattacks), and it counterattacks anything that attacks it from up to 5 hexes away.
+- Melee units (range 1) can't hit back at rocket artillery that fires from 2 or more hexes away. Rocket artillery has no minimum range: it can also fire at an adjacent enemy (which then counterattacks), and it counterattacks anything that attacks it from within its own range (Homar-K up to 6 hexes, Uragan up to 5).
+- The Homar-K outranges the Uragan by one hex: fired from exactly 6 hexes away, the Uragan can't hit back.
 
-### Worked example
+### Worked examples
 
-Your Abrams (Attack 5, on plains) attacks an enemy Infantry (Defense 3) standing in a **forest** (+1).
+Your Abrams (Attack 7, Defense 4, on plains) attacks an enemy T-72B3 (Attack 6, Defense 4) on **plains** (+0).
 
-1. Your hit: 5 − (3 + 1) = **1** damage. The infantry goes from 10 to 9 HP.
-2. The infantry survived and your Abrams is adjacent (within range 1), so it hits back: 4 − (2 + 0) = **2** damage. Your Abrams goes from 8 to 6 HP.
+1. Your hit: 7 − (4 + 0) = **3** damage. The T-72B3 goes from 8 to 5 HP.
+2. The T-72B3 survived and your Abrams is adjacent (within range 1), so it hits back: 6 − (4 + 0) = **2** damage. Your Abrams goes from 10 to 8 HP.
 
-The same attack on infantry standing on plains would deal 2 damage. Attacking units in good terrain is costly.
+Your Abrams attacks an enemy Motor Rifle Squad (Attack 4, Defense 3) standing in a **forest** (+1).
+
+1. Your hit: 7 − (3 + 1) = **3** damage. The squad goes from 10 to 7 HP.
+2. The squad hits back: 4 − (4 + 0) = 0, raised to the minimum of **1** damage. Your Abrams goes from 10 to 9 HP.
+
+The same attack on a squad standing on plains would deal 4 damage, on hills only 2. Attacking units in good terrain is costly.
+
+Your Homar-K (Attack 6) fires at the Uragan (Defense 1) on plains from 6 hexes away: 6 − (1 + 0) = **5** damage (6 to 1 HP), and the Uragan can't hit back because it has range 5.
 
 ### Damage table
 
-Damage dealt by the attacker to the defender, depending on the defender's tile (plains / forest / hills):
+Damage dealt by the attacker to the defender, depending on the defender's tile (plains / forest / hills). The two squads have the same stats, and so do the two tanks' Defense and the two rocket launchers' Attack and Defense, so they share a row or column:
 
-| Attacker → Defender | Infantry | Tank | Rocket artillery |
+| Attacker → Defender | Infantry squad (Def 3) | Abrams / T-72B3 (Def 4) | Homar-K / Uragan (Def 1) |
 |---|---|---|---|
-| Infantry (Attack 4) | 1 / 1 / 1 | 2 / 1 / 1 | 3 / 2 / 1 |
-| Tank (Attack 5) | 2 / 1 / 1 | 3 / 2 / 1 | 4 / 3 / 2 |
-| Rocket artillery (Attack 5) | 2 / 1 / 1 | 3 / 2 / 1 | 4 / 3 / 2 |
+| Infantry squad (Attack 4) | 1 / 1 / 1 | 1 / 1 / 1 | 3 / 2 / 1 |
+| M1A2 SEPv3 Abrams (Attack 7) | 4 / 3 / 2 | 3 / 2 / 1 | 6 / 5 / 4 |
+| T-72B3 (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
+| Homar-K / Uragan (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
+
+Remember that a unit's HP differ too: the Abrams and the squads have 10 HP, the T-72B3 8 and the rocket launchers 6. An Abrams destroys a rocket launcher on plains in one hit.
 
 ## 8. Victory and defeat
 
@@ -127,13 +142,13 @@ Damage dealt by the attacker to the defender, depending on the defender's tile (
 
 ## 9. The opponent
 
-Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay about 5 hexes away from your nearest unit, so it can fire without being hit back.
+Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay at its full range from your nearest unit (5 hexes for the Uragan), so it can fire without being hit back.
 
 ## 10. Screen
 
 - **Top bar**: the turn number in the centre with the side whose turn it is ("MOVE: POLAND"). On each side: a badge with the side's short code (PL for Poland, RU for Russia), its name, its status (YOUR TURN / AI TURN / WAITING) and how many units it has left. The active side is highlighted.
 - **Bottom right**: **READY UNITS** (your units that can still do something / all your units) and the **End turn** button. The button is greyed out while animations play and during the enemy turn.
-- **Unit card**: hover any unit (yours or the enemy's) to see its class (e.g. TANK) with the unit's name below it (e.g. M1A2 SEPv3 Abrams), its side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
+- **Unit card**: hover any unit (yours or the enemy's) to see its class (Infantry, Tank or Rocket Artillery) with the unit's name below it (e.g. M1A2 SEPv3 Abrams), its side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus the path cost when you have a unit selected and the tile is reachable.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
@@ -154,8 +169,8 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 
 - Clicks on tiles you can't move to and enemies you can't attack are ignored.
 - While animations are playing or the enemy is moving, clicks and keys (except camera controls and F5) are ignored, not queued.
-- **F5** saves a record of the match so far (the moves made, for reporting bugs); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet.
+- **F5** saves a record of the match so far (the moves made, for reporting bugs); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet. Match records saved by earlier versions of the game (before the real Polish and Russian units) can no longer be replayed: they are refused with a clear "unsupported match record version" message instead of replaying a different battle.
 
 ## 12. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, different maps or armies, a menu, and saving/loading a match to continue later.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, a menu, and saving/loading a match to continue later.

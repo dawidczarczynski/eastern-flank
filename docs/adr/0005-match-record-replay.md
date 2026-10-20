@@ -25,3 +25,5 @@ Playtest bug reports and a rules regression test both need a whole match reprodu
 ## Amended by TASK-038 (ADR 0007)
 
 Records gained an optional `"factions"` field (faction id per player). It is additive, so the version stays 1 and records without it load with the default pair (`poland`, `russia`).
+
+Amended by ADR 0009 (2026-10-20): the format is version 2 (TASK-039a's real units), `"factions"` is required and version 1 records are rejected with a readable error.

@@ -286,12 +286,13 @@ func test_hit_reset_works_on_camo_surfaces() -> void:
 	hud.free()
 
 
-func test_polish_rocket_artillery_uses_homar_k_stand_in() -> void:
-	var poland := FactionRegistry.get_faction(&"poland")
-	var russia := FactionRegistry.get_faction(&"russia")
-	assert_eq(UnitModels.model_id(&"rocket_artillery", poland), &"homar_k")
-	assert_eq(UnitModels.model_id(&"rocket_artillery", russia), &"rocket_artillery")
-	assert_eq(UnitModels.model_id(&"rocket_artillery", null), &"rocket_artillery")
+## Every unit in data/units has its own model file (no stand-ins); the vehicles drive.
+func test_every_unit_has_its_own_model_and_vehicles_drive() -> void:
+	for file in DirAccess.get_files_at("res://data/units"):
+		if file.ends_with(".tres"):
+			var definition := load("res://data/units/" + file) as UnitDefinition
+			assert_true(UnitModels.has_model(definition.id), "%s has a model" % definition.id)
+			assert_eq(UnitModels.is_vehicle(definition.id), definition.mobility != &"foot", file)
 
 
 func _faction(owner_id: int) -> FactionDefinition:

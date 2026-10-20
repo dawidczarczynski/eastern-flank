@@ -42,24 +42,15 @@ func test_factions_round_trip_through_json() -> void:
 	assert_eq(replayed.state.player_factions, [&"russia", &"poland"] as Array[StringName])
 
 
-func test_record_without_factions_loads_the_default_pair_and_replays_identically() -> void:
-	var sim := _two_turn_sim()
-	var d := MatchRecord.from_simulation(sim, SEED).to_dict()
+## Every record of the current version names its factions (only pre-TASK-038 records had none).
+func test_record_without_factions_is_rejected() -> void:
+	var d := MatchRecord.from_simulation(_two_turn_sim(), SEED).to_dict()
 	d.erase("factions")
-	var loaded := MatchRecord.from_json(JSON.stringify(d))
-	assert_true(loaded != null, "a record without factions still loads")
-	if loaded == null:
-		return
-	assert_eq(loaded.factions, [&"poland", &"russia"] as Array[StringName])
-	var result := Replay.run(loaded)
-	assert_eq(result["ok"], true)
-	var replayed: GameSimulation = result["simulation"]
-	assert_eq(replayed.state.player_factions, [&"poland", &"russia"] as Array[StringName])
-	assert_eq(replayed.state.snapshot(), sim.state.snapshot())
+	assert_eq(MatchRecord.from_json(JSON.stringify(d)), null)
 
 
 func test_from_json_rejects_malformed_factions() -> void:
-	var base := '{"version": 1, "scenario": "default_battle", "seed": 1, "commands": [], '
+	var base := '{"version": 2, "scenario": "default_battle", "seed": 1, "commands": [], '
 	assert_eq(MatchRecord.from_json(base + '"factions": "poland"}'), null)
 	assert_eq(MatchRecord.from_json(base + '"factions": ["poland", 3]}'), null)
 

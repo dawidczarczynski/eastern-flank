@@ -54,17 +54,20 @@ Target look of the battle screen: `docs/design/` (mock-up made in Claude Design,
 
 ## Units
 
-| Unit | HP | Move | Attack | Defense | Range | Status |
-|---|---|---|---|---|---|---|
-| Infantry | 10 | 3 | 4 | 3 | 1 | implemented |
-| Cavalry | 8 | 5 | 5 | 2 | 1 | implemented |
-| Rocket Artillery | 6 | 3 | 5 | 1 | 5 | implemented |
+| Unit (id) | Country | Class | Mobility | HP | Move | Attack | Defense | Range | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| M1A2 SEPv3 Abrams (`m1a2_sepv3`) | Poland | tank | tracked | 10 | 5 | 7 | 4 | 1 | implemented |
+| T-72B3 (`t72b3`) | Russia | tank | tracked | 8 | 5 | 6 | 4 | 1 | implemented |
+| Homar-K (`homar_k`) | Poland | mlrs | wheeled | 6 | 3 | 6 | 1 | 6 | implemented |
+| 9K57 Uragan (`bm27_uragan`) | Russia | mlrs | wheeled | 6 | 3 | 6 | 1 | 5 | implemented |
+| Mechanised Infantry Squad (`pl_mech_infantry`) | Poland | infantry | foot | 10 | 3 | 4 | 3 | 1 | implemented |
+| Motor Rifle Squad (`ru_motor_rifle`) | Russia | infantry | foot | 10 | 3 | 4 | 3 | 1 | implemented |
 
-Source of truth for the numbers: `data/units/*.tres`.
+Source of truth for the numbers: `data/units/*.tres`; how they are derived: "Stat derivation rules" below (TASK-039a).
 
-Starting armies (prototype battle): each side has infantry, cavalry, infantry + rocket artillery (built by `Scenario.default_battle`) on opposite map edges; spawn tiles are always plains.
+Starting armies (default battle, `Scenario.default_battle` from each faction's `default_force`): Poland 2 × Mechanised Infantry Squad, 1 × M1A2 SEPv3 Abrams, 1 × Homar-K; Russia 2 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan – on opposite map edges, direct-fire units in front, rocket artillery behind; spawn tiles are always plains. See "Balance of the default battle".
 
-These three generic units are replaced by the real units of TASK-039a (stats in "Stat derivation rules" below) and stay as the **calibration points** of those rules.
+The former generic units (Infantry 10/3/4/3/1, Cavalry 8/5/5/2/1, Rocket Artillery 6/3/5/1/5) are gone from the game data; they remain the **calibration points** of the derivation rules.
 
 ## Factions and units (decided 2026-10-18)
 
@@ -183,6 +186,7 @@ Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to 
 - **Composition by faction** (quality vs. mass): Poland 2 × Mechanised Infantry Squad, 1 × M1A2 SEPv3, 1 × Homar-K (4 units, 36 HP); Russia 2 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan (5 units, 42 HP). The second T-72B3 compensates the Abrams; nothing compensates the Homar-K's range on purpose (it is the guided-rocket advantage) – the simulation decides whether that needs more Russian units.
 - The composition is balance data: an ordered `default_force` list in each faction's `.tres`, not code. Spawn slots: units with range 1 fill the front column, others the back column, in list order (exact slots in TASK-039a).
 - **Verification**: the AI-vs-AI simulation already shows a side bias with mirrored armies (TASK-012: player 1 won 59 % vs 34 %), so balance is measured with **both side assignments**: `tools/simulate.sh 200` (Poland = player 0) and `tools/simulate.sh 200 --factions=russia,poland`. Target: Poland's share of the decided matches over both runs together is 40–60 %, no errors, draws ≤ 15 % per run.
+- **Measured** (TASK-039a, 2026-10-20, seeds 1..200, 50 turns, compositions above, no ladder step needed): Poland as player 0 won 90, Russia 104, 6 draws; Russia as player 0 won 80, Poland 115, 5 draws → Poland 205 of 389 decided matches = **52.7 %**, errors 0, draws 3.0 % / 2.5 %. The player-1 side bias persists in both assignments.
 - **Tuning ladder** if the target is missed (stats stay untouched; one step at a time, re-run both): Poland > 60 % → add a third Motor Rifle Squad; still > 60 % → add a third T-72B3. Russia > 60 % → replace the second T-72B3 with a Motor Rifle Squad; still > 60 % → mirrored counts (2 squads, 1 tank, 1 MLRS each). If no step lands in the band, record the results and ask the human (a rule change is needed, not a count change).
 
 ### Option, not adopted: hard/soft attack
@@ -195,7 +199,7 @@ Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 
 - **Attack**: a unit may attack one living enemy unit within its `attack_range` (hex distance; 1 = adjacent). Rejection codes: `game_over`, `unit_not_found`, `not_your_unit`, `not_an_enemy`, `already_attacked`, `out_of_range`.
 - **Once per turn**: each unit attacks at most once per turn. Attacking sets the attacker's remaining movement to 0 – a unit can move then attack, but not attack then move. Both are reset at the start of the owner's turn.
-- **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter), **deterministic**, no RNG **[ASSUMPTION]** (see Open questions: randomness). Matchups on plains: infantry→infantry 1, infantry→cavalry 2, cavalry→infantry 2, cavalry→cavalry 3.
+- **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter), **deterministic**, no RNG **[ASSUMPTION]** (see Open questions: randomness). Matchups on plains: see "Resulting matchups on plains" under "Stat derivation rules".
 - **Death**: a unit whose HP drops to 0 dies (`unit_died`), is removed from the map and no longer blocks its tile.
 - **Victory**: when exactly one player has living units left, that player wins (`game_over`, `GameState.winner`); after that every command is rejected with `game_over` **[ASSUMPTION]**.
 

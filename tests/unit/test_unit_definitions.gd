@@ -1,16 +1,16 @@
 extends TestCase
+## The six real units of TASK-039a (GDD "Stat derivation rules", "First rosters").
 
+const Fixtures := preload("res://tests/fixtures.gd")
 const UNITS_DIR := "res://data/units"
-const CAVALRY := preload("res://data/units/cavalry.tres")
-## Label above the unit: a real unit's short designation; generic units (no designation) use
-## their class abbreviation.
-const SHORT_NAMES := {
-	&"infantry": "INF",
-	&"cavalry": "TNK",
-	&"m1a2_sepv3": "M1A2",
-	&"rocket_artillery": "ART",
-	&"t72b3": "T-72B3",
-	&"bm27_uragan": "BM-27",
+## id -> [display_name, short_name, unit_class, mobility, max_hp, move, attack, defense, range]
+const TABLE := {
+	&"m1a2_sepv3": ["M1A2 SEPv3 Abrams", "M1A2", &"tank", &"tracked", 10, 5, 7, 4, 1],
+	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4, 1],
+	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1, 6],
+	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1, 5],
+	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3, 1],
+	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3, 1],
 }
 
 
@@ -22,24 +22,50 @@ func _definitions() -> Array[UnitDefinition]:
 	return result
 
 
-func test_unit_classes() -> void:
-	var expected := {
-		&"infantry": &"infantry",
-		&"cavalry": &"tank",
-		&"m1a2_sepv3": &"tank",
-		&"rocket_artillery": &"mlrs",
-		&"t72b3": &"tank",
-		&"bm27_uragan": &"mlrs",
-	}
-	var definitions := _definitions()
-	assert_eq(definitions.size(), expected.size())
-	for definition in definitions:
-		assert_eq(definition.unit_class, expected.get(definition.id, &"?"), String(definition.id))
+func _unit(id: StringName) -> UnitDefinition:
+	return load("%s/%s.tres" % [UNITS_DIR, id]) as UnitDefinition
 
 
-func test_short_names() -> void:
+func test_exactly_the_six_real_units_exist() -> void:
+	var ids: Array[StringName] = []
 	for definition in _definitions():
-		assert_eq(definition.short_name, SHORT_NAMES.get(definition.id, "?"), String(definition.id))
+		ids.append(definition.id)
+	ids.sort()
+	var expected: Array[StringName] = []
+	expected.assign(TABLE.keys())
+	expected.sort()
+	assert_eq(ids, expected)
+	for old in ["infantry", "cavalry", "rocket_artillery"]:
+		assert_false(FileAccess.file_exists("%s/%s.tres" % [UNITS_DIR, old]), old + " deleted")
+
+
+func test_definitions_match_the_table() -> void:
+	for id: StringName in TABLE:
+		var d := _unit(id)
+		assert_true(d != null, "%s loads" % id)
+		if d == null:
+			continue
+		assert_eq(d.id, id)
+		assert_eq(
+			[
+				d.display_name,
+				d.short_name,
+				d.unit_class,
+				d.mobility,
+				d.max_hp,
+				d.move_points,
+				d.attack,
+				d.defense,
+				d.attack_range
+			],
+			TABLE[id],
+			String(id)
+		)
+
+
+func test_short_names_fit_the_label() -> void:
+	for definition in _definitions():
+		assert_true(definition.short_name.length() <= 6, String(definition.id))
 
 
 func test_class_labels_translate() -> void:
@@ -55,32 +81,22 @@ func test_class_labels_translate() -> void:
 	TranslationServer.set_locale(previous)
 
 
-## Poland's tank: real designation, generic tank stats until TASK-039a derives its own.
-func test_m1a2_sepv3_definition() -> void:
-	var tank: UnitDefinition = load("res://data/units/m1a2_sepv3.tres")
-	var cavalry: UnitDefinition = CAVALRY
-	assert_eq(tank.id, &"m1a2_sepv3")
-	assert_eq(tank.display_name, "M1A2 SEPv3 Abrams")
-	assert_eq(
-		[tank.max_hp, tank.move_points, tank.attack, tank.defense, tank.attack_range],
-		[cavalry.max_hp, cavalry.move_points, cavalry.attack, cavalry.defense, cavalry.attack_range]
-	)
+## Damage of `attacker_id` hitting `defender_id` standing on `terrain`.
+func _damage(
+	attacker_id: StringName, defender_id: StringName, terrain := Terrain.Type.PLAINS
+) -> int:
+	var state := GameState.new(Fixtures.plains_grid(2), 2, 1)
+	state.grid.set_terrain(Vector2i(1, 0), terrain)
+	var attacker := state.add_unit(0, _unit(attacker_id), Vector2i.ZERO)
+	var defender := state.add_unit(1, _unit(defender_id), Vector2i(1, 0))
+	return AttackCommand.compute_damage(state, attacker, defender)
 
 
-## Russia's real units: designation from the GDD, the generic unit's stats until TASK-039a
-## derives their own.
-func test_russian_real_unit_definitions() -> void:
-	var generic := {
-		&"t72b3": CAVALRY, &"bm27_uragan": load("res://data/units/rocket_artillery.tres")
-	}
-	var names := {&"t72b3": "T-72B3", &"bm27_uragan": "9K57 Uragan"}
-	for id: StringName in generic:
-		var unit: UnitDefinition = load("res://data/units/%s.tres" % id)
-		var base: UnitDefinition = generic[id]
-		assert_eq(unit.id, id)
-		assert_eq(unit.display_name, names[id])
-		assert_eq(
-			[unit.max_hp, unit.move_points, unit.attack, unit.defense, unit.attack_range],
-			[base.max_hp, base.move_points, base.attack, base.defense, base.attack_range],
-			String(id)
-		)
+func test_damage_spot_checks() -> void:
+	assert_eq(_damage(&"m1a2_sepv3", &"t72b3"), 3)
+	assert_eq(_damage(&"t72b3", &"m1a2_sepv3"), 2)
+	assert_eq(_damage(&"m1a2_sepv3", &"bm27_uragan"), 6)
+	assert_eq(_damage(&"homar_k", &"bm27_uragan"), 5)
+	assert_eq(_damage(&"ru_motor_rifle", &"m1a2_sepv3"), 1)
+	assert_eq(_damage(&"t72b3", &"pl_mech_infantry"), 3)
+	assert_eq(_damage(&"m1a2_sepv3", &"ru_motor_rifle", Terrain.Type.HILLS), 2)

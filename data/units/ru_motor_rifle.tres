@@ -4,12 +4,13 @@
 
 [resource]
 script = ExtResource("1_def")
-id = &"cavalry"
-display_name = "Cavalry"
-short_name = "TNK"
-unit_class = &"tank"
-max_hp = 8
-move_points = 5
-attack = 5
-defense = 2
+id = &"ru_motor_rifle"
+display_name = "Motor Rifle Squad"
+short_name = "INF"
+unit_class = &"infantry"
+mobility = &"foot"
+max_hp = 10
+move_points = 3
+attack = 4
+defense = 3
 attack_range = 1

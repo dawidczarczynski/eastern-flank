@@ -62,6 +62,7 @@ func _to_text(record: MatchRecord, final: Dictionary) -> String:
 	text += '\t"version": %d,\n' % record.version
 	text += '\t"scenario": %s,\n' % JSON.stringify(record.scenario)
 	text += '\t"seed": %d,\n' % record.seed
+	text += '\t"factions": %s,\n' % JSON.stringify(record.to_dict()["factions"])
 	text += '\t"commands": [\n%s\n\t],\n' % ",\n".join(commands)
 	text += '\t"expected_final": {\n%s\n\t}\n' % ",\n".join(final_lines)
 	return text + "}\n"

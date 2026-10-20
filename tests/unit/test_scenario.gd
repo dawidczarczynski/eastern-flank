@@ -1,11 +1,11 @@
 extends TestCase
 
 
-func test_default_battle_has_four_units_per_player() -> void:
+func test_default_battle_has_four_polish_and_five_russian_units() -> void:
 	var state := Scenario.default_battle(12345)
-	assert_eq(state.units.size(), 8)
+	assert_eq(state.units.size(), 9)
 	assert_eq(state.units_of(0).size(), 4)
-	assert_eq(state.units_of(1).size(), 4)
+	assert_eq(state.units_of(1).size(), 5)
 
 
 func test_default_battle_has_one_rocket_artillery_per_player() -> void:
@@ -27,13 +27,14 @@ func test_units_on_plains_and_distinct_tiles() -> void:
 		seen[unit.coord] = true
 
 
-func test_unit_ids_are_one_to_eight_in_spawn_order() -> void:
+func test_unit_ids_are_one_to_nine_in_spawn_order() -> void:
 	var state := Scenario.default_battle(12345)
-	for id in range(1, 9):
+	for id in range(1, 10):
 		assert_true(state.get_unit(id) != null)
-	assert_eq(state.get_unit(4).definition.id, &"rocket_artillery")
+	assert_eq(state.get_unit(4).definition.id, &"homar_k")
 	assert_eq(state.get_unit(4).coord, MapGenerator.offset_to_axial(0, 5))
-	assert_eq(state.get_unit(8).owner_id, 1)
+	assert_eq(state.get_unit(5).owner_id, 1)
+	assert_eq(state.get_unit(9).owner_id, 1)
 
 
 func test_same_seed_gives_identical_battle() -> void:
@@ -74,46 +75,67 @@ func test_default_battle_with_swapped_factions() -> void:
 	var state := Scenario.default_battle(12345, [&"russia", &"poland"])
 	assert_eq(state.faction_of(0).id, &"russia")
 	assert_eq(state.faction_of(1).id, &"poland")
-	assert_eq(state.units.size(), 8)
+	assert_eq(state.units_of(0).size(), 5)
+	assert_eq(state.units_of(1).size(), 4)
 
 
-func test_poland_fields_the_abrams_and_russia_the_t72b3_and_uragan() -> void:
-	var state := Scenario.default_battle(12345)
-	assert_eq(state.get_unit(2).definition.id, &"m1a2_sepv3")
-	assert_eq(state.get_unit(2).coord, MapGenerator.offset_to_axial(1, 5))
-	assert_eq(state.get_unit(6).definition.id, &"t72b3")
-	assert_eq(state.get_unit(6).coord, MapGenerator.offset_to_axial(10, 4))
-	assert_eq(state.get_unit(8).definition.id, &"bm27_uragan")
-	assert_eq(state.get_unit(8).coord, MapGenerator.offset_to_axial(11, 4))
+## [unit id, owner, definition id, offset column, offset row] of `state`'s units.
+func _layout(state: GameState) -> Array:
+	var result := []
+	for id in range(1, state.units.size() + 1):
+		var unit := state.get_unit(id)
+		var offset := MapGenerator.axial_to_offset(unit.coord)
+		result.append([id, unit.owner_id, unit.definition.id, offset.x, offset.y])
+	return result
 
 
-## Factions pick the units (their default_force); the map, spawn tiles and unit ids stay the same.
-func test_swapped_factions_swap_only_the_units() -> void:
+func test_default_force_fills_the_slots_in_order() -> void:
+	var state := Scenario.default_battle(1)
+	var expected := [
+		[1, 0, &"pl_mech_infantry", 1, 3],
+		[2, 0, &"m1a2_sepv3", 1, 5],
+		[3, 0, &"pl_mech_infantry", 1, 7],
+		[4, 0, &"homar_k", 0, 5],
+		[5, 1, &"ru_motor_rifle", 10, 2],
+		[6, 1, &"t72b3", 10, 4],
+		[7, 1, &"ru_motor_rifle", 10, 6],
+		[8, 1, &"t72b3", 10, 8],
+		[9, 1, &"bm27_uragan", 11, 4],
+	]
+	assert_eq(_layout(state), expected)
+	for unit: Unit in state.units.values():
+		assert_eq(state.grid.get_terrain(unit.coord), Terrain.Type.PLAINS, str(unit.id))
+
+
+func test_swapped_factions_take_the_other_players_slots() -> void:
+	var state := Scenario.default_battle(1, [&"russia", &"poland"])
+	var expected := [
+		[1, 0, &"ru_motor_rifle", 1, 3],
+		[2, 0, &"t72b3", 1, 5],
+		[3, 0, &"ru_motor_rifle", 1, 7],
+		[4, 0, &"t72b3", 1, 1],
+		[5, 0, &"bm27_uragan", 0, 5],
+		[6, 1, &"pl_mech_infantry", 10, 2],
+		[7, 1, &"m1a2_sepv3", 10, 4],
+		[8, 1, &"pl_mech_infantry", 10, 6],
+		[9, 1, &"homar_k", 11, 4],
+	]
+	assert_eq(_layout(state), expected)
+	for unit: Unit in state.units.values():
+		assert_eq(state.grid.get_terrain(unit.coord), Terrain.Type.PLAINS, str(unit.id))
+
+
+## Factions pick the units; the map stays the same.
+func test_swapped_factions_keep_the_map_apart_from_spawn_tiles() -> void:
 	var a := Scenario.default_battle(12345)
 	var b := Scenario.default_battle(12345, [&"russia", &"poland"])
+	var spawn_tiles := {}
+	for state in [a, b]:
+		for unit: Unit in (state as GameState).units.values():
+			spawn_tiles[unit.coord] = true
 	for c in a.grid.coords():
-		assert_eq(a.grid.get_terrain(c), b.grid.get_terrain(c))
-	for id in a.units:
-		assert_eq((a.units[id] as Unit).coord, (b.units[id] as Unit).coord, str(id))
-	assert_eq(b.get_unit(2).definition.id, &"t72b3")
-	assert_eq(b.get_unit(6).definition.id, &"m1a2_sepv3")
-
-
-func test_front_and_back_slots_follow_attack_range() -> void:
-	var state := Scenario.default_battle(12345)
-	var expected := {
-		1: Vector2i(1, 3),
-		2: Vector2i(1, 5),
-		3: Vector2i(1, 7),
-		4: Vector2i(0, 5),
-		5: Vector2i(10, 2),
-		6: Vector2i(10, 4),
-		7: Vector2i(10, 6),
-		8: Vector2i(11, 4),
-	}
-	for id: int in expected:
-		var slot: Vector2i = expected[id]
-		assert_eq(state.get_unit(id).coord, MapGenerator.offset_to_axial(slot.x, slot.y), str(id))
+		if not spawn_tiles.has(c):
+			assert_eq(a.grid.get_terrain(c), b.grid.get_terrain(c))
 
 
 func test_every_spawned_unit_is_in_its_owners_roster() -> void:
@@ -131,9 +153,28 @@ func test_player_with_unknown_faction_gets_no_units() -> void:
 
 func test_can_spawn_checks_the_roster() -> void:
 	var state := GameState.new(HexGrid.new(), 2, 1)
-	var infantry: UnitDefinition = load("res://data/units/infantry.tres")
-	assert_true(Scenario.can_spawn(state, 0, infantry))
-	assert_false(Scenario.can_spawn(state, 2, infantry), "no such player")
+	var squad: UnitDefinition = load("res://data/units/pl_mech_infantry.tres")
+	assert_true(Scenario.can_spawn(state, 0, squad))
+	assert_false(Scenario.can_spawn(state, 1, squad), "Russia does not field the Polish squad")
+	assert_false(Scenario.can_spawn(state, 2, squad), "no such player")
 	var other := UnitDefinition.new()
 	other.id = &"not_in_any_roster"
 	assert_false(Scenario.can_spawn(state, 1, other))
+
+
+func test_force_larger_than_the_slots_skips_the_extra_units() -> void:
+	# Expected engine output: push_error "no free slot" for the 6th front unit.
+	var poland := FactionRegistry.get_faction(&"poland")
+	var saved := poland.default_force.duplicate()
+	var squad := poland.find_unit(&"pl_mech_infantry")
+	var force: Array[UnitDefinition] = []
+	for i in 6:
+		force.append(squad)
+	poland.default_force = force
+	var state := Scenario.default_battle(1)
+	poland.default_force = saved
+	assert_eq(state.units_of(0).size(), 5)
+	var rows: Array[int] = []
+	for unit in state.units_of(0):
+		rows.append(MapGenerator.axial_to_offset(unit.coord).y)
+	assert_eq(rows, [3, 5, 7, 1, 9] as Array[int])

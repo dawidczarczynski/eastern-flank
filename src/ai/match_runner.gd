@@ -4,11 +4,14 @@ extends RefCounted
 ## The turn limit is a harness parameter only – the rules have no draw condition.
 
 
-## Plays `Scenario.default_battle(seed_value)` with an `AiPlayer` on every side until a winner
-## exists or `max_turns` is exceeded. Result keys: seed, winner, turns, result
-## ("victory" | "turn_limit" | "error"), commands.
-static func play(seed_value: int, max_turns: int) -> Dictionary:
-	var sim := GameSimulation.new(Scenario.default_battle(seed_value))
+## Plays `Scenario.default_battle(seed_value, factions)` with an `AiPlayer` on every side until
+## a winner exists or `max_turns` is exceeded. `factions` = faction id of player 0 and player 1.
+## Result keys: seed, factions, winner, turns, result ("victory" | "turn_limit" | "error"),
+## commands.
+static func play(
+	seed_value: int, max_turns: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> Dictionary:
+	var sim := GameSimulation.new(Scenario.default_battle(seed_value, factions))
 	var state := sim.state
 	var ai := AiPlayer.new()
 	var max_iterations := max_turns * state.player_count + 1
@@ -29,6 +32,7 @@ static func play(seed_value: int, max_turns: int) -> Dictionary:
 		turns = max_turns
 	return {
 		"seed": seed_value,
+		"factions": factions.duplicate(),
 		"winner": state.winner,
 		"turns": turns,
 		"result": result,

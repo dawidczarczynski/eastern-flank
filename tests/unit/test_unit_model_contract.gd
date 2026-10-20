@@ -257,22 +257,6 @@ func test_missing_model_file_builds_magenta_placeholder() -> void:
 	model.free()
 
 
-## Poland fields its own m1a2_sepv3 unit: no stand-in, and a vehicle like the generic tank.
-func test_polish_tank_is_its_own_unit_and_a_vehicle() -> void:
-	var poland := FactionRegistry.get_faction(&"poland")
-	assert_eq(UnitModels.model_id(&"m1a2_sepv3", poland), &"m1a2_sepv3")
-	assert_eq(UnitModels.model_id(&"cavalry", poland), &"cavalry")
-	assert_true(UnitModels.is_vehicle(&"m1a2_sepv3"))
-
-
-## Russia fields its own t72b3 and bm27_uragan units: no stand-ins, both vehicles.
-func test_russian_units_are_their_own_models_and_vehicles() -> void:
-	var russia := FactionRegistry.get_faction(&"russia")
-	for id: StringName in [&"t72b3", &"bm27_uragan"]:
-		assert_eq(UnitModels.model_id(id, russia), id)
-		assert_true(UnitModels.is_vehicle(id), "%s is a vehicle" % id)
-
-
 ## Abrams: 7 road wheels per side + idlers + sprockets = Wheel0..17.
 func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:
 	_assert_tank_pivots(&"m1a2_sepv3", &"poland", 18)

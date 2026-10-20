@@ -36,3 +36,24 @@ func test_non_positive_or_invalid_count() -> void:
 func test_unknown_option_and_bad_values() -> void:
 	for bad in [["5", "--nope"], ["5", "--max-turns=0"], ["5", "--seed=x"], ["5", "6"]]:
 		assert_true(SimulateOptions.parse(PackedStringArray(bad))["error"] != "")
+
+
+func test_factions_default_to_poland_vs_russia() -> void:
+	var o := SimulateOptions.parse(PackedStringArray(["10"]))
+	assert_eq(o["factions"], [&"poland", &"russia"] as Array[StringName])
+
+
+func test_factions_option() -> void:
+	var o := SimulateOptions.parse(PackedStringArray(["10", "--factions=russia,poland"]))
+	assert_eq(o["error"], "")
+	assert_eq(o["factions"], [&"russia", &"poland"] as Array[StringName])
+
+
+## Every parse error makes tools/simulate.gd print the usage and exit with code 2.
+func test_bad_factions_are_usage_errors() -> void:
+	for bad in [
+		"--factions=poland", "--factions=poland,atlantis", "--factions=", "--factions=a,b,c"
+	]:
+		assert_eq(
+			SimulateOptions.parse(PackedStringArray(["10", bad]))["error"], "invalid_factions", bad
+		)
