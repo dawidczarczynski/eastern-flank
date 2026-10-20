@@ -41,6 +41,15 @@
     "details": {"type": "array", "items": {"type": "string"}},
     "skip": {"type": "array", "items": {"type": "string"}},
     "camo_note": {"type": "string"},
+    "mechanisms": {
+      "type": "object",
+      "description": "how the real vehicle animates: mechanism id (docs/design/units/mechanisms.json) -> its parameters. Authoritative for this unit; classes.json only suggests defaults. Missing parameters are filled with the registry default on save (provenance source 'default'). Keys are written in registry order.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "parameter name -> value; the allowed names and values come from the registry: number (min/max), enum (values) or angle_range ([lo, hi] with min <= lo <= 0 <= hi <= max and lo < hi, or \"full\" when allowed)",
+        "additionalProperties": {"type": ["number", "string", "array"]}
+      }
+    },
     "images": {
       "type": "array",
       "items": {
@@ -74,7 +83,7 @@
     },
     "provenance": {
       "type": "object",
-      "description": "per researchable field (dotted path, e.g. dimensions.height): where an AI value came from, whether the human verified it, and a different value the AI found for a field the human had filled",
+      "description": "per researchable field (dotted path, e.g. dimensions.height; also mechanisms.<id> and mechanisms.<id>.<param> as allowed by the registry): where an AI value came from, whether the human verified it, and a different value the AI found for a field the human had filled",
       "additionalProperties": {
         "type": "object",
         "properties": {"source": {"type": "string"}, "verified": {"type": "boolean"}, "suggested": {}},
@@ -87,5 +96,20 @@
     "revision": {"type": "integer", "minimum": 0, "description": "incremented by the tool on every content change; used to detect concurrent edits (409)"}
   },
   "additionalProperties": false,
-  "$comment": "ready_for_model additionally requires: real_name, class, operators (>=1), dimensions.height/width/hull_length > 0, >=3 silhouette_features, >=1 side or drawing image, and no unverified AI value (provenance verified=false) in dimensions.hull_length/width/height or silhouette_features."
+  "$defs": {
+    "classes_json_entry": {
+      "$comment": "Not referenced by the unit schema; documents the format of docs/design/units/classes.json.",
+      "description": "One entry of docs/design/units/classes.json",
+      "type": "object",
+      "required": ["id", "label", "mobility"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9_]{2,48}$"},
+        "label": {"type": "string"},
+        "mobility": {"enum": ["tracked", "wheeled", "foot"]},
+        "required_views": {"type": "array", "items": {"enum": ["side", "front", "rear", "top", "three_quarter", "detail", "drawing"]}},
+        "default_mechanisms": {"type": "array", "items": {"type": "string"}, "description": "mechanism ids from mechanisms.json pre-filled (with default parameters, provenance 'class default') when a unit of this class is created; only a suggestion, the unit entry is authoritative"}
+      }
+    }
+  },
+  "$comment": "ready_for_model additionally requires: real_name, class, operators (>=1), dimensions.height/width/hull_length > 0, >=3 silhouette_features, >=1 side or drawing image, and no unverified AI value (provenance verified=false) in dimensions.hull_length/width/height or silhouette_features; a non-empty mechanisms object; and no unverified value (provenance verified=false, whether AI, default or class default) under mechanisms."
 }

@@ -34,7 +34,7 @@ def complete_unit(**over):
         "id": "leopard_2a4", "real_name": "Leopard 2A4", "class": "tank", "mobility": "tracked",
         "operators": ["poland"], "status": "draft",
         "dimensions": {"hull_length": 7.7, "width": 3.7, "height": 3.0},
-        "silhouette_features": ["flat turret", "long barrel", "boxy hull"],
+        "silhouette_features": ["flat turret", "long barrel", "boxy hull"], "mechanisms": {"wheels": {}},
         "images": [{"file": "side_1.png", "view": "side"}],
     }  # fmt: skip
     unit.update(over)
@@ -46,6 +46,7 @@ class CatalogTestCase(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="unit_catalog_test_")
         self.root = Path(self.tmp) / "units_root"
         self.root.mkdir()
+        shutil.copy(catalog.DEFAULT_ROOT / catalog.MECHANISMS_FILE, self.root / catalog.MECHANISMS_FILE)
         catalog.save_classes(self.root, CLASSES)
         catalog.create_faction(self.root, FACTION)
 

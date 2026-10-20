@@ -34,6 +34,14 @@
     "Armoured three-seat forward-control cab of the Jelcz 882 family",
     "Four axles, 8 large off-road wheels (8×8)"
   ],
+  "mechanisms": {
+    "wheels": {},
+    "launcher": {
+      "traverse_deg": "full",
+      "max_elevation_deg": 40,
+      "stowed": "rear"
+    }
+  },
   "images": [
     {
       "file": "side_1.png",
@@ -129,9 +137,29 @@
     "silhouette_features": {
       "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
       "verified": true
+    },
+    "mechanisms.wheels": {
+      "source": "Jelcz P882.57 8×8 chassis (see dimensions and silhouette features)",
+      "verified": true
+    },
+    "mechanisms.launcher": {
+      "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
+      "verified": true
+    },
+    "mechanisms.launcher.traverse_deg": {
+      "source": "human decision 2026-10-19: full traverse, fires over the cab",
+      "verified": true
+    },
+    "mechanisms.launcher.max_elevation_deg": {
+      "source": "matches the current model (0.7 rad); the real K239 maximum is to be researched (?)",
+      "verified": false
+    },
+    "mechanisms.launcher.stowed": {
+      "source": "human decision 2026-10-19: launcher stowed facing the rear",
+      "verified": true
     }
   },
   "status": "modeled",
-  "updated": "2026-10-19",
-  "revision": 16
+  "updated": "2026-10-20",
+  "revision": 17
 }

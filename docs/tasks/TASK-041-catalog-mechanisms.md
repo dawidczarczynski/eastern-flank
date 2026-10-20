@@ -1,6 +1,6 @@
 # TASK-041: Unit catalog – mechanisms registry and per-unit `mechanisms` (data, validation, research)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: tools (`tools/unit_catalog/catalog.py`, `unit.schema.json`, Python tests), docs (`docs/design/units/mechanisms.json`, `classes.json`, README), `.claude/skills/research-unit/SKILL.md`
 - **Depends on**: TASK-037, TASK-040 (provenance, research merge). Followed by TASK-042 (form UI), TASK-043 (models carry the mechanisms).
 - **Model**: sonnet
@@ -133,4 +133,13 @@ None (developer tool).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Registry `docs/design/units/mechanisms.json` (7 entries); `catalog.load_mechanisms` / `validate_mechanisms`; `classes.json` `default_mechanisms` (validated, in `CLASS_KEYS`). `catalog_summary` also returns the registry (for TASK-042's form).
+- `validate_unit`, `normalize_unit` and `merge_research` take an optional `registry`; when it is left out they use the shipped one (cached). `save_unit`, `create_unit`, `apply_research` and `save_classes` pass their root's registry. A missing `mechanisms.json` gives an empty registry. An invalid one raises `CatalogError` with the field named, on the first catalog load.
+- `save_unit` fills missing params after validation and before the readiness gate, so saving `ready_for_model` with `{"launcher": {}}` is blocked by `verify mechanisms.launcher.<param> (default)`. A parameterless mechanism (`"wheels": {}`) is kept by the normal pruning. An empty `mechanisms` object is dropped.
+- Saving a unit doesn't add `mechanisms.<id>` provenance by itself. Only `create_unit` (`class default`) and research add it.
+- In `merge_research`, a value whose provenance is an unverified `default` / `class default` counts as unset. Research replaces it, unverified, with its own source instead of making a `suggested`. A value with no provenance or verified provenance counts as human-set. A research value for `mechanisms.<id>` must be `{}` or null. Readiness says `(default)` for the `default` / `class default` sources and `(AI)` otherwise.
+- Known minor gap: research that sets only a param leaves the mechanism's own `class default` provenance in place. It stays unverified and still blocks readiness.
+- Homar-K: saved through `save_unit` (revision 17). The `mechanisms.wheels` source points at the 8×8 chassis and `mechanisms.launcher` cites the K239 article. `max_elevation_deg` 40 is unverified.
+- The other shipped entries have no `mechanisms`, so `readiness_missing` now lists `mechanisms` for them. They load unchanged.
+- The client-side readiness checklist in `app.js` doesn't know the mechanism rule yet. It is covered by TASK-042 ("The readiness checklist shows the mechanism items").
+- Tests: `tools/unit_catalog/test_mechanisms.py` (30 tests, including one that validates every shipped entry and one that checks the Homar-K mechanisms). `test_catalog.py` fixtures copy the registry. `tools/check.sh` passes (126 Python tests).

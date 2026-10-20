@@ -12,7 +12,8 @@ The game itself never reads this folder – game data lives in `data/`. `docs/.g
 
 ```
 docs/design/units/
-  classes.json                  # unit classes: id, label, mobility, required views/pivots
+  classes.json                  # unit classes: id, label, mobility, required views, default mechanisms
+  mechanisms.json               # registry of animation mechanisms (parameters, pivot contract)
   factions/<faction_id>.json    # name, ISO code, UI colour, camo palette (3), vest colour
   units/<unit_id>/
     unit.json                   # identity, real-world facts, dimensions, silhouette features, images, status, feedback
@@ -23,6 +24,21 @@ docs/design/units/
 `unit.json` omits empty values and is written by the tool with a fixed key order and 2-space indent, so git diffs stay small. `dimensions` (metres) is a nested object (`hull_length`, `overall_length`, `width`, `height`, `sources`), `armament` is `{main, secondary}`, and image names are `<view>_<n>.<jpg|png|webp>` (views: side, front, rear, top, three_quarter, detail, drawing). The tool also keeps a `revision` counter (concurrent-edit detection) and `updated` date in each `unit.json`. AI research adds `provenance` (per field: `source`, `verified`, `suggested`) and `image_candidates`; the agent only writes a transient `research.json` that the tool validates and merges. The JSON Schema is `tools/unit_catalog/unit.schema.json`. The tool also shows the latest `.screenshots/units/<id>_*_sheet.png` render sheet next to the side reference in its Model review section.
 
 Ids: lowercase `a-z0-9_` (`poland`, `leopard_2a4`, `t72b3`). The unit id is also the name of the stats file and the model file.
+
+## Mechanisms
+
+How a unit animates is a property of the **real vehicle**: the Homar-K and the 9K57 Uragan are both class `mlrs`, but one stows the launcher facing the rear and has full traverse, the other has limited traverse and blast shields. So the animations are declared **per unit** in `unit.json`; the entry is **authoritative**. `classes.json` only suggests defaults (`default_mechanisms`, e.g. `["wheels", "launcher", "stabilisers"]` for `mlrs`), which are pre-filled when a unit is created and then corrected from the real vehicle.
+
+`mechanisms.json` is the **registry** of every known mechanism, read by the tool, the schema, the skills and the Godot contract test (TASK-043). One entry has:
+
+- `id`, `label`, `description`, and `status` – `implemented` (the game animates it) or `planned` (can already be declared; the contract test checks pivots only for implemented ones);
+- `params` – the parameters, each with a `type` (`number` with `min`/`max`, `enum` with `values`, `angle_range` = `[lo, hi]` with `min <= lo <= 0 <= hi <= max`, or `"full"` where `allow_full`), a `default` and a `help` text (`unit` optional);
+- `pivots` – the node paths the model must provide below its root (`{i}` = contiguous index run from 0, `min` = minimum count, `with` = paths that must exist for the same index, `meta` = metadata keys the pivot carries);
+- `owns` – top-level pivots only this mechanism may create (a model with such a pivot must declare the mechanism).
+
+In `unit.json`, `mechanisms` is an object from mechanism id to its parameters, e.g. `"launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "front"}` (`"wheels": {}` has none). On save the tool validates ids, parameter names and values (errors name `mechanisms.<id>.<param>`), fills missing parameters with the registry defaults and writes everything in registry order. Defaults filled by the tool and the class pre-fill carry `provenance` entries `mechanisms.<id>` / `mechanisms.<id>.<param>` with source `default` / `class default` and `verified: false`; AI research (`/research-unit`) proposes mechanisms and parameters with sources the same way as other fields. Removing a mechanism removes its provenance.
+
+**Readiness:** `ready_for_model` needs a non-empty `mechanisms` and no unverified mechanism value (AI, default or class default) – the model and its animations are built from them. The game never reads this folder: the parameters reach it through the model file (TASK-043). Hull rocking on slopes is not a mechanism; every vehicle gets it from its mobility.
 
 ## Foot units (squads)
 
@@ -49,7 +65,7 @@ The tool knows foot units by `mobility: foot`. **Readiness** for them needs only
 ## Workflow for a new unit
 
 1. In the tool: create the unit, fill in the real name, class, operators (factions), real-world facts and dimensions with sources.
-   Faster: create it with just the name and class and keep **Research the unit with AI** checked (or click **Research with AI** on the unit screen). The tool runs `/research-unit <id>` through the Claude Code CLI; the Jobs screen shows the live log. From Claude Code you can run the skill yourself and then click **Apply research**. AI values are marked `AI` with their source until you verify them (click "✓ Verified" or edit the value); different values for fields you had filled appear as suggestions ("Use" / "Dismiss"); proposed images are listed as candidates to download after checking the licence. Unverified AI dimensions and silhouette features block `ready_for_model`.
+   Faster: create it with just the name and class and keep **Research the unit with AI** checked (or click **Research with AI** on the unit screen). The tool runs `/research-unit <id>` through the Claude Code CLI; the Jobs screen shows the live log. From Claude Code you can run the skill yourself and then click **Apply research**. AI values are marked `AI` with their source until you verify them (click "✓ Verified" or edit the value); different values for fields you had filled appear as suggestions ("Use" / "Dismiss"); proposed images are listed as candidates to download after checking the licence. Unverified AI dimensions, silhouette features and mechanisms block `ready_for_model`.
 2. Add images: the best is a **side-view line drawing** or a clean side photo, then top / front, then three-quarter photos and details. Paste (Ctrl+V) or drag them in, set the view and the source.
 3. List the **silhouette features** – the 3–5 things that make the vehicle recognisable from a distance (most important first).
 4. When the readiness checklist is green, set the status to `ready_for_model`.

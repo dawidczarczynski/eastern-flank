@@ -6,6 +6,9 @@
     "required_views": [
       "side",
       "front"
+    ],
+    "default_mechanisms": [
+      "squad_march"
     ]
   },
   {
@@ -15,6 +18,9 @@
     "required_views": [
       "side",
       "front"
+    ],
+    "default_mechanisms": [
+      "squad_march"
     ]
   },
   {
@@ -25,6 +31,10 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels",
+      "turret_traverse"
     ]
   },
   {
@@ -35,6 +45,10 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels",
+      "turret_traverse"
     ]
   },
   {
@@ -45,6 +59,9 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels"
     ]
   },
   {
@@ -54,6 +71,9 @@
     "required_views": [
       "side",
       "front"
+    ],
+    "default_mechanisms": [
+      "wheels"
     ]
   },
   {
@@ -64,6 +84,10 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels",
+      "turret_traverse"
     ]
   },
   {
@@ -74,6 +98,11 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels",
+      "launcher",
+      "stabilisers"
     ]
   },
   {
@@ -84,6 +113,10 @@
       "side",
       "front",
       "top"
+    ],
+    "default_mechanisms": [
+      "wheels",
+      "turret_traverse"
     ]
   },
   {
@@ -93,6 +126,9 @@
     "required_views": [
       "side",
       "front"
+    ],
+    "default_mechanisms": [
+      "wheels"
     ]
   },
   {
@@ -102,6 +138,9 @@
     "required_views": [
       "side",
       "front"
+    ],
+    "default_mechanisms": [
+      "squad_march"
     ]
   }
 ]

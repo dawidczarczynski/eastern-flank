@@ -10,6 +10,7 @@ You are researching the real unit `$ARGUMENTS` (a unit id from the catalog) so t
 - `docs/design/units/units/<id>/unit.json` – at least `real_name` (and maybe `variant_note`, `class`, `operators`). Fields the human already filled are the human's: you may still report a different value you found, the tool shows it as a suggestion.
 - `docs/design/units/classes.json` (what the class is) and `docs/design/units/factions/*.json` (the only valid `operators` ids).
 - `docs/design/units/README.md` – what each field is for.
+- `docs/design/units/mechanisms.json` – the registry of animation mechanisms (ids, parameters with type, range and default, status); the unit's `mechanisms` (if any) and the class's `default_mechanisms` are only starting points.
 
 ## Rules
 
@@ -19,7 +20,8 @@ You are researching the real unit `$ARGUMENTS` (a unit id from the catalog) so t
 4. **Silhouette features** (3–6, most recognisable from a distance first) describe the *shape* a modeler needs: e.g. "wedge-shaped turret front with spaced armour", "8 road wheels, no return rollers", "launcher pod box behind a 4-door cab". Source: the page with the best photo or description.
 5. **Image candidates** (3–8): direct image file URLs (`https://`), best first – a side-view line drawing or a clean side photo, then top / front, then three-quarter. Prefer **Wikimedia Commons** (`https://upload.wikimedia.org/...` original file, not a thumbnail page) and give the licence from the file page (`CC BY-SA 4.0`, `Public domain`, …) plus the file page URL as `source_page`. Never download images yourself.
 6. **Foot units (squads)** – class `infantry`, `engineer` or a dismounted team: the entry describes **one soldier in full kit** plus the squad's make-up, as in "Foot units (squads)" in the README. `crew` = dismounts per squad (the squad organisation of that army); `armament.main` = service rifle, `armament.secondary` = squad MG, grenade launchers and AT weapons carried by the squad; `protection` = helmet and body armour models; `dimensions` = one standing soldier with helmet (`height`, the only one the readiness gate needs), across the shoulders with vest (`width`), front to back with vest and pack (`hull_length`) – only from a source (army anthropometric data, kit specifications), otherwise leave them out; `silhouette_features` = helmet shape, vest / plate carrier, rifle profile, AT launcher, pack; `camo_note` = uniform pattern. Images: soldiers of that army in current kit (side, front, one showing the AT weapon). Skip weight, speeds and ranges.
-7. **Write only** `docs/design/units/units/<id>/research.json`. Do not edit `unit.json` or anything else – the tool merges the file, validates it and marks every value as unverified.
+7. **Mechanisms** – read `mechanisms.json` and report which of those mechanisms the **real vehicle** has and with what parameters (e.g. launcher traverse limits, maximum elevation, stowed direction; whether it has stabiliser jacks or cab blast shields; turret traverse and gun elevation limits). Use `fields` keys `mechanisms.<id>` (value `{}`: the vehicle has it) and `mechanisms.<id>.<param>` (value as the registry parameter requires), each with a `source`: a page, or photos / videos of the firing position (say in `summary` what was seen). A parameter of a mechanism you did not list adds the mechanism too. Only ids and parameters from the registry are valid; values outside the registry range are rejected. Do not guess a parameter: leave it out and the registry default is used (and the human must verify it). Absence ("no blast shields") goes into `summary`, not into `fields`.
+8. **Write only** `docs/design/units/units/<id>/research.json`. Do not edit `unit.json` or anything else – the tool merges the file, validates it and marks every value as unverified.
 
 ## Output: `research.json`
 
@@ -34,7 +36,10 @@ You are researching the real unit `$ARGUMENTS` (a unit id from the catalog) so t
     "dimensions.hull_length": {"value": 11.0, "source": "https://..."},
     "dimensions.width": {"value": 2.55, "source": "https://..."},
     "dimensions.height": {"value": 3.5, "source": "https://..."},
-    "silhouette_features": {"value": ["…", "…", "…"], "source": "https://..."}
+    "silhouette_features": {"value": ["…", "…", "…"], "source": "https://..."},
+    "mechanisms.launcher": {"value": {}, "source": "https://..."},
+    "mechanisms.launcher.traverse_deg": {"value": [-30, 30], "source": "https://... (photo of the firing position)"},
+    "mechanisms.launcher.max_elevation_deg": {"value": 55, "source": "https://..."}
   },
   "image_candidates": [
     {"url": "https://upload.wikimedia.org/...jpg", "view": "side", "license": "CC BY-SA 4.0",
@@ -44,6 +49,6 @@ You are researching the real unit `$ARGUMENTS` (a unit id from the catalog) so t
 }
 ```
 
-Allowed `fields` keys: `variant_note`, `in_service`, `country_of_origin`, `operators`, `crew`, `weight_t`, `armament.main`, `armament.secondary`, `protection`, `speed_road_kmh`, `speed_offroad_kmh`, `range_km`, `fire_range_km`, `notes`, `dimensions.hull_length`, `dimensions.overall_length`, `dimensions.width`, `dimensions.height`, `silhouette_features`, `details`, `skip`, `camo_note`. Image views: `side`, `front`, `rear`, `top`, `three_quarter`, `detail`, `drawing`.
+Allowed `fields` keys: `variant_note`, `in_service`, `country_of_origin`, `operators`, `crew`, `weight_t`, `armament.main`, `armament.secondary`, `protection`, `speed_road_kmh`, `speed_offroad_kmh`, `range_km`, `fire_range_km`, `notes`, `dimensions.hull_length`, `dimensions.overall_length`, `dimensions.width`, `dimensions.height`, `silhouette_features`, `details`, `skip`, `camo_note`, and `mechanisms.<id>` / `mechanisms.<id>.<param>` from the registry. Image views: `side`, `front`, `rear`, `top`, `three_quarter`, `detail`, `drawing`.
 
 Finish with a short summary for the human: what was filled, what is uncertain and should be checked first (dimensions!), and that the result is applied in the unit catalog tool (it applies `research.json` automatically when it started the run, otherwise the unit screen shows an "Apply research" button).

@@ -1,0 +1,197 @@
+[
+  {
+    "id": "wheels",
+    "label": "Wheels / road wheels spin",
+    "status": "implemented",
+    "description": "Every wheel (or road wheel) turns with the distance the vehicle travels.",
+    "params": {},
+    "pivots": [
+      {
+        "path": "Wheel{i}",
+        "min": 4
+      }
+    ],
+    "owns": [
+      "Wheel{i}"
+    ]
+  },
+  {
+    "id": "squad_march",
+    "label": "Squad march (step bob, kneelers stand)",
+    "status": "implemented",
+    "description": "Soldiers bob with their steps while the squad moves; kneeling soldiers stand up first.",
+    "params": {},
+    "pivots": [
+      {
+        "path": "Soldier{i}",
+        "min": 5,
+        "with": [
+          "Soldier{i}/Rig"
+        ]
+      }
+    ],
+    "owns": [
+      "Soldier{i}"
+    ]
+  },
+  {
+    "id": "launcher",
+    "label": "Rocket launcher on a turntable (raise, traverse)",
+    "status": "implemented",
+    "description": "Pod on a turntable: raises on its actuators and traverses towards the target before a volley; the vehicle turns first when the target is outside the traverse range.",
+    "params": {
+      "traverse_deg": {
+        "type": "angle_range",
+        "allow_full": true,
+        "min": -180,
+        "max": 180,
+        "default": "full",
+        "unit": "deg",
+        "help": "Traverse relative to the stowed direction: \"full\" or [min, max] (min <= 0 <= max)"
+      },
+      "max_elevation_deg": {
+        "type": "number",
+        "min": 1,
+        "max": 90,
+        "default": 40,
+        "unit": "deg",
+        "help": "Elevation used when firing"
+      },
+      "stowed": {
+        "type": "enum",
+        "values": [
+          "rear",
+          "front"
+        ],
+        "default": "rear",
+        "help": "Direction the tube ends face when stowed"
+      }
+    },
+    "pivots": [
+      {
+        "path": "Launcher"
+      },
+      {
+        "path": "Launcher/Pod"
+      },
+      {
+        "path": "Launcher/Pod/Mouth{i}",
+        "min": 6
+      },
+      {
+        "path": "Launcher/Actuator{i}",
+        "min": 0,
+        "with": [
+          "Launcher/ActuatorRod{i}",
+          "Launcher/Pod/ActuatorMount{i}"
+        ]
+      }
+    ],
+    "owns": [
+      "Launcher"
+    ]
+  },
+  {
+    "id": "stabilisers",
+    "label": "Stabiliser jacks lowered before firing",
+    "status": "planned",
+    "description": "Planned (TASK-045). Stabiliser jacks lower to the ground before a volley and lift again afterwards.",
+    "params": {},
+    "pivots": [
+      {
+        "path": "Stabiliser{i}",
+        "min": 1,
+        "meta": [
+          "deployed"
+        ]
+      }
+    ],
+    "owns": [
+      "Stabiliser{i}"
+    ]
+  },
+  {
+    "id": "blast_shields",
+    "label": "Cab window blast shields lowered before firing",
+    "status": "planned",
+    "description": "Planned (TASK-046). Shields over the cab windows close before a volley.",
+    "params": {},
+    "pivots": [
+      {
+        "path": "BlastShield{i}",
+        "min": 1,
+        "meta": [
+          "deployed"
+        ]
+      }
+    ],
+    "owns": [
+      "BlastShield{i}"
+    ]
+  },
+  {
+    "id": "turret_traverse",
+    "label": "Turret turns and the gun elevates towards the target",
+    "status": "planned",
+    "description": "Planned (TASK-047). The turret turns towards the target and the gun elevates.",
+    "params": {
+      "traverse_deg": {
+        "type": "angle_range",
+        "allow_full": true,
+        "min": -180,
+        "max": 180,
+        "default": "full",
+        "unit": "deg",
+        "help": "Turret traverse relative to the hull front: \"full\" or [min, max] (min <= 0 <= max)"
+      },
+      "elevation_deg": {
+        "type": "angle_range",
+        "allow_full": false,
+        "min": -20,
+        "max": 90,
+        "default": [
+          -8,
+          20
+        ],
+        "unit": "deg",
+        "help": "Gun elevation limits [depression, elevation] (depression <= 0 <= elevation)"
+      }
+    },
+    "pivots": [
+      {
+        "path": "Turret"
+      },
+      {
+        "path": "Turret/Gun"
+      },
+      {
+        "path": "Turret/Gun/Muzzle"
+      }
+    ],
+    "owns": [
+      "Turret"
+    ]
+  },
+  {
+    "id": "gun_recoil",
+    "label": "Gun recoil and muzzle flash",
+    "status": "planned",
+    "description": "Planned (TASK-048). The barrel slides back when the gun fires and the muzzle flashes.",
+    "params": {
+      "recoil_m": {
+        "type": "number",
+        "min": 0,
+        "max": 2,
+        "default": 0.5,
+        "unit": "m",
+        "help": "Distance the barrel slides back"
+      }
+    },
+    "pivots": [
+      {
+        "path": "Turret/Gun/Barrel"
+      }
+    ],
+    "owns": []
+  }
+]

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import copy
 import json
 import os
 import re
@@ -36,13 +37,13 @@ UNIT_KEY_ORDER = [
     "id", "real_name", "variant_note", "class", "mobility", "operators", "in_service",
     "country_of_origin", "crew", "weight_t", "armament", "protection", "speed_road_kmh",
     "speed_offroad_kmh", "range_km", "fire_range_km", "notes", "dimensions",
-    "silhouette_features", "details", "skip", "camo_note", "images", "image_candidates", "provenance", "status",
+    "silhouette_features", "details", "skip", "camo_note", "mechanisms", "images", "image_candidates", "provenance", "status",
     "feedback", "updated", "revision",
 ]  # fmt: skip
 ARMAMENT_KEYS = ["main", "secondary"]
 DIMENSION_KEYS = ["hull_length", "overall_length", "width", "height", "sources"]
 IMAGE_KEYS = ["file", "view", "source_url", "license", "note"]
-CLASS_KEYS = ["id", "label", "mobility", "required_views"]
+CLASS_KEYS = ["id", "label", "mobility", "required_views", "default_mechanisms"]
 FACTION_KEY_ORDER = ["id", "name", "iso_code", "color", "camo", "vest_color", "notes"]
 
 NUMERIC_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km"]
@@ -71,6 +72,11 @@ FOOT_REFERENCE_VIEWS = ("side", "front", "three_quarter", "drawing")
 PROVENANCE_KEYS = ["source", "verified", "suggested"]
 CANDIDATE_KEYS = ["url", "view", "license", "source_page", "note"]
 RESEARCH_FILE = "research.json"
+MECHANISMS_FILE = "mechanisms.json"
+MECHANISM_STATUSES = ("implemented", "planned")
+PARAM_TYPES = ("number", "enum", "angle_range")
+# Provenance sources of mechanism values the tool filled in itself (not researched, not typed by the human).
+DEFAULT_SOURCES = ("default", "class default")
 
 
 class CatalogError(Exception):
@@ -165,9 +171,16 @@ def _prune(value: Any) -> Any:
     return value
 
 
-def normalize_unit(unit: Dict[str, Any]) -> Dict[str, Any]:
-    """Drop empty values and put keys in schema order (recursively). Used before every save."""
+def normalize_unit(unit: Dict[str, Any], registry: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+    """Drop empty values and put keys in schema order (recursively). Used before every save.
+
+    With the mechanism registry, `mechanisms` and its provenance follow the registry order. A mechanism without
+    parameters is `{}` and is kept (an empty `mechanisms` object is dropped like any other empty value).
+    """
     u = _prune(unit)
+    mechs = unit.get("mechanisms")
+    if isinstance(mechs, dict) and mechs:
+        u["mechanisms"] = _order_mechanisms(copy.deepcopy(mechs), registry)
     if "armament" in u:
         u["armament"] = _ordered(u["armament"], ARMAMENT_KEYS)
     if "dimensions" in u:
@@ -177,7 +190,8 @@ def normalize_unit(unit: Dict[str, Any]) -> Dict[str, Any]:
     if "image_candidates" in u:
         u["image_candidates"] = [_ordered(c, CANDIDATE_KEYS) for c in u["image_candidates"]]
     if "provenance" in u:
-        u["provenance"] = _ordered({k: _ordered(v, PROVENANCE_KEYS) for k, v in u["provenance"].items()}, RESEARCH_FIELDS)
+        order = RESEARCH_FIELDS + mechanism_paths(registry or [])
+        u["provenance"] = _ordered({k: _ordered(v, PROVENANCE_KEYS) for k, v in u["provenance"].items()}, order)
     return _ordered(u, UNIT_KEY_ORDER)
 
 
@@ -215,7 +229,7 @@ def _read_json(path: Path, default: Any) -> Any:
 # --------------------------------------------------------------------------- classes and factions
 
 
-def validate_classes(classes: Any) -> List[Dict[str, Any]]:
+def validate_classes(classes: Any, registry: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
     errors: List[Dict[str, Any]] = []
     if not isinstance(classes, list) or not classes:
         raise _err("classes", "must be a non-empty list")
@@ -239,6 +253,16 @@ def validate_classes(classes: Any) -> List[Dict[str, Any]]:
         views = c.get("required_views", [])
         if not isinstance(views, list) or any(v not in VIEWS for v in views):
             errors.append({"field": f + ".required_views", "message": "unknown view"})
+        known = None if registry is None else [m["id"] for m in registry]
+        defaults = c.get("default_mechanisms", [])
+        if not isinstance(defaults, list) or any(not isinstance(m, str) for m in defaults):
+            errors.append({"field": f + ".default_mechanisms", "message": "must be a list of mechanism ids"})
+        elif known is not None:
+            for m in defaults:
+                if m not in known:
+                    errors.append({"field": f + ".default_mechanisms", "message": "unknown mechanism %r" % m})
+            if len(set(defaults)) != len(defaults):
+                errors.append({"field": f + ".default_mechanisms", "message": "duplicate mechanism"})
         out.append(_ordered({k: c.get(k) for k in CLASS_KEYS if k in c}, CLASS_KEYS))
     if errors:
         raise CatalogError(errors)
@@ -250,7 +274,7 @@ def load_classes(root: Path) -> List[Dict[str, Any]]:
 
 
 def save_classes(root: Path, classes: Any) -> List[Dict[str, Any]]:
-    clean = validate_classes(classes)
+    clean = validate_classes(classes, load_mechanisms(root))
     with _WRITE_LOCK:
         keep = {c["id"] for c in clean}
         used: Dict[str, List[str]] = {}
@@ -264,6 +288,210 @@ def save_classes(root: Path, classes: Any) -> List[Dict[str, Any]]:
             raise CatalogError(errors, 409)
         _write_json(Path(root) / "classes.json", clean)
     return clean
+
+
+# --------------------------------------------------------------------------- mechanisms registry
+
+
+def validate_param_value(spec: Dict[str, Any], value: Any) -> Optional[str]:
+    """Error message if `value` does not fit the registry parameter `spec`, else None."""
+    kind = spec.get("type")
+    if kind == "number":
+        if not _is_number(value):
+            return "must be a number"
+        if value < spec["min"] or value > spec["max"]:
+            return "must be between %s and %s" % (spec["min"], spec["max"])
+    elif kind == "enum":
+        if not isinstance(value, str) or value not in spec["values"]:
+            return "must be one of %s" % ", ".join(spec["values"])
+    elif kind == "angle_range":
+        if value == "full" and isinstance(value, str):
+            return None if spec.get("allow_full") else '"full" is not allowed here, give [min, max]'
+        lo_lim, hi_lim = spec["min"], spec["max"]
+        if not isinstance(value, list) or len(value) != 2 or not all(_is_number(v) for v in value):
+            return 'must be %s[min, max]' % ('"full" or ' if spec.get("allow_full") else "")
+        lo, hi = value
+        if lo < lo_lim or hi > hi_lim:
+            return "must stay within %s..%s" % (lo_lim, hi_lim)
+        if not lo <= 0 <= hi:
+            return "must include 0 (min <= 0 <= max)"
+        if lo >= hi:
+            return "min must be smaller than max"
+    else:
+        return "unknown parameter type"
+    return None
+
+
+def _validate_param_spec(f: str, name: Any, spec: Any, errors: List[Dict[str, Any]]) -> None:
+    def add(field: str, message: str) -> None:
+        errors.append({"field": field, "message": message})
+
+    if not is_valid_id(name):
+        add(f, "invalid parameter name")
+    if not isinstance(spec, dict):
+        add(f, "must be an object")
+        return
+    kind = spec.get("type")
+    if kind not in PARAM_TYPES:
+        add(f + ".type", "must be one of %s" % ", ".join(PARAM_TYPES))
+        return
+    ok = True
+    if kind in ("number", "angle_range"):
+        if not _is_number(spec.get("min")) or not _is_number(spec.get("max")) or spec["min"] > spec["max"]:
+            add(f, "min and max must be numbers with min <= max")
+            ok = False
+    if kind == "enum":
+        values = spec.get("values")
+        if not isinstance(values, list) or not values or any(not isinstance(v, str) for v in values):
+            add(f + ".values", "must be a non-empty list of strings")
+            ok = False
+    if kind == "angle_range" and not isinstance(spec.get("allow_full", False), bool):
+        add(f + ".allow_full", "must be true or false")
+        ok = False
+    if not isinstance(spec.get("help"), str) or not spec["help"].strip():
+        add(f + ".help", "required")
+    if "unit" in spec and not isinstance(spec["unit"], str):
+        add(f + ".unit", "must be a string")
+    if "default" not in spec:
+        add(f + ".default", "required")
+    elif ok:
+        problem = validate_param_value(spec, spec["default"])
+        if problem:
+            add(f + ".default", "default %s" % problem)
+
+
+def validate_mechanisms(registry: Any) -> List[Dict[str, Any]]:
+    """Validate the mechanism registry; raises CatalogError naming the offending field."""
+    if not isinstance(registry, list):
+        raise _err("mechanisms", "must be a list")
+    errors: List[Dict[str, Any]] = []
+    seen = set()
+    for i, m in enumerate(registry):
+        f = "mechanisms[%d]" % i
+        if not isinstance(m, dict):
+            errors.append({"field": f, "message": "must be an object"})
+            continue
+        if not is_valid_id(m.get("id")):
+            errors.append({"field": f + ".id", "message": "invalid id"})
+        elif m["id"] in seen:
+            errors.append({"field": f + ".id", "message": "duplicate id %r" % m["id"]})
+        else:
+            seen.add(m["id"])
+            f = "mechanisms.%s" % m["id"]
+        for key in ("label", "description"):
+            if not isinstance(m.get(key), str) or not m[key].strip():
+                errors.append({"field": "%s.%s" % (f, key), "message": "required"})
+        if m.get("status") not in MECHANISM_STATUSES:
+            errors.append({"field": f + ".status", "message": "must be one of %s" % ", ".join(MECHANISM_STATUSES)})
+        params = m.get("params", {})
+        if not isinstance(params, dict):
+            errors.append({"field": f + ".params", "message": "must be an object"})
+        else:
+            for name, spec in params.items():
+                _validate_param_spec("%s.params.%s" % (f, name), name, spec, errors)
+        pivots = m.get("pivots", [])
+        if not isinstance(pivots, list):
+            errors.append({"field": f + ".pivots", "message": "must be a list"})
+        else:
+            for j, pivot in enumerate(pivots):
+                pf = "%s.pivots[%d]" % (f, j)
+                if not isinstance(pivot, dict) or not isinstance(pivot.get("path"), str) or not pivot["path"]:
+                    errors.append({"field": pf, "message": "must be an object with a path"})
+                    continue
+                if "min" in pivot and (not isinstance(pivot["min"], int) or isinstance(pivot["min"], bool) or pivot["min"] < 0):
+                    errors.append({"field": pf + ".min", "message": "must be a non-negative integer"})
+                for key in ("with", "meta"):
+                    v = pivot.get(key, [])
+                    if not isinstance(v, list) or any(not isinstance(s, str) for s in v):
+                        errors.append({"field": "%s.%s" % (pf, key), "message": "must be a list of strings"})
+        owns = m.get("owns", [])
+        if not isinstance(owns, list) or any(not isinstance(s, str) for s in owns):
+            errors.append({"field": f + ".owns", "message": "must be a list of strings"})
+    if errors:
+        raise CatalogError(errors)
+    return registry
+
+
+def load_mechanisms(root: Path) -> List[Dict[str, Any]]:
+    """Load and validate `mechanisms.json` (missing file = empty registry). Invalid = CatalogError."""
+    path = Path(root) / MECHANISMS_FILE
+    try:
+        data = _read_json(path, [])
+    except ValueError as exc:
+        raise _err(MECHANISMS_FILE, "invalid JSON: %s" % exc)
+    return validate_mechanisms(data)
+
+
+_SHIPPED_REGISTRY: List[Dict[str, Any]] = []
+
+
+def _registry_or_shipped(registry: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """The given registry, or (for callers without a data root) the one shipped in docs/design/units."""
+    global _SHIPPED_REGISTRY
+    if registry is not None:
+        return registry
+    if not _SHIPPED_REGISTRY:
+        _SHIPPED_REGISTRY = load_mechanisms(DEFAULT_ROOT)
+    return _SHIPPED_REGISTRY
+
+
+def mechanism_paths(registry: List[Dict[str, Any]]) -> List[str]:
+    """Every provenance path a registry allows, in registry order: `mechanisms.<id>` then its params."""
+    out = []
+    for m in registry:
+        out.append("mechanisms.%s" % m["id"])
+        out += ["mechanisms.%s.%s" % (m["id"], p) for p in m.get("params", {})]
+    return out
+
+
+def _order_mechanisms(mechs: Dict[str, Any], registry: Optional[List[Dict[str, Any]]]) -> Dict[str, Any]:
+    if not registry:
+        return mechs
+    by_id = {m["id"]: m for m in registry}
+    ordered = _ordered(mechs, [m["id"] for m in registry])
+    for mid, params in ordered.items():
+        if isinstance(params, dict) and mid in by_id:
+            ordered[mid] = _ordered(params, list(by_id[mid].get("params", {})))
+    return ordered
+
+
+def sync_mechanisms(unit: Dict[str, Any], registry: List[Dict[str, Any]]) -> None:
+    """In place: fill missing parameters with registry defaults (provenance `default`, unverified) and drop the
+    provenance of mechanisms and parameters the unit no longer has. Invalid shapes are left for validation."""
+    by_id = {m["id"]: m for m in registry}
+    mechs = unit.get("mechanisms")
+    if not isinstance(mechs, dict):
+        mechs = {}
+    prov = unit.get("provenance")
+    if prov is None:
+        prov = unit["provenance"] = {}
+    if not isinstance(prov, dict):
+        return
+    have = set()
+    for mid, params in mechs.items():
+        have.add("mechanisms.%s" % mid)
+        if not isinstance(params, dict):
+            continue
+        for name, spec in by_id.get(mid, {}).get("params", {}).items():
+            if name not in params:
+                params[name] = copy.deepcopy(spec["default"])
+                prov["mechanisms.%s.%s" % (mid, name)] = {"source": "default", "verified": False}
+        have |= {"mechanisms.%s.%s" % (mid, p) for p in params}
+    for path in [p for p in prov if p.startswith("mechanisms.") and p not in have]:
+        del prov[path]
+
+
+def _mechanism_path_error(path: str, registry: List[Dict[str, Any]]) -> Optional[str]:
+    """None if `path` is `mechanisms.<id>` or `mechanisms.<id>.<param>` of the registry, else the reason."""
+    parts = path.split(".")
+    if parts[0] != "mechanisms" or len(parts) not in (2, 3):
+        return "not a researchable field"
+    entry = next((m for m in registry if m["id"] == parts[1]), None)
+    if entry is None:
+        return "unknown mechanism %r" % parts[1]
+    if len(parts) == 3 and parts[2] not in entry.get("params", {}):
+        return "unknown parameter %r of mechanism %r" % (parts[2], parts[1])
+    return None
 
 
 def validate_faction(faction: Any, faction_id: Optional[str] = None) -> Dict[str, Any]:
@@ -340,8 +568,10 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def validate_unit(unit: Any, classes: List[Dict[str, Any]], faction_ids: List[str]) -> List[Dict[str, Any]]:
-    """Return a list of {"field", "message"} errors (empty if valid)."""
+def validate_unit(unit: Any, classes: List[Dict[str, Any]], faction_ids: List[str],
+                  registry: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:  # fmt: skip
+    """Return a list of {"field", "message"} errors (empty if valid). Without `registry`: the shipped one."""
+    registry = _registry_or_shipped(registry)
     errors: List[Dict[str, Any]] = []
     if not isinstance(unit, dict):
         return [{"field": "unit", "message": "must be an object"}]
@@ -428,7 +658,8 @@ def validate_unit(unit: Any, classes: List[Dict[str, Any]], faction_ids: List[st
                 if not isinstance(img.get(k, ""), str):
                     add("images[%d].%s" % (i, k), "must be a string")
     errors.extend(_validate_candidates(unit.get("image_candidates", [])))
-    errors.extend(_validate_provenance(unit.get("provenance", {})))
+    errors.extend(_validate_mechanisms(unit.get("mechanisms", {}), registry))
+    errors.extend(_validate_provenance(unit.get("provenance", {}), registry))
     rev = unit.get("revision", 0)
     if not isinstance(rev, int) or isinstance(rev, bool) or rev < 0:
         add("revision", "must be a non-negative integer")
@@ -459,14 +690,38 @@ def _validate_candidates(cands: Any) -> List[Dict[str, Any]]:
     return errors
 
 
-def _validate_provenance(prov: Any) -> List[Dict[str, Any]]:
+def _validate_mechanisms(mechs: Any, registry: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not isinstance(mechs, dict):
+        return [{"field": "mechanisms", "message": "must be an object (mechanism id -> parameters)"}]
+    errors = []
+    by_id = {m["id"]: m for m in registry}
+    for mid, params in mechs.items():
+        f = "mechanisms.%s" % mid
+        if mid not in by_id:
+            errors.append({"field": f, "message": "unknown mechanism"})
+        elif not isinstance(params, dict):
+            errors.append({"field": f, "message": "must be an object of parameters"})
+        else:
+            specs = by_id[mid].get("params", {})
+            for name, value in params.items():
+                if name not in specs:
+                    errors.append({"field": "%s.%s" % (f, name), "message": "unknown parameter"})
+                    continue
+                problem = validate_param_value(specs[name], value)
+                if problem:
+                    errors.append({"field": "%s.%s" % (f, name), "message": problem})
+    return errors
+
+
+def _validate_provenance(prov: Any, registry: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not isinstance(prov, dict):
         return [{"field": "provenance", "message": "must be an object"}]
     errors = []
     for path, entry in prov.items():
         f = "provenance.%s" % path
-        if path not in RESEARCH_FIELDS:
-            errors.append({"field": f, "message": "not a researchable field"})
+        problem = None if path in RESEARCH_FIELDS else _mechanism_path_error(str(path), registry)
+        if problem:
+            errors.append({"field": f, "message": problem})
             continue
         if not isinstance(entry, dict) or any(k not in PROVENANCE_KEYS for k in entry):
             errors.append({"field": f, "message": "must be an object with source, verified, suggested"})
@@ -526,6 +781,13 @@ def readiness_missing(unit: Dict[str, Any]) -> List[str]:
     for path in model_critical_fields(unit):
         if path in unverified:
             missing.append("verify %s (AI)" % path)
+    mechs = unit.get("mechanisms")
+    if not isinstance(mechs, dict) or not mechs:
+        missing.append("mechanisms")
+    for path, entry in (unit.get("provenance") or {}).items():
+        if path.startswith("mechanisms.") and isinstance(entry, dict) and entry.get("verified") is False:
+            kind = "default" if entry.get("source") in DEFAULT_SOURCES else "AI"
+            missing.append("verify %s (%s)" % (path, kind))
     return missing
 
 
@@ -588,14 +850,17 @@ def save_unit(root: Path, unit: Dict[str, Any], today: Optional[str] = None) -> 
     if not isinstance(unit, dict):
         raise _err("unit", "must be an object")
     unit_id = check_id(unit.get("id"))
-    errors = validate_unit(unit, load_classes(root), [f["id"] for f in load_factions(root)])
+    registry = load_mechanisms(root)
+    errors = validate_unit(unit, load_classes(root), [f["id"] for f in load_factions(root)], registry)
     if errors:
         raise CatalogError(errors)
+    unit = copy.deepcopy(unit)
+    sync_mechanisms(unit, registry)
     if unit["status"] == "ready_for_model":
         missing = readiness_missing(unit)
         if missing:
             raise _err("status", "not ready for model, missing: " + ", ".join(missing), 400, missing=missing)
-    clean = normalize_unit(unit)
+    clean = normalize_unit(unit, registry)
     with _WRITE_LOCK:
         path = unit_dir(root, unit_id) / "unit.json"
         stored = _read_json(path, None)
@@ -603,9 +868,24 @@ def save_unit(root: Path, unit: Dict[str, Any], today: Optional[str] = None) -> 
             return stored  # type: ignore[no-any-return]
         clean["updated"] = today or _today()
         clean["revision"] = _stored_revision(stored) + 1
-        clean = normalize_unit(clean)
+        clean = normalize_unit(clean, registry)
         _write_json(path, clean)
     return clean
+
+
+def _prefill_mechanisms(unit: Dict[str, Any], cls: Dict[str, Any], registry: List[Dict[str, Any]]) -> None:
+    """Add the class's default mechanisms (default parameters) with `class default` provenance."""
+    by_id = {m["id"]: m for m in registry}
+    wanted = [mid for mid in cls.get("default_mechanisms", []) if mid in by_id]
+    prov = {}
+    mechs = {}
+    for mid in wanted:
+        mechs[mid] = {name: copy.deepcopy(spec["default"]) for name, spec in by_id[mid].get("params", {}).items()}
+    for path in mechanism_paths([by_id[mid] for mid in wanted]):
+        prov[path] = {"source": "class default", "verified": False}
+    if mechs:
+        unit["mechanisms"] = mechs
+        unit["provenance"] = prov
 
 
 def create_unit(root: Path, real_name: str, unit_id: Optional[str] = None, **fields: Any) -> Dict[str, Any]:
@@ -622,6 +902,10 @@ def create_unit(root: Path, real_name: str, unit_id: Optional[str] = None, **fie
         mobility = fields.get("mobility") or next((c["mobility"] for c in classes if c["id"] == cls), "tracked")
         unit = {"id": unit_id, "real_name": real_name.strip(), "class": cls, "mobility": mobility,
                 "operators": fields.get("operators", []), "status": "draft"}  # fmt: skip
+        if fields.get("mechanisms"):
+            unit["mechanisms"] = fields["mechanisms"]
+        else:
+            _prefill_mechanisms(unit, next((c for c in classes if c["id"] == cls), {}), load_mechanisms(root))
         return save_unit(root, unit)
 
 
@@ -804,13 +1088,16 @@ def set_path(data: Dict[str, Any], path: str, value: Any) -> None:
 
 
 def merge_research(unit: Dict[str, Any], research: Any, classes: List[Dict[str, Any]],
-                   faction_ids: List[str]) -> Dict[str, Any]:  # fmt: skip
+                   faction_ids: List[str], registry: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:  # fmt: skip
     """Merge an AI research result into `unit` (in place). Returns a report.
 
     `research` is `{"fields": {path: {"value", "source"}}, "image_candidates": [...], "summary": str}`.
     Empty fields are filled and marked unverified; a different value in a field the human already filled
     becomes a `suggested` value instead. Values that would make the unit invalid are rejected.
+    `mechanisms.<id>` (value `{}`) and `mechanisms.<id>.<param>` work the same way; a parameter of a mechanism the
+    unit lacks adds the mechanism too, and a value the tool only defaulted (provenance `default`) counts as unset.
     """
+    registry = _registry_or_shipped(registry)
     report: Dict[str, Any] = {"filled": [], "suggested": [], "rejected": [], "candidates": 0, "summary": ""}
     if not isinstance(research, dict):
         raise _err("research", "must be an object")
@@ -823,8 +1110,13 @@ def merge_research(unit: Dict[str, Any], research: Any, classes: List[Dict[str, 
         report["rejected"].append({"field": path, "message": message})
 
     for path, item in fields.items():
-        if path not in RESEARCH_FIELDS:
-            reject(str(path), "not a researchable field")
+        is_mech = isinstance(path, str) and path.startswith("mechanisms.")
+        if is_mech:
+            problem = _mechanism_path_error(path, registry)
+        else:
+            problem = None if path in RESEARCH_FIELDS else "not a researchable field"
+        if problem:
+            reject(str(path), problem)
             continue
         if not isinstance(item, dict) or "value" not in item:
             reject(path, "must be an object with a value")
@@ -833,15 +1125,27 @@ def merge_research(unit: Dict[str, Any], research: Any, classes: List[Dict[str, 
         if not isinstance(source, str):
             reject(path, "source must be a string")
             continue
+        if is_mech and path.count(".") == 1:
+            if value not in ({}, None):
+                reject(path, "value must be {}")
+            else:
+                _merge_mechanism(unit, path, source, report)
+            continue
         if _empty(value):
             continue
         trial = json.loads(json.dumps(unit))
         set_path(trial, path, value)
-        problems = validate_unit(trial, classes, faction_ids)
+        problems = validate_unit(trial, classes, faction_ids, registry)
         if problems:
             reject(path, "; ".join(e["message"] for e in problems))
             continue
         current = get_path(unit, path)
+        if is_mech:
+            mid = path.split(".")[1]
+            if mid not in unit.get("mechanisms", {}):  # a parameter of an undeclared mechanism declares it
+                _merge_mechanism(unit, "mechanisms." + mid, source, report)
+            if (prov.get(path) or {}).get("source") in DEFAULT_SOURCES and prov[path].get("verified") is False:
+                current = None  # only a placeholder default so far
         if _empty(current):
             set_path(unit, path, value)
             prov[path] = {"source": source, "verified": False}
@@ -875,6 +1179,20 @@ def merge_research(unit: Dict[str, Any], research: Any, classes: List[Dict[str, 
     return report
 
 
+def _merge_mechanism(unit: Dict[str, Any], path: str, source: str, report: Dict[str, Any]) -> None:
+    """The real vehicle has this mechanism: add it, or replace a placeholder default source by the research."""
+    prov = unit.setdefault("provenance", {})
+    mid = path.split(".")[1]
+    mechs = unit.setdefault("mechanisms", {})
+    old = prov.get(path)
+    if mid not in mechs:
+        mechs[mid] = {}
+    elif old is None or not (old.get("source") in DEFAULT_SOURCES and old.get("verified") is False):
+        return  # set by the human or already researched
+    prov[path] = {"source": source, "verified": False}
+    report["filled"].append(path)
+
+
 def apply_research(root: Path, unit_id: str) -> Dict[str, Any]:
     """Merge the unit's pending `research.json` (written by /research-unit) into unit.json, then delete it."""
     path = unit_dir(root, unit_id) / RESEARCH_FILE
@@ -886,7 +1204,8 @@ def apply_research(root: Path, unit_id: str) -> Dict[str, Any]:
         if research is None:
             raise _err("research", "no pending %s" % RESEARCH_FILE, 404)
         unit = load_unit(root, unit_id)
-        report = merge_research(unit, research, load_classes(root), [f["id"] for f in load_factions(root)])
+        report = merge_research(unit, research, load_classes(root), [f["id"] for f in load_factions(root)],
+                                load_mechanisms(root))
         save_unit(root, unit)
         path.unlink()
     return report
@@ -936,7 +1255,7 @@ def catalog_summary(root: Path) -> Dict[str, Any]:
             units.append(unit_summary(load_unit(root, uid), root))
         except (CatalogError, ValueError):
             continue
-    return {"classes": load_classes(root), "factions": load_factions(root), "units": units,
+    return {"classes": load_classes(root), "mechanisms": load_mechanisms(root), "factions": load_factions(root), "units": units,
             "views": list(VIEWS), "statuses": list(STATUSES), "mobilities": list(MOBILITIES)}  # fmt: skip
 
 
