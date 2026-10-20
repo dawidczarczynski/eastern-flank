@@ -447,22 +447,34 @@ function thumbUrl(url) {
 }
 function showValue(v) { return Array.isArray(v) ? v.join("; ") : String(v); }
 
+// Foot units (squads) describe one soldier in kit: only the height is required and any soldier photo is a
+// reference (mirrors catalog.required_dimensions / reference_views).
+const isFoot = (u) => u.mobility === "foot";
+const referenceViews = (u) => (isFoot(u) ? ["side", "front", "three_quarter", "drawing"] : ["side", "drawing"]);
+const DIM_LABELS = {
+  vehicle: { hull_length: "Hull length *", overall_length: "Overall length (with gun)", width: "Width *", height: "Height *" },
+  foot: { hull_length: "Soldier depth (vest + pack)", width: "Soldier width (shoulders + vest)", height: "Soldier height (with helmet) *" },
+};
+
 function readiness(u) {
   const dims = u.dimensions || {};
   const pos = (v) => typeof v === "number" && v > 0;
   const feats = (u.silhouette_features || []).filter((s) => s.trim());
-  const hasImage = (u.images || []).some((i) => i.view === "side" || i.view === "drawing");
-  const candidates = (u.image_candidates || []).filter((c) => c.view === "side" || c.view === "drawing").length;
+  const views = referenceViews(u);
+  const hasImage = (u.images || []).some((i) => views.includes(i.view));
+  const candidates = (u.image_candidates || []).filter((c) => views.includes(c.view)).length;
+  const imageLabel = isFoot(u) ? "A side, front or three-quarter photo of a soldier" : "A side or drawing image";
+  const dimItems = isFoot(u) ? [["Soldier height", pos(dims.height)]]
+    : [["Height", pos(dims.height)], ["Width", pos(dims.width)], ["Hull length", pos(dims.hull_length)]];
+  const critical = MODEL_CRITICAL.filter((p) => !p.startsWith("dimensions.") || !isFoot(u) || p === "dimensions.height");
   return [
     ["Real name", !!(u.real_name || "").trim()],
     ["Class", !!u.class],
     ["At least one operator", (u.operators || []).length >= 1],
-    ["Height", pos(dims.height)],
-    ["Width", pos(dims.width)],
-    ["Hull length", pos(dims.hull_length)],
+    ...dimItems,
     ["At least 3 silhouette features (" + feats.length + ")", feats.length >= 3],
-    [hasImage || !candidates ? "A side or drawing image" : "A side or drawing image (Download one of the " + candidates + " candidate(s) under Images)", hasImage],
-  ].concat(MODEL_CRITICAL.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]));
+    [hasImage || !candidates ? imageLabel : imageLabel + " (Download one of the " + candidates + " candidate(s) under Images)", hasImage],
+  ].concat(critical.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]));
 }
 
 async function unitScreen(id) {
@@ -605,9 +617,32 @@ async function unitScreen(id) {
     u.class = e.target.value;
     const c = catalog.classes.find((x) => x.id === u.class);
     if (c) { u.mobility = c.mobility; mobSel.value = c.mobility; }
+    renderMobilityFields();
     changed();
   } }, catalog.classes.map((c) => h("option", { value: c.id, text: c.label, selected: u.class === c.id })));
-  const mobSel = h("select", { onchange: (e) => { u.mobility = e.target.value; changed(); } }, catalog.mobilities.map((m) => h("option", { value: m, text: m, selected: u.mobility === m })));
+  const mobSel = h("select", { onchange: (e) => { u.mobility = e.target.value; renderMobilityFields(); changed(); } }, catalog.mobilities.map((m) => h("option", { value: m, text: m, selected: u.mobility === m })));
+  // Facts and dimensions differ for foot units (one soldier: no weight, speeds or hull), so they are rebuilt on a mobility change.
+  const factsBox = h("div", { class: "grid" });
+  const dimsBox = h("div", { class: "grid" });
+  function renderMobilityFields() {
+    const foot = isFoot(u);
+    const vehicleOnly = (...fields) => (foot ? [] : fields);
+    factsBox.replaceChildren(
+      field(foot ? "Dismounts in the squad" : "Crew", textIn(u, "crew", foot ? "8" : "4"), false, "crew"),
+      ...vehicleOnly(field("Weight (t)", numIn(u, "weight_t"), false, "weight_t"),
+        field("Speed road (km/h)", numIn(u, "speed_road_kmh"), false, "speed_road_kmh"), field("Speed off-road (km/h)", numIn(u, "speed_offroad_kmh"), false, "speed_offroad_kmh"),
+        field("Range (km)", numIn(u, "range_km"), false, "range_km"), field("Fire range (km, artillery)", numIn(u, "fire_range_km"), false, "fire_range_km")),
+      field(foot ? "Main armament (service rifle)" : "Main armament", textIn(u.armament, "main"), false, "armament.main"),
+      field(foot ? "Secondary armament (MG, grenade launchers, AT weapons)" : "Secondary armament", textIn(u.armament, "secondary"), false, "armament.secondary"),
+      field(foot ? "Protection (helmet, body armour)" : "Protection", areaIn(u, "protection", "", 2), true, "protection"), field("Notes", areaIn(u, "notes", "", 3), true, "notes"));
+    const labels = DIM_LABELS[foot ? "foot" : "vehicle"];
+    dimsBox.replaceChildren(
+      ...(foot ? [h("p", { class: "muted", style: "grid-column:1/-1;margin:0", text: "One soldier in full kit, not the whole squad. Only the height is required." })] : []),
+      field(labels.hull_length, numIn(u.dimensions, "hull_length"), false, "dimensions.hull_length"),
+      ...vehicleOnly(field(labels.overall_length, numIn(u.dimensions, "overall_length"), false, "dimensions.overall_length")),
+      field(labels.width, numIn(u.dimensions, "width"), false, "dimensions.width"), field(labels.height, numIn(u.dimensions, "height"), false, "dimensions.height"),
+      field("Sources (one URL per line)", linesIn(u.dimensions, "sources", "https://..."), true));
+  }
 
   const operators = h("div", { class: "multi" }, catalog.factions.map((f) => {
     const cb = h("input", { type: "checkbox", checked: u.operators.includes(f.id) });
@@ -782,17 +817,18 @@ async function unitScreen(id) {
   function renderReview() {
     reviewBox.textContent = "";
     if (!review || (!review.blueprint && !review.sheet)) return;
-    const ref = u.images.find((i) => i.view === "side") || u.images.find((i) => i.view === "drawing");
+    const ref = referenceViews(u).map((v) => u.images.find((i) => i.view === v)).find((i) => i);
     reviewBox.append(h("div", { class: "panel" }, h("h2", { text: "Model review" }),
       h("div", { class: "review" },
         review.sheet ? h("div", {}, h("h3", { text: "Latest render sheet" }), h("img", { src: "/files/screenshots/" + encodeURIComponent(review.sheet) + "?v=" + Date.now(), onclick: () => showLightbox("/files/screenshots/" + encodeURIComponent(review.sheet) + "?v=" + Date.now()) })) : null,
-        ref ? h("div", {}, h("h3", { text: "Side reference" }), h("img", { src: fileUrl(id, ref.file, bust), onclick: () => showLightbox(fileUrl(id, ref.file, bust)) })) : null,
+        ref ? h("div", {}, h("h3", { text: ref.view === "side" ? "Side reference" : "Reference (" + ref.view + ")" }), h("img", { src: fileUrl(id, ref.file, bust), onclick: () => showLightbox(fileUrl(id, ref.file, bust)) })) : null,
         review.blueprint ? h("div", {}, h("h3", { text: "blueprint.md (read-only)" }), h("pre", { text: review.blueprint })) : null),
       h("p", { class: "muted", text: "Write your remarks in the Feedback box below; the modeler reads them on the next /model-unit run." })));
   }
 
   // ---- layout
   const section = (title, ...children) => h("div", { class: "panel" }, h("h2", { text: title }), children);
+  renderMobilityFields();
   const mainCol = h("div", {},
     section("Identity", h("div", { class: "grid" },
       field("Real name (shown in game)", textIn(u, "real_name", "Leopard 2A4")),
@@ -801,16 +837,8 @@ async function unitScreen(id) {
       field("In service (years)", textIn(u, "in_service", "1985-present"), false, "in_service"),
       field("Country of origin", textIn(u, "country_of_origin"), false, "country_of_origin"),
       field("Operators (factions)", operators, true, "operators"))),
-    section("Real-world facts", h("div", { class: "grid" },
-      field("Crew", textIn(u, "crew", "4"), false, "crew"), field("Weight (t)", numIn(u, "weight_t"), false, "weight_t"),
-      field("Speed road (km/h)", numIn(u, "speed_road_kmh"), false, "speed_road_kmh"), field("Speed off-road (km/h)", numIn(u, "speed_offroad_kmh"), false, "speed_offroad_kmh"),
-      field("Range (km)", numIn(u, "range_km"), false, "range_km"), field("Fire range (km, artillery)", numIn(u, "fire_range_km"), false, "fire_range_km"),
-      field("Main armament", textIn(u.armament, "main"), false, "armament.main"), field("Secondary armament", textIn(u.armament, "secondary"), false, "armament.secondary"),
-      field("Protection", areaIn(u, "protection", "", 2), true, "protection"), field("Notes", areaIn(u, "notes", "", 3), true, "notes"))),
-    section("Dimensions (metres)", h("div", { class: "grid" },
-      field("Hull length *", numIn(u.dimensions, "hull_length"), false, "dimensions.hull_length"), field("Overall length (with gun)", numIn(u.dimensions, "overall_length"), false, "dimensions.overall_length"),
-      field("Width *", numIn(u.dimensions, "width"), false, "dimensions.width"), field("Height *", numIn(u.dimensions, "height"), false, "dimensions.height"),
-      field("Sources (one URL per line)", linesIn(u.dimensions, "sources", "https://..."), true))),
+    section("Real-world facts", factsBox),
+    section("Dimensions (metres)", dimsBox),
     section("For the modeler",
       field("Silhouette features (most recognisable first)", featBox, false, "silhouette_features"),
       h("div", { class: "grid two", style: "margin-top:10px" },

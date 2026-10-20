@@ -59,11 +59,16 @@ func test_default_reference_is_first_existing_side_image() -> void:
 	assert_true(String(options["reference"]).is_absolute_path())
 
 
-func test_real_dimensions_prefer_overall_length() -> void:
+func test_real_dimensions_prefer_overall_length_else_hull_length() -> void:
 	var real: Dictionary = _parse(["fake_tank"])["real"]
 	assert_eq(real["length"], 9.9)
 	assert_eq(real["width"], 3.6)
 	assert_eq(real["height"], 2.2)
+	real = RenderUnitOptions.real_dimensions(
+		{"dimensions": {"hull_length": 9.5, "width": 3.6, "height": 2.2}}
+	)
+	assert_eq(real["length"], 9.5)
+	assert_eq(RenderUnitOptions.real_dimensions({"dimensions": {"width": 3.6, "height": 2.2}}), {})
 
 
 func test_explicit_faction_views_out_and_reference() -> void:
@@ -129,12 +134,38 @@ func test_empty_flag_values_are_errors() -> void:
 	assert_eq(_parse(["bare", "--faction=poland", "--faction=russia"])["faction"], "russia")
 
 
-func test_real_dimensions_fall_back_to_hull_length() -> void:
-	var real := RenderUnitOptions.real_dimensions(
-		{"dimensions": {"hull_length": 9.5, "width": 3.6, "height": 2.2}}
+func test_foot_unit_compares_soldier_height_and_takes_any_soldier_photo() -> void:
+	# A squad entry describes one soldier: the squad's footprint is not the soldier's width/depth.
+	var entry := {
+		"mobility": "foot", "dimensions": {"hull_length": 0.45, "width": 0.6, "height": 1.8}
+	}
+	var real := RenderUnitOptions.real_dimensions(entry)
+	assert_eq(real, {"height": 1.8})
+	assert_eq(
+		RenderUnitOptions.real_line(Vector3(0.5, 1.98, 0.6), real),
+		"Real: soldier height 1.8 m, diff: +10.0%"
 	)
-	assert_eq(real["length"], 9.5)
-	assert_eq(RenderUnitOptions.real_dimensions({"dimensions": {"width": 3.6, "height": 2.2}}), {})
+	assert_eq(RenderUnitOptions.real_dimensions({"mobility": "foot", "dimensions": {}}), {})
+	# No drawings of soldiers: a front or three-quarter photo is the reference (not a detail shot).
+	_write_entry(
+		"fake_squad",
+		{
+			"mobility": "foot",
+			"images":
+			[
+				{"file": "detail_1.jpg", "view": "detail"},
+				{"file": "three_quarter_1.jpg", "view": "three_quarter"},
+				{"file": "front_1.jpg", "view": "front"},
+			],
+		}
+	)
+	_write_file("fake_squad/detail_1.jpg", "x")
+	_write_file("fake_squad/three_quarter_1.jpg", "x")
+	_write_file("fake_squad/front_1.jpg", "x")
+	var options := _parse(["fake_squad"], ["fake_squad"])
+	assert_true(
+		String(options["reference"]).ends_with("fake_squad/front_1.jpg"), options["reference"]
+	)
 
 
 func test_view_path_sits_next_to_the_sheet() -> void:

@@ -24,6 +24,28 @@ docs/design/units/
 
 Ids: lowercase `a-z0-9_` (`poland`, `leopard_2a4`, `t72b3`). The unit id is also the name of the stats file and the model file.
 
+## Foot units (squads)
+
+A squad (class `infantry`, `engineer`, a dismounted `atgm` team) has no hull, so the entry describes **one soldier in full kit plus the squad's make-up** – the model is a few soldiers built from one parameterised soldier kit (TASK-032). The fields mean:
+
+| Field | For a squad |
+|---|---|
+| `real_name` | descriptive English name ("Mechanised Infantry Squad"), no designation |
+| `class` | `infantry` while the carrier is not modelled (`mech_infantry` is reserved for a squad with its vehicle) |
+| `crew` | number of dismounts in the squad |
+| `armament.main` | the service rifle (model, calibre) |
+| `armament.secondary` | squad MG, grenade launchers, AT weapons carried by the squad |
+| `protection` | helmet and body armour models |
+| `dimensions.height` | one soldier standing, with helmet |
+| `dimensions.width` | one soldier across the shoulders with vest and pouches |
+| `dimensions.hull_length` | one soldier front to back, with vest and pack |
+| `silhouette_features` | what tells this soldier apart at a distance: helmet shape, vest / plate carrier, rifle profile, the AT launcher on one soldier, pack |
+| `camo_note` | uniform camouflage pattern (the colours themselves are in the faction file) |
+| `details` / `skip` | kit worth modelling (launcher, optics, MG) / kit to leave out (radios, insignia, small pouches) |
+| images | soldiers in full kit of that army: side, front, and a photo showing the AT weapon |
+
+The tool knows foot units by `mobility: foot`. **Readiness** for them needs only the soldier's **height** (width and depth are optional) and **any photo of a soldier** – side, front or three-quarter, since there are no line drawings of soldiers. The form relabels the fields ("Dismounts in the squad", "Soldier height (with helmet)" …) and hides weight, speeds and ranges. `tools/render_unit.sh` compares only the soldier height with the model ("Real: soldier height 1.8 m"), because the model's footprint is the whole squad. The height comes from the kit (helmet) more than from anthropometry: a photo with a known reference or the army's anthropometric data – say which in `dimensions.sources`.
+
 ## Workflow for a new unit
 
 1. In the tool: create the unit, fill in the real name, class, operators (factions), real-world facts and dimensions with sources.

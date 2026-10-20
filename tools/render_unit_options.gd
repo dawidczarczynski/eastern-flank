@@ -8,7 +8,8 @@ extends RefCounted
 ##     reference_not_found. A flag given twice: the last value wins.
 ## "out" is the sheet path; per-view PNGs go next to it (see view_path). "reference" is "" when
 ## there is none. "real" holds the catalog's real dimensions in metres ({"length", "width",
-## "height"}) or is empty. Unit catalog entries: docs/design/units/units/<id>/unit.json.
+## "height"}; only {"height"} for a foot unit, whose entry describes one soldier) or is
+## empty. Unit catalog entries: docs/design/units/units/<id>/unit.json.
 
 const DEFAULT_CATALOG_DIR := "res://docs/design/units/units"
 const DEFAULT_OUT_DIR := "res://.screenshots/units"
@@ -16,6 +17,8 @@ const DEFAULT_FACTION := "poland"
 const VIEWS: Array[String] = ["side", "front", "top", "three_quarter"]
 ## Catalog image views usable as the default reference, best first.
 const REFERENCE_VIEWS: Array[String] = ["side", "drawing"]
+## Foot units (squads): there are no drawings of soldiers, any photo of a soldier is a reference.
+const FOOT_REFERENCE_VIEWS: Array[String] = ["side", "front", "three_quarter", "drawing"]
 const SHEET_SUFFIX := "_sheet.png"
 
 
@@ -126,14 +129,16 @@ static func default_faction(entry: Dictionary) -> String:
 	return DEFAULT_FACTION
 
 
-## Absolute path of the first side (else drawing) image of the entry that exists on disk, or "".
+## Absolute path of the first existing image of the entry in reference-view order (side, else
+## drawing; foot units also front and three-quarter photos), or "".
 static func default_reference(
 	entry: Dictionary, unit_id: String, catalog_dir: String = DEFAULT_CATALOG_DIR
 ) -> String:
 	var images: Variant = entry.get("images", [])
 	if not images is Array:
 		return ""
-	for view in REFERENCE_VIEWS:
+	var views := FOOT_REFERENCE_VIEWS if _is_foot(entry) else REFERENCE_VIEWS
+	for view in views:
 		for image: Variant in images:
 			if not image is Dictionary or image.get("view", "") != view:
 				continue
@@ -144,11 +149,15 @@ static func default_reference(
 
 
 ## Real dimensions in metres: length = overall_length (else hull_length), width, height; {} unless
-## all three are known and positive.
+## all three are known and positive. A foot unit gives only {"height"}: its entry describes one
+## soldier, while the model is a whole squad whose footprint has nothing to compare against.
 static func real_dimensions(entry: Dictionary) -> Dictionary:
 	var dimensions: Variant = entry.get("dimensions", {})
 	if not dimensions is Dictionary:
 		return {}
+	if _is_foot(entry):
+		var soldier_height := float(dimensions.get("height", 0.0))
+		return {"height": soldier_height} if soldier_height > 0.0 else {}
 	var length := float(dimensions.get("overall_length", dimensions.get("hull_length", 0.0)))
 	var width := float(dimensions.get("width", 0.0))
 	var height := float(dimensions.get("height", 0.0))
@@ -174,10 +183,17 @@ static func view_path(sheet_path: String, view: String) -> String:
 
 
 ## Model size (metres, x = length, y = height, z = width) vs. the real dimensions:
-## "Real: 9.5x3.6x2.2 m, diff: +3.0%/-1.0%/+2.0%" (length/width/height). "" without real data.
+## "Real: 9.5x3.6x2.2 m, diff: +3.0%/-1.0%/+2.0%" (length/width/height), for a foot unit
+## "Real: soldier height 1.8 m, diff: +10.0%". "" without real data.
 static func real_line(aabb_m: Vector3, real: Dictionary) -> String:
 	if real.is_empty():
 		return ""
+	if not real.has("length"):
+		var soldier_height: float = real["height"]
+		return (
+			"Real: soldier height %s m, diff: %s"
+			% [_trim(soldier_height), _diff(aabb_m.y, soldier_height)]
+		)
 	var length: float = real["length"]
 	var width: float = real["width"]
 	var height: float = real["height"]
@@ -293,3 +309,7 @@ static func _model_exists(unit_id: StringName) -> bool:
 static func _with_error(result: Dictionary, error: String) -> Dictionary:
 	result["error"] = error
 	return result
+
+
+static func _is_foot(entry: Dictionary) -> bool:
+	return entry.get("mobility", "") == "foot"

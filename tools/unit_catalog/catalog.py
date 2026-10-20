@@ -14,7 +14,7 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_ROOT = REPO_ROOT / "docs" / "design" / "units"
@@ -62,6 +62,12 @@ RESEARCH_FIELDS = [
 ]  # fmt: skip
 # Unverified AI values in these fields block `ready_for_model` - the model is built from them.
 MODEL_CRITICAL_FIELDS = ["dimensions.hull_length", "dimensions.width", "dimensions.height", "silhouette_features"]
+# Foot units (squads) describe one soldier in kit: only the soldier's height is required and any photo of a
+# soldier is a usable reference (there are no line drawings of soldiers). See "Foot units" in the README.
+VEHICLE_REQUIRED_DIMENSIONS = ["height", "width", "hull_length"]
+FOOT_REQUIRED_DIMENSIONS = ["height"]
+VEHICLE_REFERENCE_VIEWS = ("side", "drawing")
+FOOT_REFERENCE_VIEWS = ("side", "front", "three_quarter", "drawing")
 PROVENANCE_KEYS = ["source", "verified", "suggested"]
 CANDIDATE_KEYS = ["url", "view", "license", "source_page", "note"]
 RESEARCH_FILE = "research.json"
@@ -478,6 +484,25 @@ def unverified_fields(unit: Dict[str, Any]) -> List[str]:
     return [p for p in RESEARCH_FIELDS if isinstance(prov.get(p), dict) and prov[p].get("verified") is False]
 
 
+def is_foot(unit: Dict[str, Any]) -> bool:
+    return unit.get("mobility") == "foot"
+
+
+def required_dimensions(unit: Dict[str, Any]) -> List[str]:
+    return FOOT_REQUIRED_DIMENSIONS if is_foot(unit) else VEHICLE_REQUIRED_DIMENSIONS
+
+
+def reference_views(unit: Dict[str, Any]) -> Tuple[str, ...]:
+    """Image views that count as the main modelling reference (readiness, last-image delete guard)."""
+    return FOOT_REFERENCE_VIEWS if is_foot(unit) else VEHICLE_REFERENCE_VIEWS
+
+
+def model_critical_fields(unit: Dict[str, Any]) -> List[str]:
+    """MODEL_CRITICAL_FIELDS that apply to this unit: a foot unit's optional width/depth do not block."""
+    dims = ["dimensions." + k for k in required_dimensions(unit)]
+    return [p for p in MODEL_CRITICAL_FIELDS if not p.startswith("dimensions.") or p in dims]
+
+
 def readiness_missing(unit: Dict[str, Any]) -> List[str]:
     """Items still missing before the unit may be `ready_for_model` (empty list = ready)."""
     missing = []
@@ -488,17 +513,17 @@ def readiness_missing(unit: Dict[str, Any]) -> List[str]:
     if not unit.get("operators"):
         missing.append("operators")
     dims = unit.get("dimensions") or {}
-    for key in ("height", "width", "hull_length"):
+    for key in required_dimensions(unit):
         v = dims.get(key)
         if not _is_number(v) or v <= 0:
             missing.append(key)
     feats = [f for f in (unit.get("silhouette_features") or []) if str(f).strip()]
     if len(feats) < 3:
         missing.append("silhouette_features (at least 3)")
-    if not any(i.get("view") in ("side", "drawing") for i in (unit.get("images") or [])):
-        missing.append("side or drawing image")
+    if not any(i.get("view") in reference_views(unit) for i in (unit.get("images") or [])):
+        missing.append("side, front or three-quarter photo of a soldier" if is_foot(unit) else "side or drawing image")
     unverified = unverified_fields(unit)
-    for path in MODEL_CRITICAL_FIELDS:
+    for path in model_critical_fields(unit):
         if path in unverified:
             missing.append("verify %s (AI)" % path)
     return missing
@@ -512,13 +537,17 @@ def completeness(unit: Dict[str, Any]) -> float:
     checks = [
         bool(unit.get("real_name")), bool(unit.get("class")), bool(unit.get("operators")),
         bool(unit.get("in_service")), bool(unit.get("country_of_origin")), bool(unit.get("crew")),
-        bool(unit.get("weight_t")), bool(arm.get("main")), bool(unit.get("protection")),
-        bool(unit.get("speed_road_kmh")), bool(dims.get("hull_length")), bool(dims.get("width")),
+        bool(arm.get("main")), bool(unit.get("protection")),
         bool(dims.get("height")), bool(dims.get("sources")),
         len(unit.get("silhouette_features") or []) >= 3,
-        any(i.get("view") in ("side", "drawing") for i in images),
+        any(i.get("view") in reference_views(unit) for i in images),
         len(images) >= 3,
     ]  # fmt: skip
+    if is_foot(unit):  # one soldier: no weight or speeds; the uniform pattern matters instead
+        checks.append(bool(unit.get("camo_note")))
+    else:
+        checks += [bool(unit.get("weight_t")), bool(unit.get("speed_road_kmh")),
+                   bool(dims.get("hull_length")), bool(dims.get("width"))]  # fmt: skip
     return sum(1 for c in checks if c) / float(len(checks))
 
 
@@ -746,8 +775,8 @@ def delete_image(root: Path, unit_id: str, file: str) -> None:
         if not any(i.get("file") == file for i in images):
             raise _err("file", "image not found", 404)
         remaining = [i for i in images if i.get("file") != file]
-        if unit.get("status") == "ready_for_model" and not any(i.get("view") in ("side", "drawing") for i in remaining):
-            raise _err("file", "this is the only side or drawing image of a ready_for_model unit - "
+        if unit.get("status") == "ready_for_model" and not any(i.get("view") in reference_views(unit) for i in remaining):
+            raise _err("file", "this is the only reference image of a ready_for_model unit - "
                        "set the status back to draft first", 409)  # fmt: skip
         unit["images"] = remaining
         save_unit(root, unit)  # unit.json first, so a failure leaves the file in place

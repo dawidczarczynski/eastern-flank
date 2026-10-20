@@ -124,6 +124,26 @@ class TestReadiness(CatalogTestCase):
         self.assertEqual(catalog.readiness_missing(unit), [])
         self.assertEqual(catalog.save_unit(self.root, unit)["status"], "ready_for_model")
 
+    def test_foot_unit_needs_only_soldier_height_and_any_soldier_photo(self):
+        unit = complete_unit(id="pl_squad", real_name="Squad", **{"class": "infantry"}, mobility="foot",
+                             dimensions={"height": 1.8}, images=[{"file": "front_1.jpg", "view": "front"}])  # fmt: skip
+        self.assertEqual(catalog.readiness_missing(unit), [])
+        unit["images"] = [{"file": "three_quarter_1.jpg", "view": "three_quarter"}]
+        self.assertEqual(catalog.readiness_missing(unit), [])
+        unit["images"] = [{"file": "detail_1.jpg", "view": "detail"}]
+        unit["dimensions"] = {"width": 0.6}
+        self.assertEqual(catalog.readiness_missing(unit), ["height", "side, front or three-quarter photo of a soldier"])
+
+    def test_foot_unit_unverified_ai_width_does_not_block(self):
+        unit = complete_unit(**{"class": "infantry"}, mobility="foot", dimensions={"height": 1.8, "width": 0.6},
+                             provenance={"dimensions.width": {"source": "https://x.org", "verified": False},
+                                         "dimensions.height": {"source": "https://x.org", "verified": False}})  # fmt: skip
+        self.assertEqual(catalog.readiness_missing(unit), ["verify dimensions.height (AI)"])
+
+    def test_vehicle_still_needs_all_three_dimensions(self):
+        unit = complete_unit(dimensions={"height": 3.0})
+        self.assertEqual(catalog.readiness_missing(unit), ["width", "hull_length"])
+
     def test_going_back_to_draft_is_allowed(self):
         catalog.save_unit(self.root, complete_unit(status="ready_for_model"))
         unit = complete_unit(status="draft", dimensions={})
@@ -413,6 +433,16 @@ class TestHardening(CatalogTestCase):
         self.assertIn("draft", str(ctx.exception))
         self.assertTrue((self.root / "units" / "leopard_2a4" / e["file"]).exists())
         self.assertEqual(catalog.load_unit(self.root, "leopard_2a4")["status"], "ready_for_model")
+
+    def test_delete_front_photo_of_ready_foot_unit_allowed_when_another_soldier_photo_remains(self):
+        squad = complete_unit(**{"class": "infantry"}, mobility="foot", dimensions={"height": 1.8}, images=[])
+        catalog.save_unit(self.root, squad)
+        front = catalog.add_image(self.root, "leopard_2a4", "front", b64(JPG))
+        catalog.add_image(self.root, "leopard_2a4", "three_quarter", b64(JPG))
+        unit = catalog.load_unit(self.root, "leopard_2a4")
+        catalog.save_unit(self.root, dict(unit, status="ready_for_model"))
+        catalog.delete_image(self.root, "leopard_2a4", front["file"])
+        self.assertEqual(len(catalog.load_unit(self.root, "leopard_2a4")["images"]), 1)
 
     def test_failed_add_image_removes_file(self):
         catalog.save_unit(self.root, complete_unit(images=[]))
