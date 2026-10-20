@@ -1,8 +1,7 @@
 keys,en,pl
 LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn · F5 – save match,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn · F5 – save match,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury · F5 – zapisz mecz
-Infantry,Infantry,Piechota
-Cavalry,Cavalry,Kawaleria
-Rocket Artillery,Rocket Artillery,Artyleria rakietowa
+Mechanised Infantry Squad,Mechanised Infantry Squad,Drużyna piechoty zmechanizowanej
+Motor Rifle Squad,Motor Rifle Squad,Drużyna zmotoryzowana
 INF,INF,PIECH
 TNK,TNK,CZOŁ
 CLASS_INFANTRY,Infantry,Piechota

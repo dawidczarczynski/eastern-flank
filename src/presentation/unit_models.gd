@@ -9,18 +9,9 @@ const MODEL_SCALE := 1.3
 ## 1 model unit = 10 m before MODEL_SCALE.
 const METERS_PER_UNIT := 10.0
 const MODEL_PATH := "res://src/presentation/models/%s.gd"
-const INFANTRY := &"infantry"
-const CAVALRY := &"cavalry"
-const ROCKET_ARTILLERY := &"rocket_artillery"
-const M1A2_SEPV3 := &"m1a2_sepv3"
-const T72B3 := &"t72b3"
-const BM27_URAGAN := &"bm27_uragan"
-const HOMAR_K := &"homar_k"
-## Models driven by vehicle locomotion (wheel spin, hull rocking, slope tilt) instead of a march.
-## (TASK-039b chooses this by the unit's `mobility` instead.)
-const VEHICLES: Array[StringName] = [
-	CAVALRY, ROCKET_ARTILLERY, M1A2_SEPV3, T72B3, BM27_URAGAN, HOMAR_K
-]
+## Mobility of the units driven by vehicle locomotion (wheel spin, hull rocking, slope tilt)
+## instead of a march.
+const VEHICLE_MOBILITY: Array[StringName] = [&"wheeled", &"tracked"]
 ## Unit class whose attacks play as a rocket volley.
 const VOLLEY_CLASS := &"mlrs"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
@@ -39,8 +30,9 @@ static func facing_yaw(owner_id: int) -> float:
 	return 0.0 if owner_id == 0 else PI
 
 
-static func is_vehicle(definition_id: StringName) -> bool:
-	return definition_id in VEHICLES
+## Whether the unit drives (wheeled or tracked) rather than marches, whatever its id.
+static func is_vehicle(definition: UnitDefinition) -> bool:
+	return definition != null and definition.mobility in VEHICLE_MOBILITY
 
 
 ## Whether the unit's attacks play as a rocket volley (every MLRS, whatever its id).

@@ -1,6 +1,6 @@
 extends RefCounted
 ## Pure argument parsing for tools/render_unit.gd (no rendering, tested headless).
-## Usage: RenderUnitOptions.parse(["cavalry", "--faction=russia", "--views=side,top"])
+## Usage: RenderUnitOptions.parse(["t72b3", "--faction=russia", "--views=side,top"])
 ## -> {"unit_id": String, "faction": String, "views": Array[String], "reference": String,
 ##     "out": String, "real": Dictionary, "error": String}; "error" is "" on success, else one of
 ##     missing_unit_id, invalid_unit_id, too_many_arguments, unknown_option, unknown_unit,

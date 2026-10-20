@@ -38,3 +38,29 @@ func test_every_unit_matches_its_catalog_entry() -> void:
 					"%s: %s is not among the catalog operators" % [definition.id, faction.id]
 				)
 	assert_true(checked > 0, "at least one unit checked")
+
+
+## Faction colours and camouflage palettes (data/factions/*.tres) are the catalog's
+## (docs/design/units/factions/<id>.json).
+func test_every_faction_matches_its_catalog_palette() -> void:
+	var checked := 0
+	for faction in FactionRegistry.all():
+		var path := "res://docs/design/units/factions/%s.json" % faction.id
+		assert_true(FileAccess.file_exists(path), "%s has a catalog entry" % faction.id)
+		if not FileAccess.file_exists(path):
+			continue
+		var entry: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(path))
+		checked += 1
+		assert_eq(faction.color.to_html(false), String(entry["color"]).trim_prefix("#"), "color")
+		assert_eq(
+			faction.vest_color.to_html(false), String(entry["vest_color"]).trim_prefix("#"), "vest"
+		)
+		var camo: Array = entry["camo"]
+		assert_eq(faction.camo.size(), camo.size(), "%s camo size" % faction.id)
+		for i in mini(faction.camo.size(), camo.size()):
+			assert_eq(
+				faction.camo[i].to_html(false),
+				String(camo[i]).trim_prefix("#"),
+				"%s camo %d" % [faction.id, i]
+			)
+	assert_true(checked > 0, "at least one faction checked")

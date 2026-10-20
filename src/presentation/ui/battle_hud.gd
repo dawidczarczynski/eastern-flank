@@ -311,13 +311,13 @@ func _build_hint() -> void:
 	box.add_theme_stylebox_override(
 		&"panel", _panel_style(Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.6), 10, 7, false)
 	)
-	_anchor_bottom_right(box, 16, 88)
+	_anchor_bottom_centre(box, 16)  # between the terrain panel and the end-turn block
 	add_child(box)
 	_hint_label = _label(MONO_REGULAR, 10, UiPalette.TEXT_MUTED)
 	_hint_label.text = tr(HINT)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_hint_label.custom_minimum_size.x = 200  # max width 220 minus 2 x 10 padding
+	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint_label.custom_minimum_size.x = 440
 	_hint_label.add_theme_constant_override(&"line_spacing", 5)
 	box.add_child(_hint_label)
 
@@ -456,6 +456,17 @@ func _panel_style(fill: Color, margin_h: int, margin_v: int, bordered: bool = tr
 	style.content_margin_top = margin_v
 	style.content_margin_bottom = margin_v
 	return style
+
+
+## Centres a control horizontally with its bottom edge `bottom` px above the viewport bottom.
+func _anchor_bottom_centre(control: Control, bottom: int) -> void:
+	control.anchor_left = 0.5
+	control.anchor_right = 0.5
+	control.anchor_top = 1.0
+	control.anchor_bottom = 1.0
+	control.offset_bottom = -bottom
+	control.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	control.grow_vertical = Control.GROW_DIRECTION_BEGIN
 
 
 ## Anchors a control's bottom-right corner `right` / `bottom` px from the viewport corner.

@@ -109,7 +109,7 @@ func test_unit_without_model_file_is_an_error() -> void:
 
 
 func test_default_model_lookup_knows_current_units() -> void:
-	var options := RenderUnitOptions.parse(PackedStringArray(["cavalry", "--faction=russia"]))
+	var options := RenderUnitOptions.parse(PackedStringArray(["t72b3", "--faction=russia"]))
 	assert_eq(options["error"], "")
 	assert_eq(options["faction"], "russia")
 	assert_eq(RenderUnitOptions.parse(PackedStringArray(["no_such_unit"]))["error"], "unknown_unit")

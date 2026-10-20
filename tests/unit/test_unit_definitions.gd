@@ -72,6 +72,7 @@ func test_class_labels_translate() -> void:
 	var previous := TranslationServer.get_locale()
 	TranslationServer.set_locale("pl")
 	assert_eq(String(TranslationServer.translate("TNK")), "CZOŁ")
+	assert_eq(String(TranslationServer.translate("INF")), "PIECH")
 	assert_eq(String(TranslationServer.translate("CLASS_TANK")), "Czołg")
 	assert_eq(String(TranslationServer.translate("CLASS_MLRS")), "Artyleria rakietowa")
 	assert_eq(String(TranslationServer.translate("CLASS_INFANTRY")), "Piechota")

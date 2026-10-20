@@ -42,7 +42,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-040](TASK-040-catalog-ai-research.md) | Unit catalog: AI research (`/research-unit`) verified in the form; agent jobs from the UI | done | TASK-037 (soft: TASK-036) |
 | [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | done | **TASK-030**, **TASK-029**, **TASK-038** (soft: TASK-037) |
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | done | **TASK-038**, TASK-037 |
-| [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | ready | **TASK-039a** |
+| [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | done | **TASK-039a** |
 | [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | ready | TASK-037, TASK-040 |
 | [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | ready | **TASK-041** |
 | [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on | ready | **TASK-041** (soft: TASK-042) |

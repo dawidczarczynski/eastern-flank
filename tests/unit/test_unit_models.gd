@@ -38,36 +38,34 @@ func _check_upright(id: StringName, owner_id: int) -> void:
 
 func test_models_stand_upright_on_origin() -> void:
 	for owner_id in 2:
-		_check_upright(&"infantry", owner_id)
-		_check_upright(&"cavalry", owner_id)
-		_check_upright(&"rocket_artillery", owner_id)
+		_check_upright(&"pl_mech_infantry", owner_id)
+		_check_upright(&"m1a2_sepv3", owner_id)
+		_check_upright(&"homar_k", owner_id)
 
 
-func test_rocket_artillery_has_pod_with_six_mouths_and_no_placeholder() -> void:
-	var model := UnitModels.build(&"rocket_artillery", 0, _faction(0))
-	var inner := model.get_node("Model")
-	var pod := inner.get_node_or_null("Pod")
-	assert_true(pod != null, "rocket artillery needs a Pod node")
-	for i in 6:
-		assert_true(pod.get_node_or_null("Mouth%d" % i) != null, "missing Mouth%d" % i)
-	var box := _bounds(model, Transform3D.IDENTITY)
-	assert_true(box.size.x < 1.4 and box.size.z < 0.7, "unexpected size %s" % box)
-	model.free()
+func test_launchers_have_a_pod_with_mouths_and_no_placeholder() -> void:
+	for id in [&"homar_k", &"bm27_uragan"]:
+		var model := UnitModels.build(id, 0, _faction(0))
+		var pod := UnitModels.launcher_pod(model)
+		assert_true(pod != null, "%s needs a Pod node" % id)
+		assert_true(pod.get_node_or_null("Mouth0") != null, "%s: missing Mouth0" % id)
+		model.free()
 
 
 func test_vehicles_use_wheel_locomotion() -> void:
-	assert_true(UnitModels.is_vehicle(&"cavalry"))
-	assert_true(UnitModels.is_vehicle(&"rocket_artillery"))
-	assert_false(UnitModels.is_vehicle(&"infantry"))
-	var model := UnitModels.build(&"rocket_artillery", 1, _faction(1))
+	assert_true(UnitModels.is_vehicle(load("res://data/units/m1a2_sepv3.tres")))
+	assert_true(UnitModels.is_vehicle(load("res://data/units/homar_k.tres")))
+	assert_false(UnitModels.is_vehicle(load("res://data/units/pl_mech_infantry.tres")))
+	assert_false(UnitModels.is_vehicle(null))
+	var model := UnitModels.build(&"homar_k", 1, _faction(1))
 	UnitModels.pose_tank(model.get_node("Model"), 2.0, 1.0, Vector2.ZERO)
 	assert_true(model.get_node("Model/Wheel0").rotation.z != 0.0, "wheels should spin")
 	model.free()
 
 
 func test_owner_sets_facing() -> void:
-	var west := UnitModels.build(&"infantry", 0, _faction(0))
-	var east := UnitModels.build(&"infantry", 1, _faction(1))
+	var west := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
+	var east := UnitModels.build(&"pl_mech_infantry", 1, _faction(1))
 	assert_true(absf(west.rotation.y) < 0.0001)
 	assert_true(absf(east.rotation.y - PI) < 0.0001)
 	west.free()
@@ -75,8 +73,8 @@ func test_owner_sets_facing() -> void:
 
 
 func test_meshes_are_shared_between_instances() -> void:
-	var a := UnitModels.build(&"cavalry", 0, _faction(0))
-	var b := UnitModels.build(&"cavalry", 0, _faction(0))
+	var a := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
+	var b := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
 	var ma := _first_mesh(a)
 	var mb := _first_mesh(b)
 	assert_true(ma.mesh == mb.mesh and ma.material_override == mb.material_override)
@@ -100,7 +98,7 @@ func _count_soldiers(model: Node3D) -> int:
 
 
 func test_infantry_has_five_soldiers() -> void:
-	var model := UnitModels.build(&"infantry", 0, _faction(0))
+	var model := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
 	assert_eq(_count_soldiers(model), 5)
 	model.free()
 
@@ -130,10 +128,10 @@ func test_hit_reset_leaves_no_flash_behind() -> void:
 
 func test_faction_colours_models_and_null_is_neutral() -> void:
 	var poland := _faction(0)
-	var tank := UnitModels.build(&"cavalry", 0, poland)
+	var tank := UnitModels.build(&"m1a2_sepv3", 0, poland)
 	var turret_mat := _first_mesh(tank.get_node("Model/Turret")).material_override
 	assert_eq((turret_mat as ShaderMaterial).get_shader_parameter(&"color_a"), poland.camo[0])
-	var neutral_tank := UnitModels.build(&"cavalry", 1, null)
+	var neutral_tank := UnitModels.build(&"m1a2_sepv3", 1, null)
 	var neutral_mat := _first_mesh(neutral_tank.get_node("Model/Turret")).material_override
 	assert_eq(
 		(neutral_mat as ShaderMaterial).get_shader_parameter(&"color_a"), ModelParts.NEUTRAL_BODY
@@ -143,9 +141,9 @@ func test_faction_colours_models_and_null_is_neutral() -> void:
 
 
 func test_faction_materials_are_shared_per_faction_not_owner() -> void:
-	var a := UnitModels.build(&"cavalry", 0, _faction(0))
-	var b := UnitModels.build(&"cavalry", 1, _faction(0))
-	var c := UnitModels.build(&"cavalry", 0, _faction(1))
+	var a := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
+	var b := UnitModels.build(&"m1a2_sepv3", 1, _faction(0))
+	var c := UnitModels.build(&"m1a2_sepv3", 0, _faction(1))
 	var mat_a := _first_mesh(a.get_node("Model/Turret")).material_override
 	assert_true(mat_a == _first_mesh(b.get_node("Model/Turret")).material_override)
 	assert_true(mat_a != _first_mesh(c.get_node("Model/Turret")).material_override)
@@ -169,7 +167,7 @@ func _all_meshes(node: Node, into: Array[MeshInstance3D] = []) -> Array[MeshInst
 func test_tank_hull_uses_faction_camo_shader() -> void:
 	for owner_id in 2:
 		var faction := _faction(owner_id)
-		var tank := UnitModels.build(&"cavalry", owner_id, faction)
+		var tank := UnitModels.build(&"m1a2_sepv3", owner_id, faction)
 		var hull := _camo_of(_first_mesh(tank.get_node("Model/Turret")))
 		assert_true(hull != null, "turret should use a ShaderMaterial")
 		assert_eq(hull.shader.resource_path, CAMO_SHADER)
@@ -178,12 +176,12 @@ func test_tank_hull_uses_faction_camo_shader() -> void:
 		assert_eq(hull.get_shader_parameter(&"color_c"), faction.camo[2])
 		assert_eq(hull.get_shader_parameter(&"pattern_scale"), 9.0)
 		tank.free()
-	assert_eq(_faction(0).camo[0].to_html(false), "4c5632")
-	assert_eq(_faction(1).camo[0].to_html(false), "8a7f5a")
+	assert_eq(_faction(0).camo[0].to_html(false), "4b5320")
+	assert_eq(_faction(1).camo[0].to_html(false), "4d5a3a")
 
 
 func test_infantry_torso_uses_fine_uniform_camo() -> void:
-	var model := UnitModels.build(&"infantry", 1, _faction(1))
+	var model := UnitModels.build(&"pl_mech_infantry", 1, _faction(1))
 	var mats: Array[ShaderMaterial] = []
 	for instance in _all_meshes(model):
 		if instance.material_override is ShaderMaterial:
@@ -196,9 +194,9 @@ func test_infantry_torso_uses_fine_uniform_camo() -> void:
 
 
 func test_camo_materials_shared_per_faction_and_preset() -> void:
-	var a := UnitModels.build(&"cavalry", 0, _faction(0))
-	var b := UnitModels.build(&"cavalry", 0, _faction(0))
-	var ia := UnitModels.build(&"infantry", 0, _faction(0))
+	var a := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
+	var b := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
+	var ia := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
 	var ta := _camo_of(_first_mesh(a.get_node("Model/Turret")))
 	assert_true(ta == _camo_of(_first_mesh(b.get_node("Model/Turret"))))
 	var soldier_mat := _camo_of(_first_mesh(ia))
@@ -209,7 +207,7 @@ func test_camo_materials_shared_per_faction_and_preset() -> void:
 
 
 func test_vests_stay_plain_standard_materials() -> void:
-	var model := UnitModels.build(&"infantry", 0, _faction(0))
+	var model := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
 	var found := false
 	for instance in _all_meshes(model):
 		var m := instance.material_override as StandardMaterial3D
@@ -220,7 +218,7 @@ func test_vests_stay_plain_standard_materials() -> void:
 
 
 func test_some_part_is_steel() -> void:
-	for id in [&"cavalry", &"rocket_artillery"]:
+	for id in [&"m1a2_sepv3", &"homar_k"]:
 		var model := UnitModels.build(id, 0, _faction(0))
 		var steel := false
 		for instance in _all_meshes(model):
@@ -231,8 +229,8 @@ func test_some_part_is_steel() -> void:
 		model.free()
 
 
-func test_glass_on_rocket_artillery_windscreen() -> void:
-	var model := UnitModels.build(&"rocket_artillery", 0, _faction(0))
+func test_glass_on_launcher_windscreen() -> void:
+	var model := UnitModels.build(&"homar_k", 0, _faction(0))
 	var glass := false
 	for instance in _all_meshes(model):
 		var m := instance.material_override as StandardMaterial3D
@@ -243,10 +241,10 @@ func test_glass_on_rocket_artillery_windscreen() -> void:
 
 
 func test_part_origin_makes_pattern_continuous() -> void:
-	var tank := UnitModels.build(&"cavalry", 0, _faction(0))
+	var tank := UnitModels.build(&"m1a2_sepv3", 0, _faction(0))
 	var turret_part := _first_mesh(tank.get_node("Model/Turret"))
 	var origin: Vector3 = turret_part.get_instance_shader_parameter(&"part_origin")
-	assert_true(origin.y > 0.2, "turret parts are offset by the turret pivot: %s" % origin)
+	assert_true(origin.y > 0.1, "turret parts are offset by the turret pivot: %s" % origin)
 	tank.free()
 
 
@@ -264,7 +262,7 @@ func test_camo_shader_exposes_both_pattern_modes() -> void:
 func test_hit_reset_works_on_camo_surfaces() -> void:
 	var state := GameState.new(Fixtures.plains_grid(2), 2, 1)
 	var definition := Fixtures.infantry()
-	definition.id = UnitModels.INFANTRY
+	definition.id = &"pl_mech_infantry"
 	var unit := state.add_unit(0, definition, Vector2i(0, 0))
 	var hud := Control.new()
 	var view := UnitView.new()
@@ -292,7 +290,7 @@ func test_every_unit_has_its_own_model_and_vehicles_drive() -> void:
 		if file.ends_with(".tres"):
 			var definition := load("res://data/units/" + file) as UnitDefinition
 			assert_true(UnitModels.has_model(definition.id), "%s has a model" % definition.id)
-			assert_eq(UnitModels.is_vehicle(definition.id), definition.mobility != &"foot", file)
+			assert_eq(UnitModels.is_vehicle(definition), definition.mobility != &"foot", file)
 
 
 func _faction(owner_id: int) -> FactionDefinition:

@@ -29,21 +29,24 @@ func test_poland_and_russia_load_via_registry() -> void:
 	assert_eq(poland.short_name, "PL")
 	assert_eq(poland.color, Color("#5b93d6"))
 	assert_eq(poland.ink_color, Color("#0f1a26"))
-	assert_eq(poland.vest_color, Color("#3d4529"))
+	assert_eq(poland.vest_color, Color("#4f5934"))
 	assert_eq(russia.display_name, "Russia")
 	assert_eq(russia.short_name, "RU")
 	assert_eq(russia.color, Color("#d76a52"))
 	assert_eq(russia.ink_color, Color("#2a110b"))
-	assert_eq(russia.vest_color, Color("#5d5840"))
+	assert_eq(russia.vest_color, Color("#7a7354"))
 
 
 func test_camo_values() -> void:
 	var expected := {
-		&"poland": PackedColorArray([Color("#4c5632"), Color("#3b3325"), Color("#22251d")]),
-		&"russia": PackedColorArray([Color("#8a7f5a"), Color("#6b6446"), Color("#a89c76")]),
+		&"poland": PackedColorArray([Color("#4b5320"), Color("#3b2f22"), Color("#1e1f1a")]),
+		&"russia": PackedColorArray([Color("#4d5a3a"), Color("#23221d"), Color("#8a8466")]),
 	}
 	for faction_id: StringName in expected:
-		assert_eq(FactionRegistry.get_faction(faction_id).camo, expected[faction_id])
+		var actual := FactionRegistry.get_faction(faction_id).camo
+		assert_eq(actual.size(), expected[faction_id].size())
+		for i in actual.size():
+			assert_eq(actual[i].to_html(false), expected[faction_id][i].to_html(false))
 
 
 func test_unknown_faction_is_null() -> void:

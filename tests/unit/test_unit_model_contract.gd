@@ -5,11 +5,8 @@ extends TestCase
 
 const MODELS_DIR := "res://src/presentation/models/"
 const FACTIONS_DIR := "res://data/factions/"
-## Kind of each current model (ids are renamed to real unit ids by TASK-039a: update here).
+## Kind of each current model (one entry per real unit id).
 const KINDS := {
-	&"infantry": &"squad",
-	&"cavalry": &"tank",
-	&"rocket_artillery": &"rocket_artillery",
 	&"homar_k": &"rocket_artillery",
 	&"bm27_uragan": &"rocket_artillery",
 	&"m1a2_sepv3": &"tank",
@@ -19,11 +16,9 @@ const KINDS := {
 }
 ## Known violations of the current models (measured numbers, reported in TASK-036). The
 ## thresholds below stay as specified; a waiver is dropped from here when the model is fixed
-## (the test fails if a waived check no longer fails).
-const WAIVERS := {
-	&"cavalry": ["ground", "centre_x", "length", "body_meshes", "label"],
-	&"rocket_artillery": ["length", "body_meshes"],
-}
+## (the test fails if a waived check no longer fails). Empty since TASK-039b removed the generic
+## models; kept for future models that land with a known violation.
+const WAIVERS := {}
 const MAX_LENGTH := 1.15
 const MAX_WIDTH := 0.8
 const MAX_TRIANGLES_VEHICLE := 25000
@@ -206,13 +201,13 @@ func test_same_faction_shares_meshes_other_faction_other_camo() -> void:
 
 func test_cached_copies_have_independent_node_trees() -> void:
 	var faction := _faction(0)
-	var a := UnitModels.build(&"infantry", 0, faction)
-	var b := UnitModels.build(&"infantry", 0, faction)
+	var a := UnitModels.build(&"pl_mech_infantry", 0, faction)
+	var b := UnitModels.build(&"pl_mech_infantry", 0, faction)
 	UnitModels.pose_infantry(a, 0.0, 0.0, true)
 	assert_true((a.get_node("Model/Soldier1/Rig/Stand") as Node3D).visible)
 	assert_false((b.get_node("Model/Soldier1/Rig/Stand") as Node3D).visible)
-	var c := UnitModels.build(&"cavalry", 0, faction)
-	var d := UnitModels.build(&"cavalry", 0, faction)
+	var c := UnitModels.build(&"m1a2_sepv3", 0, faction)
+	var d := UnitModels.build(&"m1a2_sepv3", 0, faction)
 	UnitModels.pose_tank(c, 2.0, 1.0, Vector2.ZERO)
 	assert_true((c.get_node("Model/Wheel0") as Node3D).rotation.z != 0.0)
 	assert_eq((d.get_node("Model/Wheel0") as Node3D).rotation.z, 0.0)
@@ -264,7 +259,7 @@ func test_m1a2_sepv3_gun_pivots_and_all_wheels_spin() -> void:
 
 ## T-72B3: 6 road wheels per side + idlers + sprockets = Wheel0..15, a vehicle like the Abrams.
 func test_t72b3_gun_pivots_and_all_wheels_spin() -> void:
-	assert_true(UnitModels.is_vehicle(&"t72b3"))
+	assert_true(UnitModels.is_vehicle(load("res://data/units/t72b3.tres")))
 	_assert_tank_pivots(&"t72b3", &"russia", 16)
 
 

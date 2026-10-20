@@ -5,8 +5,9 @@ const Fixtures := preload("res://tests/fixtures.gd")
 const VIEWPORT := Vector2(1280, 720)
 const CARD := Vector2(320, 330)
 
-## The GDD calibration units (generic infantry and cavalry), local to the tests.
-var _infantry := Fixtures.generic_infantry()
+## The Polish squad (10 HP, move 3, A4 D3, range 1) and the GDD calibration tank (8 HP, move 5).
+var _infantry := load("res://data/units/pl_mech_infantry.tres") as UnitDefinition
+var _abrams := load("res://data/units/m1a2_sepv3.tres") as UnitDefinition
 var _tank := Fixtures.generic_tank()
 
 
@@ -26,7 +27,7 @@ func test_fresh_own_infantry() -> void:
 	var unit := state.add_unit(0, _infantry, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["type"], "CLASS_INFANTRY")
-	assert_eq(m["name"], "Infantry")
+	assert_eq(m["name"], "Mechanised Infantry Squad")
 	assert_eq(m["faction"], "Poland")
 	assert_eq(m["color"], state.faction_of(0).color)
 	assert_eq(m["hp"], 10)
@@ -50,10 +51,33 @@ func test_fresh_own_infantry() -> void:
 ## Header = the class, below it the real name – never the same text twice.
 func test_abrams_shows_class_and_real_name() -> void:
 	var state := _state()
-	var unit := state.add_unit(0, load("res://data/units/m1a2_sepv3.tres"), Vector2i.ZERO)
+	var unit := state.add_unit(0, _abrams, Vector2i.ZERO)
 	var m := UnitPopupModel.build(state, unit, 0)
 	assert_eq(m["type"], "CLASS_TANK")
 	assert_eq(m["name"], "M1A2 SEPv3 Abrams")
+
+
+func _translated(state: GameState, unit: Unit, key: String) -> String:
+	return String(TranslationServer.translate(UnitPopupModel.build(state, unit, 0)[key]))
+
+
+## Squad names are translation keys (the popup runs them through tr()); vehicle names are not.
+func test_squad_names_translate_and_vehicle_names_do_not() -> void:
+	var state := _state()
+	var polish := state.add_unit(0, _infantry, Vector2i.ZERO)
+	var russian := state.add_unit(
+		1, load("res://data/units/ru_motor_rifle.tres") as UnitDefinition, Vector2i(1, 0)
+	)
+	var abrams := state.add_unit(0, _abrams, Vector2i(0, 1))
+	var previous := TranslationServer.get_locale()
+	TranslationServer.set_locale("pl")
+	assert_eq(_translated(state, polish, "name"), "Drużyna piechoty zmechanizowanej")
+	assert_eq(_translated(state, russian, "name"), "Drużyna zmotoryzowana")
+	assert_eq(_translated(state, abrams, "name"), "M1A2 SEPv3 Abrams")
+	assert_eq(_translated(state, abrams, "type"), "Czołg")
+	TranslationServer.set_locale("en")
+	assert_eq(_translated(state, polish, "name"), "Mechanised Infantry Squad")
+	TranslationServer.set_locale(previous)
 
 
 func test_defense_includes_terrain_bonus() -> void:
@@ -144,7 +168,9 @@ func test_all_model_strings_are_translation_keys() -> void:
 	var enemy := state.add_unit(1, _tank, Vector2i(-1, 0))
 	for pair: Array in [[fresh, 0], [attacked, 0], [done, 0], [enemy, 0]]:
 		var m := UnitPopupModel.build(state, pair[0], pair[1])
-		var texts: Array[String] = [m["type"], m["faction"], m["name"], m["status"]]
+		var texts: Array[String] = [m["type"], m["faction"], m["status"]]
+		if pair[0].definition.unit_class == &"infantry":
+			texts.append(m["name"])  # vehicle names are proper names, not translated
 		for stat: Dictionary in m["stats"]:
 			texts.append(stat["label"])
 		for text in texts:

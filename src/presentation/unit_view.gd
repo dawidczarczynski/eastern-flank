@@ -86,7 +86,7 @@ func setup(
 	model.rotation.y = 0.0
 	_pivot.add_child(model)
 	_model = model.get_node("Model")
-	_is_vehicle = UnitModels.is_vehicle(unit.definition.id)
+	_is_vehicle = UnitModels.is_vehicle(unit.definition)
 	_apply_rest_pose()
 	_collect_meshes(_pivot)
 

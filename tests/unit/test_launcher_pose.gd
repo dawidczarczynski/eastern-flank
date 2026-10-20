@@ -40,11 +40,11 @@ func test_homar_has_launcher_with_pod_and_twelve_mouths() -> void:
 	model.get_parent().free()
 
 
-func test_fixed_pod_model_has_no_launcher_but_a_pod() -> void:
-	var root := UnitModels.build(&"rocket_artillery", 0, FactionRegistry.get_faction(&"russia"))
+func test_model_without_launcher_has_no_pod_and_posing_is_a_no_op() -> void:
+	var root := UnitModels.build(&"m1a2_sepv3", 0, FactionRegistry.get_faction(&"poland"))
 	var model := root.get_node("Model") as Node3D
 	assert_false(UnitModels.has_launcher(model))
-	assert_true(UnitModels.launcher_pod(model) != null)
+	assert_true(UnitModels.launcher_pod(model) == null)
 	UnitModels.pose_launcher(model, 1.0, 0.5)  # no-op, must not crash
 	root.free()
 

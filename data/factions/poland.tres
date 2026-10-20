@@ -15,5 +15,5 @@ roster = Array[ExtResource("1_efmh3")]([ExtResource("2_squad"), ExtResource("3_a
 default_force = Array[ExtResource("1_efmh3")]([ExtResource("2_squad"), ExtResource("3_abrams"), ExtResource("2_squad"), ExtResource("4_homar")])
 color = Color(0.35686275, 0.5764706, 0.8392157, 1)
 ink_color = Color(0.05882353, 0.101960786, 0.14901961, 1)
-camo = PackedColorArray(0.29803923, 0.3372549, 0.19607843, 1, 0.23137255, 0.2, 0.14509805, 1, 0.13333334, 0.14509805, 0.11372549, 1)
-vest_color = Color(0.23921569, 0.27058825, 0.16078432, 1)
+camo = PackedColorArray(0.29411765, 0.3254902, 0.1254902, 1, 0.23137255, 0.18431373, 0.13333333, 1, 0.11764706, 0.12156863, 0.10196078, 1)
+vest_color = Color(0.30980392, 0.34901961, 0.20392157, 1)

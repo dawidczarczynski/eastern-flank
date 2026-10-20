@@ -15,5 +15,5 @@ roster = Array[ExtResource("1_mx61n")]([ExtResource("2_squad"), ExtResource("3_t
 default_force = Array[ExtResource("1_mx61n")]([ExtResource("2_squad"), ExtResource("3_t72b3"), ExtResource("2_squad"), ExtResource("3_t72b3"), ExtResource("4_uragan")])
 color = Color(0.84313726, 0.41568628, 0.32156864, 1)
 ink_color = Color(0.16470589, 0.06666667, 0.043137256, 1)
-camo = PackedColorArray(0.5411765, 0.49803922, 0.3529412, 1, 0.41960785, 0.39215687, 0.27450982, 1, 0.65882355, 0.6117647, 0.4627451, 1)
-vest_color = Color(0.3647059, 0.34509805, 0.2509804, 1)
+camo = PackedColorArray(0.30196078, 0.35294118, 0.22745098, 1, 0.1372549, 0.13333333, 0.11372549, 1, 0.54117647, 0.51764706, 0.4, 1)
+vest_color = Color(0.47843137, 0.45098039, 0.32941176, 1)
