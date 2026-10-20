@@ -55,6 +55,24 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | ready | **TASK-021** (soft: TASK-031 … TASK-033) |
 | [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | idea | **TASK-045**; Uragan research must confirm the shields |
 | [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | idea | **TASK-047**; look at 047 in game first |
+| [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | ready | – |
+| [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | ready | – |
+| [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | ready | soft: TASK-050 |
+| [TASK-052](TASK-052-camera-horizon.md) | Camera v2: lower pitch with horizon, top-down when far, backdrop terrain beyond the map | ready | soft: TASK-051, TASK-050 |
+| [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | ready | soft: TASK-052, TASK-051 |
+| [TASK-053](TASK-053-third-party-assets.md) | Third-party CC0 assets: ADR 0009, `assets/third_party/`, credits manifest + test | idea | human decision (a): CC0 textures/HDRI/models allowed? |
+| [TASK-054](TASK-054-hdri-sky.md) | HDRI sky (CC0 Poly Haven) as sky, ambient and reflections | ready | **TASK-053**, **TASK-051** |
+| [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | ready | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
+| [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | ready | soft: TASK-050, TASK-054, TASK-055 |
+| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | ready | **TASK-050** (soft: TASK-055, TASK-059, TASK-052) |
+| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | ready | soft: TASK-057, TASK-060, TASK-059 |
+| [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | ready | soft: TASK-050, TASK-055, TASK-065 |
+| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, needs TASK-053) |
+| [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: bevelled parts, edge wear, dust, streaks in the camo shader – presentation + `unit-modeler` | ready | **TASK-030** (soft: TASK-031 … TASK-033) |
+| [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | ready | TASK-038, TASK-036 (soft: TASK-062); Russian marking default to confirm |
+| [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | ready | **TASK-050** (soft: TASK-058, TASK-055) |
+| [TASK-065](TASK-065-wrecks-smoke.md) | Wrecks and smoke on destruction instead of vanishing | ready | **TASK-050** (soft: TASK-064, TASK-058, TASK-062); persistence to confirm |
+| [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
 | TASK-007 | Fog of war | idea | GDD open questions: scale, modes |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | idea | GDD decision ("Ideas from the visual design"), hand-made maps |
 
@@ -83,3 +101,14 @@ Visual design v2 and real units (TASK-026 … TASK-039b, references in `docs/des
 - Every further unit: catalog entry (`tools/unit_catalog.sh`) → `/model-unit <id>` → stats `.tres` + roster (game-designer). The catalog statuses (`draft` → `ready_for_model` → `modeled` → `in_game`) are the backlog for models; they don't get task files.
 - 035 (rivers, roads, cities) changes rules – game-designer pass first; fits the hand-made map direction.
 - **Mechanisms (041 → 042 → 043 → 044 → 045, then 047 after 031; 046 / 048 are ideas)**: animations are declared per real unit in the catalog (`mechanisms` with parameters, registry `docs/design/units/mechanisms.json`), not per class – the Homar-K and the Uragan are both `mlrs` but animate differently. Do 041/043 before 031–033 and further `/model-unit` runs, so new models declare their mechanisms from the start. They don't depend on 039a (039a's model renames update the test's `LEGACY_MODELS` like `KINDS`). The Uragan model (`/model-unit bm27_uragan`) comes after 042 (verified entry), 044 (front-stowed, limited traverse) and 045 (jacks); 046 when its research confirms the window shields.
+
+Visual realism (TASK-049 … TASK-066, requested 2026-10-20): the battle scene moves from "tabletop" toward a Steel Division / Combat Mission-like look – realistic terrain, light and units, clean minimal UI (GDD "Visual direction: realism"). All of it is presentation-only (views react to events, no rules in the view, assets under `assets/`); tasks are for `presentation-engineer`, the unit parts of 062–064 also for `unit-modeler`. Every task ends with re-rendering `docs/images/gameplay.png`. Recommended order:
+
+049 → 050 → 051 → 052 → 059 → (decision a) 053 → 054 → 055 → 056 → 057 → 061 → 058 → (tree decision) 060; unit track 062 → 063 → 064 → 065 in parallel; 066 last.
+
+- Quick wins first: 049 (overlays stop covering the ground) and 051 (light, haze, grading) change the look most for the least work.
+- 050 early: every later task reads its LOW/HIGH switches (target D3D12 GPU; the WSLg software renderer only previews and must stay usable).
+- 059 is a screenshot study: the human picks the unit/tree scale (realism vs. readability) before trees, grass and decals are sized.
+- 053 is a decision gate: CC0 textures and HDRI (recommended yes), tree glTF models (open), unit models (recommended no). 054, 055 and option B of 060 wait for it.
+- The unit track is independent of the terrain track: 062 needs TASK-030's bevels; 063/064 need model anchors from `unit-modeler`.
+- Roads, rivers and fields stay in TASK-035; 055 reserves two splat channels for them.
