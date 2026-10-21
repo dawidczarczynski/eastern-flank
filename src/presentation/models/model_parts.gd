@@ -47,6 +47,12 @@ static var _faction_materials: Dictionary = {}  # "faction_id:role" -> Material
 static var _prototypes: Dictionary = {}  # "unit_id:faction_id" -> Node3D
 
 
+## Drops the shared meshes so the next build generates them again (tests timing a cold build).
+## Live models keep the meshes they already reference.
+static func clear_mesh_cache() -> void:
+	_meshes.clear()
+
+
 ## Builds a model once per `key` (unit id + faction id) and returns an independent copy of the
 ## stored prototype: own node tree (poses and visibility are per instance), shared meshes and
 ## materials. Model builders may call `MeshKit.bake` before returning once TASK-030 lands.

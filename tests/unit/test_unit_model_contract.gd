@@ -21,9 +21,12 @@ const KINDS := {
 const WAIVERS := {}
 const MAX_LENGTH := 1.15
 const MAX_WIDTH := 0.8
-const MAX_TRIANGLES_VEHICLE := 25000
+const MAX_TRIANGLES_VEHICLE := 40000
 const MAX_TRIANGLES_SQUAD := 20000
 const MAX_BODY_MESH_INSTANCES := 24
+## Cold build (empty mesh cache) of one model, in ms: the real cost of detail is GDScript mesh
+## generation when a unit type first appears, not the GPU (ADR 0010).
+const MAX_BUILD_MSEC := 500.0
 const GROUND_TOLERANCE := 0.005
 const CENTRE_TOLERANCE := 0.05
 const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")
@@ -370,3 +373,18 @@ func _first_mesh(node: Node) -> MeshInstance3D:
 
 func _faction(owner_id: int) -> FactionDefinition:
 	return FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[owner_id])
+
+
+func test_every_model_builds_cold_within_the_time_budget() -> void:
+	var faction: FactionDefinition = _factions()[0]
+	for id in _model_ids():
+		var script: GDScript = load(MODELS_DIR + String(id) + ".gd")
+		ModelParts.clear_mesh_cache()
+		var start := Time.get_ticks_usec()
+		var model: Node3D = script.build(faction)
+		var msec := (Time.get_ticks_usec() - start) / 1000.0
+		print("[model] %s: cold build %.1f ms" % [id, msec])
+		model.free()
+		assert_true(
+			msec <= MAX_BUILD_MSEC, "%s builds in %.1f ms (max %.0f)" % [id, msec, MAX_BUILD_MSEC]
+		)

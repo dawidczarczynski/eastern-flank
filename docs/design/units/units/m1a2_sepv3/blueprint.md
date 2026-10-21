@@ -58,7 +58,7 @@ the antennas are short stubs instead of 3 m whips; no bevels (MeshKit/TASK-030 n
 | `Turret/Gun/Muzzle` | −1.89 | 1.98 | 0 | – | marker node |
 
 Mesh instances: 15 outside the wheel pivots (hull 3, running gear 4, turret 6, gun 2), 2 per wheel
-pivot; 14 184 triangles (budget 25 000).
+pivot; 14 184 triangles (budget 40 000, ADR 0010).
 
 ## Silhouette features
 

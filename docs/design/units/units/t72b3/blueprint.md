@@ -67,7 +67,7 @@ Sosna-U).
 | `Turret/Gun/Muzzle` | −2.72 | 1.8 | 0 | – | marker node |
 
 Mesh instances: 14 outside the wheel pivots (hull 3, running gear 5, turret 4, gun 2), 2 per wheel
-pivot; 15 544 triangles (budget 25 000). The faction accent is the plate on the second skirt
+pivot; 15 544 triangles (budget 40 000, ADR 0010). The faction accent is the plate on the second skirt
 panel of each side (no flat turret surface to carry one).
 
 Rework 1 (coordinator review "turret reads as an angular box"): dome lowered at the shoulders and
