@@ -57,7 +57,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | idea | **TASK-047**; look at 047 in game first |
 | [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | done | – |
 | [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | done | – |
-| [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | to playtest | soft: TASK-050 |
+| [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | done | soft: TASK-050 |
 | [TASK-052](TASK-052-camera-horizon.md) | Camera v2: lower pitch with horizon, top-down when far, backdrop terrain beyond the map | ready | soft: TASK-051, TASK-050 |
 | [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | ready | soft: TASK-052, TASK-051 |
 | [TASK-053](TASK-053-third-party-assets.md) | Third-party CC0 assets: ADR 0009, `assets/third_party/`, credits manifest + test | idea | human decision (a): CC0 textures/HDRI/models allowed? |

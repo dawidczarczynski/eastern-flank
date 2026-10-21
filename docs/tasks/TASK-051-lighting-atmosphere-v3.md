@@ -1,6 +1,6 @@
 # TASK-051: Lighting & atmosphere v3 – AgX, lower sun, aerial perspective, SSIL, subtle glow, colour grading
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`assets/environments/battle_environment.tres`, `scenes/battle/battle.tscn` sun, pure `ColorGrade` LUT generator), tests (`test_battle_look.gd`, new `test_color_grade.gd`)
 - **Depends on**: soft **TASK-050** (SSIL/glow are switched off on LOW). Builds on TASK-013/TASK-026. The HDRI sky is a separate task (TASK-054) because it needs the asset decision (TASK-053).
 - **Model**: sonnet
