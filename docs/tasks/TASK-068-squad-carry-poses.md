@@ -1,6 +1,6 @@
 # TASK-068: Squad readability at battle zoom – mixed weapon carries and facings
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`models/parts/soldier.gd`, `models/pl_mech_infantry.gd`, `models/ru_motor_rifle.gd`), tests (`test_unit_models.gd`)
 - **Depends on**: –
 - **Model**: sonnet
@@ -44,4 +44,5 @@ None (visual only).
 ## Implementation notes
 
 - Done 2026-10-21 together with the detail study (`docs/design/showcase/`). `soldier.gd` gained `READY` / `AIM` / `LOW`, `AIM_ANGLE`, `LOW_ANGLE`, `carry_angle()`; `squad()` reads the optional carry and yaw; the `dress` signature has a fifth parameter `carry`. Both model files use it; the Russian MG keeps its own angles.
+- Playtested by the human 2026-10-21: poses, march and kneel/stand correct in game.
 - Before/after battle crops: `.screenshots/showcase/inf_old_game_crop.png` / `inf_pose_game_crop.png` (local, not committed).
