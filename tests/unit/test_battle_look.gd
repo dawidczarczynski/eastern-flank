@@ -32,16 +32,53 @@ func test_background_is_flat_haze_color() -> void:
 func test_fog() -> void:
 	assert_true(_env.fog_enabled)
 	assert_eq(_env.fog_mode, Environment.FOG_MODE_DEPTH)
-	assert_true(is_equal_approx(_env.fog_depth_begin, 38.0))
-	assert_true(is_equal_approx(_env.fog_depth_end, 90.0))
+	assert_true(is_equal_approx(_env.fog_depth_begin, 30.0))
+	assert_true(is_equal_approx(_env.fog_depth_end, 140.0))
+	assert_true(_env.fog_aerial_perspective >= 0.5 and _env.fog_aerial_perspective <= 0.9)
 	assert_eq(_env.fog_light_color, _env.background_color)
 	# Same energy for fog and background, so fully fogged geometry blends into the background.
 	assert_true(is_equal_approx(_env.fog_light_energy, _env.background_energy_multiplier))
 
 
 func test_tonemap() -> void:
-	assert_eq(_env.tonemap_mode, Environment.TONE_MAPPER_ACES)
-	assert_true(is_equal_approx(_env.tonemap_exposure, 1.05))
+	assert_eq(_env.tonemap_mode, Environment.TONE_MAPPER_AGX)
+	assert_true(is_equal_approx(_env.tonemap_exposure, 1.3))
+
+
+func _high_env() -> Environment:
+	# Same steps as BattleController: own copy, then the quality preset (which also adds the grade).
+	var env := _env.duplicate() as Environment
+	GraphicsQuality.apply_environment(env, GraphicsQuality.features(GraphicsQuality.Level.HIGH))
+	return env
+
+
+func test_high_has_ssil_glow_and_grade() -> void:
+	var env := _high_env()
+	assert_true(env.ssil_enabled)
+	assert_true(env.glow_enabled)
+	assert_true(env.adjustment_enabled)
+	assert_true(env.adjustment_color_correction is Texture3D)
+
+
+func test_low_drops_ssil_glow_and_grade_and_scene_instantiates() -> void:
+	var env := _env.duplicate() as Environment
+	GraphicsQuality.apply_environment(env, GraphicsQuality.features(GraphicsQuality.Level.LOW))
+	assert_false(env.ssil_enabled)
+	assert_false(env.glow_enabled)
+	assert_false(env.adjustment_enabled)
+	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
+	assert_true(battle != null)
+	battle.free()
+
+
+func test_no_depth_of_field_on_camera() -> void:
+	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
+	var camera := battle.find_child("Camera3D", true, false) as Camera3D
+	assert_true(camera != null)
+	var attrs := camera.attributes as CameraAttributesPractical
+	assert_true(attrs == null or not attrs.dof_blur_far_enabled)
+	assert_true(attrs == null or not attrs.dof_blur_near_enabled)
+	battle.free()
 
 
 func test_ambient_and_reflections_from_sky() -> void:
@@ -52,32 +89,36 @@ func test_ambient_and_reflections_from_sky() -> void:
 
 func test_ssao() -> void:
 	# The resource is the HIGH look; LOW switches effects off at runtime (GraphicsQuality).
-	var env := _env.duplicate() as Environment
-	GraphicsQuality.apply_environment(env, GraphicsQuality.features(GraphicsQuality.Level.HIGH))
-	assert_true(env.ssao_enabled)
+	assert_true(_high_env().ssao_enabled)
 
 
 func test_sky_material_colors() -> void:
 	assert_true(_env.sky is Sky, "environment needs a Sky")
 	var mat := _env.sky.sky_material as ProceduralSkyMaterial
 	assert_true(mat != null, "sky material must be a ProceduralSkyMaterial")
-	_assert_color(mat.sky_top_color, Color.html("#7f9bb5"))
-	_assert_color(mat.sky_horizon_color, Color.html("#d5d8cc"))
+	_assert_color(mat.sky_top_color, Color.html("#8fa3b5"))
+	_assert_color(mat.sky_horizon_color, Color.html("#c9cdc6"))
 	_assert_color(mat.ground_bottom_color, Color.html("#4f4a3a"))
-	_assert_color(mat.ground_horizon_color, Color.html("#d5d8cc"))
+	_assert_color(mat.ground_horizon_color, Color.html("#c9cdc6"))
 
 
 func test_sun() -> void:
 	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
 	var sun := battle.get_node("Sun") as DirectionalLight3D
-	_assert_color(sun.light_color, Color.html("#fff0d8"))
-	assert_true(sun.light_energy >= 0.7 and sun.light_energy <= 1.4)
+	_assert_color(sun.light_color, Color.html("#ffeedd"))
+	assert_true(sun.light_energy >= 1.3 and sun.light_energy <= 1.6)
 	assert_true(sun.shadow_enabled)
 	assert_true(sun.light_angular_distance > 0.0)
 	var forward := -sun.transform.basis.z
+	var elevation := rad_to_deg(asin(-forward.y))
+	assert_true(elevation >= 25.0 and elevation <= 35.0, "sun elevation %s" % elevation)
+	# Same azimuth as before TASK-051, so the README framing keeps its light direction.
+	var azimuth := Vector2(forward.x, forward.z).normalized()
 	assert_true(
-		forward.distance_to(Vector3(0.520, -0.752, -0.405)) < 0.01, "sun forward is %s" % forward
+		azimuth.distance_to(Vector2(0.520, -0.405).normalized()) < 0.01, "azimuth %s" % azimuth
 	)
+	assert_true(is_equal_approx(sun.shadow_blur, 1.2))
+	assert_true(is_equal_approx(sun.light_angular_distance, 1.0))
 	battle.free()
 
 

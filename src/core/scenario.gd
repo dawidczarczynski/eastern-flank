@@ -8,9 +8,14 @@ const MAP_HEIGHT := 10
 ## the front slots, the others the back slots.
 const FRONT_SLOTS := [[1, [3, 5, 7, 1, 9]], [MAP_WIDTH - 2, [2, 4, 6, 8, 0]]]
 const BACK_SLOTS := [[0, [5, 3, 7]], [MAP_WIDTH - 1, [4, 2, 6]]]
+## A river between the armies: its offset column for each row (north to south, consecutive
+## tiles adjacent). Water is impassable, so the rows in RIVER_FORDS are plains crossings.
+const RIVER_COLUMNS := [6, 5, 5, 5, 6, 6, 6, 5, 5, 5]
+const RIVER_FORDS := [2, 7]
 
 
-## Default 2-player battle on a generated 12x10 map. Spawn tiles are forced to plains.
+## Default 2-player battle on a generated 12x10 map with a river (RIVER_COLUMNS) between the
+## armies. Spawn tiles are forced to plains.
 ## `factions` = faction id of player 0 and player 1 (FactionRegistry). Each player spawns their
 ## faction's `default_force` in list order (unit ids follow it); factions don't change the map.
 ## A unit not in its owner's roster, or one beyond the free slots, is skipped with push_error.
@@ -20,6 +25,7 @@ static func default_battle(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var grid := MapGenerator.generate(MAP_WIDTH, MAP_HEIGHT, rng)
+	_add_river(grid)
 	var state := GameState.new(grid, 2, seed_value)
 	state.player_factions = factions.duplicate()
 	for player in state.player_count:
@@ -48,6 +54,13 @@ static func default_battle(
 				continue
 			state.add_unit(player, definition, coord)
 	return state
+
+
+static func _add_river(grid: HexGrid) -> void:
+	for row in RIVER_COLUMNS.size():
+		var coord := MapGenerator.offset_to_axial(RIVER_COLUMNS[row], row)
+		var t := Terrain.Type.PLAINS if row in RIVER_FORDS else Terrain.Type.WATER
+		MapGenerator.force_terrain(grid, coord, t)
 
 
 ## True when `definition` is in the roster of `player_id`'s faction.

@@ -12,10 +12,11 @@ script = ExtResource("1_battle")
 environment = ExtResource("4_env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.613941, 0.593442, -0.520483, 0, 0.65938, 0.751809, 0.789352, -0.461566, 0.40482, 0, 10, 0)
-light_color = Color(1, 0.9411765, 0.84705883, 1)
-light_energy = 0.86
+transform = Transform3D(0.613941, 0.3945, -0.683, 0, 0.8656, 0.5, 0.789352, -0.307, 0.532, 0, 10, 0)
+light_color = Color(1, 0.93333334, 0.8666667, 1)
+light_energy = 1.55
 light_angular_distance = 1.0
+shadow_blur = 1.2
 shadow_enabled = true
 shadow_bias = 0.03
 shadow_normal_bias = 1.0

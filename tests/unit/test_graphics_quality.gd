@@ -41,7 +41,16 @@ func test_features_values() -> void:
 	var low := GraphicsQuality.features(LOW)
 	var high := GraphicsQuality.features(HIGH)
 	for key in [
-		"ssao", "ssil", "ssr", "glow", "shadows", "foliage", "particles", "wind", "backdrop_scatter"
+		"ssao",
+		"ssil",
+		"ssr",
+		"glow",
+		"color_grade",
+		"shadows",
+		"foliage",
+		"particles",
+		"wind",
+		"backdrop_scatter"
 	]:
 		assert_eq(low[key], false, key)
 		assert_eq(high[key], true, key)

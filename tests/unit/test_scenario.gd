@@ -58,6 +58,8 @@ func test_terrain_matches_map_generator_apart_from_spawn_tiles() -> void:
 	var spawn_tiles: Dictionary = {}
 	for unit: Unit in state.units.values():
 		spawn_tiles[unit.coord] = true
+	for row in Scenario.RIVER_COLUMNS.size():
+		spawn_tiles[MapGenerator.offset_to_axial(Scenario.RIVER_COLUMNS[row], row)] = true
 	assert_eq(state.grid.coords().size(), expected.coords().size())
 	for c in expected.coords():
 		if not spawn_tiles.has(c):
@@ -178,3 +180,27 @@ func test_force_larger_than_the_slots_skips_the_extra_units() -> void:
 	for unit in state.units_of(0):
 		rows.append(MapGenerator.axial_to_offset(unit.coord).y)
 	assert_eq(rows, [3, 5, 7, 1, 9] as Array[int])
+
+
+func test_river_runs_north_to_south_with_fords() -> void:
+	var state := Scenario.default_battle(12345)
+	assert_eq(Scenario.RIVER_COLUMNS.size(), Scenario.MAP_HEIGHT)
+	for row in Scenario.MAP_HEIGHT:
+		var c := MapGenerator.offset_to_axial(Scenario.RIVER_COLUMNS[row], row)
+		var expected := Terrain.Type.PLAINS if row in Scenario.RIVER_FORDS else Terrain.Type.WATER
+		assert_eq(state.grid.get_terrain(c), expected, "river row %d" % row)
+
+
+func test_river_tiles_are_connected() -> void:
+	for row in range(1, Scenario.MAP_HEIGHT):
+		var a := MapGenerator.offset_to_axial(Scenario.RIVER_COLUMNS[row - 1], row - 1)
+		var b := MapGenerator.offset_to_axial(Scenario.RIVER_COLUMNS[row], row)
+		assert_eq(Hex.distance(a, b), 1, "river rows %d-%d not adjacent" % [row - 1, row])
+
+
+func test_armies_can_reach_each_other_across_the_river() -> void:
+	for seed_value in [12345, 7]:
+		var state := Scenario.default_battle(seed_value)
+		var west := state.get_unit(1).coord
+		var east := state.get_unit(5).coord
+		assert_false(state.grid.path_to(west, east, 1000).is_empty(), "seed %d" % seed_value)

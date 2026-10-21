@@ -48,6 +48,7 @@ static func features(level: Level) -> Dictionary:
 		"ssil": high,
 		"ssr": high,
 		"glow": high,
+		"color_grade": high,
 		"shadows": high,
 		"shadow_atlas_size": 4096 if high else 2048,
 		"shadow_max_distance": 80.0 if high else 40.0,
@@ -78,6 +79,10 @@ static func apply_environment(env: Environment, feature_set: Dictionary) -> void
 	env.ssil_enabled = env.ssil_enabled and ssil
 	env.ssr_enabled = env.ssr_enabled and ssr
 	env.glow_enabled = env.glow_enabled and glow
+	if feature_set["color_grade"]:
+		ColorGrade.apply_to(env)
+	else:
+		env.adjustment_enabled = false
 
 
 static func apply_sun(sun: DirectionalLight3D, feature_set: Dictionary) -> void:

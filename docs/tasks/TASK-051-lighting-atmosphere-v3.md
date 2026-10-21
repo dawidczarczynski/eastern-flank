@@ -1,6 +1,6 @@
 # TASK-051: Lighting & atmosphere v3 – AgX, lower sun, aerial perspective, SSIL, subtle glow, colour grading
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: presentation (`assets/environments/battle_environment.tres`, `scenes/battle/battle.tscn` sun, pure `ColorGrade` LUT generator), tests (`test_battle_look.gd`, new `test_color_grade.gd`)
 - **Depends on**: soft **TASK-050** (SSIL/glow are switched off on LOW). Builds on TASK-013/TASK-026. The HDRI sky is a separate task (TASK-054) because it needs the asset decision (TASK-053).
 - **Model**: sonnet
@@ -33,16 +33,16 @@ Environment: procedural sky, ambient from sky (energy 0.5), SSAO (radius 1.0, in
 
 ## Acceptance criteria (testable)
 
-- [ ] `tests/unit/test_color_grade.gd` (tolerance 0.01 unless stated):
+- [x] `tests/unit/test_color_grade.gd` (tolerance 0.01 unless stated):
   - neutral greys stay neutral: `grade(Color(v, v, v))` has `max(r, g, b) − min(r, g, b) ≤ 0.03` for v in {0.1, 0.5, 0.9};
   - luminance is monotonic over a grey ramp of 11 steps;
   - saturation drops: HSV saturation of `grade(#5a8a2e)` < saturation of `#5a8a2e`;
   - `lut(17, DEFAULT)` returns 17 images of 17×17; the texel at grid `(r, g, b)` equals `grade(Color(r/16, g/16, b/16))` (±1/255);
   - deterministic (two calls equal).
-- [ ] `test_battle_look.gd` (HIGH environment): `tonemap_mode == Environment.TONE_MAPPER_AGX`, `fog_aerial_perspective` in [0.5, 0.9], `ssil_enabled`, `glow_enabled`, `adjustment_enabled` with a 3D texture; sun elevation (angle between −light direction and the ground plane) in [25°, 35°]; no `CameraAttributes` with DOF enabled on the battle camera.
-- [ ] With LOW (TASK-050), SSIL and glow are off and the scene still renders (headless test that applies LOW).
-- [ ] Agent visual check (Windows build): `tools/screenshot.sh` before/after. Expected: longer shadows pointing away from the sun, shadow sides of units and trees lifted by bounce light (not black), distant hills hazier and bluer than near ones, greens more olive and less saturated, no bloom haze over the whole frame. If only the Linux renderer is available, say so – LOW hides SSIL/glow there.
-- [ ] Re-render `docs/images/gameplay.png` with `tools/readme_screenshot.sh`, Read it, commit it with the change.
+- [x] `test_battle_look.gd` (HIGH environment): `tonemap_mode == Environment.TONE_MAPPER_AGX`, `fog_aerial_perspective` in [0.5, 0.9], `ssil_enabled`, `glow_enabled`, `adjustment_enabled` with a 3D texture; sun elevation (angle between −light direction and the ground plane) in [25°, 35°]; no `CameraAttributes` with DOF enabled on the battle camera.
+- [x] With LOW (TASK-050), SSIL and glow are off and the scene still renders (headless test that applies LOW).
+- [x] Agent visual check (Windows build): `tools/screenshot.sh` before/after. Expected: longer shadows pointing away from the sun, shadow sides of units and trees lifted by bounce light (not black), distant hills hazier and bluer than near ones, greens more olive and less saturated, no bloom haze over the whole frame. If only the Linux renderer is available, say so – LOW hides SSIL/glow there.
+- [x] Re-render `docs/images/gameplay.png` with `tools/readme_screenshot.sh`, Read it, commit it with the change.
 
 ## Playtest (for the human)
 
@@ -64,4 +64,31 @@ None (presentation only).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+2026-10-21 (presentation-engineer, reviewed).
+
+- **New**: `src/presentation/color_grade.gd` (`ColorGrade`, pure static): `grade()`, `lut()`, `cached_texture()` (a 17³ `ImageTexture3D`, built once) and `apply_to(env)`. Grade order: contrast, then saturation, then a green-only hue shift weighted by how green the colour is (greys untouched), then split tint, then clamp. Tests are in `tests/unit/test_color_grade.gd`.
+- **GraphicsQuality**: new feature key `color_grade` (HIGH on, LOW off). `apply_environment` assigns the LUT on HIGH and turns `adjustment_enabled` off on LOW. `battle_controller.gd` did not change, because it already calls `apply_environment`.
+- **Final values**, tuned on the Windows D3D12 Forward+ screenshot (RX 580, HIGH):
+
+| Setting | Value |
+|---|---|
+| Tonemap | AgX, exposure **1.3** (at ~1.0 AgX came out too dark), white 6.0 |
+| Sun | elevation 30°, same azimuth as before, energy 1.55, `#ffeedd`, angular distance 1.0, shadow_blur 1.2 |
+| Ambient | sky, energy 0.65 |
+| Sky | top `#8fa3b5`, horizon and ground horizon `#c9cdc6`, `sun_angle_max` 3, `sun_curve` 0.3 |
+| Background / fog colour | unchanged flat haze `#a9b4b2` (fully fogged tiles still blend into the background) |
+| Fog | depth 30–140, aerial perspective 0.7, sun scatter 0.1 |
+| SSAO | intensity 1.2 |
+| SSIL | radius 3.0, intensity 0.6, sharpness 0.98 |
+| Glow | intensity 0.25, bloom 0.01, soft light, HDR threshold 1.2 |
+| Grade | saturation **0.92**, contrast 1.06, shadow tint `#1e2a2c` at 0.06, highlight tint `#fff1dc` at 0.05, green_shift **−0.02** |
+
+- **Deviations from the spec**: saturation 0.92 instead of 0.82 and green_shift −0.02 instead of −0.03. AgX already desaturates, so the spec values came out muddy brown.
+- **Visual check**: compared `.screenshots/task051_before.png` with `task051_after.png`. Shadows are longer and point away from the sun, and the dark sides of units and trees are not black. Grass is olive and muted instead of yellow-green, there is no bloom haze, and the HUD is unaffected. Mid-tones are slightly darker than before.
+  - The default top-down shot hardly shows the far haze; only the corners look hazier. The human should check it by looking across the map.
+  - The ≥ 25 % shadow-side brightness target was judged by eye only; there is no measurement.
+- **LOW test**: it applies LOW to a duplicated environment and instantiates the scene. It does not run `BattleController`'s own path.
+- **README**: `docs/images/gameplay.png` was re-rendered and read.
+- **River**: added at the human's request so the water look can be checked. `Scenario.RIVER_COLUMNS` holds a north–south chain of water hexes between the armies, and the plains rows in `RIVER_FORDS` (2 and 7) are the crossings. Tests are in `test_scenario.gd`, and the replay fixture was regenerated.
+  - In 20 AI-vs-AI matches, player 1 won 60 % (80 % before), with 0 errors and 9.1 turns on average (7.4 before).
+  - Each water hex still renders as a separate pond with land between, because the terrain surface pulls toward each hex's own height. Making it one continuous river is follow-up presentation work.
