@@ -17,9 +17,11 @@ generic `infantry` squad (0.32 model units, 0.42 world units) so squads of diffe
 comparable. The render's `Real` line therefore reads +74 % on the soldier height (3.2 m) – the
 proportions within a soldier are real.
 
-Squad layout (model units, same footprint as the generic squad): `[x, z, kneeling, kit]`
-= `[0.12, 0, no, rifle]`, `[-0.03, 0.15, yes, RPG-7]`, `[-0.04, -0.15, no, UKM-2000]`,
-`[-0.19, 0.06, no, rifle]`, `[-0.16, -0.13, yes, rifle]`; yaw ±0.3 rad from `TerrainNoise.hash`.
+Squad layout (model units, same footprint as the generic squad): `[x, z, kneeling, kit, carry,
+yaw]` = `[0.12, 0, no, rifle, aim]`, `[-0.03, 0.15, yes, RPG-7]`, `[-0.04, -0.15, no, UKM-2000]`,
+`[-0.19, 0.06, no, rifle, low, 0.7]`, `[-0.16, -0.13, yes, rifle, aim, -0.5]`; without a yaw,
+±0.3 rad from `TerrainNoise.hash`. Carries (TASK-068): aim = weapon level, low = muzzle −0.85 rad,
+otherwise the kit's ready angle.
 
 ## Parts of one soldier (metres)
 

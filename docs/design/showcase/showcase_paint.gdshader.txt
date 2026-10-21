@@ -1,0 +1,95 @@
+shader_type spatial;
+// Showcase paint (experiment, not used by the game): hard-edged NATO three-tone camo, weathering
+// driven by the vertex colour the model kit writes: r = chamfer / edge (paint wear), g = openness
+// (1 = open, 0 = cavity), b = per-part tint seed. Plus dust on up-facing surfaces, rain streaks on
+// vertical faces, mud near the ground. pattern_mode 1 = plain color_a (metal, rubber, cloth).
+
+uniform vec4 color_a : source_color = vec4(0.30, 0.33, 0.13, 1.0);
+uniform vec4 color_b : source_color = vec4(0.23, 0.18, 0.13, 1.0);
+uniform vec4 color_c : source_color = vec4(0.12, 0.12, 0.10, 1.0);
+uniform int pattern_mode = 0;
+uniform float pattern_scale = 5.0;
+uniform vec4 wear_color : source_color = vec4(0.17, 0.165, 0.15, 1.0);
+uniform float wear_amount = 0.6;
+uniform vec4 dust_color : source_color = vec4(0.56, 0.51, 0.42, 1.0);
+uniform float dust_amount = 0.5;
+uniform vec4 mud_color : source_color = vec4(0.29, 0.24, 0.18, 1.0);
+uniform float mud_height = 0.06;
+uniform float mud_amount = 0.8;
+uniform float streak_amount = 0.12;
+uniform float fade = 0.22;
+uniform float base_roughness = 0.75;
+uniform float metallic_value = 0.1;
+uniform float tint_amount = 0.1;
+uniform float ground_ao_height = 0.1;
+instance uniform vec3 part_origin = vec3(0.0);
+
+varying vec3 obj_pos;
+varying vec3 obj_nrm;
+
+float h3(vec3 p) {
+	p = fract(p * 0.3183099 + 0.1);
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float n3(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(
+		mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x),
+			mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+		mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x),
+			mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
+		f.z);
+}
+
+float fb(vec3 p) {
+	return n3(p) * 0.55 + n3(p * 2.07) * 0.3 + n3(p * 4.3) * 0.15;
+}
+
+void vertex() {
+	obj_pos = VERTEX + part_origin;
+	obj_nrm = NORMAL;
+}
+
+void fragment() {
+	vec3 p = obj_pos;
+	vec3 col = color_a.rgb;
+	if (pattern_mode == 0) {
+		vec3 q = p * pattern_scale * vec3(0.7, 1.0, 1.0);
+		vec3 warp = vec3(fb(q * 0.8 + 3.1), fb(q * 0.8 + 7.7), fb(q * 0.8 + 1.3)) - 0.5;
+		q += warp * 1.1;
+		float na = fb(q);
+		float nb = fb(q * 1.15 + vec3(11.0, 5.0, 23.0));
+		float aa = fwidth(na) * 0.75 + 0.002;
+		float ab = fwidth(nb) * 0.75 + 0.002;
+		col = mix(col, color_b.rgb, smoothstep(0.52 - aa, 0.52 + aa, na));
+		col = mix(col, color_c.rgb, smoothstep(0.585 - ab, 0.585 + ab, nb));
+	}
+	col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), fade);
+	col *= 1.0 + (COLOR.b - 0.5) * tint_amount;
+	float grain = n3(p * 260.0);
+	col *= (0.92 + 0.16 * fb(p * 22.0)) * (0.98 + 0.04 * grain);
+	float vertical = 1.0 - abs(obj_nrm.y);
+	float streak = n3(vec3(p.x * 180.0, p.y * 12.0, p.z * 180.0));
+	col *= 1.0 - vertical * smoothstep(0.55, 0.85, streak) * streak_amount;
+	float chip = n3(p * 320.0) * 0.6 + n3(p * 900.0) * 0.4;
+	float worn = clamp(wear_amount * 4.0, 0.0, 1.0);
+	col *= 1.0 + COLOR.r * worn * 0.12 * (0.5 + n3(p * 120.0));
+	float wear = COLOR.r * smoothstep(0.73 - wear_amount * 0.12, 0.77 - wear_amount * 0.1, chip);
+	wear *= worn;
+	col = mix(col, wear_color.rgb, wear * 0.75);
+	col *= mix(0.42, 1.0, COLOR.g);
+	col *= mix(0.72, 1.0, smoothstep(0.0, ground_ao_height, p.y));
+	float up = smoothstep(0.45, 0.95, obj_nrm.y);
+	float dust = up * smoothstep(0.3, 0.8, fb(p * 25.0) * 0.7 + fb(p * 90.0) * 0.3) * dust_amount;
+	col = mix(col, dust_color.rgb, dust * 0.45);
+	float mud = clamp(smoothstep(mud_height, 0.0, p.y) * (0.35 + 0.65 * fb(p * 80.0)) * mud_amount, 0.0, 1.0);
+	col = mix(col, mud_color.rgb, mud * 0.85);
+	ALBEDO = col;
+	ROUGHNESS = clamp(
+		base_roughness + (grain - 0.5) * 0.2 - wear * 0.25 + dust * 0.15 + mud * 0.1, 0.05, 1.0);
+	METALLIC = mix(metallic_value, 0.55, wear * 0.5);
+}

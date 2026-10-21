@@ -1,0 +1,1587 @@
+## EXPERIMENT (not a game model): how far the procedural approach goes for the M1A2 SEPv3 when
+## detail is the only goal – chamfered parts, individual track shoes, bolts, cables, rails, and a
+## weathering shader driven by vertex colours (r = chamfer edge, g = openness, b = tint seed).
+## Measurements in metres as in vehicle_frame.gd: `x` from the hull front backwards, `h` above
+## the ground, `z` across (positive = vehicle's right).
+
+const LABEL_HEIGHT := 0.62
+const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
+const PAINT := preload("res://assets/shaders/showcase_paint.gdshader")
+
+const HULL_LENGTH := 7.93
+const GUN_OVERHANG := 1.84
+const K := 0.088
+const TURRET_X := 3.95
+const DECK_H := 1.62
+const ROOF_H := 2.36
+const TRUNNION := Vector2(2.3, 1.98)
+const UPPER_HW := 1.72
+const LOWER_HW := 1.12
+const TRACK_Z := 1.44
+const TRACK_W := 0.63
+const ROAD_X: Array[float] = [1.72, 2.44, 3.16, 3.88, 4.6, 5.32, 6.04]
+const ROAD_H := 0.44
+const ROAD_R := 0.32
+const SPROCKET := Vector3(7.3, 0.8, 0.37)
+const IDLER := Vector3(0.62, 0.76, 0.3)
+const ROLLERS: Array[float] = [2.75, 4.95]
+const ROLLER_H := 1.02
+const SKIRT_X0 := 0.12
+const SKIRT_X1 := 7.05
+const SKIRT_H0 := 0.62
+const SKIRT_H1 := 1.24
+const SKIRT_Z := 1.85
+
+
+## Mesh builder in vehicle metres: every primitive writes flat or smooth triangles with the
+## weathering vertex colour; `xf` places primitives (metric, rigid), `base` maps model space into
+## the pivot the mesh is added to.
+class Kit:
+	extends RefCounted
+	var frame: Frame
+	var base: Transform3D
+	var st := SurfaceTool.new()
+	var xf := Transform3D.IDENTITY
+	var cavity := 1.0
+	var tint := 0.5
+	var count := 0
+
+	func _init(f: Frame, b: Transform3D) -> void:
+		frame = f
+		base = b
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	func commit() -> ArrayMesh:
+		return st.commit()
+
+	func _map(v: Vector3) -> Vector3:
+		var w := xf * v
+		return base * frame.p(w.x, w.y, w.z)
+
+	func _map_n(n: Vector3) -> Vector3:
+		var w := xf.basis * n
+		return (base.basis * Vector3(-w.x, w.y, w.z)).normalized()
+
+	func _set_tint(at: Vector3) -> void:
+		var w := xf * at
+		tint = fposmod(sin(w.dot(Vector3(12.9898, 78.233, 37.719))) * 43758.5453, 1.0)
+
+	func tri(
+		a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3, e: float
+	) -> void:
+		var ma := _map(a)
+		var mb := _map(b)
+		var mc := _map(c)
+		var cross := (mb - ma).cross(mc - ma)
+		if cross.length_squared() < 1e-16:
+			return
+		var n0 := _map_n(na)
+		var n1 := _map_n(nb)
+		var n2 := _map_n(nc)
+		if cross.dot(n0 + n1 + n2) > 0.0:
+			var t := mb
+			mb = mc
+			mc = t
+			var tn := n1
+			n1 = n2
+			n2 = tn
+		var col := Color(e, cavity, tint)
+		for pair: Array in [[ma, n0], [mb, n1], [mc, n2]]:
+			st.set_color(col)
+			st.set_normal(pair[1])
+			st.add_vertex(pair[0])
+		count += 1
+
+	## Flat convex polygon with outward normal `n`.
+	func poly(pts: Array, n: Vector3, e := 0.0) -> void:
+		for i in range(1, pts.size() - 1):
+			tri(pts[0], pts[i], pts[i + 1], n, n, n, e)
+
+	## Flat convex polygon, normal from its winding, turned away from `inside`.
+	func poly_auto(pts: Array, inside: Vector3, e := 0.0) -> void:
+		var a: Vector3 = pts[0]
+		var n := ((pts[1] as Vector3) - a).cross((pts[2] as Vector3) - a)
+		if n.length_squared() < 1e-14 and pts.size() > 3:
+			n = ((pts[2] as Vector3) - a).cross((pts[3] as Vector3) - a)
+		if n.length_squared() < 1e-14:
+			return
+		var mid := Vector3.ZERO
+		for p: Vector3 in pts:
+			mid += p
+		mid /= pts.size()
+		if n.dot(mid - inside) < 0.0:
+			n = -n
+		poly(pts, n.normalized(), e)
+
+	## Chamfered box centred at `c` (size `s`, chamfer `b`), rotated by `rot`.
+	func cbox(c: Vector3, s: Vector3, b: float, rot := Basis.IDENTITY) -> void:
+		var saved := xf
+		xf = xf * Transform3D(rot, c)
+		_set_tint(Vector3.ZERO)
+		var h := s / 2.0
+		b = minf(b, minf(h.x, minf(h.y, h.z)) * 0.9)
+		var i := h - Vector3.ONE * b
+		for a in 3:
+			var u := (a + 1) % 3
+			var v := (a + 2) % 3
+			for sa: float in [-1.0, 1.0]:
+				var pts := []
+				for corner: Vector2 in [
+					Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)
+				]:
+					var p := Vector3.ZERO
+					p[a] = sa * h[a]
+					p[u] = corner.x * i[u]
+					p[v] = corner.y * i[v]
+					pts.append(p)
+				var n := Vector3.ZERO
+				n[a] = sa
+				poly(pts, n)
+		if b > 0.0:
+			for a in 3:
+				var u := (a + 1) % 3
+				var v := (a + 2) % 3
+				for sa: float in [-1.0, 1.0]:
+					for su: float in [-1.0, 1.0]:
+						var p1 := Vector3.ZERO
+						p1[a] = sa * h[a]
+						p1[u] = su * i[u]
+						var p2 := Vector3.ZERO
+						p2[a] = sa * i[a]
+						p2[u] = su * h[u]
+						var q0 := p1
+						var q1 := p2
+						var q2 := p2
+						var q3 := p1
+						q0[v] = -i[v]
+						q1[v] = -i[v]
+						q2[v] = i[v]
+						q3[v] = i[v]
+						var q := [q0, q1, q2, q3]
+						var n := Vector3.ZERO
+						n[a] = sa
+						n[u] = su
+						poly(q, n.normalized(), 1.0)
+			for sx: float in [-1.0, 1.0]:
+				for sy: float in [-1.0, 1.0]:
+					for sz: float in [-1.0, 1.0]:
+						var pts := [
+							Vector3(sx * h.x, sy * i.y, sz * i.z),
+							Vector3(sx * i.x, sy * h.y, sz * i.z),
+							Vector3(sx * i.x, sy * i.y, sz * h.z),
+						]
+						poly(pts, Vector3(sx, sy, sz).normalized(), 1.0)
+		xf = saved
+
+	## Soft superellipsoid "pillow" (bags, tarps): box-like with rounded, smooth-shaded sides.
+	func pillow(c: Vector3, s: Vector3, rot := Basis.IDENTITY, e := 0.35, rings := 10, sides := 16) -> void:
+		var saved := xf
+		xf = xf * Transform3D(rot, c)
+		_set_tint(Vector3.ZERO)
+		var h := s / 2.0
+		var grid := []
+		var normals := []
+		for i in rings + 1:
+			var lat := lerpf(-PI / 2.0, PI / 2.0, float(i) / rings)
+			var row := []
+			var nrow := []
+			for j in sides:
+				var lon := TAU * j / sides
+				var d := Vector3(cos(lat) * cos(lon), sin(lat), cos(lat) * sin(lon))
+				var q := Vector3(signf(d.x) * pow(absf(d.x), e), signf(d.y) * pow(absf(d.y), e), signf(d.z) * pow(absf(d.z), e))
+				var p := q * h
+				var n := Vector3(signf(d.x) * pow(absf(d.x), 2.0 - e) / h.x, signf(d.y) * pow(absf(d.y), 2.0 - e) / h.y, signf(d.z) * pow(absf(d.z), 2.0 - e) / h.z)
+				row.append(p)
+				nrow.append(n.normalized() if n.length_squared() > 1e-12 else d)
+			grid.append(row)
+			normals.append(nrow)
+		for i in rings:
+			for j in sides:
+				var k := (j + 1) % sides
+				tri(grid[i][j], grid[i][k], grid[i + 1][k], normals[i][j], normals[i][k], normals[i + 1][k], 0.0)
+				tri(grid[i][j], grid[i + 1][k], grid[i + 1][j], normals[i][j], normals[i + 1][k], normals[i + 1][j], 0.0)
+		xf = saved
+
+	## Box spanning x0..x1, h0..h1, z0 +- hw (vehicle axes), chamfer `b`.
+	func slab(x0: float, x1: float, h0: float, h1: float, hw: float, z0 := 0.0, b := 0.02) -> void:
+		cbox(
+			Vector3((x0 + x1) / 2.0, (h0 + h1) / 2.0, z0),
+			Vector3(absf(x1 - x0), h1 - h0, hw * 2.0),
+			b
+		)
+
+	func pair(x0: float, x1: float, h0: float, h1: float, hw: float, z: float, b := 0.02) -> void:
+		for s: float in [-1.0, 1.0]:
+			slab(x0, x1, h0, h1, hw, s * z, b)
+
+	## Lathe around local +Y of `rot` at `c`: `prof` = Vector2(radius, y) from the top down around
+	## the outside. Short diagonal segments count as chamfers (edge wear).
+	func lathe(c: Vector3, rot: Basis, prof: Array, sides: int, smooth := true) -> void:
+		var saved := xf
+		xf = xf * Transform3D(rot, c)
+		_set_tint(Vector3.ZERO)
+		for j in prof.size() - 1:
+			var p0: Vector2 = prof[j]
+			var p1: Vector2 = prof[j + 1]
+			var d := p1 - p0
+			if d.length() < 1e-6:
+				continue
+			var n2 := Vector2(-d.y, d.x).normalized()
+			var e := 1.0 if absf(d.x) > 1e-5 and absf(d.y) > 1e-5 and d.length() < 0.06 else 0.0
+			for k in sides:
+				var t0 := TAU * k / sides
+				var t1 := TAU * (k + 1) / sides
+				var c0 := Vector3(cos(t0), 0.0, sin(t0))
+				var c1 := Vector3(cos(t1), 0.0, sin(t1))
+				var v00 := c0 * p0.x + Vector3(0, p0.y, 0)
+				var v01 := c1 * p0.x + Vector3(0, p0.y, 0)
+				var v10 := c0 * p1.x + Vector3(0, p1.y, 0)
+				var v11 := c1 * p1.x + Vector3(0, p1.y, 0)
+				var n0 := c0 * n2.x + Vector3(0, n2.y, 0)
+				var n1 := c1 * n2.x + Vector3(0, n2.y, 0)
+				if not smooth:
+					var cm := (c0 + c1).normalized()
+					n0 = cm * n2.x + Vector3(0, n2.y, 0)
+					n1 = n0
+				tri(v00, v01, v11, n0, n1, n1, e)
+				tri(v00, v11, v10, n0, n1, n0, e)
+		xf = saved
+
+	## Cylinder of radius `r`, `length` along `dir` (vehicle axes), centred at `c`, chamfer `b`.
+	func rod(c: Vector3, dir: Vector3, r: float, length: float, sides := 12, b := 0.0) -> void:
+		var hl := length / 2.0
+		var prof: Array
+		if b > 0.0:
+			prof = [
+				Vector2(0, hl),
+				Vector2(r - b, hl),
+				Vector2(r, hl - b),
+				Vector2(r, -hl + b),
+				Vector2(r - b, -hl),
+				Vector2(0, -hl)
+			]
+		else:
+			prof = [Vector2(0, hl), Vector2(r, hl), Vector2(r, -hl), Vector2(0, -hl)]
+		lathe(c, Frame.axis_basis(dir), prof, sides)
+
+	## Hex bolt head on a surface at `c` facing `dir`.
+	func bolt(c: Vector3, dir: Vector3, r := 0.022) -> void:
+		var hgt := r * 0.7
+		lathe(
+			c,
+			Frame.axis_basis(dir),
+			[
+				Vector2(0, hgt),
+				Vector2(r, hgt),
+				Vector2(r, 0.0)
+			],
+			6,
+			false
+		)
+
+	## Rings of points connected in order (same count, convex cross-sections), capped at both ends;
+	## `edges[i]` flags band i as a chamfer.
+	func stack(rings: Array, edges: Array) -> void:
+		var centre := Vector3.ZERO
+		var total := 0
+		for ring: Array in rings:
+			for p: Vector3 in ring:
+				centre += p
+				total += 1
+		centre /= total
+		_set_tint(centre)
+		var n := (rings[0] as Array).size()
+		for r in rings.size() - 1:
+			var a: Array = rings[r]
+			var b: Array = rings[r + 1]
+			for i in n:
+				var j := (i + 1) % n
+				poly_auto([a[i], a[j], b[j], b[i]], centre, edges[r])
+		poly_auto(rings[0], centre)
+		poly_auto(rings[rings.size() - 1], centre)
+
+	## Loft of plan outlines (Vector2(x, z)) from h0 to h1, the roof edge chamfered by `b`.
+	func loft(bottom: Array, top: Array, h0: float, h1: float, b: float) -> void:
+		var inner := _offset(_ccw(top), -b)
+		var lo := []
+		var mid := []
+		var hi := []
+		for p: Vector2 in _ccw(bottom):
+			lo.append(Vector3(p.x, h0, p.y))
+		for p: Vector2 in _ccw(top):
+			mid.append(Vector3(p.x, h1 - b, p.y))
+		for p: Vector2 in inner:
+			hi.append(Vector3(p.x, h1, p.y))
+		stack([lo, mid, hi], [0.0, 1.0])
+
+	## Prism of a polygon in the (U, V) plane from w0 to w1 along W, both rims chamfered by `b`;
+	## works for non-convex outlines (gears, skirts).
+	func plate(
+		outline: Array,
+		o: Vector3,
+		u: Vector3,
+		v: Vector3,
+		w: Vector3,
+		w0: float,
+		w1: float,
+		b := 0.0
+	) -> void:
+		var ring := _ccw(outline)
+		var inner := _offset(ring, -b) if b > 0.0 else ring
+		var at := func(p: Vector2, depth: float) -> Vector3:
+			return o + u * p.x + v * p.y + w * depth
+		_set_tint(o + u * ring[0].x + v * ring[0].y)
+		var n := ring.size()
+		for i in n:
+			var j := (i + 1) % n
+			var d: Vector2 = (ring[j] as Vector2) - (ring[i] as Vector2)
+			var n2 := Vector2(d.y, -d.x).normalized()
+			var side := (u * n2.x + v * n2.y).normalized()
+			poly(
+				[
+					at.call(ring[i], w0 + b),
+					at.call(ring[j], w0 + b),
+					at.call(ring[j], w1 - b),
+					at.call(ring[i], w1 - b)
+				],
+				side
+			)
+			if b > 0.0:
+				poly(
+					[
+						at.call(ring[i], w1 - b),
+						at.call(ring[j], w1 - b),
+						at.call(inner[j], w1),
+						at.call(inner[i], w1)
+					],
+					(side + w).normalized(),
+					1.0
+				)
+				poly(
+					[
+						at.call(ring[i], w0 + b),
+						at.call(ring[j], w0 + b),
+						at.call(inner[j], w0),
+						at.call(inner[i], w0)
+					],
+					(side - w).normalized(),
+					1.0
+				)
+		var idx := Geometry2D.triangulate_polygon(PackedVector2Array(inner))
+		for t in range(0, idx.size(), 3):
+			var a: Vector2 = inner[idx[t]]
+			var bb: Vector2 = inner[idx[t + 1]]
+			var c: Vector2 = inner[idx[t + 2]]
+			poly([at.call(a, w1), at.call(bb, w1), at.call(c, w1)], w)
+			poly([at.call(a, w0), at.call(bb, w0), at.call(c, w0)], -w)
+
+	## Side profile (Vector2(x, h)) extruded across z0 +- hw.
+	func profile(points: Array, hw: float, z0 := 0.0, b := 0.03) -> void:
+		plate(points, Vector3(0, 0, z0), Vector3.RIGHT, Vector3.UP, Vector3.BACK, -hw, hw, b)
+
+	## Round tube along a polyline (cables, rails, handles), smooth, capped.
+	func tube(path: Array, r: float, sides := 8) -> void:
+		var n := path.size()
+		var rings := []
+		var normals := []
+		var side := Vector3.ZERO
+		_set_tint(path[0])
+		for i in n:
+			var t: Vector3
+			if i == 0:
+				t = (path[1] as Vector3) - (path[0] as Vector3)
+			elif i == n - 1:
+				t = (path[i] as Vector3) - (path[i - 1] as Vector3)
+			else:
+				t = (path[i + 1] as Vector3) - (path[i - 1] as Vector3)
+			t = t.normalized()
+			if i == 0:
+				var ref := Vector3.UP if absf(t.dot(Vector3.UP)) < 0.9 else Vector3.RIGHT
+				side = t.cross(ref).normalized()
+			else:
+				side = (side - t * side.dot(t)).normalized()
+			var up := side.cross(t)
+			var ring := []
+			var nr := []
+			for k in sides:
+				var a := TAU * k / sides
+				var dir := side * cos(a) + up * sin(a)
+				ring.append((path[i] as Vector3) + dir * r)
+				nr.append(dir)
+			rings.append(ring)
+			normals.append(nr)
+		for i in n - 1:
+			for k in sides:
+				var l := (k + 1) % sides
+				tri(
+					rings[i][k],
+					rings[i][l],
+					rings[i + 1][l],
+					normals[i][k],
+					normals[i][l],
+					normals[i + 1][l],
+					0.0
+				)
+				tri(
+					rings[i][k],
+					rings[i + 1][l],
+					rings[i + 1][k],
+					normals[i][k],
+					normals[i + 1][l],
+					normals[i + 1][k],
+					0.0
+				)
+		var t0 := ((path[0] as Vector3) - (path[1] as Vector3)).normalized()
+		var t1 := ((path[n - 1] as Vector3) - (path[n - 2] as Vector3)).normalized()
+		for k in range(1, sides - 1):
+			tri(rings[0][0], rings[0][k], rings[0][k + 1], t0, t0, t0, 1.0)
+			tri(rings[n - 1][0], rings[n - 1][k], rings[n - 1][k + 1], t1, t1, t1, 1.0)
+
+	## Arc of `segments` points: centre `c`, radius `r`, from angle a0 to a1 in the plane (e1, e2).
+	static func arc(
+		c: Vector3, r: float, e1: Vector3, e2: Vector3, a0: float, a1: float, segments: int
+	) -> Array:
+		var pts := []
+		for i in segments + 1:
+			var a := lerpf(a0, a1, float(i) / segments)
+			pts.append(c + (e1 * cos(a) + e2 * sin(a)) * r)
+		return pts
+
+	static func _ccw(outline: Array) -> Array:
+		var area := 0.0
+		for i in outline.size():
+			area += (outline[i] as Vector2).cross(outline[(i + 1) % outline.size()])
+		if area >= 0.0:
+			return outline.duplicate()
+		var reversed := outline.duplicate()
+		reversed.reverse()
+		return reversed
+
+	static func _offset(path: Array, distance: float) -> Array:
+		var result := []
+		var n := path.size()
+		for i in n:
+			var before: Vector2 = (path[i] as Vector2) - (path[(i - 1 + n) % n] as Vector2)
+			var after: Vector2 = (path[(i + 1) % n] as Vector2) - (path[i] as Vector2)
+			var na := Vector2(before.y, -before.x).normalized()
+			var nb := Vector2(after.y, -after.x).normalized()
+			var bis := (na + nb).normalized()
+			var scale := 1.0 / maxf(bis.dot(na), 0.35)
+			result.append((path[i] as Vector2) + bis * distance * scale)
+		return result
+
+
+## One kit per material for one pivot.
+class Kits:
+	extends RefCounted
+	var frame: Frame
+	var base: Transform3D
+	var kits := {}
+
+	func _init(f: Frame, b: Transform3D) -> void:
+		frame = f
+		base = b
+
+	func k(material: StringName) -> Kit:
+		if not kits.has(material):
+			kits[material] = Kit.new(frame, base)
+		return kits[material]
+
+	func add_to(parent: Node3D, materials: Dictionary) -> void:
+		for name: StringName in kits:
+			var kit: Kit = kits[name]
+			if kit.count > 0:
+				ModelParts.add(parent, kit.commit(), materials[name], Vector3.ZERO)
+
+
+static func build(faction: FactionDefinition) -> Node3D:
+	var g := Node3D.new()
+	var frame := Frame.new(K, (HULL_LENGTH - GUN_OVERHANG) / 2.0)
+	var m := _materials(faction)
+	var hull := Kits.new(frame, Transform3D.IDENTITY)
+	_hull(hull)
+	_engine_deck(hull)
+	_rear(hull)
+	_front(hull)
+	_running_gear(hull)
+	_track(hull)
+	_skirts(hull)
+	hull.add_to(g, m)
+	var turret := frame.add_turret(g, TURRET_X, DECK_H)
+	var tk := Kits.new(frame, Frame.to_local(turret))
+	_turret(tk)
+	_turret_roof(tk)
+	_crows(tk)
+	_bustle(tk)
+	_turret_sides(tk)
+	tk.add_to(turret, m)
+	var gun := frame.add_gun(turret, TRUNNION, -GUN_OVERHANG - 0.05)
+	var gk := Kits.new(frame, Frame.to_local(gun))
+	_gun(gk)
+	gk.add_to(gun, m)
+	return g
+
+
+static func _paint(colors: Array, mode: int, params: Dictionary) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = PAINT
+	mat.set_shader_parameter(&"color_a", colors[0])
+	mat.set_shader_parameter(&"color_b", colors[1] if colors.size() > 1 else colors[0])
+	mat.set_shader_parameter(&"color_c", colors[2] if colors.size() > 2 else colors[0])
+	mat.set_shader_parameter(&"pattern_mode", mode)
+	for key: String in params:
+		mat.set_shader_parameter(StringName(key), params[key])
+	return mat
+
+
+static func _materials(faction: FactionDefinition) -> Dictionary:
+	var camo := ModelParts.camo_colors(faction)
+	var glass := ModelParts.std_material(Color("#0d1a1f"), 0.05, 0.6)
+	var lens := ModelParts.std_material(Color("#c9c4b0"), 0.1, 0.3)
+	var red_lens := ModelParts.std_material(Color("#6a1410"), 0.15, 0.2)
+	return {
+		&"body": _paint(camo, 0, {}),
+		&"dark":
+		_paint(
+			[Color("#2a2b25")],
+			1,
+			{"base_roughness": 0.7, "metallic_value": 0.25, "wear_amount": 0.4, "tint_amount": 0.15}
+		),
+		&"steel":
+		_paint(
+			[Color("#4d4d47")],
+			1,
+			{
+				"base_roughness": 0.45,
+				"metallic_value": 0.7,
+				"dust_amount": 0.3,
+				"streak_amount": 0.0
+			}
+		),
+		&"rubber":
+		_paint(
+			[Color("#1b1b19")],
+			1,
+			{"base_roughness": 0.95, "metallic_value": 0.0, "wear_amount": 0.0, "tint_amount": 0.0}
+		),
+		&"track":
+		_paint(
+			[Color("#3b3731")],
+			1,
+			{
+				"base_roughness": 0.6,
+				"metallic_value": 0.55,
+				"wear_amount": 1.0,
+				"mud_height": 0.09,
+				"mud_amount": 1.0,
+				"dust_amount": 0.8
+			}
+		),
+		&"cloth":
+		_paint(
+			[Color("#4c4b35")],
+			1,
+			{
+				"base_roughness": 1.0,
+				"metallic_value": 0.0,
+				"wear_amount": 0.0,
+				"tint_amount": 0.3,
+				"streak_amount": 0.0
+			}
+		),
+		&"glass": glass,
+		&"lens": lens,
+		&"red_lens": red_lens,
+		&"white": ModelParts.std_material(Color("#d9d6cc"), 0.6, 0.0),
+		&"red": ModelParts.std_material(Color("#a3242a"), 0.6, 0.0),
+	}
+
+
+# --- Hull ---------------------------------------------------------------------------------------
+
+
+static func _hull(h: Kits) -> void:
+	var body := h.k(&"body")
+	body.profile(
+		[
+			Vector2(0.0, 1.14),
+			Vector2(0.0, 1.27),
+			Vector2(2.25, 1.6),
+			Vector2(7.8, DECK_H),
+			Vector2(HULL_LENGTH, 1.55),
+			Vector2(HULL_LENGTH, 1.14)
+		],
+		UPPER_HW,
+		0.0,
+		0.035
+	)
+	body.profile(
+		[
+			Vector2(0.04, 1.2),
+			Vector2(0.95, 0.52),
+			Vector2(7.45, 0.48),
+			Vector2(7.88, 0.78),
+			Vector2(7.88, 1.2)
+		],
+		LOWER_HW,
+		0.0,
+		0.03
+	)
+	# Fender lip along the hull side and its support brackets.
+	for s: float in [-1.0, 1.0]:
+		body.slab(0.1, 7.9, 1.12, 1.16, 0.05, s * (UPPER_HW - 0.02), 0.012)
+		for i in 9:
+			var x := 0.6 + i * 0.85
+			body.slab(x, x + 0.06, 1.0, 1.14, 0.25, s * (UPPER_HW - 0.27), 0.01)
+	# Hull-side tie-down eyes and lifting eyes.
+	var dark := h.k(&"dark")
+	for s: float in [-1.0, 1.0]:
+		for x: float in [0.35, 7.6]:
+			dark.tube(
+				Kit.arc(
+					Vector3(x, 1.33 if x < 1.0 else DECK_H + 0.01, s * 1.55), 0.06, Vector3.RIGHT, Vector3.UP, 0.0, PI, 8
+				),
+				0.016,
+				6
+			)
+	# Turret ring guard and the shadowed ring gap.
+	dark.cavity = 0.2
+	dark.rod(Vector3(TURRET_X, DECK_H + 0.03, 0.0), Vector3.UP, 1.15, 0.06, 40)
+	dark.cavity = 1.0
+
+
+static func _front(h: Kits) -> void:
+	var body := h.k(&"body")
+	var dark := h.k(&"dark")
+	var glass := h.k(&"glass")
+	var steel := h.k(&"steel")
+	var lens := h.k(&"lens")
+	var rubber := h.k(&"rubber")
+	# Driver's hatch in its recess on the glacis, three periscopes.
+	var tilt := Basis(Vector3.BACK, -atan2(0.33, 2.25))
+	dark.cavity = 0.35
+	dark.cbox(Vector3(1.95, 1.565, 0.0), Vector3(0.62, 0.04, 0.72), 0.01, tilt)
+	dark.cavity = 1.0
+	body.cbox(Vector3(2.0, 1.585, 0.0), Vector3(0.5, 0.04, 0.6), 0.015, tilt)
+	for z: float in [-0.22, 0.0, 0.22]:
+		body.cbox(Vector3(1.72, 1.58, z), Vector3(0.1, 0.1, 0.17), 0.012, tilt)
+		glass.cbox(Vector3(1.67, 1.59, z), Vector3(0.012, 0.06, 0.14), 0.0, tilt)
+	# Glacis armour plate seam and the splash strip ahead of the driver.
+	dark.cavity = 0.3
+	dark.cbox(Vector3(1.2, 1.455, 0.0), Vector3(0.025, 0.012, 2.9), 0.0, tilt)
+	dark.cavity = 1.0
+	body.cbox(Vector3(1.45, 1.51, 0.0), Vector3(0.06, 0.05, 1.3), 0.015, tilt)
+	for s: float in [-1.0, 1.0]:
+		var z := s * 1.42
+		# Headlight cluster: armoured housing, two lenses, guard cage.
+		body.slab(0.06, 0.4, 1.27, 1.45, 0.17, z, 0.02)
+		for dz: float in [-0.07, 0.07]:
+			lens.rod(Vector3(0.05, 1.37, z + dz), Vector3.RIGHT, 0.045, 0.02, 12)
+			dark.rod(Vector3(0.065, 1.37, z + dz), Vector3.RIGHT, 0.055, 0.02, 12)
+		steel.tube(
+			[
+				Vector3(0.35, 1.45, z - 0.19),
+				Vector3(-0.02, 1.45, z - 0.19),
+				Vector3(-0.04, 1.3, z - 0.19),
+				Vector3(0.1, 1.27, z - 0.19)
+			],
+			0.012,
+			6
+		)
+		steel.tube(
+			[
+				Vector3(0.35, 1.45, z + 0.19),
+				Vector3(-0.02, 1.45, z + 0.19),
+				Vector3(-0.04, 1.3, z + 0.19),
+				Vector3(0.1, 1.27, z + 0.19)
+			],
+			0.012,
+			6
+		)
+		steel.tube([Vector3(-0.02, 1.45, z - 0.19), Vector3(-0.02, 1.45, z + 0.19)], 0.012, 6)
+		# Front mud flaps hanging from the fender.
+		rubber.cbox(
+			Vector3(0.08, 1.02, s * 1.47),
+			Vector3(0.02, 0.24, 0.5),
+			0.005,
+			Basis(Vector3.BACK, 0.12)
+		)
+		# Tow shackles on the lower front plate.
+		var c := Vector3(0.18, 0.95, s * 0.72)
+		dark.slab(0.1, 0.24, 0.88, 1.06, 0.1, s * 0.72, 0.015)
+		steel.tube(
+			Kit.arc(
+				c + Vector3(-0.12, -0.05, 0),
+				0.07,
+				Vector3.UP,
+				Vector3(-1, -0.6, 0).normalized(),
+				-PI * 0.5,
+				PI * 0.5,
+				10
+			),
+			0.025,
+			8
+		)
+		steel.rod(c + Vector3(-0.12, -0.05, 0), Vector3.BACK, 0.03, 0.22, 10, 0.006)
+	# Lower front plate bolts.
+	for i in 8:
+		var z := -0.9 + i * (1.8 / 7.0)
+		body.bolt(Vector3(0.35, 1.02, z), Vector3(-1, 0.55, 0), 0.02)
+
+
+static func _engine_deck(h: Kits) -> void:
+	var body := h.k(&"body")
+	var dark := h.k(&"dark")
+	# Three grille doors: raised frames, recessed dark louvres, hinges and handles.
+	for panel in 3:
+		var z0 := -1.32 + panel * 0.9
+		var z1 := z0 + 0.84
+		var zc := (z0 + z1) / 2.0
+		var hw := (z1 - z0) / 2.0
+		dark.cavity = 0.25
+		dark.slab(6.05, 7.65, DECK_H - 0.01, DECK_H + 0.005, hw - 0.02, zc, 0.0)
+		dark.cavity = 1.0
+		for i in 12:
+			var x := 6.12 + i * 0.125
+			dark.cbox(
+				Vector3(x, DECK_H + 0.02, zc),
+				Vector3(0.05, 0.035, hw * 2.0 - 0.08),
+				0.0,
+				Basis(Vector3.BACK, 0.35)
+			)
+		body.slab(6.0, 6.06, DECK_H, DECK_H + 0.045, hw, zc, 0.012)
+		body.slab(7.64, 7.7, DECK_H, DECK_H + 0.045, hw, zc, 0.012)
+		body.slab(6.0, 7.7, DECK_H, DECK_H + 0.045, 0.03, z0 + 0.03, 0.012)
+		body.slab(6.0, 7.7, DECK_H, DECK_H + 0.045, 0.03, z1 - 0.03, 0.012)
+		for x: float in [6.3, 7.4]:
+			h.k(&"steel").tube(
+				[
+					Vector3(x - 0.08, DECK_H + 0.045, zc),
+					Vector3(x - 0.07, DECK_H + 0.1, zc),
+					Vector3(x + 0.07, DECK_H + 0.1, zc),
+					Vector3(x + 0.08, DECK_H + 0.045, zc)
+				],
+				0.012,
+				6
+			)
+	# Front engine access plates with bolt rows and lifting rings.
+	for i in 2:
+		var x0 := 4.95 + i * 0.52
+		dark.cavity = 0.4
+		dark.slab(x0, x0 + 0.5, DECK_H - 0.003, DECK_H + 0.006, 1.42, 0.0, 0.0)
+		dark.cavity = 1.0
+		body.slab(x0 + 0.01, x0 + 0.49, DECK_H, DECK_H + 0.018, 1.4, 0.0, 0.006)
+		for k in 6:
+			var z := -1.3 + k * (2.6 / 5.0)
+			body.bolt(Vector3(x0 + 0.04, DECK_H + 0.018, z), Vector3.UP, 0.015)
+			body.bolt(Vector3(x0 + 0.46, DECK_H + 0.018, z), Vector3.UP, 0.015)
+
+
+static func _rear(h: Kits) -> void:
+	var body := h.k(&"body")
+	var dark := h.k(&"dark")
+	var steel := h.k(&"steel")
+	var x := HULL_LENGTH
+	# Big exhaust grille: frame, recess, angled louvres.
+	dark.cavity = 0.2
+	dark.slab(x - 0.05, x + 0.01, 1.17, 1.53, 1.2, 0.0, 0.0)
+	dark.cavity = 1.0
+	for i in 8:
+		var hh := 1.2 + i * 0.042
+		dark.cbox(
+			Vector3(x + 0.02, hh, 0.0), Vector3(0.012, 0.05, 2.32), 0.004, Basis(Vector3.BACK, -0.6)
+		)
+	body.slab(x - 0.02, x + 0.05, 1.14, 1.18, 1.27, 0.0, 0.012)
+	body.slab(x - 0.02, x + 0.05, 1.52, 1.56, 1.27, 0.0, 0.012)
+	body.pair(x - 0.02, x + 0.05, 1.14, 1.56, 0.05, 1.22, 0.012)
+	body.slab(x - 0.02, x + 0.05, 1.14, 1.56, 0.03, 0.0, 0.01)
+	# Tail light clusters with guards, infantry phone box, tow pintle.
+	for s: float in [-1.0, 1.0]:
+		var z := s * 1.5
+		body.slab(x - 0.05, x + 0.07, 1.22, 1.42, 0.13, z, 0.015)
+		h.k(&"red_lens").slab(x + 0.07, x + 0.08, 1.33, 1.39, 0.08, z, 0.0)
+		h.k(&"lens").slab(x + 0.07, x + 0.08, 1.25, 1.3, 0.08, z, 0.0)
+		steel.tube(
+			[
+				Vector3(x + 0.0, 1.44, z - 0.15),
+				Vector3(x + 0.12, 1.44, z - 0.15),
+				Vector3(x + 0.12, 1.2, z - 0.15),
+				Vector3(x + 0.0, 1.2, z - 0.15)
+			],
+			0.01,
+			6
+		)
+		steel.tube(
+			[
+				Vector3(x + 0.0, 1.44, z + 0.15),
+				Vector3(x + 0.12, 1.44, z + 0.15),
+				Vector3(x + 0.12, 1.2, z + 0.15),
+				Vector3(x + 0.0, 1.2, z + 0.15)
+			],
+			0.01,
+			6
+		)
+		# Tow hooks on the lower rear plate.
+		dark.slab(7.8, 7.95, 0.82, 1.0, 0.07, s * 0.85, 0.015)
+		steel.tube(
+			Kit.arc(
+				Vector3(7.98, 0.88, s * 0.85), 0.06, Vector3.UP, Vector3.RIGHT, 0.0, PI * 1.3, 8
+			),
+			0.022,
+			8
+		)
+	body.slab(x - 0.02, x + 0.09, 1.2, 1.4, 0.11, 0.62, 0.015)
+	dark.rod(Vector3(7.95, 0.9, 0.0), Vector3.UP, 0.07, 0.12, 12, 0.01)
+	steel.tube(
+		Kit.arc(Vector3(8.02, 0.96, 0.0), 0.06, Vector3.RIGHT, Vector3.UP, -PI * 0.5, PI * 0.5, 8),
+		0.022,
+		8
+	)
+	# Tow cable hung across the rear grille: eyes on the hooks, sagging run.
+	var cable := []
+	for i in 17:
+		var t := float(i) / 16.0
+		var zc := lerpf(-1.05, 1.05, t)
+		var sag := 0.16 * (1.0 - pow(2.0 * t - 1.0, 2.0))
+		cable.append(Vector3(x + 0.09 + 0.02 * sin(t * 9.0), 1.5 - sag, zc))
+	steel.tube(cable, 0.024, 8)
+	for s: float in [-1.0, 1.0]:
+		steel.tube(
+			Kit.arc(
+				Vector3(x + 0.09, 1.52, s * 1.1),
+				0.06,
+				Vector3.BACK * s,
+				Vector3.UP,
+				-PI * 0.2,
+				PI * 1.6,
+				10
+			),
+			0.016,
+			6
+		)
+	# Rear fender stowage boxes with lids, latches and hinges.
+	for s: float in [-1.0, 1.0]:
+		var z := s * 1.32
+		body.slab(7.2, 7.9, DECK_H, 1.82, 0.36, z, 0.02)
+		body.slab(7.18, 7.92, 1.82, 1.85, 0.38, z, 0.012)
+		for dz: float in [-0.2, 0.2]:
+			dark.slab(7.9, 7.93, 1.72, 1.8, 0.03, z + dz, 0.006)
+			steel.rod(Vector3(7.19, 1.84, z + dz), Vector3.BACK, 0.015, 0.1, 8)
+	# UAPU armoured box and exhaust (rear left fender).
+	body.slab(6.85, 7.18, DECK_H, 1.84, 0.33, -1.32, 0.02)
+	dark.cavity = 0.3
+	for i in 5:
+		dark.slab(6.9 + i * 0.055, 6.93 + i * 0.055, 1.835, 1.845, 0.26, -1.32, 0.0)
+	dark.cavity = 1.0
+	dark.rod(Vector3(7.02, 1.88, -1.6), Vector3.UP, 0.05, 0.1, 10, 0.008)
+	# Rear mud flaps.
+	for s: float in [-1.0, 1.0]:
+		h.k(&"rubber").cbox(
+			Vector3(7.88, 1.0, s * 1.46), Vector3(0.02, 0.26, 0.5), 0.005, Basis(Vector3.BACK, -0.1)
+		)
+
+
+# --- Running gear -------------------------------------------------------------------------------
+
+
+static func _wheel_basis(s: float) -> Basis:
+	return Basis(Vector3.RIGHT, PI / 2.0 if s > 0.0 else -PI / 2.0)
+
+
+static func _running_gear(h: Kits) -> void:
+	var body := h.k(&"body")
+	var rubber := h.k(&"rubber")
+	var dark := h.k(&"dark")
+	var steel := h.k(&"steel")
+	for s: float in [-1.0, 1.0]:
+		var rot := _wheel_basis(s)
+		for x: float in ROAD_X:
+			# Double road wheel: the outer half detailed (dished disc, tyre, hub cap, bolts); the
+			# inner half is hidden behind it and the track, so a plain drum.
+			dark.rod(Vector3(x, ROAD_H, s * (TRACK_Z - 0.08)), Vector3.BACK, 0.3, 0.1, 8)
+			for half: float in [1.0]:
+				var zc := s * (TRACK_Z + half * 0.08)
+				var r := rot if half > 0.0 else _wheel_basis(-s)
+				var c := Vector3(x, ROAD_H, zc)
+				body.lathe(
+					c,
+					r,
+					[
+						Vector2(0.0, 0.17),
+						Vector2(0.08, 0.17),
+						Vector2(0.1, 0.13),
+						Vector2(0.235, 0.09),
+						Vector2(0.27, 0.11),
+						Vector2(0.27, 0.0)
+					],
+					12
+				)
+				rubber.lathe(
+					c,
+					r,
+					[
+						Vector2(0.27, 0.105),
+						Vector2(0.3, 0.105),
+						Vector2(0.32, 0.085),
+						Vector2(0.32, 0.02),
+						Vector2(0.3, 0.0)
+					],
+					12
+				)
+				if half > 0.0:
+					for k in 6:
+						var a := TAU * k / 6.0
+						body.bolt(
+							c + Vector3(cos(a) * 0.125, sin(a) * 0.125, s * 0.12),
+							Vector3(0, 0, s),
+							0.014
+						)
+					steel.lathe(
+						c,
+						r,
+						[
+							Vector2(0.0, 0.215),
+							Vector2(0.045, 0.215),
+							Vector2(0.055, 0.2),
+							Vector2(0.055, 0.16),
+							Vector2(0.0, 0.16)
+						],
+						8
+					)
+			# Road arm trailing from its hull pivot (only its lower end shows between the wheels).
+			var pivot := Vector3(x - 0.42, 0.62, s * 1.09)
+			var hub := Vector3(x, ROAD_H, s * 1.09)
+			var d := hub - pivot
+			var arm_basis := Basis(Vector3.BACK, atan2(d.y, d.x))
+			dark.cbox((pivot + hub) / 2.0, Vector3(d.length() + 0.12, 0.12, 0.09), 0.0, arm_basis)
+		# Return rollers: behind the skirts, only there to carry the top run.
+		for x: float in ROLLERS:
+			dark.rod(Vector3(x, ROLLER_H, s * TRACK_Z), Vector3.BACK, 0.1, 0.26, 8)
+		# Idler: outer half detailed, the inner half (hidden) a plain drum.
+		dark.rod(Vector3(IDLER.x, IDLER.y, s * (TRACK_Z - 0.08)), Vector3.BACK, 0.29, 0.1, 8)
+		body.lathe(
+			Vector3(IDLER.x, IDLER.y, s * (TRACK_Z + 0.08)),
+			rot,
+			[
+				Vector2(0.0, 0.15),
+				Vector2(0.07, 0.15),
+				Vector2(0.09, 0.13),
+				Vector2(0.21, 0.1),
+				Vector2(0.27, 0.11),
+				Vector2(0.3, 0.1),
+				Vector2(0.3, 0.0)
+			],
+			16
+		)
+		dark.cbox(
+			Vector3(IDLER.x + 0.25, 0.85, s * 1.1),
+			Vector3(0.5, 0.14, 0.1),
+			0.0,
+			Basis(Vector3.BACK, -0.35)
+		)
+		# Drive sprocket: two toothed rings, hub with bolts and cover.
+		for half: float in [-1.0, 1.0]:
+			var w := s * (TRACK_Z + half * 0.1)
+			var gear := []
+			for p in ModelParts.gear_outline(0.3, SPROCKET.z, 11):
+				gear.append(p)
+			steel.plate(
+				gear,
+				Vector3(SPROCKET.x, SPROCKET.y, w),
+				Vector3.RIGHT,
+				Vector3.UP,
+				Vector3.BACK,
+				-0.025,
+				0.025,
+				0.0
+			)
+			body.lathe(
+				Vector3(SPROCKET.x, SPROCKET.y, w),
+				rot,
+				[
+					Vector2(0.0, 0.035),
+					Vector2(0.28, 0.035),
+					Vector2(0.3, 0.02),
+					Vector2(0.3, -0.02),
+					Vector2(0.28, -0.035),
+					Vector2(0.0, -0.035)
+				],
+				16
+			)
+		var hub_c := Vector3(SPROCKET.x, SPROCKET.y, s * (TRACK_Z + 0.1))
+		body.lathe(
+			hub_c,
+			rot,
+			[
+				Vector2(0.0, 0.16),
+				Vector2(0.09, 0.16),
+				Vector2(0.11, 0.14),
+				Vector2(0.17, 0.12),
+				Vector2(0.2, 0.06),
+				Vector2(0.2, 0.0),
+				Vector2(0.0, 0.0)
+			],
+			18
+		)
+		for k in 10:
+			var a := TAU * k / 10.0
+			steel.bolt(
+				hub_c + Vector3(cos(a) * 0.15, sin(a) * 0.15, s * 0.125),
+				Vector3(-cos(a) * 0.3, -sin(a) * 0.3, s).normalized(),
+				0.016
+			)
+		body.rod(Vector3(SPROCKET.x, SPROCKET.y, s * 1.2), Vector3.BACK, 0.24, 0.12, 12)
+
+
+## Track: individual shoes (steel body, twin rubber pads, end connectors with wedges, centre guide
+## horns) stepped along the loop around the wheels.
+static func _track(h: Kits) -> void:
+	var circles: Array[Vector3] = []
+	for x: float in ROAD_X:
+		circles.append(Vector3(x, ROAD_H, ROAD_R - 0.0))
+	for x: float in ROLLERS:
+		circles.append(Vector3(x, ROLLER_H, 0.1))
+	circles.append(Vector3(SPROCKET.x, SPROCKET.y, 0.3))
+	circles.append(Vector3(IDLER.x, IDLER.y, IDLER.z))
+	var loop := ModelParts.circle_hull(circles, 24)
+	var track := h.k(&"track")
+	var rubber := h.k(&"rubber")
+	var steel := h.k(&"steel")
+	for s: float in [-1.0, 1.0]:
+		for station: Array in ModelParts.path_stations(loop, 0.193):
+			var p: Vector2 = station[0]
+			var t: Vector2 = station[1]
+			var out := Vector2(t.y, -t.x)
+			var basis := Basis(
+				Vector3(t.x, t.y, 0.0), Vector3(out.x, out.y, 0.0), Vector3(0, 0, -1)
+			)
+			var c := Vector3(p.x, p.y, s * TRACK_Z)
+			var o3 := Vector3(out.x, out.y, 0.0)
+			# Top run behind the skirts is never seen: no shoes there.
+			if p.y > 0.9 and p.x > SKIRT_X0 + 0.5 and p.x < SKIRT_X1:
+				continue
+			# Lite shoe: plain steel body + rubber pad (the guide horns and end connectors only show
+			# from below).
+			track.cbox(c + o3 * 0.035, Vector3(0.186, 0.05, TRACK_W - 0.02), 0.0, basis)
+			rubber.cbox(c + o3 * 0.075, Vector3(0.16, 0.03, TRACK_W - 0.14), 0.0, basis)
+
+
+static func _skirts(h: Kits) -> void:
+	var body := h.k(&"body")
+	var rubber := h.k(&"rubber")
+	var steel := h.k(&"steel")
+	var panels := 7
+	var step := (SKIRT_X1 - SKIRT_X0) / panels
+	for s: float in [-1.0, 1.0]:
+		for i in panels:
+			var x0 := SKIRT_X0 + i * step + 0.006
+			var x1 := SKIRT_X0 + (i + 1) * step - 0.006
+			var thick := 0.13 if i < 2 else 0.05
+			var outline := [
+				Vector2(x0, SKIRT_H1),
+				Vector2(x1, SKIRT_H1),
+				Vector2(x1, SKIRT_H0),
+				Vector2(x0, SKIRT_H0)
+			]
+			if i == 0:
+				outline = [
+					Vector2(x0, SKIRT_H1),
+					Vector2(x1, SKIRT_H1),
+					Vector2(x1, SKIRT_H0),
+					Vector2(x0 + 0.4, SKIRT_H0),
+					Vector2(x0, SKIRT_H0 + 0.3)
+				]
+			var w0 := SKIRT_Z - thick
+			body.plate(
+				outline,
+				Vector3(0, 0, 0),
+				Vector3.RIGHT,
+				Vector3.UP,
+				Vector3.BACK * s,
+				w0,
+				SKIRT_Z,
+				0.018
+			)
+			var face := Vector3(0, 0, s)
+			if i < 2:
+				# Armoured panels: bolt grid.
+				for row in 3:
+					for col in 4:
+						var bx := x0 + 0.12 + col * (x1 - x0 - 0.24) / 3.0
+						var bh := SKIRT_H1 - 0.1 - row * 0.2
+						if i == 0 and bh < SKIRT_H0 + 0.3 * (1.0 - (bx - x0) / 0.4) + 0.08:
+							continue
+						body.bolt(Vector3(bx, bh, s * SKIRT_Z), face, 0.03)
+			else:
+				# Thin panels: rubber edge strip, top bolt row, side stiffener.
+				rubber.slab(
+					x0 + 0.01,
+					x1 - 0.01,
+					SKIRT_H0 - 0.04,
+					SKIRT_H0 + 0.02,
+					0.02,
+					s * (SKIRT_Z - 0.03),
+					0.006
+				)
+				for col in 4:
+					body.bolt(
+						Vector3(
+							x0 + 0.1 + col * (x1 - x0 - 0.2) / 3.0, SKIRT_H1 - 0.06, s * SKIRT_Z
+						),
+						face,
+						0.02
+					)
+				body.slab(
+					x0 + 0.04,
+					x1 - 0.04,
+					SKIRT_H0 + 0.25,
+					SKIRT_H0 + 0.28,
+					0.012,
+					s * (SKIRT_Z + 0.008),
+					0.004
+				)
+			# Hinge knuckles under the fender.
+			for hx: float in [x0 + 0.15, x1 - 0.15]:
+				steel.rod(
+					Vector3(hx, SKIRT_H1 - 0.02, s * (SKIRT_Z - thick / 2.0)),
+					Vector3.RIGHT,
+					0.025,
+					0.12,
+					8
+				)
+		# Skirt top rail under the fender lip.
+		body.slab(SKIRT_X0, SKIRT_X1, SKIRT_H1, SKIRT_H1 + 0.04, 0.06, s * (SKIRT_Z - 0.06), 0.01)
+
+
+# --- Turret -------------------------------------------------------------------------------------
+
+
+static func _turret(t: Kits) -> void:
+	var body := t.k(&"body")
+	var dark := t.k(&"dark")
+	# Main block behind the gun recess, the two armour cheeks ahead of it, the bustle.
+	body.loft(
+		[
+			Vector2(2.3, -1.45),
+			Vector2(2.75, -1.66),
+			Vector2(5.0, -1.66),
+			Vector2(5.0, 1.66),
+			Vector2(2.75, 1.66),
+			Vector2(2.3, 1.45)
+		],
+		[
+			Vector2(2.4, -1.4),
+			Vector2(2.85, -1.58),
+			Vector2(5.0, -1.58),
+			Vector2(5.0, 1.58),
+			Vector2(2.85, 1.58),
+			Vector2(2.4, 1.4)
+		],
+		DECK_H + 0.05,
+		ROOF_H,
+		0.04
+	)
+	for s: float in [-1.0, 1.0]:
+		var lo := [
+			Vector2(1.85, s * 0.46),
+			Vector2(1.85, s * 0.92),
+			Vector2(2.75, s * 1.66),
+			Vector2(3.0, s * 1.66),
+			Vector2(3.0, s * 0.46)
+		]
+		var hi := [
+			Vector2(2.08, s * 0.48),
+			Vector2(2.08, s * 0.9),
+			Vector2(2.85, s * 1.58),
+			Vector2(3.0, s * 1.58),
+			Vector2(3.0, s * 0.48)
+		]
+		body.loft(lo, hi, DECK_H + 0.05, ROOF_H, 0.04)
+		# Armour module seam lines on the cheek roof and front.
+		dark.cavity = 0.3
+		dark.cbox(
+			Vector3(2.55, ROOF_H + 0.002, s * 1.05),
+			Vector3(0.02, 0.006, 0.9),
+			0.0,
+			Basis(Vector3.UP, s * 0.7)
+		)
+		dark.cavity = 1.0
+	body.loft(
+		[Vector2(4.95, -1.66), Vector2(6.35, -1.52), Vector2(6.35, 1.52), Vector2(4.95, 1.66)],
+		[Vector2(4.95, -1.58), Vector2(6.3, -1.44), Vector2(6.3, 1.44), Vector2(4.95, 1.58)],
+		1.8,
+		ROOF_H,
+		0.035
+	)
+	# Shadowed gap under the bustle and turret skirt.
+	dark.cavity = 0.15
+	dark.slab(4.9, 6.3, 1.7, 1.81, 1.45, 0.0, 0.0)
+	dark.cavity = 1.0
+
+
+static func _turret_roof(t: Kits) -> void:
+	var body := t.k(&"body")
+	var dark := t.k(&"dark")
+	var glass := t.k(&"glass")
+	var steel := t.k(&"steel")
+	var r := ROOF_H
+	# Gunner's primary sight doghouse with armoured doors and window.
+	body.slab(2.55, 3.35, r - 0.02, r + 0.28, 0.21, 0.98, 0.03)
+	body.slab(2.5, 2.58, r + 0.04, r + 0.27, 0.2, 0.98, 0.015)
+	dark.cavity = 0.4
+	dark.slab(2.48, 2.51, r + 0.08, r + 0.22, 0.16, 0.98, 0.0)
+	dark.cavity = 1.0
+	glass.slab(2.475, 2.49, r + 0.1, r + 0.2, 0.14, 0.98, 0.0)
+	for z: float in [0.8, 1.16]:
+		steel.rod(Vector3(2.52, r + 0.29, z), Vector3.RIGHT, 0.018, 0.12, 8)
+	# CITV: pedestal, rotating head, window, rain shield.
+	dark.rod(Vector3(3.3, r + 0.08, -0.95), Vector3.UP, 0.15, 0.16, 18, 0.02)
+	body.rod(Vector3(3.3, r + 0.3, -0.95), Vector3.UP, 0.13, 0.28, 18, 0.025)
+	body.slab(3.1, 3.42, r + 0.2, r + 0.4, 0.13, -0.95, 0.025)
+	glass.slab(3.085, 3.1, r + 0.25, r + 0.36, 0.1, -0.95, 0.0)
+	body.slab(3.05, 3.2, r + 0.4, r + 0.42, 0.15, -0.95, 0.008)
+	# Loader's hatch, M240 skate mount and LAGS shield.
+	var lz := -0.82
+	body.rod(Vector3(4.35, r + 0.04, lz), Vector3.UP, 0.42, 0.08, 20, 0.02)
+	body.rod(Vector3(4.35, r + 0.1, lz), Vector3.UP, 0.33, 0.05, 20, 0.015)
+	steel.tube(
+		Kit.arc(Vector3(4.35, r + 0.135, lz), 0.12, Vector3.RIGHT, Vector3.BACK, -0.8, 0.8, 6),
+		0.012,
+		6
+	)
+	for a in 3:
+		var ang := -0.55 + a * 0.55
+		var dir := Vector3(-cos(ang), 0.0, sin(ang))
+		var c := Vector3(4.35, r + 0.35, lz) + dir * 0.36
+		body.cbox(c, Vector3(0.03, 0.42, 0.34), 0.01, Basis(Vector3.UP, atan2(-dir.z, dir.x)))
+	dark.slab(3.85, 4.05, r + 0.22, r + 0.3, 0.05, lz, 0.01)
+	dark.rod(Vector3(3.55, r + 0.27, lz), Vector3.RIGHT, 0.022, 0.6, 8)
+	dark.slab(3.95, 4.3, r + 0.24, r + 0.31, 0.04, lz, 0.008)
+	dark.slab(3.98, 4.1, r + 0.16, r + 0.24, 0.07, lz - 0.08, 0.01)
+	steel.rod(Vector3(4.05, r + 0.2, lz), Vector3.UP, 0.025, 0.14, 8)
+	# Ammunition blowout panels on the bustle roof with raised frames and bolts.
+	for s: float in [-1.0, 1.0]:
+		var zc := s * 0.72
+		dark.cavity = 0.35
+		dark.slab(5.1, 6.15, r - 0.005, r + 0.006, 0.6, zc, 0.0)
+		dark.cavity = 1.0
+		body.slab(5.13, 6.12, r, r + 0.03, 0.57, zc, 0.01)
+		for k in 6:
+			for side: float in [-1.0, 1.0]:
+				body.bolt(Vector3(5.2 + k * 0.17, r + 0.03, zc + side * 0.52), Vector3.UP, 0.016)
+	# Lifting eyes at the roof corners.
+	for p: Vector3 in [
+		Vector3(2.9, r, 1.42), Vector3(2.9, r, -1.42), Vector3(6.1, r, 1.32), Vector3(6.1, r, -1.32)
+	]:
+		dark.tube(
+			Kit.arc(p + Vector3(0, 0.0, 0), 0.06, Vector3.RIGHT, Vector3.UP, 0.0, PI, 8), 0.018, 6
+		)
+	# Meteorological sensor mast and antennas with spring bases.
+	steel.tube([Vector3(6.0, r, 0.0), Vector3(6.0, r + 0.55, 0.0)], 0.018, 6)
+	dark.rod(Vector3(6.0, r + 0.6, 0.0), Vector3.UP, 0.045, 0.1, 10, 0.01)
+	for s: float in [-1.0, 1.0]:
+		var base := Vector3(6.15, r, s * 1.2)
+		dark.rod(base + Vector3(0, 0.05, 0), Vector3.UP, 0.07, 0.1, 10, 0.012)
+		for k in 4:
+			steel.rod(base + Vector3(0, 0.12 + k * 0.035, 0), Vector3.UP, 0.035, 0.025, 8)
+		var whip := []
+		for k in 9:
+			var f := float(k) / 8.0
+			whip.append(base + Vector3(0.18 * f * f, 0.27 + 1.3 * f, 0))
+		dark.tube(whip, 0.009, 5)
+	# Amber beacon on the CITV side.
+	t.k(&"lens").rod(Vector3(3.7, r + 0.08, -1.25), Vector3.UP, 0.05, 0.1, 12, 0.01)
+
+
+## CROWS-LP remote weapon station on the commander's cupola, with vision blocks around the ring.
+static func _crows(t: Kits) -> void:
+	var body := t.k(&"body")
+	var dark := t.k(&"dark")
+	var glass := t.k(&"glass")
+	var steel := t.k(&"steel")
+	var r := ROOF_H
+	var c := Vector3(4.3, r, 0.82)
+	body.rod(c + Vector3(0, 0.05, 0), Vector3.UP, 0.48, 0.1, 20, 0.025)
+	for k in 8:
+		var a := PI * 0.6 + TAU * k / 10.0
+		var dir := Vector3(cos(a), 0, sin(a))
+		glass.cbox(
+			c + dir * 0.47 + Vector3(0, 0.07, 0),
+			Vector3(0.02, 0.05, 0.1),
+			0.0,
+			Basis(Vector3.UP, -a)
+		)
+	body.rod(c + Vector3(0, 0.13, 0), Vector3.UP, 0.36, 0.06, 20, 0.015)
+	dark.rod(c + Vector3(0, 0.2, 0), Vector3.UP, 0.22, 0.1, 20, 0.02)
+	# Cradle arms, M2 receiver and barrel with carrying handle, sight unit, ammo box.
+	dark.slab(4.05, 4.55, r + 0.24, r + 0.42, 0.04, 0.6, 0.012)
+	dark.slab(4.05, 4.55, r + 0.24, r + 0.42, 0.04, 1.04, 0.012)
+	dark.slab(3.95, 4.6, r + 0.27, r + 0.4, 0.08, 0.82, 0.015)
+	steel.lathe(
+		Vector3(3.95, r + 0.335, 0.82),
+		Basis(Vector3.BACK, PI / 2.0),
+		[
+			Vector2(0.0, 1.0),
+			Vector2(0.03, 1.0),
+			Vector2(0.03, 0.9),
+			Vector2(0.022, 0.88),
+			Vector2(0.022, 0.1),
+			Vector2(0.035, 0.08),
+			Vector2(0.035, 0.0),
+			Vector2(0.0, 0.0)
+		],
+		10
+	)
+	dark.tube(
+		[
+			Vector3(3.92, r + 0.38, 0.82),
+			Vector3(3.88, r + 0.46, 0.82),
+			Vector3(3.76, r + 0.46, 0.82),
+			Vector3(3.72, r + 0.38, 0.82)
+		],
+		0.012,
+		6
+	)
+	body.slab(3.92, 4.28, r + 0.24, r + 0.48, 0.1, 1.17, 0.025)
+	glass.slab(3.905, 3.92, r + 0.3, r + 0.43, 0.075, 1.17, 0.0)
+	dark.slab(4.12, 4.48, r + 0.22, r + 0.42, 0.11, 0.45, 0.02)
+	steel.tube(
+		[Vector3(4.2, r + 0.42, 0.45), Vector3(4.3, r + 0.48, 0.45), Vector3(4.4, r + 0.42, 0.45)],
+		0.01,
+		6
+	)
+	dark.tube(
+		[Vector3(4.5, r + 0.3, 1.1), Vector3(4.62, r + 0.22, 1.05), Vector3(4.7, r + 0.12, 0.95)],
+		0.014,
+		6
+	)
+
+
+static func _bustle(t: Kits) -> void:
+	var dark := t.k(&"dark")
+	var cloth := t.k(&"cloth")
+	var steel := t.k(&"steel")
+	# Rack: tubular rails and posts, slatted floor.
+	var x0 := 6.3
+	var x1 := 7.18
+	var hw := 1.48
+	for hh: float in [2.04, 2.36]:
+		steel.tube(
+			[Vector3(x0, hh, -hw), Vector3(x1, hh, -hw), Vector3(x1, hh, hw), Vector3(x0, hh, hw)],
+			0.022,
+			6
+		)
+	for z: float in [-hw, -0.74, 0.0, 0.74, hw]:
+		steel.tube([Vector3(x1, 1.82, z), Vector3(x1, 2.37, z)], 0.02, 6)
+	for x: float in [6.75]:
+		for s: float in [-1.0, 1.0]:
+			steel.tube([Vector3(x, 1.82, s * hw), Vector3(x, 2.37, s * hw)], 0.02, 6)
+	dark.slab(x0, x1, 1.8, 1.83, 0.04, -hw, 0.008)
+	dark.slab(x0, x1, 1.8, 1.83, 0.04, hw, 0.008)
+	for k in 9:
+		var z := -hw + k * (2.0 * hw / 8.0)
+		dark.slab(x0, x1, 1.8, 1.83, 0.02, z, 0.005)
+	dark.slab(x1 - 0.03, x1 + 0.01, 1.78, 1.84, hw, 0.0, 0.008)
+	# Stowage: duffel bags (soft, heavily rounded), a rolled tarp, ammo cans, a jerrycan.
+	cloth.pillow(Vector3(6.72, 2.03, -1.0), Vector3(0.75, 0.42, 0.85), Basis(Vector3.UP, 0.08))
+	cloth.pillow(Vector3(6.7, 2.0, -0.15), Vector3(0.7, 0.36, 0.7), Basis(Vector3.UP, -0.05))
+	cloth.pillow(
+		Vector3(6.75, 2.33, -0.6),
+		Vector3(0.6, 0.3, 0.7),
+		Basis(Vector3(0.2, 1, 0.1).normalized(), 0.3)
+	)
+	cloth.lathe(
+		Vector3(6.72, 2.04, 0.75),
+		Basis(Vector3.RIGHT, PI / 2.0),
+		[
+			Vector2(0.0, 0.6),
+			Vector2(0.16, 0.6),
+			Vector2(0.19, 0.55),
+			Vector2(0.2, 0.0),
+			Vector2(0.19, -0.55),
+			Vector2(0.16, -0.6),
+			Vector2(0.0, -0.6)
+		],
+		14
+	)
+	for k in 3:
+		dark.tube(
+			Kit.arc(
+				Vector3(6.72 - 0.25 + k * 0.25, 2.04, 0.75),
+				0.205,
+				Vector3.UP,
+				Vector3.LEFT,
+				0.0,
+				TAU,
+				14
+			),
+			0.012,
+			5
+		)
+	for k in 2:
+		t.k(&"body").slab(6.4 + k * 0.32, 6.68 + k * 0.32, 1.83, 2.02, 0.09, 1.3, 0.012)
+	t.k(&"body").slab(6.92, 7.12, 1.83, 2.3, 0.16, 1.28, 0.03)
+	# Cargo straps over the bags.
+	for x: float in [6.55, 6.9]:
+		dark.tube(
+			[
+				Vector3(x, 1.83, -1.45),
+				Vector3(x, 2.25, -1.42),
+				Vector3(x, 2.5, -0.9),
+				Vector3(x, 2.48, -0.3),
+				Vector3(x, 2.2, 0.15),
+				Vector3(x, 1.83, 0.2)
+			],
+			0.01,
+			4
+		)
+
+
+static func _turret_sides(t: Kits) -> void:
+	var body := t.k(&"body")
+	var dark := t.k(&"dark")
+	var steel := t.k(&"steel")
+	for s: float in [-1.0, 1.0]:
+		var side_z := s * 1.66
+		# Bustle side stowage boxes: lids, hinges, latches.
+		body.slab(4.98, 6.2, 1.86, 2.3, 0.08, s * 1.73, 0.025)
+		body.slab(4.96, 6.22, 2.26, 2.32, 0.1, s * 1.74, 0.012)
+		for x: float in [5.25, 5.95]:
+			dark.slab(x - 0.04, x + 0.04, 2.12, 2.25, 0.015, s * 1.815, 0.004)
+		for x: float in [5.1, 5.6, 6.1]:
+			steel.rod(Vector3(x, 2.31, s * 1.65), Vector3.RIGHT, 0.015, 0.12, 8)
+		# Smoke grenade launchers: base plate and two rows of three tubes.
+		body.slab(2.85, 3.45, 1.95, 2.3, 0.05, s * 1.62, 0.015)
+		for i in 3:
+			for row in 2:
+				var c := Vector3(2.98 + i * 0.17 + row * 0.08, 2.06 + row * 0.13, s * 1.66)
+				var dir := Vector3(-0.55, 0.35, s * 0.75).normalized()
+				dark.lathe(
+					c,
+					Frame.axis_basis(dir),
+					[
+						Vector2(0.0, 0.26),
+						Vector2(0.035, 0.26),
+						Vector2(0.035, 0.28),
+						Vector2(0.048, 0.28),
+						Vector2(0.048, 0.0)
+					],
+					8
+				)
+		# Grab handles along the turret side.
+		for x: float in [3.3, 3.75, 4.2, 4.65]:
+			steel.tube(
+				[
+					Vector3(x - 0.12, 2.18, side_z),
+					Vector3(x - 0.1, 2.18, side_z + s * 0.07),
+					Vector3(x + 0.1, 2.18, side_z + s * 0.07),
+					Vector3(x + 0.12, 2.18, side_z)
+				],
+				0.013,
+				6
+			)
+		# Turret-side tie rings near the bottom edge.
+		for x: float in [3.2, 4.4]:
+			dark.tube(
+				Kit.arc(
+					Vector3(x, 1.82, side_z + s * 0.01),
+					0.04,
+					Vector3.RIGHT,
+					Vector3.DOWN,
+					0.0,
+					PI,
+					6
+				),
+				0.012,
+				5
+			)
+		# Polish national marking (checkerboard) on the bustle box.
+		for i in 2:
+			for j in 2:
+				var mat := &"white" if (i + j) % 2 == 0 else &"red"
+				t.k(mat).slab(
+					5.55 + i * 0.09,
+					5.64 + i * 0.09,
+					2.0 + j * 0.09,
+					2.09 + j * 0.09,
+					0.003,
+					s * 1.812,
+					0.0
+				)
+
+
+# --- Gun ----------------------------------------------------------------------------------------
+
+
+static func _gun(g: Kits) -> void:
+	var body := g.k(&"body")
+	var dark := g.k(&"dark")
+	var steel := g.k(&"steel")
+	var cloth := g.k(&"cloth")
+	var length := TRUNNION.x + GUN_OVERHANG
+	var trunnion := Vector3(TRUNNION.x, TRUNNION.y, 0.0)
+	var forward := Basis(Vector3.BACK, PI / 2.0)
+	# M256 barrel: thermal sleeve sections with clamp bands, muzzle lip.
+	body.lathe(
+		trunnion,
+		forward,
+		[
+			Vector2(0.0, length),
+			Vector2(0.075, length),
+			Vector2(0.075, length - 0.005),
+			Vector2(0.1, length - 0.02),
+			Vector2(0.1, length - 0.2),
+			Vector2(0.09, length - 0.22),
+			Vector2(0.094, length - 0.88),
+			Vector2(0.11, length - 0.9),
+			Vector2(0.112, length - 1.0),
+			Vector2(0.098, length - 1.02),
+			Vector2(0.103, length - 1.9),
+			Vector2(0.12, length - 1.92),
+			Vector2(0.122, length - 2.04),
+			Vector2(0.108, length - 2.06),
+			Vector2(0.118, 1.0),
+			Vector2(0.13, 0.98),
+			Vector2(0.13, 0.5),
+			Vector2(0.0, 0.5)
+		],
+		20
+	)
+	dark.cavity = 0.05
+	dark.rod(Vector3(-GUN_OVERHANG + 0.002, TRUNNION.y, 0.0), Vector3.RIGHT, 0.065, 0.01, 16)
+	dark.cavity = 1.0
+	for x: float in [-GUN_OVERHANG + 0.55, -GUN_OVERHANG + 1.45, 0.3]:
+		steel.rod(Vector3(x, TRUNNION.y, 0.0), Vector3.RIGHT, 0.118, 0.03, 20, 0.005)
+	# Muzzle reference sensor.
+	dark.slab(
+		-GUN_OVERHANG + 0.12,
+		-GUN_OVERHANG + 0.3,
+		TRUNNION.y + 0.1,
+		TRUNNION.y + 0.16,
+		0.045,
+		0.0,
+		0.01
+	)
+	dark.slab(
+		-GUN_OVERHANG + 0.25,
+		-GUN_OVERHANG + 0.28,
+		TRUNNION.y + 0.08,
+		TRUNNION.y + 0.12,
+		0.03,
+		0.0,
+		0.0
+	)
+	# Gun shield in the turret recess with the canvas mantlet cover behind it.
+	body.slab(1.8, 2.35, 1.74, 2.24, 0.42, 0.0, 0.035)
+	cloth.cbox(Vector3(2.38, 1.99, 0.0), Vector3(0.12, 0.5, 0.86), 0.05)
+	for k in 3:
+		cloth.cbox(Vector3(2.32, 1.82 + k * 0.17, 0.0), Vector3(0.04, 0.05, 0.88), 0.02)
+	dark.rod(Vector3(1.79, 1.9, 0.27), Vector3.RIGHT, 0.04, 0.04, 10, 0.008)
+	dark.cavity = 0.1
+	dark.rod(Vector3(1.775, 1.9, 0.27), Vector3.RIGHT, 0.022, 0.01, 8)
+	dark.cavity = 1.0
+	# Ammunition data link box on top of the shield, bolts on the shield face.
+	dark.slab(2.05, 2.3, 2.22, 2.3, 0.1, -0.22, 0.015)
+	for z: float in [-0.3, 0.3]:
+		for hh: float in [1.82, 2.16]:
+			body.bolt(Vector3(1.8, hh, z), Vector3.LEFT, 0.022)

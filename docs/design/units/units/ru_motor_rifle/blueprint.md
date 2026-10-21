@@ -24,15 +24,16 @@ only `Soldier0..4` (`SQUAD_SIZE = 5`), so a sixth figure would stand still (and 
 would not stand up) when the squad moves; 5 also keeps the same footprint as the other squads.
 The leader carries the second GP-30, so every role of the squad is still visible.
 
-Layout (model units) `[x, z, kneeling, kit]`, yaw ±0.3 rad from `TerrainNoise.hash`:
+Layout (model units) `[x, z, kneeling, kit, carry, yaw]`; without a yaw, ±0.3 rad from
+`TerrainNoise.hash`; carries as in TASK-068:
 
 | Soldier | Position | Pose | Kit |
 |---|---|---|---|
-| 0 leader | (0.13, 0.0) | standing | AK-74M + GP-30 |
+| 0 leader | (0.13, 0.0) | standing, aiming | AK-74M + GP-30 |
 | 1 RPG gunner | (-0.03, 0.16) | standing, aiming | RPG-7V on the right shoulder |
 | 2 machine gunner | (-0.03, -0.15) | kneeling (as in `side_1.jpg`) | RPK-74M, bipod down |
-| 3 assistant grenadier | (-0.19, 0.06) | standing | AK-74M + rocket carrier with 3 PG-7 rounds |
-| 4 rifleman | (-0.16, -0.13) | kneeling | AK-74M + GP-30 |
+| 3 assistant grenadier | (-0.19, 0.06) | standing, low carry, watching right (yaw 0.6) | AK-74M + rocket carrier with 3 PG-7 rounds |
+| 4 rifleman | (-0.16, -0.13) | kneeling, aiming left (yaw −0.5) | AK-74M + GP-30 |
 
 Kneelers differ from the Polish squad (gunner + rifleman instead of RPG + rifleman), so the
 two squads also differ in their group silhouette.

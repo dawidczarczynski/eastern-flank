@@ -73,6 +73,8 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | ready | **TASK-050** (soft: TASK-058, TASK-055) |
 | [TASK-065](TASK-065-wrecks-smoke.md) | Wrecks and smoke on destruction instead of vanishing | ready | **TASK-050** (soft: TASK-064, TASK-058, TASK-062); persistence to confirm |
 | [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
+| [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | to playtest | – ; open: Polish vest colour contrast |
+| [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | ready | **TASK-030**, **TASK-062** (soft: TASK-068, TASK-063); reference `docs/design/showcase/` |
 | TASK-007 | Fog of war | idea | GDD open questions: scale, modes |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | idea | GDD decision ("Ideas from the visual design"), hand-made maps |
 

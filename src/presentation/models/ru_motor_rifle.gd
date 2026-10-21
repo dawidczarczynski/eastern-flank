@@ -15,24 +15,30 @@ const GP30 := 1
 const RPG := 2
 const MG := 3
 const ASSIST := 4
-## Squad layout: [x, z, kneeling, kit]; the leader first. 5 of the 6 dismounts (see blueprint).
+## Squad layout: [x, z, kneeling, kit, carry, yaw] (Soldier.squad); the leader first, aiming. 5 of
+## the 6 dismounts (see blueprint); the assistant carries low and watches the right flank, the
+## kneeling rifleman covers the left.
 const SQUAD: Array = [
-	[0.13, 0.0, false, GP30],
+	[0.13, 0.0, false, GP30, Soldier.AIM],
 	[-0.03, 0.16, false, RPG],
 	[-0.03, -0.15, true, MG],
-	[-0.19, 0.06, false, ASSIST],
-	[-0.16, -0.13, true, GP30],
+	[-0.19, 0.06, false, ASSIST, Soldier.LOW, 0.6],
+	[-0.16, -0.13, true, GP30, Soldier.AIM, -0.5],
 ]
 
 
 static func build(faction: FactionDefinition) -> Node3D:
-	var dress := func(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Array[Vector3]:
-		return _dress(parts, up, kit, kneel)
+	var dress := func(
+		parts: Dictionary, up: Vector3, kit: int, kneel: bool, carry: int
+	) -> Array[Vector3]:
+		return _dress(parts, up, kit, kneel, carry)
 	return Soldier.squad("ru_motor_rifle", SQUAD, SOLDIER_SCALE, Soldier.materials(faction), dress)
 
 
 ## The Ratnik kit on one soldier: 6B45 armour, 6B47 helmet and the weapon of `kit`.
-static func _dress(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Array[Vector3]:
+static func _dress(
+	parts: Dictionary, up: Vector3, kit: int, kneel: bool, carry: int
+) -> Array[Vector3]:
 	_armour(parts, up)
 	match kit:
 		RPG:
@@ -41,7 +47,8 @@ static func _dress(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Arr
 			return _ak(parts, _shouldered(up, -0.08 if kneel else -0.35), false, true, kneel)
 		ASSIST:
 			_rocket_carrier(parts, up)
-	return _ak(parts, _shouldered(up, -0.2 if kneel else -0.4), kit == GP30, false, false)
+	var angle := Soldier.carry_angle(carry, kneel, -0.4, -0.2)
+	return _ak(parts, _shouldered(up, angle), kit == GP30, false, false)
 
 
 ## Rifle frame with the butt in the right shoulder, muzzle `angle` rad above level.

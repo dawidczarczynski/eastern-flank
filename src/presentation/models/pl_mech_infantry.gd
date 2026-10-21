@@ -15,26 +15,31 @@ const SOLDIER_SCALE := 1.75
 const RIFLE := 0
 const RPG := 1
 const MG := 2
-## Squad layout: [x, z, kneeling, kit]; front rifleman first.
+## Squad layout: [x, z, kneeling, kit, carry, yaw] (Soldier.squad); front rifleman first, aiming;
+## the rear rifleman carries low and watches the right flank, the kneeling one covers the left.
 const SQUAD: Array = [
-	[0.12, 0.0, false, RIFLE],
+	[0.12, 0.0, false, RIFLE, Soldier.AIM],
 	[-0.03, 0.15, true, RPG],
 	[-0.04, -0.15, false, MG],
-	[-0.19, 0.06, false, RIFLE],
-	[-0.16, -0.13, true, RIFLE],
+	[-0.19, 0.06, false, RIFLE, Soldier.LOW, 0.7],
+	[-0.16, -0.13, true, RIFLE, Soldier.AIM, -0.5],
 ]
 
 
 static func build(faction: FactionDefinition) -> Node3D:
-	var dress := func(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Array[Vector3]:
-		return _dress(parts, up, kit, kneel)
+	var dress := func(
+		parts: Dictionary, up: Vector3, kit: int, kneel: bool, carry: int
+	) -> Array[Vector3]:
+		return _dress(parts, up, kit, kneel, carry)
 	return Soldier.squad(
 		"pl_mech_infantry", SQUAD, SOLDIER_SCALE, Soldier.materials(faction), dress
 	)
 
 
 ## The Polish kit on one soldier: plate carrier, pack, helmet and the weapon of `kit`.
-static func _dress(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Array[Vector3]:
+static func _dress(
+	parts: Dictionary, up: Vector3, kit: int, kneel: bool, carry: int
+) -> Array[Vector3]:
 	_gear(parts, up)
 	match kit:
 		RPG:
@@ -42,7 +47,7 @@ static func _dress(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Arr
 		MG:
 			return _mg(parts, up)
 		_:
-			return _rifle(parts, up, -0.25 if kneel else -0.45)
+			return _rifle(parts, up, Soldier.carry_angle(carry, kneel, -0.45, -0.25))
 
 
 ## Plate carrier with front pouches, assault pack and the wz. 2005 helmet.

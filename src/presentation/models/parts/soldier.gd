@@ -13,6 +13,15 @@ const HIP := 0.92
 const HIP_KNEEL := 0.55
 ## Rifle butt in the right shoulder (m, before the kneeling `up` offset).
 const RIFLE_BUTT := Vector3(0.12, 1.34, 0.11)
+## Weapon carry (optional 5th value of a layout entry, default READY): the model's `dress` hook
+## turns it into the weapon angle (`carry_angle`). Mixed carries keep a squad from looking like
+## five copies of one figure (TASK-068).
+const READY := 0
+const AIM := 1
+const LOW := 2
+## Muzzle angle (rad, + = up) of an aimed and of a low-carried weapon.
+const AIM_ANGLE := -0.03
+const LOW_ANGLE := -0.85
 ## Merged-mesh material roles, in build order.
 const ROLES: Array[StringName] = [&"uniform", &"vest", &"skin", &"dark", &"gun", &"accent"]
 
@@ -29,10 +38,11 @@ static func materials(faction: FactionDefinition) -> Dictionary:
 	}
 
 
-## The squad: one "SoldierN" pivot per `layout` entry [x, z, kneeling, kit] (model units),
-## scaled by `soldier_scale` and yawed by ±0.3 rad (TerrainNoise.hash). `dress` is
-## func(parts: Dictionary, up: Vector3, kit: int, kneel: bool) -> Array[Vector3]: it adds the
-## kit's helmet, armour and weapon (metres, upper body offset by `up`) and returns the
+## The squad: one "SoldierN" pivot per `layout` entry [x, z, kneeling, kit, carry, yaw] (model
+## units; carry and yaw optional), scaled by `soldier_scale` and yawed by `yaw` rad, or by
+## ±0.3 rad (TerrainNoise.hash) without one. `dress` is
+## func(parts: Dictionary, up: Vector3, kit: int, kneel: bool, carry: int) -> Array[Vector3]: it
+## adds the kit's helmet, armour and weapon (metres, upper body offset by `up`) and returns the
 ## [left, right] hand positions the arms reach for.
 static func squad(
 	key: String, layout: Array, soldier_scale: float, mats: Dictionary, dress: Callable
@@ -42,11 +52,14 @@ static func squad(
 		var entry: Array = layout[i]
 		var kneel: bool = entry[2]
 		var kit: int = entry[3]
+		var carry: int = entry[4] if entry.size() > 4 else READY
 		var s := Node3D.new()
 		s.name = "Soldier%d" % i
 		s.position = Vector3(entry[0], 0.0, entry[1])
 		s.scale = Vector3.ONE * soldier_scale
-		s.rotation.y = (TerrainNoise.hash(i, 3, 1) - 0.5) * 0.6
+		s.rotation.y = (
+			float(entry[5]) if entry.size() > 5 else (TerrainNoise.hash(i, 3, 1) - 0.5) * 0.6
+		)
 		g.add_child(s)
 		var rig := Node3D.new()
 		rig.name = "Rig"
@@ -55,34 +68,45 @@ static func squad(
 			var kneeling := Node3D.new()
 			kneeling.name = "Kneel"
 			rig.add_child(kneeling)
-			soldier(kneeling, key, mats, true, kit, dress)
+			soldier(kneeling, key, mats, true, kit, carry, dress)
 			var stand := Node3D.new()
 			stand.name = "Stand"
 			stand.visible = false
 			rig.add_child(stand)
-			soldier(stand, key, mats, false, kit, dress)
+			soldier(stand, key, mats, false, kit, carry, dress)
 		else:
-			soldier(rig, key, mats, false, kit, dress)
+			soldier(rig, key, mats, false, kit, carry, dress)
 	return g
 
 
 ## One soldier under `into`: legs, body, the kit from `dress` and the arms reaching its grips;
 ## one merged mesh per material role.
 static func soldier(
-	into: Node3D, key: String, mats: Dictionary, kneel: bool, kit: int, dress: Callable
+	into: Node3D, key: String, mats: Dictionary, kneel: bool, kit: int, carry: int, dress: Callable
 ) -> void:
 	var parts := {}
 	legs(parts, kneel)
 	var up := Vector3(0.04, HIP_KNEEL - HIP, 0.0) if kneel else Vector3.ZERO
 	body(parts, up)
-	var hands: Array[Vector3] = dress.call(parts, up, kit, kneel)
+	var hands: Array[Vector3] = dress.call(parts, up, kit, kneel, carry)
 	arms(parts, up, hands)
 	for role in ROLES:
 		if parts.has(role):
-			var mesh_key := "%s:%d:%s:%s" % [key, kit, kneel, role]
+			var mesh_key := "%s:%d:%d:%s:%s" % [key, kit, carry, kneel, role]
 			ModelParts.add(
 				into, ModelParts.merged_mesh(mesh_key, parts[role]), mats[role], Vector3.ZERO
 			)
+
+
+## Weapon angle (rad, + = up) for a `carry`: READY uses the kit's own angle for the posture
+## (`ready_stand` / `ready_kneel`), AIM and LOW are shared.
+static func carry_angle(carry: int, kneel: bool, ready_stand: float, ready_kneel: float) -> float:
+	match carry:
+		AIM:
+			return AIM_ANGLE
+		LOW:
+			return LOW_ANGLE
+	return ready_kneel if kneel else ready_stand
 
 
 ## Legs and boots; the lowest point (boot soles, kneeling knee) is y = 0.
