@@ -125,3 +125,15 @@ func test_edge_ribbons_triangle_count() -> void:
 	var coords: Array[Vector2i] = [Vector2i(0, 0)]
 	var edges := OverlayGeometry.boundary_edges(coords, 1.0)
 	assert_eq(OverlayGeometry.edge_ribbons(edges, 0.1, 3).size(), 6 * 3 * 6)
+
+
+func test_grid_alpha_fades_with_distance() -> void:
+	assert_true(absf(OverlayGeometry.grid_alpha(7.0, false) - 0.16) < TOL)
+	assert_true(absf(OverlayGeometry.grid_alpha(46.0, false) - 0.05) < TOL)
+	assert_true(absf(OverlayGeometry.grid_alpha(26.5, false) - 0.105) < TOL)
+	assert_true(absf(OverlayGeometry.grid_alpha(100.0, false) - 0.05) < TOL)
+	assert_true(absf(OverlayGeometry.grid_alpha(3.0, false) - 0.16) < TOL)
+
+
+func test_grid_alpha_is_stronger_while_selected() -> void:
+	assert_true(absf(OverlayGeometry.grid_alpha(7.0, true) - 0.24) < TOL)

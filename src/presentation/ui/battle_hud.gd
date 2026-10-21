@@ -17,7 +17,7 @@ const MONO_MEDIUM := "IBMPlexMono-Medium"
 const MONO_SEMIBOLD := "IBMPlexMono-SemiBold"
 const HINT := (
 	"LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom"
-	+ " · WASD/QE – camera · Enter – end turn · F5 – save match"
+	+ " · WASD/QE – camera · G – grid · Enter – end turn · F5 – save match"
 )
 
 var _human_player := 0

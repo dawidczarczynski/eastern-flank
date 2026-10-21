@@ -30,19 +30,22 @@ const DETAIL_PERIODS: Array[int] = [8, 16, 32, 64]
 const DETAIL_SEED := 201
 const DETAIL_NORMAL_STRENGTH := 7.0
 const DETAIL_NORMAL_SCALE := 0.9
-const GRID_LINE_COLOR := Color("#0d120c", 0.2)
+const GRID_LINE_COLOR := Color("#e9eddc")
 ## Grid lines float this far above the ground; each hex edge is split into segments so the
 ## lines follow the slopes.
 const GRID_LINE_OFFSET := 0.025
 const GRID_LINE_SEGMENTS := 5
 ## Overlay design values (TASK-017): patch scale, ring radii, alpha and lift above the ground.
 ## Overlay shapes: Vector2(scale, 0) is a hex patch, Vector2(r0, r1) a hex ring.
-const REACH_FILL_SHAPE := Vector2(0.9, 0.0)
-const REACH_FILL_ALPHA := 0.2
-const REACH_FILL_LIFT := 0.03
-const REACH_RING_SHAPE := Vector2(0.86, 0.92)
-const REACH_RING_ALPHA := 0.55
-const REACH_RING_LIFT := 0.035
+## Reach (TASK-049): outline along the outer boundary only, plus a dim over land outside it.
+const REACH_LINE_WIDTH := 0.1
+const REACH_LINE_ALPHA := 1.0
+const REACH_LINE_LIFT := 0.045
+const REACH_LINE_SEGMENTS := 3
+const DIM_COLOR := Color("#0b0f0a", 0.6)
+const DIM_SHAPE := Vector2(1.0, 0.0)
+const DIM_LIFT := 0.035
+const HOVER_FILL_ALPHA := 0.18
 const ATTACK_COLOR := Color("#e07c5e")
 const ATTACK_FILL_SHAPE := Vector2(0.9, 0.0)
 const ATTACK_FILL_ALPHA := 0.25
@@ -98,8 +101,15 @@ var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
 var _mesh_heights := PackedFloat32Array()
 var _tiles_root := Node3D.new()
-var _reach_fill := MeshInstance3D.new()
-var _reach_ring := MeshInstance3D.new()
+var _reach_line := MeshInstance3D.new()
+var _dim := MeshInstance3D.new()
+## Reach tiles of the current selection (the unit's own tile excluded) and its colour.
+var _reach_set := {}
+var _reach_color := Color.WHITE
+var _grid_lines: MeshInstance3D
+var _grid_material: StandardMaterial3D
+var _grid_auto := true
+var _camera_distance := CameraRig.DEFAULT_DISTANCE
 var _attack_fill := MeshInstance3D.new()
 var _attack_ring := MeshInstance3D.new()
 var _range_fill := MeshInstance3D.new()
@@ -117,8 +127,8 @@ var _dots := MultiMeshInstance3D.new()
 func _ready() -> void:
 	add_child(_tiles_root)
 	for overlay in [
-		_reach_fill,
-		_reach_ring,
+		_reach_line,
+		_dim,
 		_attack_fill,
 		_attack_ring,
 		_range_fill,
@@ -132,7 +142,7 @@ func _ready() -> void:
 		add_child(instance)
 	_hover_ring_material = _overlay_material(Color(1, 1, 1, 0.6))
 	_hover_ring.material_override = _hover_ring_material
-	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, 0.1))
+	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, HOVER_FILL_ALPHA))
 	_setup_dots()
 
 
@@ -154,7 +164,9 @@ func build(grid: HexGrid) -> void:
 	_tiles_root.add_child(_build_terrain(rect))
 	_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED))
 	_tiles_root.add_child(_build_water(rect))
-	_tiles_root.add_child(_build_grid_lines())
+	_grid_lines = _build_grid_lines()
+	_tiles_root.add_child(_grid_lines)
+	_update_grid()
 
 
 ## The surface the terrain mesh is built from; use it for picking and placing things.
@@ -472,6 +484,8 @@ func _build_grid_lines() -> MeshInstance3D:
 		corners.append(Vector2(cos(angle), sin(angle)) * hex_size)
 	var points := PackedVector3Array()
 	for c in _grid.coords():
+		if _grid.get_terrain(c) == Terrain.Type.WATER:
+			continue  # never over water; shared shore edges are drawn by the land side
 		var center := Hex.to_world(c, hex_size)
 		for s in 6:
 			for k in GRID_LINE_SEGMENTS:
@@ -486,6 +500,7 @@ func _build_grid_lines() -> MeshInstance3D:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
 	var material := StandardMaterial3D.new()
+	_grid_material = material
 	material.albedo_color = GRID_LINE_COLOR
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -512,14 +527,28 @@ func _clear_children(root: Node3D) -> void:
 		child.queue_free()
 
 
-## Reach wash and outlines in the faction colour `color` (one mesh each, rebuilt here).
-func show_reach(coords: Array[Vector2i], color: Color) -> void:
-	_set_overlay(
-		_reach_fill, coords, REACH_FILL_SHAPE, Color(color, REACH_FILL_ALPHA), REACH_FILL_LIFT
-	)
-	_set_overlay(
-		_reach_ring, coords, REACH_RING_SHAPE, Color(color, REACH_RING_ALPHA), REACH_RING_LIFT
-	)
+## Reach outline (outer boundary of reach + the unit tile) in the faction colour `color`, and a
+## dim over every land tile outside it.
+func show_reach(coords: Array[Vector2i], color: Color, unit_tile: Vector2i) -> void:
+	_reach_set.clear()
+	for c in coords:
+		_reach_set[c] = true
+	_reach_color = color
+	var area: Array[Vector2i] = coords.duplicate()
+	area.append(unit_tile)
+	var edges := OverlayGeometry.boundary_edges(area, hex_size)
+	var ribbons := OverlayGeometry.edge_ribbons(edges, REACH_LINE_WIDTH, REACH_LINE_SEGMENTS)
+	_reach_line.mesh = _triangles_mesh(_drape(ribbons, 0.0))
+	_reach_line.position.y = REACH_LINE_LIFT
+	_reach_line.material_override = _overlay_material(Color(color, REACH_LINE_ALPHA))
+	_reach_line.visible = true
+	var outside: Array[Vector2i] = []
+	for c in _grid.coords():
+		if _grid.get_terrain(c) != Terrain.Type.WATER and not _reach_set.has(c) and c != unit_tile:
+			outside.append(c)
+	_set_overlay(_dim, outside, DIM_SHAPE, DIM_COLOR, DIM_LIFT)
+	_update_grid()
+	_refresh_hover_fill()
 
 
 ## Marks tiles holding attackable enemies (ring + wash). Replaces only the previous markers.
@@ -565,9 +594,12 @@ func clear_attack_range() -> void:
 ## its own clear_path().
 func clear_highlights() -> void:
 	clear_attack_range()
-	for instance in [_reach_fill, _reach_ring, _attack_fill, _attack_ring]:
+	for instance in [_reach_line, _dim, _attack_fill, _attack_ring]:
 		(instance as MeshInstance3D).visible = false
 		(instance as MeshInstance3D).mesh = null
+	_reach_set.clear()
+	_update_grid()
+	_refresh_hover_fill()
 
 
 ## Hover ring + fill on `coord` (Vector2i), or hidden for null. Geometry is rebuilt only
@@ -578,13 +610,47 @@ func set_hover(coord: Variant) -> void:
 	_hover_coord = coord
 	var show := coord != null
 	_hover_ring.visible = show
-	_hover_fill.visible = show
 	if not show:
+		_hover_fill.visible = false
 		return
 	_hover_ring.mesh = _triangles_mesh(_tile_shape(coord, HOVER_RING_SHAPE))
 	_hover_ring.position.y = HOVER_RING_LIFT
 	_hover_fill.mesh = _triangles_mesh(_tile_shape(coord, HOVER_FILL_SHAPE))
 	_hover_fill.position.y = HOVER_FILL_LIFT
+	_refresh_hover_fill()
+
+
+## The hover wash (faction colour) shows only on a tile inside the current reach.
+func _refresh_hover_fill() -> void:
+	var inside := _hover_coord != null and _reach_set.has(_hover_coord)
+	_hover_fill.visible = inside
+	if inside:
+		(_hover_fill.material_override as StandardMaterial3D).albedo_color = Color(
+			_reach_color, HOVER_FILL_ALPHA
+		)
+
+
+## Camera distance drives the grid fade (called by the battle controller on change).
+func set_camera_distance(distance: float) -> void:
+	if is_equal_approx(distance, _camera_distance):
+		return
+	_camera_distance = distance
+	_update_grid()
+
+
+## Grid mode auto (fades with zoom) <-> off. A view setting only.
+func cycle_grid_mode() -> void:
+	_grid_auto = not _grid_auto
+	_update_grid()
+
+
+func _update_grid() -> void:
+	if _grid_lines == null:
+		return
+	_grid_lines.visible = _grid_auto
+	_grid_material.albedo_color.a = OverlayGeometry.grid_alpha(
+		_camera_distance, _reach_line.visible
+	)
 
 
 ## One merged mesh of `shape` over all `coords`, lifted by moving the instance.

@@ -1,6 +1,6 @@
 # TASK-049: Overlay readability – reach outline, dim outside, hover-only fill, faint fading grid
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`map_view.gd`, `overlay_geometry.gd`, `unit_view.gd` marker values, `battle_controller` key), tests
 - **Depends on**: – (TASK-017 overlays and the TASK-011 range outline are done). First task of the realism track (see BACKLOG "Visual realism").
 - **Model**: sonnet
@@ -28,15 +28,15 @@ Today every reachable tile gets a 0.9-scale wash (alpha 0.2) plus its own ring (
 
 ## Acceptance criteria (testable)
 
-- [ ] `OverlayGeometry.grid_alpha`: `(7, false) == 0.16`, `(46, false) == 0.05`, `(26.5, false) == 0.105` (±0.001), `(100, false) == 0.05`, `(3, false) == 0.16`, `(7, true) == 0.24`.
-- [ ] `MapView.show_reach(coords, color, unit_tile)` builds the outline from `boundary_edges(coords + [unit_tile])`: for a unit in the middle of a 3×3 plains fixture with its 6 neighbours passed as reach (radius-1 hex area = 7 tiles), the outline has exactly 18 boundary edges; the reach wash mesh and per-tile ring meshes no longer exist (no `_reach_fill`/`_reach_ring` instances with geometry).
-- [ ] The dim mesh covers every land tile outside `reach ∪ {unit tile}` and no water tile (count patches: `land_tiles − reach − 1`); it is hidden after `clear_highlights()`.
-- [ ] Hover fill: shown in the faction colour only when the hovered tile is in the current reach; no fill for tiles outside reach or without a selection; the white ring is shown in all cases as before.
-- [ ] Grid mode: pressing G (simulated `InputEventKey`) switches `auto → off → auto`; in `off` the grid instance is hidden; in `auto` its material alpha equals `grid_alpha(camera distance, has selection)`.
-- [ ] Grid lines have no vertices inside water tiles.
-- [ ] Existing overlay tests pass (update the ones that asserted per-tile reach rings).
-- [ ] Agent visual check: `SCREENSHOT_SELECT_UNIT=1 tools/screenshot.sh .screenshots/reach.png --frames=20` – one continuous blue outline around the reachable area, terrain inside it clearly visible (grass, trees), outside slightly darker; no dark strips between hexes.
-- [ ] Re-render `docs/images/gameplay.png` with `tools/readme_screenshot.sh`, Read it, commit it with the change.
+- [x] `OverlayGeometry.grid_alpha`: `(7, false) == 0.16`, `(46, false) == 0.05`, `(26.5, false) == 0.105` (±0.001), `(100, false) == 0.05`, `(3, false) == 0.16`, `(7, true) == 0.24`.
+- [x] `MapView.show_reach(coords, color, unit_tile)` builds the outline from `boundary_edges(coords + [unit_tile])`: for a unit in the middle of a 3×3 plains fixture with its 6 neighbours passed as reach (radius-1 hex area = 7 tiles), the outline has exactly 18 boundary edges; the reach wash mesh and per-tile ring meshes no longer exist (no `_reach_fill`/`_reach_ring` instances with geometry).
+- [x] The dim mesh covers every land tile outside `reach ∪ {unit tile}` and no water tile (count patches: `land_tiles − reach − 1`); it is hidden after `clear_highlights()`.
+- [x] Hover fill: shown in the faction colour only when the hovered tile is in the current reach; no fill for tiles outside reach or without a selection; the white ring is shown in all cases as before.
+- [x] Grid mode: pressing G (simulated `InputEventKey`) switches `auto → off → auto`; in `off` the grid instance is hidden; in `auto` its material alpha equals `grid_alpha(camera distance, has selection)`.
+- [x] Grid lines have no vertices inside water tiles.
+- [x] Existing overlay tests pass (update the ones that asserted per-tile reach rings).
+- [x] Agent visual check: `SCREENSHOT_SELECT_UNIT=1 tools/screenshot.sh .screenshots/reach.png --frames=20` – one continuous blue outline around the reachable area, terrain inside it clearly visible (grass, trees), outside slightly darker; no dark strips between hexes.
+- [x] Re-render `docs/images/gameplay.png` with `tools/readme_screenshot.sh`, Read it, commit it with the change.
 
 ## Playtest (for the human)
 
@@ -61,4 +61,10 @@ Today every reachable tile gets a 0.9-scale wash (alpha 0.2) plus its own ring (
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `OverlayGeometry.grid_alpha()` (+ `GRID_ALPHA_NEAR/FAR`, `GRID_SELECTED_FACTOR`); `MapView.show_reach(coords, color, unit_tile)` draws only the `boundary_edges` outline (`_reach_line`) and a merged `_dim` mesh over land outside the reach; per-tile reach wash/rings removed. Hover wash only inside the current reach (refreshed when the selection changes under a still cursor).
+- Grid: `#e9eddc`, water tiles contribute no grid edges (land/water shore edges are still drawn by the land side), alpha via `MapView.set_camera_distance()` (called from `BattleController._process`, early-out when unchanged – only a material alpha changes), `cycle_grid_mode()` auto/off.
+- G is handled in `BattleController._unhandled_input` before the turn/animation gate (like F5); ignored with Ctrl/Alt/Meta held or while a `LineEdit`/`TextEdit` has focus. `CameraRig.distance()` getter added. HUD controls hint now lists "G – grid".
+- Unit base marker: fill 0.06, ring 0.8.
+- Tests: `test_overlay_geometry.gd` (grid_alpha), new `test_map_view_overlays.gd` (18-edge outline, only outline + dim added, dim count/hide, hover fill, grid alpha/mode, no grid in water, G key). The text-focus case is not unit-tested (needs a viewport in the tree).
+- Visual check: one continuous outline, terrain inside stays visible.
+- Playtest tuning (2026-10-21, human: "the range is too weak, barely visible"): outline width 0.06 → **0.1** and alpha 0.85 → **1.0**; dim alpha 0.22 → **0.6** and lift 0.02 → **0.035**. Measured in the screenshot: blending is in linear space, so 0.4 only took the bright outside plains (96 → 67) down to about the level of the wooded tiles inside the outline (80), and the contrast disappeared. At 0.6 the outside is 50 against 80 inside. The Design table above keeps the original spec values.

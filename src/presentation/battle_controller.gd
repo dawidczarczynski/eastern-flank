@@ -59,6 +59,7 @@ func _ready() -> void:
 ## The camera can move under a still cursor (keys, wheel) – re-pick the hovered tile then.
 func _process(_delta: float) -> void:
 	_update_unit_popup()
+	_map_view.set_camera_distance(_camera_rig.distance())
 	var camera := get_viewport().get_camera_3d()
 	if camera == null or camera.global_transform == _last_camera_transform:
 		return
@@ -77,12 +78,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.keycode == KEY_F5:  # saving only reads the history, so it works at any time
 		_save_match()
 		return
+	if (
+		key.keycode == KEY_G
+		and not (key.ctrl_pressed or key.alt_pressed or key.meta_pressed)
+		and not _text_input_has_focus()
+	):  # view setting, like camera keys
+		_map_view.cycle_grid_mode()
+		return
 	if not _input_allowed():
 		return
 	if key.keycode == KEY_ENTER:
 		_end_human_turn()
 	elif key.keycode == KEY_ESCAPE:
 		_select(-1)
+
+
+func _text_input_has_focus() -> bool:
+	var viewport := get_viewport()
+	var focus := viewport.gui_get_focus_owner() if viewport != null else null
+	return focus is LineEdit or focus is TextEdit
 
 
 ## Screenshot debug hook (tools/screenshot.gd): selects a unit and hovers a tile near it.
@@ -317,7 +331,7 @@ func _refresh_highlights() -> void:
 	reach.erase(unit.coord)
 	var coords: Array[Vector2i] = []
 	coords.assign(reach.keys())
-	_map_view.show_reach(coords, UiPalette.faction_color(_sim.state, unit.owner_id))
+	_map_view.show_reach(coords, UiPalette.faction_color(_sim.state, unit.owner_id), unit.coord)
 	_refresh_attack_targets(unit)
 	_refresh_range_overlay()
 

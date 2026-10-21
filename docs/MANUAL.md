@@ -78,7 +78,7 @@ The units themselves wear their army's camouflage: Polish vehicles and soldiers 
 - Moving next to an enemy does not stop you; there are no zones of control.
 - **After a unit attacks, it can't move any more this turn.** Move first, then attack.
 
-When a unit is selected, the tiles it can reach are tinted in your side's colour. Hovering a reachable tile shows the path as a line of dots, and the terrain panel shows the path cost, e.g. `2 / 3 MP` (cost / movement points left).
+When a unit is selected, the area it can reach is outlined in your side's colour and the rest of the map is slightly darkened. Hovering a reachable tile tints it and shows the path as a line of dots, and the terrain panel shows the path cost, e.g. `2 / 3 MP` (cost / movement points left).
 
 ## 7. Combat
 
@@ -153,6 +153,8 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 - **Bottom centre**: a one-line summary of the controls (see Controls).
 - **Unit card**: hover any unit (yours or the enemy's) to see its class (Infantry, Tank or Rocket Artillery) with the unit's real name below it (e.g. M1A2 SEPv3 Abrams). In the Polish version the class and the squad names are translated (Drużyna piechoty zmechanizowanej, Drużyna zmotoryzowana); vehicle names stay as they are. The card also shows the unit's side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus the path cost when you have a unit selected and the tile is reachable.
+- **Selection**: selecting a unit outlines the area it can reach in your colour and slightly darkens the rest of the map; the tile under the cursor is tinted when the unit can move there. Water is never darkened, and unreachable tiles inside the area (such as a lake) get their own outline.
+- **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
 
@@ -161,17 +163,18 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 | Action | Control |
 |---|---|
 | Select your unit | Left-click it |
-| Move the selected unit | Left-click a highlighted tile |
+| Move the selected unit | Left-click a tile inside the outlined area |
 | Attack with the selected unit | Left-click a red-marked enemy |
 | Deselect | Right-click, or Esc |
 | End turn | Enter, or the End turn button |
 | Pan the camera | Left-drag, or W A S D / arrow keys |
 | Rotate the camera | Right-drag, or Q / E |
 | Zoom | Mouse wheel (the camera tilts lower as you zoom in) |
+| Show / hide the hex grid | G (the grid fades as you zoom out) |
 | Save the match record | F5 |
 
 - Clicks on tiles you can't move to and enemies you can't attack are ignored.
-- While animations are playing or the enemy is moving, clicks and keys (except camera controls and F5) are ignored, not queued.
+- While animations are playing or the enemy is moving, clicks and keys (except camera controls, G and F5) are ignored, not queued.
 - **F5** saves a record of the match so far (the moves made, for reporting bugs); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet. Match records saved by earlier versions of the game (before the real Polish and Russian units) can no longer be replayed: they are refused with a clear "unsupported match record version" message instead of replaying a different battle.
 
 ## 12. Not in the game yet

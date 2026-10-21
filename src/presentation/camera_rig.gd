@@ -37,6 +37,10 @@ func _notification(what: int) -> void:
 		_dragging = false
 
 
+func distance() -> float:
+	return _distance
+
+
 ## True while a pressed mouse button is being dragged (pan / rotate), not for plain clicks.
 func is_dragging() -> bool:
 	return _dragging

@@ -7,6 +7,9 @@ extends RefCounted
 const _SAMPLES_PER_SEGMENT := 32
 const MAX_DOTS_POINTS := 80
 const SKIPPED_POINTS := 2
+const GRID_ALPHA_NEAR := 0.16
+const GRID_ALPHA_FAR := 0.05
+const GRID_SELECTED_FACTOR := 1.5
 
 
 static func _corner_dir(i: int) -> Vector2:
@@ -129,6 +132,18 @@ static func path_dot_count(tiles: int) -> int:
 ## Hover ring opacity: 0.6 + 0.25·sin(t / 260 ms).
 static func hover_alpha(time_ms: float) -> float:
 	return 0.6 + 0.25 * sin(time_ms / 260.0)
+
+
+## Hex grid line opacity (TASK-049): fades linearly from GRID_ALPHA_NEAR at the closest zoom to
+## GRID_ALPHA_FAR at the farthest, stronger while a unit is selected (hex counting matters then).
+static func grid_alpha(distance: float, selected: bool) -> float:
+	var t := clampf(
+		(distance - CameraMath.MIN_DISTANCE) / (CameraMath.MAX_DISTANCE - CameraMath.MIN_DISTANCE),
+		0.0,
+		1.0
+	)
+	var alpha := lerpf(GRID_ALPHA_NEAR, GRID_ALPHA_FAR, t)
+	return alpha * GRID_SELECTED_FACTOR if selected else alpha
 
 
 ## Outer boundary of a set of hex tiles: every tile edge whose neighbour is not in `coords`,
