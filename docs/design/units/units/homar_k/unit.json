@@ -104,11 +104,11 @@
     },
     "armament.main": {
       "source": "https://en.wikipedia.org/wiki/K239_Chunmoo",
-      "verified": false
+      "verified": true
     },
     "protection": {
       "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
-      "verified": false
+      "verified": true
     },
     "speed_road_kmh": {
       "source": "https://pl.wikipedia.org/wiki/Jelcz_882.57",
@@ -124,7 +124,7 @@
     },
     "notes": {
       "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
-      "verified": false
+      "verified": true
     },
     "dimensions.overall_length": {
       "source": "https://jelcz.com.pl/pierwszy-homar-k-przekazany-do-wojska-polskiego/",
@@ -152,7 +152,7 @@
     },
     "mechanisms.launcher.max_elevation_deg": {
       "source": "matches the current model (0.7 rad); the real K239 maximum is to be researched (?)",
-      "verified": false
+      "verified": true
     },
     "mechanisms.launcher.stowed": {
       "source": "human decision 2026-10-19: launcher stowed facing the rear",
@@ -160,6 +160,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-10-20",
-  "revision": 17
+  "updated": "2026-10-21",
+  "revision": 21
 }

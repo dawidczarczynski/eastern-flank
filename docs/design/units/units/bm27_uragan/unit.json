@@ -34,6 +34,19 @@
     "in travel the launcher is traversed to point rearward over the tail, muzzles under a thin sheet-metal cover",
     "forward cab with a blast shield that is raised over the windscreen for firing"
   ],
+  "mechanisms": {
+    "wheels": {},
+    "launcher": {
+      "traverse_deg": [
+        -30,
+        30
+      ],
+      "max_elevation_deg": 55,
+      "stowed": "rear"
+    },
+    "stabilisers": {},
+    "blast_shields": {}
+  },
   "images": [
     {
       "file": "three_quarter_1.jpg",
@@ -132,15 +145,44 @@
       "verified": true
     },
     "dimensions.height": {
-      "source": "https://www.zr.ru/content/articles/973267-voennye-zily/",
-      "verified": true
+      "source": "https://ru.wikipedia.org/wiki/Ураган_(РСЗО)",
+      "verified": true,
+      "suggested": 3.223
     },
     "silhouette_features": {
       "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
       "verified": true
+    },
+    "mechanisms.wheels": {
+      "source": "https://ru.wikipedia.org/wiki/Ураган_(РСЗО) (8×8 ZIL-135LM chassis)",
+      "verified": true
+    },
+    "mechanisms.launcher": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm",
+      "verified": true
+    },
+    "mechanisms.launcher.traverse_deg": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (traverse 60° total, 30° left and 30° right)",
+      "verified": true
+    },
+    "mechanisms.launcher.max_elevation_deg": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (elevation 0° to +55°; ru.wikipedia also gives +55°)",
+      "verified": true
+    },
+    "mechanisms.launcher.stowed": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (\"during travel the launcher assembly is oriented rearward\")",
+      "verified": true
+    },
+    "mechanisms.stabilisers": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (\"stabilized during firing by two manually emplaced hydraulic jacks at the rear of the chassis\")",
+      "verified": true
+    },
+    "mechanisms.blast_shields": {
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (\"the 9P140 cab has a blast shield that is raised during firing\")",
+      "verified": true
     }
   },
   "status": "modeled",
-  "updated": "2026-10-19",
-  "revision": 22
+  "updated": "2026-10-21",
+  "revision": 29
 }

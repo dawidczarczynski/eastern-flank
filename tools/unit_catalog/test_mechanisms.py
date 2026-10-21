@@ -4,6 +4,7 @@ Run: python3 -m unittest discover -s tools/unit_catalog -p 'test_*.py'
 """
 import copy
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -317,8 +318,88 @@ class TestShippedEntries(unittest.TestCase):
             "wheels": {},
             "launcher": {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"},
         })  # fmt: skip
+        self._assert_mechanisms_verified(unit)
+
+    def test_uragan_declares_its_verified_mechanisms(self):
+        unit = catalog.load_unit(catalog.DEFAULT_ROOT, "bm27_uragan")
+        self.assertEqual(unit["mechanisms"], {
+            "wheels": {},
+            "launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "rear"},
+            "stabilisers": {},
+            "blast_shields": {},
+        })  # fmt: skip
+        self._assert_mechanisms_verified(unit)
+
+    def _assert_mechanisms_verified(self, unit):
         prov = unit["provenance"]
-        for path in ["mechanisms.wheels", "mechanisms.launcher", "mechanisms.launcher.traverse_deg",
-                     "mechanisms.launcher.stowed"]:  # fmt: skip
-            self.assertTrue(prov[path]["verified"], path)
-        self.assertFalse(prov["mechanisms.launcher.max_elevation_deg"]["verified"])
+        for mid, params in unit["mechanisms"].items():
+            for path in ["mechanisms." + mid] + ["mechanisms.%s.%s" % (mid, k) for k in params]:
+                self.assertTrue(prov[path]["verified"], path)
+
+
+class TestMechanismsHttp(base.ServerCase):
+    """The registry reaches the UI and mechanisms round-trip through the HTTP handler (TASK-042)."""
+
+    def setUp(self):
+        super().setUp()
+        catalog.create_unit(self.root, "Leopard 2A4", "leopard_2a4", **{"class": "tank", "operators": ["poland"]})
+
+    def put(self, **over):
+        return self.jreq("PUT", "/api/units/leopard_2a4", base.complete_unit(**over))
+
+    def test_catalog_contains_the_registry(self):
+        status, data = self.jreq("GET", "/api/catalog")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["mechanisms"], catalog.load_mechanisms(self.root))
+        self.assertEqual([m["id"] for m in data["mechanisms"]][:3], ["wheels", "squad_march", "launcher"])
+        self.assertEqual(data["classes"][0].get("default_mechanisms", []), [])
+
+    def test_traverse_without_zero_is_a_400_naming_the_field(self):
+        status, data = self.put(mechanisms={"launcher": {"traverse_deg": [10, 30]}})
+        self.assertEqual(status, 400)
+        self.assertEqual(fields(data["errors"]), ["mechanisms.launcher.traverse_deg"])
+
+    def test_valid_put_round_trips_in_registry_order(self):
+        mechs = {"wheels": {}, "launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "front"}}
+        status, first = self.put(mechanisms=mechs, provenance={"mechanisms.launcher": {"source": SRC, "verified": True}})
+        self.assertEqual(status, 200)
+        stored = first["unit"]
+        self.assertEqual(stored["mechanisms"], mechs)
+        self.assertEqual(list(stored["mechanisms"]["launcher"]), ["traverse_deg", "max_elevation_deg", "stowed"])
+        status, second = self.jreq("PUT", "/api/units/leopard_2a4", stored)
+        self.assertEqual(status, 200)
+        self.assertEqual(second["unit"]["revision"], stored["revision"])  # unchanged content: no bump
+        changed = copy.deepcopy(second["unit"])
+        changed["mechanisms"]["launcher"]["max_elevation_deg"] = 50
+        status, third = self.jreq("PUT", "/api/units/leopard_2a4", changed)
+        self.assertEqual(third["unit"]["revision"], stored["revision"] + 1)
+
+    def test_removing_a_mechanism_prunes_its_provenance(self):
+        prov = {"mechanisms.launcher": {"source": SRC, "verified": True},
+                "mechanisms.launcher.stowed": {"source": SRC, "verified": True}}  # fmt: skip
+        status, data = self.put(mechanisms={"wheels": {}, "launcher": {}}, provenance=prov)
+        self.assertEqual(status, 200)
+        unit = data["unit"]
+        del unit["mechanisms"]["launcher"]  # the client leaves the stale provenance in place
+        status, data = self.jreq("PUT", "/api/units/leopard_2a4", unit)
+        self.assertEqual(status, 200)
+        self.assertFalse([p for p in data["unit"].get("provenance", {}) if p.startswith("mechanisms.launcher")])
+
+
+class TestAppHasNoRegistryLiterals(unittest.TestCase):
+    """The UI is built from `catalog.mechanisms`: no mechanism id or param name is hard-coded in app.js."""
+
+    def test_app_js_does_not_name_registry_entries(self):
+        source = (Path(__file__).resolve().parent / "app.js").read_text(encoding="utf-8")
+        registry = catalog.load_mechanisms(catalog.DEFAULT_ROOT)
+        names = {m["id"] for m in registry}
+        for m in registry:
+            names |= set(m.get("params", {}))
+        # Every name is matched as a quoted literal and as a whole word (identifiers, strings, comments). A future
+        # registry name that is also an ordinary word in app.js (e.g. "height") needs an exception here.
+        self.assertGreater(len(names), 10)
+        offenders = []
+        for name in sorted(names):
+            if re.search(r"""(["'`])%s\1""" % re.escape(name), source) or re.search(r"\b%s\b" % re.escape(name), source):
+                offenders.append(name)
+        self.assertEqual(offenders, [])

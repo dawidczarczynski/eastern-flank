@@ -3,7 +3,7 @@
 // (and thumbnails of AI image candidates, loaded straight from their https host).
 
 const app = document.getElementById("app");
-let catalog = { classes: [], factions: [], units: [], views: [], statuses: [], mobilities: [] };
+let catalog = { classes: [], mechanisms: [], factions: [], units: [], views: [], statuses: [], mobilities: [] };
 let cleanup = null; // called when leaving a screen
 const filters = { faction: "", cls: "", status: "", q: "" };
 let ai = { available: false, hint: "" }; // GET /api/ai: can the server run Claude Code jobs?
@@ -431,6 +431,8 @@ const NUM_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km
 const DIM_FIELDS = ["hull_length", "overall_length", "width", "height"];
 // Unverified AI values in these fields block ready_for_model (mirrors catalog.MODEL_CRITICAL_FIELDS).
 const MODEL_CRITICAL = ["dimensions.hull_length", "dimensions.width", "dimensions.height", "silhouette_features"];
+// Provenance sources the tool fills in itself (mirrors catalog.DEFAULT_SOURCES): not a research URL.
+const DEFAULT_SOURCES = ["default", "class default"];
 const researchReports = {}; // unit id -> report of the last "Apply research", shown once after the reload
 
 function getPath(obj, path) { return path.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), obj); }
@@ -467,6 +469,9 @@ function readiness(u) {
   const dimItems = isFoot(u) ? [["Soldier height", pos(dims.height)]]
     : [["Height", pos(dims.height)], ["Width", pos(dims.width)], ["Hull length", pos(dims.hull_length)]];
   const critical = MODEL_CRITICAL.filter((p) => !p.startsWith("dimensions.") || !isFoot(u) || p === "dimensions.height");
+  const mechItems = [["At least one mechanism (tick what the real vehicle has)", Object.keys(u.mechanisms || {}).length > 0]]
+    .concat(Object.entries(u.provenance || {}).filter(([p, e]) => p.startsWith("mechanisms.") && e.verified === false)
+      .map(([p, e]) => ["Verify " + p + (DEFAULT_SOURCES.includes(e.source) ? " (default)" : " (AI)"), false]));
   return [
     ["Real name", !!(u.real_name || "").trim()],
     ["Class", !!u.class],
@@ -474,7 +479,7 @@ function readiness(u) {
     ...dimItems,
     ["At least 3 silhouette features (" + feats.length + ")", feats.length >= 3],
     [hasImage || !candidates ? imageLabel : imageLabel + " (Download one of the " + candidates + " candidate(s) under Images)", hasImage],
-  ].concat(critical.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]));
+  ].concat(critical.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]), mechItems);
 }
 
 async function unitScreen(id) {
@@ -484,6 +489,7 @@ async function unitScreen(id) {
   u.armament = u.armament || {};
   for (const k of ["operators", "silhouette_features", "details", "skip", "images", "image_candidates"]) u[k] = u[k] || [];
   u.provenance = u.provenance || {};
+  u.mechanisms = u.mechanisms || {};
   u.dimensions.sources = u.dimensions.sources || [];
   let serverStatus = u.status;
   let review = detail.review;
@@ -514,12 +520,14 @@ async function unitScreen(id) {
       review = res.review;
       const statusChanged = serverStatus !== u.status;
       serverStatus = u.status; errBox.textContent = "";
+      showMechErrors([]);
       if (statusChanged) renderAi();
       state.className = "savestate saved"; state.textContent = "saved";
     } catch (e) {
       if (e.status === 409) { onConflict(); return; }
       state.className = "savestate error"; state.textContent = "not saved";
       errBox.textContent = errText(e);
+      showMechErrors(e.errors || []);
       if (u.status !== serverStatus && (e.errors || []).some((x) => x.field === "status")) { u.status = serverStatus; renderStatus(); }
     }
   });
@@ -569,12 +577,13 @@ async function unitScreen(id) {
       box.textContent = "";
       wrap.classList.toggle("ai-unverified", !!p && p.verified === false);
       if (!p) return;
-      const src = p.source ? h("a", { href: p.source, target: "_blank", rel: "noopener noreferrer", text: "source" }) : h("span", { text: "no source" });
+      const isDefault = DEFAULT_SOURCES.includes(p.source);
+      const src = isDefault ? h("span", { text: p.source }) : p.source ? h("a", { href: p.source, target: "_blank", rel: "noopener noreferrer", text: "source" }) : h("span", { text: "no source" });
       if (p.verified === false) {
-        box.append(h("span", { class: "ai-tag", text: "AI" }), " unverified · ", src, " ",
+        box.append(h("span", { class: "ai-tag", text: isDefault ? "default" : "AI" }), " unverified · ", src, " ",
           h("button", { class: "small", text: "✓ Verified", title: "I checked this value", onclick: () => { p.verified = true; render(); changed(); } }));
       } else if (p.suggested === undefined) {
-        box.append(h("span", { class: "muted", text: "AI · verified · " }), src);
+        box.append(h("span", { class: "muted", text: (isDefault ? "" : "AI · ") + "verified · " }), src);
       }
       if (p.suggested !== undefined) {
         box.append(h("div", { class: "suggest" }, h("span", { class: "ai-tag", text: "AI" }), " suggests: ", h("strong", { text: showValue(p.suggested) }), " · ", src, " ",
@@ -617,7 +626,7 @@ async function unitScreen(id) {
     u.class = e.target.value;
     const c = catalog.classes.find((x) => x.id === u.class);
     if (c) { u.mobility = c.mobility; mobSel.value = c.mobility; }
-    renderMobilityFields();
+    renderMobilityFields(); renderMechanisms();
     changed();
   } }, catalog.classes.map((c) => h("option", { value: c.id, text: c.label, selected: u.class === c.id })));
   const mobSel = h("select", { onchange: (e) => { u.mobility = e.target.value; renderMobilityFields(); changed(); } }, catalog.mobilities.map((m) => h("option", { value: m, text: m, selected: u.mobility === m })));
@@ -671,6 +680,90 @@ async function unitScreen(id) {
       if (e.key === "Enter" && add.value.trim()) { list.push(add.value.trim()); renderFeatures(); changed(); featBox.lastChild.focus(); }
     });
     featBox.append(add);
+  }
+
+  // ---- mechanisms (built only from the registry in catalog.mechanisms)
+  const mechBox = h("div");
+  const mechErrSlots = {}; // field path -> element that shows the server's validation error for it
+  let lastMechErrors = []; // kept so a re-render of the section shows them again
+  function showMechErrors(errors) {
+    lastMechErrors = errors;
+    for (const el of Object.values(mechErrSlots)) el.textContent = "";
+    for (const e of errors) if (mechErrSlots[e.field]) mechErrSlots[e.field].textContent = e.message;
+  }
+  const mechDefault = (spec) => (Array.isArray(spec.default) ? [...spec.default] : spec.default);
+  function addMechanism(m, source) {
+    u.mechanisms[m.id] = {};
+    for (const [name, spec] of Object.entries(m.params || {})) {
+      u.mechanisms[m.id][name] = mechDefault(spec);
+      u.provenance["mechanisms." + m.id + "." + name] = { source: "default", verified: false };
+    }
+    if (source) u.provenance["mechanisms." + m.id] = { source, verified: false };
+  }
+  function removeMechanism(m) {
+    delete u.mechanisms[m.id];
+    for (const p of Object.keys(u.provenance)) if (p === "mechanisms." + m.id || p.startsWith("mechanisms." + m.id + ".")) delete u.provenance[p];
+  }
+  function mechParam(m, name, spec) {
+    const path = "mechanisms." + m.id + "." + name;
+    const vals = u.mechanisms[m.id];
+    const err = h("div", { class: "bad mech-err" });
+    mechErrSlots[path] = err;
+    const unit = spec.unit ? " (" + spec.unit + ")" : "";
+    let control;
+    if (spec.type === "enum") {
+      control = h("select", { onchange: (e) => { vals[name] = e.target.value; changed(); } },
+        spec.values.map((v) => h("option", { value: v, text: v, selected: vals[name] === v })));
+    } else if (spec.type === "number") {
+      control = h("input", { type: "number", min: spec.min, max: spec.max, step: 1, value: vals[name] === undefined ? "" : vals[name] });
+      control.addEventListener("input", () => { vals[name] = control.value === "" ? "" : Number(control.value); changed(); });
+    } else { // angle_range: "full" or [min, max]
+      const full = vals[name] === "full";
+      const range = Array.isArray(vals[name]) ? vals[name] : [spec.min, spec.max];
+      const lo = h("input", { type: "number", min: spec.min, max: spec.max, step: 1, value: range[0], disabled: full });
+      const hi = h("input", { type: "number", min: spec.min, max: spec.max, step: 1, value: range[1], disabled: full });
+      const fullCb = spec.allow_full ? h("input", { type: "checkbox", checked: full }) : null;
+      const sync = () => {
+        if (fullCb && fullCb.checked) vals[name] = "full";
+        else vals[name] = [lo.value === "" ? "" : Number(lo.value), hi.value === "" ? "" : Number(hi.value)];
+        lo.disabled = hi.disabled = !!(fullCb && fullCb.checked);
+        changed();
+      };
+      for (const el of [lo, hi, fullCb]) if (el) el.addEventListener("input", sync);
+      control = h("div", { class: "row" }, h("span", { text: "min" }), lo, h("span", { text: "max" }), hi,
+        fullCb ? h("label", { class: "check-row" }, fullCb, "full") : null);
+    }
+    return field(pretty(name) + unit, h("div", {}, control, spec.help ? h("div", { class: "muted", style: "font-size:12.5px", text: spec.help }) : null, err), false, path);
+  }
+  function renderMechanisms() {
+    for (const k of Object.keys(mechErrSlots)) delete mechErrSlots[k];
+    const rows = catalog.mechanisms.map((m) => {
+      const on = m.id in u.mechanisms;
+      const cb = h("input", { type: "checkbox", checked: on, disabled: !!activeJob });
+      cb.addEventListener("change", () => {
+        if (cb.checked) addMechanism(m, ""); else removeMechanism(m);
+        renderMechanisms(); changed();
+      });
+      const err = h("div", { class: "bad mech-err" });
+      mechErrSlots["mechanisms." + m.id] = err;
+      const row = field("", h("div", {}, h("label", { class: "check-row", title: m.description }, cb, h("strong", { text: m.label }),
+        m.status === "planned" ? h("span", { class: "badge", text: "planned", title: "The game has no animation for it yet" }) : null), err), true, "mechanisms." + m.id);
+      row.firstChild.remove(); // the checkbox label is the row's label
+      if (!on) return row;
+      const params = Object.entries(m.params || {});
+      return h("div", { class: "mech" }, row, params.length ? h("div", { class: "grid mech-params" }, params.map(([name, spec]) => mechParam(m, name, spec))) : null);
+    });
+    const cls = catalog.classes.find((c) => c.id === u.class);
+    const missing = ((cls && cls.default_mechanisms) || []).filter((id) => !(id in u.mechanisms));
+    const apply = h("button", { class: "small", text: "Apply class defaults", disabled: !!activeJob || !missing.length,
+      title: missing.length ? "Adds: " + missing.join(", ") : "The class has no default mechanisms to add",
+      onclick: () => {
+        for (const id of missing) addMechanism(catalog.mechanisms.find((m) => m.id === id), "class default");
+        renderMechanisms(); changed();
+      } });
+    mechBox.replaceChildren(h("div", { class: "row", style: "margin-bottom:8px" }, apply,
+      h("span", { class: "muted", text: "Tick the mechanisms the real vehicle has; values come from the research or the class defaults and need verifying." })), ...rows);
+    showMechErrors(lastMechErrors);
   }
 
   // ---- images
@@ -845,6 +938,7 @@ async function unitScreen(id) {
         field("Details (nice to have, one per line)", linesIn(u, "details", ""), false, "details"),
         field("Skip (leave out, one per line)", linesIn(u, "skip", ""), false, "skip"),
         field("Camo note", areaIn(u, "camo_note", "How the real vehicle is painted / what to do with faction camo", 3), true, "camo_note"))),
+    section("Mechanisms", mechBox),
     section("Images", candBox, dropzone, imagesBox),
     reviewBox,
     section("Status & feedback", h("div", { class: "grid two" },
@@ -934,7 +1028,7 @@ async function unitScreen(id) {
     h("div", { class: "editor-head" }, h("a", { href: "#/", text: "< Overview" }), h("h1", { text: u.real_name }), h("span", { class: "mono muted", text: id }),
       h("a", { class: "btn", href: "/files/units/" + encodeURIComponent(id) + "/unit.json", target: "_blank", text: "unit.json" }), state),
     errBox, h("div", { class: "layout" }, h("fieldset", { class: "lock", disabled: !!activeJob }, mainCol), side));
-  renderStatus(); renderFeatures(); renderCandidates(); renderImages(); renderReview();
+  renderStatus(); renderFeatures(); renderMechanisms(); renderCandidates(); renderImages(); renderReview();
 }
 
 route();

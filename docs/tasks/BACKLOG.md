@@ -44,7 +44,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | done | **TASK-038**, TASK-037 |
 | [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | done | **TASK-039a** |
 | [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | done | TASK-037, TASK-040 |
-| [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | ready | **TASK-041** |
+| [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | done | **TASK-041** |
 | [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on | ready | **TASK-041** (soft: TASK-042) |
 | [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction, elevation per unit | ready | **TASK-043** |
 | [TASK-045](TASK-045-stabilisers.md) | `stabilisers`: jacks lowered before a volley (generic deploy step), Homar-K jacks | ready | **TASK-044**, TASK-042 |
@@ -53,7 +53,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a, TASK-043) |
 | [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | ready | **TASK-036** (soft: TASK-039a, TASK-043 … TASK-045) |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | ready | **TASK-021** (soft: TASK-031 … TASK-033) |
-| [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | idea | **TASK-045**; Uragan research must confirm the shields |
+| [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | ready | **TASK-045**; Uragan research must confirm the shields |
 | [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | idea | **TASK-047**; look at 047 in game first |
 | [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | ready | – |
 | [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | ready | – |
