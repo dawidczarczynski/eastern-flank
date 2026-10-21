@@ -51,7 +51,10 @@ func test_ambient_and_reflections_from_sky() -> void:
 
 
 func test_ssao() -> void:
-	assert_true(_env.ssao_enabled)
+	# The resource is the HIGH look; LOW switches effects off at runtime (GraphicsQuality).
+	var env := _env.duplicate() as Environment
+	GraphicsQuality.apply_environment(env, GraphicsQuality.features(GraphicsQuality.Level.HIGH))
+	assert_true(env.ssao_enabled)
 
 
 func test_sky_material_colors() -> void:

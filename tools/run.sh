@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs the game (needs a graphical environment – in WSL2 it works through WSLg).
-# Usage: tools/run.sh [--editor]
+# Usage: tools/run.sh [--editor] [--quality=low|high]
+#   --quality  force the graphics quality (default: auto-detected; LOW on software rendering)
 # The Godot path can be overridden with the GODOT variable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -18,7 +19,15 @@ fi
 # Importing refreshes the class cache (class_name) – without it a fresh clone fails with "not declared in the current scope" errors.
 "$GODOT" --headless --path . --import >/dev/null 2>&1 || true
 
-if [[ "${1:-}" == "--editor" ]]; then
+quality=()
+editor=0
+for arg in "$@"; do
+	case "$arg" in
+	--editor) editor=1 ;;
+	--quality=*) quality=(-- "$arg") ;;
+	esac
+done
+if [[ $editor -eq 1 ]]; then
 	exec "$GODOT" --path . --editor
 fi
-exec "$GODOT" --path .
+exec "$GODOT" --path . ${quality[@]+"${quality[@]}"}

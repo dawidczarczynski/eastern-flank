@@ -35,6 +35,10 @@ The AI (`AiPlayer.take_turn`) does exactly the same, just without clicks.
 
 `UnitView` = model (`UnitModels.build`: a registry that loads `src/presentation/models/<unit_id>.gd`, built with `ModelParts` primitives and shared meshes/materials, faces +X; each unit model is built once per unit and faction, units get copies with their own node trees and the camo materials restored per copy) + faction marker draped on the terrain (`OverlayGeometry`) + HUD `UnitLabel` (a `Control` projected via `Camera3D.unproject_position`, anchored at the model file's `LABEL_HEIGHT` through `UnitModels.label_height`). The "done" dimming uses the pure helper `UnitStatus.is_done`; `BattleController` pushes selected/hovered/done state into the views.
 
+## Graphics quality
+
+`GraphicsQuality` (`src/presentation/graphics_quality.gd`, pure static) picks the LOW/HIGH preset (`detect` from renderer + adapter, `--quality=` override via `parse_override`) and holds the feature switches (`features`); `BattleController` applies them to the environment/sun/viewport (shadows, MSAA, 3D render scale) and passes `quality` to `MapView` (LOW: no foliage scatter) / `UnitView`.
+
 ## Units and factions
 
 `UnitDefinition` (`src/core/data/`, one `data/units/<id>.tres` per real unit) holds `id`, `display_name` (real designation, or a translated descriptive name for squads), `short_name` (label, ≤ 6 characters), `unit_class` (`infantry` / `tank` / `mlrs`, ids from `docs/design/units/classes.json`), `mobility` (`foot` / `wheeled` / `tracked`, from the catalog) and the combat stats (`max_hp`, `move_points`, `attack`, `defense`, `attack_range`), derived by GDD "Stat derivation rules". Core rules read only the combat stats; `unit_class` and `mobility` group shared behaviour (presentation: volleys, locomotion, model contract – TASK-039b). `test_unit_catalog_consistency.gd` checks every unit against its catalog entry (`real_name`, `class`, `mobility`, roster factions ⊆ `operators`).

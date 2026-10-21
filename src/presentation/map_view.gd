@@ -93,6 +93,8 @@ static var _water_normal: ImageTexture
 
 @export var hex_size: float = 1.0
 
+## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
+var quality: Dictionary = {}
 var _grid: HexGrid
 var _surface: TerrainSurface
 ## Terrain mesh height grid, kept so the grid lines can sit exactly on the mesh.
@@ -162,7 +164,8 @@ func build(grid: HexGrid) -> void:
 		centers.append(Hex.to_world(c, hex_size))
 	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
 	_tiles_root.add_child(_build_terrain(rect))
-	_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED))
+	if quality.get("foliage", true):
+		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED))
 	_tiles_root.add_child(_build_water(rect))
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)

@@ -158,6 +158,8 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
 
+- **Graphics**: the game picks a graphics quality by itself when it starts. On a computer with a real graphics card it uses **HIGH** (full look). On software or compatibility rendering (for example a virtual machine or WSL without GPU) it uses **LOW**: no trees, bushes or rocks (forests and other terrain show only by the ground colour), no shadows, no ambient occlusion or edge smoothing (MSAA), and the 3D view rendered at half resolution, so the game stays playable. The chosen level is printed in the console as "Graphics quality: …". There is no settings screen. To force a level, start the game with `--quality=low` or `--quality=high` (for example `tools/run.sh --quality=low`, or `tools/run_windows.sh --quality=high`).
+
 ## 11. Controls
 
 | Action | Control |

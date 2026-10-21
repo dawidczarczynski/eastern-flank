@@ -51,6 +51,12 @@ func test_unknown_option() -> void:
 	_assert_error(["--zoom=3"], "unknown_option")
 
 
+func test_quality_option_is_accepted() -> void:
+	var options := ScreenshotOptions.parse(PackedStringArray(["--quality=low", "/tmp/a.png"]))
+	assert_eq(options["error"], "")
+	assert_eq(options["output"], "/tmp/a.png")
+
+
 func test_two_paths_are_too_many() -> void:
 	_assert_error(["/tmp/a.png", "/tmp/b.png"], "too_many_arguments")
 

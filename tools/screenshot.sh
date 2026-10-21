@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Renders the battle scene in a window, saves a PNG of the viewport and quits – lets agents "see" the game.
-# Usage: tools/screenshot.sh [out.png] [--frames=N] [--windows | --linux]
+# Usage: tools/screenshot.sh [out.png] [--frames=N] [--windows | --linux] [--quality=low|high]
+#   --quality force the graphics quality (default: auto-detected: HIGH with --windows, LOW with --linux); the run prints a "Graphics quality:" line
 #   out.png   default .screenshots/battle.png (project root); a relative path is resolved against the current directory.
 #             Keep custom paths under .screenshots/ or outside the project – elsewhere Godot would import the PNG.
 #   --frames  rendered frames to wait before capturing (1-600, default 10)

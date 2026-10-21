@@ -29,6 +29,8 @@ const FILL_SUBDIVISIONS := 4
 ## One unlit white material shared by every hit flash (events play one at a time).
 static var _flash_material: StandardMaterial3D
 
+## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
+var quality: Dictionary = {}
 var unit_id: int
 
 var _pivot: Node3D  # holds the model; shaken on hit

@@ -13,6 +13,8 @@ const AIM_DURATION := 0.5
 const LAUNCHER_RAISE_DURATION := 0.9
 const LAUNCHER_TRAVERSE_DURATION := 0.9
 
+## Active graphics quality switches (GraphicsQuality.features); views read them before use.
+var quality: Dictionary = {}
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
@@ -38,6 +40,7 @@ var _fx_rng := RandomNumberGenerator.new()  # view-local (volley scatter), never
 
 
 func _ready() -> void:
+	_setup_graphics_quality()
 	var state := Scenario.default_battle(MAP_SEED)
 	_sim = GameSimulation.new(state)
 	_sim.event_emitted.connect(_on_event)
@@ -54,6 +57,30 @@ func _ready() -> void:
 		_create_unit_view(unit)
 	_refresh_hud()
 	_refresh_selection_ui()
+
+
+## Picks LOW/HIGH (`--quality=` user argument, else detected from renderer and adapter) and applies
+## the environment, sun and viewport switches this scene owns.
+func _setup_graphics_quality() -> void:
+	var override := GraphicsQuality.parse_override(OS.get_cmdline_user_args())
+	var adapter := RenderingServer.get_video_adapter_name()
+	var level: GraphicsQuality.Level
+	var source: String
+	if override >= 0:
+		level = override as GraphicsQuality.Level
+		source = "override"
+	else:
+		level = GraphicsQuality.detect(RenderingServer.get_current_rendering_method(), adapter)
+		source = "auto: %s" % adapter
+	quality = GraphicsQuality.features(level)
+	print("Graphics quality: %s (%s)" % [GraphicsQuality.level_name(level), source])
+	var world_env := $WorldEnvironment as WorldEnvironment
+	# Own copy: the resource is shared and cached, runtime switches must not leak into it.
+	world_env.environment = world_env.environment.duplicate() as Environment
+	GraphicsQuality.apply_environment(world_env.environment, quality)
+	GraphicsQuality.apply_sun($Sun as DirectionalLight3D, quality)
+	GraphicsQuality.apply_viewport(get_viewport(), quality)
+	_map_view.quality = quality
 
 
 ## The camera can move under a still cursor (keys, wheel) – re-pick the hovered tile then.
@@ -157,6 +184,7 @@ func _map_bounds() -> Rect2:
 func _create_unit_view(unit: Unit) -> void:
 	var view := UnitView.new()
 	_units_root.add_child(view)
+	view.quality = quality
 	view.setup(
 		unit,
 		_sim.state.faction_of(unit.owner_id),

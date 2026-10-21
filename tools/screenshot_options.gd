@@ -10,6 +10,7 @@ const DEFAULT_FRAMES := 10
 const MIN_FRAMES := 1
 const MAX_FRAMES := 600
 const FRAMES_PREFIX := "--frames="
+const QUALITY_PREFIX := "--quality="
 
 
 static func parse(args: PackedStringArray) -> Dictionary:
@@ -21,6 +22,8 @@ static func parse(args: PackedStringArray) -> Dictionary:
 			if not value.is_valid_int() or not _frames_in_range(value.to_int()):
 				return _with_error(result, "invalid_frames")
 			result["frames"] = value.to_int()
+		elif arg.to_lower().begins_with(QUALITY_PREFIX):
+			pass  # read by the battle scene itself (GraphicsQuality.parse_override)
 		elif arg.begins_with("-"):
 			return _with_error(result, "unknown_option")
 		else:

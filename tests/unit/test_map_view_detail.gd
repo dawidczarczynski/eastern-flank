@@ -59,3 +59,15 @@ func test_terrain_has_tangents_perpendicular_to_normals() -> void:
 		# Binormal = cross(normal, tangent) * w must be the -z side (up the normal map image).
 		var binormal := normals[i].cross(t) * tangents[i * 4 + 3]
 		assert_true(binormal.z < -0.5, "binormal points along -z")
+
+
+func test_foliage_is_built_by_default() -> void:
+	assert_true(_view._tiles_root.has_node("Trunks"))
+
+
+func test_low_quality_builds_no_foliage() -> void:
+	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
+	_view.build(Fixtures.plains_grid(1))
+	assert_false(_view._tiles_root.has_node("Trunks"))
+	assert_false(_view._tiles_root.has_node("ConiferCrowns0"))
+	assert_true(_view._tiles_root.has_node("Terrain"))
