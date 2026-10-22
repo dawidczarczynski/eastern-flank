@@ -11,10 +11,54 @@ func _near_v2(actual: Vector2, expected: Vector2) -> void:
 	assert_true(actual.distance_to(expected) < EPS, "expected %s, got %s" % [expected, actual])
 
 
-func test_pitch_for_distance() -> void:
-	_near(CameraMath.pitch_for_distance(8.0), 0.82)
-	_near(CameraMath.pitch_for_distance(45.0), 1.12)
-	_near(CameraMath.pitch_for_distance(24.0), 0.94973)
+func test_pitch_for_distance_control_points() -> void:
+	_near(CameraMath.pitch_for_distance(7.0), 0.30)
+	_near(CameraMath.pitch_for_distance(24.0), 0.56)
+	_near(CameraMath.pitch_for_distance(46.0), 1.05)
+	_near(CameraMath.pitch_for_distance(15.5), 0.43)
+
+
+func test_pitch_for_distance_is_clamped_outside_the_zoom_range() -> void:
+	_near(CameraMath.pitch_for_distance(2.0), 0.30)
+	_near(CameraMath.pitch_for_distance(100.0), 1.05)
+
+
+func test_pitch_for_distance_is_monotonic() -> void:
+	var previous := CameraMath.pitch_for_distance(7.0)
+	var d := 7.25
+	while d <= 46.0:
+		var p := CameraMath.pitch_for_distance(d)
+		assert_true(p > previous, "pitch must grow with distance (d %s)" % d)
+		previous = p
+		d += 0.25
+
+
+func test_horizon_is_in_frame_when_zoomed_in() -> void:
+	# The horizon sits at the camera pitch below the view centre; it is visible when the pitch
+	# is less than half the vertical FOV (40 degrees in the battle scene).
+	assert_true(CameraMath.pitch_for_distance(7.0) < deg_to_rad(40.0) / 2.0)
+
+
+func test_min_pitch_for_ground() -> void:
+	# Camera height = target height + sin(pitch) * d must reach ground + clearance.
+	var p := CameraMath.min_pitch_for_ground(2.0, 0.4, 10.0)
+	_near(0.4 + sin(p) * 10.0, 2.0 + CameraMath.GROUND_CLEARANCE)
+	# Low ground needs (almost) no extra pitch; never negative.
+	assert_true(CameraMath.min_pitch_for_ground(-20.0, 0.4, 10.0) >= 0.0)
+	# Impossible clearance: straight down at most.
+	_near(CameraMath.min_pitch_for_ground(50.0, 0.4, 7.0), PI / 2.0)
+
+
+func test_camera_stays_above_ground_at_every_distance() -> void:
+	var ground := 2.0
+	var d := CameraMath.MIN_DISTANCE
+	while d <= CameraMath.MAX_DISTANCE:
+		var offset := CameraMath.camera_offset(
+			0.3, d, CameraMath.min_pitch_for_ground(ground, 0.4, d)
+		)
+		assert_true(0.4 + offset.y >= 3.5 - EPS, "camera height at d %s: %s" % [d, 0.4 + offset.y])
+		_near(offset.length(), d)
+		d += 0.5
 
 
 func test_camera_offset_default_yaw() -> void:
@@ -79,3 +123,18 @@ func test_clamp_target() -> void:
 	_near_v2(CameraMath.clamp_target(Vector2(-5, 30), bounds, 2.0), Vector2(2, 12))
 	_near_v2(CameraMath.clamp_target(Vector2(9, 9), bounds, 2.0), Vector2(9, 9))
 	_near_v2(CameraMath.clamp_target(Vector2(9, 9), Rect2(0, 0, 3, 3), 2.0), Vector2(1.5, 1.5))
+
+
+func test_clear_pitch_keeps_camera_above_steep_ground() -> void:
+	# A steep ridge: ground rises 1.2 per unit towards +z, the camera sits on the +z side.
+	var ridge := func(_x: float, z: float) -> float: return maxf(0.0, z * 1.2)
+	for d: float in [7.0, 15.0, 24.0, 46.0]:
+		var pitch := CameraMath.clear_pitch(ridge, Vector2.ZERO, 0.0, d, 0.4)
+		var offset := CameraMath.camera_offset(0.0, d, pitch)
+		var ground: float = ridge.call(offset.x, offset.z)
+		assert_true(0.4 + offset.y >= ground + CameraMath.GROUND_CLEARANCE - 0.001, "d %s" % d)
+
+
+func test_clear_pitch_is_the_curve_on_flat_ground() -> void:
+	var flat := func(_x: float, _z: float) -> float: return 0.0
+	_near(CameraMath.clear_pitch(flat, Vector2.ZERO, 0.0, 24.0, 0.4), 0.56)

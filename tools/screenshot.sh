@@ -89,7 +89,7 @@ if [[ -n "$godot_win" ]]; then
 			win_args+=("$arg")
 		fi
 	done
-	GODOT_WIN_ENV="SCREENSHOT_SELECT_UNIT SCREENSHOT_CAMERA" \
+	GODOT_WIN_ENV="SCREENSHOT_SELECT_UNIT SCREENSHOT_CAMERA SCREENSHOT_PITCH_OFFSET" \
 		run_windows_godot "$godot_win" "$remaining" "$output" "$errors" "$project_dir" \
 		--resolution 1280x720 --script res://tools/screenshot.gd -- "${win_args[@]}"
 	status=$?

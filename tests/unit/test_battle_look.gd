@@ -144,3 +144,10 @@ func test_windows_uses_d3d12() -> void:
 	# SSAO renders as grey blocks on Vulkan with an AMD RX 580 (Godot 4.5.1); D3D12 is correct.
 	var driver: String = ProjectSettings.get_setting("rendering/rendering_device/driver.windows")
 	assert_eq(driver, "d3d12")
+
+
+func test_battle_camera_fov() -> void:
+	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
+	var camera := battle.get_node("CameraRig/Camera3D") as Camera3D
+	assert_true(is_equal_approx(camera.fov, 40.0), "fov %s" % camera.fov)
+	battle.free()

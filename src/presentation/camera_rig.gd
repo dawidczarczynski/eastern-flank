@@ -1,7 +1,9 @@
 class_name CameraRig
 extends Node3D
 ## Strategy camera. WASD/arrows – pan, Q/E – rotate, wheel – zoom, LMB drag – grab pan,
-## RMB drag – rotate. All formulas live in CameraMath.
+## RMB drag – rotate. Tilt (a pitch offset on top of the distance curve, kept for the match):
+## Ctrl+wheel (up = towards the horizon), R/F held (R = towards the horizon), vertical MMB drag
+## (down = towards top-down), Home – smooth reset. All formulas live in CameraMath.
 ## TODO: move the keys to the Input Map (project.godot) once there's a settings screen.
 
 ## A LMB/RMB release that never became a drag (the owner decides what a click means).
@@ -22,6 +24,11 @@ var _has_bounds := false
 var _press_button := MOUSE_BUTTON_NONE
 var _press_position := Vector2.ZERO
 var _dragging := false
+var _pitch_offset := 0.0  # player tilt, radians (CameraMath.clamp_pitch_offset range)
+var _resetting_tilt := false  # Home pressed: the offset is easing back to 0
+var _tilt_dragging := false  # middle mouse held
+## Callable(x: float, z: float) -> float: the drawn ground height; null = flat ground at 0.
+var _ground_height := Callable()
 
 @onready var _camera: Camera3D = $Camera3D
 
@@ -35,10 +42,23 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
 		_press_button = MOUSE_BUTTON_NONE
 		_dragging = false
+		_tilt_dragging = false
 
 
 func distance() -> float:
 	return _distance
+
+
+## Player tilt offset in radians (0 = the automatic pitch curve).
+func pitch_offset() -> float:
+	return _pitch_offset
+
+
+## Screenshot tool: sets the tilt offset directly (clamped).
+func set_pitch_offset(offset: float) -> void:
+	_pitch_offset = CameraMath.clamp_pitch_offset(offset)
+	_resetting_tilt = false
+	_apply()
 
 
 ## True while a pressed mouse button is being dragged (pan / rotate), not for plain clicks.
@@ -50,6 +70,12 @@ func is_dragging() -> bool:
 func set_bounds(rect: Rect2) -> void:
 	_bounds = rect
 	_has_bounds = true
+	_apply()
+
+
+## The camera keeps CameraMath.GROUND_CLEARANCE above the ground this query returns.
+func set_ground_query(query: Callable) -> void:
+	_ground_height = query
 	_apply()
 
 
@@ -89,17 +115,49 @@ func _process(delta: float) -> void:
 	if rotation_input != 0.0:
 		_yaw += rotation_input * KEY_ROTATE_SPEED * delta
 		changed = true
+
+	var tilt_input := 0.0  # + = towards the horizon
+	if not (Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_ALT)):
+		if Input.is_physical_key_pressed(KEY_R):
+			tilt_input += 1.0
+		if Input.is_physical_key_pressed(KEY_F):
+			tilt_input -= 1.0
+	if tilt_input != 0.0:
+		_resetting_tilt = false
+		_pitch_offset = CameraMath.tilt_toward_horizon(
+			_pitch_offset, tilt_input * CameraMath.TILT_KEY_SPEED * delta
+		)
+		changed = true
+	elif _resetting_tilt:
+		_pitch_offset = CameraMath.reset_offset(_pitch_offset, delta)
+		_resetting_tilt = _pitch_offset != 0.0
+		changed = true
 	if changed:
 		_apply()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key != null:
+		if key.pressed and not key.echo and key.keycode == KEY_HOME:
+			_resetting_tilt = true
+		return
 	var button := event as InputEventMouseButton
 	if button != null:
 		_on_mouse_button(button)
 		return
 	var motion := event as InputEventMouseMotion
-	if motion != null and _press_button != MOUSE_BUTTON_NONE:
+	if motion == null:
+		return
+	if _tilt_dragging and not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+		_tilt_dragging = false  # the release was eaten elsewhere (e.g. a HUD control)
+	if _tilt_dragging:
+		_resetting_tilt = false
+		_pitch_offset = CameraMath.tilt_toward_horizon(
+			_pitch_offset, -motion.relative.y * CameraMath.TILT_MOUSE_SPEED
+		)
+		_apply()
+	elif _press_button != MOUSE_BUTTON_NONE:
 		_on_mouse_motion(motion)
 
 
@@ -108,10 +166,18 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
 			if event.pressed:
 				var notches := event.factor if event.factor > 0.0 else 1.0
-				if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-					notches = -notches
-				_distance = CameraMath.zoom(_distance, notches)
+				if event.ctrl_pressed:  # Ctrl+wheel tilts instead of zooming; up = to the horizon
+					if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+						notches = -notches
+					_resetting_tilt = false
+					_pitch_offset = CameraMath.tilt_step(_pitch_offset, notches)
+				else:
+					if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+						notches = -notches
+					_distance = CameraMath.zoom(_distance, notches)
 				_apply()
+		MOUSE_BUTTON_MIDDLE:
+			_tilt_dragging = event.pressed
 		MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT:
 			if event.pressed:
 				# A held button whose release never arrived (e.g. eaten by a HUD control) is dropped.
@@ -149,5 +215,15 @@ func _apply() -> void:
 	if _camera == null:
 		return
 	var look_at_point := Vector3.UP * TARGET_HEIGHT
-	_camera.position = look_at_point + CameraMath.camera_offset(_yaw, _distance)
+	_camera.position = look_at_point + _clear_offset(look_at_point)
 	_camera.look_at(global_position + look_at_point, Vector3.UP)
+
+
+## Camera offset with the pitch raised where needed so the camera stays above the ground under it.
+func _clear_offset(look_at_point: Vector3) -> Vector3:
+	if not _ground_height.is_valid():
+		return CameraMath.camera_offset(_yaw, _distance, 0.0, _pitch_offset)
+	var pitch := CameraMath.clear_pitch(
+		_ground_height, _target, _yaw, _distance, look_at_point.y, _pitch_offset
+	)
+	return CameraMath.camera_offset_at_pitch(_yaw, _distance, pitch)

@@ -154,6 +154,7 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 - **Unit card**: hover any unit (yours or the enemy's) to see its class (Infantry, Tank or Rocket Artillery) with the unit's real name below it (e.g. M1A2 SEPv3 Abrams). In the Polish version the class and the squad names are translated (Drużyna piechoty zmechanizowanej, Drużyna zmotoryzowana); vehicle names stay as they are. The card also shows the unit's side, HP, Attack, Defense, Moves (left / per turn) and Range. Defense includes the terrain bonus of its tile, e.g. `5 (3+2)` on hills. The status line says "Ready", "Ready · already attacked", "Done this turn" or "Enemy unit".
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus the path cost when you have a unit selected and the tile is reachable.
 - **Selection**: selecting a unit outlines the area it can reach in your colour and slightly darkens the rest of the map; the tile under the cursor is tinted when the unit can move there. Water is never darkened, and unreachable tiles inside the area (such as a lake) get their own outline.
+- **Beyond the map edge**: the land around the map (a little greyer and paler, with trees on HIGH graphics) is scenery only. You can't hover or click tiles there, units can't go there, and the camera can't be panned off the map.
 - **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
@@ -171,7 +172,9 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 | End turn | Enter, or the End turn button |
 | Pan the camera | Left-drag, or W A S D / arrow keys |
 | Rotate the camera | Right-drag, or Q / E |
-| Zoom | Mouse wheel (the camera tilts lower as you zoom in) |
+| Zoom | Mouse wheel (the camera tilts toward the horizon as you zoom in and looks almost straight down when zoomed out; it never dips below the ground) |
+| Tilt the camera | Ctrl + mouse wheel (wheel up tilts toward the horizon; does not zoom), hold R (toward the horizon) / F (toward top-down), or middle-drag up / down (drag down tilts toward top-down). Your tilt is added on top of the automatic zoom tilt, up to about 20° either way, and stays for the rest of the match; the camera never dips below the ground |
+| Reset the tilt | Home (the camera smoothly returns to the default tilt) |
 | Show / hide the hex grid | G (the grid fades as you zoom out) |
 | Save the match record | F5 |
 

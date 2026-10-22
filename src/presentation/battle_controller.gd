@@ -50,6 +50,7 @@ func _ready() -> void:
 	_build_bottom_left_stack()
 	_map_view.build(state.grid)
 	_camera_rig.set_bounds(_map_bounds())
+	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
 	_camera_rig.clicked.connect(_on_camera_clicked)
@@ -136,13 +137,16 @@ func debug_select_and_hover(unit_id: int) -> void:
 
 
 ## Screenshot debug hook (tools/screenshot.gd): points the camera at a unit's tile.
-func debug_focus_camera(unit_id: int, yaw: float, distance: float) -> void:
+func debug_focus_camera(
+	unit_id: int, yaw: float, distance: float, pitch_offset: float = 0.0
+) -> void:
 	var unit := _sim.state.get_unit(unit_id)
 	if unit == null:
 		push_error("debug_focus_camera: no unit %d" % unit_id)
 		return
 	var focus := _map_view.tile_top_position(unit.coord)
 	_camera_rig.set_view(Vector2(focus.x, focus.z), yaw, distance)
+	_camera_rig.set_pitch_offset(pitch_offset)
 	for view: UnitView in _unit_views.values():
 		view.refresh_label()  # _process is disabled in the screenshot tool
 
@@ -200,13 +204,7 @@ func _pick_hex(screen_position: Vector2) -> Variant:
 	var camera := get_viewport().get_camera_3d()
 	var origin := camera.project_ray_origin(screen_position)
 	var direction := camera.project_ray_normal(screen_position)
-	var hit: Variant = _map_view.surface().raycast(origin, direction)
-	if hit == null:
-		return null
-	var coord := Hex.from_world(hit, _map_view.hex_size)
-	if not _sim.state.grid.has_tile(coord):
-		return null
-	return coord
+	return _map_view.pick_coord(origin, direction)
 
 
 ## Tracks the hovered tile; the path preview is recomputed only when it changes.

@@ -84,6 +84,7 @@ func _fail(message: String, exit_code: int) -> void:
 
 ## Debug aid: SCREENSHOT_CAMERA=<unit id>,<yaw degrees>,<distance> points the camera at a unit's
 ## tile (e.g. the README shot, tools/readme_screenshot.sh); unset = the default overview camera.
+## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -93,7 +94,8 @@ func _apply_debug_selection() -> void:
 			"debug_focus_camera",
 			camera["unit_id"],
 			deg_to_rad(camera["yaw_degrees"]),
-			camera["distance"]
+			camera["distance"],
+			OS.get_environment("SCREENSHOT_PITCH_OFFSET").to_float()
 		)
 	elif camera["error"] != "none":
 		printerr("ERROR: invalid SCREENSHOT_CAMERA (expected <unit id>,<yaw degrees>,<distance>)")

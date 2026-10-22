@@ -17,7 +17,8 @@ const MONO_MEDIUM := "IBMPlexMono-Medium"
 const MONO_SEMIBOLD := "IBMPlexMono-SemiBold"
 const HINT := (
 	"LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom"
-	+ " · WASD/QE – camera · G – grid · Enter – end turn · F5 – save match"
+	+ " · WASD/QE – camera · Ctrl+wheel/RF – tilt · Home – reset view"
+	+ " · G – grid · Enter – end turn · F5 – save match"
 )
 
 var _human_player := 0
@@ -317,7 +318,7 @@ func _build_hint() -> void:
 	_hint_label.text = tr(HINT)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint_label.custom_minimum_size.x = 440
+	_hint_label.custom_minimum_size.x = 600
 	_hint_label.add_theme_constant_override(&"line_spacing", 5)
 	box.add_child(_hint_label)
 

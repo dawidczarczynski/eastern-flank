@@ -13,6 +13,16 @@ const EXTENT := 6.0
 ## (excluding ~0.3 s once for the detail textures); 4 is the compromise, the normal map
 ## supplies the fine detail.
 const RESOLUTION := 4.0
+## Scenery ring around the playable terrain mesh (TASK-052): width in world units, vertices at
+## half the playable mesh density, the colour blend towards the desaturated backdrop look over
+## BACKDROP_FADE units from the seam, and that look (value and saturation factors).
+const BACKDROP_WIDTH := 14.0
+const BACKDROP_FADE := 1.5
+const BACKDROP_VALUE := 0.85
+const BACKDROP_SATURATION := 0.7
+## Share of the planned scatter the backdrop keeps (cheaper, and it is far away).
+const BACKDROP_SCATTER_DENSITY := 0.5
+const BACKDROP_THIN_SEED := 311.0
 ## The water plane is this much larger than the terrain mesh.
 const WATER_MARGIN := 80.0
 const WATER_COLOR := Color("#264f5c", 0.84)
@@ -102,6 +112,8 @@ var _mesh_origin := Vector2.ZERO
 var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
 var _mesh_heights := PackedFloat32Array()
+var _backdrop: BackdropMesh
+var _nearest_type_cache: Dictionary = {}
 var _tiles_root := Node3D.new()
 var _reach_line := MeshInstance3D.new()
 var _dim := MeshInstance3D.new()
@@ -163,9 +175,13 @@ func build(grid: HexGrid) -> void:
 	for c in grid.coords():
 		centers.append(Hex.to_world(c, hex_size))
 	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
+	_nearest_type_cache.clear()
 	_tiles_root.add_child(_build_terrain(rect))
+	_tiles_root.add_child(_build_backdrop(rect))
 	if quality.get("foliage", true):
-		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED))
+		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED), "")
+		if quality.get("backdrop_scatter", true):
+			_build_backdrop_scatter(rect)
 	_tiles_root.add_child(_build_water(rect))
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
@@ -182,6 +198,27 @@ func mesh_height_at(x: float, z: float) -> float:
 	return _mesh_ground_height(x, z)
 
 
+## Height of the ground the player sees at (x, z): the terrain mesh on the playable rectangle,
+## the backdrop beyond it. The camera keeps its clearance above this.
+func visible_ground_height(x: float, z: float) -> float:
+	var inner := Rect2(_mesh_origin, Vector2(_mesh_cells) * _mesh_step)
+	if inner.has_point(Vector2(x, z)):
+		return _mesh_ground_height(x, z)
+	return maxf(_backdrop.height_at(x, z), TerrainSurface.WATER_SURFACE)
+
+
+## The tile under a pick ray, or null: rays that miss the map or hit the backdrop scenery pick
+## nothing (the backdrop is not part of the TerrainSurface the ray is cast against).
+func pick_coord(origin: Vector3, direction: Vector3) -> Variant:
+	var hit: Variant = _surface.raycast(origin, direction)
+	if hit == null:
+		return null
+	var coord := Hex.from_world(hit, hex_size)
+	if not _grid.has_tile(coord):
+		return null
+	return coord
+
+
 func tile_top_position(c: Vector2i) -> Vector3:
 	var p := Hex.to_world(c, hex_size)
 	p.y = _surface.ground_height(p.x, p.z)
@@ -189,8 +226,9 @@ func tile_top_position(c: Vector2i) -> Vector3:
 
 
 func _build_terrain(rect: Rect2) -> MeshInstance3D:
-	var nx := maxi(1, roundi(rect.size.x * RESOLUTION))
-	var nz := maxi(1, roundi(rect.size.y * RESOLUTION))
+	# Even cell counts: the half-resolution backdrop reuses every second border vertex.
+	var nx := 2 * maxi(1, roundi(rect.size.x * RESOLUTION / 2.0))
+	var nz := 2 * maxi(1, roundi(rect.size.y * RESOLUTION / 2.0))
 	var step := Vector2(rect.size.x / nx, rect.size.y / nz)
 	var row := nx + 1
 	var count := row * (nz + 1)
@@ -204,6 +242,14 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 			var h := _surface.height_at(x, z)
 			vertices[j * row + i] = Vector3(x, h, z)
 			_mesh_heights[j * row + i] = h
+	# Odd border vertices sit on the line between their even neighbours, so the coarser backdrop
+	# edge meets the border without cracks (the border is outside the map, nobody notices).
+	for i in range(1, nx, 2):
+		for j: int in [0, nz]:
+			_set_border_height(vertices, j * row + i, 1)
+	for j in range(1, nz, 2):
+		for i: int in [0, nx]:
+			_set_border_height(vertices, j * row + i, row)
 	_mesh_origin = rect.position
 	_mesh_step = step
 	_mesh_cells = Vector2i(nx, nz)
@@ -278,6 +324,16 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _terrain_material())
+	var instance := MeshInstance3D.new()
+	instance.name = "Terrain"
+	instance.mesh = mesh
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	return instance
+
+
+## The ground material shared by the playable terrain and the backdrop.
+func _terrain_material() -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.vertex_color_use_as_albedo = true
 	material.vertex_color_is_srgb = false
@@ -289,17 +345,100 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	material.normal_texture = _ground_normal
 	material.normal_scale = DETAIL_NORMAL_SCALE
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	mesh.surface_set_material(0, material)
+	return material
+
+
+func _set_border_height(vertices: PackedVector3Array, index: int, stride: int) -> void:
+	var h := (vertices[index - stride].y + vertices[index + stride].y) * 0.5
+	vertices[index].y = h
+	_mesh_heights[index] = h
+
+
+## The non-playable scenery ring around `rect` (the playable mesh), see BackdropMesh.
+func _build_backdrop(rect: Rect2) -> MeshInstance3D:
+	_backdrop = BackdropMesh.new(rect, _mesh_cells, _mesh_heights, BACKDROP_WIDTH, DETAIL_TILE)
+	var mesh := _backdrop.build_mesh(_backdrop_color)
+	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
-	instance.name = "Terrain"
+	instance.name = "Backdrop"
 	instance.mesh = mesh
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return instance
+
+
+## Backdrop vertex colour: the nearest border tile's terrain, desaturated and darkened. At the
+## seam it equals the playable margin's (off-map) colour and blends into the backdrop look over
+## BACKDROP_FADE units, so the playable edge reads without a hard line.
+func _backdrop_color(
+	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
+) -> Color:
+	var border := Vector2(
+		_mesh_origin.x + 2 * ca * _mesh_step.x, _mesh_origin.y + 2 * cb * _mesh_step.y
+	)
+	var type := _nearest_tile_type(border)
+	var k := TerrainColors.noise_k(x, z)
+	var mac := TerrainColors.macro_k(x, z)
+	var land := TerrainColors.color_at(h, normal_y, k, type, true, mac)
+	var hsv_s := land.s * BACKDROP_SATURATION
+	var hsv_v := land.v * BACKDROP_VALUE
+	var muted := Color.from_hsv(land.h, hsv_s, hsv_v)
+	var seam := TerrainColors.color_at(h, normal_y, k, -1, false, mac)
+	return seam.lerp(muted, TerrainNoise.smooth(0.0, BACKDROP_FADE, distance))
+
+
+## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in).
+func _nearest_tile_type(p: Vector2) -> int:
+	var key := Hex.from_world(Vector3(p.x, 0.0, p.y), hex_size)
+	if not _nearest_type_cache.has(key):
+		var best := -1
+		var best_distance := INF
+		for c in _grid.coords():
+			var w := Hex.to_world(c, hex_size)
+			var dist := Vector2(w.x, w.z).distance_squared_to(p)
+			if dist < best_distance:
+				best_distance = dist
+				best = int(_grid.get_terrain(c))
+		_nearest_type_cache[key] = best
+	return _nearest_type_cache[key]
+
+
+## Trees, bushes and rocks on the backdrop: ScatterPlanner over a virtual tile ring that copies
+## the nearest map tile's terrain, at BACKDROP_SCATTER_DENSITY, sitting on the backdrop ground.
+func _build_backdrop_scatter(inner: Rect2) -> void:
+	var ring := HexGrid.new()
+	var outer := _backdrop.outer_rect()
+	var lo := Hex.from_world(Vector3(outer.position.x, 0.0, outer.position.y), hex_size)
+	var hi := Hex.from_world(Vector3(outer.end.x, 0.0, outer.end.y), hex_size)
+	var reach := maxi(absi(hi.x - lo.x), absi(hi.y - lo.y)) + 2
+	var center := Hex.from_world(Vector3(outer.get_center().x, 0.0, outer.get_center().y), hex_size)
+	for q in range(center.x - reach, center.x + reach + 1):
+		for r in range(center.y - reach, center.y + reach + 1):
+			var c := Vector2i(q, r)
+			var w := Hex.to_world(c, hex_size)
+			var p := Vector2(w.x, w.z)
+			if _grid.has_tile(c) or inner.has_point(p) or not outer.has_point(p):
+				continue
+			var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
+			ring.set_terrain(c, _nearest_tile_type(border) as Terrain.Type)
+	var surface := BackdropSurface.new(ring, visible_ground_height)
+	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED)
+	# Deterministic per-position thinning (no spatial pattern from the plan order).
+	for key: String in ["trees", "rocks", "bushes"]:
+		var kept: Array = []
+		for item: Dictionary in plan[key]:
+			var p: Vector3 = item["position"]
+			if (
+				TerrainNoise.hash(p.x * 7.13, p.z * 5.71, BACKDROP_THIN_SEED)
+				< BACKDROP_SCATTER_DENSITY
+			):
+				kept.append(item)
+		plan[key] = kept
+	_build_scatter(plan, "Backdrop")
 
 
 ## Trees, bushes and rocks as MultiMeshInstance3Ds (two variants per crown type) – no node per
 ## tree. Instance colours multiply the baked vertex colours of the foliage meshes.
-func _build_scatter(plan: Dictionary) -> void:
+func _build_scatter(plan: Dictionary, prefix: String) -> void:
 	var trees: Array = plan["trees"]
 	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
 	for variant in 2:
@@ -310,14 +449,14 @@ func _build_scatter(plan: Dictionary) -> void:
 				continue
 			(cones if tree["conifer"] else blobs).append(tree)
 		_add_scatter(
-			"ConiferCrowns%d" % variant,
+			prefix + "ConiferCrowns%d" % variant,
 			FoliageMeshes.conifer(variant),
 			crown_material,
 			_tree_transforms(cones),
 			_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
 		)
 		_add_scatter(
-			"DeciduousCrowns%d" % variant,
+			prefix + "DeciduousCrowns%d" % variant,
 			FoliageMeshes.deciduous(variant),
 			crown_material,
 			_tree_transforms(blobs),
@@ -325,14 +464,14 @@ func _build_scatter(plan: Dictionary) -> void:
 		)
 	var bushes: Array = plan["bushes"]
 	_add_scatter(
-		"Bushes",
+		prefix + "Bushes",
 		FoliageMeshes.bush(),
 		crown_material,
 		_tree_transforms(bushes),
 		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B)
 	)
 	_add_scatter(
-		"Trunks",
+		prefix + "Trunks",
 		FoliageMeshes.trunk(),
 		_scatter_material(TRUNK_COLOR, 1.0, false),
 		_tree_transforms(trees),
@@ -350,7 +489,9 @@ func _build_scatter(plan: Dictionary) -> void:
 		rock_colors.append(ROCK_COLOR_A.lerp(ROCK_COLOR_B, fposmod(s * ROCK_SHADE_FREQ, 1.0)))
 	# The rock mesh has no vertex colours (white); the instance colour tints it.
 	var rock_material := _scatter_material(Color.WHITE, 0.95, true)
-	_add_scatter("Rocks", FoliageMeshes.rock(), rock_material, rock_transforms, rock_colors)
+	_add_scatter(
+		prefix + "Rocks", FoliageMeshes.rock(), rock_material, rock_transforms, rock_colors
+	)
 
 
 ## Tree and bush transforms: the meshes are built with their base at y = 0 and sit on the planted
