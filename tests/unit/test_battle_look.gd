@@ -55,6 +55,12 @@ func _high_env() -> Environment:
 	return env
 
 
+## SSR only reaches opaque surfaces, not the alpha-blended water (TASK-056), so it stays off.
+func test_no_ssr_on_any_quality() -> void:
+	assert_false(_env.ssr_enabled)
+	assert_false(_high_env().ssr_enabled)
+
+
 func test_high_has_ssil_glow_and_grade() -> void:
 	var env := _high_env()
 	assert_true(env.ssil_enabled)

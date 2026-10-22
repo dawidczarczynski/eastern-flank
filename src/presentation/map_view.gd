@@ -36,10 +36,9 @@ const BACKDROP_TYPE_SAMPLES: Array[Vector2] = [
 ]
 ## The water plane is this much larger than the terrain mesh.
 const WATER_MARGIN := 80.0
-const WATER_COLOR := Color("#264f5c", 0.84)
-## Water surface ripples: UV repeats over the plane, normal strength and texture parameters.
-const WATER_UV_REPEAT := 36.0
-const WATER_NORMAL_SCALE := 0.3
+## Water shader (TASK-056): colours, depths, ripple speeds and normal scale are its defaults.
+const WATER_SHADER := preload("res://assets/shaders/water.gdshader")
+## Water normal texture parameters.
 const WATER_NORMAL_PERIODS: Array[int] = [4, 8, 16, 32]
 const WATER_NORMAL_SEED := 303
 const WATER_NORMAL_STRENGTH := 5.0
@@ -601,16 +600,9 @@ static func _water_normal_texture() -> ImageTexture:
 func _build_water(rect: Rect2) -> MeshInstance3D:
 	var plane := PlaneMesh.new()
 	plane.size = rect.size + Vector2.ONE * WATER_MARGIN
-	var material := StandardMaterial3D.new()
-	material.albedo_color = WATER_COLOR
-	material.roughness = 0.07
-	material.metallic = 0.1
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.normal_enabled = true
-	material.normal_texture = _water_normal_texture()
-	material.normal_scale = WATER_NORMAL_SCALE
-	material.uv1_scale = Vector3(WATER_UV_REPEAT, WATER_UV_REPEAT, 1.0)
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	var material := ShaderMaterial.new()
+	material.shader = WATER_SHADER
+	material.set_shader_parameter(&"normal_map", _water_normal_texture())
 	plane.material = material
 	var instance := MeshInstance3D.new()
 	instance.name = "Water"

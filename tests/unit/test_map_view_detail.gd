@@ -77,11 +77,66 @@ func test_low_quality_switches_anti_tiling_and_triplanar_off() -> void:
 	assert_eq(array.get_width(), 512)
 
 
-func test_water_has_normal_map() -> void:
+func _water_material() -> ShaderMaterial:
 	var plane := _view._tiles_root.get_node("Water") as MeshInstance3D
-	var material := plane.mesh.material as StandardMaterial3D
-	assert_true(material.normal_enabled and material.normal_texture != null)
-	assert_true(is_equal_approx(material.normal_scale, 0.3))
+	return plane.mesh.material as ShaderMaterial
+
+
+## Default value of a uniform, parsed from the shader source: the headless runner uses the dummy
+## renderer, where RenderingServer and Shader.get_shader_uniform_list() know no uniforms.
+func _uniform_default(shader: Shader, name: String) -> Variant:
+	var re := RegEx.create_from_string("uniform\\s+\\w+\\s+%s\\b[^=;]*=\\s*([^;]+);" % name)
+	var m := re.search(shader.code)
+	assert_true(m != null, "uniform %s has a default" % name)
+	var text := m.get_string(1).replace("vec2(", "Vector2(").replace("vec4(", "Color(")
+	var expression := Expression.new()
+	assert_eq(expression.parse(text), OK)
+	return expression.execute()
+
+
+func test_water_has_normal_map() -> void:
+	var material := _water_material()
+	assert_true(material.shader.resource_path.ends_with("water.gdshader"))
+	assert_true(material.get_shader_parameter(&"normal_map") is Texture2D)
+	assert_true(is_equal_approx(_uniform_default(material.shader, "normal_scale"), 0.3))
+
+
+func test_water_uniforms_have_design_values() -> void:
+	var shader := _water_material().shader
+	var expect_color := func(name: String, hex: String) -> void:
+		var c: Color = _uniform_default(shader, name)
+		assert_eq("#" + c.to_html(false), hex, "%s is %s" % [name, hex])
+	expect_color.call("shallow_color", "#4c7464")
+	expect_color.call("deep_color", "#1b3842")
+	expect_color.call("foam_color", "#dfe4dc")
+	assert_true(is_equal_approx(_uniform_default(shader, "deep_distance"), 0.45))
+	assert_true(is_equal_approx(_uniform_default(shader, "foam_distance"), 0.05))
+	var speeds: Vector2 = _uniform_default(shader, "ripple_speeds")
+	assert_true(speeds.is_equal_approx(Vector2(0.010, 0.016)))
+
+
+func test_water_shader_declares_its_uniforms() -> void:
+	# Compiling needs a real renderer (done in the screenshot run); headless we check the source.
+	var code := _water_material().shader.code
+	assert_true(code.contains("shader_type spatial;"))
+	assert_true(RegEx.create_from_string("render_mode[^;]*blend_mix").search(code) != null)
+	assert_true(RegEx.create_from_string("render_mode[^;]*depth_draw_never").search(code) != null)
+	assert_true(
+		code.contains("CURRENT_RENDERER == RENDERER_COMPATIBILITY"), "NDC depth per renderer"
+	)
+	for name: String in [
+		"shallow_color",
+		"deep_color",
+		"deep_distance",
+		"foam_distance",
+		"foam_color",
+		"ripple_speeds",
+		"normal_map",
+		"depth_texture",
+		"wind_direction"
+	]:
+		var declared := RegEx.create_from_string("uniform\\s+\\w+\\s+%s\\b" % name)
+		assert_true(declared.search(code) != null, "uniform %s" % name)
 
 
 func test_terrain_has_tangents_perpendicular_to_normals() -> void:

@@ -1,6 +1,6 @@
 # TASK-056: Water v2 – depth colour, shore foam, scrolling ripples, screen-space reflections
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`assets/shaders/water.gdshader`, `map_view.gd` `_build_water`, environment SSR), tests
 - **Depends on**: soft **TASK-050** (SSR on HIGH only), soft **TASK-051**/**TASK-054** (reflections of the sky), soft **TASK-055** (mud shore under the water edge)
 - **Model**: sonnet
@@ -49,4 +49,11 @@ None (presentation only; water stays impassable).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `assets/shaders/water.gdshader` replaces the `StandardMaterial3D`; `_build_water` sets only the `normal_map` parameter, all design values are shader uniform defaults. `WATER_COLOR`, `WATER_UV_REPEAT` and `WATER_NORMAL_SCALE` were removed.
+- **Depth** = vertical (world Y) distance from the surface to the scene behind it: `hint_depth_texture` is unprojected with `INV_PROJECTION_MATRIX` / `INV_VIEW_MATRIX` (NDC z is `d` on Forward+ (reverse-Z), `d * 2 - 1` on Compatibility, via `#if CURRENT_RENDERER`). Vertical depth does not change with the camera angle, so colour and foam do not swim when the camera moves.
+- **Ripples** sample in world XZ: `ripple_scales` 0.33 / 0.21 per world unit approximate the old ×36 / ×23 over the plane. TASK-057's global wind does not exist yet, so `wind_direction` is a fixed uniform (0.8, 0.6) – switch it to the global uniform in TASK-057.
+- **Fresnel**: Godot 4's dielectric F0 is `0.16 * SPECULAR²`, so `SPECULAR = 0.354` gives F0 = 0.02.
+- **Foam**: the noise is the R/G channels of the water normal texture (no dedicated noise texture). The foam colour mix is what shows; `foam_max_alpha` 0.6 barely matters because the base alpha is already ≥ 0.55. The two ripple normals are averaged, which flattens them slightly (a whiteout blend would keep their full strength) – both are cosmetic and left as is.
+- **SSR: not enabled** (human decision after review). Godot applies SSR only to opaque surfaces, and the water is alpha-blended (needed to read its own depth texture), so SSR would cost GPU on HIGH without reaching the water. The water reflects the sky radiance only – no trees or hills; the SSR acceptance criterion and playtest step 3 (tree reflections) are dropped. `test_battle_look.gd::test_no_ssr_on_any_quality` guards it. Tree/hill reflections would need opaque water with fake refraction, or planar reflections (a future task).
+- **Tests**: the headless runner uses the dummy renderer, so `Shader.get_shader_uniform_list()` and `RenderingServer` return no uniforms. The tests therefore parse the shader source: uniform declarations and defaults (design values), render modes, and the per-renderer depth branch. Actual compilation is only verified by the Windows Forward+ screenshot runs (no shader errors).
+- **Visual check** (Windows, HIGH): close-up `SCREENSHOT_CAMERA=5,0,8` on two lakes – darker centre, lighter edge, pale shore rim, no halos. The same view at 60 and 120 frames differs only on the water (land diff 0), so the ripples move. Compatibility / LOW was not rendered. `docs/images/gameplay.png` re-rendered: the river and ponds are paler than before because at the README's shallow viewing angle the Fresnel sky reflection dominates.
