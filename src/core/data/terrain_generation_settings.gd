@@ -42,4 +42,4 @@ extends Resource
 @export var hills_min: float = 0.71
 @export var hills_max: float = 2.2
 @export var water_min: float = -0.75
-@export var water_max: float = -0.05
+@export var water_max: float = -0.2

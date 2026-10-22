@@ -107,7 +107,7 @@ func test_force_terrain_clamps_elevation_into_the_band() -> void:
 	assert_eq(_forced_elevation(-0.4, Terrain.Type.PLAINS), 0.12)
 	assert_eq(_forced_elevation(0.35, Terrain.Type.PLAINS), 0.35)
 	assert_eq(_forced_elevation(1.2, Terrain.Type.PLAINS), 0.7)
-	assert_eq(_forced_elevation(0.3, Terrain.Type.WATER), -0.05)
+	assert_eq(_forced_elevation(0.3, Terrain.Type.WATER), -0.2)
 	assert_eq(_forced_elevation(0.3, Terrain.Type.HILLS), 0.71)
 
 

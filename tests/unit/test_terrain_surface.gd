@@ -60,12 +60,13 @@ func test_forced_tile_corrects_the_surface_near_its_centre() -> void:
 	var surface := TerrainSurface.new(grid)
 	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
 	var field := grid.field
-	_near(surface.height_at(center.x, center.z), 0.12)
+	var land_min := MapGenerator.DEFAULT_SETTINGS.land_min
+	_near(surface.height_at(center.x, center.z), land_min)
 
 	# Within 0.35 of the centre the full correction applies.
 	var x := center.x + 0.3
 	var z := center.z
-	var correction := 0.12 - field.height(center.x, center.z)
+	var correction := land_min - field.height(center.x, center.z)
 	_near(surface.height_at(x, z), field.height(x, z) + correction)
 
 	# Beyond 0.8 there is no correction (still inside the hex: inradius 0.866).
@@ -78,7 +79,7 @@ func test_hand_made_grid_uses_tile_elevation() -> void:
 	var grid := Fixtures.plains_grid(2)
 	var surface := TerrainSurface.new(grid)
 	assert_eq(surface.height_at(0.0, 0.0), 0.2)
-	assert_eq(surface.ground_height(100.0, 100.0), 0.0)
+	assert_eq(surface.ground_height(100.0, 100.0), TerrainSurface.WATER_SURFACE)
 
 
 func test_water_tile_is_below_the_water_surface() -> void:
@@ -89,7 +90,52 @@ func test_water_tile_is_below_the_water_surface() -> void:
 	var p := Hex.to_world(c, 1.0)
 	assert_eq(surface.height_at(p.x, p.z), -0.3)
 	assert_eq(surface.ground_height(p.x, p.z), TerrainSurface.WATER_SURFACE)
-	assert_eq(surface.ground_height(p.x, p.z), 0.0)
+
+
+## Two adjacent water tiles forced into dry lowland (like the scenario river).
+func _forced_water_pair() -> Array:
+	var grid := _generate(12345)
+	var a := MapGenerator.offset_to_axial(5, 4)
+	var b := a + Vector2i(1, 0)
+	for c: Vector2i in [a, b]:
+		assert_true(grid.elevation(c) > TerrainSurface.WATER_SURFACE, "dry tile %s" % c)
+		MapGenerator.force_terrain(grid, c, Terrain.Type.WATER)
+	return [grid, a, b]
+
+
+func test_adjacent_forced_water_tiles_join_across_their_shared_edge() -> void:
+	var found := _forced_water_pair()
+	var surface := TerrainSurface.new(found[0])
+	var mid := (Hex.to_world(found[1], 1.0) + Hex.to_world(found[2], 1.0)) * 0.5
+	var h := surface.height_at(mid.x, mid.z)
+	assert_true(h < TerrainSurface.WATER_SURFACE, "edge midpoint at %f" % h)
+
+
+func test_forced_water_depression_is_continuous_across_hex_edges() -> void:
+	var found := _forced_water_pair()
+	var grid: HexGrid = found[0]
+	var surface := TerrainSurface.new(grid)
+	var center := Hex.to_world(found[1], 1.0)
+	# Walk outward from the water tile in every direction, across its edges and beyond.
+	for k in 12:
+		var angle := k * TAU / 12.0
+		var prev := surface.height_at(center.x, center.z)
+		var r := 0.0
+		while r < 2.0:
+			r += 0.01
+			var h := surface.height_at(center.x + cos(angle) * r, center.z + sin(angle) * r)
+			assert_true(absf(h - prev) < 0.05, "jump %f at angle %d r %f" % [h - prev, k, r])
+			prev = h
+
+
+func test_forced_water_leaves_neighbouring_land_centres_untouched() -> void:
+	var found := _forced_water_pair()
+	var grid: HexGrid = found[0]
+	var surface := TerrainSurface.new(grid)
+	for n in Hex.neighbors(found[1]):
+		if grid.has_tile(n) and grid.get_terrain(n) != Terrain.Type.WATER:
+			var p := Hex.to_world(n, 1.0)
+			_near(surface.height_at(p.x, p.z), grid.elevation(n), str(n))
 
 
 func _assert_hit_near(hit: Variant, expected: Vector3, tolerance: float) -> void:
