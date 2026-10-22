@@ -1,6 +1,6 @@
 # TASK-062: Unit surface v2 – bevelled part edges, edge wear, dust and streaks in the camo shader
 
-- **Status**: blocked (revised 2026-10-22: based on the model detail study – three vertex masks instead of one, paint from `docs/design/showcase/showcase_paint.gdshader.txt`; geometry primitives come from the rewritten TASK-030)
+- **Status**: ready (revised 2026-10-22: based on the model detail study – three vertex masks instead of one, paint from `docs/design/showcase/showcase_paint.gdshader.txt`; geometry primitives come from the rewritten TASK-030)
 - **Layers**: presentation (`models/model_parts.gd`, `models/parts/vehicle_frame.gd`, `assets/shaders/camo.gdshader`, `unit_models.gd`), tests (`test_unit_model_contract.gd`, model part tests). Roles: **presentation-engineer** (shader, helpers), **unit-modeler** (re-render and check every model with `tools/render_unit.sh`).
 - **Depends on**: **TASK-030** (mesh kit v2: chamfers and the RGB vertex-mask convention). Blocks TASK-067 and TASK-069 (they build on this paint). Soft: TASK-065 (adds `burnt` to the same shader – do this first).
 - **Model**: sonnet
