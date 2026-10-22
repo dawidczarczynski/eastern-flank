@@ -22,6 +22,7 @@ Vehicles carry the markings a real army paints on them: the Polish red-and-white
 - **Tactical number**: `UnitModels.tactical_number(unit_id: int, faction_index: int) -> String` – 3 digits, deterministic: `100 + (unit_id · 37 + faction_index · 500) % 900` (37 is coprime with 900, so unit ids 0–899 of one side never collide); a different formula is fine if it keeps these properties – record it. Rendered with a `Label3D` (non-billboard, `shaded = true`, `alpha_cut` discard, a stencil-like mono font from the HUD theme or a bundled OFL stencil font, colour `number_color`, pixel size so digits are ≈ 0.35 m tall at model scale).
 - **Anchors** in each **vehicle** model file (unit-modeler): `Marker3D` nodes named `Marking_*` (national marking) and `Number_*` (tactical number) on flat surfaces, oriented with −Z out of the surface; the markings/labels are offset 0.002 off the surface to avoid z-fighting. Infantry models have none. Models without anchors simply get no markings (no error).
 - Markings are attached under the anchor's pivot, so they move with turrets/pods.
+- **Anchor pass**: the vehicle anchors of TASK-063 (`Marking_*`, `Number_*`) and TASK-064 (`Exhaust`, `Dust_L`/`Dust_R`) are added to the four vehicle models in **one** `unit-modeler` rework per vehicle when the two tasks run close together (feedback lists both anchor sets; for the Homar-K / Uragan also the TASK-045 jacks / shields if that rework is still pending). The task done second only checks the anchors already exist.
 
 ## Acceptance criteria (testable)
 

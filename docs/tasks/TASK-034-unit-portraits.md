@@ -1,8 +1,8 @@
 # TASK-034: Unit portraits in the hover popup (rendered from the 3D model)
 
-- **Status**: ready
+- **Status**: ready (revised 2026-10-22: real units per faction, faction camouflage, lighting v3; the detailed models exist, so this can go any time)
 - **Layers**: presentation (`src/presentation/ui/unit_popup.gd`, a portrait renderer; camera framing maths tested in `tests/unit/`)
-- **Depends on**: **TASK-021** (popup), soft: TASK-031 … TASK-033 (the portraits are worth it once the models are detailed). Reference: `docs/design/v2/game_screen.scene.js` lines 414–431 (`makePortraits`), `docs/design/v2/game_screen.template.html` lines 86–91, screenshots `docs/design/v2/shots/01-v2-units.jpg`, `02-v2-units.jpg`, `hover.jpg`.
+- **Depends on**: **TASK-021** (popup). The detailed models exist (six real units). Soft: TASK-062 / TASK-067 (portraits get better with them, nothing to change here), TASK-054 (if the HDRI sky is done, use it for the portrait's ambient). Reference: `docs/design/v2/game_screen.scene.js` lines 414–431 (`makePortraits`), `docs/design/v2/game_screen.template.html` lines 86–91, screenshots `docs/design/v2/shots/01-v2-units.jpg`, `02-v2-units.jpg`, `hover.jpg`.
 - **Model**: sonnet
 
 ## Goal
@@ -12,12 +12,12 @@ The hover card shows a lit 3D portrait of the unit (its actual model in faction 
 ## Design → Godot
 
 - **Renderer** `src/presentation/portrait_renderer.gd` (Node): one `SubViewport` 640 × 340 (own `World3D`, `transparent_bg = false`), rendered once per (unit type, owner) and cached as `ImageTexture` (`get_texture().get_image()` after the frame is drawn – use `RenderingServer.frame_post_draw` or `await` here, this is the presentation layer). Scene in the viewport, port of `makePortraits`:
-  - background and fog `#3a3f35`, fog depth 2.2–6; environment with the TASK-026 sky for ambient/reflections, ambient ~0.7 of the battle value.
+  - background and fog `#3a3f35`, fog depth 2.2–6; environment from the battle environment (TASK-051 look: AgX, sky ambient/reflections; TASK-054 HDRI if done), ambient ~0.7 of the battle value; the portrait renders with the active graphics quality (TASK-050) – no SSIL/glow needed in the portrait.
   - `DirectionalLight3D` `#fff0d8` at `(1.2, 2.4, 1.6)` looking at the origin, shadows on.
   - ground disc radius 5, colour `#6b7150`, roughness 1, receives shadows.
-  - model from `UnitModels.build(type, owner)`, `rotation.y = −0.6` (relative to the design's +X forward).
+  - model from `UnitModels.build(...)` for the unit's definition and its owner's faction (camouflage from the faction, TASK-038), `rotation.y = −0.6` (relative to the model's +X forward); turret / launcher at rest.
   - camera FOV 24°: from the model's AABB `size = aabb.size.length()`, `c = aabb center`: position `c + (size·0.82, size·0.4, size·1.02)`, look at `c − (0, 0.02, 0)`.
-- **Popup**: a 170 px high portrait area under the header, background `#2a2e27`, `TextureRect` with `STRETCH_KEEP_ASPECT_COVERED`. Portraits are pre-rendered at battle start (3 types × 2 owners) so the first hover has no hitch; while not ready, show the plain background.
+- **Popup**: a 170 px high portrait area under the header, background `#2a2e27`, `TextureRect` with `STRETCH_KEEP_ASPECT_COVERED`. Portraits are pre-rendered at battle start for every (unit definition, owner) pair present in the scenario (today 3 per faction, 6 in total) so the first hover has no hitch; while not ready, show the plain background.
 - Update the TASK-021 placement test values if the card height changes (`h` is measured, the rule stays).
 
 ## Acceptance criteria (testable)
@@ -30,7 +30,7 @@ The hover card shows a lit 3D portrait of the unit (its actual model in faction 
 ## Playtest (for the human)
 
 1. Hover each of your units: the card shows a lit 3D view of the unit, angled from the front-right, with a soft shadow on a dark green ground and fog behind it.
-2. Hover enemy units: same models in sand camouflage.
+2. Hover enemy units: their own (Russian) vehicles and squad in their faction's camouflage.
 3. The first hover after the battle starts appears without a stutter.
 
 ## Out of scope

@@ -1,6 +1,6 @@
 # TASK-046: `blast_shields` mechanism – cab window shields lowered before a volley
 
-- **Status**: ready (TASK-042: `bm27_uragan` has a verified `blast_shields`, source FAS 9P140) – was `idea` until the `bm27_uragan` catalog entry has a **verified** `blast_shields` mechanism (TASK-042 research: does the 9K57 Uragan lower armoured shields over its cab windows before firing? (?)). If the research doesn't confirm it for any catalog unit, park this task.
+- **Status**: merged into **TASK-045** (2026-10-22) – the deploy step, the `blast_shields` registry entry, its tests and the Uragan shields are specified there. This file is kept for history only.
 - **Layers**: presentation (`UnitModels.DEPLOYABLE_PREFIXES`), `mechanisms.json`, tests; the Uragan model (`/model-unit bm27_uragan`) builds the shields
 - **Depends on**: **TASK-045** (deploy step), TASK-042 (verified catalog entry)
 - **Model**: sonnet

@@ -1,6 +1,6 @@
 # TASK-032: First detailed infantry squad (from the v2 design) + reusable soldier
 
-- **Status**: ready – target: the Polish **mechanised infantry squad** (`pl_mech_infantry`): wz. 93 Pantera uniforms, MSBS Grot rifles – the v2 design soldiers; the Russian motor rifle squad (EMR digital camo via `pattern_mode = 1`, AK rifles, RPG) follows via `/model-unit ru_motor_rifle` as a new kit parameter set. Until TASK-039a adds the definition, the model is built under the current id `infantry` and renamed with TASK-039a
+- **Status**: done (superseded, closed 2026-10-22) – reached by `/model-unit` runs: `pl_mech_infantry.gd`, `ru_motor_rifle.gd` (catalog `modeled`), shared soldier kit `models/parts/soldier.gd`, carry poses from TASK-068. The next step is TASK-067 (infantry v3).
 - **Layers**: presentation (`src/presentation/models/<unit_id>.gd`, soldier parts in `model_parts.gd` / `models/parts/`; contract test)
 - **Depends on**: **TASK-036**, **TASK-029**, **TASK-030**, TASK-025 (march animation per soldier). Soft: TASK-039a, TASK-037. Reference: `docs/design/v2/game_screen.scene.js` lines 267–299 (`rifleGeo`, `soldier`, `makeInf`).
 - **Agent**: `unit-modeler`, run via `/model-unit <unit_id>`
@@ -38,4 +38,4 @@ The first infantry squad reads as five soldiers with helmets, vests, packs and r
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Closed as superseded (2026-10-22). Models: `src/presentation/models/pl_mech_infantry.gd`, `ru_motor_rifle.gd`, kit `models/parts/soldier.gd`.

@@ -1,6 +1,6 @@
 # TASK-054: HDRI sky – CC0 overcast/partly-cloudy panorama as sky, ambient and reflections
 
-- **Status**: ready (blocked by TASK-053's decision)
+- **Status**: ready (TASK-053's decision: CC0 HDRIs allowed, 2026-10-22; TASK-053 itself – ADR + manifest + test – must be done first)
 - **Layers**: presentation (`battle_environment.tres`, sun direction in `battle.tscn`), `assets/third_party/hdri/`, tests
 - **Depends on**: **TASK-053** (asset policy + manifest), **TASK-051** (AgX, fog, sun values to retune against the HDRI)
 - **Model**: sonnet

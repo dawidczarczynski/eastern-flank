@@ -1,6 +1,6 @@
 # TASK-052: Camera v2 – lower pitch with a visible horizon, backdrop terrain beyond the map
 
-- **Status**: ready
+- **Status**: ready (revised 2026-10-22: the backdrop must not rely on the random generator – target maps are hand-made)
 - **Layers**: presentation (`camera_math.gd`, `camera_rig.gd`, `battle.tscn` camera FOV, `map_view.gd` backdrop), tests (`test_camera_math.gd`, map view tests), `tools/readme_screenshot.sh` framing if needed
 - **Depends on**: soft **TASK-051** (aerial-perspective fog hides the end of the backdrop), soft **TASK-050** (`backdrop_scatter`)
 - **Model**: sonnet
@@ -18,7 +18,7 @@ Zoomed in, the camera looks across the land toward a hazy horizon and sky, like 
 - **FOV** 34° → **40°**.
 - **Pitch**: piecewise linear through `(7, 0.30 rad ≈ 17°)`, `(24, 0.56 rad ≈ 32°)`, `(46, 1.05 rad ≈ 60°)`, clamped outside [7, 46]. At d 7 the horizon is inside the frame (pitch < FOV/2); at the default 24 the top of the frame shows far, fogged backdrop terrain; at 46 the view is close to top-down. Keep these points as named constants in `CameraMath`.
 - **Zoom clamp near the ground**: the camera must never go below `ground_height(camera xz) + 1.5` (raise the look-at height or the pitch locally if a hill is under the camera); a pure helper computes the minimum pitch for a given ground height.
-- **Backdrop terrain**: `MapView` builds a non-playable ring around the map, **14 world units** wide, from the same deterministic height field (`TerrainField`/`TerrainSurface` read-only; outside the map no forced tiles), at **half** the mesh resolution of the playable terrain, with the same material. Water plane extended to cover it. On HIGH (`backdrop_scatter`) the backdrop gets trees/bushes by the same `ScatterPlanner` rules at **50 %** density; on LOW none.
+- **Backdrop terrain**: `MapView` builds a non-playable ring around the map, **14 world units** wide, at **half** the mesh resolution of the playable terrain, with the same material. Heights must not depend on the random map generator (the target is hand-made maps, where nothing exists beyond the edge): a pure helper `BackdropHeights` (presentation, static) continues the border heights outward (edge-clamped `TerrainSurface` height at the nearest border point) plus a low-amplitude view-local noise that fades in with distance from the edge, eased towards a gentle mean level, so it works for any map; terrain colour/type continues from the nearest border tile. (Later, a hand-made map may supply its own backdrop – out of scope.) Water plane extended to cover it. On HIGH (`backdrop_scatter`) the backdrop gets trees/bushes by the same `ScatterPlanner` rules at **50 %** density; on LOW none.
   - The backdrop has **no grid lines, no overlays, no picking**: surface raycasts hitting it return "off map" (the hover ring hides as it does today off the map). The camera target clamp (`CameraMath.clamp_target`) stays on the playable map.
   - **Playable edge cue**: backdrop ground is slightly desaturated/darkened (×0.85 value, ×0.7 saturation, blended over 1.5 units from the edge) so the edge is readable without a hard line.
   - Seam: heights at the map border must match exactly (same function), no cracks.
@@ -31,6 +31,7 @@ Zoomed in, the camera looks across the land toward a hazy horizon and sky, like 
 - [ ] `min_pitch_for_ground(...)`/equivalent: with the ground under the camera at height 2.0 and target height 0.4, the camera height is ≥ 3.5 for every distance in [7, 46].
 - [ ] Battle camera `fov == 40`.
 - [ ] `MapView` on `Fixtures.plains_grid(…)`: a backdrop mesh exists whose AABB extends the playable terrain AABB by 14 ± 0.5 on every side in x and z; the height at 5 sample points on the shared border is equal (±0.001) for the playable and the backdrop mesh.
+- [ ] `BackdropHeights`: deterministic; at distance 0 from the edge equals the border height; does not call `MapGenerator` / `TerrainField` (works on a grid built by hand in the test).
 - [ ] Picking: a ray hitting the backdrop returns no map coordinate; hover is cleared.
 - [ ] Grid lines and overlay helpers produce no vertices outside the playable map rectangle.
 - [ ] Backdrop scatter: present with `backdrop_scatter = true`, absent with false.

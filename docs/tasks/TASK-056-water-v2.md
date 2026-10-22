@@ -7,11 +7,11 @@
 
 ## Goal
 
-Lakes look like real still water: dark in the middle, clearer and greener at the edges, a thin broken line of foam where water meets land, slowly moving ripples, and the sky and trees reflected in the surface.
+Lakes and the river look like real water: dark in the middle, clearer and greener at the edges, a thin broken line of foam where water meets land, slowly moving ripples, and the sky and trees reflected in the surface.
 
 ## Current state
 
-`StandardMaterial3D`, colour `#264f5c` alpha 0.84, roughness 0.07, metallic 0.1, a static generated normal map (`DetailTexture`, scale 0.3, UV ×36). One flat plane at the water level.
+`StandardMaterial3D`, colour `#264f5c` alpha 0.84, roughness 0.07, metallic 0.1, a static generated normal map (`DetailTexture`, scale 0.3, UV ×36). One flat plane at the water level. Since TASK-051 the default battle has a river with fords between the armies (water tiles forced by `Scenario`); it uses the same plane.
 
 ## Design
 
@@ -34,7 +34,7 @@ Lakes look like real still water: dark in the middle, clearer and greener at the
 
 ## Playtest (for the human)
 
-1. Zoom in on a lake: the shallow edge is lighter and greener, the middle dark; a thin, broken foam line follows the shore.
+1. Zoom in on a lake and on the river: the shallow edge is lighter and greener, the middle dark; a thin, broken foam line follows the shore; at the fords the water is shallow and light.
 2. Watch for a few seconds: the ripples move slowly, without a visible repeat.
 3. Rotate the camera to look across the lake: the sky and trees on the far shore are reflected (Windows build).
 4. Check that the shore foam doesn't flicker when the camera moves, and there is no dark halo around units standing next to water.
@@ -45,7 +45,7 @@ None (presentation only; water stays impassable).
 
 ## Out of scope
 
-- Rivers and flowing water (TASK-035), waves, refraction distortion, caustics, splash effects.
+- Flowing water (current direction along the river, needs river data – TASK-035), waves, refraction distortion, caustics, splash effects. The river is rendered as still water here.
 
 ## Implementation notes
 

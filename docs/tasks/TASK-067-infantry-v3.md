@@ -1,8 +1,8 @@
 # TASK-067: Infantry v3 – smooth procedural soldiers (swept bodies, soft gear, chamfered weapons)
 
-- **Status**: ready
+- **Status**: ready (revised 2026-10-22: the kit primitives are now built by TASK-030, the paint with masks by TASK-062)
 - **Layers**: presentation (`models/parts/soldier.gd`, `models/pl_mech_infantry.gd`, `models/ru_motor_rifle.gd`, `ModelParts` / `MeshKit`), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`). Roles: **presentation-engineer** (kit primitives), **unit-modeler** (both squads, render-compare).
-- **Depends on**: **TASK-030** (`MeshKit` – the primitives below belong there), **TASK-062** (weathering paint with the vertex-colour masks). Soft: TASK-068 (carry poses), TASK-063 (markings replace the sleeve patch colour).
+- **Depends on**: **TASK-030** (mesh kit v2: `sweep`, `pillow`, `tube`, chamfered box, lathe – already ported from this study), **TASK-062** (weathering paint with the RGB vertex masks). Soft: TASK-068 (carry poses), TASK-063 (markings replace the sleeve patch colour).
 - **Model**: opus (organic shapes, many parts, budget)
 
 ## Goal
@@ -15,7 +15,7 @@ Soldiers look like soldiers, not box mannequins, when the player zooms in or loo
 
 ## Design
 
-- **Kit**: `sweep(path, radii: Array[Vector2], sides, side0)`, `pillow(centre, size, basis, exponent, rings, sides)`, `tube(path, r, sides)` join TASK-030's `MeshKit` (chamfered box and lathe are already there); all write the TASK-062 vertex-colour masks.
+- **Kit**: use TASK-030's `MeshKit` / `MeshKits` as they are (`sweep`, `pillow`, `tube`, `cbox`, `lathe`); missing primitives are added to the kit with a test, not to the model files. Paint: TASK-062's `camo.gdshader` with the study's uniform-scale camo (`pattern_scale` ≈ 80 for cloth) and mud on boots and knees.
 - **Body** (`soldier.gd`): torso as one sweep (pelvis, waist, chest, shoulders, neck base) with deltoid pillows; legs and arms as sweeps with knee/elbow and calf shaping; neck, head (ellipsoid, jaw, nose, ears), gloves, boots with soles, knee pads, thigh pockets. Proportions of a 1.82 m man; `SOLDIER_SCALE` unchanged.
 - **Kits** (model files): plate carrier as front/back pillows + cummerbund sweep + shoulder straps; pouches, radio, IFAK, belt, pack with lid and straps; helmet lathe with cover band, NVG shroud, chin strap; weapons from chamfered parts with round barrels and optics. Russian kit analogous (6B45 with collar, 6B47 helmet, AK family).
 - **Budget**: squad ≤ **40 000 triangles** (raise `MAX_TRIANGLES_SQUAD`; the study was 25 400 without the hidden `Stand` variants of the two kneelers, ~35 000 with them), cold build ≤ 500 ms (ADR 0010). Keep per-soldier sides low (limbs 10–12, torso 16).

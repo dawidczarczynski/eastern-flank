@@ -1,6 +1,6 @@
 # TASK-055: Terrain shader v3 – blended CC0 PBR ground layers by terrain type and slope, triplanar slopes, anti-tiling
 
-- **Status**: ready (blocked by TASK-053's decision)
+- **Status**: ready (TASK-053's decision: CC0 textures allowed, 2026-10-22; TASK-053 itself – ADR + manifest + test – must be done first)
 - **Layers**: presentation (`assets/shaders/terrain.gdshader`, pure `TerrainSplat` weights, `map_view.gd` `_build_terrain`), `assets/third_party/textures/ground/`, tests
 - **Depends on**: **TASK-053** (CC0 textures allowed + manifest), soft **TASK-050** (triplanar/second scale off on LOW), soft **TASK-051** (judge under the new light), soft **TASK-052** (the backdrop uses the same material). Related: **TASK-035** (rivers, roads, fields, urban ground) – this task reserves room for those layers but does not add them.
 - **Model**: opus (shader with texture arrays, per-vertex weights in two attributes, tangents/triplanar normals, height blending, performance)
@@ -23,7 +23,7 @@ The ground looks like real land instead of felt: lush grass on plains with dry p
   - **forest**: dirt (forest floor) 0.6 + grass 0.4; trees/bushes stay from the scatter.
   - **hills**: grass + dry_grass; rock by `smooth(0.35, 0.6, slope)`; gravel at the rock/grass transition; high elevations (today's rock/snow colouring) → rock.
   - **shore**: any land within **0.12** height above `water_level` gets mud by `1 − (height − water_level)/0.12` (≤ 0.7) and dirt.
-  - **water** tiles: mud (the lake bed under the transparent water).
+  - **water** tiles: mud (the lake / river bed under the transparent water). The default battle has a river with fords (TASK-051, `Scenario._add_river`): river tiles are ordinary water tiles and get the same shore and bed rules; ford crossings are land tiles next to water and get the mud shore band.
   - `slope = 1 − normal.y`. Blending across tile borders comes for free from per-vertex weights on the continuous mesh (each vertex uses the terrain of the tile it lies in, then the weights are smoothed by averaging with neighbours within one mesh step).
 - **Mesh**: weights in `ARRAY_COLOR` (layers 0–3) and `ARRAY_CUSTOM0` (RGBA float, layers 4–5, 2 channels free for TASK-035 roads/fields). The old vertex-colour tint is replaced; keep a gentle macro brightness variation (±8 %) in the shader from a low-frequency world-space noise.
 - **Shader** `assets/shaders/terrain.gdshader`:
@@ -54,7 +54,7 @@ The ground looks like real land instead of felt: lush grass on plains with dry p
 ## Playtest (for the human)
 
 1. Zoom in on plains: you see grass texture (blades/clumps), not noise; pan around – no obvious repeating stamp.
-2. Find a lake: the shore turns muddy/brownish before the water; no hard line.
+2. Find a lake and the river (incl. the fords): the shore turns muddy/brownish before the water; no hard line.
 3. Find a hill: its steep sides show rock and gravel, the gentle top stays grassy.
 4. Forest tiles: darker soil/leaf litter between the trees.
 5. Zoom out fully: large drier and greener areas; no checkerboard of tiles; hex borders don't show as colour steps.

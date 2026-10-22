@@ -1,8 +1,8 @@
 # TASK-047: `turret_traverse` mechanism – the tank turns its turret and elevates its gun before firing
 
-- **Status**: ready
+- **Status**: ready (revised 2026-10-22: the tank models exist – `m1a2_sepv3`, `t72b3` – so the dependency on TASK-031 is replaced by them)
 - **Layers**: presentation (`UnitModels.pose_turret` / `turret_aim` / `gun_elevation`, `UnitView`, `BattleController` attack playback, `EventQueue` FX key), `mechanisms.json`, tests; catalog tank entries
-- **Depends on**: **TASK-044** (`traverse_aim`), **TASK-031** (first detailed tank with `Turret/Gun/Muzzle` pivots and `MECHANISMS`). Soft: TASK-039a (tanks as real units), `/model-unit t72b3`.
+- **Depends on**: **TASK-044** (`traverse_aim`), **TASK-043** (`MECHANISMS` metadata on the tanks). The models `m1a2_sepv3.gd` and `t72b3.gd` already have `Turret` and `Turret/Gun` (`VehicleFrame.add_turret` / `add_gun`); check the hinge position and add `Turret/Gun/Muzzle` if missing.
 - **Model**: sonnet
 
 ## Goal
@@ -11,7 +11,7 @@ A tank attacking (or countering) visibly aims: its turret turns towards the targ
 
 ## Decisions
 
-- Parameters per unit in the catalog (`turret_traverse`): `traverse_deg` (`"full"` for tanks; a limited range for e.g. assault guns – then the vehicle turns first, as with the launcher) and `elevation_deg` `[min, max]` (real gun depression/elevation limits; Abrams [−9, 20] (?), T-72B3 [−6, 14] (?) – research and verify in the catalog).
+- Parameters per unit in the catalog (`turret_traverse` – today the tank entries declare only `wheels` (TASK-043); add `turret_traverse` with researched params and have the human verify it): `traverse_deg` (`"full"` for tanks; a limited range for e.g. assault guns – then the vehicle turns first, as with the launcher) and `elevation_deg` `[min, max]` (real gun depression/elevation limits; Abrams [−9, 20] (?), T-72B3 [−6, 14] (?) – research and verify in the catalog).
 - The turret **returns to the front** after the hit (consistent with the launcher; open question whether it should keep pointing at the last target).
 - Durations are global constants (`TURRET_AIM_DURATION := 0.5`).
 
@@ -21,7 +21,7 @@ A tank attacking (or countering) visibly aims: its turret turns towards the targ
 - `UnitModels.pose_turret(model, traverse: float, elevation: float)` (no-op without the pivots), `turret_aim(model, facing_yaw, target_yaw) -> Vector2` (= `traverse_aim(params.traverse_deg, 0.0, …)`), `gun_elevation(model, from: Vector3, to: Vector3) -> float` = `clamp(atan2(to.y − from.y, horizontal distance), min, max)` with the unit's `elevation_deg` in radians. `has_turret(model)` = declares `turret_traverse` and has `Turret/Gun`.
 - `UnitView`: `turret_aim_towards(point)`, `gun_elevation_towards(point)` (from the `Turret/Gun` global position to the target's position + 0.15 up, the impact height of the volley), `set_turret_pose(traverse, elevation)`.
 - **Playback**: `BattleController._annotate` marks a `unit_attacked` event whose attacker view `has_turret()` (and doesn't fire a volley) with `EventQueue.FX_DIRECT_FIRE` and a duration of `TURRET_AIM_DURATION + EventQueue.ATTACK_DURATION + TURRET_AIM_DURATION` (+ `AIM_DURATION` for a limited traverse, body-turn step always present as in TASK-044). Sequence: [limited: body turn] → turret traverse and gun elevation together (sine in-out) → the target's `play_hit` → turret and gun back to (0, 0). Counterattacks (`counter: true`) play the same way with the counter-attacker aiming. Units without a turret keep today's hit-only playback.
-- **Coordination with TASK-031**: the Abrams model builds `Turret/Gun` with the hinge at the trunnions and a `Muzzle`, and its `MECHANISMS` contains `turret_traverse` with the catalog params (the registry lists the pivots already while the mechanism is `planned`). If TASK-031 is done before this task, check the pivots and fix them here.
+- **Existing tank models**: check that `Turret/Gun` hinges at the trunnions in both tank models and add `Muzzle` where missing (a small `unit-modeler` touch-up, or directly if it's one node); add `turret_traverse` to their `MECHANISMS` (TASK-043 contract).
 - Docs: `docs/ARCHITECTURE.md` events/FX note for `FX_DIRECT_FIRE`; GDD "Unit feel" (game-designer, when done).
 
 ## Acceptance criteria (testable)

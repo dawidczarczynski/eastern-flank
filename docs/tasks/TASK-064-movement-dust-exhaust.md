@@ -16,6 +16,8 @@ Moving vehicles feel heavy and real: a tank kicks up a trail of dust behind its 
 - **Dust colour by ground** – pure `MotionEffects.dust_color(terrain: int, weights: PackedFloat32Array = []) -> Color`: plains/hills `#a39477`, forest `#7d6f58`, shore/mud (mud weight > 0.4 from TASK-055 if available) → mud spatter colour `#5a4a38` with rate ×0.4, water → no dust.
 - **Exhaust**: from the `Exhaust` anchor (unit-modeler adds it to every vehicle model; fallback: rear top of the AABB). On move start a puff of 10 particles (dark grey `#3a3a38`, alpha 0.5, size 0.1 → 0.35, lifetime 1.2 s), then a thin stream 4/s while moving.
 - Particles use their own random seeds (view-only), never `GameState.rng`.
+- Particle sizes above are at the `current` scale preset and follow `VisualScale.unit_model_scale` (TASK-059). The soft-noise smoke texture and emitter setup go into a shared helper (`ParticleFx`), reused by TASK-065 smoke and TASK-048 muzzle smoke.
+- **Anchor pass**: the vehicle anchors of TASK-063 (`Marking_*`, `Number_*`) and TASK-064 (`Exhaust`, `Dust_L`/`Dust_R`) are added to the four vehicle models in **one** `unit-modeler` rework per vehicle when the two tasks run close together (feedback lists both anchor sets; for the Homar-K / Uragan also the TASK-045 jacks / shields if that rework is still pending). The task done second only checks the anchors already exist.
 
 ## Acceptance criteria (testable)
 

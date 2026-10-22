@@ -1,8 +1,8 @@
 # TASK-044: Launcher mechanism with parameters – traverse range, stowed direction, elevation per unit
 
-- **Status**: ready
+- **Status**: ready (revised 2026-10-22: the stowed direction is partly done – the Uragan was built front-stowed with an ad-hoc `stowed_yaw` meta read by `UnitModels.launcher_traverse_for`; this task replaces it with the `stowed` param)
 - **Layers**: presentation (`UnitModels`, `UnitView`, `BattleController._play_volley` / `_volley_event_duration`), tools (`tools/render_unit_options.gd`, `render_unit.gd`), tests
-- **Depends on**: **TASK-043** (mechanism metadata). Needed before `/model-unit bm27_uragan` (front-stowed, limited traverse).
+- **Depends on**: **TASK-043** (mechanism metadata). The Uragan model exists already; after this task it reads `stowed: front` and its verified `traverse_deg` from `MECHANISMS` instead of the `stowed_yaw` meta.
 - **Model**: opus (angle wrapping + tween sequence and event duration must stay in step)
 
 ## Goal
@@ -20,7 +20,7 @@ Every rocket launcher animates like its real vehicle: how far its launcher can t
 
 - `UnitModels.LAUNCHER_DEFAULTS := {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"}` (= registry defaults) and `launcher_params(model) -> Dictionary` (the model's `launcher` metadata over the defaults; legacy `Launcher` models without metadata get the defaults).
 - `UnitModels.traverse_aim(traverse_deg: Variant, stowed_offset: float, facing_yaw: float, target_yaw: float) -> Vector2` – x = body yaw change, y = turntable angle (radians). `desired = wrapf(target_yaw − facing_yaw − stowed_offset, −PI, PI)` (`stowed_offset` = PI for `rear`, 0 for `front`). `"full"` → `(0, desired)`. `[lo, hi]` (degrees): inside → `(0, desired)`; outside → for each limit `body = wrapf(desired − limit, −PI, PI)`, take the limit with the smaller `|body|` (tie within 1e-6 → `lo`), return `(body, limit)`. Shared with the turret (TASK-047).
-- `UnitModels.launcher_aim(model, facing_yaw, target_yaw) -> Vector2` (from `launcher_params`), `launcher_elevation(model) -> float` (`deg_to_rad(max_elevation_deg)`), `launcher_limited(model) -> bool` (traverse not `"full"`). `launcher_traverse` and `LAUNCHER_ELEVATION` are removed (callers and tests move to the new functions).
+- `UnitModels.launcher_aim(model, facing_yaw, target_yaw) -> Vector2` (from `launcher_params`), `launcher_elevation(model) -> float` (`deg_to_rad(max_elevation_deg)`), `launcher_limited(model) -> bool` (traverse not `"full"`). `launcher_traverse`, `launcher_traverse_for`, `launcher_stowed_yaw`, the `stowed_yaw` meta (set in `bm27_uragan.gd`) and `LAUNCHER_ELEVATION` are removed (callers and tests move to the new functions; `stowed_offset` comes from the `stowed` param).
 - `UnitView`: `launcher_aim_towards(point) -> Vector2`, `launcher_limited()`, `set_launcher_pose(traverse, elevation)` unchanged.
 - `BattleController._play_volley` for a launcher: [limited only: body turn `AIM_DURATION` from the current yaw by `aim.x` (lerp_angle)] → raise to `launcher_elevation` (`LAUNCHER_RAISE_DURATION`) → traverse to `aim.y` (`LAUNCHER_TRAVERSE_DURATION`) → salvo (tube positions read after aiming, as now) → traverse back → lower. `_tween_launcher` takes the elevation in radians instead of a fraction of the global constant.
 - `_volley_event_duration(launcher: bool, limited: bool)`: launcher full = `2 × (RAISE + TRAVERSE) + RocketVolley.total_duration()`; launcher limited = that `+ AIM_DURATION`; no launcher = `AIM_DURATION + total_duration()` (unchanged).
@@ -40,7 +40,7 @@ Every rocket launcher animates like its real vehicle: how far its launcher can t
 ## Playtest (for the human)
 
 1. Fire with the Polish rocket artillery (Homar-K model) at targets ahead, to the side and behind: as before – the pod rises on its actuators, turns (over the cab for targets ahead), fires, turns back and lowers; the truck itself doesn't turn.
-2. (After `/model-unit bm27_uragan`, or with a temporary limited `traverse_deg` in `homar_k.gd`'s `MECHANISMS` – revert afterwards) fire at a target behind the launcher: the truck turns first, then the launcher traverses the rest; the truck stays turned afterwards.
+2. Fire with the Russian Uragan (front-stowed, limited traverse if its catalog entry says so) at a target behind the launcher: the truck turns first, then the launcher traverses the rest; the truck stays turned afterwards.
 3. `tools/render_unit.sh homar_k --pose=fire`: the pod is raised, the actuator cylinders and pistons stay connected.
 
 ## Player manual
@@ -52,11 +52,11 @@ None (presentation only, no rule effect).
 - After a volley with a limited traverse, should the vehicle **stay turned** (proposed, like the fixed-pod path) or turn back to its previous facing (longer sequence)?
 - Elevation: always `max_elevation_deg`, or scaled with the target distance (e.g. range 2 → low, maximum range → `max_elevation_deg`)?
 - Per-unit timing (a heavy launcher traverses slower) – proposed no, durations stay global.
-- Uragan values (`traverse_deg`, `max_elevation_deg`, `stowed: front`) come from TASK-042's research (?).
+- Uragan values (`traverse_deg`, `max_elevation_deg`, `stowed: front`): verified in the catalog by TASK-042 – use them as they are.
 
 ## Out of scope
 
-- Range-dependent elevation, per-unit durations, stabilisers and shields (TASK-045 / 046), the Uragan model (`/model-unit bm27_uragan`).
+- Range-dependent elevation, per-unit durations, stabilisers and shields (TASK-045), Uragan geometry changes.
 
 ## Implementation notes
 
