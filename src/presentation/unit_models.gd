@@ -5,8 +5,8 @@ extends RefCounted
 ## scale, and poses squads / vehicles. No mesh-building code here (see ModelParts).
 ## Models face +X and stand on y = 0 of their root.
 
-const MODEL_SCALE := 1.3
-## 1 model unit = 10 m before MODEL_SCALE.
+## The model scale comes from VisualScale.unit_model_scale() (preset `current` = 1.3).
+## 1 model unit = 10 m before that scale.
 const METERS_PER_UNIT := 10.0
 const MODEL_PATH := "res://src/presentation/models/%s.gd"
 ## Mobility of the units driven by vehicle locomotion (wheel spin, hull rocking, slope tilt)
@@ -46,7 +46,7 @@ static func build(definition_id: StringName, owner_id: int, faction: FactionDefi
 	root.rotation.y = facing_yaw(owner_id)
 	var model := _build_model(definition_id, faction)
 	model.name = "Model"
-	model.scale = Vector3.ONE * MODEL_SCALE
+	model.scale = Vector3.ONE * VisualScale.unit_model_scale()
 	root.add_child(model)
 	return root
 

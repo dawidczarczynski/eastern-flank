@@ -8,7 +8,8 @@ extends SceneTree
 ## Scene: flat #5a5d55 background, the battle scene's sun and sky ambient, shadows, a ground plane
 ## with a grid in model space (1 model unit = 10 m: faint every 0.1 = 1 m, stronger every 0.5 =
 ## 5 m; walls with the same grid behind the side and front views). The model is shown without
-## UnitModels.MODEL_SCALE. Orthographic views share one scale; three_quarter is perspective.
+## the unit model scale (VisualScale.unit_model_scale()). Orthographic views share one scale;
+## three_quarter is perspective.
 ## Stats: the AABB covers visible nodes only, while triangle and mesh counts include hidden poses
 ## (e.g. the kneeling soldiers' Stand), the same rule as the contract test budgets.
 

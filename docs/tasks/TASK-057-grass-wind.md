@@ -1,6 +1,6 @@
 # TASK-057: Grass – MultiMesh alpha-card clumps near the camera, distance LOD, shared wind shader
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (pure `GrassPlanner`, `assets/shaders/grass.gdshader`, shared wind include + global shader uniforms, `map_view.gd`), tests
 - **Depends on**: **TASK-050** (`grass_density`, `wind`), soft **TASK-055** (grass tint matches the ground layers), soft **TASK-059** (grass height follows the chosen unit/tree scale), soft **TASK-052** (low camera shows grass at grazing angles)
 - **Model**: sonnet

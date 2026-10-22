@@ -489,14 +489,14 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 			prefix + "ConiferCrowns%d" % variant,
 			FoliageMeshes.conifer(variant),
 			crown_material,
-			_tree_transforms(cones),
+			_tree_transforms(cones, VisualScale.tree_scale()),
 			_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
 		)
 		_add_scatter(
 			prefix + "DeciduousCrowns%d" % variant,
 			FoliageMeshes.deciduous(variant),
 			crown_material,
-			_tree_transforms(blobs),
+			_tree_transforms(blobs, VisualScale.tree_scale()),
 			_tree_colors(blobs, DECIDUOUS_COLOR_A, DECIDUOUS_COLOR_B)
 		)
 	var bushes: Array = plan["bushes"]
@@ -504,20 +504,20 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 		prefix + "Bushes",
 		FoliageMeshes.bush(),
 		crown_material,
-		_tree_transforms(bushes),
+		_tree_transforms(bushes, VisualScale.bush_scale()),
 		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B)
 	)
 	_add_scatter(
 		prefix + "Trunks",
 		FoliageMeshes.trunk(),
 		_scatter_material(TRUNK_COLOR, 1.0, false),
-		_tree_transforms(trees),
+		_tree_transforms(trees, VisualScale.tree_scale()),
 		PackedColorArray()
 	)
 	var rock_transforms: Array[Transform3D] = []
 	var rock_colors := PackedColorArray()
 	for r: Dictionary in plan["rocks"]:
-		var s: float = r["scale"]
+		var s: float = r["scale"] * VisualScale.rock_scale()
 		var basis := (
 			Basis.from_euler(r["rotation"], EULER_ORDER_XYZ)
 			* Basis.from_scale(Vector3(s, 0.7 * s, s))
@@ -532,14 +532,14 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 
 
 ## Tree and bush transforms: the meshes are built with their base at y = 0 and sit on the planted
-## position.
-static func _tree_transforms(trees: Array) -> Array[Transform3D]:
+## position. `size_multiplier` (VisualScale) scales the instance about its base, so the planned
+## positions stay the same.
+static func _tree_transforms(trees: Array, size_multiplier: float = 1.0) -> Array[Transform3D]:
 	var result: Array[Transform3D] = []
 	for tree: Dictionary in trees:
-		var s: float = tree["scale"]
-		var basis := (
-			Basis(Vector3.UP, tree["yaw"]) * Basis.from_scale(Vector3(s, tree["height_scale"], s))
-		)
+		var s: float = tree["scale"] * size_multiplier
+		var h: float = tree["height_scale"] * size_multiplier
+		var basis := Basis(Vector3.UP, tree["yaw"]) * Basis.from_scale(Vector3(s, h, s))
 		result.append(Transform3D(basis, tree["position"]))
 	return result
 

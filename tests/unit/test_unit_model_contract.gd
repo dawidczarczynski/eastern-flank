@@ -19,6 +19,8 @@ const KINDS := {
 ## (the test fails if a waived check no longer fails). Empty since TASK-039b removed the generic
 ## models; kept for future models that land with a known violation.
 const WAIVERS := {}
+## Limits are specified at the `current` unit scale and follow VisualScale.unit_model_scale().
+const CURRENT_SCALE := 1.3
 const MAX_LENGTH := 1.15
 const MAX_WIDTH := 0.8
 const MAX_TRIANGLES_VEHICLE := 40000
@@ -127,9 +129,9 @@ func test_every_model_meets_the_contract_for_every_faction() -> void:
 				violated.append("centre_x")
 			if absf(box.get_center().z) > CENTRE_TOLERANCE:
 				violated.append("centre_z")
-			if box.size.x > MAX_LENGTH:
+			if box.size.x > MAX_LENGTH * _scale_factor():
 				violated.append("length")
-			if box.size.z > MAX_WIDTH:
+			if box.size.z > MAX_WIDTH * _scale_factor():
 				violated.append("width")
 			if triangles > max_triangles:
 				violated.append("triangles")
@@ -388,3 +390,7 @@ func test_every_model_builds_cold_within_the_time_budget() -> void:
 		assert_true(
 			msec <= MAX_BUILD_MSEC, "%s builds in %.1f ms (max %.0f)" % [id, msec, MAX_BUILD_MSEC]
 		)
+
+
+func _scale_factor() -> float:
+	return VisualScale.unit_model_scale() / CURRENT_SCALE

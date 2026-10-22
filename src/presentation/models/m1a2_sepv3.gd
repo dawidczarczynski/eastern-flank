@@ -11,7 +11,7 @@ const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.
 const HULL_LENGTH := 7.93
 ## The gun protrudes this far beyond the hull front (overall 9.77 m).
 const GUN_OVERHANG := 1.84
-## Model units per metre: 9.77 m -> 0.86 (x MODEL_SCALE 1.3 = 1.118 <= 1.15).
+## Model units per metre: 9.77 m -> 0.86 (x unit scale 1.3 = 1.118 <= 1.15).
 const K := 0.088
 ## Turret ring centre (x) on the hull deck (h); gun trunnions (x, h).
 const TURRET_X := 3.95

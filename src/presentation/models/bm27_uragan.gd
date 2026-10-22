@@ -9,7 +9,7 @@ const LABEL_HEIGHT := 0.62
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 
 const LENGTH_M := 9.4
-## Model units per metre: 9.4 m -> 0.874 (x MODEL_SCALE 1.3 = 1.136 <= 1.15).
+## Model units per metre: 9.4 m -> 0.874 (x unit scale 1.3 = 1.136 <= 1.15).
 const K := 0.093
 ## ZIL-135 axles: 2.415 + 1.51 + 2.415 m (middle pair close together); wheel radius, tyre width,
 ## wheel centre |z|.

@@ -13,7 +13,7 @@ const HULL_LENGTH := 6.86
 const GUN_OVERHANG := 2.67
 ## The fuel drums on the rear plate reach this far behind the hull.
 const REAR_OVERHANG := 0.53
-## Model units per metre: 10.06 m (muzzle to drums) -> 0.875 (x MODEL_SCALE 1.3 = 1.138).
+## Model units per metre: 10.06 m (muzzle to drums) -> 0.875 (x unit scale 1.3 = 1.138).
 const K := 0.087
 ## Turret ring centre (x) on the hull deck (h); gun trunnions (x, h).
 const TURRET_X := 3.35

@@ -1,6 +1,6 @@
 # TASK-059: Visual scale study – units vs. trees vs. hexes (realism vs. readability decision)
 
-- **Status**: ready (produces material for the human's decision (b); the final values are set by the human)
+- **Status**: done (produces material for the human's decision (b); the final values are set by the human)
 - **Layers**: presentation (scale constants gathered in one place, screenshot hook), tools (`tools/screenshot.gd` env var), tests
 - **Depends on**: soft **TASK-052** (judge with the new camera), soft **TASK-051**. Blocks TASK-060 (tree size) and informs TASK-057/058/063/064.
 - **Model**: sonnet
@@ -53,4 +53,19 @@ None now. If the chosen preset changes how units hide in forests, a later task a
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `src/presentation/visual_scale.gd` (`VisualScale`): presets `current` / `balanced` / `realistic` from the table, `preset(name)` (copy; unknown → `current` + warning), static active preset with `apply()` / `reset()` / `apply_values()` (the last one for tests and experiments) and accessors `unit_model_scale()`, `tree_scale()`, `bush_scale()`, `rock_scale()`. Default `current` → the game is unchanged.
+- `UnitModels.MODEL_SCALE` removed; `UnitModels.build()` uses `VisualScale.unit_model_scale()`. The model contract test scales its length/width limits by `unit_model_scale() / 1.3`. The model files' "x unit scale 1.3" comments describe the `current` preset.
+- `MapView`: `_tree_transforms(trees, size_multiplier)` scales instances about their base (trees + trunks × `tree_scale`, bushes × `bush_scale`, rocks × `rock_scale`); `ScatterPlanner` and scatter positions are untouched (larger presets let crowns overlap more).
+- Hook: `SCREENSHOT_SCALE_PRESET=<name>` in `tools/screenshot.gd` (passed to the Windows build via `tools/screenshot.sh`). **Only the screenshot tool reads it** – `SCREENSHOT_SCALE_PRESET=… tools/run_windows.sh` does nothing in the game.
+- Tests: `tests/unit/test_visual_scale.gd` (preset values, unknown-name fallback, default active preset, unit AABB at 0.9 is 0.9/1.3 of the one at 1.3, tree transform scales with `tree_scale` keeping its position).
+
+### Screenshots (`.screenshots/scale/`)
+
+`<preset>_default.png` (default framing), `<preset>_close.png` (README framing: `SCREENSHOT_SELECT_UNIT=2 SCREENSHOT_CAMERA=2,-40,11`), `<preset>_forest.png` (`SCREENSHOT_CAMERA=7,200,9`: Russian infantry, T-72B3 and BM-27 at the east forest edge). Reproduce: `SCREENSHOT_SCALE_PRESET=balanced SCREENSHOT_CAMERA=7,200,9 tools/screenshot.sh out.png`.
+
+- **current**: all 9 units easy to spot at the default zoom. Forests are a carpet of toy trees; infantry and tanks are taller than the trees, and the BM-27 is as tall as the conifers. Units are never hidden, and their click areas are the largest (≈ ⅔ of a hex).
+- **balanced**: forests read as dense stands. Polish units on open ground stay clear. The T-72B3 at the forest edge is about crown height, with a crown overlapping its front. Russian infantry inside the forest is almost fully hidden, so you find it by its label. Close-up: the Homar is partly covered by trees on the neighbouring hex. Click areas are ≈ 15 % smaller, and some are covered by foliage.
+- **realistic**: the east forest is a solid canopy. Units in or next to it (T-72B3, BM-27, infantry) show only as labels and fragments of their hex outline. Trees are 2–3× tank height, so they look plausible, but the units can't be seen or clicked well. This preset needs the occlusion-silhouette follow-up.
+- Labels and hex outlines stay readable in all three presets. Clicking was not tested; the click-area remarks come from sizes and overlap in the screenshots.
+
+**Decision (human, 2026-10-22): `balanced`.** `VisualScale.DEFAULT_PRESET = &"balanced"`; an unknown preset name now falls back to the default (`balanced`). Tests updated (`test_default_active_preset_is_balanced`; the proportional-shrink test pins `current` first). Recorded in GDD "Visual direction: realism", and the open question was removed. `docs/images/gameplay.png` re-rendered: trees now reach tank height, and the Homar is slightly covered by one conifer. The model files' "x unit scale 1.3" comments describe the pre-decision `current` scale that the contract limits are written for.

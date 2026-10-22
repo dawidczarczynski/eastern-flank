@@ -1,6 +1,6 @@
 # TASK-061: Forest edges and undergrowth – shrub belts along forest borders, ground cover under trees
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`scatter_planner.gd` edge rules, `map_view.gd` scatter, foliage material), tests
 - **Depends on**: soft **TASK-057** (wind include; tall-grass clumps reuse the grass card), soft **TASK-060** (shrubs use the new foliage shader if done), **TASK-059** (sizes: all scales below are at the `current` preset and are multiplied by `VisualScale.bush_scale` / `tree_scale`)
 - **Model**: sonnet

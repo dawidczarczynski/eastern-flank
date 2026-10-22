@@ -61,13 +61,13 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | 🔵 done | – |
 | [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | 🔵 done | soft: TASK-050 |
 | [TASK-052](TASK-052-camera-horizon.md) | Camera v2: lower pitch with horizon, top-down when far, backdrop terrain beyond the map (generator-independent) | 🔵 done | soft: TASK-051, TASK-050 |
-| [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | 🟢 ready | soft: TASK-052, TASK-051 |
+| [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | 🔵 done | soft: TASK-052, TASK-051 |
 | [TASK-053](TASK-053-third-party-assets.md) | Third-party CC0 assets: ADR, `assets/third_party/`, credits manifest + test | 🔵 done | – (decision (a) 2026-10-22: CC0 allowed – textures, HDRI, vegetation models; unit models stay procedural) |
 | [TASK-054](TASK-054-hdri-sky.md) | HDRI sky (CC0 Poly Haven) as sky, ambient and reflections | 🔵 done | **TASK-053**, **TASK-051** |
 | [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | 🔵 done | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
 | [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | 🔵 done | soft: TASK-050, TASK-054, TASK-055 |
-| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔴 blocked | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
-| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🔴 blocked | **TASK-059** (soft: TASK-057, TASK-060) |
+| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🟢 ready | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
+| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🟢 ready | **TASK-059** (soft: TASK-057, TASK-060) |
 | [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🟢 ready | soft: TASK-050, TASK-055, TASK-065 |
 | [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 💡 idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, allowed – needs TASK-053 done) |
 | [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🔴 blocked | **TASK-030** |

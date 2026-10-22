@@ -31,6 +31,10 @@ func _initialize() -> void:
 	# No simulated input: stray events from the real mouse/keyboard must not change the scene.
 	root.gui_disable_input = true
 	root.set_disable_input(true)
+	# Visual scale study (TASK-059): the preset must be active before the battle is built.
+	var scale_preset := OS.get_environment("SCREENSHOT_SCALE_PRESET")
+	if scale_preset != "":
+		VisualScale.apply(StringName(scale_preset))
 	var scene: PackedScene = load(SCENE_PATH)
 	if scene == null:
 		_fail("could not load %s" % SCENE_PATH, 1)
@@ -85,6 +89,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## Debug aid: SCREENSHOT_CAMERA=<unit id>,<yaw degrees>,<distance> points the camera at a unit's
 ## tile (e.g. the README shot, tools/readme_screenshot.sh); unset = the default overview camera.
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
+## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
