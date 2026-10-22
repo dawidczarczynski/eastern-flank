@@ -89,7 +89,7 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 | `src/presentation/` | Node scripts: views, camera, scene controllers |
 | `scenes/` | `.tscn` scenes (battle, UI) |
 | `data/` | `.tres` data instances (units, terrain, map generation settings, factions) |
-| `assets/` | `.glb` models, textures, materials, shaders, audio, fonts |
+| `assets/` | `.glb` models, textures, materials, shaders, audio, fonts; `third_party/` holds downloaded CC0 assets (`hdri/`, `textures/`, `models/`), each file credited in `third_party/credits.json` (ADR 0011, checked by `test_third_party_assets.gd`) |
 | `addons/` | Godot plugins |
 | `tests/` | Runner, `TestCase`, fixtures, `unit/` and `integration/` tests |
 | `tools/` | Scripts: tests, lint, running, Godot installation |

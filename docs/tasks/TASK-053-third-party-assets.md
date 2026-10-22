@@ -1,6 +1,6 @@
 # TASK-053: Third-party CC0 assets – ADR, `assets/third_party/`, credits manifest + test
 
-- **Status**: ready – decision (a) recorded 2026-10-22: the human allows downloaded CC0 assets ("wolno używać"). Applied as: textures and HDRI skies **yes**, vegetation / tree glTF models **yes** (TASK-060 option B open), unit models **no** – stay procedural (the recommendation below; the human did not ask to change it).
+- **Status**: done – decision (a) recorded 2026-10-22: the human allows downloaded CC0 assets ("wolno używać"). Applied as: textures and HDRI skies **yes**, vegetation / tree glTF models **yes** (TASK-060 option B open), unit models **no** – stay procedural (the recommendation below; the human did not ask to change it).
 - **Layers**: docs (`docs/adr/<next free number>-third-party-assets.md`, currently 0013 – 0009 is taken), `assets/third_party/` (manifest), tests (`tests/unit/test_third_party_assets.gd`), README credits
 - **Depends on**: – (blocks TASK-054 HDRI sky and TASK-055 terrain textures; option B of TASK-060)
 - **Model**: sonnet
@@ -53,4 +53,8 @@ None. (A credits line in the manual is not needed; the README carries the credit
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- ADR: `docs/adr/0011-third-party-assets.md` (0011 is the next free number – the "0013" above was a guess). Records the 2026-10-22 decision verbatim: textures, HDRI and vegetation models allowed, unit models stay procedural; CC0-1.0 only; layout, budget, no LFS for now.
+- `assets/third_party/credits.json` starts as `[]`.
+- `tests/unit/test_third_party_assets.gd`: a pure `_manifest_problems(manifest, files_on_disk)` validator (keys, unique id, CC0 licence, kind, kind ↔ folder, each file listed exactly once, listed files exist, every file on disk listed) with negative tests on made-up data, plus checks on the real folder: manifest coverage, total size ≤ 80 MB, longer image side ≤ 2048 px (`hdri/` ≤ 4096 px; the raw file is loaded with `Image.load_from_file`, not the imported resource). Size and resolution are checked for every file on disk, which equals "listed files" because coverage is enforced. Verified by hand with a temporary 3000 px PNG (caught; Godot's generated `.import` was ignored), then removed.
+- `docs/ARCHITECTURE.md` `assets/` row and a README "Credits" section updated.
+- No gameplay or visual change: `docs/images/gameplay.png` was not re-rendered. No manual change (task says none).

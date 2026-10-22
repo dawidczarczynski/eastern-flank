@@ -25,3 +25,7 @@ Prototype controls: LMB – select unit / move, Enter – end turn, WASD/arrows 
 - [docs/AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md) – how we work with agents
 - [docs/tasks/BACKLOG.md](docs/tasks/BACKLOG.md) – tasks
 - [CLAUDE.md](CLAUDE.md) – instructions for agents
+
+## Credits
+
+Downloaded assets are public domain (CC0) only, from [Poly Haven](https://polyhaven.com) and [ambientCG](https://ambientcg.com). Each file, with its author and source, is listed in [assets/third_party/credits.json](assets/third_party/credits.json) (rules: [ADR 0011](docs/adr/0011-third-party-assets.md)).
