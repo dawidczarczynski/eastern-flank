@@ -24,9 +24,8 @@ func test_environment_loads() -> void:
 	assert_true(_env != null, "battle_environment.tres must load as Environment")
 
 
-func test_background_is_flat_haze_color() -> void:
-	assert_eq(_env.background_mode, Environment.BG_COLOR)
-	_assert_color(_env.background_color, Color.html("#a9b4b2"))
+func test_background_is_hdri_sky() -> void:
+	assert_eq(_env.background_mode, Environment.BG_SKY)
 
 
 func test_fog() -> void:
@@ -35,8 +34,12 @@ func test_fog() -> void:
 	assert_true(is_equal_approx(_env.fog_depth_begin, 30.0))
 	assert_true(is_equal_approx(_env.fog_depth_end, 140.0))
 	assert_true(_env.fog_aerial_perspective >= 0.5 and _env.fog_aerial_perspective <= 0.9)
-	assert_eq(_env.fog_light_color, _env.background_color)
-	# Same energy for fog and background, so fully fogged geometry blends into the background.
+	assert_true(_env.fog_sky_affect >= 0.3 and _env.fog_sky_affect <= 0.7)
+	# Derived from the HDRI horizon band (average sRGB #abb1b5), no longer the old #a9b4b2 haze.
+	_assert_color(_env.fog_light_color, Color.html("#abb1b5"))
+	var old := Color.html("#a9b4b2")
+	assert_false(_env.fog_light_color.is_equal_approx(old))
+	# Same energy for fog and sky, so fully fogged geometry blends into the sky at the horizon.
 	assert_true(is_equal_approx(_env.fog_light_energy, _env.background_energy_multiplier))
 
 
@@ -92,26 +95,49 @@ func test_ssao() -> void:
 	assert_true(_high_env().ssao_enabled)
 
 
-func test_sky_material_colors() -> void:
+func test_sky_material_is_hdri_panorama() -> void:
 	assert_true(_env.sky is Sky, "environment needs a Sky")
-	var mat := _env.sky.sky_material as ProceduralSkyMaterial
-	assert_true(mat != null, "sky material must be a ProceduralSkyMaterial")
-	_assert_color(mat.sky_top_color, Color.html("#8fa3b5"))
-	_assert_color(mat.sky_horizon_color, Color.html("#c9cdc6"))
-	_assert_color(mat.ground_bottom_color, Color.html("#4f4a3a"))
-	_assert_color(mat.ground_horizon_color, Color.html("#c9cdc6"))
+	var mat := _env.sky.sky_material as PanoramaSkyMaterial
+	assert_true(mat != null, "sky material must be a PanoramaSkyMaterial")
+	assert_true(mat.panorama != null)
+	assert_true(mat.panorama.resource_path.begins_with("res://assets/third_party/hdri/"))
+	# Resource default; GraphicsQuality picks the real mode per level.
+	assert_eq(_env.sky.process_mode, Sky.PROCESS_MODE_QUALITY)
+
+
+## Godot's panorama mapping: u = atan2(x, -z) / TAU (u = 0 looks along -Z, increasing towards +X).
+## HDRI sun at pixel x = 1228 of 2048 (measured, TASK-054). Environment.sky_rotation (Y) turns the
+## sky by that angle, so the sun's world azimuth is the HDRI azimuth minus the rotation (checked
+## against a render looking along the Sun light's toward-sun direction: the sun is centred).
+func _hdri_sun_world_azimuth_deg() -> float:
+	var u := 1228.0 / 2048.0
+	var hdri_azimuth := rad_to_deg(u * TAU)
+	return wrapf(hdri_azimuth - rad_to_deg(_env.sky_rotation.y), -180.0, 180.0)
+
+
+func test_sky_rotation_aligns_hdri_sun_with_sun_light() -> void:
+	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
+	var sun := battle.get_node("Sun") as DirectionalLight3D
+	var toward_sun := sun.transform.basis.z  # the light shines along -Z, the sun is on the +Z side
+	var light_azimuth := rad_to_deg(atan2(toward_sun.x, -toward_sun.z))
+	var diff := absf(wrapf(_hdri_sun_world_azimuth_deg() - light_azimuth, -180.0, 180.0))
+	assert_true(diff <= 10.0, "sun azimuth difference %s deg" % diff)
+	assert_true(is_equal_approx(_env.sky_rotation.x, 0.0))
+	assert_true(is_equal_approx(_env.sky_rotation.z, 0.0))
+	battle.free()
 
 
 func test_sun() -> void:
 	var battle := (load(SCENE_PATH) as PackedScene).instantiate()
 	var sun := battle.get_node("Sun") as DirectionalLight3D
 	_assert_color(sun.light_color, Color.html("#ffeedd"))
-	assert_true(sun.light_energy >= 1.3 and sun.light_energy <= 1.6)
+	assert_true(sun.light_energy >= 0.9 and sun.light_energy <= 1.6)
 	assert_true(sun.shadow_enabled)
 	assert_true(sun.light_angular_distance > 0.0)
 	var forward := -sun.transform.basis.z
 	var elevation := rad_to_deg(asin(-forward.y))
-	assert_true(elevation >= 25.0 and elevation <= 35.0, "sun elevation %s" % elevation)
+	assert_true(elevation >= 25.0 and elevation <= 40.0, "sun elevation %s" % elevation)
+	assert_true(absf(elevation - 37.9) < 1.0, "elevation matches the HDRI sun %s" % elevation)
 	# Same azimuth as before TASK-051, so the README framing keeps its light direction.
 	var azimuth := Vector2(forward.x, forward.z).normalized()
 	assert_true(

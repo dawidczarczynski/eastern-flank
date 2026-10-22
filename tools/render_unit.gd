@@ -175,15 +175,14 @@ func _build_scene() -> void:
 	root.add_child(_camera)
 
 
-## Sky ambient as a plain colour: the battle environment's sky (mean of zenith and horizon colour,
-## same energy). Image-based sky ambient is not available with the canvas background (the
-## background has to stay the exact flat colour) and shadowed faces would render black.
+## Sky ambient as a plain colour (the pre-HDRI mean of the old procedural zenith and horizon
+## colours, energy 0.65, so unit sheets keep their look). Image-based sky ambient is not available
+## with the canvas background (the background has to stay the exact flat colour) and shadowed faces
+## would render black.
 func _use_flat_sky_ambient(environment: Environment) -> void:
-	var sky_material := environment.sky.sky_material as ProceduralSkyMaterial
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = sky_material.sky_top_color.lerp(
-		sky_material.sky_horizon_color, 0.5
-	)
+	environment.ambient_light_color = Color(0.675, 0.72, 0.745)
+	environment.ambient_light_energy = 0.65
 
 
 ## DirectionalLight3D with the properties of the battle scene's "Sun" node (read from the packed

@@ -100,5 +100,18 @@
 			"textures/ground/rock/height.jpg"
 		],
 		"notes": "TASK-055 terrain layer 5 (rock, steep slopes and high ground). 1k JPG, 1.5 x 1.5 m. Renamed from rock_05_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
+		"id": "sky_kloofendal_38d",
+		"kind": "hdri",
+		"title": "Kloofendal 38d Partly Cloudy (Pure Sky)",
+		"author": "Greg Zaal, sky edits by Jarod Guest (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/kloofendal_38d_partly_cloudy_puresky",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"hdri/kloofendal_38d_partly_cloudy_puresky/sky_2k.hdr"
+		],
+		"notes": "TASK-054 battle sky, ambient and reflections. 2k HDR (2048 x 1024). Sun measured from the image: u = 0.600 (pixel column 1228 of 2048), elevation 37.9 deg. Horizon band (0-8 deg) average #abb1b5 (sRGB). Renamed from kloofendal_38d_partly_cloudy_puresky_2k.hdr."
 	}
 ]

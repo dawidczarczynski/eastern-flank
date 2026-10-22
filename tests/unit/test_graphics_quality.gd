@@ -91,6 +91,22 @@ func test_apply_low_turns_effects_off() -> void:
 	assert_false(env.glow_enabled)
 
 
+func test_sky_process_mode_per_level_without_mutating_shared_sky() -> void:
+	var shared := Sky.new()
+	shared.process_mode = Sky.PROCESS_MODE_AUTOMATIC
+	var low_env := Environment.new()
+	low_env.sky = shared
+	GraphicsQuality.apply_environment(low_env, GraphicsQuality.features(LOW))
+	assert_eq(low_env.sky.process_mode, Sky.PROCESS_MODE_INCREMENTAL)
+	assert_eq(low_env.sky.radiance_size, Sky.RADIANCE_SIZE_64)
+	var high_env := Environment.new()
+	high_env.sky = shared
+	GraphicsQuality.apply_environment(high_env, GraphicsQuality.features(HIGH))
+	assert_eq(high_env.sky.process_mode, Sky.PROCESS_MODE_QUALITY)
+	assert_eq(high_env.sky.radiance_size, Sky.RADIANCE_SIZE_256)
+	assert_eq(shared.process_mode, Sky.PROCESS_MODE_AUTOMATIC, "the shared Sky stays untouched")
+
+
 func test_apply_high_enables_ssao_and_keeps_configured_effects() -> void:
 	var env := Environment.new()
 	env.ssil_enabled = true

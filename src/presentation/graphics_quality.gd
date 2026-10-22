@@ -71,6 +71,10 @@ static func features(level: Level) -> Dictionary:
 		"terrain_anti_tiling": high,
 		"terrain_triplanar": high,
 		"terrain_texture_size": 1024 if high else 512,
+		# HDRI sky (TASK-054): the sky is static, so HIGH bakes the radiance map once at full
+		# quality (256 px per cube face); LOW converges it incrementally at a small size.
+		"sky_process_mode": Sky.PROCESS_MODE_QUALITY if high else Sky.PROCESS_MODE_INCREMENTAL,
+		"sky_radiance_size": Sky.RADIANCE_SIZE_256 if high else Sky.RADIANCE_SIZE_64,
 	}
 
 
@@ -85,6 +89,11 @@ static func apply_environment(env: Environment, feature_set: Dictionary) -> void
 	env.ssil_enabled = env.ssil_enabled and ssil
 	env.ssr_enabled = env.ssr_enabled and ssr
 	env.glow_enabled = env.glow_enabled and glow
+	if env.sky != null:
+		# Own Sky: a shallow Environment.duplicate() shares the Sky resource with the cached .tres.
+		env.sky = env.sky.duplicate() as Sky
+		env.sky.process_mode = feature_set["sky_process_mode"]
+		env.sky.radiance_size = feature_set["sky_radiance_size"]
 	if feature_set["color_grade"]:
 		ColorGrade.apply_to(env)
 	else:
