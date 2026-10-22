@@ -1,6 +1,6 @@
 # TASK-058: Ground decals from events – track marks, shell craters, scorched ground
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure `GroundMarks` planner, procedural `DecalTextures`, a `GroundMarksView` reacting to events), tests
 - **Depends on**: soft **TASK-050** (`decals_max`), soft **TASK-055** (judged on the new ground), soft **TASK-065** (shares the scorch decal under wrecks)
 - **Model**: sonnet
@@ -27,7 +27,7 @@ The battlefield remembers what happened: vehicles leave tracks behind them, arti
   - `craters(event_index, target_center, attacker_range, distance, counter)` → 2–3 craters within 0.35 of the centre for `(range 5, distance 3, counter false)`; empty for `distance 1`, for `range 1` and for `counter true`; deterministic for the same event index;
   - `Pool`: with max 4, adding 3 tracks + 2 craters evicts the oldest track; scorch marks are evicted last.
 - [ ] `DecalTextures`: each texture has the requested size, alpha 0 on the border pixels (no hard box edge), deterministic.
-- [ ] Decal nodes' `cull_mask` excludes the unit, foliage and grass layers (test on the created nodes).
+- [ ] Decal nodes' `cull_mask` excludes the unit, tree, bush and rock layers (grass is deliberately included, see notes) (test on the created nodes).
 - [ ] With `decals_max = 0` no decals are created.
 - [ ] Agent visual check (Windows build): a scripted move + rocket attack in the screenshot hook (or a debug env var) shows tracks behind the tank, craters near the target; decals do not appear on unit models or trees.
 - [ ] Re-render `docs/images/gameplay.png` with `tools/readme_screenshot.sh`, Read it (the default shot has no events – it should be unchanged), commit only if changed.
@@ -50,4 +50,12 @@ Short note in section 10 (Screen): "Tracks, craters and scorch marks on the grou
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Implemented as pure `GroundMarks` (planner + `Pool`), `DecalTextures`, `GroundMarksView`, wired in `BattleController` (tracks per segment timed to the move tween, craters/scorch at the hit or last rocket impact, scorch at death start). Terrain+backdrop on visual layer 2, grass chunks on layer 3; decals project on both.
+
+- **Deviation**: grass layer is *included* in the decal cull mask – with grass excluded the marks were nearly invisible on plains. Units, trees, bushes, rocks stay on layer 1 and are never covered.
+- **Tuning**: alpha 0.85 for tracks, 1.0 craters/scorch (spec said 0.55), tread colour `#2e251b`; no normal maps.
+- **Screenshot hook**: `SCREENSHOT_MARKS=<unit id>` draws demo marks (screenshot tool pauses tweens, so no real move/attack). Tracks and scorch seen in the Windows build; craters not clearly seen (small, radius 0.10–0.16).
+- Compatibility renderer (LOW on WSLg) decal support not verified.
+- README shot re-rendered; no events in it, so no marks (file differs by re-render only).
+- Reviewer note left open: `_event_serial` is read when the delayed volley callback fires (correct while the queue serialises events).
+- **Follow-up: continuous tracks.** Segment marks used to appear whole after the vehicle left the segment. Now `BattleController._play_track_marks` creates all segment decals hidden at the start of a move (`GroundMarksView.add_growing_tracks`) and a tween with the unit's time profile reveals them (`GroundMarks.reveal_fractions(points, MoveAnimation.path_time(...))`, head 0.2 behind the unit's position, under the hull). Decal has no shader, and resizing the box would squeeze the tread pattern, so the box stays fixed and the texture is swapped for a cached one with the alpha cut at the head (`DecalTextures.revealed`, 32 steps, soft 2 % edge). The final tween step reveals everything; evicted or freed decals are skipped. `segment_end_times` removed. The screenshot demo shows the last segment 60 % revealed.

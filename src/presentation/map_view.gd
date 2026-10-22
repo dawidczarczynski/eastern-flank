@@ -102,6 +102,14 @@ const ROCK_COLOR_B := Color("#9a958a")
 ## Rocks have no k in the plan: their colour mix is a pseudo-random function of scale.
 const ROCK_SHADE_FREQ := 7.31
 
+## Visual layers (VisualInstance3D.layers bits): everything defaults to layer 1; the terrain and
+## backdrop meshes are also on layer 2, which ground decals (GroundMarksView) project onto
+## exclusively. Camera and light masks are the defaults (all layers), so nothing else changes.
+const TERRAIN_VISUAL_LAYER := 2
+const TERRAIN_LAYER_MASK := 1 << (TERRAIN_VISUAL_LAYER - 1)
+const GRASS_VISUAL_LAYER := 3
+const GRASS_LAYER_MASK := 1 << (GRASS_VISUAL_LAYER - 1)
+
 ## Generated once per run: the water normal texture.
 static var _water_normal: ImageTexture
 
@@ -365,6 +373,7 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Terrain"
+	instance.set_layer_mask_value(TERRAIN_VISUAL_LAYER, true)
 	instance.mesh = mesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	return instance
@@ -406,6 +415,7 @@ func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Backdrop"
+	instance.set_layer_mask_value(TERRAIN_VISUAL_LAYER, true)
 	instance.mesh = mesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return instance

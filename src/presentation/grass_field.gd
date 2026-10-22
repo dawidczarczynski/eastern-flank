@@ -203,6 +203,7 @@ func _build_chunk(chunk: Vector2i) -> MultiMeshInstance3D:
 	instance.material_override = _material
 	instance.position = origin
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.layers = MapView.GRASS_LAYER_MASK
 	instance.visibility_range_end = RANGE
 	instance.visibility_range_end_margin = MARGIN
 	instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF

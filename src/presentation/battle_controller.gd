@@ -34,6 +34,9 @@ var _playing := false  # an event animation is running
 var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
 var _fx_rng := RandomNumberGenerator.new()  # view-local (volley scatter), never GameState.rng
 
+var _marks := GroundMarksView.new()  # ground decals (TASK-058), fed while animations play
+var _event_serial := 0  # played events so far: the view-local seed of the marks
+
 @onready var _map_view: MapView = $MapView
 @onready var _units_root: Node3D = $Units
 @onready var _camera_rig: CameraRig = $CameraRig
@@ -49,6 +52,9 @@ func _ready() -> void:
 	_build_hud_root()
 	_build_bottom_left_stack()
 	_map_view.build(state.grid)
+	_marks.name = "GroundMarks"
+	_marks.setup(quality.get("decals_max", 0))
+	add_child(_marks)
 	_camera_rig.set_bounds(_map_bounds())
 	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
@@ -510,11 +516,14 @@ func _play_next_event() -> void:
 ## Starts the animation of one event and returns its tween, or null for instant events.
 ## Uses only event fields (the simulation state may already be further ahead).
 func _play_event(event: Dictionary) -> Tween:
+	_event_serial += 1
 	match event["type"]:
 		&"unit_moved":
 			var view: UnitView = _unit_views.get(event["unit_id"])
 			if view != null:
-				return view.move_along(_move_points(event), _map_view.surface().ground_height)
+				var points := _move_points(event)
+				_play_track_marks(event["unit_id"], points)
+				return view.move_along(points, _map_view.surface().ground_height)
 		&"unit_attacked":
 			var target: UnitView = _unit_views.get(event["target_id"])
 			var shooter: UnitView = _unit_views.get(event["attacker_id"])
@@ -523,8 +532,9 @@ func _play_event(event: Dictionary) -> Tween:
 				and shooter != null
 				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
 			):
-				return _play_volley(shooter, target, event["target_hp"])
+				return _play_volley(shooter, target, event["target_hp"], event)
 			if target != null:
+				_add_impact_marks(event, target, shooter)
 				return target.play_hit(event["target_hp"])
 		&"unit_died":
 			return _on_unit_died(event["unit_id"])
@@ -540,7 +550,7 @@ func _play_event(event: Dictionary) -> Tween:
 
 ## Turn the launcher towards the target, fire the salvo from its tubes, then the hit reaction.
 ## One tween lasts the whole event (_volley_event_duration), so the queue waits for all of it.
-func _play_volley(shooter: UnitView, target: UnitView, target_hp: int) -> Tween:
+func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary) -> Tween:
 	var aim_point := target.global_position
 	var tween := create_tween()
 	var traverse := 0.0
@@ -577,7 +587,7 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int) -> Tween:
 	)
 	# The hit reaction starts with the last impact.
 	tween.parallel()
-	var hit_step := tween.tween_callback(_play_volley_hit.bind(target, target_hp))
+	var hit_step := tween.tween_callback(_play_volley_hit.bind(target, target_hp, event, shooter))
 	hit_step.set_delay(RocketVolley.last_impact_time())
 	tween.tween_callback(volley.queue_free)
 	if shooter.has_launcher():
@@ -605,9 +615,12 @@ func _tween_launcher(
 	step.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-func _play_volley_hit(target: UnitView, target_hp: int) -> void:
+func _play_volley_hit(
+	target: UnitView, target_hp: int, event: Dictionary, shooter: UnitView
+) -> void:
 	if not is_instance_valid(target):
 		return
+	_add_impact_marks(event, target, shooter)
 	var hit := target.play_hit(target_hp)
 	if hit != null:
 		hit.set_speed_scale(_burst_speed)
@@ -629,9 +642,98 @@ func _on_unit_died(unit_id: int) -> Tween:
 	var view: UnitView = _unit_views.get(unit_id)
 	if view == null:
 		return null
+	_marks.add_marks([GroundMarks.death_scorch(_event_serial, view.global_position)])
 	# Forget the view right away: it frees itself at the end of the death tween.
 	_unit_views.erase(unit_id)
 	return view.play_death()
+
+
+## Track or tyre marks along a move, drawn as the unit drives: every segment's mark exists from
+## the start and is revealed along its length up to just behind the unit (GroundMarks.
+## reveal_fractions), on the same time profile as UnitView.move_along. Everything is revealed
+## when the tween ends. Infantry (and anything that is not a tank or rocket truck) leaves none.
+func _play_track_marks(unit_id: int, points: PackedVector3Array) -> void:
+	var unit := _sim.state.get_unit(unit_id)
+	if unit == null or not _marks.is_active():
+		return
+	var segments := GroundMarks.track_segments(
+		points, unit.definition.unit_class, VisualScale.unit_model_scale()
+	)
+	if segments.is_empty():
+		return
+	var decals := _marks.add_growing_tracks(segments)
+	var duration := MoveAnimation.duration(points)
+	var tween := create_tween()
+	tween.set_speed_scale(_burst_speed)
+	tween.tween_method(
+		_reveal_tracks.bind(points, segments, decals, duration), 0.0, duration, duration
+	)
+	tween.tween_callback(_reveal_tracks.bind(duration, points, segments, decals, duration))
+
+
+func _reveal_tracks(
+	elapsed: float,
+	points: PackedVector3Array,
+	segments: Array[Dictionary],
+	decals: Array[Decal],
+	duration: float
+) -> void:
+	var fractions := GroundMarks.reveal_fractions(
+		points, MoveAnimation.path_time(elapsed, duration)
+	)
+	for i in segments.size():
+		_marks.set_reveal(decals[i], fractions[segments[i]["segment"]])
+
+
+## Craters and a scorch patch at the target of indirect (rocket) fire, when the hit plays.
+func _add_impact_marks(event: Dictionary, target: UnitView, shooter: UnitView) -> void:
+	if not _marks.is_active() or shooter == null or not is_instance_valid(target):
+		return
+	var attacker := _sim.state.get_unit(event["attacker_id"])
+	if attacker == null or not is_instance_valid(shooter):
+		return
+	var target_coord := Hex.from_world(target.global_position, _map_view.hex_size)
+	var distance := Hex.distance(
+		Hex.from_world(shooter.global_position, _map_view.hex_size), target_coord
+	)
+	var range_tiles := attacker.definition.attack_range
+	var counter: bool = event.get("counter", false)
+	var center := _map_view.tile_top_position(target_coord)
+	var marks := GroundMarks.craters(_event_serial, center, range_tiles, distance, counter)
+	marks.append_array(
+		GroundMarks.impact_scorch(_event_serial, center, range_tiles, distance, counter)
+	)
+	_marks.add_marks(marks)
+
+
+## Screenshot debug hook (tools/screenshot.gd): draws a scripted move and rocket strike
+## around a unit without animation – tracks leading up to its tile, craters and a scorch patch
+## three tiles to its right.
+func debug_marks_demo(unit_id: int) -> void:
+	var unit := _sim.state.get_unit(unit_id)
+	if unit == null:
+		push_error("debug_marks_demo: no unit %d" % unit_id)
+		return
+	var points := PackedVector3Array()
+	for i in range(-2, 3):
+		points.append(_map_view.tile_top_position(unit.coord + Vector2i(i - 1, 1)))
+	var marks := GroundMarks.track_segments(
+		points, unit.definition.unit_class, VisualScale.unit_model_scale()
+	)
+	if marks.is_empty():  # not a vehicle: show the tank marks anyway
+		marks = GroundMarks.track_segments(points, &"tank", VisualScale.unit_model_scale())
+	# The last segment is only 60 % revealed, as in the middle of a move.
+	var growing := _marks.add_growing_tracks(marks)
+	for i in growing.size():
+		_marks.set_reveal(growing[i], 0.6 if i == growing.size() - 1 else 1.0)
+	marks.clear()
+	var strike := _map_view.tile_top_position(unit.coord + Vector2i(3, -1))
+	marks.append_array(GroundMarks.craters(1, strike, 5, 3, false))
+	marks.append_array(GroundMarks.impact_scorch(1, strike, 5, 3, false))
+	marks.append(
+		GroundMarks.death_scorch(2, _map_view.tile_top_position(unit.coord + Vector2i(2, -2)))
+	)
+	_marks.add_marks(marks, false)
 
 
 ## The view has caught up with the simulation: refresh everything derived from the state.

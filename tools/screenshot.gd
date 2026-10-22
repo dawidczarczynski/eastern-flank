@@ -50,6 +50,11 @@ func _process(_delta: float) -> bool:
 	if _finished:
 		return false
 	_frames_left -= 1
+	if _frames_left == 3:
+		# Decals need a few frames in the renderer's cluster before they show.
+		var marks_unit := OS.get_environment("SCREENSHOT_MARKS")
+		if marks_unit.is_valid_int():
+			_battle.call("debug_marks_demo", marks_unit.to_int())
 	if _frames_left == 1:
 		_apply_debug_selection()
 	if _frames_left <= 0:
@@ -90,6 +95,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## tile (e.g. the README shot, tools/readme_screenshot.sh); unset = the default overview camera.
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
 ## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
+## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
+## unit's tile (TASK-058), without animation.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
