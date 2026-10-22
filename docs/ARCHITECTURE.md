@@ -35,6 +35,14 @@ The AI (`AiPlayer.take_turn`) does exactly the same, just without clicks.
 
 `UnitView` = model (`UnitModels.build`: a registry that loads `src/presentation/models/<unit_id>.gd`, built with `ModelParts` primitives and shared meshes/materials, faces +X; each unit model is built once per unit and faction, units get copies with their own node trees and the camo materials restored per copy) + faction marker draped on the terrain (`OverlayGeometry`) + HUD `UnitLabel` (a `Control` projected via `Camera3D.unproject_position`, anchored at the model file's `LABEL_HEIGHT` through `UnitModels.label_height`). The "done" dimming uses the pure helper `UnitStatus.is_done`; `BattleController` pushes selected/hovered/done state into the views.
 
+Mesh kit (TASK-030, ADR 0012): `MeshKit` (`models/parts/mesh_kit.gd`, pure geometry, one material) builds chamfered and smooth primitives – `cbox`, `pillow`, `lathe`, `rod`, `bolt`, `stack`, `loft`, `plate`, `profile`, `sweep`, `tube` – in the caller's units (metres), optionally mapped by a `VehicleFrame` and a pivot `base`; `MeshKits` keeps one kit per material role (`k(&"body")`) and `add_to(pivot, materials)` adds one `MeshInstance3D` per material via `ModelParts.add` (pivots that move get their own `MeshKits`). Front faces are clockwise seen from outside (`(v2 − v0) × (v1 − v0)` along the normals). Every primitive writes the **vertex masks** in `ARRAY_COLOR` (8-bit), the contract with the paint shader:
+
+| Channel | Meaning | Written as | Paint use |
+|---|---|---|---|
+| `r` | chamfer / edge | 1 on chamfer bands, box corners, plate rims, short diagonal lathe segments (< `chamfer_max`), tube end caps; 0 on faces | paint wear |
+| `g` | openness | the kit's `openness` (1 = open, set lower by the model for recessed parts), × `INNER_OPENNESS` (0.35) on a lathe's inner wall | cavity darkening |
+| `b` | per-part tint seed | `MeshKit.tint_seed(part centre)` – hash, constant per primitive call, deterministic | per-part tint |
+
 ## Graphics quality
 
 `GraphicsQuality` (`src/presentation/graphics_quality.gd`, pure static) picks the LOW/HIGH preset (`detect` from renderer + adapter, `--quality=` override via `parse_override`) and holds the feature switches (`features`); `BattleController` applies them to the environment/sun/viewport (shadows, MSAA, 3D render scale) and passes `quality` to `MapView` (LOW: no foliage scatter) / `UnitView`.

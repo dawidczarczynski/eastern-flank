@@ -38,7 +38,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-027](TASK-027-terrain-detail.md) | Terrain detail: tileable detail texture + normal map, denser mesh, macro colour, water normals | 🔵 done | TASK-016b (soft: TASK-026) |
 | [TASK-028](TASK-028-foliage.md) | Foliage v2: lobed crowns with baked AO, bush layer, better rocks | 🔵 done | TASK-018 (soft: TASK-026, TASK-027) |
 | [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | 🔵 done | TASK-019 (soft: TASK-026) |
-| [TASK-030](TASK-030-mesh-kit.md) | Mesh kit v2 from the model study: chamfers with edge flags, pillow, sweep, tube, plate; RGB vertex masks (rewritten 2026-10-22) | 🟢 ready | – (reference `docs/design/showcase/`) |
+| [TASK-030](TASK-030-mesh-kit.md) | Mesh kit v2 from the model study: chamfers with edge flags, pillow, sweep, tube, plate; RGB vertex masks (rewritten 2026-10-22) | 🔵 done | – (reference `docs/design/showcase/`) |
 | [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | 🔵 done | – |
 | [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | 🔵 done | – (soft: TASK-005, TASK-020) |
 | [TASK-040](TASK-040-catalog-ai-research.md) | Unit catalog: AI research (`/research-unit`) verified in the form; agent jobs from the UI | 🔵 done | TASK-037 (soft: TASK-036) |
@@ -69,8 +69,8 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔵 done | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
 | [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🟢 ready | **TASK-059** (soft: TASK-057, TASK-060) |
 | [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🟢 ready | soft: TASK-050, TASK-055, TASK-065 |
-| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 💡 idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, allowed – needs TASK-053 done) |
-| [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🔴 blocked | **TASK-030** |
+| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 🟢 ready | **TASK-059**, **TASK-057** (soft: TASK-030, TASK-050; TASK-053 done – optional CC0 bark/leaf textures) |
+| [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🟢 ready | **TASK-030** |
 | [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | 🟢 ready | TASK-038, TASK-036 (soft: TASK-062; anchor pass shared with TASK-064); Russian marking default to confirm |
 | [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | 🟢 ready | **TASK-050** (soft: TASK-058, TASK-055, TASK-059; anchor pass shared with TASK-063) |
 | [TASK-065](TASK-065-wrecks-smoke.md) | Wrecks and smoke on destruction instead of vanishing | 🟢 ready | **TASK-050** (soft: TASK-064 `ParticleFx`, TASK-058, TASK-062 – same shader, do 062 first); persistence to confirm |
