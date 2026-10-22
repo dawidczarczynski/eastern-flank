@@ -28,4 +28,4 @@ Prototype controls: LMB – select unit / move, Enter – end turn, WASD/arrows 
 
 ## Credits
 
-Downloaded assets are public domain (CC0) only, from [Poly Haven](https://polyhaven.com) and [ambientCG](https://ambientcg.com). Each file, with its author and source, is listed in [assets/third_party/credits.json](assets/third_party/credits.json) (rules: [ADR 0011](docs/adr/0011-third-party-assets.md)).
+Downloaded assets are public domain (CC0) only, from [Poly Haven](https://polyhaven.com) and [ambientCG](https://ambientcg.com). Each file, with its author and source, is listed in [assets/third_party/credits.json](assets/third_party/credits.json) (rules: [ADR 0011](docs/adr/0011-third-party-assets.md)). Currently: the six terrain ground materials (grass, dry grass, forest floor, mud, gravel, rock) by Lennart Demes (ambientCG), Charlotte Baglioni, Rob Tuytel and Amal Kumar (Poly Haven).

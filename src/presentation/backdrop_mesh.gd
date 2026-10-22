@@ -68,9 +68,12 @@ func height_at(x: float, z: float) -> float:
 	return lerpf(top, bottom, v)
 
 
-## The ring mesh (no material). `color_fn(x, z, height, normal_y, distance, border_a, border_b)`
-## returns a vertex colour; border_a/b are the inner-lattice indices of the nearest border vertex.
-func build_mesh(color_fn: Callable) -> ArrayMesh:
+## The ring mesh (no material). `vertex_fn(x, z, height, normal_y, distance, border_a, border_b)`
+## returns a PackedFloat32Array of TerrainSplat.LAYER_COUNT ground weights followed by a value
+## and a saturation factor (stored in ARRAY_TEX_UV2); border_a/b are the inner-lattice indices
+## of the nearest border vertex. `add_surface_fn(mesh, arrays, weights)` adds the surface and
+## stores the weights (TerrainGround.add_surface).
+func build_mesh(vertex_fn: Callable, add_surface_fn: Callable) -> ArrayMesh:
 	var row := _cells.x + 1
 	# Only ring vertices are built; the lattice under the playable map is hidden.
 	var remap := PackedInt32Array()
@@ -78,7 +81,8 @@ func build_mesh(color_fn: Callable) -> ArrayMesh:
 	remap.fill(-1)
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
-	var colors := PackedColorArray()
+	var weights := PackedFloat32Array()
+	var tints := PackedVector2Array()
 	var uvs := PackedVector2Array()
 	var tangents := PackedFloat32Array()
 	for b in _cells.y + 1:
@@ -102,16 +106,18 @@ func build_mesh(color_fn: Callable) -> ArrayMesh:
 			var t := Vector3(1.0, dx, 0.0)
 			t = (t - n * n.dot(t)).normalized()
 			tangents.append_array(PackedFloat32Array([t.x, t.y, t.z, 1.0]))
-			colors.append(
-				color_fn.call(
-					x,
-					z,
-					_heights[idx],
-					n.y,
-					_distances[idx],
-					clampi(a - _ring.x, 0, _inner.x),
-					clampi(b - _ring.y, 0, _inner.y)
-				)
+			var values: PackedFloat32Array = vertex_fn.call(
+				x,
+				z,
+				_heights[idx],
+				n.y,
+				_distances[idx],
+				clampi(a - _ring.x, 0, _inner.x),
+				clampi(b - _ring.y, 0, _inner.y)
+			)
+			weights.append_array(values.slice(0, TerrainSplat.LAYER_COUNT))
+			tints.append(
+				Vector2(values[TerrainSplat.LAYER_COUNT], values[TerrainSplat.LAYER_COUNT + 1])
 			)
 	# Ring cells only: the lattice inside the playable rectangle is not drawn.
 	var indices := PackedInt32Array()
@@ -137,12 +143,12 @@ func build_mesh(color_fn: Callable) -> ArrayMesh:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = tints
 	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	add_surface_fn.call(mesh, arrays, weights)
 	return mesh
 
 

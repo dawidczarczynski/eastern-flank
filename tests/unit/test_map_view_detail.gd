@@ -30,13 +30,51 @@ func test_terrain_mesh_has_uvs_scaled_by_detail_tile() -> void:
 	assert_true(uvs[7].is_equal_approx(Vector2(v.x, v.z) / MapView.DETAIL_TILE))
 
 
-func test_terrain_material_has_detail_textures() -> void:
-	var material := _surface_mesh("Terrain").surface_get_material(0) as StandardMaterial3D
-	assert_true(material.albedo_texture != null, "albedo texture")
-	assert_true(material.normal_enabled and material.normal_texture != null, "normal texture")
-	assert_eq(
-		material.texture_filter, BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	)
+func test_terrain_material_is_the_splat_shader_with_three_layer_arrays() -> void:
+	var material := _surface_mesh("Terrain").surface_get_material(0) as ShaderMaterial
+	assert_true(material != null, "ShaderMaterial")
+	assert_eq(material.shader.resource_path, "res://assets/shaders/terrain.gdshader")
+	for param: StringName in [&"albedo_height", &"normal_maps", &"roughness_ao"]:
+		var array := material.get_shader_parameter(param) as Texture2DArray
+		assert_true(array != null, "%s is a Texture2DArray" % param)
+		if array != null:
+			assert_eq(array.get_layers(), TerrainSplat.LAYER_COUNT, "%s layers" % param)
+	assert_eq((material.get_shader_parameter(&"layer_repeat") as PackedFloat32Array).size(), 6)
+
+
+func test_terrain_vertices_carry_weights_summing_to_one() -> void:
+	var arrays := _surface_mesh("Terrain").surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
+	assert_eq(colors.size(), vertices.size(), "one colour (layers 0-3) per vertex")
+	assert_eq(custom.size(), vertices.size() * 4, "RGBA float CUSTOM0 (layers 4-5) per vertex")
+	for v in vertices.size():
+		var c := colors[v]
+		var total := c.r + c.g + c.b + c.a + custom[v * 4] + custom[v * 4 + 1]
+		assert_true(absf(total - 1.0) <= 0.01, "vertex %d weights sum to %s" % [v, total])
+		if absf(total - 1.0) > 0.01:
+			return
+
+
+func test_off_map_margin_is_darkened() -> void:
+	var arrays := _surface_mesh("Terrain").surface_get_arrays(0)
+	var tints: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	# Vertex 0 is the mesh corner (off the map); the map centre is on it.
+	assert_true(is_equal_approx(tints[0].x, MapView.OFF_MAP_VALUE))
+	var centre := vertices.size() / 2
+	assert_true(is_equal_approx(tints[centre].x, 1.0), "on-map vertex %s" % vertices[centre])
+
+
+func test_low_quality_switches_anti_tiling_and_triplanar_off() -> void:
+	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
+	_view.build(Fixtures.plains_grid(1))
+	var material := _surface_mesh("Terrain").surface_get_material(0) as ShaderMaterial
+	assert_false(material.get_shader_parameter(&"anti_tiling"))
+	assert_false(material.get_shader_parameter(&"triplanar"))
+	var array := material.get_shader_parameter(&"albedo_height") as Texture2DArray
+	assert_eq(array.get_width(), 512)
 
 
 func test_water_has_normal_map() -> void:

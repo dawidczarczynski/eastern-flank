@@ -50,7 +50,9 @@ func test_features_values() -> void:
 		"foliage",
 		"particles",
 		"wind",
-		"backdrop_scatter"
+		"backdrop_scatter",
+		"terrain_anti_tiling",
+		"terrain_triplanar"
 	]:
 		assert_eq(low[key], false, key)
 		assert_eq(high[key], true, key)
@@ -62,6 +64,8 @@ func test_features_values() -> void:
 	assert_eq(high["msaa_3d"], Viewport.MSAA_4X)  # matches project.godot
 	assert_eq(low["grass_density"], 0.0)
 	assert_eq(high["grass_density"], 1.0)
+	assert_eq(low["terrain_texture_size"], 512)
+	assert_eq(high["terrain_texture_size"], 1024)
 	assert_eq(low["decals_max"], 16)
 	assert_eq(high["decals_max"], 64)
 	# The software rasteriser is geometry- and fill-bound: no foliage, no shadows, half resolution.

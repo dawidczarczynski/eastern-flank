@@ -1,6 +1,6 @@
 # TASK-055: Terrain shader v3 – blended CC0 PBR ground layers by terrain type and slope, triplanar slopes, anti-tiling
 
-- **Status**: ready (TASK-053's decision: CC0 textures allowed, 2026-10-22; TASK-053 itself – ADR + manifest + test – must be done first)
+- **Status**: done (playtested 2026-10-22)
 - **Layers**: presentation (`assets/shaders/terrain.gdshader`, pure `TerrainSplat` weights, `map_view.gd` `_build_terrain`), `assets/third_party/textures/ground/`, tests
 - **Depends on**: **TASK-053** (CC0 textures allowed + manifest), soft **TASK-050** (triplanar/second scale off on LOW), soft **TASK-051** (judge under the new light), soft **TASK-052** (the backdrop uses the same material). Related: **TASK-035** (rivers, roads, fields, urban ground) – this task reserves room for those layers but does not add them.
 - **Model**: opus (shader with texture arrays, per-vertex weights in two attributes, tangents/triplanar normals, height blending, performance)
@@ -72,4 +72,37 @@ None (presentation only; terrain types and their rules are unchanged).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Code**: pure weights in `src/presentation/terrain_splat.gd` (`TerrainSplat`, named thresholds, `smooth()`). `terrain_textures.gd` packs the albedo+height, normal and roughness/AO arrays on the WorkerThreadPool and caches them per size; a map that fails to load falls back to a neutral image with `push_error`. `terrain_ground.gd` holds the `ShaderMaterial`, layer tints and repeats, and `add_surface()`. The shader is `assets/shaders/terrain.gdshader`. `GroundNoise` (`macro_k`, `jitter`) replaces the removed `TerrainColors`; `DetailTexture.albedo_image` is gone (DetailTexture now only makes water normals).
+- **Assets** (CC0, 1024² JPG; albedo / normal_gl / roughness / ao / height; `assets/third_party/textures/ground/<layer>/`, manifest ids `ground_<layer>`; ADR 0011 now allows the group folder): grass = ambientCG Grass004, dry_grass = Poly Haven withered_grass, dirt = forrest_ground_03, mud = brown_mud_02, gravel = rocky_trail_02, rock = rock_05. Total `assets/third_party/` ≈ 26 MB.
+- **Final repeat**: real size (m) / 7.7 m per unit × `TerrainGround.REPEAT_SCALE` (4.0), which gives 0.68–1.04 world units per repeat. At the true real-world scale the textures blurred to flat colour at every zoom level.
+- **Quality**: HIGH uses 1024² arrays, the second anti-tiling scale (37°, ×3.7, with the far normal rotated back) and triplanar rock (slope > 0.3). LOW uses 512², a single scale and no triplanar. The flags are `terrain_texture_size`, `terrain_anti_tiling` and `terrain_triplanar` in `GraphicsQuality`.
+- **Deviations**:
+  - **Rock slope ramp**: 0.22–0.45 instead of 0.35–0.6, because the default map's maximum slope is 0.55.
+  - **Rock on all land**: slope rock applies to all land, not only hills, so pit and river walls go rocky.
+  - **Dry grass cap**: dry grass is capped at 0.75.
+  - **Shader extras**:
+    - per-layer albedo tints towards the olive palette;
+    - roughness remapped to 0.7–1;
+    - SPECULAR 0.25, because Grass004 glared in the sun;
+    - darker lake beds with depth.
+  - **No snow**: high-elevation snow is dropped.
+  - **Weight storage**: weights in the 8-bit `ARRAY_COLOR` are quantised on the running sum to keep every vertex at 1 ±0.01.
+- **Build time** (headless, default battle, seed 12345):
+  - First full `MapView.build`: 2.91 s before, about 3.1 s after at 1024². Texture packing (1.87 s synchronous) overlaps the mesh build, and the old procedural detail texture (~0.26 s) is gone.
+  - Repeat build (textures cached): +0.23–0.35 s, from the weights and their smoothing. This is at the +0.3 s budget or slightly over it; accepted.
+  - Memory: about 84 MB of uncompressed texture arrays at 1024².
+- **Agent visual check** (Windows build):
+  - Grass reads as olive turf; I saw no repeating stamp.
+  - Large khaki dry patches are visible from afar.
+  - Forest tiles show dark soil.
+  - Shores and fords have mud and dirt bands.
+  - River cliffs and pit walls look rocky.
+  - I saw no hex seams.
+  - Two static frames were pixel-identical. Shimmer while the camera moves was not tested.
+- **LOW** renders with a single scale and no triplanar. Faint stripes show on the far backdrop forest at a grazing angle.
+- **Known limits**:
+  - The default map's hills are gentle, so they stay grassy and rock shows mostly on pit and river walls.
+  - A single isolated forest hex still reads as a hex-shaped soil patch.
+  - The triplanar normal orientation could not be checked up close; please verify in the playtest.
+  - The exported-build texture loading path is unverified.
+  - Both screenshot scripts exit with code 5 under the Windows build; they did so before this task too.

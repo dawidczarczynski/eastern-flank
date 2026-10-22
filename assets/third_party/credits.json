@@ -1,1 +1,104 @@
-[]
+[
+	{
+		"id": "ground_grass",
+		"kind": "textures",
+		"title": "Grass 004",
+		"author": "Lennart Demes (ambientCG)",
+		"source_url": "https://ambientcg.com/view?id=Grass004",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/grass/albedo.jpg",
+			"textures/ground/grass/normal_gl.jpg",
+			"textures/ground/grass/roughness.jpg",
+			"textures/ground/grass/ao.jpg",
+			"textures/ground/grass/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 0 (grass). 1K-JPG, 1.4 x 1.4 m. Renamed from Grass004_1K-JPG_{Color,NormalGL,Roughness,AmbientOcclusion,Displacement}.jpg."
+	},
+	{
+		"id": "ground_dry_grass",
+		"kind": "textures",
+		"title": "Withered Grass",
+		"author": "Charlotte Baglioni (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/withered_grass",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/dry_grass/albedo.jpg",
+			"textures/ground/dry_grass/normal_gl.jpg",
+			"textures/ground/dry_grass/roughness.jpg",
+			"textures/ground/dry_grass/ao.jpg",
+			"textures/ground/dry_grass/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 1 (dry_grass). 1k JPG, 2 x 2 m. Renamed from withered_grass_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
+		"id": "ground_dirt",
+		"kind": "textures",
+		"title": "Forest Ground 03",
+		"author": "Rob Tuytel (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/forrest_ground_03",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/dirt/albedo.jpg",
+			"textures/ground/dirt/normal_gl.jpg",
+			"textures/ground/dirt/roughness.jpg",
+			"textures/ground/dirt/ao.jpg",
+			"textures/ground/dirt/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 2 (dirt / forest floor, pine needles and leaf litter). 1k JPG, 2 x 2 m. Renamed from forrest_ground_03_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
+		"id": "ground_mud",
+		"kind": "textures",
+		"title": "Brown Mud 02",
+		"author": "Rob Tuytel (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/brown_mud_02",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/mud/albedo.jpg",
+			"textures/ground/mud/normal_gl.jpg",
+			"textures/ground/mud/roughness.jpg",
+			"textures/ground/mud/ao.jpg",
+			"textures/ground/mud/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 3 (mud, shores and lake/river beds). 1k JPG, 1.3 x 1.3 m. Renamed from brown_mud_02_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
+		"id": "ground_gravel",
+		"kind": "textures",
+		"title": "Rocky Trail 02",
+		"author": "Amal Kumar (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/rocky_trail_02",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/gravel/albedo.jpg",
+			"textures/ground/gravel/normal_gl.jpg",
+			"textures/ground/gravel/roughness.jpg",
+			"textures/ground/gravel/ao.jpg",
+			"textures/ground/gravel/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 4 (gravel, rock/grass transition on slopes). 1k JPG, 2 x 2 m. Renamed from rocky_trail_02_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
+		"id": "ground_rock",
+		"kind": "textures",
+		"title": "Rock 05",
+		"author": "Rob Tuytel (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/rock_05",
+		"license": "CC0-1.0",
+		"downloaded": "2026-10-22",
+		"files": [
+			"textures/ground/rock/albedo.jpg",
+			"textures/ground/rock/normal_gl.jpg",
+			"textures/ground/rock/roughness.jpg",
+			"textures/ground/rock/ao.jpg",
+			"textures/ground/rock/height.jpg"
+		],
+		"notes": "TASK-055 terrain layer 5 (rock, steep slopes and high ground). 1k JPG, 1.5 x 1.5 m. Renamed from rock_05_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	}
+]

@@ -1,7 +1,7 @@
 class_name TerrainDefinition
 extends Resource
 ## Static data for a terrain type. Instances are kept as .tres files in data/terrain/.
-## Only gameplay data: the view derives terrain looks from type and elevation (TerrainColors).
+## Only gameplay data: the view derives terrain looks from type and elevation (TerrainSplat).
 
 @export var id: StringName
 @export var display_name: String

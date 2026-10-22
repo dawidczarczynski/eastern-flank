@@ -65,6 +65,12 @@ static func features(level: Level) -> Dictionary:
 		"particles": high,
 		"wind": high,
 		"backdrop_scatter": high,
+		# Terrain shader (TASK-055): the rotated second texture scale against tiling, the
+		# triplanar rock on steep slopes, and the ground texture array size in texels per side
+		# (1024: ~84 MB of uncompressed arrays, packed in the background during the mesh build).
+		"terrain_anti_tiling": high,
+		"terrain_triplanar": high,
+		"terrain_texture_size": 1024 if high else 512,
 	}
 
 

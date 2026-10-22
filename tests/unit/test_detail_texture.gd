@@ -70,13 +70,3 @@ func test_normal_sign_convention() -> void:
 	for i in range(1, 15):
 		assert_true(nx.get_pixel(i, 8).r < 0.5, "x ramp must give red < 0.5")
 		assert_true(ny.get_pixel(8, i).g > 0.5, "y ramp must give green > 0.5")
-
-
-func test_albedo_range() -> void:
-	var h := DetailTexture.height_map(SIZE, [4, 8] as Array[int], 1)
-	var img := DetailTexture.albedo_image(h, SIZE)
-	for y in SIZE:
-		for x in SIZE:
-			var c := img.get_pixel(x, y)
-			assert_true(c.r >= 0.73 - 1.0 / 255.0 and c.r <= 1.0, "albedo %f" % c.r)
-			assert_true(c.b <= c.r + 1e-4 and c.b >= 0.7, "blue slightly below red")

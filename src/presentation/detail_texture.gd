@@ -1,11 +1,8 @@
 class_name DetailTexture
 extends RefCounted
-## Pure generators for the tileable ground detail: a value-noise height map, a grey albedo and a
-## tangent-space normal map derived from it. Port of `tileH` / `canvasTex` / `normalTex` in
+## Pure generators for tileable procedural detail (today the water ripples): a value-noise height
+## map and a tangent-space normal map derived from it. Port of `tileH` / `normalTex` in
 ## docs/design/v2/game_screen.scene.js. Uses the design's hash (TerrainNoise.hash), no RNG.
-
-## Seed of the per-pixel grain in the albedo (the design's `hash(x, y, 5)`).
-const _GRAIN_SEED := 5.0
 
 
 ## Height map of `size`² values in [0, 1] (row-major). Octave `o` is value noise on a lattice
@@ -46,18 +43,6 @@ static func height_map(size: int, periods: Array[int], seed_value: int) -> Packe
 	for i in heights.size():
 		heights[i] /= total
 	return heights
-
-
-## Grey albedo (slightly warm) with grain, mipmaps generated. Multiplied with vertex colours.
-static func albedo_image(heights: PackedFloat32Array, size: int) -> Image:
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
-	for y in size:
-		for x in size:
-			var v := 0.76 + 0.34 * heights[y * size + x]
-			v += (TerrainNoise.hash(x, y, _GRAIN_SEED) - 0.5) * 0.06
-			img.set_pixel(x, y, Color(minf(v, 1.0), minf(v, 1.0), minf(v * 0.97, 1.0)))
-	img.generate_mipmaps()
-	return img
 
 
 ## Tangent-space normal map by central differences with wrap-around. OpenGL convention (what

@@ -1,7 +1,8 @@
 class_name MapView
 extends Node3D
-## Map view: builds one continuous terrain mesh (heights from TerrainSurface, vertex colours
-## from TerrainColors), a translucent water plane and faint hex grid lines from a HexGrid,
+## Map view: builds one continuous terrain mesh (heights from TerrainSurface, per-vertex ground
+## layer weights from TerrainSplat drawn by assets/shaders/terrain.gdshader with the
+## TerrainTextures arrays), a translucent water plane and faint hex grid lines from a HexGrid,
 ## draws the reach wash, attack-target rings, hover ring and path dots (TASK-017).
 ## Port of the design's terrain (docs/design/game_screen.scene.js, "terrain mesh").
 
@@ -14,15 +15,25 @@ const EXTENT := 6.0
 ## supplies the fine detail.
 const RESOLUTION := 4.0
 ## Scenery ring around the playable terrain mesh (TASK-052): width in world units, vertices at
-## half the playable mesh density, the colour blend towards the desaturated backdrop look over
-## BACKDROP_FADE units from the seam, and that look (value and saturation factors).
+## half the playable mesh density, the blend from the off-map margin look to the desaturated
+## backdrop look over BACKDROP_FADE units from the seam, and that look (value and saturation
+## factors, see OFF_MAP_VALUE for the margin).
 const BACKDROP_WIDTH := 14.0
 const BACKDROP_FADE := 1.5
 const BACKDROP_VALUE := 0.85
 const BACKDROP_SATURATION := 0.7
+## Off-map margin of the playable mesh: value factor (it reads as "not playable").
+const OFF_MAP_VALUE := 0.6
+## Fine moisture noise for the plains dirt patches (TerrainSplat): frequency per unit and seed.
+const MOISTURE_FREQUENCY := 0.9
+const MOISTURE_SEED := 97.0
 ## Share of the planned scatter the backdrop keeps (cheaper, and it is far away).
 const BACKDROP_SCATTER_DENSITY := 0.5
 const BACKDROP_THIN_SEED := 311.0
+## Border points (offsets in hex sizes) whose tile types the backdrop ground averages.
+const BACKDROP_TYPE_SAMPLES: Array[Vector2] = [
+	Vector2.ZERO, Vector2(1.5, 0.0), Vector2(-1.5, 0.0), Vector2(0.0, 1.5), Vector2(0.0, -1.5)
+]
 ## The water plane is this much larger than the terrain mesh.
 const WATER_MARGIN := 80.0
 const WATER_COLOR := Color("#264f5c", 0.84)
@@ -32,14 +43,10 @@ const WATER_NORMAL_SCALE := 0.3
 const WATER_NORMAL_PERIODS: Array[int] = [4, 8, 16, 32]
 const WATER_NORMAL_SEED := 303
 const WATER_NORMAL_STRENGTH := 5.0
-## Ground detail texture (shared by all land): world units per texture repeat (the design
-## repeats it ~44x over its terrain width), size, noise periods, seed, normal strength/scale.
+## Terrain mesh UVs: world (x, z) / DETAIL_TILE (the shader samples in world space; the UVs
+## only define the tangent frame). DETAIL_SIZE is the procedural water normal map size.
 const DETAIL_TILE := 1.45
 const DETAIL_SIZE := 256
-const DETAIL_PERIODS: Array[int] = [8, 16, 32, 64]
-const DETAIL_SEED := 201
-const DETAIL_NORMAL_STRENGTH := 7.0
-const DETAIL_NORMAL_SCALE := 0.9
 const GRID_LINE_COLOR := Color("#e9eddc")
 ## Grid lines float this far above the ground; each hex edge is split into segments so the
 ## lines follow the slopes.
@@ -96,9 +103,7 @@ const ROCK_COLOR_B := Color("#9a958a")
 ## Rocks have no k in the plan: their colour mix is a pseudo-random function of scale.
 const ROCK_SHADE_FREQ := 7.31
 
-## Generated once per run: ground albedo and normal textures and the water normal texture.
-static var _ground_albedo: ImageTexture
-static var _ground_normal: ImageTexture
+## Generated once per run: the water normal texture.
 static var _water_normal: ImageTexture
 
 @export var hex_size: float = 1.0
@@ -113,6 +118,8 @@ var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
 var _mesh_heights := PackedFloat32Array()
 var _backdrop: BackdropMesh
+## The ground ShaderMaterial shared by the terrain and the backdrop (one per build).
+var _ground_material: ShaderMaterial
 var _nearest_type_cache: Dictionary = {}
 var _tiles_root := Node3D.new()
 var _reach_line := MeshInstance3D.new()
@@ -176,6 +183,9 @@ func build(grid: HexGrid) -> void:
 		centers.append(Hex.to_world(c, hex_size))
 	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
 	_nearest_type_cache.clear()
+	# Packs the ground textures on worker threads while the mesh is built.
+	TerrainTextures.request(TerrainGround.texture_size(quality))
+	_ground_material = null
 	_tiles_root.add_child(_build_terrain(rect))
 	_tiles_root.add_child(_build_backdrop(rect))
 	if quality.get("foliage", true):
@@ -257,8 +267,10 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	# Normals by central differences on the height grid (one-sided at the border).
 	var normals := PackedVector3Array()
 	normals.resize(count)
-	var colors := PackedColorArray()
-	colors.resize(count)
+	var weights := PackedFloat32Array()
+	weights.resize(count * TerrainSplat.LAYER_COUNT)
+	var tints := PackedVector2Array()
+	tints.resize(count)
 	var uvs := PackedVector2Array()
 	uvs.resize(count)
 	# Godot packs tangents as (x, y, z, w) with binormal = cross(normal, tangent) * w.
@@ -288,13 +300,15 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 				Vector2(vertices[j * row + i].x, vertices[j * row + i].z) / DETAIL_TILE
 			)
 			var v := vertices[j * row + i]
-			var k := TerrainColors.noise_k(v.x, v.z)
-			var jittered := TerrainColors.jitter(v.x, v.z)
+			# The jittered tile type keeps forest edges from following the hex outline.
+			var jittered := GroundNoise.jitter(v.x, v.z)
 			var jc := Hex.from_world(Vector3(jittered.x, 0.0, jittered.y), hex_size)
 			var jittered_type := int(_grid.get_terrain(jc)) if _grid.has_tile(jc) else -1
 			var on_map := _grid.has_tile(Hex.from_world(v, hex_size))
-			var mac := TerrainColors.macro_k(v.x, v.z)
-			colors[j * row + i] = TerrainColors.color_at(v.y, n.y, k, jittered_type, on_map, mac)
+			var w := _splat(jittered_type, n.y, v, _splat_noise(v.x, v.z))
+			for layer in TerrainSplat.LAYER_COUNT:
+				weights[(j * row + i) * TerrainSplat.LAYER_COUNT + layer] = w[layer]
+			tints[j * row + i] = Vector2(1.0 if on_map else OFF_MAP_VALUE, 1.0)
 
 	var indices := PackedInt32Array()
 	indices.resize(nx * nz * 6)
@@ -314,16 +328,18 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 			indices[w + 5] = c
 			w += 6
 
+	# Blend across tile borders: average with the neighbours within one mesh step.
+	weights = TerrainSplat.smooth(weights, row, nz + 1)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = tints
 	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_INDEX] = indices
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	TerrainGround.add_surface(mesh, arrays, weights)
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Terrain"
@@ -332,20 +348,27 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	return instance
 
 
-## The ground material shared by the playable terrain and the backdrop.
-func _terrain_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = false
-	material.roughness = 0.95
-	material.metallic = 0.0
-	_ensure_ground_textures()
-	material.albedo_texture = _ground_albedo
-	material.normal_enabled = true
-	material.normal_texture = _ground_normal
-	material.normal_scale = DETAIL_NORMAL_SCALE
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	return material
+## The two TerrainSplat noises at world (x, z): fine moisture (x) and the dry/moist macro (y).
+static func _splat_noise(x: float, z: float) -> Vector2:
+	var moisture := TerrainNoise.value_noise(
+		x * MOISTURE_FREQUENCY, z * MOISTURE_FREQUENCY, MOISTURE_SEED
+	)
+	return Vector2(moisture, GroundNoise.macro_k(x, z))
+
+
+## Ground layer weights (TerrainSplat) at vertex `v` with normal Y `normal_y` on terrain type
+## `type` (-1 off the map); `noise` from _splat_noise(v.x, v.z).
+static func _splat(type: int, normal_y: float, v: Vector3, noise: Vector2) -> PackedFloat32Array:
+	return TerrainSplat.weights(
+		type, 1.0 - normal_y, v.y, TerrainSurface.WATER_SURFACE, noise.x, noise.y
+	)
+
+
+## The ground material shared by the playable terrain and the backdrop (TerrainGround).
+func _terrain_material() -> ShaderMaterial:
+	if _ground_material == null:
+		_ground_material = TerrainGround.material(quality)
+	return _ground_material
 
 
 func _set_border_height(vertices: PackedVector3Array, index: int, stride: int) -> void:
@@ -357,7 +380,7 @@ func _set_border_height(vertices: PackedVector3Array, index: int, stride: int) -
 ## The non-playable scenery ring around `rect` (the playable mesh), see BackdropMesh.
 func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 	_backdrop = BackdropMesh.new(rect, _mesh_cells, _mesh_heights, BACKDROP_WIDTH, DETAIL_TILE)
-	var mesh := _backdrop.build_mesh(_backdrop_color)
+	var mesh := _backdrop.build_mesh(_backdrop_vertex, TerrainGround.add_surface)
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Backdrop"
@@ -366,24 +389,39 @@ func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 	return instance
 
 
-## Backdrop vertex colour: the nearest border tile's terrain, desaturated and darkened. At the
-## seam it equals the playable margin's (off-map) colour and blends into the backdrop look over
-## BACKDROP_FADE units, so the playable edge reads without a hard line.
-func _backdrop_color(
+## Backdrop vertex: TerrainSplat weights followed by the value and saturation factors. At the
+## seam it equals the playable margin (off-map plains, OFF_MAP_VALUE); over BACKDROP_FADE units
+## it blends into the nearest border tile's terrain with the muted backdrop look, so the
+## playable edge reads without a hard line.
+func _backdrop_vertex(
 	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
-) -> Color:
+) -> PackedFloat32Array:
 	var border := Vector2(
 		_mesh_origin.x + 2 * ca * _mesh_step.x, _mesh_origin.y + 2 * cb * _mesh_step.y
 	)
-	var type := _nearest_tile_type(border)
-	var k := TerrainColors.noise_k(x, z)
-	var mac := TerrainColors.macro_k(x, z)
-	var land := TerrainColors.color_at(h, normal_y, k, type, true, mac)
-	var hsv_s := land.s * BACKDROP_SATURATION
-	var hsv_v := land.v * BACKDROP_VALUE
-	var muted := Color.from_hsv(land.h, hsv_s, hsv_v)
-	var seam := TerrainColors.color_at(h, normal_y, k, -1, false, mac)
-	return seam.lerp(muted, TerrainNoise.smooth(0.0, BACKDROP_FADE, distance))
+	var v := Vector3(x, h, z)
+	var noise := _splat_noise(x, z)
+	var seam := _splat(-1, normal_y, v, noise)
+	# The nearest border tiles' terrain, averaged along the border: a single nearest tile
+	# would extend every border tile outwards as a stripe.
+	var counts := {}
+	for offset: Vector2 in BACKDROP_TYPE_SAMPLES:
+		var type := _nearest_tile_type(border + offset * hex_size)
+		counts[type] = counts.get(type, 0) + 1
+	var land := PackedFloat32Array()
+	land.resize(TerrainSplat.LAYER_COUNT)
+	for type: int in counts:
+		var share: float = counts[type] / float(BACKDROP_TYPE_SAMPLES.size())
+		var w := _splat(type, normal_y, v, noise)
+		for layer in TerrainSplat.LAYER_COUNT:
+			land[layer] += w[layer] * share
+	var t := TerrainNoise.smooth(0.0, BACKDROP_FADE, distance)
+	var result := PackedFloat32Array()
+	for layer in TerrainSplat.LAYER_COUNT:
+		result.append(lerpf(seam[layer], land[layer], t))
+	result.append(lerpf(OFF_MAP_VALUE, BACKDROP_VALUE, t))
+	result.append(lerpf(1.0, BACKDROP_SATURATION, t))
+	return result
 
 
 ## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in).
@@ -547,19 +585,6 @@ func _add_scatter(
 	instance.material_override = material
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_tiles_root.add_child(instance)
-
-
-## Generates the ground albedo and normal textures on first use.
-static func _ensure_ground_textures() -> void:
-	if _ground_albedo != null:
-		return
-	var heights := DetailTexture.height_map(DETAIL_SIZE, DETAIL_PERIODS, DETAIL_SEED)
-	_ground_albedo = ImageTexture.create_from_image(
-		DetailTexture.albedo_image(heights, DETAIL_SIZE)
-	)
-	_ground_normal = ImageTexture.create_from_image(
-		DetailTexture.normal_image(heights, DETAIL_SIZE, DETAIL_NORMAL_STRENGTH)
-	)
 
 
 static func _water_normal_texture() -> ImageTexture:

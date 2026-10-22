@@ -81,31 +81,42 @@ func test_backdrop_has_no_cracks_at_the_seam() -> void:
 
 
 func test_backdrop_uses_the_terrain_material() -> void:
-	var material := _mesh("Backdrop").surface_get_material(0) as StandardMaterial3D
-	assert_true(material.albedo_texture != null and material.normal_texture != null)
-	assert_true(material.vertex_color_use_as_albedo)
+	var material := _mesh("Backdrop").surface_get_material(0)
+	assert_true(material is ShaderMaterial)
+	assert_true(material == _mesh("Terrain").surface_get_material(0), "shared with the terrain")
 
 
-func test_backdrop_colour_is_less_saturated_than_the_seam() -> void:
+func test_backdrop_vertices_carry_weights_summing_to_one() -> void:
 	var arrays := _mesh("Backdrop").surface_get_arrays(0)
-	assert_eq(
-		(arrays[Mesh.ARRAY_COLOR] as PackedColorArray).size(),
-		(arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
-	)
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
+	assert_eq(colors.size(), (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
+	for v in colors.size():
+		var c := colors[v]
+		var total := c.r + c.g + c.b + c.a + custom[v * 4] + custom[v * 4 + 1]
+		assert_true(absf(total - 1.0) <= 0.01, "vertex %d weights sum to %s" % [v, total])
+		if absf(total - 1.0) > 0.01:
+			return
+
+
+func test_backdrop_look_fades_from_the_margin_to_muted() -> void:
 	var x := 3.0
 	var z := 4.0
-	var k := TerrainColors.noise_k(x, z)
-	var mac := TerrainColors.macro_k(x, z)
-	var plains := int(Terrain.Type.PLAINS)
-	var land := TerrainColors.color_at(0.5, 1.0, k, plains, true, mac)
-	var margin := TerrainColors.color_at(0.5, 1.0, k, -1, false, mac)
-	# At the seam: exactly the playable margin colour.
-	assert_true(_view._backdrop_color(x, z, 0.5, 1.0, 0.0, 0, 0).is_equal_approx(margin))
-	# Beyond the fade distance: the nearest tile's land colour, muted.
-	var far: Color = _view._backdrop_color(x, z, 0.5, 1.0, MapView.BACKDROP_FADE + 1.0, 0, 0)
-	assert_true(absf(far.s - land.s * MapView.BACKDROP_SATURATION) < 0.001, "saturation")
-	assert_true(absf(far.v - land.v * MapView.BACKDROP_VALUE) < 0.001, "value")
-	assert_true(far.s < land.s and far.v < land.v)
+	var seam: PackedFloat32Array = _view._backdrop_vertex(x, z, 0.5, 1.0, 0.0, 0, 0)
+	var far: PackedFloat32Array = _view._backdrop_vertex(
+		x, z, 0.5, 1.0, MapView.BACKDROP_FADE + 1.0, 0, 0
+	)
+	var layers := TerrainSplat.LAYER_COUNT
+	assert_eq(seam.size(), layers + 2)
+	# At the seam: exactly the playable margin (off-map plains, darkened, full saturation).
+	var margin := MapView._splat(-1, 1.0, Vector3(x, 0.5, z), MapView._splat_noise(x, z))
+	for layer in layers:
+		assert_true(is_equal_approx(seam[layer], margin[layer]), "seam layer %d" % layer)
+	assert_true(is_equal_approx(seam[layers], MapView.OFF_MAP_VALUE), "seam value")
+	assert_true(is_equal_approx(seam[layers + 1], 1.0), "seam saturation")
+	# Beyond the fade distance: the muted backdrop look.
+	assert_true(is_equal_approx(far[layers], MapView.BACKDROP_VALUE), "far value")
+	assert_true(is_equal_approx(far[layers + 1], MapView.BACKDROP_SATURATION), "far saturation")
 
 
 func test_water_covers_the_backdrop() -> void:
