@@ -88,6 +88,7 @@ func _setup_graphics_quality() -> void:
 func _process(_delta: float) -> void:
 	_update_unit_popup()
 	_map_view.set_camera_distance(_camera_rig.distance())
+	_map_view.set_camera_target(_camera_rig.target())
 	var camera := get_viewport().get_camera_3d()
 	if camera == null or camera.global_transform == _last_camera_transform:
 		return
@@ -149,6 +150,13 @@ func debug_focus_camera(
 	_camera_rig.set_pitch_offset(pitch_offset)
 	for view: UnitView in _unit_views.values():
 		view.refresh_label()  # _process is disabled in the screenshot tool
+	debug_build_grass()
+
+
+## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
+func debug_build_grass() -> void:
+	_map_view.set_camera_target(_camera_rig.target())
+	_map_view.grass().update(1000)
 
 
 ## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.

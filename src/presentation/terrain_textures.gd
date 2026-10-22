@@ -39,7 +39,7 @@ static func arrays(size: int) -> Dictionary:
 	var job: _Job = _jobs[size]
 	WorkerThreadPool.wait_for_group_task_completion(job.task_id)
 	_jobs.erase(size)
-	var result := {}
+	var result := {"average_colors": job.averages}
 	for key: String in ["albedo_height", "normal", "roughness_ao"]:
 		var images: Array[Image] = []
 		for layer in LAYERS.size():
@@ -79,6 +79,22 @@ static func _load_map(layer: int, map_name: String, size: int, format: Image.For
 	return image
 
 
+## Mean linear albedo of `albedo` times the layer's shader tint; used to colour things that
+## should match the ground (grass clumps).
+static func _average_color(albedo: Image, layer: int) -> Color:
+	var small := albedo.duplicate() as Image
+	while small.get_width() > 16:
+		small.shrink_x2()
+	var sum := Vector3.ZERO
+	for y in small.get_height():
+		for x in small.get_width():
+			var c := small.get_pixel(x, y).srgb_to_linear()
+			sum += Vector3(c.r, c.g, c.b)
+	sum /= float(small.get_width() * small.get_height())
+	var tint := TerrainGround.LAYER_TINTS[layer]
+	return Color(sum.x * tint.x, sum.y * tint.y, sum.z * tint.z)
+
+
 ## Neutral stand-in for a missing map: mid-grey albedo / height / roughness, flat normal, no AO.
 static func _fallback_map(map_name: String, size: int, format: Image.Format) -> Image:
 	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
@@ -100,15 +116,19 @@ class _Job:
 	var task_id := -1
 	## Per layer: {"albedo_height", "normal", "roughness_ao": Image}
 	var images: Array = []
+	## Per layer: the mean albedo (linear) times TerrainGround.LAYER_TINTS (what the shader shows).
+	var averages: Array[Color] = []
 	var _mutex := Mutex.new()
 
 	func _init(texture_size: int) -> void:
 		size = texture_size
 		images.resize(TerrainTextures.LAYERS.size())
+		averages.resize(TerrainTextures.LAYERS.size())
 
 	func pack_layer(layer: int) -> void:
 		var albedo := TerrainTextures._load_map(layer, "albedo", size, Image.FORMAT_RGBA8)
 		var height := TerrainTextures._load_map(layer, "height", size, Image.FORMAT_L8)
+		var average := TerrainTextures._average_color(albedo, layer)
 		var data := albedo.get_data()
 		var heights := height.get_data()
 		for i in heights.size():
@@ -127,6 +147,7 @@ class _Job:
 		var roughness_ao := Image.create_from_data(size, size, false, Image.FORMAT_RG8, packed)
 		roughness_ao.generate_mipmaps()
 		_mutex.lock()
+		averages[layer] = average
 		images[layer] = {
 			"albedo_height": albedo_height, "normal": normal, "roughness_ao": roughness_ao
 		}

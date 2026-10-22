@@ -12,6 +12,7 @@ func after_each() -> void:
 
 
 func _check(values: Dictionary, unit: float, tree: float, bush: float, rock: float) -> void:
+	assert_eq(values["grass_scale"], bush, "grass follows bush")
 	assert_eq(values["unit_model_scale"], unit)
 	assert_eq(values["tree_scale"], tree)
 	assert_eq(values["bush_scale"], bush)

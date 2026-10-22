@@ -40,7 +40,7 @@ var _label: UnitLabel
 var _ring := MeshInstance3D.new()
 var _fill := MeshInstance3D.new()
 var _ring_material := _marker_material()
-var _fill_material := _marker_material()
+var _fill_material := _marker_material(false)
 var _ground_height: Callable
 var _marker_origin := Vector3.INF  # where the marker geometry was last built
 var _marker_selected := false  # selected state the ring geometry was built for
@@ -377,13 +377,13 @@ func _update_label() -> void:
 ## Alphas and ring width follow the selected / hovered / done state.
 func _refresh_markers() -> void:
 	var ring_alpha := RING_ALPHA_DONE if _done else RING_ALPHA
-	_ring_material.albedo_color = Color(_owner_color, ring_alpha)
+	GroundOverlay.set_color(_ring_material, Color(_owner_color, ring_alpha))
 	var fill_alpha := FILL_ALPHA
 	if _selected:
 		fill_alpha = FILL_ALPHA_SELECTED
 	elif _hovered:
 		fill_alpha = FILL_ALPHA_HOVERED
-	_fill_material.albedo_color = Color(_owner_color, fill_alpha)
+	GroundOverlay.set_color(_fill_material, Color(_owner_color, fill_alpha))
 	if _selected != _marker_selected or _marker_origin == Vector3.INF:
 		_rebuild_marker_geometry()
 
@@ -420,10 +420,5 @@ static func _triangles_mesh(vertices: PackedVector3Array) -> ArrayMesh:
 	return mesh
 
 
-static func _marker_material() -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
+static func _marker_material(pulled := true) -> ShaderMaterial:
+	return GroundOverlay.material(Color(1, 1, 1, 0), pulled)

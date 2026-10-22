@@ -1,6 +1,6 @@
 # TASK-057: Grass – MultiMesh alpha-card clumps near the camera, distance LOD, shared wind shader
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure `GrassPlanner`, `assets/shaders/grass.gdshader`, shared wind include + global shader uniforms, `map_view.gd`), tests
 - **Depends on**: **TASK-050** (`grass_density`, `wind`), soft **TASK-055** (grass tint matches the ground layers), soft **TASK-059** (grass height follows the chosen unit/tree scale), soft **TASK-052** (low camera shows grass at grazing angles)
 - **Model**: sonnet
@@ -53,4 +53,12 @@ None (presentation only).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Code**: pure `GrassPlanner` (4×4 chunks, view-local hash RNG, plains 90 / hills 50 / forest 25 per unit², none on water, shore band ≤ 0.06 or hill slope > 0.5); `GrassField` node (one `MultiMeshInstance3D` per chunk at the chunk centre, `visibility_range_end` 14, margin 3, `FADE_SELF`, shadows off; built lazily within 20 units of the camera target, nearest first, 1 chunk per frame, pending chunks rescanned only after the target moves > 0.5); `GrassMesh` (3 crossed cards, up normals); `GrassTexture.card` (procedural neutral-grey blade card – hue comes from the instance colour); `Wind` + `assets/shaders/wind.gdshaderinc` + `assets/shaders/grass.gdshader`. Documented in docs/ARCHITECTURE.md ("Grass and wind").
+- **Size**: `VisualScale` got a `grass_scale` key equal to `bush_scale` in every preset (balanced → 1.4); card 0.07 × 0.05 × `grass_scale`.
+- **Colour**: `TerrainTextures` computes each ground layer's mean linear albedo (× `TerrainGround.LAYER_TINTS`) while packing; the clump colour is that weighted by the `TerrainSplat` weights (sampled on a 0.5-unit grid per chunk) × `lerp(0.85, 1.1, tint)`; root darkening only in the shader.
+- **Wind**: global shader params `wind_direction`, `wind_strength`, `wind_speed` registered at runtime in `MapView.build()` (once, guarded); strength 0 when quality `wind` is false. The headless dummy renderer keeps no global params, so the test checks `Wind.strength()` (the value pushed to the renderer), not the RenderingServer itself.
+- **Budget**: 18 606 clumps on the default map at density 1.0 (budget 120 000; test with `GrassField.SEED`); `GrassField.setup()` estimates the count and cuts density over budget (debug assert + warning, tested with a tiny budget).
+- **Screenshot tool**: the battle's `_process` is off in `tools/screenshot.gd`, so it calls `BattleController.debug_build_grass()` to build the chunks around the focus.
+- **Visual check (Windows build)**: zoomed-in grass on plains near the camera, fading with distance without a visible ring, none on water/shore; colour in the ground's hue family (clumps slightly darker/more contrasty than the flat ground). README shot re-rendered. **Not verified**: sway (no frame diff), exact fade start of the margin, FPS – playtest items.
+- Reviewed (reviewer agent); fixes applied: double colouring, per-clump splat cost, per-frame rescan, shader load test, budget assert/test, docs.
+- **Overlay depth pull**: every draped ground overlay (unit marker ring/fill, reach/range/attack/hover washes) uses `GroundOverlay.material` (`assets/shaders/ground_overlay.gdshader`), which pulls the vertices towards the camera by `GrassField.max_clump_height() / sin(CameraMath.PITCH_CLOSE)` so they draw over the grass but stay occluded by trees, units and ridges. Only rings and outlines are pulled: fills (unit marker fill, hover fill, dim, attack/range fills) lie under the unit models and a pull tinted their lower half blue (playtest feedback), so fills keep normal depth. Fills also tinted the wheels/tracks/boots below their lift (noticeable when hovering an occupied hex: two fills stack), so fills are `ground_only`: the shader reconstructs the scene world Y from the depth texture (as water.gdshader) and keeps the fill only where the opaque surface behind it is ≥ `ground_band` (0.015) below it – the terrain, not models or grass blades. The path dots and grid lines are unchanged.

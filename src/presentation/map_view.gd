@@ -136,16 +136,19 @@ var _range_fill := MeshInstance3D.new()
 var _range_line := MeshInstance3D.new()
 var _hover_fill := MeshInstance3D.new()
 var _hover_ring := MeshInstance3D.new()
-var _hover_ring_material: StandardMaterial3D
+var _hover_ring_material: ShaderMaterial
 var _hover_coord: Variant = null
 ## Draped overlay vertices (lift 0) per shape and tile: shape -> {Vector2i -> PackedVector3Array}.
 ## The terrain never changes, so each tile is draped once instead of on every rebuild.
 var _shape_cache: Dictionary = {}
 var _dots := MultiMeshInstance3D.new()
+var _grass := GrassField.new()
 
 
 func _ready() -> void:
 	add_child(_tiles_root)
+	_grass.name = "Grass"
+	add_child(_grass)
 	for overlay in [
 		_reach_line,
 		_dim,
@@ -162,14 +165,16 @@ func _ready() -> void:
 		add_child(instance)
 	_hover_ring_material = _overlay_material(Color(1, 1, 1, 0.6))
 	_hover_ring.material_override = _hover_ring_material
-	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, HOVER_FILL_ALPHA))
+	_hover_fill.material_override = _overlay_material(Color(1, 1, 1, HOVER_FILL_ALPHA), false)
 	_setup_dots()
 
 
 ## The hover ring pulses; geometry is only rebuilt in set_hover().
 func _process(_delta: float) -> void:
 	if _hover_ring.visible:
-		_hover_ring_material.albedo_color.a = OverlayGeometry.hover_alpha(Time.get_ticks_msec())
+		var color := GroundOverlay.color_of(_hover_ring_material)
+		color.a = OverlayGeometry.hover_alpha(Time.get_ticks_msec())
+		GroundOverlay.set_color(_hover_ring_material, color)
 
 
 func build(grid: HexGrid) -> void:
@@ -192,9 +197,27 @@ func build(grid: HexGrid) -> void:
 		if quality.get("backdrop_scatter", true):
 			_build_backdrop_scatter(rect)
 	_tiles_root.add_child(_build_water(rect))
+	Wind.setup(quality.get("wind", true))
+	_grass.setup(
+		grid,
+		_surface,
+		CameraMath.map_bounds(centers, hex_size),
+		quality.get("grass_density", 1.0),
+		_grass_color
+	)
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
 	_update_grid()
+
+
+## Where the camera looks (XZ); grass chunks near it get built.
+func set_camera_target(target: Vector2) -> void:
+	_grass.set_target(target)
+
+
+## The grass (TASK-057), for tests and statistics.
+func grass() -> GrassField:
+	return _grass
 
 
 ## The surface the terrain mesh is built from; use it for picking and placing things.
@@ -586,6 +609,23 @@ func _add_scatter(
 	_tiles_root.add_child(instance)
 
 
+## Linear ground colour under a grass clump: the mean albedo of each ground layer
+## (TerrainTextures "average_colors", tint included) weighted by the TerrainSplat weights the
+## terrain shader blends.
+func _grass_color(p: Vector3) -> Color:
+	var averages: Array[Color] = (
+		TerrainTextures.arrays(TerrainGround.texture_size(quality))["average_colors"]
+	)
+	var slope := GrassPlanner.slope(_surface, p.x, p.z)
+	var normal_y := 1.0 / sqrt(1.0 + slope * slope)
+	var terrain := _grid.get_terrain(Hex.from_world(p, hex_size))
+	var weights := _splat(terrain, normal_y, p, _splat_noise(p.x, p.z))
+	var color := Color(0, 0, 0)
+	for layer in TerrainSplat.LAYER_COUNT:
+		color += averages[layer] * weights[layer]
+	return Color(color.r, color.g, color.b)
+
+
 static func _water_normal_texture() -> ImageTexture:
 	if _water_normal == null:
 		var heights := DetailTexture.height_map(
@@ -786,8 +826,8 @@ func _refresh_hover_fill() -> void:
 	var inside := _hover_coord != null and _reach_set.has(_hover_coord)
 	_hover_fill.visible = inside
 	if inside:
-		(_hover_fill.material_override as StandardMaterial3D).albedo_color = Color(
-			_reach_color, HOVER_FILL_ALPHA
+		GroundOverlay.set_color(
+			_hover_fill.material_override as ShaderMaterial, Color(_reach_color, HOVER_FILL_ALPHA)
 		)
 
 
@@ -827,7 +867,7 @@ func _set_overlay(
 		vertices.append_array(_tile_shape(c, shape))
 	instance.mesh = _triangles_mesh(vertices)
 	instance.position.y = lift
-	instance.material_override = _overlay_material(color)
+	instance.material_override = _overlay_material(color, shape.y != 0.0)  # patches: fills
 
 
 ## Draped (lift 0) triangle list of `shape` on tile `c`, cached (see _shape_cache).
@@ -862,14 +902,8 @@ static func _triangles_mesh(vertices: PackedVector3Array) -> ArrayMesh:
 	return mesh
 
 
-static func _overlay_material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	return material
+static func _overlay_material(color: Color, pulled := true) -> ShaderMaterial:
+	return GroundOverlay.material(color, pulled)
 
 
 func _setup_dots() -> void:

@@ -66,7 +66,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-054](TASK-054-hdri-sky.md) | HDRI sky (CC0 Poly Haven) as sky, ambient and reflections | 🔵 done | **TASK-053**, **TASK-051** |
 | [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | 🔵 done | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
 | [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | 🔵 done | soft: TASK-050, TASK-054, TASK-055 |
-| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🟢 ready | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
+| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔵 done | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
 | [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🟢 ready | **TASK-059** (soft: TASK-057, TASK-060) |
 | [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🟢 ready | soft: TASK-050, TASK-055, TASK-065 |
 | [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 💡 idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, allowed – needs TASK-053 done) |

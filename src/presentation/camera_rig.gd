@@ -45,6 +45,11 @@ func _notification(what: int) -> void:
 		_tilt_dragging = false
 
 
+## The XZ point the camera looks at.
+func target() -> Vector2:
+	return _target
+
+
 func distance() -> float:
 	return _distance
 

@@ -87,8 +87,8 @@ func test_hover_fill_only_inside_reach() -> void:
 	assert_true(_view._hover_ring.visible)
 	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
 	assert_true(_view._hover_fill.visible, "hover moved into reach by selecting")
-	var material := _view._hover_fill.material_override as StandardMaterial3D
-	assert_true(material.albedo_color.is_equal_approx(Color(COLOR, 0.18)))
+	var material := _view._hover_fill.material_override as ShaderMaterial
+	assert_true(GroundOverlay.color_of(material).is_equal_approx(Color(COLOR, 0.18)))
 	_view.set_hover(Vector2i(2, 0))
 	assert_false(_view._hover_fill.visible, "outside reach")
 	assert_true(_view._hover_ring.visible)
@@ -145,3 +145,24 @@ func test_g_key_cycles_grid_mode() -> void:
 	assert_true(_view._grid_lines.visible)
 	# no simulation is set: reaching the turn/animation gate would raise, so G skips it
 	controller.free()
+
+
+func test_ground_overlays_share_the_depth_pulled_shader() -> void:
+	_make(Fixtures.plains_grid(2))
+	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
+	for instance: MeshInstance3D in [_view._hover_ring, _view._reach_line]:
+		var material := instance.material_override as ShaderMaterial
+		assert_eq(material.shader.resource_path, "res://assets/shaders/ground_overlay.gdshader")
+		assert_true(material.get_shader_parameter(&"depth_pull") > GrassField.max_clump_height())
+		assert_false(material.get_shader_parameter(&"ground_only"))
+
+
+## Fills cover the tile a unit stands on: a pull would tint the lower half of its model.
+func test_ground_fills_are_not_depth_pulled() -> void:
+	_make(Fixtures.plains_grid(2))
+	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
+	for instance: MeshInstance3D in [_view._hover_fill, _view._dim]:
+		var material := instance.material_override as ShaderMaterial
+		assert_eq(material.shader.resource_path, "res://assets/shaders/ground_overlay.gdshader")
+		assert_eq(material.get_shader_parameter(&"depth_pull"), 0.0)
+		assert_true(material.get_shader_parameter(&"ground_only"))

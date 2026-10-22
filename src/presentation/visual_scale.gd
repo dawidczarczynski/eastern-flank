@@ -8,10 +8,30 @@ extends RefCounted
 
 const DEFAULT_PRESET := &"balanced"
 const PRESETS := {
-	&"current": {"unit_model_scale": 1.3, "tree_scale": 1.0, "bush_scale": 1.0, "rock_scale": 1.0},
-	&"balanced": {"unit_model_scale": 1.1, "tree_scale": 1.8, "bush_scale": 1.4, "rock_scale": 1.0},
+	&"current":
+	{
+		"unit_model_scale": 1.3,
+		"tree_scale": 1.0,
+		"bush_scale": 1.0,
+		"rock_scale": 1.0,
+		"grass_scale": 1.0
+	},
+	&"balanced":
+	{
+		"unit_model_scale": 1.1,
+		"tree_scale": 1.8,
+		"bush_scale": 1.4,
+		"rock_scale": 1.0,
+		"grass_scale": 1.4
+	},
 	&"realistic":
-	{"unit_model_scale": 0.9, "tree_scale": 2.6, "bush_scale": 1.8, "rock_scale": 1.0},
+	{
+		"unit_model_scale": 0.9,
+		"tree_scale": 2.6,
+		"bush_scale": 1.8,
+		"rock_scale": 1.0,
+		"grass_scale": 1.8
+	},
 }
 
 static var _active: Dictionary = PRESETS[DEFAULT_PRESET]
@@ -56,3 +76,8 @@ static func bush_scale() -> float:
 
 static func rock_scale() -> float:
 	return _active["rock_scale"]
+
+
+## Grass clump size multiplier (TASK-057); follows the bush scale.
+static func grass_scale() -> float:
+	return _active["grass_scale"]

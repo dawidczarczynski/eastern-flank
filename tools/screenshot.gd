@@ -93,6 +93,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
+	_battle.call("debug_build_grass")
 	var camera := ScreenshotOptions.parse_camera(OS.get_environment("SCREENSHOT_CAMERA"))
 	if camera["error"] == "":
 		_battle.call(
