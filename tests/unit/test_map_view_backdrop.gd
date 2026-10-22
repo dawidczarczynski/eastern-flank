@@ -196,7 +196,7 @@ func test_overlays_stay_on_the_playable_rectangle() -> void:
 func test_backdrop_scatter_present_when_enabled() -> void:
 	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
 	_view.build(Fixtures.plains_grid(1))
-	assert_true(_view._tiles_root.has_node("BackdropTrunks"))
+	assert_true(_view.trees().backdrop_count() > 0, "backdrop trees")
 	assert_true(_view._tiles_root.has_node("BackdropBushes"))
 
 
@@ -205,9 +205,9 @@ func test_backdrop_scatter_absent_when_disabled() -> void:
 	quality["backdrop_scatter"] = false
 	_view.quality = quality
 	_view.build(Fixtures.plains_grid(1))
-	assert_false(_view._tiles_root.has_node("BackdropTrunks"))
+	assert_eq(_view.trees().backdrop_count(), 0, "no backdrop trees")
 	assert_false(_view._tiles_root.has_node("BackdropBushes"))
-	assert_true(_view._tiles_root.has_node("Trunks"), "playable foliage unaffected")
+	assert_true(_view.trees().planned_count() > 0, "playable trees unaffected")
 	assert_true(_view._tiles_root.has_node("Backdrop"), "the ground is always built")
 
 

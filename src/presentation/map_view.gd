@@ -90,13 +90,8 @@ const DOT_LIFT := 0.1
 const LAST_DOT_SCALE := 1.8
 ## Scatter (TASK-018): view-local seed (never the simulation RNG) and mesh values.
 const SCATTER_SEED := 20240518
-const CONIFER_COLOR_A := Color("#2c4626")
-const CONIFER_COLOR_B := Color("#40603a")
-const DECIDUOUS_COLOR_A := Color("#41602c")
-const DECIDUOUS_COLOR_B := Color("#72853a")
 const BUSH_COLOR_A := Color("#3f5a28")
 const BUSH_COLOR_B := Color("#6f7a38")
-const TRUNK_COLOR := Color("#4a3b2a")
 const ROCK_COLOR_A := Color("#7d776a")
 const ROCK_COLOR_B := Color("#9a958a")
 ## Rocks have no k in the plan: their colour mix is a pseudo-random function of scale.
@@ -151,12 +146,18 @@ var _hover_coord: Variant = null
 var _shape_cache: Dictionary = {}
 var _dots := MultiMeshInstance3D.new()
 var _grass := GrassField.new()
+var _trees := TreeField.new()
+## Planned trees of the last build (map scatter, backdrop scatter), handed to the TreeField.
+var _map_trees: Array = []
+var _backdrop_trees: Array = []
 
 
 func _ready() -> void:
 	add_child(_tiles_root)
 	_grass.name = "Grass"
 	add_child(_grass)
+	_trees.name = "Trees"
+	add_child(_trees)
 	for overlay in [
 		_reach_line,
 		_dim,
@@ -200,12 +201,16 @@ func build(grid: HexGrid) -> void:
 	_ground_material = null
 	_tiles_root.add_child(_build_terrain(rect))
 	_tiles_root.add_child(_build_backdrop(rect))
+	_map_trees = []
+	_backdrop_trees = []
 	if quality.get("foliage", true):
 		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED), "")
 		if quality.get("backdrop_scatter", true):
 			_build_backdrop_scatter(rect)
 	_tiles_root.add_child(_build_water(rect))
 	Wind.setup(quality.get("wind", true))
+	# After Wind.setup: the foliage shader reads the wind globals.
+	_trees.setup(_map_trees, _backdrop_trees, CameraMath.map_bounds(centers, hex_size))
 	_grass.setup(
 		grid,
 		_surface,
@@ -226,6 +231,11 @@ func set_camera_target(target: Vector2) -> void:
 ## The grass (TASK-057), for tests and statistics.
 func grass() -> GrassField:
 	return _grass
+
+
+## The trees (TASK-060), for tests and statistics.
+func trees() -> TreeField:
+	return _trees
 
 
 ## The surface the terrain mesh is built from; use it for picking and placing things.
@@ -506,32 +516,12 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 	_build_scatter(plan, "Backdrop")
 
 
-## Trees, bushes and rocks as MultiMeshInstance3Ds (two variants per crown type) – no node per
-## tree. Instance colours multiply the baked vertex colours of the foliage meshes.
+## Bushes and rocks as MultiMeshInstance3Ds – no node per bush or rock; the trees of the plan are
+## collected for the TreeField (TASK-060). Instance colours multiply the baked vertex colours of
+## the foliage meshes.
 func _build_scatter(plan: Dictionary, prefix: String) -> void:
-	var trees: Array = plan["trees"]
+	(_backdrop_trees if prefix == "Backdrop" else _map_trees).append_array(plan["trees"])
 	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
-	for variant in 2:
-		var cones: Array = []
-		var blobs: Array = []
-		for tree: Dictionary in trees:
-			if (tree["k"] < 0.5) != (variant == 0):
-				continue
-			(cones if tree["conifer"] else blobs).append(tree)
-		_add_scatter(
-			prefix + "ConiferCrowns%d" % variant,
-			FoliageMeshes.conifer(variant),
-			crown_material,
-			_tree_transforms(cones, VisualScale.tree_scale()),
-			_tree_colors(cones, CONIFER_COLOR_A, CONIFER_COLOR_B)
-		)
-		_add_scatter(
-			prefix + "DeciduousCrowns%d" % variant,
-			FoliageMeshes.deciduous(variant),
-			crown_material,
-			_tree_transforms(blobs, VisualScale.tree_scale()),
-			_tree_colors(blobs, DECIDUOUS_COLOR_A, DECIDUOUS_COLOR_B)
-		)
 	var bushes: Array = plan["bushes"]
 	_add_scatter(
 		prefix + "Bushes",
@@ -539,13 +529,6 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 		crown_material,
 		_tree_transforms(bushes, VisualScale.bush_scale()),
 		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B)
-	)
-	_add_scatter(
-		prefix + "Trunks",
-		FoliageMeshes.trunk(),
-		_scatter_material(TRUNK_COLOR, 1.0, false),
-		_tree_transforms(trees, VisualScale.tree_scale()),
-		PackedColorArray()
 	)
 	var rock_transforms: Array[Transform3D] = []
 	var rock_colors := PackedColorArray()
@@ -564,9 +547,9 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 	)
 
 
-## Tree and bush transforms: the meshes are built with their base at y = 0 and sit on the planted
-## position. `size_multiplier` (VisualScale) scales the instance about its base, so the planned
-## positions stay the same.
+## Bush transforms (trees: TreeField.tree_transform): the meshes are built with their base at
+## y = 0 and sit on the planted position. `size_multiplier` (VisualScale) scales the instance
+## about its base, so the planned positions stay the same.
 static func _tree_transforms(trees: Array, size_multiplier: float = 1.0) -> Array[Transform3D]:
 	var result: Array[Transform3D] = []
 	for tree: Dictionary in trees:

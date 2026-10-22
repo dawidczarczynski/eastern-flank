@@ -159,6 +159,15 @@ func debug_focus_camera(
 	debug_build_grass()
 
 
+## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_FOCUS): points the camera at a world
+## point (XZ), e.g. the middle of a forest for the frame-time probe.
+func debug_focus_point(target: Vector2, yaw: float, distance: float) -> void:
+	_camera_rig.set_view(target, yaw, distance)
+	for view: UnitView in _unit_views.values():
+		view.refresh_label()  # _process is disabled in the screenshot tool
+	debug_build_grass()
+
+
 ## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
 func debug_build_grass() -> void:
 	_map_view.set_camera_target(_camera_rig.target())

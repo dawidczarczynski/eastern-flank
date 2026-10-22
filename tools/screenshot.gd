@@ -14,6 +14,11 @@ var _output := ""
 var _frames_left := 0
 var _battle: Node
 var _finished := false  # capture started or run failed – quit() only takes effect after this frame
+## Frame-time probe (SCREENSHOT_MEASURE_FRAMES): frames still to time after the warm-up, and the
+## frame durations measured so far (microseconds between _process calls).
+var _measure_left := 0
+var _measure_last_usec := 0
+var _measure_samples: Array[int] = []
 
 
 func _initialize() -> void:
@@ -28,6 +33,13 @@ func _initialize() -> void:
 		)
 		return
 	_frames_left = options["frames"]
+	_measure_left = ScreenshotOptions.parse_measure_frames(
+		OS.get_environment("SCREENSHOT_MEASURE_FRAMES")
+	)
+	if _measure_left > 0:
+		# Uncapped frames, otherwise the probe only measures the vsync interval.
+		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+		Engine.max_fps = 0
 	# No simulated input: stray events from the real mouse/keyboard must not change the scene.
 	root.gui_disable_input = true
 	root.set_disable_input(true)
@@ -58,9 +70,35 @@ func _process(_delta: float) -> bool:
 	if _frames_left == 1:
 		_apply_debug_selection()
 	if _frames_left <= 0:
+		if _measure_left > 0:
+			_measure_frame()
+			return false
 		_finished = true
 		_capture()
 	return false
+
+
+## Times one frame (the wall time since the previous _process call); prints the summary after the
+## last one: "Frame time: avg X ms, max Y ms over N frames".
+func _measure_frame() -> void:
+	var now := Time.get_ticks_usec()
+	if _measure_last_usec > 0:
+		_measure_samples.append(now - _measure_last_usec)
+		_measure_left -= 1
+	_measure_last_usec = now
+	if _measure_left > 0:
+		return
+	var total := 0
+	var worst := 0
+	for sample in _measure_samples:
+		total += sample
+		worst = maxi(worst, sample)
+	print(
+		(
+			"Frame time: avg %.2f ms, max %.2f ms over %d frames"
+			% [total / 1000.0 / _measure_samples.size(), worst / 1000.0, _measure_samples.size()]
+		)
+	)
 
 
 func _capture() -> void:
@@ -93,6 +131,10 @@ func _fail(message: String, exit_code: int) -> void:
 
 ## Debug aid: SCREENSHOT_CAMERA=<unit id>,<yaw degrees>,<distance> points the camera at a unit's
 ## tile (e.g. the README shot, tools/readme_screenshot.sh); unset = the default overview camera.
+## SCREENSHOT_FOCUS=<x>,<z>,<yaw degrees>,<distance> points the camera at a world point instead
+## (ignored when SCREENSHOT_CAMERA is set).
+## SCREENSHOT_MEASURE_FRAMES=<N> times N frames after the warm-up (vsync off) and prints
+## "Frame time: avg X ms, max Y ms over N frames" before the capture.
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
 ## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
@@ -112,6 +154,17 @@ func _apply_debug_selection() -> void:
 		)
 	elif camera["error"] != "none":
 		printerr("ERROR: invalid SCREENSHOT_CAMERA (expected <unit id>,<yaw degrees>,<distance>)")
+	else:
+		var focus := ScreenshotOptions.parse_focus(OS.get_environment("SCREENSHOT_FOCUS"))
+		if focus["error"] == "":
+			_battle.call(
+				"debug_focus_point",
+				focus["target"],
+				deg_to_rad(focus["yaw_degrees"]),
+				focus["distance"]
+			)
+		elif focus["error"] != "none":
+			printerr("ERROR: invalid SCREENSHOT_FOCUS (expected <x>,<z>,<yaw degrees>,<distance>)")
 	var select_id := OS.get_environment("SCREENSHOT_SELECT_UNIT")
 	if select_id.is_valid_int():
 		_battle.call("debug_select_and_hover", select_id.to_int())

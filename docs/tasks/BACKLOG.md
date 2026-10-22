@@ -69,7 +69,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔵 done | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
 | [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🟢 ready | **TASK-059** (soft: TASK-057, TASK-060) |
 | [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🔵 done | soft: TASK-050, TASK-055, TASK-065 |
-| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 🟢 ready | **TASK-059**, **TASK-057** (soft: TASK-030, TASK-050; TASK-053 done – optional CC0 bark/leaf textures) |
+| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 🟣 to playtest | **TASK-059**, **TASK-057** (soft: TASK-030, TASK-050; TASK-053 done – optional CC0 bark/leaf textures) |
 | [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🟢 ready | **TASK-030** |
 | [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | 🟢 ready | TASK-038, TASK-036 (soft: TASK-062; anchor pass shared with TASK-064); Russian marking default to confirm |
 | [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | 🟢 ready | **TASK-050** (soft: TASK-058, TASK-055, TASK-059; anchor pass shared with TASK-063) |

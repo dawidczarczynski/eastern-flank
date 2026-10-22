@@ -1,0 +1,180 @@
+extends TestCase
+
+const Fixtures := preload("res://tests/fixtures.gd")
+const Battle := preload("res://src/presentation/battle_controller.gd")
+
+var _view: MapView
+
+
+func before_each() -> void:
+	_view = MapView.new()
+	_view._ready()
+
+
+func after_each() -> void:
+	_view.free()
+	VisualScale.reset()
+
+
+func _forest_grid(radius: int) -> HexGrid:
+	var grid := Fixtures.plains_grid(radius)
+	for c in grid.coords():
+		grid.set_terrain(c, Terrain.Type.FOREST)
+	return grid
+
+
+func _build_forest() -> void:
+	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
+	_view.build(_forest_grid(2))
+
+
+func _world_aabb(tree: Dictionary) -> AABB:
+	var field := TreeField.new()
+	field.setup([tree], [], Rect2(-5, -5, 10, 10))
+	var node := field.lod0_nodes()[0]
+	var t := node.global_transform if node.is_inside_tree() else node.transform
+	var world := t * field.instance_transforms(node)[0]
+	var aabb := world * node.multimesh.mesh.get_aabb()
+	field.free()
+	return aabb
+
+
+func test_instance_size_follows_tree_scale() -> void:
+	var tree := {
+		"position": Vector3(1.3, 0.2, -2.1),
+		"scale": 0.9,
+		"height_scale": 1.0,
+		"yaw": 0.4,
+		"conifer": false,
+		"k": 0.3
+	}
+	VisualScale.apply_values({"tree_scale": 1.0})
+	var small := _world_aabb(tree)
+	VisualScale.apply_values({"tree_scale": 1.8})
+	var big := _world_aabb(tree)
+	assert_true(
+		absf(big.size.y / small.size.y - 1.8) < 0.018, "ratio %f" % (big.size.y / small.size.y)
+	)
+	assert_true(absf(big.position.y - small.position.y) < 1e-4, "base unchanged")
+	var field := TreeField.new()
+	field.setup([tree], [], Rect2(-5, -5, 10, 10))
+	var node := field.lod0_nodes()[0]
+	var origin := node.position + field.instance_transforms(node)[0].origin
+	assert_true(origin.is_equal_approx(tree["position"]), "position unchanged")
+	field.free()
+
+
+func test_lod_ranges_fade_and_shadows() -> void:
+	_build_forest()
+	var trees := _view.trees()
+	assert_true(trees.lod0_nodes().size() > 0)
+	assert_true(trees.lod1_nodes().size() > 0)
+	for node in trees.lod0_nodes():
+		assert_eq(node.visibility_range_end, 30.0)
+		assert_eq(node.visibility_range_end_margin, 4.0)
+		assert_eq(node.visibility_range_begin, 0.0)
+		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	for node in trees.lod1_nodes():
+		assert_eq(node.visibility_range_begin, 30.0)
+		assert_eq(node.visibility_range_begin_margin, 4.0)
+		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	for node in trees.far_nodes():
+		assert_eq(node.visibility_range_begin, 0.0)
+		assert_eq(node.visibility_range_end, 0.0)
+		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+
+
+func test_chunk_origins_and_instances_inside_the_chunk() -> void:
+	_build_forest()
+	var half := TreeField.CHUNK_SIZE * 0.5 + 1e-4
+	for node: MultiMeshInstance3D in _view.trees().get_children():
+		var p := node.position
+		var chunk := TreeField.chunk_of(p)
+		assert_true(p.is_equal_approx(TreeField.chunk_center(chunk)), "origin %s" % p)
+		var transforms := _view.trees().instance_transforms(node)
+		assert_eq(transforms.size(), node.multimesh.instance_count)
+		for t in transforms:
+			var local := t.origin
+			if absf(local.x) > half or absf(local.z) > half:
+				_fail("%s: instance %s outside the chunk" % [node.name, local])
+				return
+
+
+func test_every_planned_tree_once_per_lod() -> void:
+	_build_forest()
+	var trees := _view.trees()
+	assert_true(trees.backdrop_count() > 0, "backdrop trees too")
+	var far := TreeField.instance_total(trees.far_nodes())
+	var lod0 := TreeField.instance_total(trees.lod0_nodes())
+	var lod1 := TreeField.instance_total(trees.lod1_nodes())
+	assert_eq(lod0 + far, trees.planned_count(), "LOD0 (+ far backdrop)")
+	assert_eq(lod1 + far, trees.planned_count(), "LOD1 (+ far backdrop)")
+
+
+func test_no_tree_nodes_without_foliage() -> void:
+	var quality := GraphicsQuality.features(GraphicsQuality.Level.HIGH)
+	quality["foliage"] = false
+	_view.quality = quality
+	_view.build(_forest_grid(1))
+	assert_eq(_view.trees().get_child_count(), 0)
+
+
+func test_wind_off_after_build() -> void:
+	var quality := GraphicsQuality.features(GraphicsQuality.Level.HIGH)
+	quality["wind"] = false
+	_view.quality = quality
+	_view.build(_forest_grid(1))
+	assert_eq(Wind.strength(), 0.0)
+
+
+func test_lod0_triangle_budget_on_the_default_map() -> void:
+	var grid := Scenario.default_battle(Battle.MAP_SEED).grid
+	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
+	_view.quality["grass_density"] = 0.0
+	_view.build(grid)
+	var worst := 0
+	for c in grid.coords():
+		var w := Hex.to_world(c, 1.0)
+		worst = maxi(
+			worst, _view.trees().lod0_triangles_within(Vector2(w.x, w.z), TreeField.BUDGET_RADIUS)
+		)
+	print(
+		(
+			"  LOD0 triangles within %.0f units (worst tile): %d; trees %d (backdrop %d, far %d)"
+			% [
+				TreeField.BUDGET_RADIUS,
+				worst,
+				_view.trees().planned_count(),
+				_view.trees().backdrop_count(),
+				TreeField.instance_total(_view.trees().far_nodes())
+			]
+		)
+	)
+	assert_true(worst <= TreeField.LOD0_TRIANGLE_BUDGET, "LOD0 triangles %d" % worst)
+
+
+func test_foliage_shader_loads_and_the_material_instantiates() -> void:
+	var shader := load("res://assets/shaders/foliage.gdshader") as Shader
+	assert_true(shader != null, "shader loads")
+	assert_eq(shader.get_mode(), Shader.MODE_SPATIAL)
+	var names: Array[String] = []
+	for u: Dictionary in shader.get_shader_uniform_list():
+		names.append(u["name"])
+	for uniform in ["leaf_texture", "leaf_color", "bark_color", "solid_crown", "tree_height"]:
+		assert_true(names.has(uniform), "%s uniform" % uniform)
+	assert_true(shader.code.contains("wind.gdshaderinc"), "shared wind include")
+
+
+func test_wind_offset_unchanged() -> void:
+	var include := FileAccess.get_file_as_string("res://assets/shaders/wind.gdshaderinc")
+	var expected := (
+		"vec3 wind_offset(vec3 world_pos, float h, float phase) {\n"
+		+ "\tvec2 dir = normalize(wind_direction);\n"
+		+ "\tfloat wave = sin(TIME * wind_speed + dot(world_pos.xz, dir) * 2.3 + phase);\n"
+		+ "\treturn vec3(dir.x, 0.0, dir.y) * (wind_strength * 0.012 * wave * h * h);\n"
+		+ "}"
+	)
+	assert_true(include.contains(expected), "wind_offset as in TASK-057")
+	assert_true(include.contains("vec3 wind_flutter("), "leaf flutter")

@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## Argument parsing for tools/screenshot.gd (see TASK-006).
 
@@ -101,3 +102,26 @@ func test_camera_spec_numbers_must_be_numeric() -> void:
 
 func test_camera_spec_distance_must_be_positive() -> void:
 	assert_eq(ScreenshotOptions.parse_camera("1,30,0")["error"], "invalid_camera")
+
+
+func test_focus_spec_point_yaw_distance() -> void:
+	var focus := ScreenshotOptions.parse_focus("14.7, 4.5,-30,7")
+	assert_eq(focus["target"], Vector2(14.7, 4.5))
+	assert_eq(focus["yaw_degrees"], -30.0)
+	assert_eq(focus["distance"], 7.0)
+	assert_eq(focus["error"], "")
+
+
+func test_focus_spec_empty_and_invalid() -> void:
+	assert_eq(ScreenshotOptions.parse_focus("")["error"], "none")
+	assert_eq(ScreenshotOptions.parse_focus("1,2,3")["error"], "invalid_focus")
+	assert_eq(ScreenshotOptions.parse_focus("1,a,3,4")["error"], "invalid_focus")
+	assert_eq(ScreenshotOptions.parse_focus("1,2,3,0")["error"], "invalid_focus")
+
+
+func test_measure_frames_spec() -> void:
+	assert_eq(ScreenshotOptions.parse_measure_frames(""), 0)
+	assert_eq(ScreenshotOptions.parse_measure_frames("120"), 120)
+	assert_eq(ScreenshotOptions.parse_measure_frames("x"), 0)
+	assert_eq(ScreenshotOptions.parse_measure_frames("-5"), 0)
+	assert_eq(ScreenshotOptions.parse_measure_frames("100000"), ScreenshotOptions.MAX_FRAMES)

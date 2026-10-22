@@ -5,6 +5,11 @@ extends RefCounted
 ## ScreenshotOptions.parse_camera("3,-30,12") (SCREENSHOT_CAMERA: unit id, yaw in degrees, distance)
 ## -> {"unit_id": int, "yaw_degrees": float, "distance": float, "error": String};
 ## "error" is "none" for an empty spec (keep the default camera), "invalid_camera" if malformed.
+## ScreenshotOptions.parse_focus("14.7,4.5,-30,7") (SCREENSHOT_FOCUS: world x, world z, yaw in
+## degrees, distance) -> {"target": Vector2, "yaw_degrees": float, "distance": float, "error"};
+## "error" is "none" for an empty spec, "invalid_focus" if malformed.
+## ScreenshotOptions.parse_measure_frames("120") (SCREENSHOT_MEASURE_FRAMES) -> frames to time
+## after the warm-up (0 = no measurement, capped at MAX_FRAMES).
 
 const DEFAULT_FRAMES := 10
 const MIN_FRAMES := 1
@@ -52,6 +57,34 @@ static func parse_camera(spec: String) -> Dictionary:
 	result["yaw_degrees"] = yaw.to_float()
 	result["distance"] = distance.to_float()
 	return result
+
+
+static func parse_focus(spec: String) -> Dictionary:
+	var result := {"target": Vector2.ZERO, "yaw_degrees": 0.0, "distance": 0.0, "error": ""}
+	if spec.strip_edges() == "":
+		return _with_error(result, "none")
+	var parts := spec.split(",")
+	if parts.size() != 4:
+		return _with_error(result, "invalid_focus")
+	var values: Array[float] = []
+	for part in parts:
+		var text := part.strip_edges()
+		if not text.is_valid_float():
+			return _with_error(result, "invalid_focus")
+		values.append(text.to_float())
+	if values[3] <= 0.0:
+		return _with_error(result, "invalid_focus")
+	result["target"] = Vector2(values[0], values[1])
+	result["yaw_degrees"] = values[2]
+	result["distance"] = values[3]
+	return result
+
+
+static func parse_measure_frames(spec: String) -> int:
+	var text := spec.strip_edges()
+	if not text.is_valid_int() or text.to_int() <= 0:
+		return 0
+	return mini(text.to_int(), MAX_FRAMES)
 
 
 static func _frames_in_range(frames: int) -> bool:
