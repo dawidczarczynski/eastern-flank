@@ -5,10 +5,10 @@ description: Code reviewer. Use after a task is implemented, before committing â
 tools: Read, Grep, Glob, Bash
 ---
 
-You review the changes (`git diff` plus new files from `git status`) against the task file and CLAUDE.md.
+You review the changes (`git diff` plus new files from `git status`) against the task file and CLAUDE.md. Read the diff and the changed files; open other files only where a check needs them.
 
 Checklist:
-1. `tools/check.sh` passes (run it yourself).
+1. `tools/check.sh` passes â€“ run it yourself unless the orchestrator told you it already passed on the current tree.
 2. `src/core/` and `src/ai/` don't reference `Node`, scenes, `Input`, `get_tree`, `await` (check with grep).
 3. Every state change goes through a `Command`; the view doesn't modify `GameState`.
 4. Every acceptance criterion in the task has a matching test; tests check behaviour, not implementation.

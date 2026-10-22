@@ -371,7 +371,12 @@ func _set_death_alpha(alpha: float) -> void:
 
 func _update_label() -> void:
 	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
-	_label.place(camera, global_position + Vector3.UP * _label_height)
+	_label.place(camera, _world_position() + Vector3.UP * _label_height)
+
+
+## global_position errors outside the tree (headless tests); the local position is the same there.
+func _world_position() -> Vector3:
+	return global_position if is_inside_tree() else position
 
 
 ## Alphas and ring width follow the selected / hovered / done state.
@@ -389,7 +394,7 @@ func _refresh_markers() -> void:
 
 
 func _rebuild_marker_geometry() -> void:
-	var center := global_position
+	var center := _world_position()
 	_marker_origin = center
 	_marker_selected = _selected
 	var c2 := Vector2(center.x, center.z)
@@ -407,7 +412,7 @@ func _drape(points: PackedVector2Array, lift: float) -> PackedVector3Array:
 		return OverlayGeometry.drape_with(points, _ground_height, lift)
 	var flat := PackedVector3Array()
 	for p in points:
-		flat.append(Vector3(p.x, global_position.y + lift, p.y))
+		flat.append(Vector3(p.x, _marker_origin.y + lift, p.y))
 	return flat
 
 

@@ -5,7 +5,7 @@ Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/
 ## Commands
 
 - `tools/check.sh` – lint + all tests. **Run it before reporting that a task is done.**
-- `tools/test.sh [filter]` – headless tests only (e.g. `tools/test.sh test_commands`)
+- `tools/test.sh [--verbose] [filter]` – headless tests only (e.g. `tools/test.sh test_commands`); prints only failures, script errors and the summary, the full Godot log is in `.test.log`
 - `tools/lint.sh [--fix]` – gdformat + gdlint
 - `tools/backlog.py [--fix]` – checks (or fixes) `blocked`/`ready` in docs/tasks/BACKLOG.md and the task files against the hard dependencies; run by `tools/check.sh`
 - `tools/run.sh [--editor]` – run the game / editor (needs a GUI; usually done by the human)

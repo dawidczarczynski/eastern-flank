@@ -26,3 +26,6 @@ docs/design/units/units/*/*.webp
 
 # Unit catalog job history (tools/unit_catalog.sh)
 .unit_catalog/
+
+# Full headless test log (tools/test.sh)
+.test.log
