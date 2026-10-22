@@ -1,6 +1,6 @@
 # TASK-067: Infantry v3 – smooth procedural soldiers (swept bodies, soft gear, chamfered weapons)
 
-- **Status**: ready (revised 2026-10-22: the kit primitives are now built by TASK-030, the paint with masks by TASK-062)
+- **Status**: blocked (revised 2026-10-22: the kit primitives are now built by TASK-030, the paint with masks by TASK-062)
 - **Layers**: presentation (`models/parts/soldier.gd`, `models/pl_mech_infantry.gd`, `models/ru_motor_rifle.gd`, `ModelParts` / `MeshKit`), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`). Roles: **presentation-engineer** (kit primitives), **unit-modeler** (both squads, render-compare).
 - **Depends on**: **TASK-030** (mesh kit v2: `sweep`, `pillow`, `tube`, chamfered box, lathe – already ported from this study), **TASK-062** (weathering paint with the RGB vertex masks). Soft: TASK-068 (carry poses), TASK-063 (markings replace the sleeve patch colour).
 - **Model**: opus (organic shapes, many parts, budget)

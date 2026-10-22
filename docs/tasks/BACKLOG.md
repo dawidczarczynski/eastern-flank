@@ -1,83 +1,85 @@
 # Backlog
 
-Statuses: `idea` → `ready` (specified, with criteria) → `in progress` → `to playtest` → `done`.
+Statuses: 💡 `idea` → 🟢 `ready` (specified, with criteria) → 🟡 `in progress` → 🟣 `to playtest` → 🔵 `done`; also 🔴 `blocked` (below) and ⚪ `merged`. Write the status as plain text – `tools/backlog.py --fix` adds the icon.
+
+`blocked` = specified like `ready`, but a hard dependency is not `done` yet. It switches to `ready` as soon as every hard dependency is `done` (and back to `blocked` if a new unfinished hard dependency is added). Hard dependencies are the task IDs in the "Depends on" column before the first `soft`, `(` or `;` – keep soft ones under `soft:`. `tools/backlog.py --fix` applies the rule to this table and the task files' Status lines; `tools/check.sh` fails while they are out of date.
 
 Rows after TASK-001 are in priority order (top = next to implement).
 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
-| TASK-000 | Skeleton: hex map, movement, turns, simple AI, camera | done | – |
-| [TASK-001](TASK-001-combat.md) | Basic melee combat | done | – |
-| [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | done | – |
-| [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | done | TASK-001 |
-| [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | done | TASK-001 |
-| [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | done | – |
-| [TASK-003](TASK-003-unit-info-panel.md) | Info panel for the selected unit | done | TASK-001 |
-| [TASK-013](TASK-013-lighting-atmosphere.md) | Lighting & atmosphere like the design (fog, ACES, sun, ambient) | done | – |
-| [TASK-014](TASK-014-ui-theme.md) | UI theme: IBM Plex fonts, palette, panel styles (`HudTheme`) | done | – |
-| [TASK-023](TASK-023-localization.md) | Localization setup: CSV en + pl, `tr()` for HUD strings | done | – (before the HUD tasks) |
-| [TASK-015](TASK-015-camera.md) | Camera like the design: drag-pan, RMB rotate, pitch by distance, map clamp | done | – (soft: TASK-023) |
-| [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | done | TASK-001 |
-| [TASK-016a](TASK-016a-terrain-elevation.md) | Deterministic terrain elevation in core (`TerrainField`, `TerrainSurface`) | done | – (after TASK-002 recommended) |
-| [TASK-016b](TASK-016b-terrain-mesh.md) | Continuous terrain mesh, water plane, grid lines, surface picking | done | **TASK-016a** (soft: TASK-013, TASK-015) |
-| [TASK-017](TASK-017-map-overlays.md) | Map overlays: reach wash + rings, pulsing hover ring, path dots | done | **TASK-016b**, TASK-014 (soft: TASK-009) |
-| [TASK-019](TASK-019-unit-models.md) | Unit models from primitives, faction markers, unit labels (+ upright check) | done | **TASK-016b**, **TASK-017**, TASK-014 (soft: TASK-008, TASK-009) |
-| [TASK-022](TASK-022-movement-animation.md) | Unit movement along the path with turning (0.26 s/tile) | done | **TASK-008**, TASK-016b, TASK-019 |
-| [TASK-025](TASK-025-unit-locomotion.md) | Unit locomotion: marching soldiers (step bob, kneelers stand), tank wheels + slope tilt | done | **TASK-022**, TASK-019 (soft: TASK-008, TASK-016b) |
-| [TASK-018](TASK-018-scatter.md) | Scatter: trees and rocks (MultiMesh, view-local RNG) | done | **TASK-016b** |
-| [TASK-020](TASK-020-hud-layout.md) | HUD layout: turn bar, end-turn button, controls hint, turn banner | done | **TASK-014**, TASK-023, TASK-015 (soft: TASK-008, TASK-019) |
-| [TASK-024](TASK-024-terrain-panel.md) | Terrain panel (bottom-left) with path cost, replaces the path `Label3D` | done | **TASK-014**, **TASK-016a**, TASK-017, TASK-023 (soft: TASK-002) |
-| [TASK-021](TASK-021-unit-hover-popup.md) | Unit hover popup (replaces the TASK-003 panel) | done | **TASK-014**, TASK-019, TASK-023 (soft: TASK-024, TASK-002) |
-| [TASK-010](TASK-010-counterattack.md) | Counterattack | done | TASK-001 (soft: TASK-002) |
-| [TASK-011](TASK-011-rocket-artillery.md) | Ranged unit (rocket artillery) + starting setup in core (`Scenario`) | done | **TASK-010** |
-| [TASK-005](TASK-005-replay.md) | Save/replay a match as seed + command list | done | `Scenario` from TASK-011 (or extract it here) |
-| [TASK-012](TASK-012-ai-simulation.md) | Headless AI-vs-AI simulation (`tools/simulate.sh`) | done | `Scenario` from TASK-011/TASK-005 |
-| [TASK-026](TASK-026-lighting-ibl.md) | Lighting v2: sky as ambient/reflection source, SSAO | done | TASK-013 |
-| [TASK-027](TASK-027-terrain-detail.md) | Terrain detail: tileable detail texture + normal map, denser mesh, macro colour, water normals | done | TASK-016b (soft: TASK-026) |
-| [TASK-028](TASK-028-foliage.md) | Foliage v2: lobed crowns with baked AO, bush layer, better rocks | done | TASK-018 (soft: TASK-026, TASK-027) |
-| [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | done | TASK-019 (soft: TASK-026) |
-| [TASK-030](TASK-030-mesh-kit.md) | Mesh kit v2 from the model study: chamfers with edge flags, pillow, sweep, tube, plate; RGB vertex masks (rewritten 2026-10-22) | ready | – (reference `docs/design/showcase/`) |
-| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | done | – |
-| [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | done | – (soft: TASK-005, TASK-020) |
-| [TASK-040](TASK-040-catalog-ai-research.md) | Unit catalog: AI research (`/research-unit`) verified in the form; agent jobs from the UI | done | TASK-037 (soft: TASK-036) |
-| [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | done | **TASK-029**, **TASK-038** (soft: TASK-037); done without the original TASK-030 |
-| [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | done | **TASK-038**, TASK-037 |
-| [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | done | **TASK-039a** |
-| [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | done | TASK-037, TASK-040 |
-| [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | done | **TASK-041** |
-| [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on; fills the empty catalog mechanisms of tanks and squads | ready | **TASK-041**, TASK-042 |
-| [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction (replaces the Uragan's `stowed_yaw` meta), elevation per unit | ready | **TASK-043** |
-| [TASK-045](TASK-045-stabilisers.md) | Deploy step: `stabilisers` (jacks) + `blast_shields` (cab shields) before a volley; Homar-K jacks, Uragan rework (TASK-046 merged in) | ready | **TASK-044**, TASK-042 |
-| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | done (superseded by `/model-unit m1a2_sepv3`, `t72b3`) | – |
-| [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | ready | **TASK-044**, **TASK-043** (tank models exist) |
-| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | done (superseded by `/model-unit pl_mech_infantry`, `ru_motor_rifle`; next: TASK-067) | – |
-| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
-| [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | ready | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
-| [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | merged into TASK-045 | – |
-| [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | idea | **TASK-047**; look at 047 in game first |
-| [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | done | – |
-| [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | done | – |
-| [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | done | soft: TASK-050 |
-| [TASK-052](TASK-052-camera-horizon.md) | Camera v2: lower pitch with horizon, top-down when far, backdrop terrain beyond the map (generator-independent) | done | soft: TASK-051, TASK-050 |
-| [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | ready | soft: TASK-052, TASK-051 |
-| [TASK-053](TASK-053-third-party-assets.md) | Third-party CC0 assets: ADR, `assets/third_party/`, credits manifest + test | done | – (decision (a) 2026-10-22: CC0 allowed – textures, HDRI, vegetation models; unit models stay procedural) |
-| [TASK-054](TASK-054-hdri-sky.md) | HDRI sky (CC0 Poly Haven) as sky, ambient and reflections | done | **TASK-053**, **TASK-051** |
-| [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | done | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
-| [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | done | soft: TASK-050, TASK-054, TASK-055 |
-| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | ready | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
-| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | ready | **TASK-059** (soft: TASK-057, TASK-060) |
-| [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | ready | soft: TASK-050, TASK-055, TASK-065 |
-| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, allowed – needs TASK-053 done) |
-| [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | ready | **TASK-030** |
-| [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | ready | TASK-038, TASK-036 (soft: TASK-062; anchor pass shared with TASK-064); Russian marking default to confirm |
-| [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | ready | **TASK-050** (soft: TASK-058, TASK-055, TASK-059; anchor pass shared with TASK-063) |
-| [TASK-065](TASK-065-wrecks-smoke.md) | Wrecks and smoke on destruction instead of vanishing | ready | **TASK-050** (soft: TASK-064 `ParticleFx`, TASK-058, TASK-062 – same shader, do 062 first); persistence to confirm |
-| [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
-| [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | done | – ; open: Polish vest colour contrast |
-| [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | ready | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |
-| TASK-069 | Tank v3: rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k) – `unit-modeler` | idea | **TASK-030**, **TASK-062**; reference `docs/design/showcase/m1a2_showcase.gd.txt` |
-| TASK-007 | Fog of war | idea | GDD open questions: scale, modes |
-| TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | idea | GDD decision ("Ideas from the visual design"), hand-made maps |
+| TASK-000 | Skeleton: hex map, movement, turns, simple AI, camera | 🔵 done | – |
+| [TASK-001](TASK-001-combat.md) | Basic melee combat | 🔵 done | – |
+| [TASK-006](TASK-006-screenshot-script.md) | Screenshot script for agents (`tools/screenshot.sh`) | 🔵 done | – |
+| [TASK-008](TASK-008-event-animation-queue.md) | Sequential event animation playback | 🔵 done | TASK-001 |
+| [TASK-009](TASK-009-attackable-highlight.md) | Highlight attackable enemies (`AttackCommand.valid_targets`) | 🔵 done | TASK-001 |
+| [TASK-004](TASK-004-path-preview.md) | Movement path preview on hover (`HexGrid.path_to`) | 🔵 done | – |
+| [TASK-003](TASK-003-unit-info-panel.md) | Info panel for the selected unit | 🔵 done | TASK-001 |
+| [TASK-013](TASK-013-lighting-atmosphere.md) | Lighting & atmosphere like the design (fog, ACES, sun, ambient) | 🔵 done | – |
+| [TASK-014](TASK-014-ui-theme.md) | UI theme: IBM Plex fonts, palette, panel styles (`HudTheme`) | 🔵 done | – |
+| [TASK-023](TASK-023-localization.md) | Localization setup: CSV en + pl, `tr()` for HUD strings | 🔵 done | – (before the HUD tasks) |
+| [TASK-015](TASK-015-camera.md) | Camera like the design: drag-pan, RMB rotate, pitch by distance, map clamp | 🔵 done | – (soft: TASK-023) |
+| [TASK-002](TASK-002-terrain-resources.md) | Terrain types as `.tres` resources with a defense bonus | 🔵 done | TASK-001 |
+| [TASK-016a](TASK-016a-terrain-elevation.md) | Deterministic terrain elevation in core (`TerrainField`, `TerrainSurface`) | 🔵 done | – (after TASK-002 recommended) |
+| [TASK-016b](TASK-016b-terrain-mesh.md) | Continuous terrain mesh, water plane, grid lines, surface picking | 🔵 done | **TASK-016a** (soft: TASK-013, TASK-015) |
+| [TASK-017](TASK-017-map-overlays.md) | Map overlays: reach wash + rings, pulsing hover ring, path dots | 🔵 done | **TASK-016b**, TASK-014 (soft: TASK-009) |
+| [TASK-019](TASK-019-unit-models.md) | Unit models from primitives, faction markers, unit labels (+ upright check) | 🔵 done | **TASK-016b**, **TASK-017**, TASK-014 (soft: TASK-008, TASK-009) |
+| [TASK-022](TASK-022-movement-animation.md) | Unit movement along the path with turning (0.26 s/tile) | 🔵 done | **TASK-008**, TASK-016b, TASK-019 |
+| [TASK-025](TASK-025-unit-locomotion.md) | Unit locomotion: marching soldiers (step bob, kneelers stand), tank wheels + slope tilt | 🔵 done | **TASK-022**, TASK-019 (soft: TASK-008, TASK-016b) |
+| [TASK-018](TASK-018-scatter.md) | Scatter: trees and rocks (MultiMesh, view-local RNG) | 🔵 done | **TASK-016b** |
+| [TASK-020](TASK-020-hud-layout.md) | HUD layout: turn bar, end-turn button, controls hint, turn banner | 🔵 done | **TASK-014**, TASK-023, TASK-015 (soft: TASK-008, TASK-019) |
+| [TASK-024](TASK-024-terrain-panel.md) | Terrain panel (bottom-left) with path cost, replaces the path `Label3D` | 🔵 done | **TASK-014**, **TASK-016a**, TASK-017, TASK-023 (soft: TASK-002) |
+| [TASK-021](TASK-021-unit-hover-popup.md) | Unit hover popup (replaces the TASK-003 panel) | 🔵 done | **TASK-014**, TASK-019, TASK-023 (soft: TASK-024, TASK-002) |
+| [TASK-010](TASK-010-counterattack.md) | Counterattack | 🔵 done | TASK-001 (soft: TASK-002) |
+| [TASK-011](TASK-011-rocket-artillery.md) | Ranged unit (rocket artillery) + starting setup in core (`Scenario`) | 🔵 done | **TASK-010** |
+| [TASK-005](TASK-005-replay.md) | Save/replay a match as seed + command list | 🔵 done | `Scenario` from TASK-011 (or extract it here) |
+| [TASK-012](TASK-012-ai-simulation.md) | Headless AI-vs-AI simulation (`tools/simulate.sh`) | 🔵 done | `Scenario` from TASK-011/TASK-005 |
+| [TASK-026](TASK-026-lighting-ibl.md) | Lighting v2: sky as ambient/reflection source, SSAO | 🔵 done | TASK-013 |
+| [TASK-027](TASK-027-terrain-detail.md) | Terrain detail: tileable detail texture + normal map, denser mesh, macro colour, water normals | 🔵 done | TASK-016b (soft: TASK-026) |
+| [TASK-028](TASK-028-foliage.md) | Foliage v2: lobed crowns with baked AO, bush layer, better rocks | 🔵 done | TASK-018 (soft: TASK-026, TASK-027) |
+| [TASK-029](TASK-029-camo-pbr-materials.md) | Unit materials: procedural camouflage shader, PBR palette | 🔵 done | TASK-019 (soft: TASK-026) |
+| [TASK-030](TASK-030-mesh-kit.md) | Mesh kit v2 from the model study: chamfers with edge flags, pillow, sweep, tube, plate; RGB vertex masks (rewritten 2026-10-22) | 🟢 ready | – (reference `docs/design/showcase/`) |
+| [TASK-037](TASK-037-unit-catalog-tool.md) | Unit catalog: local web tool for unit references (`tools/unit_catalog.sh`) | 🔵 done | – |
+| [TASK-038](TASK-038-factions-as-data.md) | Factions as data: `FactionDefinition`, player → faction, HUD/colours from the faction | 🔵 done | – (soft: TASK-005, TASK-020) |
+| [TASK-040](TASK-040-catalog-ai-research.md) | Unit catalog: AI research (`/research-unit`) verified in the form; agent jobs from the UI | 🔵 done | TASK-037 (soft: TASK-036) |
+| [TASK-036](TASK-036-unit-model-pipeline.md) | Unit model pipeline: model per unit, faction camo, `tools/render_unit.sh`, contract test, `/model-unit` | 🔵 done | **TASK-029**, **TASK-038** (soft: TASK-037); done without the original TASK-030 |
+| [TASK-039a](TASK-039a-real-units-core.md) | Real units and countries: core, data, scenario, balance (Poland vs Russia) | 🔵 done | **TASK-038**, TASK-037 |
+| [TASK-039b](TASK-039b-real-units-presentation.md) | Real units and countries: labels, popup, locomotion by class, translations, faction camo | 🔵 done | **TASK-039a** |
+| [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | 🔵 done | TASK-037, TASK-040 |
+| [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | 🔵 done | **TASK-041** |
+| [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on; fills the empty catalog mechanisms of tanks and squads | 🟢 ready | **TASK-041**, TASK-042 |
+| [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction (replaces the Uragan's `stowed_yaw` meta), elevation per unit | 🔴 blocked | **TASK-043** |
+| [TASK-045](TASK-045-stabilisers.md) | Deploy step: `stabilisers` (jacks) + `blast_shields` (cab shields) before a volley; Homar-K jacks, Uragan rework (TASK-046 merged in) | 🔴 blocked | **TASK-044**, TASK-042 |
+| [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | 🔵 done (superseded by `/model-unit m1a2_sepv3`, `t72b3`) | – |
+| [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | 🔴 blocked | **TASK-044**, **TASK-043** (tank models exist) |
+| [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | 🔵 done (superseded by `/model-unit pl_mech_infantry`, `ru_motor_rifle`; next: TASK-067) | – |
+| [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | 🔵 done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
+| [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🟢 ready | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
+| [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | ⚪ merged into TASK-045 | – |
+| [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | 💡 idea | **TASK-047**; look at 047 in game first |
+| [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | 🔵 done | – |
+| [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | 🔵 done | – |
+| [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | 🔵 done | soft: TASK-050 |
+| [TASK-052](TASK-052-camera-horizon.md) | Camera v2: lower pitch with horizon, top-down when far, backdrop terrain beyond the map (generator-independent) | 🔵 done | soft: TASK-051, TASK-050 |
+| [TASK-059](TASK-059-visual-scale-study.md) | Visual scale study: units vs. trees vs. hexes (screenshots for the human's decision) | 🟢 ready | soft: TASK-052, TASK-051 |
+| [TASK-053](TASK-053-third-party-assets.md) | Third-party CC0 assets: ADR, `assets/third_party/`, credits manifest + test | 🔵 done | – (decision (a) 2026-10-22: CC0 allowed – textures, HDRI, vegetation models; unit models stay procedural) |
+| [TASK-054](TASK-054-hdri-sky.md) | HDRI sky (CC0 Poly Haven) as sky, ambient and reflections | 🔵 done | **TASK-053**, **TASK-051** |
+| [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | 🔵 done | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
+| [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | 🔵 done | soft: TASK-050, TASK-054, TASK-055 |
+| [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔴 blocked | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
+| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🔴 blocked | **TASK-059** (soft: TASK-057, TASK-060) |
+| [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🟢 ready | soft: TASK-050, TASK-055, TASK-065 |
+| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 💡 idea | **TASK-059**, **TASK-057**; human decision: procedural (A) vs. CC0 glTF (B, allowed – needs TASK-053 done) |
+| [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🔴 blocked | **TASK-030** |
+| [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | 🟢 ready | TASK-038, TASK-036 (soft: TASK-062; anchor pass shared with TASK-064); Russian marking default to confirm |
+| [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | 🟢 ready | **TASK-050** (soft: TASK-058, TASK-055, TASK-059; anchor pass shared with TASK-063) |
+| [TASK-065](TASK-065-wrecks-smoke.md) | Wrecks and smoke on destruction instead of vanishing | 🟢 ready | **TASK-050** (soft: TASK-064 `ParticleFx`, TASK-058, TASK-062 – same shader, do 062 first); persistence to confirm |
+| [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | 💡 idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
+| [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | 🔵 done | – ; open: Polish vest colour contrast |
+| [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | 🔴 blocked | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |
+| TASK-069 | Tank v3: rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k) – `unit-modeler` | 💡 idea | **TASK-030**, **TASK-062**; reference `docs/design/showcase/m1a2_showcase.gd.txt` |
+| TASK-007 | Fog of war | 💡 idea | GDD open questions: scale, modes |
+| TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | 💡 idea | GDD decision ("Ideas from the visual design"), hand-made maps |
 
 TASK-008 is not a hard dependency of anything, but it makes the visual parts of TASK-009/-004/-003/-010 easier to judge. TASK-006 lets agents check visual tasks themselves.
 

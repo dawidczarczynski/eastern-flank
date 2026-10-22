@@ -1,6 +1,6 @@
 # TASK-047: `turret_traverse` mechanism – the tank turns its turret and elevates its gun before firing
 
-- **Status**: ready (revised 2026-10-22: the tank models exist – `m1a2_sepv3`, `t72b3` – so the dependency on TASK-031 is replaced by them)
+- **Status**: blocked (revised 2026-10-22: the tank models exist – `m1a2_sepv3`, `t72b3` – so the dependency on TASK-031 is replaced by them)
 - **Layers**: presentation (`UnitModels.pose_turret` / `turret_aim` / `gun_elevation`, `UnitView`, `BattleController` attack playback, `EventQueue` FX key), `mechanisms.json`, tests; catalog tank entries
 - **Depends on**: **TASK-044** (`traverse_aim`), **TASK-043** (`MECHANISMS` metadata on the tanks). The models `m1a2_sepv3.gd` and `t72b3.gd` already have `Turret` and `Turret/Gun` (`VehicleFrame.add_turret` / `add_gun`); check the hinge position and add `Turret/Gun/Muzzle` if missing.
 - **Model**: sonnet

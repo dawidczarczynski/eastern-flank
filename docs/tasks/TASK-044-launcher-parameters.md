@@ -1,6 +1,6 @@
 # TASK-044: Launcher mechanism with parameters – traverse range, stowed direction, elevation per unit
 
-- **Status**: ready (revised 2026-10-22: the stowed direction is partly done – the Uragan was built front-stowed with an ad-hoc `stowed_yaw` meta read by `UnitModels.launcher_traverse_for`; this task replaces it with the `stowed` param)
+- **Status**: blocked (revised 2026-10-22: the stowed direction is partly done – the Uragan was built front-stowed with an ad-hoc `stowed_yaw` meta read by `UnitModels.launcher_traverse_for`; this task replaces it with the `stowed` param)
 - **Layers**: presentation (`UnitModels`, `UnitView`, `BattleController._play_volley` / `_volley_event_duration`), tools (`tools/render_unit_options.gd`, `render_unit.gd`), tests
 - **Depends on**: **TASK-043** (mechanism metadata). The Uragan model exists already; after this task it reads `stowed: front` and its verified `traverse_deg` from `MECHANISMS` instead of the `stowed_yaw` meta.
 - **Model**: opus (angle wrapping + tween sequence and event duration must stay in step)

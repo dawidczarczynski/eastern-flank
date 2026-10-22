@@ -1,6 +1,6 @@
 # TASK-NNN: Title
 
-- **Status**: idea | ready | in progress | to playtest | done
+- **Status**: idea | blocked | ready | in progress | to playtest | done
 - **Layers**: core / ai / presentation
 - **Depends on**: –
 - **Model**: sonnet | opus (opus only for hard tasks: tricky algorithms, determinism, timing, large refactors)

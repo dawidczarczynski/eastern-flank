@@ -7,6 +7,7 @@ Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/
 - `tools/check.sh` – lint + all tests. **Run it before reporting that a task is done.**
 - `tools/test.sh [filter]` – headless tests only (e.g. `tools/test.sh test_commands`)
 - `tools/lint.sh [--fix]` – gdformat + gdlint
+- `tools/backlog.py [--fix]` – checks (or fixes) `blocked`/`ready` in docs/tasks/BACKLOG.md and the task files against the hard dependencies; run by `tools/check.sh`
 - `tools/run.sh [--editor]` – run the game / editor (needs a GUI; usually done by the human)
 - `tools/run_windows.sh [--editor] [--import]` – run with the Windows Godot build from WSL (GPU rendering; the WSLg build falls back to slow software rendering)
 - `tools/screenshot.sh [out.png] [--frames=N] [--windows|--linux]` – render the battle scene to a 1280×720 PNG (default `.screenshots/battle.png`) and read it with the Read tool to check visual changes; under WSL it uses the Windows Godot console build (GPU, D3D12, Forward+ with SSAO – what the human sees) when found, `--linux` forces the WSLg software renderer (Compatibility look)
@@ -45,7 +46,7 @@ The agent cannot see the game window. After changes to the visual layer, describ
 ## When a task is done
 
 1. `tools/check.sh` passes.
-2. Update the status in docs/tasks/BACKLOG.md and in the task file ("Implementation notes" section).
+2. Update the status in docs/tasks/BACKLOG.md and in the task file ("Implementation notes" section); after any status change run `tools/backlog.py --fix` (status icons, and unblocked tasks move from `blocked` to `ready`).
 3. If the task is player-facing, docs/MANUAL.md is updated (by `game-designer`).
 4. Record architectural decisions as ADRs in docs/adr/.
 5. If the change is visible in the battle scene (presentation, shaders, HUD, unit models, terrain, scenario), re-run `tools/readme_screenshot.sh`, Read `docs/images/gameplay.png` to check it still looks good, and commit it with the change.

@@ -3,7 +3,7 @@ name: implement-task
 description: Carries out a task from docs/tasks/ end to end – plan, delegation to subagents, tests, review, backlog update. Usage: /implement-task TASK-001
 ---
 
-You are carrying out task `$ARGUMENTS` (if empty – take the first task with status `ready` from docs/tasks/BACKLOG.md).
+You are carrying out task `$ARGUMENTS` (if empty – take the first task with status `ready` from docs/tasks/BACKLOG.md). Don't start a `blocked` task – tell the human which dependencies are not `done` yet.
 
 1. **Understand**: read the task file in docs/tasks/ and the related sections of docs/GDD.md and docs/ARCHITECTURE.md. If the acceptance criteria are ambiguous – stop and ask the human (or have the `game-designer` agent clarify them).
 2. **Status**: mark the task in BACKLOG.md as `in progress`.
@@ -13,4 +13,4 @@ You are carrying out task `$ARGUMENTS` (if empty – take the first task with st
 6. **Player manual**: if the task added or changed anything the player can see or do (mechanic, rule, unit stat, control, UI), delegate to `game-designer` to update docs/MANUAL.md from the implemented behaviour (point it at the task's "Player manual" section, the diff and the relevant `data/**/*.tres`).
 7. **Review**: delegate to the `reviewer` agent (always its default model, `sonnet` – don't pass the task's Model). Fix the reported problems (or justify why not) and repeat step 5 (and 6 if the manual is affected).
 8. **README screenshot**: if the task changed anything visible in the battle scene, make sure `docs/images/gameplay.png` was refreshed with `tools/readme_screenshot.sh` (run it yourself if the subagent didn't) and Read it – it is the project's shop window.
-9. **Wrap-up**: fill in "Implementation notes" in the task file, set status to `to playtest` (if there are visual changes) or `done`. Summarise for the human: what changed, test results, playtest steps. Don't commit unless asked.
+9. **Wrap-up**: fill in "Implementation notes" in the task file, set status to `to playtest` (if there are visual changes) or `done`. Run `tools/backlog.py --fix` after every status change (steps 2 and 9) – it adds the status icon and, after `done`, switches tasks whose hard dependencies are now all `done` from `blocked` to `ready`; mention them in the summary. Summarise for the human: what changed, test results, playtest steps. Don't commit unless asked.
