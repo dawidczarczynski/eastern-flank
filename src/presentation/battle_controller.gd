@@ -218,6 +218,7 @@ func _create_unit_view(unit: Unit) -> void:
 	var view := UnitView.new()
 	_units_root.add_child(view)
 	view.quality = quality
+	view.terrain_at = _terrain_at
 	view.setup(
 		unit,
 		_sim.state.faction_of(unit.owner_id),
@@ -226,6 +227,13 @@ func _create_unit_view(unit: Unit) -> void:
 		_map_view.mesh_height_at
 	)
 	_unit_views[unit.id] = view
+
+
+## Terrain type of the tile under (x, z); plains off the map (the dust colour under a vehicle).
+func _terrain_at(x: float, z: float) -> int:
+	var grid := _sim.state.grid
+	var coord := Hex.from_world(Vector3(x, 0.0, z), _map_view.hex_size)
+	return int(grid.get_terrain(coord)) if grid.has_tile(coord) else Terrain.Type.PLAINS
 
 
 ## Returns the Vector2i of the tile under the cursor, or null.
@@ -538,7 +546,7 @@ func _play_event(event: Dictionary) -> Tween:
 			var view: UnitView = _unit_views.get(event["unit_id"])
 			if view != null:
 				var points := _move_points(event)
-				_play_track_marks(event["unit_id"], points)
+				_play_track_marks(event["unit_id"], points, view.facing_yaw())
 				return view.move_along(points, _map_view.surface().ground_height)
 		&"unit_attacked":
 			var target: UnitView = _unit_views.get(event["target_id"])
@@ -668,7 +676,7 @@ func _on_unit_died(unit_id: int) -> Tween:
 ## the start and is revealed along its length up to just behind the unit (GroundMarks.
 ## reveal_fractions), on the same time profile as UnitView.move_along. Everything is revealed
 ## when the tween ends. Infantry (and anything that is not a tank or rocket truck) leaves none.
-func _play_track_marks(unit_id: int, points: PackedVector3Array) -> void:
+func _play_track_marks(unit_id: int, points: PackedVector3Array, start_yaw: float) -> void:
 	var unit := _sim.state.get_unit(unit_id)
 	if unit == null or not _marks.is_active():
 		return
@@ -678,13 +686,12 @@ func _play_track_marks(unit_id: int, points: PackedVector3Array) -> void:
 	if segments.is_empty():
 		return
 	var decals := _marks.add_growing_tracks(segments)
-	var duration := MoveAnimation.duration(points)
+	var move := HeavyMove.plan(points, start_yaw)
+	var duration: float = move["duration"]
 	var tween := create_tween()
 	tween.set_speed_scale(_burst_speed)
-	tween.tween_method(
-		_reveal_tracks.bind(points, segments, decals, duration), 0.0, duration, duration
-	)
-	tween.tween_callback(_reveal_tracks.bind(duration, points, segments, decals, duration))
+	tween.tween_method(_reveal_tracks.bind(points, segments, decals, move), 0.0, duration, duration)
+	tween.tween_callback(_reveal_tracks.bind(duration, points, segments, decals, move))
 
 
 func _reveal_tracks(
@@ -692,10 +699,10 @@ func _reveal_tracks(
 	points: PackedVector3Array,
 	segments: Array[Dictionary],
 	decals: Array[Decal],
-	duration: float
+	move: Dictionary
 ) -> void:
 	var fractions := GroundMarks.reveal_fractions(
-		points, MoveAnimation.path_time(elapsed, duration)
+		points, HeavyMove.pose(move, elapsed)["path_time"]
 	)
 	for i in segments.size():
 		_marks.set_reveal(decals[i], fractions[segments[i]["segment"]])

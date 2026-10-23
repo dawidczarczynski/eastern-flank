@@ -1,6 +1,6 @@
 # TASK-064: Movement effects – dust from tracks and wheels, exhaust smoke
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (pure `MotionEffects` parameters, particle emitters attached to `UnitView` during move playback, optional `Exhaust`/`Dust*` anchors in model files), tests. Roles: **presentation-engineer**; **unit-modeler** adds `Exhaust` anchors to the vehicle models.
 - **Depends on**: **TASK-050** (`particles`), TASK-022/TASK-025 (move playback, done); soft **TASK-058** (tracks appear under the dust), soft **TASK-055** (dust colour per ground layer)
 - **Model**: sonnet
@@ -47,4 +47,12 @@ None (presentation only).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Done 2026-10-23 (all in presentation; `tools/check.sh` passes).
+
+- `MotionEffects` (pure): dust rate by ground speed, dust colour / rate factor by terrain and mud weight, and an **engine load** model for the exhaust: a pull-away puff that decays over ~1 s (`START_DECAY`) or a hull pivoting in place (large heading error at low speed), whichever is larger; cruising leaves a thin stream. Tank peak 16/s vs 3/s cruising.
+- `ParticleFx` (shared helper for TASK-065 / TASK-048): procedural soft-noise texture, billboard material, `emitter(config)` factory. `MotionFx` owns the 2 dust + 1 exhaust emitters of a vehicle (on the model root, emitting into world space), `UnitView` drives them from `_step_move` (speed from position delta, heading error from the turn). Emission strength is `amount_ratio`.
+- Realism: particles are world-space and long-lived (dust 2.4 s, exhaust 3.4 s, damped, rising slowly, drifting with `Wind`), so the cloud hangs behind the vehicle after it stops instead of vanishing.
+- Dust colour follows the terrain type under the vehicle (`BattleController._terrain_at`); water raises none. The mud-weight path exists in `MotionEffects` but the view does not pass splat weights yet (no shore mud spatter).
+- **Not done**: `Exhaust` / `Dust_L` / `Dust_R` anchors in the vehicle models (`MotionFx` supports them and falls back to the model bounds: rear, ±40 % width, exhaust at 60 % height) and the matching `test_unit_model_contract.gd` check – left for the shared anchor pass with TASK-063. No screenshot of a mid-move frame was taken, so the look is unverified. `docs/images/gameplay.png` not re-rendered (static shot, no particles at rest).
+- Second pass (human feedback: heavier exhaust, motion too brisk): tank exhaust peak 60/s with fast, dark (#1f1f1d), large puffs that decay over ~1.8 s; `EventQueue.SECONDS_PER_TILE` 0.55 → 0.8 (all units); vehicles move by `HeavyMove` (new): at the start and at every bend the hull stops and pivots in place (`PIVOT_RATE` 1 rad/s, min 0.3 s) and only then drives off; straight stretches are one run with 1.2 s acceleration/braking (`HEAVY_ACCEL_TIME`). A vehicle move therefore lasts longer than `MoveAnimation.duration()`; the tween governs, so the queue just waits. Track marks and exhaust use the same timeline (pivot = high engine load, no dust). Only **tracked** units use it (`UnitModels.is_tracked`); wheeled ones steer along the path (`MoveAnimation.steered_yaw`: heading = chord ±`WHEELED_LOOK`, initial heading error faded over `WHEELED_STEER_IN`; `WHEELED_ACCEL_TIME` 0.6) and raise smaller clouds (`MotionEffects.CLOUD_SIZE` 0.55, exhaust peak 14/s). Infantry keeps the light profile. Tunables: `heavy_move.gd`, `move_animation.gd`, `motion_effects.gd`.
+- Tests: `test_heavy_move.gd`, `test_motion_effects.gd`, `test_motion_fx.gd`.

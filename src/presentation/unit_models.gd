@@ -35,6 +35,11 @@ static func is_vehicle(definition: UnitDefinition) -> bool:
 	return definition != null and definition.mobility in VEHICLE_MOBILITY
 
 
+## Whether the unit runs on tracks (pivots in place, see HeavyMove) rather than wheels.
+static func is_tracked(definition: UnitDefinition) -> bool:
+	return definition != null and definition.mobility == &"tracked"
+
+
 ## Whether the unit's attacks play as a rocket volley (every MLRS, whatever its id).
 static func fires_volley(definition: UnitDefinition) -> bool:
 	return definition != null and definition.unit_class == VOLLEY_CLASS

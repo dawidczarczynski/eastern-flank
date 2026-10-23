@@ -9,7 +9,7 @@ const MAX_BURST_SECONDS := 8.0
 ## Duration of a move event without a `path` (old events).
 const MOVE_DURATION := 0.55
 ## Duration of one tile of a move along its `path` (TASK-022); MoveAnimation aliases it.
-const SECONDS_PER_TILE := 0.55
+const SECONDS_PER_TILE := 0.8
 const ATTACK_DURATION := 0.4
 const DEATH_DURATION := 0.85
 ## View-only event annotation: the controller sets it (seconds at speed 1) on events whose

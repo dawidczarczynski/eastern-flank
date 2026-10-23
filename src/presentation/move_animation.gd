@@ -9,6 +9,14 @@ const SECONDS_PER_TILE := EventQueue.SECONDS_PER_TILE
 const TURN_RATE := 6.0
 ## Time to accelerate from standstill to cruise speed (and to brake at the end of a move).
 const ACCEL_TIME := 0.32
+## Tracked vehicles pull away sluggishly and brake slowly (see HeavyMove).
+const HEAVY_ACCEL_TIME := 1.2
+## Wheeled vehicles: a softer start than infantry and a wide, smooth turn (no stopping to turn).
+const WHEELED_ACCEL_TIME := 0.6
+## Wheeled vehicles steer along the path: the heading looks this far (path seconds) ahead and
+## behind, and a wrong initial heading is steered out over WHEELED_STEER_IN seconds.
+const WHEELED_LOOK := 0.35
+const WHEELED_STEER_IN := 0.9
 
 
 ## Yaw that makes a model facing +X at yaw 0 look from `from` towards `to` (XZ only).
@@ -87,3 +95,20 @@ static func sample(
 	var i := segment_index(points, elapsed, seconds_per_tile)
 	var t := clampf(elapsed / seconds_per_tile - i, 0.0, 1.0)
 	return points[i].lerp(points[i + 1], t)
+
+
+## Heading of a steered (wheeled) vehicle at `path_time`: along the chord from a little behind to
+## a little ahead on the path, so it follows bends without lagging. The last stretch keeps the
+## final segment's heading.
+static func steered_yaw(
+	points: PackedVector3Array,
+	path_time_value: float,
+	look := WHEELED_LOOK,
+	seconds_per_tile := SECONDS_PER_TILE
+) -> float:
+	var from := sample(points, path_time_value - look, seconds_per_tile)
+	var to := sample(points, path_time_value + look, seconds_per_tile)
+	if Vector2(to.x - from.x, to.z - from.z).length_squared() < 0.0001:
+		var i := segment_index(points, path_time_value, seconds_per_tile)
+		return facing_yaw(points[i], points[i + 1])
+	return facing_yaw(from, to)

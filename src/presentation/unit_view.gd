@@ -31,6 +31,8 @@ static var _flash_material: StandardMaterial3D
 
 ## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
 var quality: Dictionary = {}
+## (x: float, z: float) -> Terrain.Type under a point, set by BattleController (dust colour).
+var terrain_at: Callable
 var unit_id: int
 
 var _pivot: Node3D  # holds the model; shaken on hit
@@ -52,8 +54,13 @@ var _done := false
 var _move_tween: Tween
 var _move_points := PackedVector3Array()  # world points of the running move
 var _move_elapsed := 0.0
+var _move_duration := 0.0
+var _move_start_yaw := 0.0  # heading when a steered (wheeled) move began
+var _move_plan := {}  # HeavyMove.plan of a vehicle's running move
 var _move_height: Callable  # (x, z) -> ground height the unit walks on
 var _model: Node3D  # the "Model" node locomotion poses
+var _fx: MotionFx  # dust and exhaust of a driving vehicle; null without particles
+var _is_tracked := false  # pivots in place before driving (HeavyMove)
 var _is_vehicle := false  # uses wheel / hull locomotion (UnitModels.is_vehicle)
 var _wheel_distance := 0.0  # accumulated across moves, never reset
 var _hit_tween: Tween
@@ -89,8 +96,13 @@ func setup(
 	_pivot.add_child(model)
 	_model = model.get_node("Model")
 	_is_vehicle = UnitModels.is_vehicle(unit.definition)
+	_is_tracked = UnitModels.is_tracked(unit.definition)
 	_apply_rest_pose()
 	_collect_meshes(_pivot)
+	if quality.get("particles", false) and MotionEffects.emits(unit.definition.unit_class):
+		_fx = MotionFx.new()
+		var wind := Wind.DIRECTION.normalized() * Wind.strength()
+		_fx.setup(model, _model, unit.definition.unit_class, wind)
 
 	for marker: MeshInstance3D in [_ring, _fill]:
 		marker.top_level = true  # vertices are in world space
@@ -138,11 +150,17 @@ func move_along(world_points: PackedVector3Array, ground_height: Callable) -> Tw
 	_move_points = world_points
 	_move_height = ground_height
 	_move_elapsed = 0.0
+	_move_start_yaw = _pivot.rotation.y
 	_set_markers_visible(false)
+	if _fx != null:
+		_fx.begin()
 	_move_tween = create_tween()
 	# The tween drives `elapsed`; its speed scale (burst speed) therefore also speeds up turning.
-	var duration := MoveAnimation.duration(world_points)
-	_move_tween.tween_method(_step_move, 0.0, duration, duration)
+	_move_plan = HeavyMove.plan(world_points, _pivot.rotation.y) if _is_tracked else {}
+	_move_duration = (
+		_move_plan["duration"] if _is_tracked else MoveAnimation.duration(world_points)
+	)
+	_move_tween.tween_method(_step_move, 0.0, _move_duration, _move_duration)
 	_move_tween.tween_callback(_end_move)
 	return _move_tween
 
@@ -150,24 +168,62 @@ func move_along(world_points: PackedVector3Array, ground_height: Callable) -> Tw
 func _step_move(elapsed: float) -> void:
 	var dt := maxf(0.0, elapsed - _move_elapsed)
 	_move_elapsed = elapsed
+	if _is_tracked:
+		_step_heavy(elapsed, dt)
+		return
 	# Path time runs slower at the start and end: the unit accelerates and brakes.
-	var path_time := MoveAnimation.path_time(elapsed, MoveAnimation.duration(_move_points))
-	var p := MoveAnimation.sample(_move_points, path_time)
-	if _move_height.is_valid():
-		p.y = _move_height.call(p.x, p.z)
+	var accel := MoveAnimation.WHEELED_ACCEL_TIME if _is_vehicle else MoveAnimation.ACCEL_TIME
+	var path_time := MoveAnimation.path_time(elapsed, _move_duration, accel)
+	var p := _ground_point(MoveAnimation.sample(_move_points, path_time))
 	var target := MoveAnimation.segment_target(_move_points, path_time)
-	if Vector2(target.x - p.x, target.z - p.z).length_squared() > 0.000001:
+	var heading_error := 0.0
+	if _is_vehicle and _move_points.size() > 1:
+		# Steered: the heading follows the path; the starting error fades while it pulls out.
+		var along := MoveAnimation.steered_yaw(_move_points, path_time)
+		var fade := 1.0 - smoothstep(0.0, MoveAnimation.WHEELED_STEER_IN, elapsed)
+		var start_error := MoveAnimation.wrap_angle(_move_start_yaw - along)
+		heading_error = start_error * fade
+		_pivot.rotation.y = along + heading_error
+	elif Vector2(target.x - p.x, target.z - p.z).length_squared() > 0.000001:
 		var yaw := MoveAnimation.facing_yaw(p, target)
 		_pivot.rotation.y = MoveAnimation.turn_towards(_pivot.rotation.y, yaw, dt)
+	if _fx != null and dt > 0.0:
+		var speed := Vector2(p.x - position.x, p.z - position.z).length() / dt
+		var terrain: int = terrain_at.call(p.x, p.z) if terrain_at.is_valid() else 0
+		_fx.update(elapsed, speed, heading_error, terrain)
 	position = p
-	_pose_moving(elapsed, path_time)
+	var ramp := accel if _is_vehicle else Locomotion.ENVELOPE_RAMP
+	_pose_moving(path_time, Locomotion.envelope(elapsed, _move_duration, ramp))
 
 
-## Locomotion pose for the move's animation time (distance and envelope derive from `elapsed`
-## and `path_time` only, so the burst speed scale applies automatically).
-func _pose_moving(elapsed: float, path_time: float) -> void:
+## A vehicle pivots in place to each new heading, then drives the straight run (HeavyMove).
+func _step_heavy(elapsed: float, dt: float) -> void:
+	var pose := HeavyMove.pose(_move_plan, elapsed)
+	var p := _ground_point(MoveAnimation.sample(_move_points, pose["path_time"]))
+	_pivot.rotation.y = pose["yaw"]
+	if _fx != null and dt > 0.0:
+		var speed := Vector2(p.x - position.x, p.z - position.z).length() / dt
+		var terrain: int = terrain_at.call(p.x, p.z) if terrain_at.is_valid() else 0
+		_fx.update(elapsed, speed, pose["turn_left"], terrain)
+	position = p
+	var env := 0.0
+	if pose["driving"]:
+		env = Locomotion.envelope(
+			pose["run_t"], pose["run_duration"], MoveAnimation.HEAVY_ACCEL_TIME
+		)
+	_pose_moving(pose["path_time"], env)
+
+
+func _ground_point(p: Vector3) -> Vector3:
+	if _move_height.is_valid():
+		p.y = _move_height.call(p.x, p.z)
+	return p
+
+
+## Locomotion pose for the path time reached (distance and envelope derive from the move's
+## animation time only, so the burst speed scale applies automatically).
+func _pose_moving(path_time: float, env: float) -> void:
 	var distance := Locomotion.travelled(_move_points, path_time)
-	var env := Locomotion.envelope(elapsed, MoveAnimation.duration(_move_points))
 	if _is_vehicle:
 		var tilt := Locomotion.slope_tilt(_ground_height, position, _pivot.rotation.y)
 		UnitModels.pose_tank(_model, _wheel_distance + distance, env, tilt)
@@ -186,6 +242,8 @@ func _apply_rest_pose() -> void:
 
 ## Arrival: snap to the last point, keep the facing, show the marker there.
 func _end_move() -> void:
+	if _fx != null:
+		_fx.end()
 	if not _move_points.is_empty():
 		var last := _move_points[_move_points.size() - 1]
 		if _move_height.is_valid():
