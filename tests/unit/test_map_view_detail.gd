@@ -108,11 +108,13 @@ func test_water_uniforms_have_design_values() -> void:
 		assert_eq("#" + c.to_html(false), hex, "%s is %s" % [name, hex])
 	expect_color.call("shallow_color", "#4c7464")
 	expect_color.call("deep_color", "#1b3842")
-	expect_color.call("foam_color", "#dfe4dc")
 	assert_true(is_equal_approx(_uniform_default(shader, "deep_distance"), 0.45))
-	assert_true(is_equal_approx(_uniform_default(shader, "foam_distance"), 0.05))
 	var speeds: Vector2 = _uniform_default(shader, "ripple_speeds")
 	assert_true(speeds.is_equal_approx(Vector2(0.010, 0.016)))
+
+
+func test_water_has_no_shore_foam() -> void:
+	assert_false(_water_material().shader.code.contains("foam"))
 
 
 func test_water_shader_declares_its_uniforms() -> void:
@@ -128,8 +130,6 @@ func test_water_shader_declares_its_uniforms() -> void:
 		"shallow_color",
 		"deep_color",
 		"deep_distance",
-		"foam_distance",
-		"foam_color",
 		"ripple_speeds",
 		"normal_map",
 		"depth_texture",

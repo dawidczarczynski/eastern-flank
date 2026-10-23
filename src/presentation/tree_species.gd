@@ -33,7 +33,7 @@ static func pick(tree: Dictionary) -> Dictionary:
 	var species: StringName = group[group.size() - 1]
 	var acc := 0.0
 	for candidate in group:
-		acc += SHARES[candidate]
+		acc += LookPreset.share(candidate, SHARES[candidate])
 		if roll < acc:
 			species = candidate
 			break
@@ -42,7 +42,7 @@ static func pick(tree: Dictionary) -> Dictionary:
 		species = tree["species"]
 	var variant := mini(int(_hash(p, k, 2) * TreeMeshes.VARIANTS), TreeMeshes.VARIANTS - 1)
 	var hue := (_hash(p, k, 3) * 2.0 - 1.0) * HUE_SHIFT
-	if not conifer and _hash(p, k, 7) < AUTUMN_SHARE:
+	if not conifer and _hash(p, k, 7) < LookPreset.autumn_share(AUTUMN_SHARE):
 		hue = lerpf(AUTUMN_HUE_MIN, AUTUMN_HUE_MAX, _hash(p, k, 8))
 	var custom := Color(
 		hue,

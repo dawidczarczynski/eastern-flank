@@ -65,10 +65,15 @@ static func lut(size: int, p: Dictionary) -> Array[Image]:
 static func cached_texture() -> ImageTexture3D:
 	if _cached == null:
 		var tex := ImageTexture3D.new()
-		var slices := lut(LUT_SIZE, DEFAULT)
+		var slices := lut(LUT_SIZE, LookPreset.grade(DEFAULT))
 		tex.create(Image.FORMAT_RGBA8, LUT_SIZE, LUT_SIZE, LUT_SIZE, false, slices)
 		_cached = tex
 	return _cached
+
+
+## Drops the baked texture (the active LookPreset changed).
+static func reset_cache() -> void:
+	_cached = null
 
 
 static func apply_to(env: Environment) -> void:

@@ -1,7 +1,8 @@
 extends TestCase
 
 const Battle := preload("res://src/presentation/battle_controller.gd")
-const DESIGN_SHARES := {&"pine": 0.6, &"spruce": 0.4, &"birch": 0.35, &"oak": 0.3, &"alder": 0.35}
+## The active LookPreset (muted_summer, TASK-071): pine-heavy conifers, birch-led deciduous.
+const DESIGN_SHARES := {&"pine": 0.78, &"spruce": 0.22, &"birch": 0.5, &"oak": 0.2, &"alder": 0.3}
 
 
 func _plan_trees() -> Array:
@@ -64,4 +65,4 @@ func test_custom_data_ranges_and_autumn_share() -> void:
 		if not conifer:
 			deciduous += 1
 	var share := float(autumn) / deciduous
-	assert_true(absf(share - 0.04) <= 0.02, "autumn share %.3f" % share)
+	assert_true(absf(share - 0.1) <= 0.03, "autumn share %.3f" % share)

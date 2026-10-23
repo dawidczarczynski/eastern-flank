@@ -91,7 +91,7 @@ static func _average_color(albedo: Image, layer: int) -> Color:
 			var c := small.get_pixel(x, y).srgb_to_linear()
 			sum += Vector3(c.r, c.g, c.b)
 	sum /= float(small.get_width() * small.get_height())
-	var tint := TerrainGround.LAYER_TINTS[layer]
+	var tint := LookPreset.layer_tints(TerrainGround.LAYER_TINTS)[layer]
 	return Color(sum.x * tint.x, sum.y * tint.y, sum.z * tint.z)
 
 

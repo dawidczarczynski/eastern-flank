@@ -252,7 +252,9 @@ func _material(species: StringName, solid: bool) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = SHADER
 	material.set_shader_parameter(&"leaf_texture", texture)
-	material.set_shader_parameter(&"leaf_color", LEAF_COLORS[species])
+	material.set_shader_parameter(
+		&"leaf_color", LookPreset.leaf_color(species, LEAF_COLORS[species])
+	)
 	material.set_shader_parameter(&"bark_color", BARK_COLORS[species])
 	material.set_shader_parameter(&"birch_bark", species == &"birch")
 	material.set_shader_parameter(&"solid_crown", solid)

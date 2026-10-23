@@ -1,10 +1,10 @@
-// Water v2 (TASK-056): depth colour, broken shore foam, two scrolling ripple layers and a
+// Water v2 (TASK-056): depth colour, two scrolling ripple layers and a
 // Schlick fresnel (F0 = 0.02). Alpha blended, no depth write, cull back.
 //
 // Water depth = vertical distance (world Y) from the surface down to the scene geometry seen
 // through it: the scene depth is reconstructed to a world position (INV_PROJECTION_MATRIX,
 // INV_VIEW_MATRIX) and compared with the water fragment's world Y. Unlike a view-ray distance
-// this does not change with the camera angle, so colour and foam stay stable while the camera moves.
+// this does not change with the camera angle, so the colour stays stable while the camera moves.
 // Ripples sample in world space (x, z), so the pattern scale does not depend on the plane size.
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_schlick_ggx;
@@ -18,14 +18,6 @@ uniform vec4 deep_color : source_color = vec4(0.1059, 0.2196, 0.2588, 1.0); // #
 uniform float deep_distance = 0.45;
 uniform float shallow_alpha = 0.55;
 uniform float deep_alpha = 0.92;
-
-uniform vec4 foam_color : source_color = vec4(0.8745, 0.8941, 0.8627, 1.0); // #dfe4dc
-// Foam exists where the water is shallower than this (world units).
-uniform float foam_distance = 0.05;
-uniform float foam_max_alpha = 0.6;
-// Foam breaks up where the detail noise is below a threshold that drifts slowly.
-uniform float foam_noise_scale = 1.3;
-uniform float foam_drift_speed = 0.02;
 
 // Ripple layers: normal map repeats per world unit and scroll speeds (UV units per second).
 // The old 36 / 23 repeats over the plane correspond to about 0.33 / 0.21 per world unit.
@@ -74,14 +66,6 @@ void fragment() {
 	vec3 n_b = texture(normal_map, uv_b).rgb;
 	NORMAL_MAP = (n_a + n_b) * 0.5;
 	NORMAL_MAP_DEPTH = normal_scale;
-
-	// Broken shore foam: a noise threshold drifting slowly, fading out towards foam_distance.
-	float noise = texture(normal_map, world_pos.xz * foam_noise_scale + vec2(0.3, 0.7) * foam_drift_speed * TIME).r;
-	noise = noise * 0.5 + texture(normal_map, world_pos.xz * foam_noise_scale * 1.9 - vec2(0.5, 0.2) * foam_drift_speed * TIME).g * 0.5;
-	float edge = 1.0 - smoothstep(0.0, foam_distance, depth);
-	float foam = edge * smoothstep(0.45, 0.6, noise + edge * 0.25);
-	color = mix(color, foam_color.rgb, foam);
-	alpha = max(alpha, foam * foam_max_alpha);
 
 	ALBEDO = color;
 	ALPHA = alpha;

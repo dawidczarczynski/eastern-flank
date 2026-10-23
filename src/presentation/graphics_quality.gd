@@ -94,6 +94,7 @@ static func apply_environment(env: Environment, feature_set: Dictionary) -> void
 		env.sky = env.sky.duplicate() as Sky
 		env.sky.process_mode = feature_set["sky_process_mode"]
 		env.sky.radiance_size = feature_set["sky_radiance_size"]
+	LookPreset.apply_to_environment(env)
 	if feature_set["color_grade"]:
 		ColorGrade.apply_to(env)
 	else:

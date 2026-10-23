@@ -644,6 +644,9 @@ func _build_water(rect: Rect2) -> MeshInstance3D:
 	var material := ShaderMaterial.new()
 	material.shader = WATER_SHADER
 	material.set_shader_parameter(&"normal_map", _water_normal_texture())
+	var look_water := LookPreset.water_params()
+	for key: String in look_water:
+		material.set_shader_parameter(StringName(key), look_water[key])
 	plane.material = material
 	var instance := MeshInstance3D.new()
 	instance.name = "Water"

@@ -47,6 +47,10 @@ func _initialize() -> void:
 	var scale_preset := OS.get_environment("SCREENSHOT_SCALE_PRESET")
 	if scale_preset != "":
 		VisualScale.apply(StringName(scale_preset))
+	# Colour look study (TASK-071): likewise before the battle is built.
+	var look_preset := OS.get_environment("SCREENSHOT_LOOK")
+	if look_preset != "":
+		LookPreset.apply(StringName(look_preset))
 	var scene: PackedScene = load(SCENE_PATH)
 	if scene == null:
 		_fail("could not load %s" % SCENE_PATH, 1)
@@ -137,6 +141,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## "Frame time: avg X ms, max Y ms over N frames" before the capture.
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
 ## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
+## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
 ## unit's tile (TASK-058), without animation.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a

@@ -77,7 +77,9 @@ static func material(quality: Dictionary) -> ShaderMaterial:
 	for metres in TerrainTextures.SOURCE_METRES:
 		repeats.append(metres / METRES_PER_UNIT * REPEAT_SCALE)
 	material.set_shader_parameter(&"layer_repeat", repeats)
-	material.set_shader_parameter(&"layer_tint", PackedVector3Array(LAYER_TINTS))
+	material.set_shader_parameter(
+		&"layer_tint", PackedVector3Array(LookPreset.layer_tints(LAYER_TINTS))
+	)
 	material.set_shader_parameter(&"anti_tiling", quality.get("terrain_anti_tiling", true))
 	material.set_shader_parameter(&"triplanar", quality.get("terrain_triplanar", true))
 	material.set_shader_parameter(&"water_level", TerrainSurface.WATER_SURFACE)
