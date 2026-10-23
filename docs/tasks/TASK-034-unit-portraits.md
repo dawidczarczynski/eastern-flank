@@ -1,6 +1,6 @@
 # TASK-034: Unit portraits in the hover popup (rendered from the 3D model)
 
-- **Status**: ready (revised 2026-10-22: real units per faction, faction camouflage, lighting v3; the detailed models exist, so this can go any time)
+- **Status**: to playtest (revised 2026-10-22: real units per faction, faction camouflage, lighting v3; the detailed models exist, so this can go any time)
 - **Layers**: presentation (`src/presentation/ui/unit_popup.gd`, a portrait renderer; camera framing maths tested in `tests/unit/`)
 - **Depends on**: **TASK-021** (popup). The detailed models exist (six real units). Soft: TASK-062 / TASK-067 (portraits get better with them, nothing to change here), TASK-054 (if the HDRI sky is done, use it for the portrait's ambient). Reference: `docs/design/v2/game_screen.scene.js` lines 414–431 (`makePortraits`), `docs/design/v2/game_screen.template.html` lines 86–91, screenshots `docs/design/v2/shots/01-v2-units.jpg`, `02-v2-units.jpg`, `hover.jpg`.
 - **Model**: sonnet
@@ -40,4 +40,8 @@ The hover card shows a lit 3D portrait of the unit (its actual model in faction 
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `PortraitRenderer` (src/presentation/portrait_renderer.gd): one SubViewport with its own World3D, one pair rendered per frame, cached as `ImageTexture` (same object per (definition, owner); blank background until `is_ready`). Pure helpers `camera_transform`, `key_of`, `visible_aabb` are tested in tests/unit/test_portrait_renderer.gd. All pairs of the scenario are queued at battle start.
+- Ambient/tonemap values are literals copied from the battle environment (flat ambient colour at 0.7 x 0.65, as tools/render_unit.gd does), not read from the active look; the HDRI sky is not used in the portrait.
+- Popup: 170 px portrait area (`set_portrait`), updated every frame so it appears when the render finishes.
+- Debug: `SCREENSHOT_HOVER_UNIT=<id>` (tools/screenshot.gd, `debug_hover_unit`) hovers a unit and shows its card; checked with tools/screenshot.sh (M1A2 portrait visible, Polish camouflage).
+- Unrelated: docs/tasks/TASK-069 was already untracked in the tree.

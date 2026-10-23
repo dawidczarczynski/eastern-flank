@@ -157,6 +157,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
 ## unit's tile (TASK-058), without animation.
+## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -186,3 +187,6 @@ func _apply_debug_selection() -> void:
 	var select_id := OS.get_environment("SCREENSHOT_SELECT_UNIT")
 	if select_id.is_valid_int():
 		_battle.call("debug_select_and_hover", select_id.to_int())
+	var hover_id := OS.get_environment("SCREENSHOT_HOVER_UNIT")
+	if hover_id.is_valid_int():
+		_battle.call("debug_hover_unit", hover_id.to_int())

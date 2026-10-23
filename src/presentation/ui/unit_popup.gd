@@ -11,8 +11,11 @@ const SANS_SEMIBOLD := "IBMPlexSansCondensed-SemiBold"
 const BORDER := Color(235 / 255.0, 232 / 255.0, 223 / 255.0, 0.14)
 const SEGMENT_HEIGHT := 7
 const BAR_HEIGHT := 2
+const PORTRAIT_HEIGHT := 170
+const PORTRAIT_BG := Color("#2a2e27")
 
 var _strip: ColorRect
+var _portrait: TextureRect
 var _type_label: Label
 var _faction_label: Label
 var _name_label: Label
@@ -58,6 +61,7 @@ func _init() -> void:
 	_strip.custom_minimum_size = Vector2(0, 3)
 	column.add_child(_strip)
 
+	column.add_child(_build_portrait())
 	column.add_child(_build_header())
 	column.add_child(_build_strength())
 	column.add_child(_build_stats())
@@ -101,10 +105,29 @@ func show_model(model: Dictionary) -> void:
 	reset_size()
 
 
+## The unit's rendered portrait; null while it is not ready (plain background).
+func set_portrait(portrait: Texture2D) -> void:
+	_portrait.texture = portrait
+
+
 ## Real card size for UnitPopupModel.placement() (layout is deferred, so ask the minimum).
 func card_size() -> Vector2:
 	var minimum := get_combined_minimum_size()
 	return Vector2(maxf(minimum.x, WIDTH), minimum.y)
+
+
+func _build_portrait() -> Control:
+	var panel := ColorRect.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.color = PORTRAIT_BG
+	panel.custom_minimum_size = Vector2(0, PORTRAIT_HEIGHT)
+	_portrait = TextureRect.new()
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_portrait.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(_portrait)
+	return panel
 
 
 func _build_header() -> Control:

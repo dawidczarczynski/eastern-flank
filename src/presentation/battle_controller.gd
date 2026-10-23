@@ -22,6 +22,7 @@ var _selected_unit_id := -1
 var _hovered_unit_id := -1
 var _hud_root: Control
 var _unit_popup: UnitPopup
+var _portraits: PortraitRenderer
 var _popup_unit_id := -1  # unit shown on the hover card, -1 = hidden
 var _hud: BattleHud
 var _terrain_panel: TerrainPanel
@@ -63,6 +64,7 @@ func _ready() -> void:
 	_camera_rig.clicked.connect(_on_camera_clicked)
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
+	_prerender_portraits(state)
 	_refresh_hud()
 	_refresh_selection_ui()
 
@@ -147,6 +149,15 @@ func debug_select_and_hover(unit_id: int) -> void:
 	if unit != null:
 		_set_hovered_hex(unit.coord + Vector2i(2, 0))
 	_update_unit_popup()  # _process is disabled in the screenshot tool
+
+
+## Screenshot debug hook (tools/screenshot.gd): hovers the unit's own tile (hover card).
+func debug_hover_unit(unit_id: int) -> void:
+	get_viewport().warp_mouse(get_viewport().get_visible_rect().size * 0.4)
+	var unit := _sim.state.get_unit(unit_id)
+	if unit != null:
+		_set_hovered_hex(unit.coord)
+	_update_unit_popup()
 
 
 ## Screenshot debug hook (tools/screenshot.gd): points the camera at a unit's tile.
@@ -440,6 +451,9 @@ func _build_bottom_left_stack() -> void:
 	stack.add_child(_terrain_panel)
 	_unit_popup = UnitPopup.new()
 	_hud_root.add_child(_unit_popup)
+	_portraits = PortraitRenderer.new()
+	add_child(_portraits)
+	_portraits.setup(quality)
 
 
 ## Shows the hover card while the hovered tile holds a living unit, follows the cursor and hides
@@ -462,11 +476,26 @@ func _update_unit_popup() -> void:
 	if unit.id != _popup_unit_id or not _unit_popup.visible:
 		_popup_unit_id = unit.id
 		_unit_popup.show_model(UnitPopupModel.build(state, unit, HUMAN_PLAYER))
+	_unit_popup.set_portrait(_portrait_of(state, unit))  # may finish rendering while shown
 	_unit_popup.position = UnitPopupModel.placement(
 		get_viewport().get_mouse_position(),
 		get_viewport().get_visible_rect().size,
 		_unit_popup.card_size()
 	)
+
+
+## The unit's portrait once rendered, else null.
+func _portrait_of(state: GameState, unit: Unit) -> Texture2D:
+	var id := unit.definition.id
+	var texture := _portraits.portrait(id, unit.owner_id, state.faction_of(unit.owner_id))
+	return texture if _portraits.is_ready(id, unit.owner_id) else null
+
+
+## Queues the portraits of every (unit definition, owner) pair of the scenario, so the first
+## hover has no hitch.
+func _prerender_portraits(state: GameState) -> void:
+	for unit: Unit in state.units.values():
+		_portraits.portrait(unit.definition.id, unit.owner_id, state.faction_of(unit.owner_id))
 
 
 ## Events are only queued here; playback starts deferred, so everything emitted in this frame
