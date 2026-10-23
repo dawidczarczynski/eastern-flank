@@ -33,6 +33,11 @@ Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/
 - Everything in English: code, identifiers, comments, documentation, commit messages and UI text.
 - Tests: file `tests/unit/test_*.gd`, `extends TestCase`, methods `test_*`, shared data in `tests/fixtures.gd`.
 
+## Performance budget
+
+- The game must hold **60 FPS** on the target GPU (HIGH quality, focused window). Never trade frame rate for visuals: a new effect, shader or scatter layer that drops below 60 FPS must be optimised or put behind a quality level, not accepted.
+- `FramePacing` caps a focused window at 60 FPS and a background one at 5 FPS (src/presentation/frame_pacing.gd) – keep it so an idle game stays quiet.
+
 ## Godot files (.tscn / .tres)
 
 - They are text files – you may edit them, but carefully: don't invent `uid=`, keep `id`s consistent in `ext_resource`/`sub_resource`.

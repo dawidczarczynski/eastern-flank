@@ -43,6 +43,7 @@ var _event_serial := 0  # played events so far: the view-local seed of the marks
 
 
 func _ready() -> void:
+	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
 	var state := Scenario.default_battle(MAP_SEED)
 	_sim = GameSimulation.new(state)
@@ -64,6 +65,11 @@ func _ready() -> void:
 		_create_unit_view(unit)
 	_refresh_hud()
 	_refresh_selection_ui()
+
+
+## Throttles the frame rate while the window is in the background.
+func _notification(what: int) -> void:
+	FramePacing.apply_notification(what)
 
 
 ## Picks LOW/HIGH (`--quality=` user argument, else detected from renderer and adapter) and applies
