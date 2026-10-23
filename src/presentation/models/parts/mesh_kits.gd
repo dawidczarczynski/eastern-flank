@@ -33,15 +33,31 @@ func triangle_count() -> int:
 	return total
 
 
-## One MeshInstance3D per non-empty kit under `parent`, with `materials[role]`.
-func add_to(parent: Node3D, materials: Dictionary) -> Array[MeshInstance3D]:
-	var added: Array[MeshInstance3D] = []
+## The non-empty kits committed as {role: ArrayMesh} (insertion order kept): geometry that does not
+## depend on the materials, e.g. to share it through `ModelParts.cached_meshes`.
+func commit_all() -> Dictionary:
+	var meshes := {}
 	for name: StringName in _kits:
 		var kit: MeshKit = _kits[name]
-		if kit.count == 0:
-			continue
+		if kit.count > 0:
+			meshes[name] = kit.commit()
+	return meshes
+
+
+## One MeshInstance3D per non-empty kit under `parent`, with `materials[role]`.
+func add_to(parent: Node3D, materials: Dictionary) -> Array[MeshInstance3D]:
+	return add_meshes(parent, commit_all(), materials)
+
+
+## One MeshInstance3D per entry of `meshes` ({role: Mesh}, see `commit_all`) under `parent`, with
+## `materials[role]`.
+static func add_meshes(
+	parent: Node3D, meshes: Dictionary, materials: Dictionary
+) -> Array[MeshInstance3D]:
+	var added: Array[MeshInstance3D] = []
+	for name: StringName in meshes:
 		if not materials.has(name):
 			push_error("MeshKits: no material for %s" % name)
 			continue
-		added.append(ModelParts.add(parent, kit.commit(), materials[name], Vector3.ZERO))
+		added.append(ModelParts.add(parent, meshes[name], materials[name], Vector3.ZERO))
 	return added

@@ -185,11 +185,15 @@ func pair(x0: float, x1: float, h0: float, h1: float, hw: float, z: float, b := 
 ## Lathe around local +Y of `rot` at `c`: `prof` = Vector2(radius, y), from the top down around the
 ## outside (a profile point with radius 0 closes the end). Diagonal segments shorter than
 ## `chamfer_max` are chamfers (`r` = 1); segments facing the axis are an inner wall (`g` lowered).
-## `smooth` = false gives flat facets (bolt heads, nuts).
-func lathe(c: Vector3, rot: Basis, prof: Array, sides: int, smooth := true) -> void:
+## `smooth` = false gives flat facets (bolt heads, nuts). `oval` scales the radius along the local X
+## and Z axes (an oval turret dome or drum; normals stay correct for the stretched surface).
+func lathe(
+	c: Vector3, rot: Basis, prof: Array, sides: int, smooth := true, oval := Vector2.ONE
+) -> void:
 	var saved := xf
 	xf = xf * Transform3D(rot, c)
 	_set_tint(Vector3.ZERO)
+	var scale := Vector3(oval.x, 1.0, oval.y)
 	for j in prof.size() - 1:
 		var p0: Vector2 = prof[j]
 		var p1: Vector2 = prof[j + 1]
@@ -204,16 +208,15 @@ func lathe(c: Vector3, rot: Basis, prof: Array, sides: int, smooth := true) -> v
 			var t1 := TAU * ((k + 1) % sides) / sides
 			var c0 := Vector3(cos(t0), 0.0, sin(t0))
 			var c1 := Vector3(cos(t1), 0.0, sin(t1))
+			var cm := (c0 + c1).normalized()
+			var n0 := (c0 if smooth else cm) * n2.x / scale + Vector3(0, n2.y, 0)
+			var n1 := (c1 if smooth else cm) * n2.x / scale + Vector3(0, n2.y, 0)
+			c0 *= scale
+			c1 *= scale
 			var v00 := c0 * p0.x + Vector3(0, p0.y, 0)
 			var v01 := c1 * p0.x + Vector3(0, p0.y, 0)
 			var v10 := c0 * p1.x + Vector3(0, p1.y, 0)
 			var v11 := c1 * p1.x + Vector3(0, p1.y, 0)
-			var n0 := c0 * n2.x + Vector3(0, n2.y, 0)
-			var n1 := c1 * n2.x + Vector3(0, n2.y, 0)
-			if not smooth:
-				var cm := (c0 + c1).normalized()
-				n0 = cm * n2.x + Vector3(0, n2.y, 0)
-				n1 = n0
 			_tri(v00, v01, v11, n0, n1, n1, e)
 			_tri(v00, v11, v10, n0, n1, n0, e)
 	_inner = 1.0

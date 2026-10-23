@@ -17,6 +17,7 @@ const PRIMITIVES: Array[String] = [
 	"pillow",
 	"lathe",
 	"lathe_flat",
+	"lathe_oval",
 	"rod",
 	"bolt",
 	"stack",
@@ -32,6 +33,7 @@ const CLOSED: Array[String] = [
 	"pillow",
 	"lathe",
 	"lathe_flat",
+	"lathe_oval",
 	"rod",
 	"stack",
 	"loft",
@@ -41,7 +43,7 @@ const CLOSED: Array[String] = [
 	"sweep_pointed",
 	"tube",
 ]
-const CONVEX: Array[String] = ["cbox", "pillow", "lathe", "rod", "stack", "loft"]
+const CONVEX: Array[String] = ["cbox", "pillow", "lathe", "lathe_oval", "rod", "stack", "loft"]
 
 
 func _arrays(mesh: ArrayMesh) -> Array:
@@ -174,6 +176,9 @@ func _build(k: MeshKit, name: String) -> void:
 		"lathe_flat":
 			var prof := [Vector2(0, 0.1), Vector2(0.1, 0.1), Vector2(0.1, 0.0), Vector2(0, 0)]
 			k.lathe(Vector3.ZERO, Basis.IDENTITY, prof, 8, false)
+		"lathe_oval":
+			var prof := [Vector2(0, 0.2), Vector2(0.15, 0.15), Vector2(0.2, 0.0), Vector2(0, -0.05)]
+			k.lathe(Vector3.ZERO, tilt, prof, 16, true, Vector2(1.5, 0.6))
 		"rod":
 			k.rod(Vector3(1, 0, 0), Vector3(1, 1, 0), 0.05, 0.5, 12, 0.01)
 		"bolt":
@@ -392,6 +397,31 @@ func test_lathe_is_closed_where_the_profile_radius_is_zero() -> void:
 	assert_eq(sleeve.count, 16 * 2, "an open sleeve has no caps")
 
 
+## TASK-069: an oval lathe (turret dome) stretches the radius along local X / Z and keeps the
+## normals perpendicular to the stretched surface.
+func test_oval_lathe_stretches_the_radius_and_its_normals() -> void:
+	var kit := MeshKit.new()
+	var prof := [Vector2(0.0, 1.0), Vector2(0.5, 0.5), Vector2(1.0, 0.0), Vector2(0.0, 0.0)]
+	kit.lathe(Vector3.ZERO, Basis.IDENTITY, prof, 16, true, Vector2(2.0, 0.5))
+	var mesh := kit.commit()
+	_assert_aabb(mesh, AABB(Vector3(-2.0, 0.0, -0.5), Vector3(4.0, 1.0, 1.0)), "oval lathe")
+	var verts := _verts(mesh)
+	var normals := _normals(mesh)
+	var off := 0
+	var checked := 0
+	for i in verts.size():
+		var v := verts[i]
+		if v.y > 0.999 or v.y < 0.001:
+			continue
+		checked += 1
+		# Cone x^2/4 + z^2/0.25 = (1 - y)^2: gradient (x / 4, (1 - y), z / 0.25).
+		var expected := Vector3(v.x / 4.0, 1.0 - v.y, v.z / 0.25).normalized()
+		if normals[i].distance_to(expected) > 1e-3:
+			off += 1
+	assert_true(checked > 0, "the cone has vertices between base and apex")
+	assert_eq(off, 0, "oval lathe normals follow the stretched surface")
+
+
 func test_lathe_inner_wall_is_a_cavity() -> void:
 	# A cup: outer wall down, bottom, inner wall back up to the rim.
 	var prof := [
@@ -549,3 +579,39 @@ func test_arc_spans_its_angles_on_the_radius() -> void:
 	assert_true((pts[4] as Vector3).is_equal_approx(Vector3(1, 2.5, 3)))
 	for p: Vector3 in pts:
 		assert_true(absf(p.distance_to(Vector3(1, 2, 3)) - 0.5) < EPSILON)
+
+
+func test_mesh_kits_commit_all_and_add_meshes_share_the_geometry() -> void:
+	var kits := MeshKits.new()
+	kits.k(&"body").cbox(Vector3.ZERO, Vector3.ONE, 0.1)
+	kits.k(&"unused")
+	kits.k(&"dark").rod(Vector3.ZERO, Vector3.UP, 0.2, 1.0)
+	var meshes := kits.commit_all()
+	assert_eq(meshes.keys(), [&"body", &"dark"], "non-empty kits in insertion order")
+	var materials := {&"body": StandardMaterial3D.new(), &"dark": StandardMaterial3D.new()}
+	var a := Node3D.new()
+	var b := Node3D.new()
+	var added_a := MeshKits.add_meshes(a, meshes, materials)
+	var added_b := MeshKits.add_meshes(b, meshes, materials)
+	assert_eq(added_a.size(), 2)
+	for i in 2:
+		assert_true(added_a[i].mesh == added_b[i].mesh, "one mesh resource for both parents")
+		assert_true(added_a[i].material_override == materials[meshes.keys()[i]])
+	a.free()
+	b.free()
+
+
+func test_cached_meshes_build_once_until_the_cache_is_cleared() -> void:
+	var calls := [0]
+	var builder := func() -> Dictionary:
+		calls[0] += 1
+		var kits := MeshKits.new()
+		kits.k(&"body").cbox(Vector3.ZERO, Vector3.ONE, 0.0)
+		return kits.commit_all()
+	var first := ModelParts.cached_meshes("test_cached_meshes", builder)
+	var second := ModelParts.cached_meshes("test_cached_meshes", builder)
+	assert_eq(calls[0], 1)
+	assert_true(first[&"body"] == second[&"body"])
+	ModelParts.clear_mesh_cache()
+	ModelParts.cached_meshes("test_cached_meshes", builder)
+	assert_eq(calls[0], 2, "a cleared cache builds again (cold build timing)")

@@ -46,7 +46,7 @@ const TURRET_OUTLINE: Array[Vector2] = [
 	Vector2(-0.25, -0.1),
 ]
 
-static var _meshes: Dictionary = {}  # key string -> Mesh
+static var _meshes: Dictionary = {}  # key string -> Mesh (or a Dictionary of meshes)
 static var _materials: Dictionary = {}  # key string -> StandardMaterial3D
 ## Keyed by faction id, not owner: a faction resource edited at runtime under the same id keeps
 ## its old materials until the game restarts.
@@ -281,6 +281,16 @@ static func cyl_mesh(
 static func _limited(bevel: float, max_bevel: float) -> float:
 	var b := minf(bevel, max_bevel)
 	return b if b >= MIN_BEVEL else 0.0
+
+
+## Meshes built once per `key` until `clear_mesh_cache`: `builder` returns a Dictionary of them
+## (e.g. `MeshKits.commit_all()`, {material role: ArrayMesh}) and every later call gets the same
+## Dictionary – geometry that does not depend on the faction is generated once for all factions.
+static func cached_meshes(key: String, builder: Callable) -> Dictionary:
+	var cache_key := "kits:%s" % key
+	if not _meshes.has(cache_key):
+		_meshes[cache_key] = builder.call()
+	return _meshes[cache_key]
 
 
 ## One mesh from many primitives (`parts`: [Mesh, Transform3D] pairs, each transform pre-multiplied

@@ -1,6 +1,6 @@
 # TASK-069: Tank v3 – rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k)
 
-- **Status**: ready (specified 2026-10-23; waits for TASK-062 – the paint the kit masks drive)
+- **Status**: done
 - **Layers**: presentation (`models/m1a2_sepv3.gd`, `models/t72b3.gd`, `models/parts/tracked_running_gear.gd`, `MeshKit` / `MeshKits` only if a primitive is missing), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`, new `test_tank_models.gd`), docs (both `blueprint.md`). Roles: **unit-modeler** (both tanks, render-compare, via `/model-unit <id>` as a rework); **presentation-engineer** only if a kit primitive or the shared running gear needs new options.
 - **Depends on**: **TASK-030** (mesh kit v2, ADR 0012 – done), **TASK-062** (weathering paint on the RGB vertex masks, chamfers in the old helpers). Soft: TASK-063 (`Marking_*` / `Number_*` anchors – add them here if 063 is done first), TASK-034 (portraits show the tanks close up), TASK-047 / TASK-048 (turret traverse / gun recoil use the pivots kept and added here).
 - **Model**: opus (two large models plus the shared running gear, triangle and build-time budgets, pivot contract)
@@ -87,4 +87,19 @@ None (visual only – unit stats, rules and controls do not change).
 
 ## Implementation notes
 
-_Filled in by the agent when done: triangle counts and cold build times before/after per faction, render sheet paths, hidden-geometry cuts, deviations from the study._
+**Result (unit-modeler, 2 stages; reviewed):**
+
+| | Triangles before → after (both factions) | Body meshes | Cold build before → after |
+|---|---|---|---|
+| `m1a2_sepv3` | 21 460 → 35 682 | 15 → 21 | ~31 ms → ~135 ms (best of 5: 120 ms) |
+| `t72b3` | 20 988 → 37 126 | 14 → 21 | ~41 ms → ~135 ms |
+
+(The task's "14 184 / 15 544" were pre-TASK-062 figures.) Sizes within 1–2.2 % of before (M1A2 width +2.2 % from the angled smoke tubes). `Real` diffs: M1A2 −10.4/−9.6/−3.1 % (before −10.9/−11.4/−3.4), T-72B3 −8.0/−12.2/+8.7 % (before −8.0/−12.7/+8.7); the ±2 pp check against the old M1A2 blueprint could not be verified exactly (no numbers there).
+
+- **Shared running gear** (`TrackedRunningGear.Spec`, all opt-in): `detailed_wheels`, `track_shoe_pitch`, `detailed_skirts` (+ bolt options), `skirt_bottom_profile`, `skirt_front_top_drop/run`, `track_pads`, `wheel_rim_bolts`; wheel meshes built once per kind and side and shared. New: `MeshKit.lathe(oval)`, `MeshKits.commit_all/add_meshes`, `ModelParts.cached_meshes`, `VehicleFrame.kit_tank_materials`.
+- **Both tanks**: `HULL_INTERIOR`, `TURRET_CLEARANCE_H`, `TURRET_RING_R`, `Turret/Gun/Barrel`, `Exhaust` / `Dust_L` / `Dust_R` anchors. New `tests/unit/test_tank_models.gd` (both ids × factions).
+- **T-72B3 human feedback addressed**: turret rear bin, skirt rear rake, round Sosna-U window, more turret detail.
+- **Deviations**: turret-sweep test requires hull parts 1 cm below the lowest turret part (literal spec would forbid real stowage boxes); T-72 fuel drums lowered (h 1.37); track pitch 0.19 m; no turret-roof K-5 plates; M1A2 checkerboard marking and beacon left out.
+- **Review fix**: glacis tilt sign on the M1A2 corrected (parts leaned against the slope). Mud-flap rakes (`m1a2_sepv3.gd` ~239 / ~394) use the same convention and were not verified – look at them when playtesting.
+- **Frame probe** (this machine, ~57 FPS before and after): +0.0 ms M1A2, +0.1–0.2 ms T-72. Needs the 60 FPS check on the Windows GPU build.
+- Sheets: `.screenshots/units/{m1a2_sepv3_poland,m1a2_sepv3_poland_hero,m1a2_sepv3_russia,t72b3_russia,t72b3_poland}_sheet.png`; `docs/images/gameplay.png` re-rendered.

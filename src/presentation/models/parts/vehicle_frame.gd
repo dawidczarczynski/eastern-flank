@@ -5,6 +5,31 @@ extends RefCounted
 ## that lands on model x = 0 (the centre of the model's length, gun included). The part helpers
 ## append [Mesh, Transform3D] pairs for ModelParts.merged_mesh.
 
+## Weathered one-colour paints of the kit-built tanks by role (faction independent), see
+## `kit_tank_materials`.
+const WEATHERED := {
+	&"dark":
+	{
+		"color": Color("#2a2b25"),
+		"base_roughness": 0.7,
+		"metallic": 0.25,
+		"wear_amount": 0.4,
+		"tint_amount": 0.15,
+	},
+	&"track":
+	{
+		"color": Color("#3b3731"),
+		"base_roughness": 0.6,
+		"metallic": 0.55,
+		"wear_amount": 0.45,
+		"mud_height": 0.04,
+		"mud_amount": 0.35,
+		"dust_amount": 0.25,
+	},
+}
+
+static var _weathered: Dictionary = {}  # role -> ShaderMaterial
+
 var k: float
 var origin_x: float
 
@@ -145,6 +170,37 @@ static func tank_materials(faction: FactionDefinition) -> Dictionary:
 		&"track": ModelParts.pbr(ModelParts.TRACK),
 		&"accent": ModelParts.accent(faction),
 	}
+
+
+## Materials of a tank built with MeshKit (TASK-069): `tank_materials` with &"dark" and &"track" as
+## weathered one-colour paints (the camo shader: wear on the chamfers, dust, mud on the track; the
+## study's per-material values in WEATHERED), plus &"lens" / &"red_lens" (lights) and the faction
+## &"cloth" (stowage, mantlet cover). Steel, rubber and glass stay plain PBR: the wheel pivots use
+## them, so a tank holds few per-instance shader parameters (ModelParts._restore_camo).
+static func kit_tank_materials(faction: FactionDefinition) -> Dictionary:
+	var m := tank_materials(faction)
+	for role: StringName in WEATHERED:
+		m[role] = weathered(role)
+	m[&"lens"] = ModelParts.std_material(Color("#c9c4b0"), 0.1, 0.3)
+	m[&"red_lens"] = ModelParts.std_material(Color("#6a1410"), 0.15, 0.2)
+	m[&"cloth"] = ModelParts.vest(faction)
+	return m
+
+
+## The shared weathered paint of `role` (a key of WEATHERED).
+static func weathered(role: StringName) -> ShaderMaterial:
+	if not _weathered.has(role):
+		var values: Dictionary = WEATHERED[role]
+		var m := ShaderMaterial.new()
+		m.shader = ModelParts.CAMO_SHADER
+		for key: String in values:
+			if key == "color":
+				for slot: StringName in [&"color_a", &"color_b", &"color_c"]:
+					m.set_shader_parameter(slot, values[key])
+			else:
+				m.set_shader_parameter(StringName(key), values[key])
+		_weathered[role] = m
+	return _weathered[role]
 
 
 ## "Turret" pivot on the model root at the turret ring (x, h); turns about its local Y.
