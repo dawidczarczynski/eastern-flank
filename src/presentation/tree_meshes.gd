@@ -64,6 +64,28 @@ const DECIDUOUS := {
 		"droop": 0.15,
 	},
 }
+## Scrub (TASK-061), same layout as DECIDUOUS but a short trunk fanning into many low lobes:
+## shrubs ~0.1 tall, undergrowth (ferns, herbs) ~0.045 tall and wide.
+const SCRUB := {
+	&"shrub":
+	{
+		"trunk": [0.035, 0.004, 0.002, 0.006],
+		"branches": [6, 0.1, 0.8, 0.45, 1.1, 0.03, 0.05],
+		"lobes": [0.022, 0.03, Vector3(1.0, 0.8, 1.0)],
+		"top": [0.012, 0.024],
+		"cards": [26, 0.046, 0.06],
+		"droop": 0.1,
+	},
+	&"undergrowth":
+	{
+		"trunk": [0.012, 0.003, 0.002, 0.003],
+		"branches": [7, 0.1, 0.5, 0.12, 0.45, 0.03, 0.05],
+		"lobes": [0.02, 0.026, Vector3(1.25, 0.45, 1.25)],
+		"top": [0.004, 0.02],
+		"cards": [10, 0.046, 0.06],
+		"droop": 0.3,
+	},
+}
 ## Spruce: conical whorls of drooping needle cards from SKIRT_BOTTOM up to the top.
 const SPRUCE := {
 	"height": 0.31,
@@ -90,6 +112,13 @@ static var _unit_spheres: Dictionary = {}
 
 static func species() -> Array[StringName]:
 	return TreeSpecies.all()
+
+
+static func scrub_species() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for id: StringName in SCRUB:
+		result.append(id)
+	return result
 
 
 ## The cached detailed mesh (bark + leaf cards).
@@ -129,7 +158,10 @@ static func triangle_count(mesh: ArrayMesh) -> int:
 ## Uncached LOD0 builder.
 static func build(species_id: StringName, variant: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = SEED_BASE + TreeSpecies.all().find(species_id) * 101 + variant * 7919
+	var index := TreeSpecies.all().find(species_id)
+	if index < 0:
+		index = TreeSpecies.all().size() + scrub_species().find(species_id)
+	rng.seed = SEED_BASE + index * 101 + variant * 7919
 	var bark := Surface.new()
 	var leaves := Surface.new()
 	var result: Dictionary
@@ -138,7 +170,12 @@ static func build(species_id: StringName, variant: int) -> ArrayMesh:
 	elif species_id == &"pine":
 		result = _build_pine(rng, bark, leaves)
 	else:
-		result = _build_deciduous(DECIDUOUS[species_id], rng, bark, leaves)
+		result = _build_deciduous(
+			DECIDUOUS[species_id] if DECIDUOUS.has(species_id) else SCRUB[species_id],
+			rng,
+			bark,
+			leaves
+		)
 	result["cards"] = leaves.indices.size() / 6
 	_shapes["%s%d" % [species_id, variant]] = result
 	return _commit(bark, leaves)

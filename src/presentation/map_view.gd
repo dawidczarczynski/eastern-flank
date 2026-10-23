@@ -88,6 +88,9 @@ const RING_SEGMENTS := 5
 const DOT_RADIUS := 0.05
 const DOT_LIFT := 0.1
 const LAST_DOT_SCALE := 1.8
+const _PLAN_KEYS: Array[String] = [
+	"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover"
+]
 ## Scatter (TASK-018): view-local seed (never the simulation RNG) and mesh values.
 const SCATTER_SEED := 20240518
 const BUSH_COLOR_A := Color("#3f5a28")
@@ -502,8 +505,10 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 			ring.set_terrain(c, _nearest_tile_type(border) as Terrain.Type)
 	var surface := BackdropSurface.new(ring, visible_ground_height)
 	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED)
+	# Far away: the ground cover is not worth its triangles.
+	plan["ground_cover"] = []
 	# Deterministic per-position thinning (no spatial pattern from the plan order).
-	for key: String in ["trees", "rocks", "bushes"]:
+	for key: String in _PLAN_KEYS:
 		var kept: Array = []
 		for item: Dictionary in plan[key]:
 			var p: Vector3 = item["position"]
@@ -520,7 +525,10 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 ## collected for the TreeField (TASK-060). Instance colours multiply the baked vertex colours of
 ## the foliage meshes.
 func _build_scatter(plan: Dictionary, prefix: String) -> void:
-	(_backdrop_trees if prefix == "Backdrop" else _map_trees).append_array(plan["trees"])
+	var tree_list := _backdrop_trees if prefix == "Backdrop" else _map_trees
+	tree_list.append_array(plan["trees"])
+	for key: String in ["young_trees", "edge_shrubs", "ground_cover"]:
+		tree_list.append_array(plan[key])
 	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
 	var bushes: Array = plan["bushes"]
 	_add_scatter(

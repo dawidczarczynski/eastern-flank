@@ -29,9 +29,35 @@ const BUSH_SCALE_RANGE := 0.25
 const BUSH_SINK := 0.06
 const BUSH_HEIGHT := 0.6
 const BUSH_SEED_SALT := 0x5B05
+## Forest edges and undergrowth (TASK-061): own RNG stream again, so the arrays above are
+## unchanged. Sizes are at the `current` VisualScale preset.
+const EDGE_SEED_SALT := 0xED6E
+const EDGE_FOREST_SHRUBS := 8
+const EDGE_FOREST_TREES := 2
+const EDGE_OPEN_SHRUBS := 4
+const EDGE_FOREST_SECTOR := PI / 6.0
+const EDGE_OPEN_SECTOR := deg_to_rad(25.0)
+const EDGE_FOREST_RADIUS_MIN := 0.55
+const EDGE_FOREST_RADIUS_RANGE := 0.4
+const EDGE_TREE_RADIUS_MIN := 0.5
+const EDGE_TREE_RADIUS_RANGE := 0.3
+const EDGE_OPEN_RADIUS_MIN := 0.65
+const EDGE_OPEN_RADIUS_RANGE := 0.3
+## Shrub / undergrowth scales are in tree units (TreeMeshes: a shrub is ~0.1 and undergrowth
+## ~0.045 tall at scale 1, a tree 0.2-0.3), so they follow VisualScale.tree_scale().
+const EDGE_FOREST_SHRUB_SCALE := Vector2(0.9, 1.5)
+const EDGE_OPEN_SHRUB_SCALE := Vector2(0.7, 1.2)
+const EDGE_TREE_SCALE := Vector2(0.4, 0.6)
+const GROUND_COVER_FOREST := 10
+const GROUND_COVER_OPEN := 3
+const GROUND_COVER_SCALE := Vector2(0.7, 1.3)
+const SHRUB := &"shrub"
+const UNDERGROWTH := &"undergrowth"
 
 
-## Returns {"trees", "rocks", "bushes"} (Array[Dictionary] each).
+## Returns {"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover"}
+## (Array[Dictionary] each). Young trees, edge shrubs and ground cover are tree dictionaries (as
+## trees, plus "species": TreeMeshes shrub / undergrowth for the last two) drawn by the TreeField.
 ## Tree: {position, scale, height_scale, yaw, conifer, k}. Rock: {position, scale, rotation}.
 ## Bush: {position, scale, height_scale, yaw, k}.
 static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dictionary:
@@ -42,20 +68,184 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 	var bushes: Array[Dictionary] = []
 	var bush_rng := RandomNumberGenerator.new()
 	bush_rng.seed = seed_value ^ BUSH_SEED_SALT
+	var edge_rng := RandomNumberGenerator.new()
+	edge_rng.seed = seed_value ^ EDGE_SEED_SALT
+	var edge_shrubs: Array[Dictionary] = []
+	var young_trees: Array[Dictionary] = []
+	var ground_cover: Array[Dictionary] = []
 	for c in grid.coords():
 		var center := Hex.to_world(c, TerrainField.HEX_SIZE)
 		match grid.get_terrain(c):
 			Terrain.Type.FOREST:
 				_plan_trees(trees, surface, rng, center, FOREST_TREES)
 				_plan_bushes(bushes, surface, bush_rng, center, BUSHES_FOREST)
+				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
 			Terrain.Type.PLAINS:
 				_plan_bushes(bushes, surface, bush_rng, center, BUSHES_PLAINS)
+				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
 				var n := PLAINS_TREES if rng.randf() < PLAINS_TREE_CHANCE else 0
 				_plan_trees(trees, surface, rng, center, n)
 			Terrain.Type.HILLS:
 				var n := ROCKS_MOUNTAIN if grid.elevation(c) > MOUNTAIN_ELEVATION else ROCKS_HILLS
 				_plan_rocks(rocks, surface, rng, center, n)
-	return {"trees": trees, "rocks": rocks, "bushes": bushes}
+				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
+	return {
+		"trees": trees,
+		"rocks": rocks,
+		"bushes": bushes,
+		"edge_shrubs": edge_shrubs,
+		"young_trees": young_trees,
+		"ground_cover": ground_cover,
+	}
+
+
+## Edge plants and undergrowth of one land tile, appended to the output arrays: a forest tile gets
+## ground cover plus shrubs and young trees on each open side, any other tile gets a little ground
+## cover and shrubs on each forest side. Water tiles get nothing.
+static func plan_tile_edges(
+	grid: HexGrid,
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	c: Vector2i,
+	edge_shrubs: Array[Dictionary],
+	young_trees: Array[Dictionary],
+	ground_cover: Array[Dictionary]
+) -> void:
+	var terrain := grid.get_terrain(c)
+	if terrain == Terrain.Type.WATER:
+		return
+	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+	var is_forest := terrain == Terrain.Type.FOREST
+	_plan_ground_cover(
+		ground_cover, surface, rng, center, GROUND_COVER_FOREST if is_forest else GROUND_COVER_OPEN
+	)
+	for d in _edge_directions(grid, c, is_forest):
+		_plan_edge_shrubs(edge_shrubs, surface, rng, center, d, is_forest)
+		if is_forest:
+			_plan_young_trees(young_trees, surface, rng, center, d)
+
+
+## World angle (radians, atan2(z, x)) of each neighbour direction of `c` that borders a forest
+## edge: from a forest tile, neighbours on the map that are neither forest nor water ("open
+## sides"); from any other land tile, forest neighbours ("forest sides").
+static func _edge_directions(grid: HexGrid, c: Vector2i, is_forest: bool) -> Array[float]:
+	var result: Array[float] = []
+	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+	for dir in Hex.DIRECTIONS:
+		var n := c + dir
+		if not grid.has_tile(n):
+			continue
+		var t := grid.get_terrain(n)
+		if t == Terrain.Type.WATER:
+			continue
+		if (t != Terrain.Type.FOREST) == is_forest:
+			var w := Hex.to_world(n, TerrainField.HEX_SIZE) - center
+			result.append(atan2(w.z, w.x))
+	return result
+
+
+## Shrubs in a sector around `angle`. Four numbers per candidate, always.
+static func _plan_edge_shrubs(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	angle: float,
+	forest_side: bool
+) -> void:
+	var count := EDGE_FOREST_SHRUBS if forest_side else EDGE_OPEN_SHRUBS
+	var sector := EDGE_FOREST_SECTOR if forest_side else EDGE_OPEN_SECTOR
+	var r_min := EDGE_FOREST_RADIUS_MIN if forest_side else EDGE_OPEN_RADIUS_MIN
+	var r_range := EDGE_FOREST_RADIUS_RANGE if forest_side else EDGE_OPEN_RADIUS_RANGE
+	var scales := EDGE_FOREST_SHRUB_SCALE if forest_side else EDGE_OPEN_SHRUB_SCALE
+	for i in count:
+		var a := angle + (rng.randf() * 2.0 - 1.0) * sector
+		var r := r_min + rng.randf() * r_range
+		var s := scales.x + rng.randf() * (scales.y - scales.x)
+		var k := rng.randf()
+		_append_scrub(out, surface, center, a, r, s, k, SHRUB)
+
+
+## Young trees in the forest-side sector of an open side. Five numbers per candidate.
+static func _plan_young_trees(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	angle: float
+) -> void:
+	for i in EDGE_FOREST_TREES:
+		var a := angle + (rng.randf() * 2.0 - 1.0) * EDGE_FOREST_SECTOR
+		var r := EDGE_TREE_RADIUS_MIN + rng.randf() * EDGE_TREE_RADIUS_RANGE
+		var s := EDGE_TREE_SCALE.x + rng.randf() * (EDGE_TREE_SCALE.y - EDGE_TREE_SCALE.x)
+		var k := rng.randf()
+		var conifer_roll := rng.randf()
+		var x := center.x + cos(a) * r
+		var z := center.z + sin(a) * r
+		var y := surface.ground_height(x, z)
+		if y < MIN_TREE_GROUND:
+			continue
+		var chance := CONIFER_CHANCE_HIGH if y > HIGH_GROUND else CONIFER_CHANCE_LOW
+		(
+			out
+			. append(
+				{
+					"position": Vector3(x, y - TREE_SINK, z),
+					"scale": s,
+					"height_scale": s * (0.9 + k * 0.3),
+					"yaw": k * 6.0,
+					"conifer": conifer_roll < chance,
+					"k": k,
+				}
+			)
+		)
+
+
+## Low undergrowth anywhere in a tile. Four numbers per candidate.
+static func _plan_ground_cover(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	count: int
+) -> void:
+	for i in count:
+		var a := rng.randf() * TAU
+		var r := sqrt(rng.randf()) * BUSH_RADIUS
+		var s := GROUND_COVER_SCALE.x + rng.randf() * (GROUND_COVER_SCALE.y - GROUND_COVER_SCALE.x)
+		var k := rng.randf()
+		_append_scrub(out, surface, center, a, r, s, k, UNDERGROWTH)
+
+
+static func _append_scrub(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	center: Vector3,
+	angle: float,
+	r: float,
+	s: float,
+	k: float,
+	species: StringName
+) -> void:
+	var x := center.x + cos(angle) * r
+	var z := center.z + sin(angle) * r
+	var y := surface.ground_height(x, z)
+	if y < MIN_TREE_GROUND:
+		return
+	(
+		out
+		. append(
+			{
+				"position": Vector3(x, y - TREE_SINK, z),
+				"scale": s,
+				"height_scale": s * (0.85 + k * 0.35),
+				"yaw": k * 6.0,
+				"conifer": false,
+				"species": species,
+				"k": k,
+			}
+		)
+	)
 
 
 static func _in_circle(rng: RandomNumberGenerator, center: Vector3, radius: float) -> Vector2:

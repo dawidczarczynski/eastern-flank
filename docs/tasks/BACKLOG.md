@@ -67,9 +67,9 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-055](TASK-055-terrain-splat-shader.md) | Terrain shader v3: blended CC0 PBR layers by terrain type + slope, triplanar, anti-tiling | 🔵 done | **TASK-053** (soft: TASK-050, TASK-051, TASK-052; related TASK-035) |
 | [TASK-056](TASK-056-water-v2.md) | Water v2: depth colour, shore foam, scrolling ripples, SSR | 🔵 done | soft: TASK-050, TASK-054, TASK-055 |
 | [TASK-057](TASK-057-grass-wind.md) | Grass: MultiMesh alpha cards, distance LOD, shared wind shader | 🔵 done | **TASK-050**, **TASK-059** (sizes from `VisualScale`) (soft: TASK-055, TASK-052) |
-| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🟢 ready | **TASK-059** (soft: TASK-057, TASK-060) |
+| [TASK-061](TASK-061-forest-edges.md) | Forest edges and undergrowth: shrub belts along borders, forest-floor cover | 🔵 done | **TASK-059** (soft: TASK-057, TASK-060) |
 | [TASK-058](TASK-058-ground-decals.md) | Ground decals from events: track marks, craters, scorch | 🔵 done | soft: TASK-050, TASK-055, TASK-065 |
-| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 🟣 to playtest | **TASK-059**, **TASK-057** (soft: TASK-030, TASK-050; TASK-053 done – optional CC0 bark/leaf textures) |
+| [TASK-060](TASK-060-trees-v3.md) | Trees v3: leaf-card crowns, trunks/branches, wind, per-instance variation | 🔵 done | **TASK-059**, **TASK-057** (soft: TASK-030, TASK-050; TASK-053 done – optional CC0 bark/leaf textures) |
 | [TASK-062](TASK-062-unit-surface-wear.md) | Unit surface v2: chamfers in the existing helpers, weathering paint on RGB masks (study shader) – presentation + `unit-modeler` | 🟢 ready | **TASK-030** |
 | [TASK-063](TASK-063-unit-markings.md) | Unit markings: national markings per faction, tactical numbers – presentation + `unit-modeler` | 🟢 ready | TASK-038, TASK-036 (soft: TASK-062; anchor pass shared with TASK-064); Russian marking default to confirm |
 | [TASK-064](TASK-064-movement-dust-exhaust.md) | Movement effects: dust from tracks/wheels, exhaust smoke | 🟢 ready | **TASK-050** (soft: TASK-058, TASK-055, TASK-059; anchor pass shared with TASK-063) |
@@ -78,6 +78,9 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | 🔵 done | – ; open: Polish vest colour contrast |
 | [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | 🔴 blocked | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |
 | TASK-069 | Tank v3: rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k) – `unit-modeler` | 💡 idea | **TASK-030**, **TASK-062**; reference `docs/design/showcase/m1a2_showcase.gd.txt` |
+| TASK-070 | Varied vegetation on open ground: grass patches, tall grass, flowers, scrub clumps | 💡 idea | **TASK-057**, **TASK-061** (soft: TASK-071) |
+| TASK-071 | Central-Eastern European look: species, palette, terrain character (study first) | 💡 idea | soft: TASK-061, TASK-070 |
+| TASK-072 | Scalability for very large maps: benchmark tool, chunked lazy world, distance budgets (study first) | 💡 idea | soft: TASK-061, TASK-070 |
 | TASK-007 | Fog of war | 💡 idea | GDD open questions: scale, modes |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | 💡 idea | GDD decision ("Ideas from the visual design"), hand-made maps |
 

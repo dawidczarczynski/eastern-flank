@@ -64,22 +64,30 @@ func test_instance_size_follows_tree_scale() -> void:
 	field.free()
 
 
+func _expected_shadow(species: StringName) -> GeometryInstance3D.ShadowCastingSetting:
+	if species == TreeField.UNDERGROWTH:
+		return GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
 func test_lod_ranges_fade_and_shadows() -> void:
 	_build_forest()
 	var trees := _view.trees()
 	assert_true(trees.lod0_nodes().size() > 0)
 	assert_true(trees.lod1_nodes().size() > 0)
 	for node in trees.lod0_nodes():
-		assert_eq(node.visibility_range_end, 30.0)
-		assert_eq(node.visibility_range_end_margin, 4.0)
+		var species: StringName = node.get_meta(&"species")
+		assert_eq(node.visibility_range_end, TreeField.lod_distance(species))
+		assert_eq(node.visibility_range_end_margin, TreeField.lod_margin(species))
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
-		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+		assert_eq(node.cast_shadow, _expected_shadow(species))
 	for node in trees.lod1_nodes():
-		assert_eq(node.visibility_range_begin, 30.0)
-		assert_eq(node.visibility_range_begin_margin, 4.0)
+		var species: StringName = node.get_meta(&"species")
+		assert_eq(node.visibility_range_begin, TreeField.lod_distance(species))
+		assert_eq(node.visibility_range_begin_margin, TreeField.lod_margin(species))
 		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
-		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+		assert_eq(node.cast_shadow, _expected_shadow(species))
 	for node in trees.far_nodes():
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_end, 0.0)

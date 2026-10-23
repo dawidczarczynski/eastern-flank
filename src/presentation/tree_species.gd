@@ -37,6 +37,9 @@ static func pick(tree: Dictionary) -> Dictionary:
 		if roll < acc:
 			species = candidate
 			break
+	# Scrub (shrub, undergrowth) is planned with its species; only variant and colour vary.
+	if tree.has("species"):
+		species = tree["species"]
 	var variant := mini(int(_hash(p, k, 2) * TreeMeshes.VARIANTS), TreeMeshes.VARIANTS - 1)
 	var hue := (_hash(p, k, 3) * 2.0 - 1.0) * HUE_SHIFT
 	if not conifer and _hash(p, k, 7) < AUTUMN_SHARE:

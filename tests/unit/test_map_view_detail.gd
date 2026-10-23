@@ -159,6 +159,17 @@ func test_foliage_is_built_by_default() -> void:
 	assert_true(_view.trees().get_child_count() > 0, "tree chunk nodes")
 
 
+func test_scrub_is_drawn_by_the_tree_field_and_undergrowth_casts_no_shadow() -> void:
+	var species := {}
+	for node in _view.trees().lod0_nodes():
+		species[node.name] = node.cast_shadow
+	for key: String in species:
+		if "undergrowth" in key:
+			assert_eq(species[key], GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		else:
+			assert_eq(species[key], GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+
+
 func test_low_quality_builds_no_foliage() -> void:
 	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
 	_view.build(Fixtures.plains_grid(1))

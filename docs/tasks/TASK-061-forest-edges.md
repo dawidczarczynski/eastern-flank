@@ -1,6 +1,6 @@
 # TASK-061: Forest edges and undergrowth – shrub belts along forest borders, ground cover under trees
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`scatter_planner.gd` edge rules, `map_view.gd` scatter, foliage material), tests
 - **Depends on**: soft **TASK-057** (wind include; tall-grass clumps reuse the grass card), soft **TASK-060** (shrubs use the new foliage shader if done), **TASK-059** (sizes: all scales below are at the `current` preset and are multiplied by `VisualScale.bush_scale` / `tree_scale`)
 - **Model**: sonnet
@@ -48,4 +48,9 @@ None (presentation only; the shrubs on plains tiles next to forests are decorati
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `ScatterPlanner.plan` returns `edge_shrubs`, `young_trees` and `ground_cover` from its own RNG stream (`seed ^ EDGE_SEED_SALT`); tree/bush/rock streams are untouched. Per-tile logic is the public `plan_tile_edges` (used by the tests with a fresh stream per tile). Counts: 8 shrubs + 2 young trees per open forest side, 4 shrubs per forest side on open tiles, 10 undergrowth per forest tile and 3 per other land tile.
+- **Revised after the first version** (blob bush meshes looked unlike the trees): shrubs and undergrowth are now real `TreeField` species (`shrub`, `undergrowth`, `TreeMeshes.SCRUB`, built with the deciduous builder: short trunk, many low lobes, leaf cards) with the tree shader, wind, LOD1 and per-instance colour. `TreeSpecies.pick` honours a planned `"species"`. Shorter LOD0 ranges (`TreeField.SCRUB_LOD_DISTANCE`: 22 / 12), undergrowth casts no shadows, no ground cover on the backdrop. Scales are in tree units (0.9–1.5 shrubs, 0.7–1.3 undergrowth).
+- **LOD0 budget raised 800 000 → 1 100 000** (default map ~1 050 000, was ~702 000): the scrub is ~350 k triangles. Revisit if the frame rate suffers (fewer cards in `TreeMeshes.SCRUB`, fewer undergrowth per tile).
+- Colours must stay light (`#6a8c3a` / `#86a043`): the first dark greens rendered as black blobs on the bright plains.
+- **Not done**: tall-grass clumps on the open side.
+- Verified: `tools/check.sh` passes; screenshots re-rendered and read.

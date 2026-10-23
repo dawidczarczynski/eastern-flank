@@ -19,9 +19,14 @@ const LOD_DISTANCE := 30.0
 const LOD_MARGIN := 4.0
 ## LOD_DISTANCE + LOD_MARGIN + CameraMath.MIN_DISTANCE: the worst case at full zoom-in.
 const BUDGET_RADIUS := 41.0
-const LOD0_TRIANGLE_BUDGET := 800000
+const LOD0_TRIANGLE_BUDGET := 1100000
 const BACKDROP_LOD0_REACH := 14.0
 const LEAF_TEXTURE_SIZE := 128
+## Low ground cover: no shadow casting.
+const UNDERGROWTH := &"undergrowth"
+## Scrub is small: its LOD0 range is shorter (and it therefore costs less of the budget).
+const SCRUB_LOD_DISTANCE := {&"shrub": 22.0, &"undergrowth": 12.0}
+const SCRUB_LOD_MARGIN := 2.0
 const CLUSTER_SEED := 11
 const NEEDLE_SEED := 23
 const SHADER := preload("res://assets/shaders/foliage.gdshader")
@@ -32,6 +37,8 @@ const LEAF_COLORS := {
 	&"birch": Color("#8fa94e"),
 	&"oak": Color("#628538"),
 	&"alder": Color("#557c36"),
+	&"shrub": Color("#6a8c3a"),
+	&"undergrowth": Color("#86a043"),
 }
 const BARK_COLORS := {
 	&"pine": Color("#6e4c34"),
@@ -39,6 +46,8 @@ const BARK_COLORS := {
 	&"birch": Color("#d6d2c4"),
 	&"oak": Color("#4c3e2e"),
 	&"alder": Color("#57493a"),
+	&"shrub": Color("#5a4632"),
+	&"undergrowth": Color("#4a4a30"),
 }
 ## LOD1 crown albedo relative to the card texture's mean luminance (the cards' shadowed
 ## interior shows through the gaps, so the solid crown is darker than the texture itself).
@@ -112,6 +121,14 @@ static func tree_transform(tree: Dictionary) -> Transform3D:
 	return Transform3D(basis, tree["position"])
 
 
+static func lod_distance(species: StringName) -> float:
+	return SCRUB_LOD_DISTANCE.get(species, LOD_DISTANCE)
+
+
+static func lod_margin(species: StringName) -> float:
+	return SCRUB_LOD_MARGIN if SCRUB_LOD_DISTANCE.has(species) else LOD_MARGIN
+
+
 static func chunk_of(p: Vector3) -> Vector2i:
 	return Vector2i(floori(p.x / CHUNK_SIZE), floori(p.z / CHUNK_SIZE))
 
@@ -158,7 +175,12 @@ static func instance_total(nodes: Array[MultiMeshInstance3D]) -> int:
 func lod0_triangles_within(point: Vector2, radius: float) -> int:
 	var total := 0
 	for node in lod0_nodes():
-		if Vector2(node.position.x, node.position.z).distance_to(point) <= radius:
+		# The budget radius is for the standard range; a shorter-range species is seen closer only.
+		var species: StringName = node.get_meta(&"species", &"")
+		var reach := (
+			radius - LOD_DISTANCE - LOD_MARGIN + lod_distance(species) + lod_margin(species)
+		)
+		if Vector2(node.position.x, node.position.z).distance_to(point) <= reach:
 			total += node.multimesh.instance_count * TreeMeshes.triangle_count(node.multimesh.mesh)
 	return total
 
@@ -199,15 +221,22 @@ func _add_group(key: String, group: Dictionary) -> void:
 	instance.multimesh = multi
 	instance.material_override = _material(species, lod != Lod.NEAR)
 	instance.position = origin
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	instance.set_meta(&"species", species)
+	var distance := lod_distance(species)
+	var margin := lod_margin(species)
+	instance.cast_shadow = (
+		GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if species == UNDERGROWTH
+		else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	)
 	match lod:
 		Lod.NEAR:
-			instance.visibility_range_end = LOD_DISTANCE
-			instance.visibility_range_end_margin = LOD_MARGIN
+			instance.visibility_range_end = distance
+			instance.visibility_range_end_margin = margin
 			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		Lod.FAR_RANGE:
-			instance.visibility_range_begin = LOD_DISTANCE
-			instance.visibility_range_begin_margin = LOD_MARGIN
+			instance.visibility_range_begin = distance
+			instance.visibility_range_begin_margin = margin
 			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	add_child(instance)
 	(_nodes[lod] as Array).append(instance)
