@@ -97,3 +97,55 @@ func test_faction_helpers_fall_back_to_neutral() -> void:
 	assert_eq(UiPalette.faction_name(state, 5), "Player 6")
 	assert_eq(UiPalette.faction_short(state, 5), "P6")
 	assert_eq(UiPalette.color_of(null), UiPalette.NEUTRAL_FACTION)
+
+
+func test_v3_tokens_match_the_design_readme() -> void:
+	_assert_color(UiPalette.BG_APP, Color.html("#0a0c09"))
+	_assert_color(UiPalette.AMBER, Color.html("#e8b04a"))
+	_assert_color(UiPalette.HUD_TEXT, Color.html("#dfe5d6"))
+	_assert_color(UiPalette.HUD_MUTED, Color.html("#8d9585"))
+	_assert_color(UiPalette.HUD_DESC, Color.html("#b7bfae"))
+	_assert_color(UiPalette.DISABLED, Color.html("#e07c5e"))
+	_assert_color(UiPalette.NOTE_TEXT, Color.html("#f0c66e"))
+	_assert_color(UiPalette.LINE, Color(232 / 255.0, 176 / 255.0, 74 / 255.0, 0.34))
+	_assert_color(UiPalette.PANEL, Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.86))
+	_assert_color(UiPalette.PANEL_STRONG, Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.93))
+	_assert_color(UiPalette.NOTE_BG, Color(232 / 255.0, 176 / 255.0, 74 / 255.0, 0.10))
+	_assert_color(UiPalette.HP_HIGH, Color.html("#b9d38a"))
+	_assert_color(UiPalette.HP_MID, Color.html("#e2c069"))
+	_assert_color(UiPalette.HP_LOW, Color.html("#e07c5e"))
+
+
+func test_faction_data_matches_the_design_samples() -> void:
+	_assert_color(FactionRegistry.get_faction(&"poland").ink_color, Color.html("#0f1a26"))
+	_assert_color(FactionRegistry.get_faction(&"russia").color, Color.html("#d76a52"))
+	_assert_color(FactionRegistry.get_faction(&"russia").ink_color, Color.html("#2a110b"))
+
+
+func test_v3_fonts_load_with_the_needed_glyphs() -> void:
+	var fonts: Array[Font] = []
+	for weight in HudTheme.DISPLAY_WEIGHTS:
+		fonts.append(HudTheme.display(weight))
+	for weight in [400, 500, 600, 700]:
+		fonts.append(HudTheme.mono(weight))
+	for font in fonts:
+		assert_true(font != null, "font missing")
+		# Polish letters are mandatory in every face.
+		for ch in "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ":
+			assert_true(font.has_char(ch.unicode_at(0)), "%s lacks %s" % [font.get_font_name(), ch])
+		# Symbols: own glyph or fallback, unless listed as a known gap (drawn as a shape).
+		for ch in "▸◆■↵":
+			if not HudTheme.GLYPH_GAPS.has(ch):
+				assert_true(
+					HudTheme.has_glyph(font, ch), "%s lacks %s" % [font.get_font_name(), ch]
+				)
+
+
+func test_v3_font_spacing_is_cached() -> void:
+	var a := HudTheme.display(700, 2)
+	var b := HudTheme.display(700, 2)
+	assert_true(a == b)
+	var c := HudTheme.mono(600, 1)
+	var d := HudTheme.mono(600, 1)
+	assert_true(c == d)
+	assert_true(HudTheme.mono(400) != HudTheme.mono(700))

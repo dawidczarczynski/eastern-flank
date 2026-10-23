@@ -1,6 +1,6 @@
 # TASK-077: HUD v3 – turn bar, end-turn module, key hints
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`BattleHud` rewritten on TASK-076 primitives; `HudModel` extended), tests, docs (MANUAL controls, ARCHITECTURE if events/model change). Role: **presentation-engineer**.
 - **Depends on**: **TASK-076**
 - **Model**: sonnet

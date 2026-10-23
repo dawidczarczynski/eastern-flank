@@ -1,6 +1,6 @@
 # TASK-079: HUD v3 – terrain card and operation label
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`TerrainPanel` rebuilt, `TerrainPanelModel` extended), scenario data (operation name), localisation, tests. Role: **presentation-engineer**.
 - **Depends on**: **TASK-076**
 - **Model**: sonnet

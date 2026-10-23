@@ -1,6 +1,6 @@
 # TASK-080: HUD v3 – turn banner, toast, targeting bar, loading screen
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`BattleHud` notice widgets, new `Toast`, `TargetingBar`, `LoadingScreen`), localisation, tests. Role: **presentation-engineer**.
 - **Depends on**: **TASK-076** (soft: TASK-077 – same file; TASK-082 uses the targeting bar and toast)
 - **Model**: sonnet

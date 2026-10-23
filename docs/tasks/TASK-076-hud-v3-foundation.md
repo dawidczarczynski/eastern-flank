@@ -1,6 +1,6 @@
 # TASK-076: HUD v3 foundation – fonts, tokens, chamfered frame primitives, screen decoration
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`src/presentation/ui/`: `UiPalette`, `HudTheme`, new `HudShapes` / `FramedPanel`, new `ScreenDecor`), assets (fonts), docs (ADR, docs/design/README pointer), tests. Role: **presentation-engineer**.
 - **Depends on**: –  (soft: TASK-014 done – theme being replaced)
 - **Model**: sonnet
@@ -41,4 +41,11 @@ Any concrete HUD widget (TASK-077 … TASK-082); localisation changes (new strin
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `HudShapes` (`src/presentation/ui/hud_shapes.gd`, pure, tests in `test_hud_shapes.gd`): chamfer (+ `chamfer_inset`), hex badge, skewed segment, trapezoid, header tab, hatch (stripes clipped to the rect with `Geometry2D`), ruler ticks, corner brackets.
+- `UiPalette`: new tokens (`BG_APP`, `PANEL`, `PANEL_STRONG`, `LINE`, `AMBER`, `HUD_TEXT/MUTED/DESC`, `INK`, `DISABLED`, `NOTE_BG/TEXT`, `TRACK`, `TICK_GAP`, decor colours). Old constants kept; `TEXT`/`PANEL_BG` etc. were not renamed to avoid breaking the old widgets. HP colours already matched. Faction `.tres` colours and inks already equal the design samples (#5b93d6/#0f1a26, #d76a52/#2a110b), no data change (test added).
+- Fonts: Chakra Petch Regular/Medium/SemiBold/Bold and JetBrains Mono (variable, `wght` axis) + `OFL.txt` from google/fonts. `HudTheme.display(weight, spacing)` / `HudTheme.mono(weight, spacing)`; `HudTheme.font(file)` also resolves `ChakraPetch-*`. The default theme and old widgets still use IBM Plex (nothing visible changes).
+- Glyph gaps: Polish diacritics OK in all faces. Chakra Petch lacks `▸` and `↵` (`▸` is served by a JetBrains Mono fallback set in `HudTheme`); JetBrains Mono lacks `↵` -> `HudTheme.GLYPH_GAPS = ["↵"]`, draw it as a shape in the key-hint widget. `◆` and `■` are present.
+- Design font sizes of 10.5 px render at 11 px (Godot font sizes are integers).
+- `FramedPanel` (a `MarginContainer`: chamfers Vector4 tl/tr/br/bl, fill, tab text/colour/right text, brackets, padding), `HatchBar`, `Bracketed` (`[ text ]`). Not yet shown anywhere in the game: only unit-tested, first visual use is TASK-077+.
+- `ScreenDecor` (`ColorRect` + `assets/shaders/screen_decor.gdshader`, one analytic pass: vignette, scanlines, corner brackets), first child of the HUD root. `tools/screenshot.sh` renders with it; brackets and scanlines visible, no script errors.
+- ADR 0013; pointer in docs/design/README.md; ARCHITECTURE.md paragraph.

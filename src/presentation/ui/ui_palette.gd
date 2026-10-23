@@ -2,6 +2,29 @@ class_name UiPalette
 extends RefCounted
 ## HUD colours from docs/design/README.md – the single place for UI colours.
 
+# --- HUD v3 "tactical C2" tokens (docs/design/hud_v3/README.md "Design Tokens") ---
+# The older constants below stay until TASK-077 ... TASK-080 have moved the widgets over.
+const BG_APP := Color("#0a0c09")
+const PANEL := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.86)
+const PANEL_STRONG := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.93)
+const LINE := Color(232 / 255.0, 176 / 255.0, 74 / 255.0, 0.34)
+const AMBER := Color("#e8b04a")
+const HUD_TEXT := Color("#dfe5d6")
+const HUD_MUTED := Color("#8d9585")
+const HUD_DESC := Color("#b7bfae")
+## Text / fills on coloured (faction, amber) surfaces.
+const INK := Color("#0a0c09")
+const DISABLED := Color("#e07c5e")
+const NOTE_BG := Color(232 / 255.0, 176 / 255.0, 74 / 255.0, 0.10)
+const NOTE_TEXT := Color("#f0c66e")
+## Unfilled bar track / empty HP segment (muted at 15 % alpha) and stat bar tick gaps.
+const TRACK := Color(141 / 255.0, 149 / 255.0, 133 / 255.0, 0.15)
+const TICK_GAP := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.95)
+## Screen decoration (ScreenDecor): vignette edge, scanline darkening, bracket stroke.
+const VIGNETTE_EDGE := Color(0, 0, 0, 0.42)
+const SCANLINE := Color(0, 0, 0, 0.05)
+const SCREEN_BRACKET := LINE
+
 const BACKGROUND := Color("#11130f")
 const PANEL_BG := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.84)
 const PANEL_BG_STRONG := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.94)

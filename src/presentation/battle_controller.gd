@@ -432,6 +432,7 @@ func _build_hud_root() -> void:
 	_hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_root.theme = HudTheme.build()
 	$HUD.add_child(_hud_root)
+	_hud_root.add_child(ScreenDecor.new())  # above the 3D view, below every HUD panel
 	_hud = BattleHud.new()
 	_hud_root.add_child(_hud)
 	_hud.setup(HUMAN_PLAYER)

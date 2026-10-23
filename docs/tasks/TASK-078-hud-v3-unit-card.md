@@ -1,6 +1,6 @@
 # TASK-078: HUD v3 – unit card (hover popup)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`UnitPopup` rebuilt, `UnitPopupModel` extended), tests, docs. Role: **presentation-engineer**.
 - **Depends on**: **TASK-076** (soft: TASK-082 for the active-effect tags; the rank chip needs ranks – see Open questions)
 - **Model**: sonnet

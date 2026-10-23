@@ -49,6 +49,8 @@ Mesh kit (TASK-030, ADR 0012): `MeshKit` (`models/parts/mesh_kit.gd`, pure geome
 
 `ColorGrade` (`src/presentation/color_grade.gd`, pure static, TASK-051) is the muted/olive colour grade: `grade(c, params)` and `lut(size, params)` bake a 3D LUT (`cached_texture()`, built once); `GraphicsQuality.apply_environment` assigns it as `adjustment_color_correction` on HIGH (feature `color_grade`) and disables adjustments on LOW.
 
+HUD v3 building blocks (TASK-076, ADR 0013, `src/presentation/ui/`): `UiPalette` (tokens), `HudTheme` (`display(weight)` Chakra Petch, `mono(weight)` JetBrains Mono), `HudShapes` (pure chamfer / hex / tab / hatch / ruler geometry), `FramedPanel` (chamfered 1 px frame + header tab + brackets, a `MarginContainer`), `HatchBar`, `Bracketed`, and `ScreenDecor` (vignette + scanlines + corner brackets in one shader, first child of the HUD root).
+
 ## Terrain rendering
 
 `MapView` builds one continuous terrain mesh (heights from `TerrainSurface`, 4 vertices per world unit) plus the backdrop ring (`BackdropMesh`, TASK-052), both drawn with one `ShaderMaterial` on `assets/shaders/terrain.gdshader` (`TerrainGround.material`, TASK-055):
