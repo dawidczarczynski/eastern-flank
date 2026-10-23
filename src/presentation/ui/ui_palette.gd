@@ -20,6 +20,12 @@ const NOTE_TEXT := Color("#f0c66e")
 ## Unfilled bar track / empty HP segment (muted at 15 % alpha) and stat bar tick gaps.
 const TRACK := Color(141 / 255.0, 149 / 255.0, 133 / 255.0, 0.15)
 const TICK_GAP := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.95)
+## Outline of a spent unit in the ready counter.
+const READY_EMPTY := Color(141 / 255.0, 149 / 255.0, 133 / 255.0, 0.45)
+## Dark hatch on faction-coloured fills (end-turn button).
+const INK_HATCH := Color(10 / 255.0, 12 / 255.0, 9 / 255.0, 0.55)
+## Key hint panel.
+const PANEL_HINT := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.82)
 ## Screen decoration (ScreenDecor): vignette edge, scanline darkening, bracket stroke.
 const VIGNETTE_EDGE := Color(0, 0, 0, 0.42)
 const SCANLINE := Color(0, 0, 0, 0.05)

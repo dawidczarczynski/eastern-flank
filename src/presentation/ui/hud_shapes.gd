@@ -198,3 +198,23 @@ static func corner_bracket(
 					Vector2(-o, size.y + o - arm)
 				]
 			)
+
+
+## The "return" arrow (U+21B5) that no HUD font contains, as two open polylines in a `size` box:
+## the shaft (down from the top right, then left) and the arrowhead at its left end.
+static func enter_glyph(size: Vector2 = Vector2(9, 8)) -> Array[PackedVector2Array]:
+	var x_left := 0.5
+	var x_right := size.x - 0.5
+	var y_mid := size.y * 0.62
+	var head := minf(size.y * 0.3, x_right - x_left)
+	var shaft := PackedVector2Array(
+		[Vector2(x_right, 0.5), Vector2(x_right, y_mid), Vector2(x_left, y_mid)]
+	)
+	var arrow := PackedVector2Array(
+		[
+			Vector2(x_left + head, y_mid - head),
+			Vector2(x_left, y_mid),
+			Vector2(x_left + head, y_mid + head)
+		]
+	)
+	return [shaft, arrow]

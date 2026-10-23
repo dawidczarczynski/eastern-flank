@@ -134,3 +134,5 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 | `tests/` | Runner, `TestCase`, fixtures, `unit/` and `integration/` tests |
 | `tools/` | Scripts: tests, lint, running, Godot installation |
 | `docs/` | GDD, architecture, ADRs, tasks |
+
+HUD v3 turn bar and end-turn module (TASK-077, `BattleHud`): `TurnBarFrame` (trapezoid frame), `HexBadge`, `TickRuler`, `ReadyBlocks`, `KeyCap` (the Enter key is drawn with `HudShapes.enter_glyph`), `EndTurnButton` (a `Button` that draws itself). `HudModel` is unchanged; the HUD maps `active` to ACTIVE / WAITING.

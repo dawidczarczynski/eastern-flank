@@ -1,6 +1,6 @@
 # TASK-077: HUD v3 – turn bar, end-turn module, key hints
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`BattleHud` rewritten on TASK-076 primitives; `HudModel` extended), tests, docs (MANUAL controls, ARCHITECTURE if events/model change). Role: **presentation-engineer**.
 - **Depends on**: **TASK-076**
 - **Model**: sonnet
@@ -42,4 +42,10 @@ Turn banner / toast / targeting bar (TASK-080), unit and terrain cards (078, 079
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `BattleHud` rewritten on the v3 primitives (`src/presentation/ui/battle_hud.gd`). New widgets in `src/presentation/ui/`: `TurnBarFrame` (trapezoid frame), `HexBadge`, `TickRuler`, `ReadyBlocks`, `KeyCap`, `EndTurnButton`. `HudShapes.enter_glyph` draws the `↵` as two polylines (test added). `HudModel` unchanged (no new fields needed): the meta line maps `active` to ACTIVE / WAITING instead of the model's YOUR TURN / AI TURN status.
+- Active hatch: the `ActiveBar` (wide `HatchBar`) sits in a fixed 4 px slot and is only `visible` on the active side; inactive blocks fade to .6 with the existing .3 s tween (jumps when the HUD is not in a tree, e.g. in tests).
+- `EndTurnButton` is a `Button` with empty styleboxes that draws everything in `_draw()`; Button's native minimum size shadows the script virtual, so the size is set via `custom_minimum_size`. Hover x1.12 / pressed x0.9; disabled keeps the HUD's .5 modulate.
+- Key hints (bottom 92, right 24): LMB, RMB, WASD/QE, wheel, Ctrl+wheel/RF, Home, G, F5, Enter. Drag-pan is dropped from the hints (it was in the old string). No 1-6 order keys (TASK-082).
+- CSV: added ACTIVE and the key-hint keys (en + pl), `READY UNITS` now reads READY / GOTOWE, removed the old long hint and `MOVE: %s`. Tests: `tests/unit/test_battle_hud.gd`.
+- Design sizes: 10.5 px text renders at 10 px; the `▸` comes from the JetBrains Mono fallback and looks small at 10 px.
+- The old top shade gradient and the old banner are kept (banner is TASK-080).

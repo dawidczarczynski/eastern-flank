@@ -148,3 +148,13 @@ func test_corner_bracket_arms() -> void:
 	assert_eq(tl, PackedVector2Array([Vector2(-1, 8), Vector2(-1, -1), Vector2(8, -1)]))
 	var br := HudShapes.corner_bracket(2, Vector2(100, 60), 9.0)
 	assert_eq(br, PackedVector2Array([Vector2(100, 51), Vector2(100, 60), Vector2(91, 60)]))
+
+
+func test_enter_glyph_stays_inside_its_box() -> void:
+	var size := Vector2(9, 8)
+	var lines := HudShapes.enter_glyph(size)
+	assert_eq(lines.size(), 2)
+	for line in lines:
+		assert_eq(line.size(), 3)
+		for p in line:
+			assert_true(Rect2(Vector2.ZERO, size).grow(0.01).has_point(p), "point %s" % str(p))

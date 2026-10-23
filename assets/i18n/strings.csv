@@ -1,5 +1,4 @@
 keys,en,pl
-LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn · F5 – save match,LMB – select/move/attack · drag – pan · RMB – rotate/deselect · wheel – zoom · WASD/QE – camera · Enter – end turn · F5 – save match,LPM – wybór/ruch/atak · przeciągnij – przesuń · PPM – obrót/odznacz · kółko – zoom · WASD/QE – kamera · Enter – koniec tury · F5 – zapisz mecz
 Mechanised Infantry Squad,Mechanised Infantry Squad,Drużyna piechoty zmechanizowanej
 Motor Rifle Squad,Motor Rifle Squad,Drużyna zmotoryzowana
 INF,INF,PIECH
@@ -9,13 +8,28 @@ CLASS_TANK,Tank,Czołg
 CLASS_MLRS,Rocket Artillery,Artyleria rakietowa
 ART,ART,ART
 TURN,TURN,TURA
-MOVE: %s,MOVE: %s,RUCH: %s
 YOUR TURN,YOUR TURN,TWOJA TURA
 AI TURN,AI TURN,TURA SI
 WAITING,WAITING,OCZEKUJE
 %d UNITS,%d UNITS,%d JEDN.
-READY UNITS,READY UNITS,GOTOWE JEDNOSTKI
+READY UNITS,READY,GOTOWE
 End turn,End turn,Zakończ turę
+ACTIVE,ACTIVE,AKTYWNA
+LMB,LMB,LPM
+RMB,RMB,PPM
+WHEEL,WHEEL,KÓŁKO
+CTRL+WHEEL/RF,CTRL+WHEEL/RF,CTRL+KÓŁKO/RF
+SELECT / MOVE / ATTACK,SELECT / MOVE / ATTACK,WYBÓR / RUCH / ATAK
+ROTATE / DESELECT,ROTATE / DESELECT,OBRÓT / ODZNACZ
+CAMERA,CAMERA,KAMERA
+ZOOM,ZOOM,ZOOM
+LMB DRAG,LMB DRAG,LPM + RUCH
+PAN,PAN,PRZESUŃ
+TILT,TILT,POCHYLENIE
+RESET VIEW,RESET VIEW,RESET WIDOKU
+GRID,GRID,SIATKA
+SAVE MATCH,SAVE MATCH,ZAPIS MECZU
+END TURN,END TURN,KONIEC TURY
 VICTORY,VICTORY,ZWYCIĘSTWO
 DEFEAT,DEFEAT,PORAŻKA
 Poland,Poland,Polska
