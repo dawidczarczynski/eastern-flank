@@ -46,11 +46,14 @@ Plains,Plains,Równina
 Forest,Forest,Las
 Hills,Hills,Wzgórza
 Water,Water,Akwen
-STRENGTH,STRENGTH,SIŁA JEDNOSTKI
+STRENGTH,STRENGTH,SIŁA
 Attack,Attack,Atak
 Defense,Defense,Obrona
 Moves,Moves,Punkty ruchu
 Range,Range,Zasięg (heks)
+Foot,Foot,Pieszo
+Wheeled,Wheeled,Kołowy
+Tracked,Tracked,Gąsienicowy
 Enemy unit,Enemy unit,Jednostka przeciwnika
 Done this turn,Done this turn,Wykonała ruch w tej turze
 Ready,Ready,Gotowa do działania

@@ -135,14 +135,54 @@ func test_enemy_status() -> void:
 
 func test_placement() -> void:
 	assert_eq(UnitPopupModel.placement(Vector2(100, 300), VIEWPORT, CARD), Vector2(124, 220))
+	# Flipped to x - 344 on overflow.
 	assert_eq(UnitPopupModel.placement(Vector2(1100, 300), VIEWPORT, CARD), Vector2(756, 220))
-	assert_eq(UnitPopupModel.placement(Vector2(10, 50), VIEWPORT, CARD), Vector2(34, 96))
+	# y is clamped to the top limit (110) and to the viewport bottom.
+	assert_eq(UnitPopupModel.placement(Vector2(10, 50), VIEWPORT, CARD), Vector2(34, 110))
 	assert_eq(UnitPopupModel.placement(Vector2(600, 700), VIEWPORT, CARD), Vector2(624, 374))
 
 
 func test_placement_clamps_left_and_tall_card() -> void:
 	assert_eq(UnitPopupModel.placement(Vector2(1275, 300), VIEWPORT, CARD).x, 931.0)
-	assert_eq(UnitPopupModel.placement(Vector2(300, 300), Vector2(1280, 400), CARD).y, 96.0)
+	assert_eq(UnitPopupModel.placement(Vector2(300, 300), Vector2(1280, 400), CARD).y, 110.0)
+
+
+func test_designation_tags_and_defaults() -> void:
+	var state := _state()
+	var squad := state.add_unit(0, _infantry, Vector2i.ZERO)
+	var abrams := state.add_unit(0, _abrams, Vector2i(0, 1))
+	var t72 := state.add_unit(
+		1, load("res://data/units/t72b3.tres") as UnitDefinition, Vector2i(1, 0)
+	)
+	var m := UnitPopupModel.build(state, squad, 0)
+	assert_eq(m["designation"], "", "squads have no designation")
+	assert_eq(m["tags"], ["Foot"] as Array[String])
+	assert_eq(m["effects"], [] as Array[String], "no order effects by default")
+	assert_eq(m["note"], "")
+	m = UnitPopupModel.build(state, abrams, 0)
+	assert_eq(m["designation"], "M1A2")
+	assert_eq(m["tags"], ["Tracked"] as Array[String])
+	assert_eq(UnitPopupModel.build(state, t72, 0)["designation"], "", "same as the name: hidden")
+
+
+func test_effects_are_appended_to_tags() -> void:
+	var state := _state()
+	var unit := state.add_unit(0, _abrams, Vector2i.ZERO)
+	var effects: Array[String] = ["Dug in", "Camouflaged"]
+	var m := UnitPopupModel.build(state, unit, 0, effects)
+	assert_eq(m["effects"], effects)
+	assert_eq(m["tags"], ["Tracked", "Dug in", "Camouflaged"] as Array[String])
+
+
+func test_segments_count_is_max_hp() -> void:
+	var state := _state()
+	var coord := 0
+	for definition: UnitDefinition in [_infantry, _abrams, _tank]:
+		var unit := state.add_unit(0, definition, Vector2i(coord, 0))
+		coord += 1
+		unit.hp = 1
+		var segments: Array[Color] = UnitPopupModel.build(state, unit, 0)["segments"]
+		assert_eq(segments.size(), definition.max_hp)
 
 
 func _csv_keys() -> Dictionary:

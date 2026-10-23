@@ -12,14 +12,19 @@ const _FLIP_OFFSET_X := 344.0
 const _FLIP_MARGIN := 330.0
 const _EDGE := 8.0
 const _OFFSET_Y := 80.0
-const _TOP := 96.0
+const _TOP := 110.0
 const _BOTTOM := 16.0
 
 
-## Keys: type (class label key, e.g. CLASS_TANK), faction, color, name (display_name), hp,
-## max_hp, segments (Array[Color]), stats (Array of {label, value: String, fill: float}),
-## status, status_color.
-static func build(state: GameState, unit: Unit, viewer_player: int) -> Dictionary:
+## Keys: type (class label key, e.g. CLASS_TANK), faction, color, name (display_name),
+## designation (short real designation, "" when absent or equal to the name), hp, max_hp,
+## segments (Array[Color], one per max HP), stats (Array of {label, value: String, fill: float}),
+## tags (Array[String]: mobility, then `effects`), effects (Array[String], the active order
+## effects passed in; empty until the order system exists), note ("" = none), status,
+## status_color. All texts are translation keys.
+static func build(
+	state: GameState, unit: Unit, viewer_player: int, effects: Array[String] = []
+) -> Dictionary:
 	var definition := unit.definition
 	var max_hp := definition.max_hp
 	var fill_color := UiPalette.hp_color(unit.hp, max_hp)
@@ -41,18 +46,32 @@ static func build(state: GameState, unit: Unit, viewer_player: int) -> Dictionar
 	]
 	var status := _status(state, unit, viewer_player)
 	var faction_color := UiPalette.faction_color(state, unit.owner_id)
+	var tags: Array[String] = [String(definition.mobility).capitalize()]
+	tags.append_array(effects)
 	return {
 		"type": "CLASS_%s" % String(definition.unit_class).to_upper(),
 		"faction": UiPalette.faction_name(state, unit.owner_id),
 		"color": faction_color,
 		"name": definition.display_name,
+		"designation": _designation(definition),
 		"hp": unit.hp,
 		"max_hp": max_hp,
 		"segments": segments,
+		"tags": tags,
+		"effects": effects,
+		"note": "",
 		"stats": stats,
 		"status": status[0],
 		"status_color": status[1],
 	}
+
+
+## The unit's real designation for the line under the name: the label above the unit, unless it
+## is only a class abbreviation (squads) or repeats the name (T-72B3).
+static func _designation(definition: UnitDefinition) -> String:
+	if definition.unit_class == &"infantry" or definition.short_name == definition.display_name:
+		return ""
+	return definition.short_name
 
 
 ## Top-left of the card for the cursor `mouse`, a `viewport` of the given size and a `card`

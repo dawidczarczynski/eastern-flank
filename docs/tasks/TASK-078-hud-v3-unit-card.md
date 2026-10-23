@@ -1,6 +1,6 @@
 # TASK-078: HUD v3 – unit card (hover popup)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`UnitPopup` rebuilt, `UnitPopupModel` extended), tests, docs. Role: **presentation-engineer**.
 - **Depends on**: **TASK-076** (soft: TASK-082 for the active-effect tags; the rank chip needs ranks – see Open questions)
 - **Model**: sonnet
@@ -18,9 +18,9 @@ The hover card gets the handoff look (README section 02): chamfered frame, facti
 
 ## Acceptance criteria (testable)
 
-- [ ] `UnitPopupModel` tests: designation, tags, effects array (empty by default), segments count = max HP, placement flip/clamp numbers.
-- [ ] Scene test: card builds for each unit class headless, size stays ≤ 620 px tall with 8 tags and a note.
-- [ ] No raw translation keys in en/pl; `tools/check.sh` passes; `tools/screenshot.sh` + README screenshot re-rendered and checked.
+- [x] `UnitPopupModel` tests: designation, tags, effects array (empty by default), segments count = max HP, placement flip/clamp numbers.
+- [x] Scene test: card builds for each unit class headless, size stays ≤ 620 px tall with 8 tags and a note.
+- [x] No raw translation keys in en/pl; `tools/check.sh` passes; `tools/screenshot.sh` + README screenshot re-rendered and checked.
 
 ## Playtest (for the human)
 
@@ -41,4 +41,8 @@ Rank system, order effects (TASK-081).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `UnitPopup` rebuilt on `FramedPanel` (tab row, name + designation, crosshair portrait, HP segments, bar stats, bracket tags, note, status footer). `UnitPopupModel.build` gained `designation` (`short_name`, hidden for infantry / when equal to the name), `tags` (mobility + `effects`), `effects` (empty until TASK-081) and `note` (always empty for now).
+- Placement clamps y to [110, H − card height − 16] instead of the fixed H − 620 (better on small viewports).
+- Rank chip omitted (no ranks). `UnitPopup.suppressed` exists but has no caller until TASK-082.
+- New i18n keys `Foot`, `Wheeled`, `Tracked`; pl `STRENGTH` is now "SIŁA".
+- Only the infantry card was rendered by the agent/me (`SCREENSHOT_HOVER_UNIT=1 tools/screenshot.sh`); other classes, enemy colours and the pixel comparison with the HTML card are for the human.

@@ -474,7 +474,7 @@ func _update_unit_popup() -> void:
 		and not _is_playing_events()
 	):
 		unit = state.unit_at(_hovered_hex)
-	if unit == null or not unit.is_alive():
+	if unit == null or not unit.is_alive() or _unit_popup.suppressed:
 		_popup_unit_id = -1
 		_unit_popup.hide()
 		return
