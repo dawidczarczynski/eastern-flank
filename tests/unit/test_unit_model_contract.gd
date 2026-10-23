@@ -24,7 +24,7 @@ const CURRENT_SCALE := 1.3
 const MAX_LENGTH := 1.15
 const MAX_WIDTH := 0.8
 const MAX_TRIANGLES_VEHICLE := 40000
-const MAX_TRIANGLES_SQUAD := 20000
+const MAX_TRIANGLES_SQUAD := 40000
 const MAX_BODY_MESH_INSTANCES := 24
 ## Cold build (empty mesh cache) of one model, in ms: the real cost of detail is GDScript mesh
 ## generation when a unit type first appears, not the GPU (ADR 0010).

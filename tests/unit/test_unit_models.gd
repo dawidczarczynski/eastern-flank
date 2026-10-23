@@ -1,7 +1,9 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
 const CAMO_SHADER := "res://assets/shaders/camo.gdshader"
+const Soldier := preload("res://src/presentation/models/parts/soldier.gd")
 
 
 func _bounds(node: Node3D, to_root: Transform3D) -> AABB:
@@ -182,15 +184,60 @@ func test_tank_hull_uses_faction_camo_shader() -> void:
 
 func test_infantry_torso_uses_fine_uniform_camo() -> void:
 	var model := UnitModels.build(&"pl_mech_infantry", 1, _faction(1))
-	var mats: Array[ShaderMaterial] = []
+	var patterned := 0
+	var plain := 0
 	for instance in _all_meshes(model):
-		if instance.material_override is ShaderMaterial:
-			mats.append(instance.material_override)
-	assert_true(not mats.is_empty(), "uniform parts should use camo")
-	for m in mats:
-		assert_eq(m.get_shader_parameter(&"pattern_scale"), 70.0)
+		var m := instance.material_override as ShaderMaterial
+		if m == null:
+			continue
+		if m.get_shader_parameter(&"color_a") == m.get_shader_parameter(&"color_b"):
+			plain += 1  # weathered one-colour gear paint (boots, gloves, straps)
+			continue
+		patterned += 1
+		assert_eq(m.get_shader_parameter(&"pattern_scale"), ModelParts.CAMO_UNIFORM["scale"])
 		assert_eq(m.get_shader_parameter(&"color_a"), _faction(1).camo[0])
+	assert_true(patterned > 0, "uniform parts should use camo")
+	assert_true(plain > 0, "boots and gloves should use the weathered gear paint")
 	model.free()
+
+
+## TASK-067: the soldiers' bodies are smooth MeshKit meshes (swept limbs and torso, pillows), not
+## merged box / cylinder primitives.
+func test_soldier_bodies_are_smooth_kit_meshes() -> void:
+	for id in [&"pl_mech_infantry", &"ru_motor_rifle"]:
+		var faction := _faction(0)
+		var mats := Soldier.materials(faction)
+		var model := UnitModels.build(id, 0, faction)
+		var body_meshes := 0
+		for instance in _all_meshes(model):
+			assert_false(instance.mesh is PrimitiveMesh, "%s: %s" % [id, instance.mesh])
+			var role: Variant = mats.find_key(instance.material_override)
+			if role == null or not role in Soldier.BODY_ROLES:
+				continue
+			body_meshes += 1
+			var mesh := instance.mesh as ArrayMesh
+			assert_true(mesh != null, "%s %s is an ArrayMesh" % [id, role])
+			var arrays := mesh.surface_get_arrays(0)
+			assert_true(arrays[Mesh.ARRAY_INDEX] == null, "%s %s: written by MeshKit" % [id, role])
+			assert_false((arrays[Mesh.ARRAY_COLOR] as PackedColorArray).is_empty())
+			if role != &"dark":
+				var smooth := _smooth_fraction(arrays)
+				assert_true(smooth > 0.7, "%s %s smooth vertices: %.2f" % [id, role, smooth])
+		assert_true(body_meshes >= 15, "%s: body meshes %d" % [id, body_meshes])
+		model.free()
+
+
+## Share of vertices (non-indexed triangles) whose normal differs from the face normal by > 2°.
+func _smooth_fraction(arrays: Array) -> float:
+	var verts := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var normals := arrays[Mesh.ARRAY_NORMAL] as PackedVector3Array
+	var smooth := 0
+	for t in range(0, verts.size(), 3):
+		var face := (verts[t + 2] - verts[t]).cross(verts[t + 1] - verts[t]).normalized()
+		for i in 3:
+			if absf(face.dot(normals[t + i])) < cos(deg_to_rad(2.0)):
+				smooth += 1
+	return float(smooth) / verts.size()
 
 
 func test_camo_materials_shared_per_faction_and_preset() -> void:
@@ -270,16 +317,18 @@ func test_hit_reset_works_on_camo_surfaces() -> void:
 	var flash := UnitView._get_flash_material()
 	view._set_overlay(flash)
 	var camo_surfaces := 0
+	var before: Array[Material] = []
 	for instance in view._meshes:
 		assert_true(instance.material_overlay == flash)
+		before.append(instance.material_override)
 		if instance.material_override is ShaderMaterial:
 			camo_surfaces += 1
 	assert_true(camo_surfaces > 0)
 	view._reset_hit()
-	for instance in view._meshes:
+	for i in view._meshes.size():
+		var instance: MeshInstance3D = view._meshes[i]
 		assert_true(instance.material_overlay == null)
-		if instance.material_override is ShaderMaterial:
-			assert_eq(instance.material_override.get_shader_parameter(&"pattern_scale"), 70.0)
+		assert_true(instance.material_override == before[i], "camo kept after the hit reset")
 	view.free()
 	hud.free()
 

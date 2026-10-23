@@ -30,7 +30,7 @@ const ACCENT_METALLIC := 0.1
 ## Camo presets: pattern scale, mud height, base roughness, metallic.
 const CAMO_VEHICLE := {"scale": 9.0, "dirt": 0.12, "rough": 0.8, "metal": 0.12}
 const CAMO_TRUCK := {"scale": 9.0, "dirt": 0.11, "rough": 0.8, "metal": 0.12}
-const CAMO_UNIFORM := {"scale": 70.0, "dirt": 0.03, "rough": 0.95, "metal": 0.0}
+const CAMO_UNIFORM := {"scale": 80.0, "dirt": 0.015, "rough": 0.95, "metal": 0.0}
 ## Shader pattern mode (0 = blotches, 1 = digital). Not per faction yet: change the
 ## `pattern_mode` uniform of a camo material to switch.
 const PATTERN_BLOTCHES := 0
@@ -158,6 +158,24 @@ static func _build_camo(faction: FactionDefinition, preset: Dictionary) -> Shade
 ## Plain PBR material from a palette entry ([colour, roughness, metallic]).
 static func pbr(spec: Array) -> StandardMaterial3D:
 	return std_material(spec[0], spec[1], spec[2])
+
+
+## Plain weathered paint (one colour, the camo shader's wear, cavity, tint, dust and mud from the
+## MeshKit vertex masks) cached by `key`: `values` = {"color": Color, <camo shader uniform>: value}.
+## Not faction dependent (vehicle steel / track parts, soldiers' boots and gloves).
+static func weathered_paint(key: String, values: Dictionary) -> ShaderMaterial:
+	var cache_key := "weathered:%s" % key
+	if not _materials.has(cache_key):
+		var m := ShaderMaterial.new()
+		m.shader = CAMO_SHADER
+		for name: String in values:
+			if name == "color":
+				for slot: StringName in [&"color_a", &"color_b", &"color_c"]:
+					m.set_shader_parameter(slot, values[name])
+			else:
+				m.set_shader_parameter(StringName(name), values[name])
+		_materials[cache_key] = m
+	return _materials[cache_key]
 
 
 ## Faction accent colour material (plates, bands).

@@ -1,10 +1,11 @@
 # Russian motor rifle squad (Ratnik kit) – model blueprint
 
 Model: `src/presentation/models/ru_motor_rifle.gd` (squad kind: `Soldier0..4`, each with a
-`Rig`; kneelers have `Kneel` + hidden `Stand`, see `UnitModels.pose_infantry`). The skeleton
-(squad pivots, legs, hips, torso, head, arms with the accent sleeve patch, RPG-7, helpers) is the
-shared `src/presentation/models/parts/soldier.gd`, also used by `pl_mech_infantry`; this file adds
-the Ratnik kit through the `dress` hook. References: `side_1.jpg` (kneeling RPK-74 gunner – helmet
+`Rig`; kneelers have `Kneel` + hidden `Stand`, see `UnitModels.pose_infantry`). The soldier
+(squad pivots, smooth MeshKit body – swept legs, torso and arms, deltoids, head, gloves, boots,
+knee pads, thigh pockets, the accent sleeve patch –, RPG-7, helmet and weapon helpers) is the
+shared `src/presentation/models/parts/soldier.gd` (TASK-067), also used by `pl_mech_infantry`;
+this file adds the Ratnik kit through the `dress(k: MeshKits, up, kit, kneel, carry)` hook. References: `side_1.jpg` (kneeling RPK-74 gunner – helmet
 shape, 6B45 front, AK profile with the curved magazine, bipod), `front_1.jpg` (AK-74M at the
 shoulder, 6B45 with front pouches and groin flap), `three_quarter_1.jpg` (6B47 helmet, collar).
 
@@ -40,27 +41,29 @@ two squads also differ in their group silhouette.
 
 ## Parts of one soldier (metres)
 
-Shared (`parts/soldier.gd`): legs (hip 0.92, knee 0.50, ankle 0.12; kneeling hip 0.55), boots
-0.27 × 0.11 × 0.10, hips 0.24 × 0.18 × 0.34, torso 0.22 × 0.42 × 0.38, shoulder balls r 0.075,
-neck, head r 0.10 at y 1.60, arms to the weapon's grips, gloves, accent sleeve patch.
+Shared body: see the Polish blueprint (`pl_mech_infantry/blueprint.md`) – legs hip 0.92, knee
+0.50, ankle 0.12 (kneeling hip 0.55) as smooth sweeps, boots with soles on y = 0, torso sweep,
+deltoids, head 0.19 × 0.23 × 0.16 at y 1.625, arms to the weapon's grips, gloves, sleeve patch.
 
 | Part | Size / position | Material | Built with |
 |---|---|---|---|
-| 6B47 helmet | lathe, crown base at y 1.63: r 0.168 at the base, full cut curving in through r 0.158 at −0.07 to r 0.145 at the rim (−0.075), no flared brim, dome 0.19 high; tilted 0.08 rad back – rounder and deeper than the wz. 2005 | uniform camo (EMR cover) | `Soldier.helmet` (lathe, 16 segments) |
-| 6B45 armour | 0.36 × 0.40 × 0.42 at (0.02, 1.21), top at 1.41 just under the shoulders – 4 cm deeper and 2 cm wider than the Polish carrier | vest | box |
-| High collar | tapered ring r 0.14 → 0.12 from y 1.37 to 1.53 around the neck (1 cm back), standing 12 cm above the armour | vest | rod (10 sides) |
-| Front pouches (MOLLE) | three magazine pouches 0.08 × 0.15 × 0.10 at x 0.22, y 1.14, z −0.12 / 0 / 0.12 | vest | boxes |
-| Cummerbund / belt | 0.32 × 0.08 × 0.42 at y 0.99 | vest | box |
-| Groin protector | 0.05 × 0.16 × 0.20 at (0.15, 0.89) | vest | box |
-| AK-74M | 0.94 m, butt in the right shoulder at `Soldier.RIFLE_BUTT` (0.12, 1.34, 0.11), muzzle 0.4 rad down (kneeler 0.2): stock prism with the AK drop, receiver 0.30, lower handguard, **gas tube over the barrel**, front-sight block, muzzle brake, **curved magazine** (prism banana outline), pistol grip | GUN | `prism_mesh`, boxes, rods |
-| GP-30 | 40 mm tube r 0.024 × 0.26 under the handguard + trigger housing (leader, rifleman) | GUN | rod, box |
-| RPK-74M | AK profile with a 0.2 m longer barrel (1.06 m), longer 45-round curved magazine, bipod hinged at the muzzle brake (1.15 m from the butt; legs splayed 0.3 m down when kneeling, folded back under the barrel standing); aimed 0.08 rad down (standing variant 0.35) | GUN | same builder with `rpk = true` |
-| RPG-7V | shared `Soldier.rpg7`: tube 1.0 m with heat shield and venturi, **conical PG-7 warhead**, grips, sight; on the right shoulder (`Soldier.rpg7_shoulder`: (0.02, 1.49, 0.16), 0.04 rad up) of a standing gunner | GUN tube, vest (olive) warhead | two lathes, boxes |
-| Rocket carrier | 0.16 × 0.34 × 0.30 at (−0.27, 1.22) on the assistant, three PG-7 warheads standing out of it (tops at y ~1.7) | uniform camo bag, vest (olive) warheads | box, `Soldier.pg7_profile` lathes |
+| 6B47 helmet | lathe (18 sides), crown base at y 1.63: r 0.168 at the base, full cut curving in through r 0.158 at −0.07 to r 0.145 at the rim (−0.075), no flared brim, dome 0.19 high; tilted 0.08 rad back; mounting band, chin strap | uniform camo (EMR cover), gear paint | `lathe`, `tube` |
+| 6B45 armour | front section 0.10 × 0.38 × 0.36 at (0.12, 1.24), back 0.09 × 0.40 × 0.36 at (−0.125, 1.26) – thicker and wider than the Polish carrier; cummerbund sweep r 0.205 × 0.145 (y 1.03–1.17); padded shoulder straps r 0.028 | vest | `pillow`, `sweep`, `tube` |
+| High collar | lathe ring r 0.088 inside / 0.135 outside, 0.13 high from y 1.39, tilted back 0.15 rad (higher at the back) | vest | `lathe` |
+| Groin flap | 0.05 × 0.17 × 0.20 at (0.15, 0.89) | vest | `pillow` |
+| MOLLE pouches | three magazine pouches 0.07 × 0.15 × 0.09 with flaps at x 0.2, y 1.13, z −0.11 / 0 / 0.11; side pouch on the right | vest | `cbox`, `pillow` |
+| Belt | sweep r 0.178 × 0.122 at y 0.95–0.99 | gear paint | `sweep` |
+| AK-74M | 0.95 m, butt in the right shoulder at `Soldier.RIFLE_BUTT` (0.12, 1.34, 0.11), muzzle 0.4 rad down (kneeler 0.2): stock plate with the AK drop (3.5 cm thick), receiver 0.30, lower handguard, **gas tube** rod over the barrel, front-sight block, round barrel with muzzle brake, **curved magazine** (banana outline plate), pistol grip, sling | GUN, gear paint (sling) | `plate`, `cbox`, `rod`, `lathe`, `tube` |
+| GP-30 | 40 mm tube r 0.024 × 0.26 under the handguard + trigger housing (leader, rifleman) | GUN | `rod`, `cbox` |
+| RPK-74M | AK profile with a 0.2 m longer barrel, longer 45-round curved magazine, bipod hinged at the muzzle (legs splayed 0.3 m down when kneeling, folded back standing); aimed 0.08 rad down (standing variant 0.35) | GUN | same builder with `rpk = true`, `tube` legs |
+| RPG-7V | shared `Soldier.rpg7`: tube with heat shield and venturi, **conical PG-7 warhead**, grips, sight; on the right shoulder of a standing gunner | GUN tube, vest (olive) warhead | `lathe`, `cbox` |
+| Rocket carrier | bag 0.16 × 0.34 × 0.30 at (−0.27, 1.22) on the assistant with two shoulder straps, three PG-7 warheads standing out of it (tops at y ~1.7) | uniform camo bag, vest (olive) warheads, gear straps | `pillow`, `Soldier.pg7` lathes, `tube` |
 
-Each soldier variant (kit × kneeling) is one merged mesh per material (uniform, vest, skin, dark,
-gun, accent), cached by `ru_motor_rifle:<kit>:<kneel>:<material>`; no meshes outside the
-`Soldier*` pivots.
+Materials as in the Polish squad (uniform camo pattern scale 80, gear paint with mud on boots and
+the kneeling knee). Each soldier variant (kit × carry × kneeling) is generated once
+(`ModelParts.cached_meshes`, key `ru_motor_rifle:<kit>:<carry>:<kneel>`) and added as one mesh
+instance per material; no meshes outside the `Soldier*` pivots. Squad: ~27 700 triangles (7
+figures incl. the 2 hidden `Stand` variants).
 
 ## Silhouette features
 
@@ -76,4 +79,4 @@ gun, accent), cached by `ru_motor_rifle:<kit>:<kneel>:<material>`; no meshes out
 
 Details: RPK-74M (the catalog photo's gun) on the kneeling gunner. Skipped per the catalog:
 radios and antennas, patches / armbands (the shared accent sleeve patch is the faction marker),
-small pouches; also goggles, knee / elbow pads, slings, face, fingers.
+small pouches; also goggles, elbow pads, face, fingers (knee pads and slings came with TASK-067).

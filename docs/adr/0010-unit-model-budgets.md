@@ -14,6 +14,7 @@ TASK-036 set the model contract budgets (≤ 25 000 triangles per vehicle, ≤ 2
 ## Decision
 
 - Vehicles: **≤ 40 000 triangles** (was 25 000). Squads stay at ≤ 20 000, body mesh instances at ≤ 24.
+  - Amended by TASK-067 (infantry v3, smooth MeshKit soldiers): squads **≤ 40 000 triangles**, counting the hidden `Stand` variants of the kneelers (7 figures per squad).
 - New check: a model's **cold build** (empty `ModelParts` mesh cache, `ModelParts.clear_mesh_cache()`) takes **≤ 500 ms** (`test_unit_model_contract.gd`, `MAX_BUILD_MSEC`).
 - Modelling rule (unit-modeler): spend triangles where the camera sees them; parts hidden behind skirts, wheels or the hull get the simplest shape.
 

@@ -28,8 +28,6 @@ const WEATHERED := {
 	},
 }
 
-static var _weathered: Dictionary = {}  # role -> ShaderMaterial
-
 var k: float
 var origin_x: float
 
@@ -189,18 +187,7 @@ static func kit_tank_materials(faction: FactionDefinition) -> Dictionary:
 
 ## The shared weathered paint of `role` (a key of WEATHERED).
 static func weathered(role: StringName) -> ShaderMaterial:
-	if not _weathered.has(role):
-		var values: Dictionary = WEATHERED[role]
-		var m := ShaderMaterial.new()
-		m.shader = ModelParts.CAMO_SHADER
-		for key: String in values:
-			if key == "color":
-				for slot: StringName in [&"color_a", &"color_b", &"color_c"]:
-					m.set_shader_parameter(slot, values[key])
-			else:
-				m.set_shader_parameter(StringName(key), values[key])
-		_weathered[role] = m
-	return _weathered[role]
+	return ModelParts.weathered_paint("vehicle:%s" % role, WEATHERED[role])
 
 
 ## "Turret" pivot on the model root at the turret ring (x, h); turns about its local Y.
