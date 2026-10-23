@@ -64,8 +64,9 @@ func test_instance_size_follows_tree_scale() -> void:
 	field.free()
 
 
-func _expected_shadow(species: StringName) -> GeometryInstance3D.ShadowCastingSetting:
-	if species == TreeField.UNDERGROWTH:
+func _expected_shadow(node: MultiMeshInstance3D) -> GeometryInstance3D.ShadowCastingSetting:
+	var species: StringName = node.get_meta(&"species")
+	if species in TreeField.NO_SHADOW_SPECIES or node.get_meta(&"backdrop"):
 		return GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
@@ -81,17 +82,17 @@ func test_lod_ranges_fade_and_shadows() -> void:
 		assert_eq(node.visibility_range_end_margin, TreeField.lod_margin(species))
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
-		assert_eq(node.cast_shadow, _expected_shadow(species))
+		assert_eq(node.cast_shadow, _expected_shadow(node))
 	for node in trees.lod1_nodes():
 		var species: StringName = node.get_meta(&"species")
 		assert_eq(node.visibility_range_begin, TreeField.lod_distance(species))
 		assert_eq(node.visibility_range_begin_margin, TreeField.lod_margin(species))
 		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
-		assert_eq(node.cast_shadow, _expected_shadow(species))
+		assert_eq(node.cast_shadow, _expected_shadow(node))
 	for node in trees.far_nodes():
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_end, 0.0)
-		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "backdrop")
 
 
 func test_chunk_origins_and_instances_inside_the_chunk() -> void:

@@ -19,6 +19,11 @@ uniform float solid_luminance = 0.8;
 // Model-space reference height (TreeMeshes.TREE_HEIGHT): the sway grows with y / tree_height.
 uniform float tree_height = 0.3;
 uniform float backlight_strength = 0.35;
+// Wind only moves trees near the camera: full strength up to wind_distance - wind_fade, none from
+// wind_distance on (the sway is a fraction of a tile, invisible from afar). The solid LOD1 crowns
+// skip it altogether.
+uniform float wind_distance = 24.0;
+uniform float wind_fade = 8.0;
 
 varying vec3 tint;
 varying float ao;
@@ -49,11 +54,15 @@ void vertex() {
 	tint = hsv_to_rgb(hsv);
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float h = clamp(VERTEX.y / tree_height, 0.0, 1.2);
-	vec3 offset = wind_offset(origin, h, INSTANCE_CUSTOM.a * 6.2831853);
+	float wind_mask = 0.0;
 	if (!solid_crown) {
-		offset += wind_flutter(origin, COLOR.g + INSTANCE_CUSTOM.a) * leaf;
+		wind_mask = clamp((wind_distance - distance(origin, CAMERA_POSITION_WORLD)) / wind_fade, 0.0, 1.0);
 	}
-	VERTEX += inverse(mat3(MODEL_MATRIX)) * offset;
+	if (wind_mask > 0.0) {
+		vec3 offset = wind_offset(origin, h, INSTANCE_CUSTOM.a * 6.2831853);
+		offset += wind_flutter(origin, COLOR.g + INSTANCE_CUSTOM.a) * leaf;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * offset * wind_mask;
+	}
 }
 
 float hash12(vec2 p) {

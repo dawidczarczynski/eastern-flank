@@ -162,7 +162,8 @@ func test_foliage_is_built_by_default() -> void:
 func test_scrub_is_drawn_by_the_tree_field_and_undergrowth_casts_no_shadow() -> void:
 	var species := {}
 	for node in _view.trees().lod0_nodes():
-		species[node.name] = node.cast_shadow
+		if not node.get_meta(&"backdrop"):
+			species[node.name] = node.cast_shadow
 	for key: String in species:
 		if "undergrowth" in key:
 			assert_eq(species[key], GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)

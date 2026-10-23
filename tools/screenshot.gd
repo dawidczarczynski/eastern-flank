@@ -103,9 +103,22 @@ func _measure_frame() -> void:
 			% [total / 1000.0 / _measure_samples.size(), worst / 1000.0, _measure_samples.size()]
 		)
 	)
+	print(
+		(
+			"Render: %d draws, %d k tris"
+			% [
+				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+				Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000,
+			]
+		)
+	)
 
 
 func _capture() -> void:
+	# The FPS readout is a dev aid; keep it out of screenshots (it shows zeros without a frame loop).
+	var fps := _battle.find_child("FpsCounter", true, false) as Control
+	if fps != null:
+		fps.visible = false
 	# Wait until the current frame has really been drawn, otherwise the texture may be stale.
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()

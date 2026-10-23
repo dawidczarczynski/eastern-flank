@@ -413,6 +413,7 @@ func _build_hud_root() -> void:
 	_hud_root.add_child(_hud)
 	_hud.setup(HUMAN_PLAYER)
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	_hud_root.add_child(FpsCounter.new())
 
 
 ## Bottom-left stack (VBox, bottom-anchored) holding the terrain panel, plus the unit hover

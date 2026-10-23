@@ -27,6 +27,10 @@ const OFF_MAP_VALUE := 0.6
 ## Share of the planned scatter the backdrop keeps (cheaper, and it is far away).
 const BACKDROP_SCATTER_DENSITY := 0.5
 const BACKDROP_THIN_SEED := 311.0
+## Distant forest: real backdrop scatter only within BACKDROP_SCATTER_REACH of the playable mesh;
+## beyond it a cheap canopy shell (assets/shaders/canopy.gdshader) over the forest ground, faded
+## in over BackdropCanopy.FADE_FROM..FADE_TO.
+const BACKDROP_SCATTER_REACH := 4.0
 ## Border points (offsets in hex sizes) whose tile types the backdrop ground averages.
 const BACKDROP_TYPE_SAMPLES: Array[Vector2] = [
 	Vector2.ZERO, Vector2(1.5, 0.0), Vector2(-1.5, 0.0), Vector2(0.0, 1.5), Vector2(0.0, -1.5)
@@ -207,6 +211,7 @@ func build(grid: HexGrid) -> void:
 		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED), "")
 		if quality.get("backdrop_scatter", true):
 			_build_backdrop_scatter(rect)
+			_tiles_root.add_child(_build_backdrop_canopy())
 	_tiles_root.add_child(_build_water(rect))
 	Wind.setup(quality.get("wind", true))
 	# After Wind.setup: the foliage shader reads the wind globals.
@@ -479,6 +484,40 @@ func _nearest_tile_type(p: Vector2) -> int:
 	return _nearest_type_cache[key]
 
 
+## Distant forest shell over the backdrop lattice: the forest share of the nearest border tiles
+## (the same samples as the backdrop ground) faded in with the distance from the playable mesh,
+## drawn by canopy.gdshader as crowns.
+func _build_backdrop_canopy() -> MeshInstance3D:
+	var lift := VisualScale.tree_scale() * BackdropCanopy.HEIGHT
+	var mesh := _backdrop.build_mesh(_canopy_vertex, BackdropCanopy.add_surface.bind(lift))
+	mesh.surface_set_material(0, BackdropCanopy.material())
+	var instance := MeshInstance3D.new()
+	instance.name = "BackdropCanopy"
+	instance.mesh = mesh
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return instance
+
+
+## BackdropMesh vertex callback of the canopy: forest cover in the first value (the rest is
+## unused padding of the shared vertex layout).
+func _canopy_vertex(
+	_x: float, _z: float, _h: float, _normal_y: float, distance: float, ca: int, cb: int
+) -> PackedFloat32Array:
+	var border := Vector2(
+		_mesh_origin.x + 2 * ca * _mesh_step.x, _mesh_origin.y + 2 * cb * _mesh_step.y
+	)
+	var forest := 0
+	for offset: Vector2 in BACKDROP_TYPE_SAMPLES:
+		if _nearest_tile_type(border + offset * hex_size) == Terrain.Type.FOREST:
+			forest += 1
+	var cover := forest / float(BACKDROP_TYPE_SAMPLES.size())
+	cover *= TerrainNoise.smooth(BackdropCanopy.FADE_FROM, BackdropCanopy.FADE_TO, distance)
+	var result := PackedFloat32Array()
+	result.resize(TerrainSplat.LAYER_COUNT + 2)
+	result[0] = cover
+	return result
+
+
 ## Trees, bushes and rocks on the backdrop: ScatterPlanner over a virtual tile ring that copies
 ## the nearest map tile's terrain, at BACKDROP_SCATTER_DENSITY, sitting on the backdrop ground.
 func _build_backdrop_scatter(inner: Rect2) -> void:
@@ -506,9 +545,13 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 		var kept: Array = []
 		for item: Dictionary in plan[key]:
 			var p: Vector3 = item["position"]
+			var q := Vector2(p.x, p.z)
 			if (
-				TerrainNoise.hash(p.x * 7.13, p.z * 5.71, BACKDROP_THIN_SEED)
-				< BACKDROP_SCATTER_DENSITY
+				q.distance_to(q.clamp(inner.position, inner.end)) <= BACKDROP_SCATTER_REACH
+				and (
+					TerrainNoise.hash(p.x * 7.13, p.z * 5.71, BACKDROP_THIN_SEED)
+					< BACKDROP_SCATTER_DENSITY
+				)
 			):
 				kept.append(item)
 		plan[key] = kept
@@ -603,7 +646,8 @@ func _add_scatter(
 	instance.name = node_name
 	instance.multimesh = multi
 	instance.material_override = material
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# One node for the whole map, so every shadow cascade drew all of it (~11M of ~15M triangles).
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_tiles_root.add_child(instance)
 
 

@@ -22,8 +22,9 @@ const BUDGET_RADIUS := 41.0
 const LOD0_TRIANGLE_BUDGET := 1100000
 const BACKDROP_LOD0_REACH := 14.0
 const LEAF_TEXTURE_SIZE := 128
-## Low ground cover: no shadow casting.
-const UNDERGROWTH := &"undergrowth"
+## Low ground cover: no shadow casting (nor do backdrop trees: the shadow pass drew them in every
+## cascade and cost most of the frame's triangles).
+const NO_SHADOW_SPECIES := [&"undergrowth"]
 ## Scrub is small: its LOD0 range is shorter (and it therefore costs less of the budget).
 const SCRUB_LOD_DISTANCE := {&"shrub": 22.0, &"undergrowth": 12.0}
 const SCRUB_LOD_MARGIN := 2.0
@@ -93,13 +94,17 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 			lods = [Lod.FAR_ONLY]
 		for lod in lods:
 			var variant: int = pick["variant"] if lod == Lod.NEAR else 0
-			var key := "%d_%d_%s_%d_%d" % [chunk.x, chunk.y, pick["species"], variant, lod]
+			var key := (
+				"%d_%d_%s_%d_%d_%d"
+				% [chunk.x, chunk.y, pick["species"], variant, lod, int(backdrop)]
+			)
 			if not groups.has(key):
 				groups[key] = {
 					"chunk": chunk,
 					"species": pick["species"],
 					"variant": variant,
 					"lod": lod,
+					"backdrop": backdrop,
 					"transforms": [],
 					"customs": [],
 				}
@@ -222,11 +227,12 @@ func _add_group(key: String, group: Dictionary) -> void:
 	instance.material_override = _material(species, lod != Lod.NEAR)
 	instance.position = origin
 	instance.set_meta(&"species", species)
+	instance.set_meta(&"backdrop", group["backdrop"])
 	var distance := lod_distance(species)
 	var margin := lod_margin(species)
 	instance.cast_shadow = (
 		GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		if species == UNDERGROWTH
+		if species in NO_SHADOW_SPECIES or group["backdrop"]
 		else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	)
 	match lod:
