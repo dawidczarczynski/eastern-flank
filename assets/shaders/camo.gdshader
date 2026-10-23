@@ -1,23 +1,51 @@
 shader_type spatial;
-// Procedural three-tone camouflage with grain and mud near the ground (TASK-029).
-// Port of GLSL_NOISE / camo() in docs/design/v2/game_screen.scene.js.
-// Pattern mode 0 = blotches, 1 = digital (pixel squares, e.g. Russian EMR).
+// Procedural camouflage with used-steel weathering (TASK-029, TASK-062). Port of GLSL_NOISE /
+// camo() in docs/design/v2/game_screen.scene.js and of the paint of the model detail study
+// (docs/design/showcase/showcase_paint.gdshader.txt).
+// Pattern mode 0 = hard-edged blotches, 1 = digital (pixel squares, e.g. Russian EMR).
+//
+// The weathering reads the vertex mask the mesh helpers write (ADR 0012): COLOR.r = chamfer / edge
+// (paint wear), COLOR.g = openness (1 open, towards 0 in cavities), COLOR.b = per-part tint seed.
+// Every mesh using this shader must carry colours (ModelParts helpers always write them; Godot
+// would give a mesh without ARRAY_COLOR white = fully worn). Without masks a part would be
+// r = 0, g = 1, b = 0.5 (ModelParts.PLAIN_MASK).
+// All noise terms fade to their mean once a cell is smaller than ~1 px (see n3l), so the fine
+// wear and grain do not shimmer at battle distance.
 
 uniform vec4 color_a : source_color = vec4(0.30, 0.34, 0.20, 1.0);
 uniform vec4 color_b : source_color = vec4(0.23, 0.20, 0.15, 1.0);
 uniform vec4 color_c : source_color = vec4(0.13, 0.15, 0.11, 1.0);
-uniform vec4 dirt_color : source_color = vec4(0.357, 0.290, 0.208, 1.0);
 uniform float pattern_scale = 9.0;
-uniform float dirt_height = 0.12;
 uniform float base_roughness = 0.8;
 uniform float metallic = 0.12;
 uniform int pattern_mode = 0;
 uniform float digital_cells = 6.0;
-// Offset of this part inside the model (set per MeshInstance3D by UnitModels) so the pattern
+// Paint wear on edges (COLOR.r): chipped to the bare, slightly metallic steel colour.
+uniform vec4 wear_color : source_color = vec4(0.38, 0.36, 0.32, 1.0);
+uniform float wear_amount = 0.7;
+// Per-part brightness variation (COLOR.b).
+uniform float tint_amount = 0.1;
+// Dust on up-facing surfaces (object-space normal.y).
+uniform vec4 dust_color : source_color = vec4(0.56, 0.51, 0.42, 1.0);
+uniform float dust_amount = 0.5;
+// Mud on the lower part of the model (object-space height; replaces the old dirt_*).
+uniform vec4 mud_color : source_color = vec4(0.357, 0.290, 0.208, 1.0);
+uniform float mud_height = 0.12;
+uniform float mud_amount = 0.8;
+// Darkening of the paint just above the ground.
+uniform float ground_ao_height = 0.03;
+// Rain streaks on vertical faces, sun-faded (desaturated) paint.
+uniform float streak_amount = 0.12;
+uniform float fade = 0.15;
+// Offset of this part inside the model (set per MeshInstance3D by ModelParts) so the pattern
 // and the mud line are continuous across the separate primitives of one model.
 instance uniform vec3 part_origin = vec3(0.0);
+// Offsets the weathering noises so every unit looks different (set by UnitModels from the unit
+// id; the camo pattern itself is the same for all units of a faction).
+instance uniform float wear_seed = 0.0;
 
 varying vec3 obj_pos;
+varying vec3 obj_nrm;
 
 float h3(vec3 p) {
 	p = fract(p * 0.3183099 + 0.1);
@@ -37,29 +65,85 @@ float n3(vec3 x) {
 		f.z);
 }
 
+// Value noise that fades to 0.5 as its cell size (1 / frequency) approaches the pixel size;
+// `px` = change of the scaled coordinate per screen pixel.
+// Cells below a pixel skip the noise entirely (the cost drops with distance).
+float n3l(vec3 q, float px) {
+	float w = 1.0 - smoothstep(0.3, 0.9, px);
+	if (w <= 0.0) {
+		return 0.5;
+	}
+	return mix(0.5, n3(q), w);
+}
+
 float fb(vec3 p) {
 	return n3(p) * 0.55 + n3(p * 2.07) * 0.3 + n3(p * 4.3) * 0.15;
 }
 
+float fbl(vec3 q, float px) {
+	return n3l(q, px) * 0.55 + n3l(q * 2.07, px * 2.07) * 0.3 + n3l(q * 4.3, px * 4.3) * 0.15;
+}
+
 void vertex() {
 	obj_pos = VERTEX + part_origin;
+	obj_nrm = NORMAL;
 }
 
 void fragment() {
-	vec3 q = obj_pos * pattern_scale;
+	vec3 p = obj_pos;
+	vec3 fw = fwidth(p);
+	float px = max(max(fw.x, fw.y), fw.z);
+	vec3 col = color_a.rgb;
+	float gr;
 	if (pattern_mode == 1) {
-		q = floor(q * digital_cells) / digital_cells;
+		vec3 q = floor(p * pattern_scale * digital_cells) / digital_cells;
+		float ca = fb(q);
+		float cb = fb(q * 1.27 + vec3(17.0, 3.0, 9.0));
+		col = mix(col, color_b.rgb, smoothstep(0.52, 0.55, ca));
+		col = mix(col, color_c.rgb, smoothstep(0.6, 0.63, cb));
+	} else {
+		vec3 q = p * pattern_scale;
+		float pq = px * pattern_scale;
+		vec3 warp = vec3(fbl(q * 0.8 + 3.1, pq * 0.8), fbl(q * 0.8 + 7.7, pq * 0.8), fbl(q * 0.8 + 1.3, pq * 0.8)) - 0.5;
+		q += warp * 1.1;
+		float na = fbl(q, pq);
+		float nb = fbl(q * 1.15 + vec3(11.0, 5.0, 23.0), pq * 1.15);
+		float aa = fwidth(na) * 0.75 + 0.002;
+		float ab = fwidth(nb) * 0.75 + 0.002;
+		col = mix(col, color_b.rgb, smoothstep(0.52 - aa, 0.52 + aa, na));
+		col = mix(col, color_c.rgb, smoothstep(0.585 - ab, 0.585 + ab, nb));
 	}
-	float ca = fb(q);
-	float cb = fb(q * 1.27 + vec3(17.0, 3.0, 9.0));
-	vec3 col = mix(color_a.rgb, color_b.rgb, smoothstep(0.52, 0.55, ca));
-	col = mix(col, color_c.rgb, smoothstep(0.6, 0.63, cb));
-	float gr = n3(obj_pos * pattern_scale * 18.0);
-	col *= 0.88 + 0.24 * gr;
-	float dirt = smoothstep(dirt_height, 0.0, obj_pos.y)
-		* (0.45 + 0.55 * n3(obj_pos * pattern_scale * 5.0));
-	col = mix(col, dirt_color.rgb, dirt * 0.85);
+	col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), fade);
+	col *= 1.0 + (COLOR.b - 0.5) * tint_amount;
+
+	// Weathering noises are offset per unit.
+	vec3 s = p + vec3(7.13, 3.71, 11.3) * wear_seed;
+	float grain = n3l(s * 260.0, px * 260.0);
+	col *= (0.92 + 0.16 * fbl(s * 22.0, px * 22.0)) * (0.98 + 0.04 * grain);
+
+	float vertical = 1.0 - abs(obj_nrm.y);
+	float streak = n3l(vec3(s.x * 180.0, s.y * 12.0, s.z * 180.0), px * 180.0);
+	col *= 1.0 - vertical * smoothstep(0.55, 0.85, streak) * streak_amount;
+
+	// Edge wear: chips on the chamfer bands. Far away the chips average out to a lighter edge.
+	float chip = n3l(s * 320.0, px * 320.0) * 0.6 + n3l(s * 900.0, px * 900.0) * 0.4;
+	float chipped = smoothstep(0.73 - wear_amount * 0.12, 0.77 - wear_amount * 0.1, chip);
+	float near = 1.0 - smoothstep(0.3, 0.9, px * 320.0);
+	float worn = clamp(wear_amount * 4.0, 0.0, 1.0);
+	col *= 1.0 + COLOR.r * worn * 0.12 * (0.5 + n3l(s * 120.0, px * 120.0));
+	float wear = COLOR.r * mix(0.3, chipped, near) * worn;
+	col = mix(col, wear_color.rgb, wear * 0.75);
+
+	col *= mix(0.42, 1.0, COLOR.g);
+	col *= mix(0.72, 1.0, smoothstep(0.0, ground_ao_height, p.y));
+
+	float up = smoothstep(0.45, 0.95, obj_nrm.y);
+	float dust = up * smoothstep(0.3, 0.8, fbl(s * 25.0, px * 25.0) * 0.7 + fbl(s * 90.0, px * 90.0) * 0.3) * dust_amount;
+	col = mix(col, dust_color.rgb, dust * 0.45);
+	float mud = clamp(smoothstep(mud_height, 0.0, p.y) * (0.35 + 0.65 * fbl(s * 80.0, px * 80.0)) * mud_amount, 0.0, 1.0);
+	col = mix(col, mud_color.rgb, mud * 0.85);
+
 	ALBEDO = col;
-	ROUGHNESS = clamp(base_roughness + (gr - 0.5) * 0.25 + dirt * 0.1, 0.0, 1.0);
-	METALLIC = metallic;
+	ROUGHNESS = clamp(base_roughness + (grain - 0.5) * 0.2 - wear * 0.25 + dust * 0.15 + mud * 0.1, 0.05, 1.0);
+	METALLIC = mix(metallic, 0.55, wear * 0.5);
 }

@@ -22,25 +22,50 @@ func p(x: float, h: float, z := 0.0) -> Vector3:
 ## Box over x in [x0, x1], h in [h0, h1], z in [z0 - hw, z0 + hw]; `tilt` leans the top towards
 ## the front (radians).
 func slab(
-	parts: Array, x0: float, x1: float, h0: float, h1: float, hw: float, z0 := 0.0, tilt := 0.0
+	parts: Array,
+	x0: float,
+	x1: float,
+	h0: float,
+	h1: float,
+	hw: float,
+	z0 := 0.0,
+	tilt := 0.0,
+	bevel := ModelParts.DEFAULT_BEVEL
 ) -> void:
 	var size := Vector3(absf(x1 - x0), h1 - h0, hw * 2.0) * k
 	var t := Transform3D(Basis(Vector3.BACK, -tilt), p((x0 + x1) / 2.0, (h0 + h1) / 2.0, z0))
-	parts.append([ModelParts.box_mesh(size), t])
+	parts.append([ModelParts.box_mesh(size, bevel), t])
 
 
 ## The same box on both sides (z0 = +-z).
-func pair(parts: Array, x0: float, x1: float, h0: float, h1: float, hw: float, z: float) -> void:
+func pair(
+	parts: Array,
+	x0: float,
+	x1: float,
+	h0: float,
+	h1: float,
+	hw: float,
+	z: float,
+	bevel := ModelParts.DEFAULT_BEVEL
+) -> void:
 	for s: float in [-1.0, 1.0]:
-		slab(parts, x0, x1, h0, h1, hw, s * z)
+		slab(parts, x0, x1, h0, h1, hw, s * z, 0.0, bevel)
 
 
 ## Cylinder of radius `r` and `length` centred at (x, h, z) along `axis` (&"x", &"y", &"z") or
 ## along an arbitrary model-space direction given as a Vector3.
 func drum(
-	parts: Array, x: float, h: float, z: float, r: float, length: float, axis: Variant, sides := 12
+	parts: Array,
+	x: float,
+	h: float,
+	z: float,
+	r: float,
+	length: float,
+	axis: Variant,
+	sides := 12,
+	bevel := ModelParts.DEFAULT_BEVEL
 ) -> void:
-	var mesh := ModelParts.cyl_mesh(r * k, r * k, length * k, sides)
+	var mesh := ModelParts.cyl_mesh(r * k, r * k, length * k, sides, bevel)
 	parts.append([mesh, Transform3D(axis_basis(axis), p(x, h, z))])
 
 
@@ -73,24 +98,39 @@ func xz(x: float, z: float) -> Vector2:
 
 ## Prism of a side profile (`points`: Vector2(x, h) pairs) across the vehicle, `hw` half width,
 ## centred at `z0`.
-func profile(parts: Array, key: String, points: Array, hw: float, z0 := 0.0) -> void:
+func profile(
+	parts: Array,
+	key: String,
+	points: Array,
+	hw: float,
+	z0 := 0.0,
+	bevel := ModelParts.DEFAULT_BEVEL
+) -> void:
 	var outline: Array[Vector2] = []
 	for point: Vector2 in points:
 		outline.append(xy(point.x, point.y))
 	var t := Transform3D(Basis.IDENTITY, Vector3(0.0, 0.0, z0 * k))
-	parts.append([ModelParts.prism_mesh(key, outline, hw * 2.0 * k), t])
+	parts.append([ModelParts.prism_mesh(key, outline, hw * 2.0 * k, bevel), t])
 
 
 ## Loft between two convex plan outlines (Vector2(x, z) pairs, same count): `bottom` at height
 ## h0, `top` at h1 (wedges, tapered turrets, ERA blocks).
-func loft(parts: Array, key: String, bottom: Array, top: Array, h0: float, h1: float) -> void:
+func loft(
+	parts: Array,
+	key: String,
+	bottom: Array,
+	top: Array,
+	h0: float,
+	h1: float,
+	bevel := ModelParts.DEFAULT_BEVEL
+) -> void:
 	var lo: Array[Vector2] = []
 	var hi: Array[Vector2] = []
 	for point: Vector2 in bottom:
 		lo.append(xz(point.x, point.y))
 	for point: Vector2 in top:
 		hi.append(xz(point.x, point.y))
-	parts.append([ModelParts.loft_mesh(key, lo, hi, h0 * k, h1 * k), Transform3D.IDENTITY])
+	parts.append([ModelParts.loft_mesh(key, lo, hi, h0 * k, h1 * k, bevel), Transform3D.IDENTITY])
 
 
 ## Materials of a tracked vehicle: faction camo &"body" and accent &"accent", PBR &"dark",

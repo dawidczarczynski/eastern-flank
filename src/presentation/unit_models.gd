@@ -23,6 +23,9 @@ const LAUNCHER_ELEVATION := 0.7
 const MAX_ACTUATORS := 4
 ## Label anchor height above the unit's feet for a model file without a LABEL_HEIGHT constant.
 const DEFAULT_LABEL_HEIGHT := 0.5
+## Range and resolution of `wear_seed` (the shader adds multiples of it to its noise coordinates).
+const WEAR_SEED_RANGE := 64.0
+const WEAR_SEED_STEPS := 4096
 
 
 ## Yaw of a model root: player 0 faces east (+X), player 1 faces west.
@@ -45,11 +48,22 @@ static func fires_volley(definition: UnitDefinition) -> bool:
 	return definition != null and definition.unit_class == VOLLEY_CLASS
 
 
-## `faction` colours the model (null = neutral grey); `owner_id` only sets the facing.
-static func build(definition_id: StringName, owner_id: int, faction: FactionDefinition) -> Node3D:
+## Weathering seed of a unit (camo shader `wear_seed`): a view-local, deterministic hash of its id
+## (same id -> same value, different ids differ), in [0, WEAR_SEED_RANGE).
+static func wear_seed(unit_id: Variant) -> float:
+	return float(str(unit_id).hash() % WEAR_SEED_STEPS) / WEAR_SEED_STEPS * WEAR_SEED_RANGE
+
+
+## `faction` colours the model (null = neutral grey); `owner_id` only sets the facing. `unit_id`
+## (the unit instance, any value with a stable string form) seeds the weathering so units of one
+## type differ; without it the definition id is used.
+static func build(
+	definition_id: StringName, owner_id: int, faction: FactionDefinition, unit_id: Variant = null
+) -> Node3D:
 	var root := Node3D.new()
 	root.rotation.y = facing_yaw(owner_id)
-	var model := _build_model(definition_id, faction)
+	var seed_key: Variant = definition_id if unit_id == null else unit_id
+	var model := _build_model(definition_id, faction, wear_seed(seed_key))
 	model.name = "Model"
 	model.scale = Vector3.ONE * VisualScale.unit_model_scale()
 	root.add_child(model)
@@ -73,13 +87,15 @@ static func label_height(model_id: StringName) -> float:
 
 ## The unit's own model (cached per unit and faction), or the magenta placeholder when there is
 ## no model file yet, so new units are playable before they are modelled.
-static func _build_model(definition_id: StringName, faction: FactionDefinition) -> Node3D:
+static func _build_model(
+	definition_id: StringName, faction: FactionDefinition, wear: float
+) -> Node3D:
 	if has_model(definition_id):
 		var script := load(MODEL_PATH % definition_id) as GDScript
 		if script != null:
 			var faction_id: StringName = faction.id if faction != null else &""
 			var model := ModelParts.cached(
-				"%s:%s" % [definition_id, faction_id], Callable(script, "build").bind(faction)
+				"%s:%s" % [definition_id, faction_id], Callable(script, "build").bind(faction), wear
 			)
 			if model != null:
 				return model

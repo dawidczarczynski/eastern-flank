@@ -17,6 +17,14 @@ const GLASS := [Color("#0b1820"), 0.06, 0.9]
 const TRACK := [Color("#2f2d28"), 0.7, 0.55]
 const SKIN := [Color("#a87c5f"), 0.75, 0.0]
 const GUN := [Color("#1b1c19"), 0.45, 0.55]
+## Default chamfer of the part helpers (box, cylinder, prism, loft, lathe rims), model units
+## (1 unit = 10 m before the model scale, so ~4 cm). Smaller than `MIN_BEVEL` after limiting it to
+## the part size = sharp. Pass `bevel = 0.0` for a sharp part (TASK-062).
+const DEFAULT_BEVEL := 0.004
+const MIN_BEVEL := 0.0015
+## Vertex mask of parts without a chamfer or cavity (r edge, g openness, b tint seed), see
+## MeshKit and ADR 0012.
+const PLAIN_MASK := Color(0.0, 1.0, 0.5)
 const ACCENT_ROUGHNESS := 0.55
 const ACCENT_METALLIC := 0.1
 ## Camo presets: pattern scale, mud height, base roughness, metallic.
@@ -55,8 +63,8 @@ static func clear_mesh_cache() -> void:
 
 ## Builds a model once per `key` (unit id + faction id) and returns an independent copy of the
 ## stored prototype: own node tree (poses and visibility are per instance), shared meshes and
-## materials. Model builders may call `MeshKit.bake` before returning once TASK-030 lands.
-static func cached(key: String, builder: Callable) -> Node3D:
+## materials. `wear_seed` (UnitModels.wear_seed) is applied to the camo parts of the copy.
+static func cached(key: String, builder: Callable, wear_seed := 0.0) -> Node3D:
 	if not _prototypes.has(key):
 		var built: Node3D = builder.call()
 		if built == null:
@@ -64,23 +72,25 @@ static func cached(key: String, builder: Callable) -> Node3D:
 		_prototypes[key] = built
 	var prototype := _prototypes[key] as Node3D
 	var copy := prototype.duplicate() as Node3D
-	_restore_camo(copy)
+	_restore_camo(copy, wear_seed)
 	return copy
 
 
 ## The renderer has a small pool (4096) of slots for per-instance shader parameters, and every live
 ## MeshInstance3D whose material has such a parameter (camo `part_origin`) holds one. A stored
 ## prototype must not occupy any, so `add` only records camo materials and part origins as node
-## metadata; every copy returned by `cached` is a live model and gets them applied here.
-static func _restore_camo(node: Node) -> void:
+## metadata; every copy returned by `cached` is a live model and gets them applied here (plus the
+## per-unit `wear_seed`).
+static func _restore_camo(node: Node, wear_seed: float) -> void:
 	var instance := node as MeshInstance3D
 	if instance != null and instance.has_meta(&"camo_material"):
 		instance.material_override = instance.get_meta(&"camo_material")
 		instance.set_instance_shader_parameter(&"part_origin", instance.get_meta(&"part_origin"))
+		instance.set_instance_shader_parameter(&"wear_seed", wear_seed)
 		instance.remove_meta(&"camo_material")
 		instance.remove_meta(&"part_origin")
 	for child in node.get_children():
-		_restore_camo(child)
+		_restore_camo(child, wear_seed)
 
 
 ## Magenta box for unit ids without a model file.
@@ -138,7 +148,7 @@ static func _build_camo(faction: FactionDefinition, preset: Dictionary) -> Shade
 	m.set_shader_parameter(&"color_b", colors[1])
 	m.set_shader_parameter(&"color_c", colors[2])
 	m.set_shader_parameter(&"pattern_scale", preset["scale"])
-	m.set_shader_parameter(&"dirt_height", preset["dirt"])
+	m.set_shader_parameter(&"mud_height", preset["dirt"])
 	m.set_shader_parameter(&"base_roughness", preset["rough"])
 	m.set_shader_parameter(&"metallic", preset["metal"])
 	m.set_shader_parameter(&"pattern_mode", PATTERN_BLOTCHES)
@@ -227,26 +237,50 @@ static func std_material(color: Color, roughness: float, metallic: float) -> Sta
 	return _materials[key]
 
 
-static func box_mesh(size: Vector3) -> BoxMesh:
-	var key := "box:%s" % size
+## Box of `size` (centred) with chamfered edges (`bevel`, limited to a fifth of the thinnest side;
+## 0 = sharp, 24 vertices like a BoxMesh), vertex masks per ADR 0012.
+static func box_mesh(size: Vector3, bevel := DEFAULT_BEVEL) -> ArrayMesh:
+	var b := _limited(bevel, minf(size.x, minf(size.y, size.z)) * 0.2)
+	var key := "box:%s:%s" % [size, b]
 	if not _meshes.has(key):
-		var m := BoxMesh.new()
-		m.size = size
-		_meshes[key] = m
+		var kit := MeshKit.new()
+		kit.cbox(Vector3.ZERO, size, b)
+		_meshes[key] = kit.commit(true)
 	return _meshes[key]
 
 
-static func cyl_mesh(top: float, bottom: float, height: float, segments: int) -> CylinderMesh:
-	var key := "cyl:%s:%s:%s:%s" % [top, bottom, height, segments]
+## Cylinder along Y (cone when the radii differ; a radius of 0 gives a point) with both rims
+## chamfered by `bevel` (limited by the radius and height; 0 = sharp).
+static func cyl_mesh(
+	top: float, bottom: float, height: float, segments: int, bevel := DEFAULT_BEVEL
+) -> ArrayMesh:
+	var key := "cyl:%s:%s:%s:%s:%s" % [top, bottom, height, segments, bevel]
 	if not _meshes.has(key):
-		var m := CylinderMesh.new()
-		m.top_radius = top
-		m.bottom_radius = bottom
-		m.height = height
-		m.radial_segments = segments
-		m.rings = 1
-		_meshes[key] = m
+		var hh := height / 2.0
+		var bt := _limited(bevel, minf(top * 0.4, height * 0.2))
+		var bb := _limited(bevel, minf(bottom * 0.4, height * 0.2))
+		var profile: Array[Vector2] = [Vector2(0.0, hh)]
+		if bt > 0.0:
+			profile.append(Vector2(top - bt, hh))
+			profile.append(Vector2(top, hh - bt))
+		else:
+			profile.append(Vector2(top, hh))
+		if bb > 0.0:
+			profile.append(Vector2(bottom, -hh + bb))
+			profile.append(Vector2(bottom - bb, -hh))
+		else:
+			profile.append(Vector2(bottom, -hh))
+		profile.append(Vector2(0.0, -hh))
+		var kit := MeshKit.new()
+		kit.lathe(Vector3.ZERO, Basis.IDENTITY, profile, segments)
+		_meshes[key] = kit.commit(true)
 	return _meshes[key]
+
+
+## `bevel`, or 0 when it is smaller than MIN_BEVEL after limiting it to `max_bevel`.
+static func _limited(bevel: float, max_bevel: float) -> float:
+	var b := minf(bevel, max_bevel)
+	return b if b >= MIN_BEVEL else 0.0
 
 
 ## One mesh from many primitives (`parts`: [Mesh, Transform3D] pairs, each transform pre-multiplied
@@ -258,10 +292,33 @@ static func merged_mesh(key: String, parts: Array, base := Transform3D.IDENTITY)
 		return _meshes[cache_key]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var spans: Array[Vector2i] = []  # [vertex count, tint seed * 1000] per part
 	for part: Array in parts:
 		var mesh := part[0] as Mesh
-		st.append_from(mesh, 0, base * (part[1] as Transform3D))
+		var t := base * (part[1] as Transform3D)
+		st.append_from(mesh, 0, t)
+		spans.append(
+			Vector2i(mesh.surface_get_array_len(0), int(MeshKit.tint_seed(t.origin) * 1000.0))
+		)
 	var merged := st.commit()
+	if merged.get_surface_count() == 0:
+		_meshes[cache_key] = merged
+		return merged
+	# Vertex mask b = tint seed of the part (hash of its position), see MeshKit / ADR 0012.
+	var arrays := merged.surface_get_arrays(0)
+	var colors := arrays[Mesh.ARRAY_COLOR] as PackedColorArray
+	if colors.size() == (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size():
+		var at := 0
+		for span in spans:
+			var tint := span.y / 1000.0
+			for i in range(at, at + span.x):
+				var c := colors[i]
+				colors[i] = Color(c.r, c.g, tint)
+			at += span.x
+		arrays[Mesh.ARRAY_COLOR] = colors
+		var tinted := ArrayMesh.new()
+		tinted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		merged = tinted
 	_meshes[cache_key] = merged
 	return merged
 
@@ -308,7 +365,7 @@ static func wheel(
 	return pivot
 
 
-static func sphere_mesh(radius: float, hemisphere: bool, segments: int, rings: int) -> SphereMesh:
+static func sphere_mesh(radius: float, hemisphere: bool, segments: int, rings: int) -> ArrayMesh:
 	var key := "sphere:%s:%s:%s:%s" % [radius, hemisphere, segments, rings]
 	if not _meshes.has(key):
 		var m := SphereMesh.new()
@@ -317,7 +374,14 @@ static func sphere_mesh(radius: float, hemisphere: bool, segments: int, rings: i
 		m.is_hemisphere = hemisphere
 		m.radial_segments = segments
 		m.rings = rings
-		_meshes[key] = m
+		var arrays := m.get_mesh_arrays()
+		var colors := PackedColorArray()
+		colors.resize((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
+		colors.fill(PLAIN_MASK)
+		arrays[Mesh.ARRAY_COLOR] = colors
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_meshes[key] = mesh
 	return _meshes[key]
 
 
@@ -355,106 +419,113 @@ static func turret_mesh() -> ArrayMesh:
 	return mesh
 
 
-## Prism: closed `outline` in the XY plane (either winding, star-shaped around its centroid, e.g. a
-## side profile or a gear) extruded along Z from -depth/2 to +depth/2; flat normals. Cached by
-## `key` (must name the geometry). Stand-in for MeshKit.extrude_profile until TASK-030 lands.
-static func prism_mesh(key: String, outline: Array[Vector2], depth: float) -> ArrayMesh:
-	var cache_key := "prism:%s" % key
+## Prism: closed `outline` in the XY plane (either winding, simple polygon, e.g. a side profile or
+## a gear) extruded along Z from -depth/2 to +depth/2, both rims chamfered by `bevel` (limited by
+## the depth and the outline's size; 0 = sharp). Cached by `key` (must name the geometry).
+static func prism_mesh(
+	key: String, outline: Array[Vector2], depth: float, bevel := DEFAULT_BEVEL
+) -> ArrayMesh:
+	var cache_key := "prism:%s:%s" % [key, bevel]
 	if _meshes.has(cache_key):
 		return _meshes[cache_key]
-	var ring := _ccw(outline)
-	var centre := Vector2.ZERO
-	for p in ring:
-		centre += p
-	centre /= ring.size()
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var hz := depth / 2.0
-	var n := ring.size()
-	for i in n:
-		var a := ring[i]
-		var b := ring[(i + 1) % n]
-		var d := b - a
-		var side := Vector3(d.y, -d.x, 0.0).normalized()
-		var a0 := Vector3(a.x, a.y, -hz)
-		var b0 := Vector3(b.x, b.y, -hz)
-		var a1 := Vector3(a.x, a.y, hz)
-		var b1 := Vector3(b.x, b.y, hz)
-		_face(st, a0, b0, b1, side)
-		_face(st, a0, b1, a1, side)
-		_face(st, Vector3(centre.x, centre.y, hz), a1, b1, Vector3.BACK)
-		_face(st, Vector3(centre.x, centre.y, -hz), a0, b0, Vector3.FORWARD)
-	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
-	var mesh := st.commit()
+	var b := _limited(bevel, minf(depth * 0.25, _outline_room(outline)))
+	var kit := MeshKit.new()
+	kit.plate(
+		outline, Vector3.ZERO, Vector3.RIGHT, Vector3.UP, Vector3.BACK, -depth / 2.0, depth / 2.0, b
+	)
+	var mesh := kit.commit(true)
 	_meshes[cache_key] = mesh
 	return mesh
 
 
+## How far a polygon's edges may be moved inwards without collapsing: 40 % of its inradius
+## estimate (2 * area / perimeter) and 30 % of its shortest edge.
+static func _outline_room(outline: Array) -> float:
+	var area := 0.0
+	var perimeter := 0.0
+	var shortest := INF
+	for i in outline.size():
+		var a: Vector2 = outline[i]
+		var b: Vector2 = outline[(i + 1) % outline.size()]
+		area += a.cross(b)
+		var length := a.distance_to(b)
+		perimeter += length
+		if length > 1e-5:
+			shortest = minf(shortest, length)
+	if perimeter < 1e-6:
+		return 0.0
+	return minf(absf(area) / perimeter * 0.4, shortest * 0.3)
+
+
 ## Loft between two convex outlines in the XZ plane with the same vertex count: `bottom` at
-## height y0, `top` at y1 (wedges, tapered turrets); flat normals, both ends capped.
+## height y0, `top` at y1 (wedges, tapered turrets), both ends capped, the roof edge chamfered by
+## `bevel` (limited by the height and the top outline; 0 = sharp).
 static func loft_mesh(
-	key: String, bottom: Array[Vector2], top: Array[Vector2], y0: float, y1: float
+	key: String,
+	bottom: Array[Vector2],
+	top: Array[Vector2],
+	y0: float,
+	y1: float,
+	bevel := DEFAULT_BEVEL
 ) -> ArrayMesh:
-	var cache_key := "loft:%s" % key
+	var cache_key := "loft:%s:%s" % [key, bevel]
 	if _meshes.has(cache_key):
 		return _meshes[cache_key]
-	var n := bottom.size()
-	var lo: Array[Vector3] = []
-	var hi: Array[Vector3] = []
-	var inside := Vector3.ZERO
-	for i in n:
-		lo.append(Vector3(bottom[i].x, y0, bottom[i].y))
-		hi.append(Vector3(top[i].x, y1, top[i].y))
-		inside += lo[i] + hi[i]
-	inside /= 2.0 * n
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in n:
-		var j := (i + 1) % n
-		_tri(st, lo[i], lo[j], hi[j], inside)
-		_tri(st, lo[i], hi[j], hi[i], inside)
-		if i >= 1 and i < n - 1:
-			_tri(st, lo[0], lo[i], lo[j], inside)
-			_tri(st, hi[0], hi[i], hi[j], inside)
-	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
-	var mesh := st.commit()
+	var b := _limited(bevel, minf(absf(y1 - y0) * 0.25, _outline_room(top)))
+	var kit := MeshKit.new()
+	if b > 0.0:
+		kit.loft(bottom, top, y0, y1, b)
+	else:
+		var lo := []
+		var hi := []
+		for p in bottom:
+			lo.append(Vector3(p.x, y0, p.y))
+		for p in top:
+			hi.append(Vector3(p.x, y1, p.y))
+		kit.stack([lo, hi], [0.0])
+	var mesh := kit.commit(true)
 	_meshes[cache_key] = mesh
 	return mesh
 
 
 ## Lathe around +Y: `profile` points are Vector2(radius, y), ordered from the top down around the
 ## outside (e.g. (0, top) -> (R, top) -> (R, bottom) -> (0, bottom)). Smooth around the axis, hard
-## edges between profile segments (machined look). Rotate the part to lay it along X or Z.
-static func lathe_mesh(key: String, profile: Array[Vector2], segments: int) -> ArrayMesh:
-	var cache_key := "lathe:%s:%s" % [key, segments]
+## edges between profile segments (machined look), sharp corners of the profile chamfered by
+## `bevel` (limited by the neighbouring segments; 0 = sharp). Rotate the part to lay it along X
+## or Z.
+static func lathe_mesh(
+	key: String, profile: Array[Vector2], segments: int, bevel := DEFAULT_BEVEL
+) -> ArrayMesh:
+	var cache_key := "lathe:%s:%s:%s" % [key, segments, bevel]
 	if _meshes.has(cache_key):
 		return _meshes[cache_key]
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in profile.size() - 1:
-		var p0 := profile[j]
-		var p1 := profile[j + 1]
-		var d := p1 - p0
-		if d.length() < 1e-6:
-			continue
-		var n2 := Vector2(-d.y, d.x).normalized()
-		for i in segments:
-			var t0 := TAU * i / segments
-			var t1 := TAU * (i + 1) / segments
-			var c0 := Vector3(cos(t0), 0.0, sin(t0))
-			var c1 := Vector3(cos(t1), 0.0, sin(t1))
-			var v00 := c0 * p0.x + Vector3(0, p0.y, 0)
-			var v01 := c1 * p0.x + Vector3(0, p0.y, 0)
-			var v10 := c0 * p1.x + Vector3(0, p1.y, 0)
-			var v11 := c1 * p1.x + Vector3(0, p1.y, 0)
-			var n0 := c0 * n2.x + Vector3(0, n2.y, 0)
-			var n1 := c1 * n2.x + Vector3(0, n2.y, 0)
-			_smooth_face(st, [v00, v01, v11], [n0, n1, n1])
-			_smooth_face(st, [v00, v11, v10], [n0, n1, n0])
-	st.index()  # merged_mesh drops non-indexed vertices once an indexed part is appended
-	var mesh := st.commit()
+	var kit := MeshKit.new()
+	kit.lathe(Vector3.ZERO, Basis.IDENTITY, _bevel_profile(profile, bevel), segments)
+	var mesh := kit.commit(true)
 	_meshes[cache_key] = mesh
 	return mesh
+
+
+## `profile` with every corner of more than ~30 degrees (not on the axis) replaced by a chamfer.
+static func _bevel_profile(profile: Array[Vector2], bevel: float) -> Array:
+	var result: Array = []
+	var n := profile.size()
+	for i in n:
+		var p := profile[i]
+		if i == 0 or i == n - 1 or p.x < 1e-5:
+			result.append(p)
+			continue
+		var before := p - profile[i - 1]
+		var after := profile[i + 1] - p
+		var l0 := before.length()
+		var l1 := after.length()
+		var b := _limited(bevel, minf(l0, l1) * 0.35)
+		if b == 0.0 or l0 < 1e-6 or l1 < 1e-6 or absf(before.angle_to(after)) < 0.5:
+			result.append(p)
+			continue
+		result.append(p - before / l0 * b)
+		result.append(p + after / l1 * b)
+	return result
 
 
 ## Closed gear outline (`teeth` teeth between `root` and `tip` radius), counter-clockwise.
@@ -572,6 +643,7 @@ static func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, normal: V
 		b = c
 		c = t
 	for v in [a, b, c]:
+		st.set_color(PLAIN_MASK)
 		st.set_normal(normal)
 		st.add_vertex(v)
 
@@ -587,6 +659,7 @@ static func _smooth_face(st: SurfaceTool, v: Array, n: Array) -> void:
 	var face: Vector3 = (n[0] as Vector3) + (n[1] as Vector3) + (n[2] as Vector3)
 	var order := [0, 1, 2] if cross.dot(face) <= 0.0 else [0, 2, 1]
 	for k: int in order:
+		st.set_color(PLAIN_MASK)
 		st.set_normal(n[k])
 		st.add_vertex(v[k])
 
@@ -602,5 +675,6 @@ static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, inside: Ve
 		normal = -normal
 	normal = normal.normalized()
 	for v in [a, b, c]:
+		st.set_color(PLAIN_MASK)
 		st.set_normal(normal)
 		st.add_vertex(v)

@@ -1,6 +1,6 @@
 # TASK-069: Tank v3 – rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k)
 
-- **Status**: blocked (specified 2026-10-23; waits for TASK-062 – the paint the kit masks drive)
+- **Status**: ready (specified 2026-10-23; waits for TASK-062 – the paint the kit masks drive)
 - **Layers**: presentation (`models/m1a2_sepv3.gd`, `models/t72b3.gd`, `models/parts/tracked_running_gear.gd`, `MeshKit` / `MeshKits` only if a primitive is missing), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`, new `test_tank_models.gd`), docs (both `blueprint.md`). Roles: **unit-modeler** (both tanks, render-compare, via `/model-unit <id>` as a rework); **presentation-engineer** only if a kit primitive or the shared running gear needs new options.
 - **Depends on**: **TASK-030** (mesh kit v2, ADR 0012 – done), **TASK-062** (weathering paint on the RGB vertex masks, chamfers in the old helpers). Soft: TASK-063 (`Marking_*` / `Number_*` anchors – add them here if 063 is done first), TASK-034 (portraits show the tanks close up), TASK-047 / TASK-048 (turret traverse / gun recoil use the pivots kept and added here).
 - **Model**: opus (two large models plus the shared running gear, triangle and build-time budgets, pivot contract)

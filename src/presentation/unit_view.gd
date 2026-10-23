@@ -89,7 +89,7 @@ func setup(
 	_pivot.name = "Body"
 	add_child(_pivot)
 	var model_id := unit.definition.id
-	var model := UnitModels.build(model_id, unit.owner_id, faction)
+	var model := UnitModels.build(model_id, unit.owner_id, faction, unit.id)
 	# Facing lives on the pivot so moves can turn the whole model (TASK-022).
 	_pivot.rotation.y = model.rotation.y
 	model.rotation.y = 0.0

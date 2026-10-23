@@ -64,8 +64,12 @@ func _init(frame: Frame = null, base := Transform3D.IDENTITY) -> void:
 	_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
-## The triangles so far as one surface (vertex, normal, colour; not indexed).
-func commit() -> ArrayMesh:
+## The triangles so far as one surface (vertex, normal, colour). Not indexed unless `indexed`
+## (identical vertices shared; needed to merge with other indexed meshes, see
+## `ModelParts.merged_mesh`).
+func commit(indexed := false) -> ArrayMesh:
+	if indexed:
+		_st.index()
 	return _st.commit()
 
 
