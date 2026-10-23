@@ -11,6 +11,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	LookPreset.reset()
 	_view.free()
 
 
@@ -111,3 +112,75 @@ func test_card_texture_is_neutral_grey() -> void:
 			if c.a > 0.5:
 				assert_true(absf(c.r - c.g) < 0.01 and absf(c.g - c.b) < 0.01, "grey")
 				return
+
+
+func _meadow_build() -> void:
+	_view.quality = {"grass_density": 1.0, "wind": false}
+	_view.build(Fixtures.plains_grid(8))
+	_view.set_camera_target(Vector2.ZERO)
+	_view.grass().update(1000)
+
+
+func test_flower_nodes_are_faded_unshadowed_flower_mode_chunks() -> void:
+	_meadow_build()
+	var nodes := _view.grass().flower_nodes()
+	assert_true(nodes.size() > 0, "flower nodes")
+	var flowers := 0
+	for node in nodes:
+		assert_true(node.name.begins_with("Flowers_"))
+		assert_eq(node.visibility_range_end, 14.0)
+		assert_eq(node.visibility_range_end_margin, 3.0)
+		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		assert_eq(node.layers, MapView.GRASS_LAYER_MASK)
+		assert_eq(
+			(node.material_override as ShaderMaterial).get_shader_parameter(&"flower_mode"), true
+		)
+		flowers += node.multimesh.instance_count
+	var grass := 0
+	for node in _view.grass().chunk_nodes():
+		grass += node.multimesh.instance_count
+	assert_eq(_view.grass().instance_count(), grass + flowers)
+
+
+func test_current_look_has_no_flower_nodes() -> void:
+	LookPreset.apply(&"current")
+	_meadow_build()
+	assert_eq(_view.grass().flower_nodes().size(), 0)
+	assert_true(_view.grass().chunk_nodes().size() > 0)
+
+
+func test_tall_clump_transform_scales_the_height() -> void:
+	var clump := {
+		"position": Vector3(1, 0, 2),
+		"yaw": 0.7,
+		"scale": 1.2,
+		"height": 1.5,
+	}
+	var t := GrassField.clump_transform(clump, Vector3(1, 0, 1))
+	assert_true(absf(t.basis.y.length() - 1.2 * 1.5) < 1e-5)
+	assert_true(absf(t.basis.x.length() - 1.2) < 1e-5)
+	assert_eq(t.origin, Vector3(0, 0, 1))
+
+
+func test_flower_mode_uniforms_and_card() -> void:
+	var shader: Shader = GrassField.SHADER
+	var names: Array[String] = []
+	for u: Dictionary in shader.get_shader_uniform_list():
+		names.append(u["name"])
+	assert_true(names.has("flower_mode") and names.has("stem_color"))
+	var image := GrassTexture.flower_card(128, 5)
+	var blossoms := 0
+	var stems := 0
+	for y in 128:
+		for x in 128:
+			var c := image.get_pixel(x, y)
+			if c.a > 0.5:
+				assert_eq(c.b, 0.0)
+				assert_true(c.r >= 0.45 and c.r <= 1.0, "shade %f" % c.r)
+				if c.g > 0.5:
+					blossoms += 1
+					assert_true(y < 128 * 0.4, "blossoms in the top of the card")
+				else:
+					stems += 1
+	assert_true(blossoms > 50 and stems > 100, "blossoms %d stems %d" % [blossoms, stems])

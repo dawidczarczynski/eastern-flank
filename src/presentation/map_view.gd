@@ -24,9 +24,6 @@ const BACKDROP_VALUE := 0.85
 const BACKDROP_SATURATION := 0.7
 ## Off-map margin of the playable mesh: value factor (it reads as "not playable").
 const OFF_MAP_VALUE := 0.6
-## Fine moisture noise for the plains dirt patches (TerrainSplat): frequency per unit and seed.
-const MOISTURE_FREQUENCY := 0.9
-const MOISTURE_SEED := 97.0
 ## Share of the planned scatter the backdrop keeps (cheaper, and it is far away).
 const BACKDROP_SCATTER_DENSITY := 0.5
 const BACKDROP_THIN_SEED := 311.0
@@ -394,10 +391,7 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 
 ## The two TerrainSplat noises at world (x, z): fine moisture (x) and the dry/moist macro (y).
 static func _splat_noise(x: float, z: float) -> Vector2:
-	var moisture := TerrainNoise.value_noise(
-		x * MOISTURE_FREQUENCY, z * MOISTURE_FREQUENCY, MOISTURE_SEED
-	)
-	return Vector2(moisture, GroundNoise.macro_k(x, z))
+	return Vector2(GroundNoise.moisture_k(x, z), GroundNoise.macro_k(x, z))
 
 
 ## Ground layer weights (TerrainSplat) at vertex `v` with normal Y `normal_y` on terrain type
@@ -529,6 +523,9 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 	tree_list.append_array(plan["trees"])
 	for key: String in ["young_trees", "edge_shrubs", "ground_cover"]:
 		tree_list.append_array(plan[key])
+	# Thickets on open ground (TASK-070) belong to the playable map only.
+	if prefix != "Backdrop":
+		tree_list.append_array(plan["meadow_scrub"])
 	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
 	var bushes: Array = plan["bushes"]
 	_add_scatter(

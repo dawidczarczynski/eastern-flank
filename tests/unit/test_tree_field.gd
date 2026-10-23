@@ -163,6 +163,30 @@ func test_lod0_triangle_budget_on_the_default_map() -> void:
 	assert_true(worst <= TreeField.LOD0_TRIANGLE_BUDGET, "LOD0 triangles %d" % worst)
 
 
+func test_meadow_scrub_budget_on_the_default_map() -> void:
+	var grid := Scenario.default_battle(Battle.MAP_SEED).grid
+	var plan := ScatterPlanner.plan(grid, TerrainSurface.new(grid), MapView.SCATTER_SEED)
+	var scrub: Array = plan["meadow_scrub"]
+	var triangles := 0
+	for tree: Dictionary in scrub:
+		var pick := TreeSpecies.pick(tree)
+		triangles += TreeMeshes.triangle_count(TreeMeshes.lod0(pick["species"], pick["variant"]))
+	print("  meadow scrub: %d instances, %d LOD0 triangles" % [scrub.size(), triangles])
+	assert_true(scrub.size() > 0)
+	assert_true(triangles <= 25000, "meadow scrub LOD0 triangles %d" % triangles)
+
+
+func test_low_quality_has_no_meadow_scrub_or_flowers() -> void:
+	var grid := Scenario.default_battle(Battle.MAP_SEED).grid
+	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
+	_view.build(grid)
+	_view.set_camera_target(Vector2.ZERO)
+	_view.grass().update(1000)
+	assert_eq(_view.trees().planned_count(), 0)
+	assert_eq(_view.grass().instance_count(), 0)
+	assert_eq(_view.grass().flower_nodes().size(), 0)
+
+
 func test_foliage_shader_loads_and_the_material_instantiates() -> void:
 	var shader := load("res://assets/shaders/foliage.gdshader") as Shader
 	assert_true(shader != null, "shader loads")

@@ -21,6 +21,11 @@ func _disc(terrain: Terrain.Type, elevation := -1.0) -> HexGrid:
 	return grid
 
 
+func after_each() -> void:
+	LookPreset.reset()
+	VisualScale.reset()
+
+
 func test_same_chunk_and_seed_is_identical_and_other_seed_differs() -> void:
 	var grid := Fixtures.plains_grid(5)
 	assert_eq(_plan(grid), _plan(grid))
@@ -114,5 +119,8 @@ func test_instance_budget_on_the_default_map() -> void:
 	var total := 0
 	for chunk in GrassPlanner.chunks_covering(CameraMath.map_bounds(centers, 1.0)):
 		total += GrassPlanner.plan_chunk(chunk, grid, surface, GrassField.SEED, 1.0).size()
-	print("Grass instances on the default map at density 1.0: %d" % total)
-	assert_true(total <= GrassPlanner.INSTANCE_BUDGET, "grass budget: %d" % total)
+	var flowers := 0
+	for chunk in GrassPlanner.chunks_covering(CameraMath.map_bounds(centers, 1.0)):
+		flowers += GrassPlanner.plan_flowers(chunk, grid, surface, GrassField.SEED, 1.0, {}).size()
+	print("Grass instances on the default map at density 1.0: %d, flowers: %d" % [total, flowers])
+	assert_true(total + flowers <= GrassPlanner.INSTANCE_BUDGET, "budget: %d" % (total + flowers))

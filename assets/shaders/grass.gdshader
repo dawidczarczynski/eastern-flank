@@ -7,6 +7,9 @@ render_mode cull_disabled, specular_disabled;
 
 uniform sampler2D card : source_color, filter_linear_mipmap, repeat_disable;
 uniform float root_darkening = 0.55;
+// Flower mode (TASK-070): the card is R = shade, G = blossom mask; COLOR is the blossom colour.
+uniform bool flower_mode = false;
+uniform vec3 stem_color : source_color = vec3(0.1, 0.16, 0.04);
 
 varying float height_k;
 
@@ -24,7 +27,12 @@ void fragment() {
 	if (texel.a < 0.5) {
 		discard;
 	}
-	ALBEDO = texel.rgb * COLOR.rgb * mix(root_darkening, 1.0, height_k);
+	if (flower_mode) {
+		vec3 stem = stem_color * mix(root_darkening, 1.0, height_k);
+		ALBEDO = mix(stem, COLOR.rgb, texel.g) * texel.r;
+	} else {
+		ALBEDO = texel.rgb * COLOR.rgb * mix(root_darkening, 1.0, height_k);
+	}
 	ROUGHNESS = 0.9;
 	// Ground-like lighting on both faces: always the up normal (view space), whatever the face.
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);

@@ -78,7 +78,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | 🔵 done | – ; open: Polish vest colour contrast |
 | [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | 🔴 blocked | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |
 | TASK-069 | Tank v3: rework `m1a2_sepv3` / `t72b3` after the M1A2 study (chamfers, small parts, hidden geometry cut, ≤ 40k) – `unit-modeler` | 💡 idea | **TASK-030**, **TASK-062**; reference `docs/design/showcase/m1a2_showcase.gd.txt` |
-| TASK-070 | Varied vegetation on open ground: grass patches, tall grass, flowers, scrub clumps | 💡 idea | **TASK-057**, **TASK-061** (soft: TASK-071) |
+| [TASK-070](TASK-070-open-field-vegetation.md) | Varied vegetation on open ground: grass kinds (short / tall / dry stalks / nettle) by world noise, meadow flower clusters, thorn-scrub clumps on tile borders; tunables in `LookPreset.meadow` | 🔵 done | **TASK-057**, **TASK-061** (soft: TASK-071) |
 | TASK-071 | Central-Eastern European look: species, palette, terrain character (study first) | 🔵 done | soft: TASK-061, TASK-070 |
 | TASK-072 | Scalability for very large maps: benchmark tool, chunked lazy world, distance budgets (study first) | 💡 idea | soft: TASK-061, TASK-070 |
 | TASK-007 | Fog of war | 💡 idea | GDD open questions: scale, modes |

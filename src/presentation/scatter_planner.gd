@@ -51,13 +51,16 @@ const EDGE_TREE_SCALE := Vector2(0.4, 0.6)
 const GROUND_COVER_FOREST := 10
 const GROUND_COVER_OPEN := 3
 const GROUND_COVER_SCALE := Vector2(0.7, 1.3)
+## Scrub clumps on open ground (TASK-070): own RNG stream again.
+const MEADOW_SEED_SALT := 0x3EAD
 const SHRUB := &"shrub"
 const UNDERGROWTH := &"undergrowth"
 
 
-## Returns {"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover"}
-## (Array[Dictionary] each). Young trees, edge shrubs and ground cover are tree dictionaries (as
-## trees, plus "species": TreeMeshes shrub / undergrowth for the last two) drawn by the TreeField.
+## Returns {"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover",
+## "meadow_scrub"} (Array[Dictionary] each). Young trees, edge shrubs, ground cover and meadow
+## scrub are tree dictionaries (as trees, plus "species": TreeMeshes shrub / undergrowth for the
+## last three) drawn by the TreeField. Meadow scrub follows LookPreset.meadow().
 ## Tree: {position, scale, height_scale, yaw, conifer, k}. Rock: {position, scale, rotation}.
 ## Bush: {position, scale, height_scale, yaw, k}.
 static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dictionary:
@@ -73,8 +76,13 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 	var edge_shrubs: Array[Dictionary] = []
 	var young_trees: Array[Dictionary] = []
 	var ground_cover: Array[Dictionary] = []
+	var meadow_scrub: Array[Dictionary] = []
+	var meadow_rng := RandomNumberGenerator.new()
+	meadow_rng.seed = seed_value ^ MEADOW_SEED_SALT
+	var meadow := LookPreset.meadow()
 	for c in grid.coords():
 		var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+		plan_tile_meadow(grid, surface, meadow_rng, c, meadow_scrub, meadow)
 		match grid.get_terrain(c):
 			Terrain.Type.FOREST:
 				_plan_trees(trees, surface, rng, center, FOREST_TREES)
@@ -96,7 +104,62 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 		"edge_shrubs": edge_shrubs,
 		"young_trees": young_trees,
 		"ground_cover": ground_cover,
+		"meadow_scrub": meadow_scrub,
 	}
+
+
+## A thorny thicket (one shrub plus bramble/nettle undergrowth) on the open ground of one land
+## tile, appended to `out`. Draws a fixed count of numbers for every land tile (the chance roll
+## and one clump's worth, used or not), water tiles draw nothing. Forest tiles never get a clump.
+static func plan_tile_meadow(
+	grid: HexGrid,
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	c: Vector2i,
+	out: Array[Dictionary],
+	meadow: Dictionary
+) -> void:
+	var terrain := grid.get_terrain(c)
+	if terrain == Terrain.Type.WATER:
+		return
+	var chance := rng.randf()
+	var angle := rng.randf() * TAU
+	var u := rng.randf()
+	var shrub_scale: Vector2 = meadow["scrub_shrub_scale"]
+	var scale_k := rng.randf()
+	var k := rng.randf()
+	var companions: Array = []
+	var offsets: Vector2 = meadow["scrub_companion_offset"]
+	var scales: Vector2 = meadow["scrub_companion_scale"]
+	for i in int(meadow["scrub_companions"]):
+		var a := rng.randf() * TAU
+		var o := offsets.x + rng.randf() * (offsets.y - offsets.x)
+		var s := scales.x + rng.randf() * (scales.y - scales.x)
+		companions.append([a, o, s, rng.randf()])
+	var threshold := 0.0
+	if terrain == Terrain.Type.PLAINS:
+		threshold = meadow["scrub_chance_plains"]
+	elif terrain == Terrain.Type.HILLS:
+		threshold = meadow["scrub_chance_hills"]
+	if chance >= threshold:
+		return
+	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+	var radius: Vector2 = meadow["scrub_radius"]
+	var r := radius.x + sqrt(u) * (radius.y - radius.x)
+	var s0 := shrub_scale.x + scale_k * (shrub_scale.y - shrub_scale.x)
+	_append_scrub(out, surface, center, angle, r, s0, k, SHRUB)
+	var shrub_at := Vector3(center.x + cos(angle) * r, 0.0, center.z + sin(angle) * r)
+	for companion: Array in companions:
+		_append_scrub(
+			out,
+			surface,
+			shrub_at,
+			companion[0],
+			companion[1],
+			companion[2],
+			companion[3],
+			UNDERGROWTH
+		)
 
 
 ## Edge plants and undergrowth of one land tile, appended to the output arrays: a forest tile gets
