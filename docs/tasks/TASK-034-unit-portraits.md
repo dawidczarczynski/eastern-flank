@@ -1,6 +1,6 @@
 # TASK-034: Unit portraits in the hover popup (rendered from the 3D model)
 
-- **Status**: to playtest (revised 2026-10-22: real units per faction, faction camouflage, lighting v3; the detailed models exist, so this can go any time)
+- **Status**: done (revised 2026-10-22: real units per faction, faction camouflage, lighting v3; the detailed models exist, so this can go any time)
 - **Layers**: presentation (`src/presentation/ui/unit_popup.gd`, a portrait renderer; camera framing maths tested in `tests/unit/`)
 - **Depends on**: **TASK-021** (popup). The detailed models exist (six real units). Soft: TASK-062 / TASK-067 (portraits get better with them, nothing to change here), TASK-054 (if the HDRI sky is done, use it for the portrait's ambient). Reference: `docs/design/v2/game_screen.scene.js` lines 414–431 (`makePortraits`), `docs/design/v2/game_screen.template.html` lines 86–91, screenshots `docs/design/v2/shots/01-v2-units.jpg`, `02-v2-units.jpg`, `hover.jpg`.
 - **Model**: sonnet

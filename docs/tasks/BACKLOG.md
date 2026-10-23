@@ -54,7 +54,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | 🔴 blocked | **TASK-044**, **TASK-043** (tank models exist) |
 | [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | 🔵 done (superseded by `/model-unit pl_mech_infantry`, `ru_motor_rifle`; next: TASK-067) | – |
 | [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | 🔵 done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
-| [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🟣 to playtest | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
+| [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🔵 done | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
 | [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | ⚪ merged into TASK-045 | – |
 | [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | 💡 idea | **TASK-047**; look at 047 in game first |
 | [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | 🔵 done | – |
