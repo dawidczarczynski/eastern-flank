@@ -45,6 +45,8 @@ var _flower_chunks: Dictionary = {}
 var _chunks: Dictionary = {}
 var _pending: Array[Vector2i] = []
 var _instances := 0
+## Bare ground (burnt around wrecks): Vector3(x, radius, z) – no clump or flower grows inside.
+var _clearings: Array[Vector3] = []
 var _target := Vector2.ZERO
 var _has_target := false
 var _scan_needed := false
@@ -70,6 +72,7 @@ func setup(
 	_chunks.clear()
 	_flower_chunks.clear()
 	_pending.clear()
+	_clearings.clear()
 	_instances = 0
 	_density = 0.0
 	_scan_needed = true
@@ -128,6 +131,44 @@ func is_active() -> bool:
 ## The density actually used (the requested one, cut back to the instance budget).
 func density() -> float:
 	return _density
+
+
+## Keeps the ground within `radius` of `center` (XZ) bare: chunks not built yet skip it, built
+## chunks it touches are dropped and planned again.
+func add_clearing(center: Vector2, radius: float) -> void:
+	_clearings.append(Vector3(center.x, radius, center.y))
+	if _density <= 0.0:
+		return
+	var area := Rect2(center - Vector2.ONE * radius, Vector2.ONE * 2.0 * radius)
+	for chunk: Vector2i in GrassPlanner.chunks_covering(area):
+		var built := _chunks.has(chunk) or _flower_chunks.has(chunk)
+		_drop_chunk(chunk)
+		if built and not _pending.has(chunk):
+			_pending.append(chunk)
+	_scan_needed = true
+
+
+## True when `position` (XZ plane) lies inside one of the clearings.
+func is_cleared(position: Vector3) -> bool:
+	for clearing in _clearings:
+		if Vector2(position.x - clearing.x, position.z - clearing.z).length() < clearing.y:
+			return true
+	return false
+
+
+func _drop_chunk(chunk: Vector2i) -> void:
+	for chunks: Dictionary in [_chunks, _flower_chunks]:
+		var node: MultiMeshInstance3D = chunks.get(chunk)
+		if node != null:
+			_instances -= node.multimesh.instance_count
+			node.free()
+		chunks.erase(chunk)
+
+
+func _without_cleared(items: Array) -> Array:
+	if _clearings.is_empty():
+		return items
+	return items.filter(func(item: Dictionary) -> bool: return not is_cleared(item["position"]))
 
 
 func set_target(target: Vector2) -> void:
@@ -212,10 +253,14 @@ func _chunk_distance(chunk: Vector2i) -> float:
 
 
 func _build_chunk(chunk: Vector2i) -> MultiMeshInstance3D:
-	var flowers := GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow)
+	var flowers := _without_cleared(
+		GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow)
+	)
 	if not flowers.is_empty():
 		_flower_chunks[chunk] = _build_flowers(chunk, flowers)
-	var clumps := GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow)
+	var clumps := _without_cleared(
+		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow)
+	)
 	if clumps.is_empty():
 		return null
 	var rect := GrassPlanner.chunk_rect(chunk)

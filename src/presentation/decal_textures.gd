@@ -37,6 +37,11 @@ static func scorch(size: int) -> Image:
 	return _cached(&"scorch", size, _paint_scorch)
 
 
+## Large black patch, solid in the middle and ragged at the rim: ground burnt around a wreck.
+static func burnt_ground(size: int) -> Image:
+	return _cached(&"burnt_ground", size, _paint_burnt_ground)
+
+
 ## Copy of `image` revealed only for u < `cut` (0..1 along the decal's long axis, the travel
 ## direction of a track mark): the alpha is cut with a short soft edge. The pattern itself is
 ## unchanged, so a growing track never stretches its treads.
@@ -140,6 +145,26 @@ static func _paint_crater(image: Image, size: int) -> void:
 			var alpha := maxf(hole * 0.9, maxf(rim * 0.6, splatter))
 			alpha *= 1.0 - smoothstep(0.88, 1.0, r)
 			image.set_pixel(x, y, Color(color, clampf(alpha, 0.0, 1.0)))
+
+
+static func _paint_burnt_ground(image: Image, size: int) -> void:
+	for y in size:
+		for x in size:
+			var u := (x + 0.5) / size
+			var v := (y + 0.5) / size
+			var dx := u - 0.5
+			var dy := v - 0.5
+			var r := sqrt(dx * dx + dy * dy) * 2.0
+			var ragged := _noise(u, v, 9.0, 31.0) * 0.5 + _noise(u, v, 22.0, 33.0) * 0.25
+			var edge := 0.72 + ragged * 0.4
+			var alpha := (1.0 - smoothstep(edge * 0.7, edge, r)) * 0.97
+			alpha *= 1.0 - smoothstep(0.92, 1.0, r)
+			var shade := 0.55 + 0.35 * _noise(u, v, 14.0, 35.0)
+			image.set_pixel(
+				x,
+				y,
+				Color(SCORCH_COLOR.r * shade, SCORCH_COLOR.g * shade, SCORCH_COLOR.b * shade, alpha)
+			)
 
 
 static func _paint_scorch(image: Image, size: int) -> void:

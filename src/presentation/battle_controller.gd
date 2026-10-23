@@ -35,6 +35,7 @@ var _playing := false  # an event animation is running
 var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
 var _fx_rng := RandomNumberGenerator.new()  # view-local (volley scatter), never GameState.rng
 
+var _wrecks := WreckField.new()  # burnt-out hulks of destroyed vehicles (TASK-065)
 var _marks := GroundMarksView.new()  # ground decals (TASK-058), fed while animations play
 var _event_serial := 0  # played events so far: the view-local seed of the marks
 
@@ -57,6 +58,9 @@ func _ready() -> void:
 	_marks.name = "GroundMarks"
 	_marks.setup(quality.get("decals_max", 0))
 	add_child(_marks)
+	_wrecks.name = "Wrecks"
+	_wrecks.quality = quality
+	_units_root.add_child(_wrecks)
 	_camera_rig.set_bounds(_map_bounds())
 	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
@@ -576,7 +580,11 @@ func _play_event(event: Dictionary) -> Tween:
 			if view != null:
 				var points := _move_points(event)
 				_play_track_marks(event["unit_id"], points, view.facing_yaw())
-				return view.move_along(points, _map_view.surface().ground_height)
+				var move := view.move_along(points, _map_view.surface().ground_height)
+				if move != null:
+					# A unit that ends its move on a wreck's tile hides the wreck.
+					move.finished.connect(_wrecks.on_unit_moved.bind(event["to"]), CONNECT_ONE_SHOT)
+				return move
 		&"unit_attacked":
 			var target: UnitView = _unit_views.get(event["target_id"])
 			var shooter: UnitView = _unit_views.get(event["attacker_id"])
@@ -595,6 +603,7 @@ func _play_event(event: Dictionary) -> Tween:
 			if event["player"] == HUMAN_PLAYER:
 				_select(-1)
 		&"turn_started":
+			_wrecks.on_turn_started()
 			_hud.on_turn_started(_sim.state, event["turn"], event["player"])
 		&"game_over":
 			_select(-1)
@@ -689,15 +698,31 @@ func _move_points(event: Dictionary) -> PackedVector3Array:
 	return points
 
 
+## The black burnt ground of a wreck: the decal, and no grass or flowers growing on it.
+func _burn_ground(serial: int, position: Vector3, animate: bool) -> void:
+	_marks.add_marks([GroundMarks.wreck_burnt(serial, position)], animate)
+	var center := Vector2(position.x, position.z)
+	_map_view.grass().add_clearing(center, GroundMarks.WRECK_BURNT_RADIUS)
+	BurntGround.burn(_map_view, center, GroundMarks.WRECK_BURNT_RADIUS)
+
+
 func _on_unit_died(unit_id: int) -> Tween:
 	if unit_id == _selected_unit_id:
 		_select(-1)
 	var view: UnitView = _unit_views.get(unit_id)
 	if view == null:
 		return null
-	_marks.add_marks([GroundMarks.death_scorch(_event_serial, view.global_position)])
 	# Forget the view right away: it frees itself at the end of the death tween.
 	_unit_views.erase(unit_id)
+	var unit := _sim.state.get_unit(unit_id)
+	var is_wreck := unit != null and WreckPlan.leaves_wreck(unit.definition)
+	if is_wreck:
+		_burn_ground(_event_serial, view.global_position, true)
+	else:
+		_marks.add_marks([GroundMarks.death_scorch(_event_serial, view.global_position)])
+	if is_wreck:
+		# A vehicle burns black and stays on its tile as a wreck (a dead unit never moves again).
+		return view.play_death(_wrecks.adopt.bind(unit.coord))
 	return view.play_death()
 
 
@@ -786,6 +811,23 @@ func debug_marks_demo(unit_id: int) -> void:
 		GroundMarks.death_scorch(2, _map_view.tile_top_position(unit.coord + Vector2i(2, -2)))
 	)
 	_marks.add_marks(marks, false)
+
+
+## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_WRECK): the unit's view dies at once
+## through the real wreck path (burnt, turret askew, smoke), without touching the simulation.
+func debug_wreck_demo(unit_id: int) -> void:
+	var view: UnitView = _unit_views.get(unit_id)
+	var unit := _sim.state.get_unit(unit_id)
+	if view == null or unit == null:
+		push_error("debug_wreck_demo: no unit %d" % unit_id)
+		return
+	_unit_views.erase(unit_id)
+	view.begin_wreck_death()
+	view.set_wreck_time(EventQueue.DEATH_DURATION)
+	var wreck := _wrecks.adopt(view, unit.coord)
+	wreck.process_mode = Node.PROCESS_MODE_ALWAYS  # the screenshot tool pauses the scene
+	view.queue_free()
+	_burn_ground(1, view.global_position, false)
 
 
 ## The view has caught up with the simulation: refresh everything derived from the state.

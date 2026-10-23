@@ -13,6 +13,7 @@ const EXPECTED_SIZE := Vector2i(1280, 720)
 var _output := ""
 var _frames_left := 0
 var _battle: Node
+var _first_frame := true
 var _finished := false  # capture started or run failed – quit() only takes effect after this frame
 ## Frame-time probe (SCREENSHOT_MEASURE_FRAMES): frames still to time after the warm-up, and the
 ## frame durations measured so far (microseconds between _process calls).
@@ -65,6 +66,11 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
+	if _first_frame:
+		_first_frame = false
+		var wreck_unit := OS.get_environment("SCREENSHOT_WRECK")
+		if wreck_unit.is_valid_int():  # early, so the smoke has the other frames to rise
+			_battle.call("debug_wreck_demo", wreck_unit.to_int())
 	_frames_left -= 1
 	if _frames_left == 3:
 		# Decals need a few frames in the renderer's cluster before they show.
@@ -157,6 +163,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
 ## unit's tile (TASK-058), without animation.
+## SCREENSHOT_WRECK=<unit id> destroys that unit's view on the first frame (TASK-065: burnt hulk,
+## turret askew, smoke; use --frames=200 or more to see the column).
 ## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.

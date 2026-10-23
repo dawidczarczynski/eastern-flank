@@ -1,6 +1,6 @@
 # TASK-065: Wrecks and smoke – destroyed vehicles stay as burning hulks instead of vanishing
 
-- **Status**: ready (persistence rules are a proposed **[ASSUMPTION]**, see below)
+- **Status**: done (persistence rules are a proposed **[ASSUMPTION]**, see below)
 - **Layers**: presentation (`WreckView`, death playback in `UnitView`/battle view, camo shader `burnt` parameter, particles), tests
 - **Depends on**: **TASK-050** (`particles`), TASK-008 (event queue, done); soft **TASK-064** (shared particle/smoke textures), soft **TASK-058** (scorch decal under the wreck), soft **TASK-062** (burnt look on the worn shader)
 - **Model**: sonnet
@@ -62,4 +62,8 @@ Section on combat / units dying: "A destroyed vehicle leaves a burning wreck. Wr
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Persistence implemented as the proposed assumption (wrecks stay, hide on a move ending on their tile, smoke stops after 3 `turn_started` events – each player's turn start counts; infantry leaves no wreck). Not yet confirmed by the human.
+- New: `WreckPlan` (pure timeline/turret offsets from unit-id hash), `WreckLife` (pure smoke/hide counters), `WreckView`, `WreckField` (owner, wired in `BattleController`); `UnitView.play_death(on_wreck)`; `burnt` is an instance uniform in `camo.gdshader`. `DEATH_DURATION` unchanged.
+- Tests: `tests/unit/test_wreck_view.gd` (11). Known gaps: hover/picking and controller wiring are covered only indirectly.
+- Screenshot hook `SCREENSHOT_WRECK=<unit id>` in `tools/screenshot.*` (HIGH, Windows build): dark rusty hulk with smoke column seen; close-up of hull/turret, smoke density and the live tween/fade not seen. Default README shot has no deaths.
+- Playtest additions (human request): vehicles stand on a wide black burnt-ground decal (`GroundMarks.wreck_burnt`, `DecalTextures.burnt_ground`, radius 0.95); `GrassField.add_clearing` removes grass/flowers there; `BurntGround` hides bushes/trees/undergrowth and soots rocks inside the circle. Playtested by the human, done.

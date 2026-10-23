@@ -184,3 +184,17 @@ func test_flower_mode_uniforms_and_card() -> void:
 				else:
 					stems += 1
 	assert_true(blossoms > 50 and stems > 100, "blossoms %d stems %d" % [blossoms, stems])
+
+
+func test_clearing_removes_grass_and_flowers_inside_it() -> void:
+	_build({"grass_density": 1.0, "wind": false})
+	var before := _view.grass().instance_count()
+	var center := Vector2(1.0, 1.0)
+	_view.grass().add_clearing(center, 1.0)
+	_view.grass().update(1000)
+	assert_true(_view.grass().instance_count() < before, "clumps inside are gone")
+	var nodes := _view.grass().chunk_nodes() + _view.grass().flower_nodes()
+	for node in nodes:
+		for i in node.multimesh.instance_count:
+			var p := node.position + node.multimesh.get_instance_transform(i).origin
+			assert_true(Vector2(p.x, p.z).distance_to(center) >= 1.0, "bare ground")

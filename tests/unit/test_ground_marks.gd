@@ -94,6 +94,13 @@ func test_death_scorch_radius() -> void:
 	assert_true(absf(mark["length"] * 0.5 - 0.35) < 0.0001)
 
 
+func test_wreck_burnt_ground_is_wider_than_a_tile_patch() -> void:
+	var mark := GroundMarks.wreck_burnt(3, Vector3(2, 0, 2))
+	assert_eq(mark["kind"], GroundMarks.KIND_BURNT)
+	assert_true(mark["length"] * 0.5 > GroundMarks.DEATH_SCORCH_RADIUS * 1.5)
+	assert_eq(mark, GroundMarks.wreck_burnt(3, Vector3(2, 0, 2)), "deterministic")
+
+
 func _reveal_path() -> PackedVector3Array:
 	return PackedVector3Array([Vector3(0, 0, 0), Vector3(2, 0, 0), Vector3(2, 0, 2)])
 

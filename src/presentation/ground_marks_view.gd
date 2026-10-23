@@ -157,6 +157,8 @@ static func _texture(kind: StringName) -> ImageTexture:
 				image = DecalTextures.tyre(TEXTURE_SIZE)
 			GroundMarks.KIND_CRATER:
 				image = DecalTextures.crater(TEXTURE_SIZE)
+			GroundMarks.KIND_BURNT:
+				image = DecalTextures.burnt_ground(TEXTURE_SIZE)
 			_:
 				image = DecalTextures.scorch(TEXTURE_SIZE)
 		_textures[kind] = ImageTexture.create_from_image(image)

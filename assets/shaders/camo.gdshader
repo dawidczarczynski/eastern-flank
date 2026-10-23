@@ -43,6 +43,9 @@ instance uniform vec3 part_origin = vec3(0.0);
 // Offsets the weathering noises so every unit looks different (set by UnitModels from the unit
 // id; the camo pattern itself is the same for all units of a faction).
 instance uniform float wear_seed = 0.0;
+// Burnt-out wreck (TASK-065): 0 = intact paint, 1 = charred black hull with rusty patches. Set per
+// MeshInstance3D while a destroyed vehicle plays its death (the material itself is shared).
+instance uniform float burnt = 0.0;
 
 varying vec3 obj_pos;
 varying vec3 obj_nrm;
@@ -143,7 +146,18 @@ void fragment() {
 	float mud = clamp(smoothstep(mud_height, 0.0, p.y) * (0.35 + 0.65 * fbl(s * 80.0, px * 80.0)) * mud_amount, 0.0, 1.0);
 	col = mix(col, mud_color.rgb, mud * 0.85);
 
+	float rough = clamp(base_roughness + (grain - 0.5) * 0.2 - wear * 0.25 + dust * 0.15 + mud * 0.1, 0.05, 1.0);
+	float metal = mix(metallic, 0.55, wear * 0.5);
+	if (burnt > 0.0) {
+		// Charred black with noisy rusty-brown patches; the camo pattern stays faintly visible (10 %).
+		float patches = smoothstep(0.6, 0.8, fbl(s * 14.0, px * 14.0));
+		vec3 char_col = mix(vec3(0.0123, 0.0109, 0.0097), vec3(0.0685, 0.0273, 0.0130), patches);
+		col = mix(col, char_col + col * 0.1, burnt * 0.9);
+		rough = mix(rough, 0.95, burnt);
+		metal = mix(metal, 0.05, burnt);
+	}
+
 	ALBEDO = col;
-	ROUGHNESS = clamp(base_roughness + (grain - 0.5) * 0.2 - wear * 0.25 + dust * 0.15 + mud * 0.1, 0.05, 1.0);
-	METALLIC = mix(metallic, 0.55, wear * 0.5);
+	ROUGHNESS = rough;
+	METALLIC = metal;
 }

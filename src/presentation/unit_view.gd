@@ -11,6 +11,8 @@ const HIT_FLASH_ALPHA := 0.8
 const DIE_DARKEN_DURATION := 0.25
 const DIE_DARKEN_ALPHA := 0.6
 const DIE_DURATION := EventQueue.DEATH_DURATION - DIE_DARKEN_DURATION
+## Wreck death (TASK-065) uses the same total time as the plain death (EventQueue.DEATH_DURATION).
+const WRECK_DURATION := EventQueue.DEATH_DURATION
 ## Marker design values (scene.js placeMarker / markerFill).
 const RING_INNER := 0.6
 const RING_OUTER := 0.72
@@ -67,6 +69,10 @@ var _hit_tween: Tween
 var _hp := 0
 var _max_hp := 0
 var _dying := false
+var _burn_meshes: Array[MeshInstance3D] = []  # camo-shaded parts that burn black (wreck death)
+var _turret: Node3D
+var _turret_rest := Transform3D.IDENTITY
+var _death_flash: OmniLight3D
 
 
 ## `faction` is the owner's faction (colours; null = neutral); `ground_height` is a Callable
@@ -337,17 +343,15 @@ func play_hit(hp: int) -> Tween:
 
 ## Death animation: darkens and shrinks the unit, then frees the node (queue_free is deferred,
 ## so the returned tween still emits `finished`). Marker and label go away at once.
-## Returns null if the unit is already dying.
-func play_death() -> Tween:
+## A vehicle with a valid `on_wreck` Callable (UnitView -> void) instead flashes, burns black and
+## twists its turret over the same time, then calls `on_wreck` (which takes the body, see
+## take_body) before the node is freed. Returns null if the unit is already dying.
+func play_death(on_wreck := Callable()) -> Tween:
 	if _dying:
 		return null
-	_dying = true
-	# Defensive: a unit may die while its move tween is still running – snap to its target.
-	_finish_move()
-	_reset_hit()
-	_ring.queue_free()
-	_fill.queue_free()
-	_label.queue_free()
+	_begin_death()
+	if on_wreck.is_valid() and _is_vehicle:
+		return _play_wreck_death(on_wreck)
 	_death_material = StandardMaterial3D.new()
 	_death_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_death_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -359,6 +363,123 @@ func play_death() -> Tween:
 	shrink.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)
 	return tween
+
+
+func _begin_death() -> void:
+	_dying = true
+	# Defensive: a unit may die while its move tween is still running – snap to its target.
+	_finish_move()
+	_reset_hit()
+	_ring.queue_free()
+	_fill.queue_free()
+	_label.queue_free()
+
+
+## Prepares the wreck death: the burn targets, the turret pose to start from, the flash and the
+## fire burst. `set_wreck_time` then plays it.
+func _play_wreck_death(on_wreck: Callable) -> Tween:
+	_prepare_wreck_death()
+	var tween := create_tween()
+	tween.tween_method(set_wreck_time, 0.0, WRECK_DURATION, WRECK_DURATION)
+	tween.tween_callback(
+		func() -> void:
+			on_wreck.call(self)
+			queue_free()
+	)
+	return tween
+
+
+func _prepare_wreck_death() -> void:
+	_burn_meshes.clear()
+	_collect_camo_meshes(_pivot)
+	_turret = _model.get_node_or_null("Turret") as Node3D
+	if _turret != null:
+		_turret_rest = _turret.transform
+	_death_flash = OmniLight3D.new()
+	_death_flash.light_color = WreckPlan.FLASH_COLOR
+	_death_flash.omni_range = WreckPlan.FLASH_RANGE
+	_death_flash.light_energy = WreckPlan.FLASH_ENERGY
+	_death_flash.shadow_enabled = false
+	_death_flash.position = Vector3(0.0, 0.3, 0.0)
+	add_child(_death_flash)
+	if quality.get("particles", false):
+		_add_death_burst()
+
+
+func _add_death_burst() -> void:
+	var burst := (
+		ParticleFx
+		. emitter(
+			{
+				"lifetime": 0.8,
+				"max_particles": WreckPlan.BURST_PARTICLES,
+				"direction": Vector3.UP,
+				"spread": 70.0,
+				"velocity_min": 0.4,
+				"velocity_max": 1.4,
+				"gravity": Vector3(0.0, 0.3, 0.0),
+				"damping": 1.0,
+				"size_start": 0.15,
+				"size_end": 0.6,
+				"alpha": 0.9,
+				"tint": Color("e0803a"),
+			}
+		)
+	)
+	burst.name = "DeathBurst"
+	burst.position = Vector3(0.0, 0.3, 0.0)
+	burst.one_shot = true
+	burst.explosiveness = 1.0
+	add_child(burst)
+	burst.amount_ratio = 1.0
+	burst.emitting = true
+
+
+## Poses the wreck death `t` seconds in (0..WRECK_DURATION): flash, burnt hull, turret knocked
+## askew. Public so tests can jump to any moment.
+func set_wreck_time(t: float) -> void:
+	var burnt := WreckPlan.burnt_at(t)
+	for mesh in _burn_meshes:
+		mesh.set_instance_shader_parameter(&"burnt", burnt)
+	if _death_flash != null:
+		_death_flash.light_energy = WreckPlan.flash_energy(t)
+	if _turret != null:
+		var p := WreckPlan.turret_progress(t)
+		var twist := Basis(Vector3.UP, WreckPlan.turret_yaw(unit_id) * p)
+		var tilt := Basis(Vector3.BACK, WreckPlan.turret_tilt(unit_id) * p)
+		_turret.transform = Transform3D(
+			twist * tilt * _turret_rest.basis,
+			_turret_rest.origin + Vector3.UP * WreckPlan.TURRET_LIFT * p
+		)
+	if t >= WreckPlan.TURRET_END:
+		UnitModels.pose_launcher(_model, 0.0, 0.0)  # launcher pods drop to their stowed pose
+
+
+## Starts a wreck death without a tween (tests): everything `play_death` sets up before the clock.
+func begin_wreck_death() -> void:
+	_begin_death()
+	_prepare_wreck_death()
+
+
+## The model pivot, detached from this view with its local transform kept: a WreckView adopts it
+## when the unit's death animation ends. Null if already taken.
+func take_body() -> Node3D:
+	if _pivot == null or _pivot.get_parent() != self:
+		return null
+	var body := _pivot
+	remove_child(body)
+	_meshes.clear()
+	return body
+
+
+func _collect_camo_meshes(node: Node) -> void:
+	for child in node.get_children():
+		var instance := child as MeshInstance3D
+		if instance != null:
+			var shader := instance.material_override as ShaderMaterial
+			if shader != null and shader.shader == ModelParts.CAMO_SHADER:
+				_burn_meshes.append(instance)
+		_collect_camo_meshes(child)
 
 
 ## Stops a running hit reaction and leaves no flash behind (the flash material is shared).

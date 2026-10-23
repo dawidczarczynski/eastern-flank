@@ -12,6 +12,8 @@ const KIND_TRACK := &"track"
 const KIND_TYRE := &"tyre"
 const KIND_CRATER := &"crater"
 const KIND_SCORCH := &"scorch"
+## The wide black burnt ground a destroyed vehicle stands on.
+const KIND_BURNT := &"burnt"
 
 ## Mark widths in world units at the `current` unit scale preset (VisualScale 1.3).
 const TANK_WIDTH := 0.42
@@ -30,6 +32,7 @@ const CRATER_RADIUS_MIN := 0.10
 const CRATER_RADIUS_MAX := 0.16
 const IMPACT_SCORCH_RADIUS := 0.25
 const DEATH_SCORCH_RADIUS := 0.35
+const WRECK_BURNT_RADIUS := 0.95
 ## Minimum attack range and target distance (tiles) of fire that craters the ground.
 const INDIRECT_RANGE := 2
 const INDIRECT_DISTANCE := 2
@@ -118,6 +121,13 @@ static func impact_scorch(
 static func death_scorch(event_index: int, center: Vector3) -> Dictionary:
 	return _round_mark(
 		KIND_SCORCH, center, _rng(event_index, 3), DEATH_SCORCH_RADIUS, DEATH_SCORCH_RADIUS
+	)
+
+
+## The burnt ground around a destroyed vehicle: wider than its hull, solid black near it.
+static func wreck_burnt(event_index: int, center: Vector3) -> Dictionary:
+	return _round_mark(
+		KIND_BURNT, center, _rng(event_index, 4), WRECK_BURNT_RADIUS, WRECK_BURNT_RADIUS
 	)
 
 
