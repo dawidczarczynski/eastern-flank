@@ -22,4 +22,10 @@
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Investigated 2026-10-24, **no production change kept** – the status stays `ready` for a deeper attempt.
+
+- Profile of `build()` on `plains_grid(4)` (11 655 terrain vertices, ~1.2 s after warm-up): `_build_terrain` ~460 ms (~40 µs/vertex of GDScript: `GroundNoise.jitter`, `_splat_noise`, `_splat`, `TerrainSplat.smooth`), `BackdropMesh.build_mesh` ~420 ms (per-vertex `Callable` calls), the rest (water, grid lines, scatter, trees) < 250 ms. The first build per process costs ~3 s (resource loading).
+- Tried: inlining `hash`/`value_noise` into `TerrainNoise.value_noise`/`fbm` (bit-identical output, jitter −40 %) – the whole build only got ~5 % faster, so it was reverted (duplicated code for no visible gain). The per-vertex GDScript work is spread over many functions; micro-optimising one doesn't move the total.
+- Test-side sharing is harder than it looks: overlays, grid lines, scatter and the backdrop canopy read `_mesh_heights`/`_backdrop`, so a "no ground mesh" build mode for grass/tree tests touches most of `MapView`. `test_grass_kinds`/`test_grass_planner` (~23 s) don't build a `MapView` at all – their cost is `GrassPlanner` on the default map.
+- Already done separately: `tools/test.sh` runs test files in parallel shards (145 s → ~79 s), `tools/lint.sh` runs gdlint and gdformat side by side.
+- Realistic next steps: compute the splat weights/normals/backdrop in bulk (PackedArray/`Image` or a compute-free closed form instead of per-vertex GDScript), or cache the generated terrain arrays per (grid, quality) across tests of one file with a `before_all` hook in `TestCase`.
