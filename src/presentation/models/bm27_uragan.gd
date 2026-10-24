@@ -9,7 +9,7 @@ const LABEL_HEIGHT := 0.62
 ## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
 const MECHANISMS := {
 	"wheels": {},
-	"launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "rear"},
+	"launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "front"},
 	"stabilisers": {},
 	"blast_shields": {},
 }
@@ -51,8 +51,8 @@ const PISTON_RADIUS := 0.055
 
 ## The "Launcher" turntable stands behind the engines; its "Pod" child (the tube bundle with its
 ## cradle) hinges on the trunnions at the bundle's rear end, +X forward along the tubes:
-## "Mouth0".."Mouth15" lie just in front of the muzzles. The Launcher's "stowed_yaw" meta (0 =
-## tubes stowed facing forward) tells UnitModels.launcher_traverse which way they point at rest.
+## "Mouth0".."Mouth15" lie just in front of the muzzles. The tubes are stowed facing forward
+## (MECHANISMS launcher `stowed: front`, read by UnitModels.launcher_aim).
 static func build(faction: FactionDefinition) -> Node3D:
 	var g := Node3D.new()
 	var f := Frame.new(K, LENGTH_M / 2.0)
@@ -184,7 +184,6 @@ static func _build_launcher(
 	var launcher := Node3D.new()
 	launcher.name = "Launcher"
 	launcher.position = f.p(TURNTABLE.x, TURNTABLE.y)
-	launcher.set_meta(&"stowed_yaw", 0.0)
 	g.add_child(launcher)
 	var to_launcher := launcher.transform.affine_inverse()
 	var carriage: Array = []

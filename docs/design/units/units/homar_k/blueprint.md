@@ -41,7 +41,7 @@ converted by `_p()` / `_slab()`.
 `Pod` pivot (child of `Launcher`): on the front-bottom edge of the launcher box (x 6.52, h 2.0),
 turned 180° about Y so its +X runs to the rear (stowed tube ends face the rear). `Mouth0..11` sit
 0.1 m behind the tube caps (pod-local x ≈ 0.36 > 0.2). Before a volley the pod rises about its
-local Z (`UnitModels.LAUNCHER_ELEVATION`) on two hydraulic actuators (|z| 0.85: dark cylinder
+local Z (to its `max_elevation_deg` 40°, `UnitModels.launcher_elevation`) on two hydraulic actuators (|z| 0.85: dark cylinder
 `Actuator<i>` from the turntable anchor x 7.25 / h 1.92, steel piston `ActuatorRod<i>` from
 `ActuatorMount<i>` under the pod at x 8.9 / h 2.0, each 1.1 m, r 0.13 / 0.07), then the turntable
 turns the tube ends towards the target; after the salvo both return.

@@ -1,6 +1,6 @@
 # TASK-044: Launcher mechanism with parameters – traverse range, stowed direction, elevation per unit
 
-- **Status**: ready (revised 2026-10-22: the stowed direction is partly done – the Uragan was built front-stowed with an ad-hoc `stowed_yaw` meta read by `UnitModels.launcher_traverse_for`; this task replaces it with the `stowed` param)
+- **Status**: done (revised 2026-10-22: the stowed direction is partly done – the Uragan was built front-stowed with an ad-hoc `stowed_yaw` meta read by `UnitModels.launcher_traverse_for`; this task replaces it with the `stowed` param)
 - **Layers**: presentation (`UnitModels`, `UnitView`, `BattleController._play_volley` / `_volley_event_duration`), tools (`tools/render_unit_options.gd`, `render_unit.gd`), tests
 - **Depends on**: **TASK-043** (mechanism metadata). The Uragan model exists already; after this task it reads `stowed: front` and its verified `traverse_deg` from `MECHANISMS` instead of the `stowed_yaw` meta.
 - **Model**: opus (angle wrapping + tween sequence and event duration must stay in step)
@@ -29,13 +29,13 @@ Every rocket launcher animates like its real vehicle: how far its launcher can t
 
 ## Acceptance criteria (testable)
 
-- [ ] `traverse_aim`, front-stowed (offset 0), `[-30, 30]`, facing 0: target 20° → (0, 20°); 90° → (60°, 30°); −45° → (−15°, −30°); 180° → (−150°, −30°) (tie → lower limit); facing 90°, target 100° → (0, 10°). Front-stowed `"full"`, facing 0, target 90° → (0, 90°). Rear-stowed `[-30, 30]`, facing 0, target 170° → (0, −10°). Tolerance 1e-4 rad.
-- [ ] **Homar-K regression**: `launcher_aim(homar, 0, PI/2)` = (0, −PI/2) (same as the old `launcher_traverse`); `launcher_elevation(homar)` within 0.01 rad of 0.7; `launcher_limited(homar)` false; its event duration is unchanged: `_volley_event_duration(true, false) == 2 × (0.9 + 0.9) + RocketVolley.total_duration()`.
-- [ ] `_volley_event_duration(true, true) == 0.5 + 3.6 + total_duration()`, `(false, false) == 0.5 + total_duration()`.
-- [ ] `launcher_params` of a synthetic `Launcher` model without metadata == `LAUNCHER_DEFAULTS`; `LAUNCHER_DEFAULTS` equals the launcher defaults in `mechanisms.json` (test-only read through `tests/mechanism_contract.gd`).
-- [ ] The pose tests in `test_launcher_pose.gd` pass with `launcher_elevation(model)` in place of `LAUNCHER_ELEVATION`; the actuators still connect at the Homar-K's elevation.
-- [ ] `test_render_unit_options.gd`: `--pose=fire` parsed, default `rest`, `--pose=up` → exit code 2.
-- [ ] `tools/screenshot.sh` before/after identical; `tools/check.sh` passes.
+- [x] `traverse_aim`, front-stowed (offset 0), `[-30, 30]`, facing 0: target 20° → (0, 20°); 90° → (60°, 30°); −45° → (−15°, −30°); 180° → (−150°, −30°) (tie → lower limit); facing 90°, target 100° → (0, 10°). Front-stowed `"full"`, facing 0, target 90° → (0, 90°). Rear-stowed `[-30, 30]`, facing 0, target 170° → (0, −10°). Tolerance 1e-4 rad.
+- [x] **Homar-K regression**: `launcher_aim(homar, 0, PI/2)` = (0, −PI/2) (same as the old `launcher_traverse`); `launcher_elevation(homar)` within 0.01 rad of 0.7; `launcher_limited(homar)` false; its event duration is unchanged: `_volley_event_duration(true, false) == 2 × (0.9 + 0.9) + RocketVolley.total_duration()`.
+- [x] `_volley_event_duration(true, true) == 0.5 + 3.6 + total_duration()`, `(false, false) == 0.5 + total_duration()`.
+- [x] `launcher_params` of a synthetic `Launcher` model without metadata == `LAUNCHER_DEFAULTS`; `LAUNCHER_DEFAULTS` equals the launcher defaults in `mechanisms.json` (test-only read through `tests/mechanism_contract.gd`).
+- [x] The pose tests in `test_launcher_pose.gd` pass with `launcher_elevation(model)` in place of `LAUNCHER_ELEVATION`; the actuators still connect at the Homar-K's elevation.
+- [x] `test_render_unit_options.gd`: `--pose=fire` parsed, default `rest`, `--pose=up` → exit code 2.
+- [x] `tools/screenshot.sh` before/after identical; `tools/check.sh` passes.
 
 ## Playtest (for the human)
 
@@ -60,4 +60,8 @@ None (presentation only, no rule effect).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Implemented in `UnitModels` (`LAUNCHER_DEFAULTS`, `launcher_params`, `traverse_aim`, `launcher_aim`, `launcher_elevation`, `launcher_limited`), `UnitView.launcher_aim_towards`, `BattleController._play_volley` / `_volley_event_duration(launcher, limited)`, `--pose=rest|fire` in `render_unit`. Open questions resolved as proposed (vehicle stays turned, always `max_elevation_deg`, global durations). Tests: `test_launcher_aim.gd` (new), `test_launcher_pose.gd`, `test_render_unit_options.gd`.
+
+- **Uragan stowed**: the catalog said `rear`, but the model is built front-stowed (tubes over the cab), so `unit.json` and the model now say `front`; the source note was annotated. Follow-up option: rebuild the model rear-stowed and restore `rear`.
+- **Known issue**: the Uragan's `max_elevation_deg` is 55°, and its actuators come apart at that elevation (`render_unit.sh bm27_uragan --pose=fire`). Needs a `/model-unit bm27_uragan` fix (geometry was out of scope).
+- Before/after `tools/screenshot.sh` looked identical side by side (no pixel diff, PIL missing). README screenshot not re-rendered (static frame unchanged).

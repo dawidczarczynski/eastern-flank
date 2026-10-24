@@ -5,11 +5,13 @@ extends Node3D
 const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
 const BOTTOM_LEFT_MARGIN := 24
-## Time the launcher takes to turn towards its target before a volley (seconds at speed 1).
+## Time the vehicle takes to turn towards its target before a volley (seconds at speed 1): a
+## fixed launcher always turns; a turntable launcher with a limited traverse (Uragan) turns first
+## when the target is outside its range (by zero when it isn't, same duration).
 const AIM_DURATION := 0.5
-## Turntable launchers (Homar-K) aim the launcher instead: the pod rises on its actuators, the
-## turntable turns to the target, and after the salvo both return to the stowed pose
-## (seconds at speed 1, each way).
+## Turntable launchers (Homar-K, Uragan) aim the launcher: the pod rises on its actuators to the
+## unit's max elevation, the turntable turns to the target, and after the salvo both return to the
+## stowed pose (seconds at speed 1, each way; global pacing, not per unit).
 const LAUNCHER_RAISE_DURATION := 0.9
 const LAUNCHER_TRAVERSE_DURATION := 0.9
 
@@ -607,7 +609,10 @@ func _annotate(event: Dictionary) -> Dictionary:
 	if event["type"] == &"unit_attacked" and _fires_volley(event["attacker_id"]):
 		var shooter: UnitView = _unit_views.get(event["attacker_id"])
 		var launcher := shooter != null and shooter.has_launcher()
-		var annotated := EventQueue.with_view_duration(event, _volley_event_duration(launcher))
+		var limited := launcher and shooter.launcher_limited()
+		var annotated := EventQueue.with_view_duration(
+			event, _volley_event_duration(launcher, limited)
+		)
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
 	return event
@@ -619,13 +624,16 @@ func _fires_volley(attacker_id: int) -> bool:
 
 
 ## Aim + salvo + impact; the hit reaction starts with the last impact and ends with the flashes.
-## A turntable `launcher` raises and traverses before the salvo and stows after it.
-static func _volley_event_duration(launcher: bool) -> float:
+## A turntable `launcher` raises and traverses before the salvo and stows after it; a `limited`
+## one always has the body turn first (zero angle when not needed), so the duration doesn't
+## depend on the view state when the event is annotated.
+static func _volley_event_duration(launcher: bool, limited: bool) -> float:
 	if launcher:
-		return (
+		var duration := (
 			2.0 * (LAUNCHER_RAISE_DURATION + LAUNCHER_TRAVERSE_DURATION)
 			+ RocketVolley.total_duration()
 		)
+		return duration + AIM_DURATION if limited else duration
 	return AIM_DURATION + RocketVolley.total_duration()
 
 
@@ -699,15 +707,33 @@ func _play_event(event: Dictionary) -> Tween:
 
 ## Turn the launcher towards the target, fire the salvo from its tubes, then the hit reaction.
 ## One tween lasts the whole event (_volley_event_duration), so the queue waits for all of it.
+## A launcher with a limited traverse turns the vehicle first (it stays turned afterwards).
 func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary) -> Tween:
 	var aim_point := target.global_position
 	var tween := create_tween()
 	var traverse := 0.0
+	var elevation := 0.0
 	if shooter.has_launcher():
-		traverse = shooter.launcher_traverse_towards(aim_point)
-		_tween_launcher(tween, shooter, Vector2.ZERO, Vector2(0.0, 1.0), LAUNCHER_RAISE_DURATION)
+		var aim := shooter.launcher_aim_towards(aim_point)
+		traverse = aim.y
+		elevation = shooter.launcher_elevation()
+		if shooter.launcher_limited():
+			var from_yaw := shooter.facing_yaw()
+			tween.tween_method(
+				func(f: float) -> void: shooter.set_facing_yaw(from_yaw + aim.x * f),
+				0.0,
+				1.0,
+				AIM_DURATION
+			)
 		_tween_launcher(
-			tween, shooter, Vector2(0.0, 1.0), Vector2(traverse, 1.0), LAUNCHER_TRAVERSE_DURATION
+			tween, shooter, Vector2.ZERO, Vector2(0.0, elevation), LAUNCHER_RAISE_DURATION
+		)
+		_tween_launcher(
+			tween,
+			shooter,
+			Vector2(0.0, elevation),
+			Vector2(traverse, elevation),
+			LAUNCHER_TRAVERSE_DURATION
 		)
 	else:
 		var from_yaw := shooter.facing_yaw()
@@ -741,14 +767,20 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 	tween.tween_callback(volley.queue_free)
 	if shooter.has_launcher():
 		_tween_launcher(
-			tween, shooter, Vector2(traverse, 1.0), Vector2(0.0, 1.0), LAUNCHER_TRAVERSE_DURATION
+			tween,
+			shooter,
+			Vector2(traverse, elevation),
+			Vector2(0.0, elevation),
+			LAUNCHER_TRAVERSE_DURATION
 		)
-		_tween_launcher(tween, shooter, Vector2(0.0, 1.0), Vector2.ZERO, LAUNCHER_RAISE_DURATION)
+		_tween_launcher(
+			tween, shooter, Vector2(0.0, elevation), Vector2.ZERO, LAUNCHER_RAISE_DURATION
+		)
 	return tween
 
 
-## Appends a launcher step from pose `from` to `to` (x traverse, y elevation as a fraction of
-## UnitModels.LAUNCHER_ELEVATION), eased in and out like a hydraulic drive.
+## Appends a launcher step from pose `from` to `to` (x traverse, y elevation, both in radians),
+## eased in and out like a hydraulic drive.
 func _tween_launcher(
 	tween: Tween, shooter: UnitView, from: Vector2, to: Vector2, duration: float
 ) -> void:
@@ -756,7 +788,7 @@ func _tween_launcher(
 		func(f: float) -> void:
 			if is_instance_valid(shooter):
 				var pose := from.lerp(to, f)
-				shooter.set_launcher_pose(pose.x, pose.y * UnitModels.LAUNCHER_ELEVATION),
+				shooter.set_launcher_pose(pose.x, pose.y),
 		0.0,
 		1.0,
 		duration

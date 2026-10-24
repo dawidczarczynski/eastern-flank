@@ -40,6 +40,7 @@ func test_defaults_without_catalog_entry() -> void:
 	assert_eq(options["views"], ["side", "front", "top", "three_quarter"])
 	assert_eq(options["reference"], "")
 	assert_eq(options["real"], {})
+	assert_eq(options["pose"], "rest")
 	assert_true(String(options["out"]).is_absolute_path())
 	assert_true(String(options["out"]).ends_with(".screenshots/units/bare_poland_sheet.png"))
 
@@ -80,9 +81,11 @@ func test_explicit_faction_views_out_and_reference() -> void:
 			"--views=side,top",
 			"--out=/tmp/x_sheet.png",
 			"--reference=" + reference,
+			"--pose=fire",
 		]
 	)
 	assert_eq(options["error"], "")
+	assert_eq(options["pose"], "fire")
 	assert_eq(options["faction"], "poland")
 	assert_eq(options["views"], ["side", "top"])
 	assert_eq(options["out"], "/tmp/x_sheet.png")
@@ -98,7 +101,8 @@ func test_faction_flag_and_unknown_faction() -> void:
 	assert_eq(_parse(["bare", "--faction=atlantis"])["error"], "unknown_faction")
 
 
-func test_empty_views_is_an_error() -> void:
+func test_invalid_views_and_poses_are_errors() -> void:
+	assert_eq(_parse(["bare", "--pose=up"])["error"], "unknown_pose")
 	assert_eq(_parse(["bare", "--views="])["error"], "invalid_views")
 	assert_eq(_parse(["bare", "--views=side,"])["error"], "invalid_views")
 	assert_eq(_parse(["bare", "--views=side,rear"])["error"], "unknown_view")
@@ -131,6 +135,8 @@ func test_empty_flag_values_are_errors() -> void:
 	assert_eq(_parse(["bare", "--faction="])["error"], "empty_option")
 	assert_eq(_parse(["bare", "--out="])["error"], "empty_option")
 	assert_eq(_parse(["bare", "--reference="])["error"], "empty_option")
+	assert_eq(_parse(["bare", "--pose="])["error"], "empty_option")
+	assert_eq(_parse(["bare", "--pose=fire", "--pose=rest"])["pose"], "rest")
 	assert_eq(_parse(["bare", "--faction=poland", "--faction=russia"])["faction"], "russia")
 
 

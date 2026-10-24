@@ -17,8 +17,11 @@ const VOLLEY_CLASS := &"mlrs"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
 const MAX_WHEELS := 20
-## Elevation (rad) of a turntable launcher's pod while firing.
-const LAUNCHER_ELEVATION := 0.7
+## Params of the `launcher` mechanism a model doesn't declare (= the defaults in
+## docs/design/units/mechanisms.json; a test keeps them equal).
+const LAUNCHER_DEFAULTS := {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"}
+## Two traverse limits whose body turns differ by less than this (rad) count as a tie.
+const TRAVERSE_TIE := 0.000001
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
 const MAX_ACTUATORS := 4
 ## Label anchor height above the unit's feet for a model file without a LABEL_HEIGHT constant.
@@ -160,24 +163,53 @@ static func launcher_pod(model: Node3D) -> Node3D:
 	return pod if pod != null else m.get_node_or_null("Pod") as Node3D
 
 
-## Direction of the stowed tube ends relative to the body (yaw about Y): the "Launcher" node's
-## "stowed_yaw" meta, PI (facing the rear, e.g. Homar-K) when absent; 0 = facing forward over the
-## cab (e.g. BM-27 Uragan).
-static func launcher_stowed_yaw(model: Node3D) -> float:
-	var launcher := _model_of(model).get_node_or_null("Launcher") as Node3D
-	return launcher.get_meta(&"stowed_yaw", PI) if launcher != null else PI
+## The model's `launcher` mechanism params over LAUNCHER_DEFAULTS (a legacy "Launcher" model
+## without metadata gets the defaults).
+static func launcher_params(model: Node3D) -> Dictionary:
+	var params := LAUNCHER_DEFAULTS.duplicate()
+	params.merge(mechanism(model, "launcher"), true)
+	return params
 
 
-## Turntable angle (Launcher rotation.y) that points the tube ends, which face `stowed_yaw` when
-## stowed (see launcher_stowed_yaw), towards the facing yaw `target_yaw` of a unit whose body has
-## yaw `facing_yaw`; wrapped to the shorter turn.
-static func launcher_traverse(facing_yaw: float, target_yaw: float, stowed_yaw := PI) -> float:
-	return wrapf(target_yaw - facing_yaw - stowed_yaw, -PI, PI)
+## Whether the launcher's traverse is limited to a range (not "full").
+static func launcher_limited(model: Node3D) -> bool:
+	return launcher_params(model)["traverse_deg"] is Array
 
 
-## launcher_traverse with the stowed direction of `model`'s own launcher.
-static func launcher_traverse_for(model: Node3D, facing_yaw: float, target_yaw: float) -> float:
-	return launcher_traverse(facing_yaw, target_yaw, launcher_stowed_yaw(model))
+## Elevation (rad) the launcher's pod is raised to for firing: its `max_elevation_deg`.
+static func launcher_elevation(model: Node3D) -> float:
+	return deg_to_rad(float(launcher_params(model)["max_elevation_deg"]))
+
+
+## launcher_aim for `model`'s own launcher: x = body yaw change, y = turntable angle (rad), see
+## traverse_aim.
+static func launcher_aim(model: Node3D, facing_yaw: float, target_yaw: float) -> Vector2:
+	var params := launcher_params(model)
+	var stowed_offset := 0.0 if params["stowed"] == "front" else PI
+	return traverse_aim(params["traverse_deg"], stowed_offset, facing_yaw, target_yaw)
+
+
+## How a body with yaw `facing_yaw` and a turntable that traverses `traverse_deg` ("full" or
+## [lo, hi] in degrees, relative to the stowed direction) points at the yaw `target_yaw`: x = the
+## body's yaw change, y = the turntable angle (rad). The parts it aims (tube ends, a gun) face
+## `stowed_offset` relative to the body at turntable angle 0 (PI = rear, 0 = front). Inside the
+## range (or "full") the body doesn't turn and the turntable takes the shorter way; outside it the
+## body turns so the turntable stops at the limit nearer to the target (a tie takes `lo`).
+static func traverse_aim(
+	traverse_deg: Variant, stowed_offset: float, facing_yaw: float, target_yaw: float
+) -> Vector2:
+	var desired := wrapf(target_yaw - facing_yaw - stowed_offset, -PI, PI)
+	if not traverse_deg is Array:
+		return Vector2(0.0, desired)
+	var lo := deg_to_rad(float(traverse_deg[0]))
+	var hi := deg_to_rad(float(traverse_deg[1]))
+	if desired >= lo and desired <= hi:
+		return Vector2(0.0, desired)
+	var body_lo := wrapf(desired - lo, -PI, PI)
+	var body_hi := wrapf(desired - hi, -PI, PI)
+	if absf(body_hi) < absf(body_lo) - TRAVERSE_TIE:
+		return Vector2(body_hi, hi)
+	return Vector2(body_lo, lo)
 
 
 ## Turntable launcher pose: "Launcher" turns by `traverse` about its Y, its "Pod" turns up by

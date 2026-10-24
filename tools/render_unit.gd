@@ -10,6 +10,8 @@ extends SceneTree
 ## 5 m; walls with the same grid behind the side and front views). The model is shown without
 ## the unit model scale (VisualScale.unit_model_scale()). Orthographic views share one scale;
 ## three_quarter is perspective.
+## `--pose=fire` raises a launcher to its max elevation (traverse 0) before framing, so the views
+## and the AABB show the fire pose.
 ## Stats: the AABB covers visible nodes only, while triangle and mesh counts include hidden poses
 ## (e.g. the kneeling soldiers' Stand), the same rule as the contract test budgets.
 
@@ -18,7 +20,7 @@ const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const USAGE := (
 	"Usage: tools/render_unit.sh <unit_id> [--faction=<id>] "
 	+ "[--views=side,front,top,three_quarter] [--reference=path] [--out=sheet.png] "
-	+ "[--windows|--linux]"
+	+ "[--pose=rest|fire] [--windows|--linux]"
 )
 const EXPECTED_SIZE := Vector2i(1280, 720)
 const CELL_SIZE := Vector2i(640, 360)
@@ -138,6 +140,8 @@ func _build_scene() -> void:
 	var model_root := UnitModels.build(StringName(_options["unit_id"]), 0, faction)
 	_model = model_root.get_node("Model") as Node3D
 	_model.scale = Vector3.ONE  # model space: 1 unit = 10 m
+	if _options["pose"] == "fire":
+		UnitModels.pose_launcher(_model, 0.0, UnitModels.launcher_elevation(_model))
 	root.add_child(model_root)
 	_aabb = _visible_aabb(model_root)  # root yaw is 0: the model faces +X
 

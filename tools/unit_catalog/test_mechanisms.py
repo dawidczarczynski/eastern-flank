@@ -324,7 +324,7 @@ class TestShippedEntries(unittest.TestCase):
         unit = catalog.load_unit(catalog.DEFAULT_ROOT, "bm27_uragan")
         self.assertEqual(unit["mechanisms"], {
             "wheels": {},
-            "launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "rear"},
+            "launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "front"},
             "stabilisers": {},
             "blast_shields": {},
         })  # fmt: skip

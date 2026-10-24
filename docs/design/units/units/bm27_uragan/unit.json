@@ -42,7 +42,7 @@
         30
       ],
       "max_elevation_deg": 55,
-      "stowed": "rear"
+      "stowed": "front"
     },
     "stabilisers": {},
     "blast_shields": {}
@@ -170,7 +170,7 @@
       "verified": true
     },
     "mechanisms.launcher.stowed": {
-      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (\"during travel the launcher assembly is oriented rearward\")",
+      "source": "https://man.fas.org/dod-101/sys/land/row/9p140.htm (\"during travel the launcher assembly is oriented rearward\"; NOTE: the game model is deliberately built front-stowed, see TASK-044)",
       "verified": true
     },
     "mechanisms.stabilisers": {

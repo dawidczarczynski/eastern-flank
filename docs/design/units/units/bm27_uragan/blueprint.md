@@ -38,8 +38,9 @@ ground, `z` across.
 
 Pivots: `Launcher` at the turntable centre (6.0, 1.55); `Pod` hinge on the trunnions at the bundle's
 rear end (8.3, 2.33), no rotation – its +X runs forward along the tubes, so elevation raises the
-muzzles. `Mouth0..15` 0.1 m in front of the muzzles (pod-local x ≈ 0.6). The Launcher carries the
-meta `stowed_yaw = 0.0` (tubes stowed facing forward; Homar-K's default is PI, rearward).
+muzzles. `Mouth0..15` 0.1 m in front of the muzzles (pod-local x ≈ 0.6). The tubes are stowed
+facing forward: the `launcher` mechanism declares `stowed: front` (Homar-K's default is `rear`),
+with a traverse of ±30° and 55° maximum elevation (UnitModels.launcher_aim / launcher_elevation).
 
 Mesh instances: 14 body (5 hull materials, 2 turntable, 3 pod, 4 actuator parts) + 4 per wheel;
 7 296 triangles.

@@ -1,6 +1,7 @@
 extends TestCase
 ## Launcher animation of rocket artillery with a turntable (Homar-K): traverse, elevation and the
-## hydraulic actuators following the pod (UnitModels.pose_launcher / launcher_traverse).
+## hydraulic actuators following the pod (UnitModels.pose_launcher / launcher_aim, at each
+## model's launcher_elevation).
 
 
 func _homar() -> Node3D:
@@ -53,7 +54,7 @@ func test_stowed_pose_is_the_built_pose() -> void:
 	var model := _homar()
 	var pod := UnitModels.launcher_pod(model)
 	var built := pod.transform
-	UnitModels.pose_launcher(model, 1.2, UnitModels.LAUNCHER_ELEVATION)
+	UnitModels.pose_launcher(model, 1.2, UnitModels.launcher_elevation(model))
 	UnitModels.pose_launcher(model, 0.0, 0.0)
 	assert_true(pod.transform.is_equal_approx(built), "%s != %s" % [pod.transform, built])
 	assert_true((model.get_node("Launcher") as Node3D).transform.basis.is_equal_approx(Basis()))
@@ -65,7 +66,7 @@ func test_elevation_raises_the_tube_ends_and_keeps_the_hinge() -> void:
 	var pod := UnitModels.launcher_pod(model)
 	var hinge := pod.position
 	var stowed := _mouth_centre(model)
-	UnitModels.pose_launcher(model, 0.0, UnitModels.LAUNCHER_ELEVATION)
+	UnitModels.pose_launcher(model, 0.0, UnitModels.launcher_elevation(model))
 	var raised := _mouth_centre(model)
 	assert_true(raised.y > stowed.y + 0.1, "raised %s vs stowed %s" % [raised, stowed])
 	assert_true(pod.position.is_equal_approx(hinge), "the pod turns about its hinge")
@@ -77,7 +78,7 @@ func test_actuators_connect_turntable_and_pod_and_extend_when_raised() -> void:
 	var launcher := model.get_node("Launcher") as Node3D
 	var pod := UnitModels.launcher_pod(model)
 	var lengths: Array[float] = []
-	for elevation: float in [0.0, UnitModels.LAUNCHER_ELEVATION]:
+	for elevation: float in [0.0, UnitModels.launcher_elevation(model)]:
 		UnitModels.pose_launcher(model, 0.0, elevation)
 		for i in 2:
 			var barrel := launcher.get_node("Actuator%d" % i) as Node3D
@@ -96,9 +97,9 @@ func test_actuators_connect_turntable_and_pod_and_extend_when_raised() -> void:
 func test_traverse_turns_the_tubes_towards_the_target_yaw() -> void:
 	var model := _homar()
 	var target_yaw := PI / 2.0
-	var traverse := UnitModels.launcher_traverse(0.0, target_yaw)
-	assert_true(absf(traverse + PI / 2.0) < 0.001, "shortest turn: %s" % traverse)
-	UnitModels.pose_launcher(model, traverse, UnitModels.LAUNCHER_ELEVATION)
+	var aim := UnitModels.launcher_aim(model, 0.0, target_yaw)
+	assert_true(aim.distance_to(Vector2(0.0, -PI / 2.0)) < 0.001, "shortest turn: %s" % aim)
+	UnitModels.pose_launcher(model, aim.y, UnitModels.launcher_elevation(model))
 	var launcher := model.get_node("Launcher") as Node3D
 	var direction := _mouth_centre(model) - launcher.position
 	var flat := Vector2(direction.x, direction.z).normalized()
@@ -107,17 +108,18 @@ func test_traverse_turns_the_tubes_towards_the_target_yaw() -> void:
 	model.get_parent().free()
 
 
-## The Uragan's tubes are stowed facing forward over the cab ("stowed_yaw" meta 0), so the
-## traverse for a model must turn them by the model's own stowed direction.
-func test_uragan_traverse_uses_the_models_stowed_direction() -> void:
+## The Uragan's tubes are stowed facing forward over the cab (`stowed: front`) and traverse only
+## ±30°: body turn + turntable angle together point the tubes at the target in every direction.
+func test_uragan_aim_uses_the_models_stowed_direction_and_range() -> void:
 	var root := UnitModels.build(&"bm27_uragan", 0, FactionRegistry.get_faction(&"russia"))
 	var model := root.get_node("Model") as Node3D
-	assert_eq(UnitModels.launcher_stowed_yaw(model), 0.0)
-	for target_yaw: float in [0.0, PI / 2.0, -2.0]:
-		var traverse := UnitModels.launcher_traverse_for(model, 0.0, target_yaw)
-		UnitModels.pose_launcher(model, traverse, UnitModels.LAUNCHER_ELEVATION)
+	for target_yaw: float in [0.0, 0.3, PI / 2.0, -2.0, PI]:
+		var aim := UnitModels.launcher_aim(model, 0.0, target_yaw)
+		assert_true(absf(aim.y) <= deg_to_rad(30.0) + 0.0001, "within the range: %s" % aim)
+		model.rotation.y = aim.x  # the body turn (on the model, as the unit pivot would)
+		UnitModels.pose_launcher(model, aim.y, UnitModels.launcher_elevation(model))
 		var launcher := model.get_node("Launcher") as Node3D
-		var direction := _mouth_centre(model) - launcher.position
+		var direction := model.basis * (_mouth_centre(model) - launcher.position)
 		var flat := Vector2(direction.x, direction.z).normalized()
 		var expected := Vector2(cos(target_yaw), -sin(target_yaw))
 		assert_true(
@@ -126,7 +128,7 @@ func test_uragan_traverse_uses_the_models_stowed_direction() -> void:
 	root.free()
 
 
-func test_traverse_is_wrapped_to_the_shortest_turn() -> void:
-	assert_true(absf(absf(UnitModels.launcher_traverse(0.0, 0.0)) - PI) < 0.001)
-	assert_true(absf(UnitModels.launcher_traverse(PI, 0.0)) < 0.001)
-	assert_true(absf(UnitModels.launcher_traverse(0.3, 0.3 + PI - 0.2) + 0.2) < 0.001)
+func test_full_traverse_is_wrapped_to_the_shortest_turn() -> void:
+	assert_true(absf(absf(UnitModels.traverse_aim("full", PI, 0.0, 0.0).y) - PI) < 0.001)
+	assert_true(absf(UnitModels.traverse_aim("full", PI, PI, 0.0).y) < 0.001)
+	assert_true(absf(UnitModels.traverse_aim("full", PI, 0.3, 0.3 + PI - 0.2).y + 0.2) < 0.001)

@@ -2,10 +2,12 @@ extends RefCounted
 ## Pure argument parsing for tools/render_unit.gd (no rendering, tested headless).
 ## Usage: RenderUnitOptions.parse(["t72b3", "--faction=russia", "--views=side,top"])
 ## -> {"unit_id": String, "faction": String, "views": Array[String], "reference": String,
-##     "out": String, "real": Dictionary, "error": String}; "error" is "" on success, else one of
-##     missing_unit_id, invalid_unit_id, too_many_arguments, unknown_option, unknown_unit,
-##     unknown_faction, unknown_view, invalid_views, empty_option (a flag with an empty value),
-##     reference_not_found. A flag given twice: the last value wins.
+##     "out": String, "pose": String, "real": Dictionary, "error": String}; "error" is "" on
+##     success, else one of missing_unit_id, invalid_unit_id, too_many_arguments, unknown_option,
+##     unknown_unit, unknown_faction, unknown_view, invalid_views, unknown_pose, empty_option (a
+##     flag with an empty value), reference_not_found. A flag given twice: the last value wins.
+## "pose" is one of POSES: "rest" (as built) or "fire" (a launcher at traverse 0 and its
+## max_elevation_deg, to check the actuators at full extension).
 ## "out" is the sheet path; per-view PNGs go next to it (see view_path). "reference" is "" when
 ## there is none. "real" holds the catalog's real dimensions in metres ({"length", "width",
 ## "height"}; only {"height"} for a foot unit, whose entry describes one soldier) or is
@@ -15,6 +17,8 @@ const DEFAULT_CATALOG_DIR := "res://docs/design/units/units"
 const DEFAULT_OUT_DIR := "res://.screenshots/units"
 const DEFAULT_FACTION := "poland"
 const VIEWS: Array[String] = ["side", "front", "top", "three_quarter"]
+const POSES: Array[String] = ["rest", "fire"]
+const DEFAULT_POSE := "rest"
 ## Catalog image views usable as the default reference, best first.
 const REFERENCE_VIEWS: Array[String] = ["side", "drawing"]
 ## Foot units (squads): there are no drawings of soldiers, any photo of a soldier is a reference.
@@ -35,6 +39,7 @@ static func parse(
 		"views": VIEWS.duplicate(),
 		"reference": "",
 		"out": "",
+		"pose": DEFAULT_POSE,
 		"real": {},
 		"error": "",
 	}
@@ -42,6 +47,7 @@ static func parse(
 	var views_spec := ""
 	var reference := ""
 	var out := ""
+	var pose := DEFAULT_POSE
 	var positional := 0
 	for arg in args:
 		if arg.begins_with("--faction="):
@@ -52,6 +58,8 @@ static func parse(
 			reference = arg.substr("--reference=".length())
 		elif arg.begins_with("--out="):
 			out = arg.substr("--out=".length())
+		elif arg.begins_with("--pose="):
+			pose = arg.substr("--pose=".length())
 		elif arg.begins_with("-"):
 			return _with_error(result, "unknown_option")
 		else:
@@ -59,7 +67,7 @@ static func parse(
 			if positional > 1:
 				return _with_error(result, "too_many_arguments")
 			result["unit_id"] = arg
-	for flag in ["--faction=", "--out=", "--reference="]:
+	for flag in ["--faction=", "--out=", "--reference=", "--pose="]:
 		for arg in args:
 			if arg == flag:
 				return _with_error(result, "empty_option")
@@ -76,6 +84,9 @@ static func parse(
 			if view not in VIEWS:
 				return _with_error(result, "unknown_view")
 		result["views"] = views
+	if pose not in POSES:
+		return _with_error(result, "unknown_pose")
+	result["pose"] = pose
 	var exists := model_exists if model_exists.is_valid() else _model_exists
 	if not exists.call(StringName(unit_id)):
 		return _with_error(result, "unknown_unit")

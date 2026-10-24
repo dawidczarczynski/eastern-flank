@@ -299,9 +299,20 @@ func has_launcher() -> bool:
 	return UnitModels.has_launcher(_model)
 
 
-## Turntable angle that points the launcher at the world point `target` (see UnitModels).
-func launcher_traverse_towards(target: Vector3) -> float:
-	return UnitModels.launcher_traverse_for(_model, facing_yaw(), yaw_towards(target))
+## How the launcher points at the world point `target` from the current facing: x = body yaw
+## change (non-zero only for a limited traverse), y = turntable angle (see UnitModels.launcher_aim).
+func launcher_aim_towards(target: Vector3) -> Vector2:
+	return UnitModels.launcher_aim(_model, facing_yaw(), yaw_towards(target))
+
+
+## Whether the launcher's traverse is limited (the vehicle may have to turn first).
+func launcher_limited() -> bool:
+	return UnitModels.launcher_limited(_model)
+
+
+## Elevation (rad) the launcher fires at.
+func launcher_elevation() -> float:
+	return UnitModels.launcher_elevation(_model)
 
 
 func set_launcher_pose(traverse: float, elevation: float) -> void:

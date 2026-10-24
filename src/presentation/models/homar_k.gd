@@ -35,7 +35,8 @@ const TUBE_RADIUS := 0.17
 const TURNTABLE_X := 8.6
 const TURNTABLE_H := 2.0
 ## Elevation actuators, one per side (|z|): anchor on the turntable, mount under the pod (x, h);
-## cylinder and piston lengths overlap at every elevation up to UnitModels.LAUNCHER_ELEVATION.
+## cylinder and piston lengths overlap at every elevation up to its max_elevation_deg
+## (UnitModels.launcher_elevation).
 const ACTUATOR_Z := 0.85
 const ACTUATOR_BASE := Vector2(7.25, 1.92)
 const ACTUATOR_MOUNT := Vector2(8.9, 2.0)
