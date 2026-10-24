@@ -94,6 +94,53 @@ func test_actuators_connect_turntable_and_pod_and_extend_when_raised() -> void:
 	model.get_parent().free()
 
 
+## How far the meshes under `pivot` reach along its +Y axis (local frame of the pivot).
+func _reach(pivot: Node3D) -> float:
+	var reach := 0.0
+	for child in pivot.get_children():
+		var instance := child as MeshInstance3D
+		if instance != null and instance.mesh != null:
+			var box := instance.transform * instance.mesh.get_aabb()
+			reach = maxf(reach, box.end.y)
+	return reach
+
+
+## Cylinder (from its anchor) and piston (from its pod mount) must overlap at every elevation
+## from stowed up to the model's max_elevation_deg, so the actuator never comes apart.
+func _assert_actuators_stay_connected(unit_id: StringName, faction: StringName) -> void:
+	var root := UnitModels.build(unit_id, 0, FactionRegistry.get_faction(faction))
+	var model := root.get_node("Model") as Node3D
+	var launcher := model.get_node("Launcher") as Node3D
+	var pod := UnitModels.launcher_pod(model)
+	var max_elevation := UnitModels.launcher_elevation(model)
+	var steps := 11
+	for step in steps + 1:
+		var elevation := max_elevation * step / steps
+		UnitModels.pose_launcher(model, 0.0, elevation)
+		for i in 2:
+			var barrel := launcher.get_node("Actuator%d" % i) as Node3D
+			var rod := launcher.get_node("ActuatorRod%d" % i) as Node3D
+			var mount := pod.transform * (pod.get_node("ActuatorMount%d" % i) as Node3D).position
+			var span := barrel.position.distance_to(mount)
+			var overlap := _reach(barrel) + _reach(rod) - span
+			assert_true(
+				overlap > span * 0.03,
+				(
+					"%s actuator %d apart at %.0f deg: overlap %.4f, span %.4f"
+					% [unit_id, i, rad_to_deg(elevation), overlap, span]
+				)
+			)
+	root.free()
+
+
+func test_homar_actuators_stay_connected_up_to_max_elevation() -> void:
+	_assert_actuators_stay_connected(&"homar_k", &"poland")
+
+
+func test_uragan_actuators_stay_connected_up_to_max_elevation() -> void:
+	_assert_actuators_stay_connected(&"bm27_uragan", &"russia")
+
+
 func test_traverse_turns_the_tubes_towards_the_target_yaw() -> void:
 	var model := _homar()
 	var target_yaw := PI / 2.0

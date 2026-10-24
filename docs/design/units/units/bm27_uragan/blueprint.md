@@ -34,7 +34,7 @@ ground, `z` across.
 | Muzzle frame (stepped box) | 2.88–3.38 | 2.28–3.22 | 0.88 low, 0.61 top | truck camo | slabs |
 | Clamp bands | 5.6, 8.0 | – | – | truck camo | slabs |
 | Muzzle openings, cradle beams, trunnion axle | – | – | – | dark | merged |
-| Elevation actuators ×2 | base 6.3/1.75 on the turntable, mount 5.85/2.25 under the pod | – | z ±0.5, length 1.15 | dark / steel | `Actuator<i>`, `ActuatorRod<i>`, `ActuatorMount<i>` |
+| Elevation actuators ×2 | base 6.3/1.75 on the turntable, mount 5.85/2.25 under the pod | – | z ±0.5, cylinder 1.45 + piston 1.35 (span 0.67 stowed, 2.6 at 55°: still 0.2 overlap; stowed surplus hidden in the tube bundle / carriage) | dark / steel | `Actuator<i>`, `ActuatorRod<i>`, `ActuatorMount<i>` |
 
 Pivots: `Launcher` at the turntable centre (6.0, 1.55); `Pod` hinge on the trunnions at the bundle's
 rear end (8.3, 2.33), no rotation – its +X runs forward along the tubes, so elevation raises the

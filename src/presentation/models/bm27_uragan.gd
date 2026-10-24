@@ -44,7 +44,11 @@ const COLUMNS_4: Array[float] = [-0.405, -0.135, 0.135, 0.405]
 const ACTUATOR_Z := 0.5
 const ACTUATOR_BASE := Vector2(6.3, 1.75)
 const ACTUATOR_MOUNT := Vector2(5.85, 2.25)
-const ACTUATOR_LENGTH := 1.15
+## Cylinder and piston lengths: together 2.8 m, so they still overlap by 0.2 m at the 55 deg
+## max elevation (span 2.6 m); stowed (span 0.67 m) the surplus hides in the tube bundle above
+## the mount and in the carriage/deck below the anchor.
+const CYLINDER_LENGTH := 1.45
+const PISTON_LENGTH := 1.35
 const CYLINDER_RADIUS := 0.1
 const PISTON_RADIUS := 0.055
 
@@ -263,22 +267,21 @@ static func _build_actuators(
 ) -> void:
 	var to_launcher := Frame.to_local(launcher)
 	var to_pod := Frame.to_local(pod)
-	var half := Vector3(0.0, ACTUATOR_LENGTH * K / 2.0, 0.0)
 	var cylinder := ModelParts.cyl_mesh(
-		CYLINDER_RADIUS * K, CYLINDER_RADIUS * K, ACTUATOR_LENGTH * K, 10
+		CYLINDER_RADIUS * K, CYLINDER_RADIUS * K, CYLINDER_LENGTH * K, 10
 	)
-	var piston := ModelParts.cyl_mesh(PISTON_RADIUS * K, PISTON_RADIUS * K, ACTUATOR_LENGTH * K, 8)
+	var piston := ModelParts.cyl_mesh(PISTON_RADIUS * K, PISTON_RADIUS * K, PISTON_LENGTH * K, 8)
 	for i in 2:
 		var z := ACTUATOR_Z * (-1.0 if i == 0 else 1.0)
 		var barrel := Node3D.new()
 		barrel.name = "Actuator%d" % i
 		barrel.position = to_launcher * f.p(ACTUATOR_BASE.x, ACTUATOR_BASE.y, z)
 		launcher.add_child(barrel)
-		ModelParts.add(barrel, cylinder, dark, half)
+		ModelParts.add(barrel, cylinder, dark, Vector3(0.0, CYLINDER_LENGTH * K / 2.0, 0.0))
 		var rod := Node3D.new()
 		rod.name = "ActuatorRod%d" % i
 		launcher.add_child(rod)
-		ModelParts.add(rod, piston, steel, half)
+		ModelParts.add(rod, piston, steel, Vector3(0.0, PISTON_LENGTH * K / 2.0, 0.0))
 		var mount := Node3D.new()
 		mount.name = "ActuatorMount%d" % i
 		mount.position = to_pod * f.p(ACTUATOR_MOUNT.x, ACTUATOR_MOUNT.y, z)
