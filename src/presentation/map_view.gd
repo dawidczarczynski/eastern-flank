@@ -31,10 +31,6 @@ const BACKDROP_THIN_SEED := 311.0
 ## beyond it a cheap canopy shell (assets/shaders/canopy.gdshader) over the forest ground, faded
 ## in over BackdropCanopy.FADE_FROM..FADE_TO.
 const BACKDROP_SCATTER_REACH := 4.0
-## Border points (offsets in hex sizes) whose tile types the backdrop ground averages.
-const BACKDROP_TYPE_SAMPLES: Array[Vector2] = [
-	Vector2.ZERO, Vector2(1.5, 0.0), Vector2(-1.5, 0.0), Vector2(0.0, 1.5), Vector2(0.0, -1.5)
-]
 ## The water plane is this much larger than the terrain mesh.
 const WATER_MARGIN := 80.0
 ## Water shader (TASK-056): colours, depths, ripple speeds and normal scale are its defaults.
@@ -126,7 +122,8 @@ var _mesh_heights := PackedFloat32Array()
 var _backdrop: BackdropMesh
 ## The ground ShaderMaterial shared by the terrain and the backdrop (one per build).
 var _ground_material: ShaderMaterial
-var _nearest_type_cache: Dictionary = {}
+## The map terrain the backdrop copies (one per build, after the terrain mesh).
+var _backdrop_types: BackdropTypes
 var _tiles_root := Node3D.new()
 var _reach_line := MeshInstance3D.new()
 var _dim := MeshInstance3D.new()
@@ -199,7 +196,6 @@ func build(grid: HexGrid) -> void:
 	for c in grid.coords():
 		centers.append(Hex.to_world(c, hex_size))
 	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
-	_nearest_type_cache.clear()
 	# Packs the ground textures on worker threads while the mesh is built.
 	TerrainTextures.request(TerrainGround.texture_size(quality))
 	_ground_material = null
@@ -422,6 +418,7 @@ func _set_border_height(vertices: PackedVector3Array, index: int, stride: int) -
 
 ## The non-playable scenery ring around `rect` (the playable mesh), see BackdropMesh.
 func _build_backdrop(rect: Rect2) -> MeshInstance3D:
+	_backdrop_types = BackdropTypes.new(_grid, hex_size, _mesh_origin, _mesh_step)
 	_backdrop = BackdropMesh.new(rect, _mesh_cells, _mesh_heights, BACKDROP_WIDTH, DETAIL_TILE)
 	var mesh := _backdrop.build_mesh(_backdrop_vertex, TerrainGround.add_surface)
 	mesh.surface_set_material(0, _terrain_material())
@@ -440,22 +437,14 @@ func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 func _backdrop_vertex(
 	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
 ) -> PackedFloat32Array:
-	var border := Vector2(
-		_mesh_origin.x + 2 * ca * _mesh_step.x, _mesh_origin.y + 2 * cb * _mesh_step.y
-	)
 	var v := Vector3(x, h, z)
 	var noise := _splat_noise(x, z)
 	var seam := _splat(-1, normal_y, v, noise)
-	# The nearest border tiles' terrain, averaged along the border: a single nearest tile
-	# would extend every border tile outwards as a stripe.
-	var counts := {}
-	for offset: Vector2 in BACKDROP_TYPE_SAMPLES:
-		var type := _nearest_tile_type(border + offset * hex_size)
-		counts[type] = counts.get(type, 0) + 1
+	var shares := _backdrop_types.border_shares(ca, cb)
 	var land := PackedFloat32Array()
 	land.resize(TerrainSplat.LAYER_COUNT)
-	for type: int in counts:
-		var share: float = counts[type] / float(BACKDROP_TYPE_SAMPLES.size())
+	for type: int in shares:
+		var share: float = shares[type]
 		var w := _splat(type, normal_y, v, noise)
 		for layer in TerrainSplat.LAYER_COUNT:
 			land[layer] += w[layer] * share
@@ -466,22 +455,6 @@ func _backdrop_vertex(
 	result.append(lerpf(OFF_MAP_VALUE, BACKDROP_VALUE, t))
 	result.append(lerpf(1.0, BACKDROP_SATURATION, t))
 	return result
-
-
-## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in).
-func _nearest_tile_type(p: Vector2) -> int:
-	var key := Hex.from_world(Vector3(p.x, 0.0, p.y), hex_size)
-	if not _nearest_type_cache.has(key):
-		var best := -1
-		var best_distance := INF
-		for c in _grid.coords():
-			var w := Hex.to_world(c, hex_size)
-			var dist := Vector2(w.x, w.z).distance_squared_to(p)
-			if dist < best_distance:
-				best_distance = dist
-				best = int(_grid.get_terrain(c))
-		_nearest_type_cache[key] = best
-	return _nearest_type_cache[key]
 
 
 ## Distant forest shell over the backdrop lattice: the forest share of the nearest border tiles
@@ -503,14 +476,7 @@ func _build_backdrop_canopy() -> MeshInstance3D:
 func _canopy_vertex(
 	_x: float, _z: float, _h: float, _normal_y: float, distance: float, ca: int, cb: int
 ) -> PackedFloat32Array:
-	var border := Vector2(
-		_mesh_origin.x + 2 * ca * _mesh_step.x, _mesh_origin.y + 2 * cb * _mesh_step.y
-	)
-	var forest := 0
-	for offset: Vector2 in BACKDROP_TYPE_SAMPLES:
-		if _nearest_tile_type(border + offset * hex_size) == Terrain.Type.FOREST:
-			forest += 1
-	var cover := forest / float(BACKDROP_TYPE_SAMPLES.size())
+	var cover: float = _backdrop_types.border_shares(ca, cb).get(Terrain.Type.FOREST, 0.0)
 	cover *= TerrainNoise.smooth(BackdropCanopy.FADE_FROM, BackdropCanopy.FADE_TO, distance)
 	var result := PackedFloat32Array()
 	result.resize(TerrainSplat.LAYER_COUNT + 2)
@@ -535,7 +501,7 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 			if _grid.has_tile(c) or inner.has_point(p) or not outer.has_point(p):
 				continue
 			var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
-			ring.set_terrain(c, _nearest_tile_type(border) as Terrain.Type)
+			ring.set_terrain(c, _backdrop_types.nearest_tile_type(border) as Terrain.Type)
 	var surface := BackdropSurface.new(ring, visible_ground_height)
 	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED)
 	# Far away: the ground cover is not worth its triangles.

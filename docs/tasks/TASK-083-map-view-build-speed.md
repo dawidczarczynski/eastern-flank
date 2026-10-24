@@ -1,6 +1,6 @@
 # TASK-083: Faster MapView.build – test suite and loading time
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (presentation-engineer), tests
 - **Depends on**: none
 - **Model**: sonnet
@@ -16,13 +16,20 @@
 
 ## Acceptance criteria
 
-- [ ] `tools/test.sh` (JOBS=1) at least 40 % faster than 145 s, same number of tests, none weakened.
-- [ ] `MapView.build()` on the default map is not slower and produces identical meshes (existing geometry tests pass).
-- [ ] Frame rate unchanged (60 FPS budget); no visual change – if the terrain mesh changes, a before/after `tools/screenshot.sh` is compared.
+- [x] `tools/test.sh` (JOBS=1) at least 40 % faster than 145 s, same number of tests, none weakened.
+- [x] `MapView.build()` on the default map is not slower and produces identical meshes (existing geometry tests pass).
+- [x] Frame rate unchanged (60 FPS budget); no visual change – if the terrain mesh changes, a before/after `tools/screenshot.sh` is compared.
 
 ## Implementation notes
 
-Investigated 2026-10-24, **no production change kept** – the status stays `ready` for a deeper attempt.
+Done 2026-10-24. Serial `JOBS=1 tools/test.sh`: **121.6 s → 79.5 s** on this machine (−35 %; the 145 s reference was measured before other changes, −45 % against it). 859 tests before, the same 859 plus 3 new `test_backdrop_types` after, none removed or loosened.
+
+- **Test hooks**: `TestCase.before_all`/`after_all` run once per file on a separate instance (only when one of the file's tests passes the filter/shard); shared state lives in `static var`s. A `before_all` failure counts against the file's first test, an `after_all` failure is reported as `<file>:after_all`. `Fixtures.map_view(grid, quality)` builds a view outside a scene tree, `Fixtures.reset_map_view` undoes what tests change (highlights, hover, path, grid mode, camera distance).
+- **Shared builds**: `test_map_view_backdrop`, `test_map_view_detail` (one radius-1 view), `test_map_view_overlays` (radius 1 and 2; maps with water still per test), `test_tree_field` (the HIGH forest map of the three read-only tree tests), `test_ground_marks_view` (one map for the two layer tests), `test_grass_kinds` (the default-map grass plan). Tests that change quality build their own view instead of rebuilding on top of the shared one (they were double builds before).
+- `test_map_view_grass` builds with `"foliage": false` – the tree/bush/rock scatter doesn't feed `GrassField`/`GrassPlanner`.
+- **Production**: the backdrop ground and canopy callbacks redid 5 nearest-tile lookups for every ring vertex; `BackdropTypes` (new, split out of `MapView`, which was at the 1000-line lint limit) caches the type shares per border vertex. Build `plains_grid(1)` 820 → 650 ms, default map 3.08 → 2.85 s. Terrain, Backdrop and BackdropCanopy surface arrays are bit-identical (md5 of `var_to_bytes(surface_get_arrays(0))` on `plains_grid(1)` and the default map, before vs after), so no visual or frame-rate change and no screenshot comparison needed.
+- Remaining cost (for a later task): `test_map_view_grass` ~19 s (grass chunk building on radius-8 meadows ~2.7 s per test), `test_grass_planner` ~6 s, `test_scatter_planner` ~4 s; in `build()` the playable terrain (~65 µs/vertex GDScript, 1.7 s on the default map) is the largest stage.
+- Earlier investigation (kept for reference): inlining `hash`/`value_noise` into `TerrainNoise` gave a bit-identical but only ~5 % faster build and was reverted; `tools/test.sh` runs test files in parallel shards.
 
 - Profile of `build()` on `plains_grid(4)` (11 655 terrain vertices, ~1.2 s after warm-up): `_build_terrain` ~460 ms (~40 µs/vertex of GDScript: `GroundNoise.jitter`, `_splat_noise`, `_splat`, `TerrainSplat.smooth`), `BackdropMesh.build_mesh` ~420 ms (per-vertex `Callable` calls), the rest (water, grid lines, scatter, trees) < 250 ms. The first build per process costs ~3 s (resource loading).
 - Tried: inlining `hash`/`value_noise` into `TerrainNoise.value_noise`/`fbm` (bit-identical output, jitter −40 %) – the whole build only got ~5 % faster, so it was reverted (duplicated code for no visible gain). The per-vertex GDScript work is spread over many functions; micro-optimising one doesn't move the total.

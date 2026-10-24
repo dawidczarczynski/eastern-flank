@@ -4,17 +4,37 @@ extends TestCase
 const Fixtures := preload("res://tests/fixtures.gd")
 const COLOR := Color("#4a7fd0")
 
+## Plains maps of radius 1 and 2, built once and reset before each test; maps with water are
+## built per test (_make).
+static var _plains: Dictionary = {}
 var _view: MapView
+var _own: MapView
 
 
-func _make(grid: HexGrid) -> void:
-	_view = MapView.new()
-	_view._ready()  # not in a scene tree in tests
-	_view.build(grid)
+func before_all() -> void:
+	for radius: int in [1, 2]:
+		_plains[radius] = Fixtures.map_view(Fixtures.plains_grid(radius))
+
+
+func after_all() -> void:
+	for view: MapView in _plains.values():
+		view.free()
+	_plains.clear()
 
 
 func after_each() -> void:
-	_view.free()
+	if _own != null:
+		_own.free()
+
+
+func _use_plains(radius: int) -> void:
+	_view = _plains[radius]
+	Fixtures.reset_map_view(_view)
+
+
+func _make(grid: HexGrid) -> void:
+	_own = Fixtures.map_view(grid)
+	_view = _own
 
 
 func _ring() -> Array[Vector2i]:
@@ -31,7 +51,7 @@ func _vertex_count(instance: MeshInstance3D) -> int:
 
 
 func test_reach_outline_has_one_ribbon_per_boundary_edge() -> void:
-	_make(Fixtures.plains_grid(1))
+	_use_plains(1)
 	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
 	var area := _ring()
 	area.append(Vector2i.ZERO)
@@ -55,7 +75,7 @@ func _visible_meshes() -> Array[MeshInstance3D]:
 
 
 func test_reach_adds_only_the_outline_and_the_dim() -> void:
-	_make(Fixtures.plains_grid(2))
+	_use_plains(2)
 	var before := _visible_meshes()
 	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
 	var added: Array[MeshInstance3D] = []
@@ -81,7 +101,7 @@ func test_dim_covers_land_outside_reach_only() -> void:
 
 
 func test_hover_fill_only_inside_reach() -> void:
-	_make(Fixtures.plains_grid(2))
+	_use_plains(2)
 	_view.set_hover(Vector2i(1, 0))
 	assert_false(_view._hover_fill.visible, "no selection")
 	assert_true(_view._hover_ring.visible)
@@ -99,7 +119,7 @@ func test_hover_fill_only_inside_reach() -> void:
 
 
 func test_grid_mode_cycles_and_alpha_follows_camera() -> void:
-	_make(Fixtures.plains_grid(1))
+	_use_plains(1)
 	var material := _view._grid_material
 	_view.set_camera_distance(26.5)
 	assert_true(_view._grid_lines.visible)
@@ -133,7 +153,7 @@ func test_grid_lines_stay_out_of_water() -> void:
 
 
 func test_g_key_cycles_grid_mode() -> void:
-	_make(Fixtures.plains_grid(1))
+	_use_plains(1)
 	var controller: Node3D = load("res://src/presentation/battle_controller.gd").new()
 	controller.set("_map_view", _view)
 	controller.set("is_built", true)
@@ -149,7 +169,7 @@ func test_g_key_cycles_grid_mode() -> void:
 
 
 func test_ground_overlays_share_the_depth_pulled_shader() -> void:
-	_make(Fixtures.plains_grid(2))
+	_use_plains(2)
 	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
 	for instance: MeshInstance3D in [_view._hover_ring, _view._reach_line]:
 		var material := instance.material_override as ShaderMaterial
@@ -160,7 +180,7 @@ func test_ground_overlays_share_the_depth_pulled_shader() -> void:
 
 ## Fills cover the tile a unit stands on: a pull would tint the lower half of its model.
 func test_ground_fills_are_not_depth_pulled() -> void:
-	_make(Fixtures.plains_grid(2))
+	_use_plains(2)
 	_view.show_reach(_ring(), COLOR, Vector2i.ZERO)
 	for instance: MeshInstance3D in [_view._hover_fill, _view._dim]:
 		var material := instance.material_override as ShaderMaterial

@@ -3,7 +3,11 @@ extends TestCase
 const Fixtures := preload("res://tests/fixtures.gd")
 const Battle := preload("res://src/presentation/battle_controller.gd")
 
+## The forest map at HIGH quality, built once for the tests that only read its trees.
+static var _forest: MapView
+
 var _view: MapView
+var _view_is_shared := false
 
 
 func before_each() -> void:
@@ -12,8 +16,15 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	_view.free()
+	if not _view_is_shared:
+		_view.free()
 	VisualScale.reset()
+
+
+func after_all() -> void:
+	if _forest != null:
+		_forest.free()
+		_forest = null
 
 
 func _forest_grid(radius: int) -> HexGrid:
@@ -23,9 +34,14 @@ func _forest_grid(radius: int) -> HexGrid:
 	return grid
 
 
-func _build_forest() -> void:
-	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
-	_view.build(_forest_grid(2))
+func _use_forest() -> void:
+	if _forest == null:
+		_forest = Fixtures.map_view(
+			_forest_grid(2), GraphicsQuality.features(GraphicsQuality.Level.HIGH)
+		)
+	_view.free()
+	_view = _forest
+	_view_is_shared = true
 
 
 func _world_aabb(tree: Dictionary) -> AABB:
@@ -72,7 +88,7 @@ func _expected_shadow(node: MultiMeshInstance3D) -> GeometryInstance3D.ShadowCas
 
 
 func test_lod_ranges_fade_and_shadows() -> void:
-	_build_forest()
+	_use_forest()
 	var trees := _view.trees()
 	assert_true(trees.lod0_nodes().size() > 0)
 	assert_true(trees.lod1_nodes().size() > 0)
@@ -96,7 +112,7 @@ func test_lod_ranges_fade_and_shadows() -> void:
 
 
 func test_chunk_origins_and_instances_inside_the_chunk() -> void:
-	_build_forest()
+	_use_forest()
 	var half := TreeField.CHUNK_SIZE * 0.5 + 1e-4
 	for node: MultiMeshInstance3D in _view.trees().get_children():
 		var p := node.position
@@ -112,7 +128,7 @@ func test_chunk_origins_and_instances_inside_the_chunk() -> void:
 
 
 func test_every_planned_tree_once_per_lod() -> void:
-	_build_forest()
+	_use_forest()
 	var trees := _view.trees()
 	assert_true(trees.backdrop_count() > 0, "backdrop trees too")
 	var far := TreeField.instance_total(trees.far_nodes())

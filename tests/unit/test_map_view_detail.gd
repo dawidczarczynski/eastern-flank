@@ -2,18 +2,35 @@ extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
 
+## One build for the tests that only read it; the low-quality tests use their own (_own).
+static var _shared: MapView
 var _view: MapView
+var _own: MapView
+
+
+func before_all() -> void:
+	_shared = Fixtures.map_view(Fixtures.plains_grid(1))
+
+
+func after_all() -> void:
+	_shared.free()
 
 
 func before_each() -> void:
-	_view = MapView.new()
-	# Not in a scene tree in tests, so run the setup _ready() would do.
-	_view._ready()
-	_view.build(Fixtures.plains_grid(1))
+	Fixtures.reset_map_view(_shared)
+	_view = _shared
 
 
 func after_each() -> void:
-	_view.free()
+	if _own != null:
+		_own.free()
+
+
+func _build_low() -> void:
+	_own = Fixtures.map_view(
+		Fixtures.plains_grid(1), GraphicsQuality.features(GraphicsQuality.Level.LOW)
+	)
+	_view = _own
 
 
 func _surface_mesh(node_name: String) -> ArrayMesh:
@@ -68,8 +85,7 @@ func test_off_map_margin_is_darkened() -> void:
 
 
 func test_low_quality_switches_anti_tiling_and_triplanar_off() -> void:
-	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
-	_view.build(Fixtures.plains_grid(1))
+	_build_low()
 	var material := _surface_mesh("Terrain").surface_get_material(0) as ShaderMaterial
 	assert_false(material.get_shader_parameter(&"anti_tiling"))
 	assert_false(material.get_shader_parameter(&"triplanar"))
@@ -172,8 +188,7 @@ func test_scrub_is_drawn_by_the_tree_field_and_undergrowth_casts_no_shadow() -> 
 
 
 func test_low_quality_builds_no_foliage() -> void:
-	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
-	_view.build(Fixtures.plains_grid(1))
+	_build_low()
 	assert_false(_view._tiles_root.has_node("Bushes"))
 	assert_eq(_view.trees().get_child_count(), 0, "no tree nodes")
 	assert_eq(_view.trees().planned_count(), 0)

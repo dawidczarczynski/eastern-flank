@@ -83,7 +83,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-080](TASK-080-hud-v3-notices.md) | HUD v3: turn banner, toast, targeting bar, loading screen | 🔵 done | **TASK-076** (soft: TASK-077, TASK-079) |
 | [TASK-081](TASK-081-unit-orders-rules.md) | Unit orders as rules (blind fire, smoke, ambush, relocate, resupply, dig in, camouflage): game-designer pass first, then core/AI tasks | 💡 idea | GDD decisions by the human (soft: TASK-039b) |
 | [TASK-082](TASK-082-hud-v3-radial-orders-menu.md) | HUD v3: radial orders menu on RMB (geometry, detail card, keys 1–6, targeting mode) | 🔴 blocked | **TASK-076**, **TASK-081** (soft: TASK-080, TASK-078) |
-| [TASK-083](TASK-083-map-view-build-speed.md) | Faster MapView.build: profile and speed up, share builds between tests (test suite is ~90 % MapView builds) | 🟢 ready | – |
+| [TASK-083](TASK-083-map-view-build-speed.md) | Faster MapView.build: profile and speed up, share builds between tests (test suite is ~90 % MapView builds) | 🔵 done | – |
 | [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | 💡 idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
 | [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | 🔵 done | – ; open: Polish vest colour contrast |
 | [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | 🟣 to playtest | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |

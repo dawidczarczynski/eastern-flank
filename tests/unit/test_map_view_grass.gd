@@ -15,9 +15,15 @@ func after_each() -> void:
 	_view.free()
 
 
+## Builds the view on a plains map of `radius` without the scatter: trees, bushes and rocks don't
+## feed the grass and only slow the build down.
+func _build_grass_only(quality: Dictionary, radius := 4) -> void:
+	_view.quality = quality.merged({"foliage": false})
+	_view.build(Fixtures.plains_grid(radius))
+
+
 func _build(quality: Dictionary) -> void:
-	_view.quality = quality
-	_view.build(Fixtures.plains_grid(4))
+	_build_grass_only(quality)
 	_view.set_camera_target(Vector2.ZERO)
 	_view.grass().update(1000)
 
@@ -43,8 +49,7 @@ func test_full_density_creates_faded_unshadowed_chunks() -> void:
 
 
 func test_chunks_are_built_lazily_near_the_camera_target() -> void:
-	_view.quality = {"grass_density": 1.0, "wind": true}
-	_view.build(Fixtures.plains_grid(4))
+	_build_grass_only({"grass_density": 1.0, "wind": true})
 	_view.grass().update(1000)
 	assert_eq(_view.grass().chunk_nodes().size(), 0, "no target yet")
 	_view.set_camera_target(Vector2(-100, -100))
@@ -115,8 +120,7 @@ func test_card_texture_is_neutral_grey() -> void:
 
 
 func _meadow_build() -> void:
-	_view.quality = {"grass_density": 1.0, "wind": false}
-	_view.build(Fixtures.plains_grid(8))
+	_build_grass_only({"grass_density": 1.0, "wind": false}, 8)
 	_view.set_camera_target(Vector2.ZERO)
 	_view.grass().update(1000)
 
@@ -201,8 +205,7 @@ func test_clearing_removes_grass_and_flowers_inside_it() -> void:
 
 
 func test_grass_is_settled_once_the_chunks_around_the_target_are_built() -> void:
-	_view.quality = {"grass_density": 1.0, "wind": false}
-	_view.build(Fixtures.plains_grid(4))
+	_build_grass_only({"grass_density": 1.0, "wind": false})
 	assert_true(_view.grass().is_settled(), "no target yet: nothing to build")
 	_view.set_camera_target(Vector2.ZERO)
 	assert_false(_view.grass().is_settled())

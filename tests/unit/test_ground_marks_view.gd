@@ -2,6 +2,8 @@ extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
 
+## A small map without foliage for the layer tests, built on first use.
+static var _map: MapView
 var _view: GroundMarksView
 
 
@@ -11,6 +13,20 @@ func before_each() -> void:
 
 func after_each() -> void:
 	_view.free()
+
+
+func after_all() -> void:
+	if _map != null:
+		_map.free()
+		_map = null
+
+
+func _shared_map() -> MapView:
+	if _map == null:
+		_map = Fixtures.map_view(
+			Fixtures.plains_grid(3), {"grass_density": 1.0, "wind": false, "foliage": false}
+		)
+	return _map
 
 
 func _tracks(count: int) -> Array[Dictionary]:
@@ -57,23 +73,16 @@ func test_decal_box_follows_the_mark() -> void:
 
 
 func test_grass_chunks_sit_on_the_grass_layer() -> void:
-	var map := MapView.new()
-	map._ready()
-	map.quality = {"grass_density": 1.0, "wind": false, "foliage": false}
-	map.build(Fixtures.plains_grid(3))
+	var map := _shared_map()
 	map.set_camera_target(Vector2.ZERO)
 	map.grass().update(1000)
 	assert_true(map.grass().chunk_nodes().size() > 0)
 	for node in map.grass().chunk_nodes():
 		assert_eq(node.layers, MapView.GRASS_LAYER_MASK)
-	map.free()
 
 
 func test_terrain_and_backdrop_sit_on_the_decal_layer() -> void:
-	var map := MapView.new()
-	map._ready()
-	map.quality = {"foliage": false, "grass_density": 0.0, "wind": false}
-	map.build(Fixtures.plains_grid(3))
+	var map := _shared_map()
 	var found := 0
 	for node in map.find_children("*", "MeshInstance3D", true, false):
 		if node.name == &"Terrain" or node.name == &"Backdrop":
@@ -82,7 +91,6 @@ func test_terrain_and_backdrop_sit_on_the_decal_layer() -> void:
 			assert_true(mesh.get_layer_mask_value(1), "still on the default layer")
 			assert_true(mesh.get_layer_mask_value(MapView.TERRAIN_VISUAL_LAYER), "decal layer")
 	assert_eq(found, 2)
-	map.free()
 
 
 func test_growing_tracks_are_hidden_until_revealed() -> void:

@@ -2,17 +2,33 @@ extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
 
+## One build for the tests that only read it; tests that build with other switches use _own.
+static var _shared: MapView
 var _view: MapView
+var _own: MapView
+
+
+func before_all() -> void:
+	_shared = Fixtures.map_view(Fixtures.plains_grid(1))
+
+
+func after_all() -> void:
+	_shared.free()
 
 
 func before_each() -> void:
-	_view = MapView.new()
-	_view._ready()
-	_view.build(Fixtures.plains_grid(1))
+	Fixtures.reset_map_view(_shared)
+	_view = _shared
 
 
 func after_each() -> void:
-	_view.free()
+	if _own != null:
+		_own.free()
+
+
+func _build_own(quality: Dictionary) -> void:
+	_own = Fixtures.map_view(Fixtures.plains_grid(1), quality)
+	_view = _own
 
 
 func _mesh(node_name: String) -> ArrayMesh:
@@ -194,8 +210,7 @@ func test_overlays_stay_on_the_playable_rectangle() -> void:
 
 
 func test_backdrop_scatter_present_when_enabled() -> void:
-	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
-	_view.build(Fixtures.plains_grid(1))
+	_build_own(GraphicsQuality.features(GraphicsQuality.Level.HIGH))
 	assert_true(_view.trees().backdrop_count() > 0, "backdrop trees")
 	assert_true(_view._tiles_root.has_node("BackdropBushes"))
 
@@ -203,8 +218,7 @@ func test_backdrop_scatter_present_when_enabled() -> void:
 func test_backdrop_scatter_absent_when_disabled() -> void:
 	var quality := GraphicsQuality.features(GraphicsQuality.Level.HIGH)
 	quality["backdrop_scatter"] = false
-	_view.quality = quality
-	_view.build(Fixtures.plains_grid(1))
+	_build_own(quality)
 	assert_eq(_view.trees().backdrop_count(), 0, "no backdrop trees")
 	assert_false(_view._tiles_root.has_node("BackdropBushes"))
 	assert_true(_view.trees().planned_count() > 0, "playable trees unaffected")

@@ -5,6 +5,15 @@ const K := GrassPlanner.Kind
 const SEED := 4242
 const CHUNK := Vector2i(0, 0)
 
+## The default map and its grass plan with the default look, computed once (before_all).
+static var _default_grid: HexGrid
+static var _default_plan: Array = []
+
+
+func before_all() -> void:
+	_default_grid = _default_map()
+	_default_plan = _plan_all(_default_grid)
+
 
 func after_each() -> void:
 	LookPreset.reset()
@@ -137,7 +146,7 @@ func test_tall_grass_bonus_in_the_forest_edge_band() -> void:
 
 func test_heights_match_kinds_and_max_clump_height() -> void:
 	var heights := {K.SHORT: 1.0, K.TALL: 1.5, K.DRY_STALK: 1.3, K.NETTLE: 1.35}
-	for g: Dictionary in _plan_all(_default_map()):
+	for g: Dictionary in _default_plan:
 		assert_eq(g["height"], heights[g["kind"]])
 	VisualScale.apply(&"balanced")
 	var expected := 0.05 * 1.4 * 1.3 * 1.5 + Wind.MAX_OFFSET
@@ -147,7 +156,7 @@ func test_heights_match_kinds_and_max_clump_height() -> void:
 
 func test_tall_dry_and_nettle_stay_off_the_tile_centre() -> void:
 	var counts := {}
-	for g: Dictionary in _plan_all(_default_map()):
+	for g: Dictionary in _default_plan:
 		counts[g["kind"]] = counts.get(g["kind"], 0) + 1
 		if g["kind"] != K.SHORT:
 			assert_true(_centre_distance(g["position"]) >= 0.4 - 1e-4, "centre clear")
@@ -198,12 +207,12 @@ func test_bare_thinning_on_plains() -> void:
 
 
 func test_kind_mix_on_the_default_map() -> void:
-	var grid := _default_map()
+	var grid := _default_grid
 	var meadow := LookPreset.meadow()
 	var counts := {K.SHORT: 0, K.TALL: 0, K.DRY_STALK: 0, K.NETTLE: 0}
 	var plains := 0
 	var tall_plains := 0
-	for g: Dictionary in _plan_all(grid):
+	for g: Dictionary in _default_plan:
 		var p: Vector3 = g["position"]
 		var terrain := grid.get_terrain(Hex.from_world(p, TerrainField.HEX_SIZE))
 		counts[g["kind"]] += 1

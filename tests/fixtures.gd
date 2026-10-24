@@ -13,6 +13,27 @@ static func plains_grid(radius: int) -> HexGrid:
 	return grid
 
 
+## A MapView built on `grid` with `quality`, outside a scene tree (its _ready() is run here).
+## The caller frees it.
+static func map_view(grid: HexGrid, quality: Dictionary = {}) -> MapView:
+	var view := MapView.new()
+	view._ready()
+	view.quality = quality
+	view.build(grid)
+	return view
+
+
+## Undoes what tests change on a MapView shared between them (TestCase.before_all): highlights,
+## hover, path dots, grid mode and camera distance. The built terrain stays.
+static func reset_map_view(view: MapView) -> void:
+	view.clear_highlights()
+	view.set_hover(null)
+	view.clear_path()
+	if not view._grid_auto:
+		view.cycle_grid_mode()
+	view.set_camera_distance(CameraRig.DEFAULT_DISTANCE)
+
+
 static func infantry() -> UnitDefinition:
 	var definition := UnitDefinition.new()
 	definition.id = &"test_infantry"

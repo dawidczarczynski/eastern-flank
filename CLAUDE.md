@@ -31,7 +31,7 @@ Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/
 - Tab indentation. Files `snake_case.gd`, classes `PascalCase` via `class_name`. Private members prefixed with `_`.
 - Events are a `Dictionary` with a `"type"` key (StringName, e.g. `&"unit_moved"`) – add new types to the table in docs/ARCHITECTURE.md.
 - Everything in English: code, identifiers, comments, documentation, commit messages and UI text.
-- Tests: file `tests/unit/test_*.gd`, `extends TestCase`, methods `test_*`, shared data in `tests/fixtures.gd`.
+- Tests: file `tests/unit/test_*.gd`, `extends TestCase`, methods `test_*`, shared data in `tests/fixtures.gd`. A `MapView` build costs ~0.7–3 s: tests that only read one share it via `before_all`/`after_all` and `static var` (`Fixtures.map_view`, `Fixtures.reset_map_view`), see `tests/unit/test_map_view_backdrop.gd`.
 
 ## Performance budget
 
