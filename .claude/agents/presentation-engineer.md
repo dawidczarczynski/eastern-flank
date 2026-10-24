@@ -15,3 +15,4 @@ Rules:
 - You can't see the screen. After every change: `tools/check.sh` (catches parse errors), and in your summary give **concrete playtest steps** for the human and what they should expect.
 - **README screenshot**: if your change is visible in the battle scene, run `tools/readme_screenshot.sh` at the end, Read `docs/images/gameplay.png` and check it still shows the game at its best (if the framing no longer works – e.g. the scenario changed – adjust it in the script). Mention the refreshed shot in your summary.
 - Code, comments, docs and UI text in English.
+- **See your own HUD/visual changes before asking the human**: run `tools/screenshot.sh` (several HUD states in one run with `SCREENSHOT_SHOTS=hover:2,select:2,toast,targeting,banner`, see the header of tools/screenshot.gd) and Read the PNGs; iterate until they match the task's design reference, and leave only what a still image can't show (motion, timing, input feel, FPS) for the human's playtest.

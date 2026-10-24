@@ -9,6 +9,7 @@ const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
 const USAGE := "Usage: tools/screenshot.sh [out.png] [--frames=N]"
 const EXPECTED_SIZE := Vector2i(1280, 720)
+const GALLERY_SETTLE_FRAMES := 4
 
 var _output := ""
 var _frames_left := 0
@@ -127,25 +128,62 @@ func _capture() -> void:
 	var fps := _battle.find_child("FpsCounter", true, false) as Control
 	if fps != null:
 		fps.visible = false
+	var shots := OS.get_environment("SCREENSHOT_SHOTS").strip_edges()
+	if shots == "":
+		if await _grab_and_save(_output):
+			quit(0)
+		return
+	# Gallery: one process, one PNG per state (<output without .png>_<state>.png). The states
+	# accumulate in the listed order, so put replacing ones (banner, targeting) last.
+	var base := _output.get_basename()
+	for shot in shots.split(","):
+		var parts := shot.strip_edges().split(":")
+		var state := parts[0]
+		var argument := parts[1] if parts.size() > 1 else ""
+		if not _apply_gallery_state(state, argument):
+			_fail("unknown SCREENSHOT_SHOTS state '%s' (see the header)" % state, 2)
+			return
+		for _i in GALLERY_SETTLE_FRAMES:
+			await process_frame
+		if not await _grab_and_save("%s_%s.png" % [base, state]):
+			return
+	quit(0)
+
+
+func _apply_gallery_state(state: String, argument: String) -> bool:
+	match state:
+		"hover":
+			_battle.call("debug_hover_unit", argument.to_int())
+		"select":
+			_battle.call("debug_select_and_hover", argument.to_int())
+		"toast", "targeting", "banner":
+			_battle.call("debug_notice", state)
+		_:
+			return false
+	return true
+
+
+## Waits for the current frame to be drawn, then validates and saves it. Fails the run on error.
+func _grab_and_save(path: String) -> bool:
 	# Wait until the current frame has really been drawn, otherwise the texture may be stale.
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	if image == null or image.is_empty():
 		_fail("could not read the viewport texture", 1)
-		return
+		return false
 	if image.get_size() != EXPECTED_SIZE:
 		_fail("screenshot is %s, expected %s" % [image.get_size(), EXPECTED_SIZE], 1)
-		return
+		return false
 	if ScreenshotImage.is_blank(image):
 		_fail("blank screenshot", 1)
-		return
-	DirAccess.make_dir_recursive_absolute(_output.get_base_dir())
-	var error := image.save_png(_output)
+		return false
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var error := image.save_png(path)
 	if error != OK:
-		_fail("could not save '%s' (%s)" % [_output, error_string(error)], 1)
-		return
-	print("Screenshot saved: ", _output)
-	quit(0)
+		_fail("could not save '%s' (%s)" % [path, error_string(error)], 1)
+		return false
+	print("Screenshot saved: ", path)
+	return true
 
 
 func _fail(message: String, exit_code: int) -> void:
@@ -169,6 +207,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## turret askew, smoke; use --frames=200 or more to see the column).
 ## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
 ## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
+## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
+## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner – e.g.
+## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
