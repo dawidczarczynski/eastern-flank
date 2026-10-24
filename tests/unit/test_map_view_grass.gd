@@ -198,3 +198,13 @@ func test_clearing_removes_grass_and_flowers_inside_it() -> void:
 		for i in node.multimesh.instance_count:
 			var p := node.position + node.multimesh.get_instance_transform(i).origin
 			assert_true(Vector2(p.x, p.z).distance_to(center) >= 1.0, "bare ground")
+
+
+func test_grass_is_settled_once_the_chunks_around_the_target_are_built() -> void:
+	_view.quality = {"grass_density": 1.0, "wind": false}
+	_view.build(Fixtures.plains_grid(4))
+	assert_true(_view.grass().is_settled(), "no target yet: nothing to build")
+	_view.set_camera_target(Vector2.ZERO)
+	assert_false(_view.grass().is_settled())
+	_view.grass().update(1000)
+	assert_true(_view.grass().is_settled())

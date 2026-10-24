@@ -13,8 +13,23 @@ const AIM_DURATION := 0.5
 const LAUNCHER_RAISE_DURATION := 0.9
 const LAUNCHER_TRAVERSE_DURATION := 0.9
 
+## Command.validate() reasons the player can hit with a click, and the toast (translation key)
+## that explains them. Other reasons (game_over, not_your_unit, ...) are not reachable by the UI.
+const PREBUILD_GRASS_CHUNKS_PER_FRAME := 4
+const WARM_UP_FRAME_S := 1.0 / 40.0  ## a frame faster than this counts as calm
+const WARM_UP_CALM_FRAMES := 8
+const WARM_UP_MAX_MS := 4000
+const REJECT_TOASTS := {
+	"unreachable": "CANNOT REACH THAT TILE",
+	"out_of_range": "TARGET OUT OF RANGE",
+	"already_attacked": "ALREADY ATTACKED THIS TURN",
+	"not_an_enemy": "NOT AN ENEMY",
+}
+
 ## Active graphics quality switches (GraphicsQuality.features); views read them before use.
 var quality: Dictionary = {}
+## True once _ready has built the whole scene (it waits one frame so the loading screen shows).
+var is_built := false
 var _sim: GameSimulation
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
@@ -48,13 +63,23 @@ func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
 	var state := Scenario.default_battle(MAP_SEED)
+	# The loading screen must actually be presented before the heavy build below blocks the loop:
+	# process_frame fires before the first draw, so wait for a frame to finish drawing.
+	var loading := LoadingScreen.new()
+	loading.set_operation(state.operation_name)
+	loading.set_status("BUILDING THE BATTLEFIELD")
+	$HUD.add_child(loading)
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
 	_sim = GameSimulation.new(state)
 	_sim.event_emitted.connect(_on_event)
 	_sim.command_rejected.connect(_on_command_rejected)
 
 	_build_hud_root()
 	_build_bottom_left_stack()
+	await _next_frame()
 	_map_view.build(state.grid)
+	await _next_frame()
 	_marks.name = "GroundMarks"
 	_marks.setup(quality.get("decals_max", 0))
 	add_child(_marks)
@@ -68,9 +93,42 @@ func _ready() -> void:
 	_camera_rig.clicked.connect(_on_camera_clicked)
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
+	await _next_frame()
 	_prerender_portraits(state)
+	await _next_frame()
+	await _prebuild_grass()
+	await _warm_up()
 	_refresh_hud()
 	_refresh_selection_ui()
+	loading.finish()
+	is_built = true
+
+
+## The build is split into stages with a drawn frame between them, so the loading screen's
+## hatch keeps moving (a single blocking build would freeze it).
+func _next_frame() -> void:
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+
+
+## Builds the grass around the start camera behind the loading screen, a few chunks per frame,
+## so the first seconds of the battle are not spent building it at 4-5 FPS.
+func _prebuild_grass() -> void:
+	_map_view.set_camera_target(_camera_rig.target())
+	var grass := _map_view.grass()
+	while not grass.is_settled():
+		grass.update(PREBUILD_GRASS_CHUNKS_PER_FRAME)
+		await _next_frame()
+
+
+## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
+## rendered under the loading screen: wait until the frame time settles, or give up after a while.
+func _warm_up() -> void:
+	var calm := 0
+	var deadline := Time.get_ticks_msec() + WARM_UP_MAX_MS
+	while calm < WARM_UP_CALM_FRAMES and Time.get_ticks_msec() < deadline:
+		await _next_frame()
+		calm = calm + 1 if get_process_delta_time() < WARM_UP_FRAME_S else 0
 
 
 ## Throttles the frame rate while the window is in the background.
@@ -104,6 +162,8 @@ func _setup_graphics_quality() -> void:
 
 ## The camera can move under a still cursor (keys, wheel) – re-pick the hovered tile then.
 func _process(_delta: float) -> void:
+	if not is_built:
+		return
 	_update_unit_popup()
 	_map_view.set_camera_distance(_camera_rig.distance())
 	_map_view.set_camera_target(_camera_rig.target())
@@ -117,10 +177,11 @@ func _process(_delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var motion := event as InputEventMouseMotion
 	if motion != null:
-		_on_mouse_motion(motion.position)
+		if is_built:
+			_on_mouse_motion(motion.position)
 		return
 	var key := event as InputEventKey
-	if key == null or not key.pressed or key.echo:
+	if key == null or not key.pressed or key.echo or not is_built:
 		return
 	if key.keycode == KEY_F5:  # saving only reads the history, so it works at any time
 		_save_match()
@@ -187,6 +248,26 @@ func debug_focus_point(target: Vector2, yaw: float, distance: float) -> void:
 	for view: UnitView in _unit_views.values():
 		view.refresh_label()  # _process is disabled in the screenshot tool
 	debug_build_grass()
+
+
+## Debug aid (tools/screenshot.gd, SCREENSHOT_NOTICE): shows one HUD notice so it can be
+## photographed: "toast", "targeting", "banner" or "loading".
+func debug_notice(kind: String) -> void:
+	match kind:
+		"toast":
+			_hud.show_toast(REJECT_TOASTS["out_of_range"])
+		"targeting":
+			_hud.show_targeting("BLIND FIRE", "TANK #2", "Select a hex in range")
+		"banner":
+			_hud.on_turn_started(_sim.state, _sim.state.turn + 1, 1)
+		"loading":
+			var loading := LoadingScreen.new()
+			loading.set_operation(_sim.state.operation_name)
+			loading.set_status("BUILDING THE BATTLEFIELD")
+			loading.add_child(ScreenDecor.new())  # vignette: the blank-image check needs variation
+			$HUD.add_child(loading)
+		_:
+			push_error("debug_notice: unknown kind '%s'" % kind)
 
 
 ## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
@@ -849,6 +930,9 @@ func _on_queue_drained() -> void:
 
 func _on_command_rejected(command: Command, reason: String) -> void:
 	print("Rejected %s: %s" % [command.get_script().get_global_name(), reason])
+	# Only the human's own rejected orders get a toast (the AI never reaches the UI).
+	if REJECT_TOASTS.has(reason) and _sim.state.current_player == HUMAN_PLAYER:
+		_hud.show_toast(REJECT_TOASTS[reason])
 
 
 func _refresh_hud() -> void:

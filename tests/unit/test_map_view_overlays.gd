@@ -136,6 +136,7 @@ func test_g_key_cycles_grid_mode() -> void:
 	_make(Fixtures.plains_grid(1))
 	var controller: Node3D = load("res://src/presentation/battle_controller.gd").new()
 	controller.set("_map_view", _view)
+	controller.set("is_built", true)
 	var event := InputEventKey.new()
 	event.keycode = KEY_G
 	event.pressed = true

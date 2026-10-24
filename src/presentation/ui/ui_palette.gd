@@ -31,6 +31,10 @@ const VIGNETTE_EDGE := Color(0, 0, 0, 0.42)
 const SCANLINE := Color(0, 0, 0, 0.05)
 const SCREEN_BRACKET := LINE
 
+## Notices (TASK-080): banner band, targeting bar border, loading hatch track.
+const BANNER_BAND := Color(8 / 255.0, 11 / 255.0, 8 / 255.0, 0.88)
+const AMBER_BORDER := Color(232 / 255.0, 176 / 255.0, 74 / 255.0, 0.6)
+
 const BACKGROUND := Color("#11130f")
 const PANEL_BG := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.84)
 const PANEL_BG_STRONG := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.94)

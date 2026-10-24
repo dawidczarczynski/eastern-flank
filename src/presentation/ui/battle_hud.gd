@@ -8,13 +8,12 @@ extends Control
 signal end_turn_pressed
 
 const SHADE_HEIGHT := 120
-const BANNER_SECONDS := 1.5
+const TOAST_BOTTOM := 130
+const TARGETING_TOP := 118
 const SIDE_WIDTH := 236
 const ACTIVE_ALPHA := 1.0
 const INACTIVE_ALPHA := 0.6
 const FADE_SECONDS := 0.3
-const SANS_BOLD := "IBMPlexSansCondensed-Bold"
-const MONO_MEDIUM := "IBMPlexMono-Medium"
 ## Key hints (keycap, label), both translation keys (unknown keys show as written). Only keys
 ## the game really has; the order keys 1-6 follow with the radial menu (TASK-082).
 const KEY_HINTS: Array[Array] = [
@@ -41,13 +40,13 @@ var _active_arrow: Label
 var _ready_value: Label
 var _ready_blocks: ReadyBlocks
 var _end_button: EndTurnButton
-var _banner: PanelContainer
-var _banner_turn: Label
-var _banner_name: Label
-var _banner_timer: Timer
+var _banner: TurnBanner
+var _toast: Toast
+var _targeting: TargetingBar
 var _result_shown := false
 var _prev_turn := -1
 var _prev_player := -1
+var _toast_color := UiPalette.AMBER
 
 
 func setup(human_player: int) -> void:
@@ -61,7 +60,7 @@ func setup(human_player: int) -> void:
 	_build_top_bar()
 	_build_key_hints()
 	_build_end_block()
-	_build_banner()
+	_build_notices()
 
 
 ## Full refresh from the current simulation state (the view has caught up with it).
@@ -109,6 +108,7 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	_ready_value.text = "%d / %d" % [active["ready"], active["units"]]
 	_ready_blocks.set_counts(active["ready"], active["units"], color)
 	_end_button.fill = color
+	_toast_color = color
 
 
 func _apply_side(index: int, data: Dictionary) -> void:
@@ -149,33 +149,39 @@ func _fade(side: Dictionary, alpha: float) -> void:
 
 
 func _show_turn_banner(state: GameState, turn: int, player: int) -> void:
-	_banner_turn.text = "%s %02d" % [tr("TURN"), turn]
-	_banner_name.text = tr(UiPalette.faction_name(state, player)).to_upper()
-	_banner_name.add_theme_color_override(&"font_color", UiPalette.faction_color(state, player))
-	_banner.show()
-	_banner_timer.start(BANNER_SECONDS)  # restarts a running timer
+	var status := "YOUR TURN" if player == _human_player else "AI TURN"
+	var caption := "%s %02d // %s" % [tr("TURN"), turn, tr(status)]
+	var title := tr(UiPalette.faction_name(state, player)).to_upper()
+	_banner.show_timed(caption.to_upper(), title, UiPalette.faction_color(state, player))
 
 
 func _show_result(result: String, state: GameState) -> void:
 	_result_shown = true
-	_banner_timer.stop()
-	_banner_turn.text = "%s %02d" % [tr("TURN"), state.turn]
-	_banner_name.text = tr(result).to_upper()
-	_banner_name.add_theme_color_override(
-		&"font_color", UiPalette.faction_color(state, state.winner)
+	var caption := "%s %02d" % [tr("TURN"), state.turn]
+	_banner.show_held(
+		caption.to_upper(), tr(result).to_upper(), UiPalette.faction_color(state, state.winner)
 	)
-	_banner.show()
 
 
 func _hide_result() -> void:
 	if _result_shown:
 		_result_shown = false
-		_banner.hide()
+		_banner.release()
 
 
-func _on_banner_timeout() -> void:
-	if not _result_shown:
-		_banner.hide()
+## Toast above the end-turn module; the `>>` takes the colour of the side to move.
+## `message` is a translation key (or plain text).
+func show_toast(message: String) -> void:
+	_toast.show_message(tr(message), _toast_color)
+
+
+## Targeting bar below the turn bar; all three texts are translation keys (TASK-082 calls this).
+func show_targeting(title: String, unit_text: String, instruction: String) -> void:
+	_targeting.show_targeting(title, unit_text, instruction)
+
+
+func hide_targeting() -> void:
+	_targeting.hide_targeting()
 
 
 # --- building ------------------------------------------------------------------------------
@@ -404,61 +410,27 @@ func _build_end_block() -> void:
 	row.add_child(_end_button)
 
 
-func _build_banner() -> void:
-	var edge := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.0)
-	var mid := Color(17 / 255.0, 19 / 255.0, 15 / 255.0, 0.85)
-	var gradient := Gradient.new()
-	gradient.offsets = PackedFloat32Array([0.0, 0.3, 0.7, 1.0])
-	gradient.colors = PackedColorArray([edge, mid, mid, edge])
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill_from = Vector2(0, 0)
-	texture.fill_to = Vector2(1, 0)
-	texture.width = 256
-	texture.height = 4
-
-	_banner = PanelContainer.new()
-	_banner.name = "TurnBanner"
-	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxTexture.new()
-	style.texture = texture
-	style.content_margin_top = 22
-	style.content_margin_bottom = 22
-	_banner.add_theme_stylebox_override(&"panel", style)
-	_banner.anchor_left = 0.0
-	_banner.anchor_right = 1.0
-	_banner.anchor_top = 0.34
-	_banner.anchor_bottom = 0.34
-	_banner.grow_vertical = Control.GROW_DIRECTION_END
+func _build_notices() -> void:
+	_banner = TurnBanner.new()
 	add_child(_banner)
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override(&"separation", 6)
-	_banner.add_child(column)
-	_banner_turn = _label(MONO_MEDIUM, 12, UiPalette.TEXT_SECONDARY, 4)
-	_banner_turn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_banner_turn)
-	_banner_name = _label(SANS_BOLD, 40, UiPalette.TEXT, 2)
-	_banner_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_banner_name)
-	_banner.hide()
-
-	_banner_timer = Timer.new()
-	_banner_timer.one_shot = true
-	_banner_timer.timeout.connect(_on_banner_timeout)
-	add_child(_banner_timer)
+	_toast = Toast.new()
+	_toast.anchor_left = 0.5
+	_toast.anchor_right = 0.5
+	_toast.anchor_top = 1.0
+	_toast.anchor_bottom = 1.0
+	_toast.offset_bottom = -TOAST_BOTTOM
+	_toast.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_toast.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	add_child(_toast)
+	_targeting = TargetingBar.new()
+	_targeting.anchor_left = 0.5
+	_targeting.anchor_right = 0.5
+	_targeting.offset_top = TARGETING_TOP
+	_targeting.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(_targeting)
 
 
 # --- helpers -------------------------------------------------------------------------------
-
-
-func _label(file: String, size: int, color: Color, spacing: int = 0) -> Label:
-	var label := Label.new()
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_override(&"font", HudTheme.font(file, spacing))
-	label.add_theme_font_size_override(&"font_size", size)
-	label.add_theme_color_override(&"font_color", color)
-	return label
 
 
 ## Wraps `label` in a box exactly `line_height` px tall with the text centred in it, like CSS

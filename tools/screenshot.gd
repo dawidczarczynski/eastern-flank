@@ -66,6 +66,8 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
+	if not bool(_battle.get("is_built")):
+		return false  # the battle scene shows its loading screen for a frame before building
 	if _first_frame:
 		_first_frame = false
 		var wreck_unit := OS.get_environment("SCREENSHOT_WRECK")
@@ -166,6 +168,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_WRECK=<unit id> destroys that unit's view on the first frame (TASK-065: burnt hulk,
 ## turret askew, smoke; use --frames=200 or more to see the column).
 ## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
+## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -192,6 +195,9 @@ func _apply_debug_selection() -> void:
 			)
 		elif focus["error"] != "none":
 			printerr("ERROR: invalid SCREENSHOT_FOCUS (expected <x>,<z>,<yaw degrees>,<distance>)")
+	var notice := OS.get_environment("SCREENSHOT_NOTICE")
+	if notice != "":
+		_battle.call("debug_notice", notice)
 	var select_id := OS.get_environment("SCREENSHOT_SELECT_UNIT")
 	if select_id.is_valid_int():
 		_battle.call("debug_select_and_hover", select_id.to_int())

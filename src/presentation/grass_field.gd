@@ -206,6 +206,11 @@ func _process(_delta: float) -> void:
 	update(chunks_per_frame)
 
 
+## True when every chunk within BUILD_RADIUS of the target is built.
+func is_settled() -> bool:
+	return _density <= 0.0 or not _has_target or not _scan_needed
+
+
 ## Builds up to `max_chunks` pending chunks within BUILD_RADIUS of the target, nearest first.
 func update(max_chunks: int) -> void:
 	if _density <= 0.0 or not _has_target or not _scan_needed:

@@ -80,7 +80,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-077](TASK-077-hud-v3-turn-bar-end-turn.md) | HUD v3: trapezoid turn bar with tick ruler, ready counter + end-turn button, keycap hints | 🔵 done | **TASK-076** |
 | [TASK-078](TASK-078-hud-v3-unit-card.md) | HUD v3: unit hover card (crosshair portrait, segmented HP, bar stats, bracket tags; rank chip waits for ranks) | 🔵 done | **TASK-076** (soft: TASK-082) |
 | [TASK-079](TASK-079-hud-v3-terrain-card.md) | HUD v3: terrain card with dotted leaders + operation label (`operation_name` in the scenario) | 🔵 done | **TASK-076** |
-| [TASK-080](TASK-080-hud-v3-notices.md) | HUD v3: turn banner, toast, targeting bar, loading screen | 🟢 ready | **TASK-076** (soft: TASK-077, TASK-079) |
+| [TASK-080](TASK-080-hud-v3-notices.md) | HUD v3: turn banner, toast, targeting bar, loading screen | 🔵 done | **TASK-076** (soft: TASK-077, TASK-079) |
 | [TASK-081](TASK-081-unit-orders-rules.md) | Unit orders as rules (blind fire, smoke, ambush, relocate, resupply, dig in, camouflage): game-designer pass first, then core/AI tasks | 💡 idea | GDD decisions by the human (soft: TASK-039b) |
 | [TASK-082](TASK-082-hud-v3-radial-orders-menu.md) | HUD v3: radial orders menu on RMB (geometry, detail card, keys 1–6, targeting mode) | 🔴 blocked | **TASK-076**, **TASK-081** (soft: TASK-080, TASK-078) |
 | [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | 💡 idea | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
