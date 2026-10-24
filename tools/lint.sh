@@ -11,7 +11,13 @@ fi
 
 if [[ "${1:-}" == "--fix" ]]; then
 	gdformat src tests tools
+	gdlint src tests tools
 else
-	gdformat --check src tests tools
+	# The two checks are independent; run them side by side.
+	gdlint src tests tools &
+	lint_pid=$!
+	format_status=0
+	gdformat --check src tests tools || format_status=$?
+	wait "$lint_pid" || exit 1
+	exit "$format_status"
 fi
-gdlint src tests tools
