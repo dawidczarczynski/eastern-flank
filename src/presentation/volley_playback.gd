@@ -12,6 +12,9 @@ const LAUNCHER_RAISE_DURATION := 0.9
 const LAUNCHER_TRAVERSE_DURATION := 0.9
 ## Jacks down / shields closed before a volley and back after it (seconds at speed 1, each way).
 const DEPLOY_DURATION := 0.6
+## A tank turns its turret and elevates its gun this long before / after the hit (seconds at
+## speed 1, each way; global pacing).
+const TURRET_AIM_DURATION := 0.5
 
 
 ## Appends the deploy (0 -> 1) or stow (1 -> 0) step of jacks and shields, eased in and out.
@@ -37,6 +40,23 @@ static func tween_launcher(
 			if is_instance_valid(shooter):
 				var pose := from.lerp(to, f)
 				shooter.set_launcher_pose(pose.x, pose.y),
+		0.0,
+		1.0,
+		duration
+	)
+	step.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## Appends a turret step from pose `from` to `to` (x traverse, y gun elevation, radians), eased in
+## and out.
+static func tween_turret(
+	tween: Tween, shooter: UnitView, from: Vector2, to: Vector2, duration: float
+) -> void:
+	var step := tween.tween_method(
+		func(f: float) -> void:
+			if is_instance_valid(shooter):
+				var pose := from.lerp(to, f)
+				shooter.set_turret_pose(pose.x, pose.y),
 		0.0,
 		1.0,
 		duration

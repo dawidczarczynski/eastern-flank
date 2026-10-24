@@ -20,6 +20,9 @@ const MAX_WHEELS := 20
 ## Params of the `launcher` mechanism a model doesn't declare (= the defaults in
 ## docs/design/units/mechanisms.json; a test keeps them equal).
 const LAUNCHER_DEFAULTS := {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"}
+## Params of the `turret_traverse` mechanism a model doesn't declare (= the defaults in
+## docs/design/units/mechanisms.json; a test keeps them equal).
+const TURRET_DEFAULTS := {"traverse_deg": "full", "elevation_deg": [-8, 20]}
 ## Two traverse limits whose body turns differ by less than this (rad) count as a tie.
 const TRAVERSE_TIE := 0.000001
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
@@ -242,6 +245,59 @@ static func pose_launcher(model: Node3D, traverse: float, elevation: float) -> v
 		barrel.basis = _along(top - barrel.position)
 		rod.position = top
 		rod.basis = _along(barrel.position - top)
+
+
+## Whether the model declares `turret_traverse` and has a `Turret` with a `Gun` hinge.
+static func has_turret(model: Node3D) -> bool:
+	return (
+		has_mechanism(model, "turret_traverse")
+		and _model_of(model).get_node_or_null("Turret/Gun") is Node3D
+	)
+
+
+## The model's `turret_traverse` params over TURRET_DEFAULTS.
+static func turret_params(model: Node3D) -> Dictionary:
+	var params := TURRET_DEFAULTS.duplicate()
+	params.merge(mechanism(model, "turret_traverse"), true)
+	return params
+
+
+## Whether the turret's traverse is limited to a range (the vehicle then turns first).
+static func turret_limited(model: Node3D) -> bool:
+	return turret_params(model)["traverse_deg"] is Array
+
+
+## traverse_aim for `model`'s turret (built pose = gun along the hull front): x = body yaw change,
+## y = turret angle (rad).
+static func turret_aim(model: Node3D, facing_yaw: float, target_yaw: float) -> Vector2:
+	return traverse_aim(turret_params(model)["traverse_deg"], 0.0, facing_yaw, target_yaw)
+
+
+## Gun elevation (rad) that points from `from` to `to` (world positions), clamped to the model's
+## `elevation_deg` [depression, elevation]; positive = muzzle up.
+static func gun_elevation(model: Node3D, from: Vector3, to: Vector3) -> float:
+	var limits: Array = turret_params(model)["elevation_deg"]
+	var flat := Vector2(to.x - from.x, to.z - from.z).length()
+	var angle := atan2(to.y - from.y, flat)
+	return clampf(angle, deg_to_rad(float(limits[0])), deg_to_rad(float(limits[1])))
+
+
+## Turret pose: "Turret" turns by `traverse` about its Y, its "Gun" rises by `elevation` about the
+## trunnions (local Z); both relative to their built poses (kept in the "rest" meta on first use).
+## No-op without `Turret/Gun`; (0, 0) is the built pose.
+static func pose_turret(model: Node3D, traverse: float, elevation: float) -> void:
+	var m := _model_of(model)
+	var turret := m.get_node_or_null("Turret") as Node3D
+	var gun := m.get_node_or_null("Turret/Gun") as Node3D
+	if turret == null or gun == null:
+		return
+	for pivot: Node3D in [turret, gun]:
+		if not pivot.has_meta(&"rest"):
+			pivot.set_meta(&"rest", pivot.transform)
+	var turret_rest: Transform3D = turret.get_meta(&"rest")
+	var gun_rest: Transform3D = gun.get_meta(&"rest")
+	turret.transform = turret_rest * Transform3D(Basis(Vector3.UP, traverse), Vector3.ZERO)
+	gun.transform = gun_rest * Transform3D(Basis(Vector3.BACK, elevation), Vector3.ZERO)
 
 
 ## The model's deployable pivots (see DEPLOYABLE_PREFIXES), in order.

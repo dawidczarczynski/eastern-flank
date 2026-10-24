@@ -18,6 +18,8 @@ const VIEW_DURATION_KEY := &"view_duration"
 ## View-only event annotation naming the effect to play (e.g. FX_ROCKET_VOLLEY).
 const VIEW_FX_KEY := &"view_fx"
 const FX_ROCKET_VOLLEY := &"rocket_volley"
+## A turreted vehicle's attack: turret turns, gun elevates, hit, turret returns (TASK-047).
+const FX_DIRECT_FIRE := &"direct_fire"
 
 var _events: Array[Dictionary] = []
 

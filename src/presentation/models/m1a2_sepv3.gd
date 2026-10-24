@@ -12,7 +12,10 @@
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.62
 ## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
-const MECHANISMS := {"wheels": {}}
+const MECHANISMS := {
+	"wheels": {},
+	"turret_traverse": {"traverse_deg": "full", "elevation_deg": [-10, 20]},
+}
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")
 

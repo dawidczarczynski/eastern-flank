@@ -179,7 +179,7 @@ func test_every_model_agrees_with_its_catalog_entry_and_the_registry() -> void:
 		root.free()
 
 
-## The tank pivots the registry doesn't cover yet (turret_traverse is planned, TASK-047).
+## The tank pivots (also covered by the turret_traverse contract).
 func test_tanks_have_a_turret_with_a_gun() -> void:
 	var faction := FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[0])
 	for id in [&"m1a2_sepv3", &"t72b3"]:

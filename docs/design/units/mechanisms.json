@@ -132,8 +132,8 @@
   {
     "id": "turret_traverse",
     "label": "Turret turns and the gun elevates towards the target",
-    "status": "planned",
-    "description": "Planned (TASK-047). The turret turns towards the target and the gun elevates.",
+    "status": "implemented",
+    "description": "The turret turns towards the target and the gun elevates before a direct-fire attack (UnitModels.pose_turret): Turret turns about its local Y (built pose = gun along +X), Turret/Gun hinges at the trunnions and elevates about its local Z (positive = muzzle up), Turret/Gun/Muzzle sits just in front of the muzzle. A limited traverse makes the vehicle turn first.",
     "params": {
       "traverse_deg": {
         "type": "angle_range",

@@ -13,6 +13,7 @@ const AIM_DURATION := 0.5
 const LAUNCHER_RAISE_DURATION := VolleyPlayback.LAUNCHER_RAISE_DURATION
 const LAUNCHER_TRAVERSE_DURATION := VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
 const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
+const TURRET_AIM_DURATION := VolleyPlayback.TURRET_AIM_DURATION
 
 ## Command.validate() reasons the player can hit with a click, and the toast (translation key)
 ## that explains them. Other reasons (game_over, not_your_unit, ...) are not reachable by the UI.
@@ -615,6 +616,14 @@ func _annotate(event: Dictionary) -> Dictionary:
 		)
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
+	if event["type"] == &"unit_attacked":
+		var gunner: UnitView = _unit_views.get(event["attacker_id"])
+		if gunner != null and gunner.has_turret():
+			var direct := EventQueue.with_view_duration(
+				event, _direct_fire_duration(gunner.turret_limited())
+			)
+			direct[EventQueue.VIEW_FX_KEY] = EventQueue.FX_DIRECT_FIRE
+			return direct
 	return event
 
 
@@ -637,6 +646,13 @@ static func _volley_event_duration(launcher: bool, limited: bool, deploy: bool =
 			duration += 2.0 * DEPLOY_DURATION
 		return duration + AIM_DURATION if limited else duration
 	return AIM_DURATION + RocketVolley.total_duration()
+
+
+## Turret aim + hit + turret back; a limited traverse always has the body turn first (see
+## _volley_event_duration for why the duration doesn't depend on the view state).
+static func _direct_fire_duration(limited: bool) -> float:
+	var duration := 2.0 * TURRET_AIM_DURATION + EventQueue.ATTACK_DURATION
+	return duration + AIM_DURATION if limited else duration
 
 
 func _is_playing_events() -> bool:
@@ -691,6 +707,12 @@ func _play_event(event: Dictionary) -> Tween:
 				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
 			):
 				return _play_volley(shooter, target, event["target_hp"], event)
+			if (
+				target != null
+				and shooter != null
+				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_DIRECT_FIRE
+			):
+				return _play_direct_fire(shooter, target, event["target_hp"], event)
 			if target != null:
 				_add_impact_marks(event, target, shooter)
 				return target.play_hit(event["target_hp"])
@@ -742,6 +764,32 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 	VolleyPlayback.append_salvo(tween, self, shooter, impact_point, _fx_rng, on_impact)
 	if shooter.has_launcher():
 		VolleyPlayback.append_stow(tween, shooter, traverse, elevation)
+	return tween
+
+
+## A turreted vehicle fires: [limited: the hull turns], the turret traverses and the gun elevates
+## to the target, the hit lands, turret and gun return to the front. One tween lasts the whole
+## event (_direct_fire_duration).
+func _play_direct_fire(
+	shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary
+) -> Tween:
+	var aim_point := target.global_position
+	var aim := shooter.turret_aim_towards(aim_point)
+	var elevation := shooter.gun_elevation_towards(aim_point + Vector3(0.0, 0.15, 0.0))
+	var pose := Vector2(aim.y, elevation)
+	var tween := create_tween()
+	if shooter.turret_limited():
+		var from_yaw := shooter.facing_yaw()
+		tween.tween_method(
+			func(f: float) -> void: shooter.set_facing_yaw(from_yaw + aim.x * f),
+			0.0,
+			1.0,
+			AIM_DURATION
+		)
+	VolleyPlayback.tween_turret(tween, shooter, Vector2.ZERO, pose, TURRET_AIM_DURATION)
+	tween.tween_callback(_play_volley_hit.bind(target, target_hp, event, shooter))
+	tween.tween_interval(EventQueue.ATTACK_DURATION)
+	VolleyPlayback.tween_turret(tween, shooter, pose, Vector2.ZERO, TURRET_AIM_DURATION)
 	return tween
 
 

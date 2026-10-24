@@ -18,6 +18,8 @@ const GROUND_HEIGHT := 0.04
 ## The Fire animation shoots at a dummy this far from the unit, in the direction the launcher
 ## is traversed to.
 const TARGET_DISTANCE := 1.0
+## Gun elevation (rad) of the tank Traverse demo.
+const TURRET_DEMO_ELEVATION := 0.1
 ## Travel speed of Drive and March (world units per second), like a move in the battle.
 const TRAVEL_SPEED := 1.0 / MoveAnimation.SECONDS_PER_TILE
 ## Hit reaction hit points shown (the label is hidden; the call needs a value).
@@ -288,6 +290,9 @@ func _raise() -> void:
 
 
 func _traverse() -> void:
+	if UnitModels.has_turret(_view.model()):
+		_traverse_turret()
+		return
 	var elevation := UnitModels.launcher_elevation(_view.model()) if _raise_on else 0.0
 	var from := _traverse_angle if _traverse_on else 0.0
 	_traverse_on = not _traverse_on
@@ -299,6 +304,24 @@ func _traverse() -> void:
 		Vector2(from, elevation),
 		Vector2(to, elevation),
 		VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
+	)
+	_pose_tween.finished.connect(_on_pose_finished)
+
+
+## Tank turret: turns to the demo angle with the gun slightly raised, and back.
+func _traverse_turret() -> void:
+	var raise := TURRET_DEMO_ELEVATION if not _traverse_on else 0.0
+	var from := _traverse_angle if _traverse_on else 0.0
+	var from_elevation := TURRET_DEMO_ELEVATION if _traverse_on else 0.0
+	_traverse_on = not _traverse_on
+	var to := _traverse_angle if _traverse_on else 0.0
+	_pose_tween = create_tween()
+	VolleyPlayback.tween_turret(
+		_pose_tween,
+		_view,
+		Vector2(from, from_elevation),
+		Vector2(to, raise),
+		VolleyPlayback.TURRET_AIM_DURATION
 	)
 	_pose_tween.finished.connect(_on_pose_finished)
 
@@ -343,6 +366,9 @@ func _on_pose_finished() -> void:
 	var unit_view := view()
 	if unit_view != null:
 		unit_view.set_deploy_pose(1.0 if _deploy_on else 0.0)
+		unit_view.set_turret_pose(
+			_traverse_angle if _traverse_on else 0.0, TURRET_DEMO_ELEVATION if _traverse_on else 0.0
+		)
 		unit_view.set_launcher_pose(
 			_traverse_angle if _traverse_on else 0.0,
 			UnitModels.launcher_elevation(unit_view.model()) if _raise_on else 0.0

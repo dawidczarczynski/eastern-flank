@@ -37,7 +37,14 @@
     "Six large rubber-tyred road wheels and three return rollers per side, rear drive sprocket, front idler"
   ],
   "mechanisms": {
-    "wheels": {}
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -6,
+        14
+      ]
+    }
   },
   "images": [
     {
@@ -153,6 +160,18 @@
     "mechanisms.wheels": {
       "source": "registry default for the unit's class; added by TASK-043, not yet reviewed in the catalog tool",
       "verified": true
+    },
+    "mechanisms.turret_traverse": {
+      "source": "TASK-047: tank turret, traverse is full; elevation limits are best-known values (?); added by the presentation engineer, not yet reviewed in the catalog tool",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "full 360 deg traverse (tank turret)",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "2A46M-5 125 mm gun: about -6 / +14 deg (T-72 series); best-known value, needs human verification (?)",
+      "verified": false
     }
   },
   "status": "modeled",

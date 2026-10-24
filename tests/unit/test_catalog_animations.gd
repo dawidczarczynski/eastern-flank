@@ -34,9 +34,9 @@ func test_squads_march_and_kneel() -> void:
 	assert_eq(_animations(&"ru_motor_rifle"), [IDS.MARCH, IDS.KNEEL])
 
 
-func test_tanks_only_drive_until_the_turret_animates() -> void:
-	assert_eq(_animations(&"m1a2_sepv3"), [IDS.DRIVE])
-	assert_eq(_animations(&"t72b3"), [IDS.DRIVE])
+func test_tanks_drive_and_traverse_the_turret() -> void:
+	assert_eq(_animations(&"m1a2_sepv3"), [IDS.DRIVE, IDS.TRAVERSE])
+	assert_eq(_animations(&"t72b3"), [IDS.DRIVE, IDS.TRAVERSE])
 
 
 func test_a_model_without_metadata_offers_nothing() -> void:

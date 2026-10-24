@@ -151,6 +151,19 @@ func test_toggles_flip_and_return_to_the_built_pose() -> void:
 	assert_true(stage.can_play(IDS.FIRE))
 
 
+func test_tank_traverse_turns_the_turret_and_back() -> void:
+	var stage := _make_stage()
+	stage.show_unit(_definition(&"t72b3"), _faction(&"t72b3"))
+	var built := _snapshot(stage.view().model())
+	stage.play(IDS.TRAVERSE)
+	stage.finish_pose()
+	assert_true(stage.is_on(IDS.TRAVERSE))
+	assert_false(_snapshot(stage.view().model())["/Turret"].is_equal_approx(built["/Turret"]))
+	stage.play(IDS.TRAVERSE)
+	stage.finish_pose()
+	_assert_same_pose(_snapshot(stage.view().model()), built)
+
+
 func test_a_busy_stage_ignores_pose_buttons() -> void:
 	var stage := _make_stage()
 	stage.show_unit(_definition(&"homar_k"), _faction(&"homar_k"))

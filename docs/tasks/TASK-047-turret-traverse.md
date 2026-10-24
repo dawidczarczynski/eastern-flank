@@ -1,6 +1,6 @@
 # TASK-047: `turret_traverse` mechanism – the tank turns its turret and elevates its gun before firing
 
-- **Status**: ready (revised 2026-10-22: the tank models exist – `m1a2_sepv3`, `t72b3` – so the dependency on TASK-031 is replaced by them)
+- **Status**: done (revised 2026-10-22: the tank models exist – `m1a2_sepv3`, `t72b3` – so the dependency on TASK-031 is replaced by them)
 - **Layers**: presentation (`UnitModels.pose_turret` / `turret_aim` / `gun_elevation`, `UnitView`, `BattleController` attack playback, `EventQueue` FX key), `mechanisms.json`, tests; catalog tank entries
 - **Depends on**: **TASK-044** (`traverse_aim`), **TASK-043** (`MECHANISMS` metadata on the tanks). The models `m1a2_sepv3.gd` and `t72b3.gd` already have `Turret` and `Turret/Gun` (`VehicleFrame.add_turret` / `add_gun`); check the hinge position and add `Turret/Gun/Muzzle` if missing.
 - **Model**: sonnet
@@ -54,4 +54,4 @@ None (presentation only, no rule effect).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Presentation only. `UnitModels` gained `has_turret`, `turret_aim`, `gun_elevation`, `pose_turret`; `UnitView` the matching wrappers; `BattleController._annotate` marks turreted attacks `FX_DIRECT_FIRE` (1.4 s, +0.5 s limited traverse) and `_play_direct_fire` plays aim → hit → return (counters use the same event). Tank models declare `turret_traverse` in `MECHANISMS`; the catalog viewer's Traverse button turns the tank turret. Elevation limits (Abrams [-10, 20], T-72B3 [-6, 14]) are best-known values, `verified: false` in the catalog – the human should verify them. Turret returns to the front (open question stays). Not tested: `_annotate` / playback end to end (only the pure helpers and durations).

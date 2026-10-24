@@ -2,7 +2,7 @@ class_name CatalogAnimations
 extends RefCounted
 ## Which animations the unit catalog offers for a model (TASK-084): a table from the mechanisms
 ## the model declares (`UnitModels.mechanisms`, ADR 0014) to animation ids, so each unit shows only
-## what it has. Adding a mechanism (turret_traverse, gun_recoil) = a row in TABLE and a handler in
+## what it has. Adding a mechanism (gun_recoil) = a row in TABLE and a handler in
 ## CatalogStage. Pure: no nodes besides reading the model's metadata.
 
 const DRIVE := &"drive"
@@ -23,6 +23,7 @@ const TABLE := {
 	"stabilisers": [DEPLOY],
 	"blast_shields": [DEPLOY],
 	"launcher": [RAISE, TRAVERSE, FIRE],
+	"turret_traverse": [TRAVERSE],
 }
 ## Button order.
 const ORDER: Array[StringName] = [DRIVE, MARCH, KNEEL, DEPLOY, RAISE, TRAVERSE, FIRE]
@@ -72,7 +73,12 @@ static func label(id: StringName) -> String:
 ## Angle (rad, relative to the stowed direction) the launcher traverses to in the Traverse and Fire
 ## animations: inside the model's traverse range, away from the stowed direction.
 static func traverse_angle(model: Node3D) -> float:
-	var range_deg: Variant = UnitModels.launcher_params(model)["traverse_deg"]
+	var params := (
+		UnitModels.turret_params(model)
+		if UnitModels.has_turret(model)
+		else UnitModels.launcher_params(model)
+	)
+	var range_deg: Variant = params["traverse_deg"]
 	if not range_deg is Array:
 		return FULL_TRAVERSE_ANGLE
 	var lo := float((range_deg as Array)[0])

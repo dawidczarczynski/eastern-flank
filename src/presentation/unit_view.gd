@@ -321,6 +321,36 @@ func set_launcher_pose(traverse: float, elevation: float) -> void:
 		UnitModels.pose_launcher(_model, traverse, elevation)
 
 
+## Whether the turret turns and the gun elevates before a direct-fire attack.
+func has_turret() -> bool:
+	return UnitModels.has_turret(_model)
+
+
+## How the turret points at the world point `target` from the current facing: x = body yaw change
+## (non-zero only for a limited traverse), y = turret angle (see UnitModels.turret_aim).
+func turret_aim_towards(target: Vector3) -> Vector2:
+	return UnitModels.turret_aim(_model, facing_yaw(), yaw_towards(target))
+
+
+## Whether the turret's traverse is limited (the vehicle may have to turn first).
+func turret_limited() -> bool:
+	return UnitModels.turret_limited(_model)
+
+
+## Gun elevation (rad) towards the world point `target` from the gun hinge, within the limits.
+func gun_elevation_towards(target: Vector3) -> float:
+	var gun := _model.get_node_or_null("Turret/Gun") as Node3D
+	if gun == null:
+		return 0.0
+	return UnitModels.gun_elevation(_model, gun.global_position, target)
+
+
+## Poses the turret (about Y) and the gun (elevation) relative to their built pose.
+func set_turret_pose(traverse: float, elevation: float) -> void:
+	if not _dying:
+		UnitModels.pose_turret(_model, traverse, elevation)
+
+
 ## Whether the vehicle lowers jacks / closes shields before a volley.
 func has_deployables() -> bool:
 	return UnitModels.has_deployables(_model)
