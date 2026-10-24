@@ -40,7 +40,7 @@ func test_both_blocks_show_names_and_counts() -> void:
 	assert_eq(((_find("Side0") as Node).find_child("Badge", true, false) as HexBadge).text, "PL")
 	assert_eq(((_find("Side1") as Node).find_child("Badge", true, false) as HexBadge).text, "RU")
 	assert_eq((_find("TurnNumber") as Label).text, "01")
-	assert_eq((_find("ActiveSide") as Label).text, "▸ " + _t("Poland").to_upper())
+	assert_eq((_find("ActiveSide") as Label).text, _t("Poland").to_upper())
 
 
 func test_hatch_only_on_the_active_side_and_inactive_is_dimmed() -> void:

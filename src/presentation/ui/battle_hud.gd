@@ -37,6 +37,7 @@ var _human_player := 0
 var _sides: Array[Dictionary] = []  # per player: {block, badge, name, meta, bar, tween}
 var _turn_label: Label
 var _active_label: Label
+var _active_arrow: Label
 var _ready_value: Label
 var _ready_blocks: ReadyBlocks
 var _end_button: EndTurnButton
@@ -102,8 +103,9 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	var active: Dictionary = players[active_player]
 	var color: Color = active["color"]
 	_turn_label.text = bar["turn_text"]
-	_active_label.text = "▸ %s" % tr(active["name"] as String).to_upper()
+	_active_label.text = tr(active["name"] as String).to_upper()
 	_active_label.add_theme_color_override(&"font_color", color)
+	_active_arrow.add_theme_color_override(&"font_color", color)
 	_ready_value.text = "%d / %d" % [active["ready"], active["units"]]
 	_ready_blocks.set_counts(active["ready"], active["units"], color)
 	_end_button.fill = color
@@ -229,6 +231,7 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	block.name = "Side%d" % index
 	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	block.custom_minimum_size.x = SIDE_WIDTH
+	block.alignment = BoxContainer.ALIGNMENT_CENTER
 	block.add_theme_constant_override(&"separation", 6)
 	parent.add_child(block)
 
@@ -252,7 +255,9 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	if mirrored:
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	texts.add_child(name_label)
+	var name_box := _pin_line(name_label, 15)
+	name_box.custom_minimum_size.x = SIDE_WIDTH - 50  # badge 40 + gap 10: the rest of the block
+	texts.add_child(name_box)
 	texts.add_child(meta)
 	if mirrored:
 		row.add_child(texts)
@@ -268,6 +273,7 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	block.add_child(slot)
 	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 4), true)
 	bar.name = "ActiveBar"
+	bar.scrolling = true
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	slot.add_child(bar)
 	return {
@@ -304,11 +310,21 @@ func _build_centre() -> Control:
 	_turn_label = _label_font(HudTheme.mono(700), 32, UiPalette.HUD_TEXT)
 	_turn_label.name = "TurnNumber"
 	_turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_turn_label)
+	column.add_child(_pin_line(_turn_label, 32))
 	_active_label = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
 	_active_label.name = "ActiveSide"
-	_active_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_active_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(_active_label)
+	# The arrow hangs to the left of the name so the name (not arrow + name) is what is centred.
+	_active_arrow = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
+	_active_arrow.name = "ActiveArrow"
+	_active_arrow.text = "▸"
+	_active_arrow.anchor_left = 0.0
+	_active_arrow.anchor_right = 0.0
+	_active_arrow.offset_left = 0.0
+	_active_arrow.offset_right = -5.0
+	_active_arrow.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_active_label.add_child(_active_arrow)
 	group.add_child(_divider())
 	return group
 
@@ -443,6 +459,22 @@ func _label(file: String, size: int, color: Color, spacing: int = 0) -> Label:
 	label.add_theme_font_size_override(&"font_size", size)
 	label.add_theme_color_override(&"font_color", color)
 	return label
+
+
+## Wraps `label` in a box exactly `line_height` px tall with the text centred in it, like CSS
+## `line-height: 1`. Godot's default line box is the font's ascent + descent (~1.3 em), which
+## stretches the turn bar beyond the design.
+func _pin_line(label: Label, line_height: float) -> Control:
+	var box := Control.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.custom_minimum_size.y = line_height
+	var font := label.get_theme_font(&"font")
+	var natural := font.get_height(label.get_theme_font_size(&"font_size"))
+	label.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	label.offset_top = (line_height - natural) / 2.0
+	label.offset_bottom = label.offset_top + natural
+	box.add_child(label)
+	return box
 
 
 ## Label with an already built font (HudTheme.display / mono).
