@@ -1,6 +1,6 @@
 # TASK-079: HUD v3 – terrain card and operation label
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`TerrainPanel` rebuilt, `TerrainPanelModel` extended), scenario data (operation name), localisation, tests. Role: **presentation-engineer**.
 - **Depends on**: **TASK-076**
 - **Model**: sonnet
@@ -36,4 +36,7 @@ Cities/roads (TASK-035).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `GameState.operation_name` (set by `Scenario.default_battle` = "Iron Shore", not in `snapshot()`); replays rebuild it, `MatchRecord` is unchanged so old saves load as before.
+- `TerrainPanelModel.build` gained an optional `city_name` → `"city"` key (no cities yet, so never shown in game).
+- `TerrainPanel` is now a `FramedPanel` (tab, chamfer, dotted `_Leader` rows, bracket tags, path row in the selected unit's faction colour); new `OperationLabel` (amber label + 150×3 hatch) in the bottom-left stack; margin 16 → 24, gap 10. New strings in strings.csv.
+- Not seen in-game: the city line (no data) and the tooltip-free hover with a Polish locale; the README screenshot shows the card with the path row.

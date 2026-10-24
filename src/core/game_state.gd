@@ -15,6 +15,10 @@ var rng := RandomNumberGenerator.new()
 ## the scenario assigns the match's factions. Static per match, so not part of snapshot().
 var player_factions: Array[StringName] = []
 
+## Display name of the operation (untranslated English, e.g. "Iron Shore"); "" = none. Set by
+## the scenario, so a replay rebuilds it; static per match, so not part of snapshot().
+var operation_name := ""
+
 var _next_unit_id: int = 1
 
 

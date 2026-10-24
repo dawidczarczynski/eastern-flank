@@ -4,7 +4,7 @@ extends Node3D
 
 const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
-const BOTTOM_LEFT_MARGIN := 16
+const BOTTOM_LEFT_MARGIN := 24
 ## Time the launcher takes to turn towards its target before a volley (seconds at speed 1).
 const AIM_DURATION := 0.5
 ## Turntable launchers (Homar-K) aim the launcher instead: the pod rises on its actuators, the
@@ -283,7 +283,8 @@ func _refresh_path_preview() -> void:
 	var unit := _sim.state.get_unit(_selected_unit_id)
 	var moves_left := unit.moves_left if unit != null else 0
 	_terrain_panel.show_tile(
-		TerrainPanelModel.build(_sim.state.grid, _hovered_hex, cost, moves_left)
+		TerrainPanelModel.build(_sim.state.grid, _hovered_hex, cost, moves_left),
+		UiPalette.faction_color(_sim.state, unit.owner_id) if unit != null else UiPalette.AMBER
 	)
 
 
@@ -452,6 +453,10 @@ func _build_bottom_left_stack() -> void:
 	)
 	stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_hud_root.add_child(stack)
+	stack.add_theme_constant_override(&"separation", 10)
+	var operation := OperationLabel.new()
+	operation.set_operation(_sim.state.operation_name)
+	stack.add_child(operation)
 	_terrain_panel = TerrainPanel.new()
 	stack.add_child(_terrain_panel)
 	_unit_popup = UnitPopup.new()

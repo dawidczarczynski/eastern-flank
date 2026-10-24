@@ -73,3 +73,20 @@ func test_no_path_is_empty() -> void:
 	var m := _build(_grid_with(Terrain.Type.PLAINS, 0.0), Vector2i(2, 4), -1, 3)
 	assert_eq(m["path"], "")
 	assert_eq(m["path_cost"], -1)
+
+
+func test_city_name_is_empty_without_a_city() -> void:
+	assert_eq(_build(_grid_with(Terrain.Type.PLAINS, 0.0))["city"], "")
+
+
+func test_city_name_is_passed_through() -> void:
+	var grid := _grid_with(Terrain.Type.PLAINS, 0.0)
+	var c := MapGenerator.offset_to_axial(2, 4)
+	assert_eq(TerrainPanelModel.build(grid, c, -1, 0, "Gdańsk")["city"], "Gdańsk")
+
+
+func test_path_row_only_for_a_valid_move_target() -> void:
+	assert_eq(_build(_grid_with(Terrain.Type.PLAINS, 0.0), Vector2i(2, 4), -1, 5)["path"], "")
+	assert_eq(
+		_build(_grid_with(Terrain.Type.PLAINS, 0.0), Vector2i(2, 4), 0, 5)["path"], "0 / 5 MP"
+	)

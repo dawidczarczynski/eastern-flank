@@ -12,6 +12,7 @@ const BACK_SLOTS := [[0, [5, 3, 7]], [MAP_WIDTH - 1, [4, 2, 6]]]
 ## tiles adjacent). Water is impassable, so the rows in RIVER_FORDS are plains crossings.
 const RIVER_COLUMNS := [6, 5, 5, 5, 6, 6, 6, 5, 5, 5]
 const RIVER_FORDS := [2, 7]
+const OPERATION_NAME := "Iron Shore"
 
 
 ## Default 2-player battle on a generated 12x10 map with a river (RIVER_COLUMNS) between the
@@ -28,6 +29,7 @@ static func default_battle(
 	_add_river(grid)
 	var state := GameState.new(grid, 2, seed_value)
 	state.player_factions = factions.duplicate()
+	state.operation_name = OPERATION_NAME
 	for player in state.player_count:
 		var faction := state.faction_of(player)
 		if faction == null:

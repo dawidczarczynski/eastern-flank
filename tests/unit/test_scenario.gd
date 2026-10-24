@@ -204,3 +204,14 @@ func test_armies_can_reach_each_other_across_the_river() -> void:
 		var west := state.get_unit(1).coord
 		var east := state.get_unit(5).coord
 		assert_false(state.grid.path_to(west, east, 1000).is_empty(), "seed %d" % seed_value)
+
+
+func test_default_battle_has_an_operation_name() -> void:
+	assert_eq(Scenario.default_battle(12345).operation_name, "Iron Shore")
+
+
+func test_replayed_match_keeps_the_operation_name() -> void:
+	var record := MatchRecord.new()
+	record.seed = 99
+	var result := Replay.run(record)
+	assert_eq(result["simulation"].state.operation_name, "Iron Shore")

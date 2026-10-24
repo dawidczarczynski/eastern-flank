@@ -1,137 +1,140 @@
 class_name TerrainPanel
-extends PanelContainer
-## Bottom-left terrain info panel (TASK-024), built in code. Text comes from TerrainPanelModel
-## (untranslated English); this widget only translates and lays it out. Ignores the mouse.
+extends FramedPanel
+## HUD v3 terrain card (TASK-079, docs/design/hud_v3/README.md "03 Terrain card"), built in code.
+## Text comes from TerrainPanelModel (untranslated English); this widget only translates and lays
+## it out. Ignores the mouse.
 
-const WIDTH := 250
-const MONO := "IBMPlexMono-Medium"
-const SANS_SEMIBOLD := "IBMPlexSansCondensed-SemiBold"
-const CHIP_BG := Color(235 / 255.0, 232 / 255.0, 223 / 255.0, 0.08)
-const PATH_BG := Color(235 / 255.0, 232 / 255.0, 223 / 255.0, 0.06)
+const WIDTH := 262
+const NAME_SIZE := 20
+const ROW_SIZE := 12
+const LEADER_DOT_PERIOD := 4.0
 
-var _hex_label: Label
 var _name_label: Label
+var _city_label: Label
 var _values: Array[Label] = []
-var _tags_margin: MarginContainer
-var _tags_flow: HFlowContainer
-var _path_row: PanelContainer
-var _path_value: Label
+var _tags_wrap: Control
+var _tags: HFlowContainer
+var _path_wrap: Control
+var _path_box: PanelContainer
+var _path_label: Label
+
+
+## Dotted leader between a row caption and its value (CSS: 1 px dots every 4 px at the baseline).
+class _Leader:
+	extends Control
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		size_flags_vertical = Control.SIZE_SHRINK_END
+		custom_minimum_size = Vector2(12, 5)
+
+	func _draw() -> void:
+		var x := 0.0
+		while x < size.x:
+			draw_rect(Rect2(x, size.y - 2.0, 1, 1), UiPalette.HUD_MUTED)
+			x += LEADER_DOT_PERIOD
 
 
 func _init() -> void:
+	super()
 	name = "TerrainPanel"
 	custom_minimum_size = Vector2(WIDTH, 0)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Text is translated here; keep Labels from translating the composed strings again.
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	add_theme_stylebox_override(&"panel", _box(UiPalette.PANEL_BG, 1, UiPalette.PANEL_BORDER))
+	chamfers = Vector4(0, 12, 0, 12)
+	padding = Vector2(12, 10)
+	tab_text = " "  # reserves the tab row; the real text is set in show_tile()
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override(&"separation", 0)
 	add_child(column)
-
-	var header := HBoxContainer.new()
-	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var title := _label(MONO, 10, UiPalette.TEXT_SECONDARY, 2)
-	title.text = tr("TERRAIN")
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_hex_label = _label(MONO, 10, UiPalette.TEXT_SECONDARY, 2)
-	_hex_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	header.add_child(title)
-	header.add_child(_hex_label)
-	column.add_child(_margin(header, 12, 9, 12, 0))
-
-	_name_label = _label(SANS_SEMIBOLD, 20, UiPalette.TEXT, 0)
-	column.add_child(_margin(_name_label, 12, 4, 12, 10))
-
-	var stats := HBoxContainer.new()
-	stats.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stats.add_theme_constant_override(&"separation", 0)
-	var captions: Array[String] = ["MOVE", "DEFENSE", "ELEV."]
-	for i in captions.size():
-		stats.add_child(_stat_cell(captions[i], i > 0))
-	var stats_box := _plain_panel(_box(Color(0, 0, 0, 0), 1, UiPalette.DIVIDER, SIDE_TOP))
-	stats_box.add_child(stats)
-	column.add_child(stats_box)
-
-	_tags_flow = HFlowContainer.new()
-	_tags_flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_tags_flow.add_theme_constant_override(&"h_separation", 4)
-	_tags_flow.add_theme_constant_override(&"v_separation", 4)
-	_tags_margin = _margin(_tags_flow, 12, 0, 12, 10)
-	column.add_child(_tags_margin)
-
-	_path_row = _plain_panel(_box(PATH_BG, 0, UiPalette.DIVIDER))
-	var path_box := HBoxContainer.new()
-	path_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var path_caption := _label(MONO, 11, UiPalette.TEXT_SECONDARY, 0)
-	path_caption.text = tr("PATH COST")
-	path_caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_path_value = _label(MONO, 11, UiPalette.TEXT, 0)
-	_path_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	path_box.add_child(path_caption)
-	path_box.add_child(_path_value)
-	_path_row.add_child(_margin(path_box, 12, 8, 12, 8))
-	column.add_child(_path_row)
+	_name_label = _label(HudTheme.display(700, 1), NAME_SIZE, UiPalette.HUD_TEXT)
+	column.add_child(_name_label)
+	_city_label = _label(HudTheme.mono(500), 12, UiPalette.AMBER)
+	column.add_child(_city_label)
+	var rows := VBoxContainer.new()
+	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rows.add_theme_constant_override(&"separation", 6)
+	for caption in ["MOVE COST", "DEFENSE MOD.", "ELEVATION"]:
+		rows.add_child(_row(caption))
+	column.add_child(_margin(rows, 0, 9, 0, 0))
+	_tags = HFlowContainer.new()
+	_tags.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tags.add_theme_constant_override(&"h_separation", 8)
+	_tags.add_theme_constant_override(&"v_separation", 3)
+	_tags_wrap = _margin(_tags, 0, 9, 0, 0)
+	column.add_child(_tags_wrap)
+	_path_label = _label(HudTheme.mono(600, 1), 11, UiPalette.HUD_TEXT)
+	_path_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_path_box = PanelContainer.new()
+	_path_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_path_box.add_child(_margin(_path_label, 8, 5, 8, 5))
+	_path_wrap = _margin(_path_box, 0, 10, 0, 0)
+	column.add_child(_path_wrap)
 	hide()
 
 
-## Shows the panel for a TerrainPanelModel.build() result.
-func show_tile(model: Dictionary) -> void:
-	_hex_label.text = tr("HEX %s") % model["hex"]
-	_name_label.text = tr(model["name"] as String)
+## Shows the card for a TerrainPanelModel.build() result; `accent` colours the path row (the
+## active faction).
+func show_tile(model: Dictionary, accent := UiPalette.AMBER) -> void:
+	tab_text = tr("TERRAIN").to_upper()
+	tab_right_text = tr("HEX %s") % model["hex"]
+	_name_label.text = tr(model["name"] as String).to_upper()
+	var city: String = model.get("city", "")
+	_city_label.text = "◆ %s" % tr(city)
+	_city_label.visible = city != ""
 	_values[0].text = model["move"]
 	_values[1].text = model["defense"]
 	_values[2].text = model["elevation"]
-	for chip in _tags_flow.get_children():
-		_tags_flow.remove_child(chip)
-		chip.queue_free()
+	for tag in _tags.get_children():
+		_tags.remove_child(tag)
+		tag.queue_free()
 	var tags: PackedStringArray = model["tags"]
 	for tag in tags:
-		_tags_flow.add_child(_chip(tr(tag)))
-	_tags_margin.visible = not tags.is_empty()
+		_tags.add_child(Bracketed.new(tr(tag).to_upper()))
+	_tags_wrap.visible = not tags.is_empty()
 	var path_cost: int = model["path_cost"]
-	_path_row.visible = path_cost >= 0
+	_path_wrap.visible = path_cost >= 0
 	if path_cost >= 0:
-		_path_value.text = tr("%d / %d MP") % [path_cost, model["moves_left"]]
+		_path_label.text = (
+			("%s · %s" % [tr("PATH"), tr("%d / %d MP") % [path_cost, model["moves_left"]]])
+			. to_upper()
+		)
+		_path_label.add_theme_color_override(&"font_color", accent)
+		_path_box.add_theme_stylebox_override(&"panel", _path_style(accent))
 	show()
 	reset_size()  # shrink to content after rows were hidden
 
 
-func _stat_cell(caption: String, divider: bool) -> Control:
-	var cell := _plain_panel(
-		_box(
-			Color(0, 0, 0, 0), 1 if divider else 0, UiPalette.DIVIDER, SIDE_LEFT if divider else -1
-		)
-	)
-	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cell.custom_minimum_size = Vector2(WIDTH / 3.0 - 1.0, 0)
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override(&"separation", 2)
-	var cap := _label(MONO, 9.5, UiPalette.TEXT_SECONDARY, 1)
-	cap.text = tr(caption)
-	var value := _label(MONO, 13, UiPalette.TEXT, 0)
+func _row(caption: String) -> Control:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 6)
+	var cap := _label(HudTheme.display(400), ROW_SIZE, UiPalette.HUD_MUTED)
+	cap.text = tr(caption).to_upper()
+	var value := _label(HudTheme.mono(600), ROW_SIZE, UiPalette.HUD_TEXT)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_values.append(value)
-	box.add_child(cap)
-	box.add_child(value)
-	cell.add_child(_margin(box, 12, 8, 12, 8))
-	return cell
+	row.add_child(cap)
+	row.add_child(_Leader.new())
+	row.add_child(value)
+	return row
 
 
-func _chip(text: String) -> Control:
-	var chip := _plain_panel(_box(CHIP_BG, 0, UiPalette.DIVIDER))
-	var label := _label(MONO, 10, UiPalette.TEXT_MUTED, 0)
-	label.text = text
-	chip.add_child(_margin(label, 6, 2, 6, 2))
-	return chip
+func _path_style(color: Color) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(color, 0.08)
+	box.border_color = color
+	box.set_border_width_all(1)
+	return box
 
 
-func _label(file: String, size: float, color: Color, spacing: int) -> Label:
+func _label(font: Font, size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_override(&"font", HudTheme.font(file, spacing))
-	label.add_theme_font_size_override(&"font_size", roundi(size))
+	label.add_theme_font_override(&"font", font)
+	label.add_theme_font_size_override(&"font_size", size)
 	label.add_theme_color_override(&"font_color", color)
 	return label
 
@@ -145,22 +148,3 @@ func _margin(child: Control, left: int, top: int, right: int, bottom: int) -> Ma
 	margin.add_theme_constant_override(&"margin_bottom", bottom)
 	margin.add_child(child)
 	return margin
-
-
-func _plain_panel(box: StyleBoxFlat) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override(&"panel", box)
-	return panel
-
-
-## `side` -1 = all sides (when width > 0), otherwise only that Side gets the border.
-func _box(bg: Color, width: int, border: Color, side: int = -1) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = bg
-	box.border_color = border
-	if side < 0:
-		box.set_border_width_all(width)
-	else:
-		box.set_border_width(side as Side, width)
-	return box
