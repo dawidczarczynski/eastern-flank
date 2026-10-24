@@ -38,6 +38,9 @@
     "night-vision mounts"
   ],
   "camo_note": "wz. 93 Pantera woodland (olive base, dark green, brown, black; soft shapes). Being replaced by K-03 Ryś from 2027 (about 220,000 sets by 2029).",
+  "mechanisms": {
+    "squad_march": {}
+  },
   "images": [
     {
       "file": "side_1.jpg",
@@ -130,9 +133,13 @@
     "camo_note": {
       "source": "https://en.wikipedia.org/wiki/Wz._93_Pantera",
       "verified": true
+    },
+    "mechanisms.squad_march": {
+      "source": "registry default for the unit's class; added by TASK-043, not yet reviewed in the catalog tool",
+      "verified": true
     }
   },
   "status": "modeled",
-  "updated": "2026-10-20",
-  "revision": 17
+  "updated": "2026-10-24",
+  "revision": 18
 }

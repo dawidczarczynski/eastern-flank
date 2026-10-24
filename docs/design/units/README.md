@@ -36,6 +36,8 @@ How a unit animates is a property of the **real vehicle**: the Homar-K and the 9
 - `pivots` – the node paths the model must provide below its root (`{i}` = contiguous index run from 0, `min` = minimum count, `with` = paths that must exist for the same index, `meta` = metadata keys the pivot carries);
 - `owns` – top-level pivots only this mechanism may create (a model with such a pivot must declare the mechanism).
 
+The model file copies the entry's mechanisms into its `MECHANISMS` constant and a test (`tests/unit/test_unit_mechanisms.gd`) fails when they differ, so after changing a mechanism here update the model (by hand or `/model-unit <id>`).
+
 In `unit.json`, `mechanisms` is an object from mechanism id to its parameters, e.g. `"launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "front"}` (`"wheels": {}` has none). On save the tool validates ids, parameter names and values (errors name `mechanisms.<id>.<param>`), fills missing parameters with the registry defaults and writes everything in registry order. Defaults filled by the tool and the class pre-fill carry `provenance` entries `mechanisms.<id>` / `mechanisms.<id>.<param>` with source `default` / `class default` and `verified: false`; AI research (`/research-unit`) proposes mechanisms and parameters with sources the same way as other fields. Removing a mechanism removes its provenance.
 
 **Readiness:** `ready_for_model` needs a non-empty `mechanisms` and no unverified mechanism value (AI, default or class default) – the model and its animations are built from them. The game never reads this folder: the parameters reach it through the model file (TASK-043). Hull rocking on slopes is not a mechanism; every vehicle gets it from its mobility.

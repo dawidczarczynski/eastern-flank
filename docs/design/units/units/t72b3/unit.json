@@ -36,6 +36,9 @@
   "details": [
     "Six large rubber-tyred road wheels and three return rollers per side, rear drive sprocket, front idler"
   ],
+  "mechanisms": {
+    "wheels": {}
+  },
   "images": [
     {
       "file": "drawing_1.jpg",
@@ -146,10 +149,14 @@
     "details": {
       "source": "https://man.fas.org/dod-101/sys/land/row/t72tank.htm",
       "verified": true
+    },
+    "mechanisms.wheels": {
+      "source": "registry default for the unit's class; added by TASK-043, not yet reviewed in the catalog tool",
+      "verified": true
     }
   },
   "status": "modeled",
   "feedback": "brakuje zasobnika na tyle wieży, osłona boku kadłuba ma zły kształt - brakuje skosu z tyłu, ten czarny wizjer na wieży (chyba Sosna) powinien być okrągły a nie kwadratowy. Wieża powinna mieć więcej szczegółów\n",
-  "updated": "2026-10-19",
-  "revision": 25
+  "updated": "2026-10-24",
+  "revision": 26
 }

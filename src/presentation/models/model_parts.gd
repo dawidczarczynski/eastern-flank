@@ -93,6 +93,13 @@ static func _restore_camo(node: Node, wear_seed: float) -> void:
 		_restore_camo(child, wear_seed)
 
 
+## Stores the unit's catalog mechanisms (with all params) on the built model as the `mechanisms`
+## metadata, read through UnitModels.mechanisms / mechanism. Survives `cached` copies; the
+## dictionary is shared between copies, treat it as read-only.
+static func declare_mechanisms(model: Node3D, mechanisms: Dictionary) -> void:
+	model.set_meta(&"mechanisms", mechanisms)
+
+
 ## Magenta box for unit ids without a model file.
 static func placeholder() -> Node3D:
 	var model := Node3D.new()

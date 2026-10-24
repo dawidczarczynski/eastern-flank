@@ -140,7 +140,6 @@ func test_every_model_meets_the_contract_for_every_faction() -> void:
 			if UnitModels.label_height(id) < box.end.y:
 				violated.append("label")
 			_check_waivers(id, label, violated)
-			_check_pivots(label, kind, model)
 			root.free()
 
 
@@ -152,36 +151,6 @@ func _check_waivers(id: StringName, label: String, violated: Array[String]) -> v
 		assert_true(key in violated, "%s: waiver '%s' is obsolete, remove it" % [label, key])
 	if not violated.is_empty():
 		print("[model] %s waived violations: %s" % [label, violated])
-
-
-func _check_pivots(label: String, kind: StringName, model: Node) -> void:
-	if kind != &"squad":
-		var wheels := 0
-		for child in model.get_children():
-			if String(child.name).begins_with("Wheel"):
-				wheels += 1
-		assert_true(wheels >= 4, "%s: needs >= 4 Wheel* pivots, has %d" % [label, wheels])
-	if kind == &"tank":
-		assert_true(model.get_node_or_null("Turret") is Node3D, "%s: needs Turret" % label)
-	if kind == &"rocket_artillery":
-		var pod := UnitModels.launcher_pod(model)
-		assert_true(pod != null, "%s: needs Pod" % label)
-		if pod != null:
-			var mouths := 0
-			for child in pod.get_children():
-				var mouth := child as Node3D
-				if String(child.name).begins_with("Mouth") and mouth != null:
-					mouths += 1
-					assert_true(
-						mouth.position.x > 0.2, "%s: %s not on front face" % [label, child.name]
-					)
-			assert_true(mouths >= 6, "%s: needs >= 6 Mouth*, has %d" % [label, mouths])
-	if kind == &"squad":
-		for i in 5:
-			var rig := model.get_node_or_null("Soldier%d/Rig" % i)
-			assert_true(rig != null, "%s: Soldier%d needs a Rig" % [label, i])
-			if rig != null and rig.get_node_or_null("Kneel") != null:
-				assert_true(rig.get_node_or_null("Stand") != null, "%s: Soldier%d" % [label, i])
 
 
 func test_same_faction_shares_meshes_other_faction_other_camo() -> void:

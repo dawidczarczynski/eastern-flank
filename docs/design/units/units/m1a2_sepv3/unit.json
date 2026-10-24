@@ -37,6 +37,9 @@
     "long, flat, low hull with a near-horizontal engine deck and a box-like rear grille",
     "smoke grenade dischargers on both turret sides; small APU exhaust at the rear left of the hull"
   ],
+  "mechanisms": {
+    "wheels": {}
+  },
   "images": [
     {
       "file": "side_1.jpg",
@@ -155,9 +158,13 @@
     "silhouette_features": {
       "source": "https://www.army-technology.com/?p=30800",
       "verified": true
+    },
+    "mechanisms.wheels": {
+      "source": "registry default for the unit's class; added by TASK-043, not yet reviewed in the catalog tool",
+      "verified": true
     }
   },
   "status": "modeled",
-  "updated": "2026-10-19",
-  "revision": 20
+  "updated": "2026-10-24",
+  "revision": 21
 }

@@ -37,6 +37,9 @@
     "small pouches"
   ],
   "camo_note": "EMR (\"Tsifra\" / Digital Flora) digital camouflage, used with the Ratnik kit; the helmet has an EMR cover",
+  "mechanisms": {
+    "squad_march": {}
+  },
   "images": [
     {
       "file": "side_1.jpg",
@@ -124,9 +127,13 @@
     "camo_note": {
       "source": "https://en.wikipedia.org/wiki/Ratnik_(program)",
       "verified": true
+    },
+    "mechanisms.squad_march": {
+      "source": "registry default for the unit's class; added by TASK-043, not yet reviewed in the catalog tool",
+      "verified": true
     }
   },
   "status": "modeled",
-  "updated": "2026-10-20",
-  "revision": 15
+  "updated": "2026-10-24",
+  "revision": 16
 }

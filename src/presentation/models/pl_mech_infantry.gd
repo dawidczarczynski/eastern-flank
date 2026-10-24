@@ -10,6 +10,8 @@
 const Soldier := preload("res://src/presentation/models/parts/soldier.gd")
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.5
+## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
+const MECHANISMS := {"squad_march": {}}
 ## Exaggeration of the soldiers (real 1.82 m -> 3.2 m), the same on-screen size as the generic
 ## infantry squad (TASK-031); at true scale a soldier would be 0.24 world units on a 1.0 hex.
 const SOLDIER_SCALE := 1.75
@@ -48,9 +50,11 @@ static func build(faction: FactionDefinition) -> Node3D:
 		k: MeshKits, up: Vector3, kit: int, kneel: bool, carry: int
 	) -> Array[Vector3]:
 		return _dress(k, up, kit, kneel, carry)
-	return Soldier.squad(
+	var g := Soldier.squad(
 		"pl_mech_infantry", SQUAD, SOLDIER_SCALE, Soldier.materials(faction), dress
 	)
+	ModelParts.declare_mechanisms(g, MECHANISMS)
+	return g
 
 
 ## The Polish kit on one soldier: helmet, plate carrier, pack and the weapon of `kit`.

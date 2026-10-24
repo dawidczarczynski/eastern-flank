@@ -6,6 +6,13 @@
 
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.62
+## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
+const MECHANISMS := {
+	"wheels": {},
+	"launcher": {"traverse_deg": [-30, 30], "max_elevation_deg": 55, "stowed": "rear"},
+	"stabilisers": {},
+	"blast_shields": {},
+}
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 
 const LENGTH_M := 9.4
@@ -72,6 +79,7 @@ static func build(faction: FactionDefinition) -> Node3D:
 	Frame.merged(g, "bm27_uragan:steel", _steel_parts(f), steel)
 	Frame.merged(g, "bm27_uragan:accent", _accent_parts(f), acc)
 	_build_launcher(g, f, body, dark, steel, acc)
+	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
 
 

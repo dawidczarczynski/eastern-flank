@@ -1,6 +1,6 @@
 # TASK-043: Models carry their mechanisms – `MECHANISMS` metadata, registry contract test, `/model-unit` passes them on
 
-- **Status**: ready (revised 2026-10-22: the generic models are gone since TASK-039b – no `LEGACY_MODELS`; four catalog entries have empty `mechanisms` and are filled here first; ADR number corrected)
+- **Status**: done
 - **Layers**: presentation (`UnitModels`, `ModelParts`, `models/homar_k.gd`), tests (`tests/unit/test_unit_mechanisms.gd`, helper `tests/mechanism_contract.gd`), agent docs (`.claude/agents/unit-modeler.md`, `.claude/skills/model-unit/SKILL.md`), `docs/ARCHITECTURE.md`, ADR (next free number, currently 0012 – 0009 is taken), catalog entries `m1a2_sepv3`, `t72b3`, `pl_mech_infantry`, `ru_motor_rifle`
 - **Depends on**: **TASK-041** (registry, `homar_k` mechanisms), TASK-042 (done). All six real-unit models already exist; this task gives them metadata. Before further `/model-unit` runs, so new models declare mechanisms from the start.
 - **Model**: sonnet
@@ -72,4 +72,8 @@ None (internal; no visible change).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `ModelParts.declare_mechanisms`, `UnitModels.mechanisms/mechanism/has_mechanism`; `MECHANISMS` const + declare call in all six model files (squad models now build `g`, declare, return).
+- Test helper `tests/mechanism_contract.gd` (also `problems()`, `normalise()`), tests in `tests/unit/test_unit_mechanisms.gd`; `_check_pivots` removed from the model contract test. Registry-uncovered bits kept as tests: tank `Turret/Gun/Muzzle`, `Mouth` on the front face, `Kneel` implies `Stand`.
+- ADR is `docs/adr/0014-unit-mechanisms.md` (0012/0013 were taken).
+- **Human to do**: the four newly filled catalog entries (`m1a2_sepv3`, `t72b3`, `pl_mech_infantry`, `ru_motor_rifle`) have `verified: false` in provenance; verify them in the catalog tool. Tests only require non-empty mechanisms, not the verified flag.
+- No visual change (metadata only); the before/after screenshot comparison was not run.

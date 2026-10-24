@@ -6,6 +6,11 @@
 
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.62
+## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
+const MECHANISMS := {
+	"wheels": {},
+	"launcher": {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"},
+}
 
 ## Model units per metre: uniform, shrinks 11 m to 0.858 (x unit scale 1.3 = 1.115 <= 1.15).
 const K := 0.078
@@ -68,6 +73,7 @@ static func build(faction: FactionDefinition) -> Node3D:
 	_merged(g, "homar_k:glass", _glass_parts(), glass)
 	_merged(g, "homar_k:accent", _accent_parts(), acc)
 	_build_pod(g, body, dark, steel, acc)
+	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
 
 

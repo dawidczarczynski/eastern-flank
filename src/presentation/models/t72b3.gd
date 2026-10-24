@@ -11,6 +11,8 @@
 
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.62
+## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
+const MECHANISMS := {"wheels": {}}
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")
 
@@ -86,6 +88,7 @@ static func build(faction: FactionDefinition) -> Node3D:
 		"t72b3:barrel", func() -> Dictionary: return _barrel_meshes(frame, to_gun)
 	)
 	MeshKits.add_meshes(barrel, barrel_meshes, m)
+	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
 
 

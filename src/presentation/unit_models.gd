@@ -109,6 +109,22 @@ static func _model_of(node: Node3D) -> Node3D:
 	return inner if inner != null else node
 
 
+## The mechanisms the model declares (id -> params, copied from the unit's catalog entry by
+## ModelParts.declare_mechanisms); empty for a model without metadata. Read-only.
+static func mechanisms(model: Node3D) -> Dictionary:
+	return _model_of(model).get_meta(&"mechanisms", {})
+
+
+## Params of one declared mechanism; empty if the model doesn't declare it (or it has no params).
+static func mechanism(model: Node3D, id: String) -> Dictionary:
+	return mechanisms(model).get(id, {})
+
+
+## Whether the model declares the mechanism.
+static func has_mechanism(model: Node3D, id: String) -> bool:
+	return mechanisms(model).has(id)
+
+
 ## Poses a squad: `moving` makes kneelers stand; at env 0 / not moving every Rig is exactly
 ## the identity transform.
 static func pose_infantry(model: Node3D, distance: float, env: float, moving: bool) -> void:
