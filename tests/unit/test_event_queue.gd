@@ -85,3 +85,40 @@ func test_long_volley_speeds_up_burst() -> void:
 		var seconds := EventQueue.MAX_BURST_SECONDS / 2.0
 		queue.push(EventQueue.with_view_duration({"type": &"unit_attacked"}, seconds))
 	assert_true(absf(queue.begin_burst() - 2.0) < TOLERANCE)
+
+
+func _volley(seconds: float) -> Dictionary:
+	var event := EventQueue.with_view_duration({"type": &"unit_attacked"}, seconds)
+	event[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
+	return event
+
+
+func _one_tile_move() -> Dictionary:
+	var path: Array[Vector2i] = [Vector2i(1, 0)]
+	return {"type": &"unit_moved", "path": path}
+
+
+func test_volleys_do_not_speed_up_the_burst() -> void:
+	var queue := EventQueue.new()
+	queue.push(_volley(10.0))
+	queue.push(_volley(10.0))
+	for i in 12:
+		queue.push(_one_tile_move())
+	assert_true(absf(queue.burst_duration() - 9.6) < TOLERANCE, "%f" % queue.burst_duration())
+	assert_true(absf(queue.begin_burst() - 1.2) < TOLERANCE, "%f" % queue.begin_burst())
+	assert_true(absf(queue.pending_duration() - 29.6) < TOLERANCE, "volleys still pending")
+
+
+func test_only_volleys_play_at_normal_speed() -> void:
+	var queue := EventQueue.new()
+	queue.push(_volley(10.0))
+	queue.push(_volley(10.0))
+	assert_true(absf(queue.begin_burst() - 1.0) < TOLERANCE)
+	assert_true(absf(queue.pending_duration() - 20.0) < TOLERANCE)
+
+
+func test_volley_playback_speed_is_capped() -> void:
+	var volley := _volley(10.0)
+	assert_true(absf(EventQueue.playback_speed(volley, 3.0) - 1.5) < TOLERANCE)
+	assert_true(absf(EventQueue.playback_speed(volley, 1.0) - 1.0) < TOLERANCE)
+	assert_true(absf(EventQueue.playback_speed(_one_tile_move(), 3.0) - 3.0) < TOLERANCE)

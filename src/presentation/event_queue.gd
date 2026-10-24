@@ -6,6 +6,9 @@ extends RefCounted
 
 ## Upper bound for the playback time of one burst at its computed speed, in seconds.
 const MAX_BURST_SECONDS := 8.0
+## A rocket volley never plays faster than this, however fast its burst (TASK-074): the ripple
+## salvo's pauses must stay visible in a sped-up AI turn.
+const MAX_VOLLEY_SPEED := 1.5
 ## Duration of a move event without a `path` (old events).
 const MOVE_DURATION := 0.55
 ## Duration of one tile of a move along its `path` (TASK-022); MoveAnimation aliases it.
@@ -76,7 +79,27 @@ func pending_duration() -> float:
 	return total
 
 
+## Sum of base_duration() over the queued events the burst speed applies to: everything except
+## rocket volleys (they play at playback_speed, see there).
+func burst_duration() -> float:
+	var total := 0.0
+	for event in _events:
+		if not is_volley(event):
+			total += base_duration(event)
+	return total
+
+
 ## Playback speed for the burst about to play (the currently queued events). The caller keeps
-## it fixed until the queue is empty again. Never below 1.0.
+## it fixed until the queue is empty again. Never below 1.0. Volleys don't count (burst_duration).
 func begin_burst() -> float:
-	return maxf(1.0, pending_duration() / MAX_BURST_SECONDS)
+	return maxf(1.0, burst_duration() / MAX_BURST_SECONDS)
+
+
+## Whether `event` is annotated as a rocket volley (VIEW_FX_KEY == FX_ROCKET_VOLLEY).
+static func is_volley(event: Dictionary) -> bool:
+	return event.get(VIEW_FX_KEY, &"") == FX_ROCKET_VOLLEY
+
+
+## Speed one event plays at within a burst of `burst_speed`: a volley at most MAX_VOLLEY_SPEED.
+static func playback_speed(event: Dictionary, burst_speed: float) -> float:
+	return minf(burst_speed, MAX_VOLLEY_SPEED) if is_volley(event) else burst_speed

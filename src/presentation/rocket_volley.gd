@@ -1,51 +1,72 @@
 class_name RocketVolley
 extends Node3D
-## Rocket salvo effect (TASK-011): ROCKET_COUNT rockets leave the launcher tubes GAP seconds apart,
-## each flying a ballistic arc to the target with an emissive trail, a muzzle flash at launch and
-## an impact flash. Everything is a pure function of the volley time `t` (update(t)), so the
-## caller drives it from one tween and the speed scale applies automatically. Purely visual:
-## the only randomness is a view-local RandomNumberGenerator for the landing scatter.
+## Ripple salvo of a rocket launcher (TASK-011, TASK-074): one rocket per tube leaves its mouth
+## SalvoTiming.interval() apart, flies a cubic Bézier that starts along the tube and comes down
+## steeply on its landing point inside the target tile. Simple look: a small rocket mesh with a
+## tail glow while the motor burns, a launch flash at the mouth and an impact flash (FlashFx); no
+## particles, no lights. Richer effects plug in through `effects` (SalvoEffects, TASK-075).
+##
+## Everything visible is a pure function of the salvo time `t` (update(t)), so one tween drives
+## it and its speed scale applies; launches and impacts are found with SalvoTiming.crossings over
+## (previous t, t], so none is skipped or repeated however long the frames are. The node keeps an
+## identity transform as top_level, so its children's positions are world positions (and the
+## effect works outside the scene tree, e.g. in headless tests). Purely visual.
 
-const ROCKET_COUNT := 6
-const GAP := 0.15
-const FLIGHT := 1.0
-const MUZZLE_TIME := 0.14
-const IMPACT_TIME := 0.25
-const SCATTER := 0.3
+signal rocket_launched(index: int)
+signal rocket_impacted(index: int, point: Vector3)
+
 const APEX_BASE := 0.7
 const APEX_PER_UNIT := 0.22
 const APEX_MAX := 3.2
-const TRAIL_STEPS := 4
-const TRAIL_SPACING := 0.045
+## Bézier handles: along the tube (fraction of the horizontal distance, at least MIN) and back
+## from the target towards the launcher (fraction of the distance) at the apex height.
+const TUBE_HANDLE := 0.35
+const TUBE_HANDLE_MIN := 0.6
+const DESCENT_HANDLE := 0.25
+## Fallback for models without "Mouth*" tubes: origin above the unit, launch 45° up.
+const FALLBACK_LIFT := 0.4
+const FALLBACK_PITCH := PI / 4.0
+## Rocket size in metres, at the launcher models' scale (model units per metre, see homar_k.gd K)
+## times VisualScale.unit_model_scale(). Slightly fat (real ~0.22-0.24 m) to read at battle zoom.
+const MODEL_UNITS_PER_METRE := 0.078
+const ROCKET_LENGTH_M := 4.0
+const ROCKET_DIAMETER_M := 0.3
+const NOSE_FRACTION := 0.18
+const GLOW_SIZE := 0.05
+const BODY_COLOR := Color("#c9c5b2")
+const NOSE_COLOR := Color("#3d3f3a")
 const FLAME := Color("#ffb347")
+const LAUNCH_FLASH_COLOR := Color("#fff4d6")
+const LAUNCH_FLASH_SIZE := 0.16
+const LAUNCH_FLASH_TIME := 0.1
+const IMPACT_FLASH_COLOR := Color("#fff0b0")
+const IMPACT_FLASH_SIZE := 0.5
+const IMPACT_FLASH_TIME := 0.12
+## Pod recoil per launch (elevation offset, rad) and the time it eases back.
+const JOLT := 0.012
+const JOLT_TIME := 0.12
+
+## The salvo's effect hooks; the base class does nothing. Assign before setup().
+var effects: SalvoEffects = SalvoEffects.new()
+var count := 0
+var interval := 0.35
+var flight := 1.1
 
 var _origins: Array[Vector3] = []
+var _directions: Array[Vector3] = []
 var _landings: Array[Vector3] = []
-var _apex := 1.0
+var _apexes: Array[float] = []
 var _rockets: Array[Node3D] = []
-var _trails: Array = []  # per rocket: Array[MeshInstance3D]
-var _muzzles: Array[MeshInstance3D] = []
-var _impacts: Array[MeshInstance3D] = []
-var _flash_materials: Array[StandardMaterial3D] = []  # muzzle + impact, per rocket
-
-
-## Time (seconds at speed 1) from the first launch to the last impact flash fading out.
-static func total_duration() -> float:
-	return (ROCKET_COUNT - 1) * GAP + FLIGHT + IMPACT_TIME
-
-
-## Time when the last rocket lands (the target's hit reaction starts here).
-static func last_impact_time() -> float:
-	return (ROCKET_COUNT - 1) * GAP + FLIGHT
-
-
-## Point on a parabolic arc: horizontal straight line from `from` to `to`, height the straight
-## chord plus `apex` * 4t(1-t) – so the middle is `apex` above the chord's midpoint.
-static func arc_point(from: Vector3, to: Vector3, apex: float, t: float) -> Vector3:
-	var u := clampf(t, 0.0, 1.0)
-	var p := from.lerp(to, u)
-	p.y += apex * 4.0 * u * (1.0 - u)
-	return p
+var _glows: Array[MeshInstance3D] = []
+var _launch_flashes: Array[FlashFx] = []
+var _impact_flashes: Array[FlashFx] = []
+var _last_positions: Array[Vector3] = []  # per rocket: its position at the previous update
+var _last_t := -1.0
+var _target_centre := Vector3.ZERO
+var _shooter: UnitView  # jolted per launch when it has a launcher
+var _jolt := 0.0  # pod offset last applied
+var _begun := false
+var _ended := false
 
 
 ## Apex height for a shot over world distance `distance` (longer shots fly higher).
@@ -53,127 +74,287 @@ static func apex_height(distance: float) -> float:
 	return minf(APEX_BASE + APEX_PER_UNIT * distance, APEX_MAX)
 
 
-## Flight progress 0..1 of rocket `index` at volley time `t`; below 0 before launch, above 1
-## after landing (not clamped).
-static func progress(t: float, index: int) -> float:
-	return (t - index * GAP) / FLIGHT
+static func _controls(from: Vector3, tube_dir: Vector3, to: Vector3, apex: float) -> Array[Vector3]:
+	var horizontal := Vector2(to.x - from.x, to.z - from.z)
+	var distance := horizontal.length()
+	var back := Vector3.ZERO
+	if distance > 0.0001:
+		back = Vector3(-horizontal.x, 0.0, -horizontal.y) / distance
+	var p1 := from + tube_dir.normalized() * maxf(TUBE_HANDLE_MIN, TUBE_HANDLE * distance)
+	var p2 := to + back * DESCENT_HANDLE * distance + Vector3.UP * apex
+	return [from, p1, p2, to]
 
 
-## `origins`: world positions of the launch tubes (cycled when there are fewer than rockets);
-## `target`: world point of the target tile. `rng` jitters the landing points.
-func setup(origins: Array[Vector3], target: Vector3, rng: RandomNumberGenerator) -> void:
+## Point of a rocket's path at parameter `u` (clamped 0..1): a cubic Bézier from the mouth `from`
+## out along `tube_dir`, over the apex and steeply down onto the landing point `to`.
+static func path_point(
+	from: Vector3, tube_dir: Vector3, to: Vector3, apex: float, u: float
+) -> Vector3:
+	var c := _controls(from, tube_dir, to, apex)
+	var x := clampf(u, 0.0, 1.0)
+	var y := 1.0 - x
+	return (
+		c[0] * (y * y * y)
+		+ c[1] * (3.0 * y * y * x)
+		+ c[2] * (3.0 * y * x * x)
+		+ c[3] * (x * x * x)
+	)
+
+
+## Derivative of path_point with respect to `u` (the flight direction, not normalised).
+static func path_tangent(
+	from: Vector3, tube_dir: Vector3, to: Vector3, apex: float, u: float
+) -> Vector3:
+	var c := _controls(from, tube_dir, to, apex)
+	var x := clampf(u, 0.0, 1.0)
+	var y := 1.0 - x
+	return (
+		(c[1] - c[0]) * (3.0 * y * y)
+		+ (c[2] - c[1]) * (6.0 * y * x)
+		+ (c[3] - c[2]) * (3.0 * x * x)
+	)
+
+
+## Launch direction for a model without tubes: horizontally towards `to`, tilted up 45°.
+static func fallback_direction(from: Vector3, to: Vector3) -> Vector3:
+	var flat := Vector3(to.x - from.x, 0.0, to.z - from.z)
+	if flat.length_squared() < 0.000001:
+		flat = Vector3.RIGHT
+	return (flat.normalized() * cos(FALLBACK_PITCH) + Vector3.UP * sin(FALLBACK_PITCH)).normalized()
+
+
+## Tube mouths and launch directions of `shooter` for a salvo at `target` (world): one per
+## "Mouth*" node (UnitView.launch_points / launch_directions) or, without any, `fallback_count`
+## copies of the fallback origin above the unit and fallback_direction. {"origins", "directions"}.
+static func launch_frames(shooter: UnitView, target: Vector3, fallback_count: int) -> Dictionary:
+	var origins := shooter.launch_points()
+	var directions := shooter.launch_directions()
+	if origins.is_empty():
+		var origin := UnitModels.world_transform(shooter).origin + Vector3(0.0, FALLBACK_LIFT, 0.0)
+		var direction := fallback_direction(origin, target)
+		for i in fallback_count:
+			origins.append(origin)
+			directions.append(direction)
+	return {"origins": origins, "directions": directions}
+
+
+## One rocket per entry of `origins` (world mouth positions), each launched along `directions[i]`
+## (normalised here) and landing on `landings[i]`; launches `launch_interval` apart, each flying
+## `flight_time` seconds. `context` is passed to effects.begin() after the keys `volley`, `count`,
+## `interval`, `flight` (and `target_centre`, `shooter` when missing) are filled in; a `shooter`
+## with a launcher gets the pod jolt per launch.
+func setup(
+	origins: Array[Vector3],
+	directions: Array[Vector3],
+	landings: Array[Vector3],
+	launch_interval: float,
+	flight_time: float,
+	context: Dictionary = {}
+) -> void:
+	assert(origins.size() == directions.size() and origins.size() == landings.size())
+	top_level = true
+	transform = Transform3D.IDENTITY
+	count = origins.size()
+	interval = launch_interval
+	flight = flight_time
 	_origins = origins
-	var centre := Vector3.ZERO
-	for o in origins:
-		centre += o
-	centre /= maxf(1.0, origins.size())
-	_apex = apex_height(Vector2(target.x - centre.x, target.z - centre.z).length())
-	var glow := _unshaded(FLAME, 1.0)
-	var rocket_mesh := CylinderMesh.new()
-	rocket_mesh.top_radius = 0.018
-	rocket_mesh.bottom_radius = 0.018
-	rocket_mesh.height = 0.14
-	rocket_mesh.radial_segments = 6
+	_landings = landings
+	_target_centre = Vector3.ZERO
+	for i in count:
+		_directions.append(directions[i].normalized())
+		_target_centre += landings[i]
+		var span := Vector2(landings[i].x - origins[i].x, landings[i].z - origins[i].z).length()
+		_apexes.append(apex_height(span))
+		_last_positions.append(origins[i])
+	_target_centre /= maxf(1.0, count)
+	_target_centre = context.get("target_centre", _target_centre)
+	var shooter: UnitView = context.get("shooter")
+	_shooter = shooter if shooter != null and shooter.has_launcher() else null
+	_build_meshes()
+	var full := context.duplicate()
+	full["volley"] = self
+	full["count"] = count
+	full["interval"] = interval
+	full["flight"] = flight
+	full["target_centre"] = _target_centre
+	full["shooter"] = shooter
+	_begun = true
+	effects.begin(full)
+
+
+func _build_meshes() -> void:
+	var s := MODEL_UNITS_PER_METRE * VisualScale.unit_model_scale()
+	var length := ROCKET_LENGTH_M * s
+	var radius := ROCKET_DIAMETER_M * s / 2.0
+	var body_mesh := CylinderMesh.new()
+	body_mesh.top_radius = radius
+	body_mesh.bottom_radius = radius
+	body_mesh.height = length * (1.0 - NOSE_FRACTION)
+	body_mesh.radial_segments = 8
+	body_mesh.rings = 1
+	var nose_mesh := CylinderMesh.new()
+	nose_mesh.top_radius = 0.0
+	nose_mesh.bottom_radius = radius
+	nose_mesh.height = length * NOSE_FRACTION
+	nose_mesh.radial_segments = 8
+	nose_mesh.rings = 1
+	var glow_mesh := SphereMesh.new()
+	glow_mesh.radius = 0.5
+	glow_mesh.height = 1.0
+	glow_mesh.radial_segments = 8
+	glow_mesh.rings = 4
 	var body_material := StandardMaterial3D.new()
-	body_material.albedo_color = Color("#d8d4c4")
-	var ball := SphereMesh.new()
-	ball.radius = 0.5
-	ball.height = 1.0
-	ball.radial_segments = 8
-	ball.rings = 4
-	for i in ROCKET_COUNT:
-		_landings.append(target + Vector3(rng.randfn(0.0, SCATTER), 0.0, rng.randfn(0.0, SCATTER)))
+	body_material.albedo_color = BODY_COLOR
+	body_material.roughness = 0.6
+	var nose_material := StandardMaterial3D.new()
+	nose_material.albedo_color = NOSE_COLOR
+	var flame_material := StandardMaterial3D.new()
+	flame_material.albedo_color = FLAME
+	flame_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	flame_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var body_length := length * (1.0 - NOSE_FRACTION)
+	for i in count:
 		var rocket := Node3D.new()
-		var body := MeshInstance3D.new()
-		body.mesh = rocket_mesh
-		body.material_override = body_material
-		body.rotation.x = PI / 2.0  # cylinder axis along the node's -Z (its forward)
+		rocket.name = "Rocket%d" % i
+		# The rocket flies along its -Z (Basis.looking_at): cylinders' Y axis turned onto -Z.
+		var body := _part(
+			body_mesh, body_material, Vector3(0.0, 0.0, length / 2.0 - body_length / 2.0)
+		)
+		body.name = "Body"
 		rocket.add_child(body)
-		var flame := MeshInstance3D.new()
-		flame.mesh = ball
-		flame.material_override = glow
-		flame.scale = Vector3.ONE * 0.06
-		flame.position = Vector3(0.0, 0.0, 0.08)
-		rocket.add_child(flame)
+		var nose := _part(
+			nose_mesh,
+			nose_material,
+			Vector3(0.0, 0.0, -length / 2.0 + length * NOSE_FRACTION / 2.0)
+		)
+		nose.name = "Nose"
+		rocket.add_child(nose)
+		var glow := MeshInstance3D.new()
+		glow.name = "Glow"
+		glow.mesh = glow_mesh
+		glow.material_override = flame_material
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		glow.scale = Vector3.ONE * GLOW_SIZE
+		glow.position = Vector3(0.0, 0.0, length / 2.0 + GLOW_SIZE * 0.3)
+		glow.visible = false
+		rocket.add_child(glow)
 		rocket.visible = false
 		add_child(rocket)
 		_rockets.append(rocket)
-		var trail: Array[MeshInstance3D] = []
-		for k in TRAIL_STEPS:
-			var puff := MeshInstance3D.new()
-			puff.mesh = ball
-			puff.material_override = glow
-			puff.visible = false
-			puff.top_level = true
-			add_child(puff)
-			trail.append(puff)
-		_trails.append(trail)
-		var muzzle := _flash_node(ball, _origins[i % _origins.size()])
-		_muzzles.append(muzzle)
-		_impacts.append(_flash_node(ball, _landings[i]))
-	update(0.0)
+		_glows.append(glow)
+		var launch_flash := FlashFx.new().setup(
+			LAUNCH_FLASH_COLOR, LAUNCH_FLASH_SIZE, LAUNCH_FLASH_TIME
+		)
+		launch_flash.position = _origins[i]
+		add_child(launch_flash)
+		_launch_flashes.append(launch_flash)
+		var impact_flash := FlashFx.new().setup(
+			IMPACT_FLASH_COLOR, IMPACT_FLASH_SIZE, IMPACT_FLASH_TIME
+		)
+		impact_flash.position = _landings[i]
+		add_child(impact_flash)
+		_impact_flashes.append(impact_flash)
 
 
-## Poses the whole effect at volley time `t`; the effect hides itself outside its lifetime.
+static func _part(mesh: Mesh, material: Material, at: Vector3) -> MeshInstance3D:
+	var part := MeshInstance3D.new()
+	part.mesh = mesh
+	part.material_override = material
+	part.rotation.x = -PI / 2.0  # the cylinder's +Y (the cone's tip) onto -Z
+	part.position = at
+	return part
+
+
+## Salvo time of the last impact (the HP reaches the event's value here).
+func last_impact_time() -> float:
+	return SalvoTiming.impact_time(count - 1, interval, flight)
+
+
+## Salvo phase length (SalvoTiming.salvo_duration).
+func duration() -> float:
+	return SalvoTiming.salvo_duration(count, interval, flight)
+
+
+## World position of rocket `index` at salvo time `t` (its mouth before launch, its landing point
+## after impact).
+func rocket_position(index: int, t: float) -> Vector3:
+	var s := (t - SalvoTiming.launch_time(index, interval)) / flight
+	if s >= 1.0:
+		return _landings[index]
+	var u := SalvoTiming.flight_progress(s)
+	return path_point(_origins[index], _directions[index], _landings[index], _apexes[index], u)
+
+
+## Poses the whole effect at salvo time `t` and fires the hooks and signals for every launch and
+## impact in (previous t, t]. Going back in time only re-poses (no hooks).
 func update(t: float) -> void:
-	if _origins.is_empty():
+	if count == 0:
 		return
-	for i in ROCKET_COUNT:
-		var origin := _origins[i % _origins.size()]
-		var landing := _landings[i]
-		var u := progress(t, i)
-		var flying := u >= 0.0 and u < 1.0
+	var t0 := _last_t
+	var forward := t > t0
+	if forward:
+		_last_t = t
+	var crossed := (
+		SalvoTiming.crossings(t0, t, count, interval, flight)
+		if forward
+		else {"launches": [], "impacts": []}
+	)
+	for i: int in crossed["launches"]:
+		_last_positions[i] = _origins[i]
+		effects.on_launch(i, _origins[i], _directions[i])
+		rocket_launched.emit(i)
+	for i in count:
+		var launch := SalvoTiming.launch_time(i, interval)
+		var s := (t - launch) / flight
+		var flying := s >= 0.0 and s < 1.0
 		var rocket := _rockets[i]
 		rocket.visible = flying
+		_glows[i].visible = flying and s < SalvoTiming.MOTOR_BURN
 		if flying:
-			var here := arc_point(origin, landing, _apex, u)
-			var ahead := arc_point(origin, landing, _apex, u + 0.02)
-			if ahead.distance_squared_to(here) > 0.000001:
-				rocket.global_transform = Transform3D(
-					Basis.looking_at(ahead - here, Vector3.UP), here
-				)
-			else:
-				rocket.global_position = here
-		var trail: Array = _trails[i]
-		for k in TRAIL_STEPS:
-			var puff := trail[k] as MeshInstance3D
-			puff.visible = flying
-			if flying:
-				var fade := 1.0 - float(k) / TRAIL_STEPS
-				puff.global_position = arc_point(
-					origin, landing, _apex, u - (k + 1) * TRAIL_SPACING
-				)
-				puff.scale = Vector3.ONE * 0.07 * fade
-		_pose_flash(_muzzles[i], t - i * GAP, MUZZLE_TIME, 0.22, i * 2)
-		_pose_flash(_impacts[i], t - (i * GAP + FLIGHT), IMPACT_TIME, 0.6, i * 2 + 1)
+			_pose_rocket(i, s)
+		if forward and launch <= t and launch + flight > t0:
+			var to := rocket_position(i, t)
+			effects.on_flight(i, _last_positions[i], to, minf(s, 1.0), s < SalvoTiming.MOTOR_BURN)
+			_last_positions[i] = to
+		_launch_flashes[i].pose(t - launch)
+		_impact_flashes[i].pose(t - launch - flight)
+	for i: int in crossed["impacts"]:
+		effects.on_impact(i, _landings[i], i == 0, i == count - 1)
+		rocket_impacted.emit(i, _landings[i])
+	_apply_jolt(t)
 
 
-## Expanding, fading glow ball: `age` seconds since it started, lasting `life`.
-func _pose_flash(node: MeshInstance3D, age: float, life: float, size: float, mat: int) -> void:
-	var v := age / life
-	node.visible = v >= 0.0 and v < 1.0
-	if not node.visible:
+func _pose_rocket(index: int, s: float) -> void:
+	var u := SalvoTiming.flight_progress(s)
+	var here := path_point(_origins[index], _directions[index], _landings[index], _apexes[index], u)
+	var ahead := path_tangent(
+		_origins[index], _directions[index], _landings[index], _apexes[index], u
+	)
+	var rocket := _rockets[index]
+	if ahead.length_squared() < 0.000001:
+		rocket.position = here
 		return
-	node.scale = Vector3.ONE * size * (0.4 + 0.6 * v)
-	_flash_materials[mat].albedo_color.a = 1.0 - v
+	var up := Vector3.UP if absf(ahead.normalized().y) < 0.999 else Vector3.RIGHT
+	rocket.transform = Transform3D(Basis.looking_at(ahead, up), here)
 
 
-func _flash_node(mesh: Mesh, at: Vector3) -> MeshInstance3D:
-	var material := _unshaded(Color("#fff0c0"), 1.0)
-	_flash_materials.append(material)
-	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = material
-	node.top_level = true
-	node.visible = false
-	add_child(node)
-	node.global_position = at
-	return node
+## The pod kicks back by JOLT at every launch and eases to the aim pose over JOLT_TIME.
+func _apply_jolt(t: float) -> void:
+	if _shooter == null or not is_instance_valid(_shooter) or t < 0.0:
+		return
+	var latest := mini(count - 1, floori(t / interval + 0.000001))
+	var age := t - SalvoTiming.launch_time(latest, interval)
+	var offset := 0.0
+	if age < JOLT_TIME:
+		offset = -JOLT * (1.0 - smoothstep(0.0, JOLT_TIME, age))
+	if offset != _jolt:
+		_jolt = offset
+		_shooter.set_launcher_jolt(offset)
 
 
-static func _unshaded(color: Color, alpha: float) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(color, alpha)
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	return material
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _begun and not _ended:
+		_ended = true
+		if _jolt != 0.0 and _shooter != null and is_instance_valid(_shooter):
+			_shooter.set_launcher_jolt(0.0)
+		effects.end(_target_centre)

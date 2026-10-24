@@ -72,12 +72,13 @@ func test_blast_shield_rotates_closed() -> void:
 
 
 func test_deploy_adds_two_steps_to_the_volley_event() -> void:
-	var volley := RocketVolley.total_duration()
-	var launch := 2.0 * 1.8 + volley
-	assert_true(absf(Battle._volley_event_duration(true, false, true) - (1.2 + launch)) < TOL)
-	assert_true(absf(Battle._volley_event_duration(true, true, true) - (1.2 + 0.5 + launch)) < TOL)
-	assert_true(absf(Battle._volley_event_duration(true, false, false) - launch) < TOL)
-	assert_true(absf(Battle._volley_event_duration(true, false) - launch) < TOL)
+	var launch := 2.0 * 1.8 + SalvoTiming.salvo_duration(12, 0.40, 1.9)
+	var deployed := Battle._volley_event_duration(true, false, true, 12, 0.40, 1.9)
+	assert_true(absf(deployed - (1.2 + launch)) < TOL)
+	var limited := Battle._volley_event_duration(true, true, true, 12, 0.40, 1.9)
+	assert_true(absf(limited - (1.2 + 0.5 + launch)) < TOL)
+	var plain := Battle._volley_event_duration(true, false, false, 12, 0.40, 1.9)
+	assert_true(absf(plain - launch) < TOL)
 
 
 func test_stabiliser_contract_catches_floating_feet() -> void:

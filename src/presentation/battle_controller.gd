@@ -50,7 +50,7 @@ var _event_queue := EventQueue.new()
 var _playback_scheduled := false  # _start_burst() is deferred to the end of the frame
 var _playing := false  # an event animation is running
 var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
-var _fx_rng := RandomNumberGenerator.new()  # view-local (volley scatter), never GameState.rng
+var _event_speed := 1.0  # speed of the event playing now (EventQueue.playback_speed)
 
 var _wrecks := WreckField.new()  # burnt-out hulks of destroyed vehicles (TASK-065)
 var _marks := GroundMarksView.new()  # ground decals (TASK-058), fed while animations play
@@ -603,7 +603,7 @@ func _on_event(event: Dictionary) -> void:
 		_start_burst.call_deferred()
 
 
-## Rocket volleys play longer than a plain hit: the queue learns the duration from the
+## Volleys and direct fire play longer than a plain hit: the queue learns the duration from the
 ## annotation (the simulation's event is copied, not modified).
 func _annotate(event: Dictionary) -> Dictionary:
 	if event["type"] == &"unit_attacked" and _fires_volley(event["attacker_id"]):
@@ -611,8 +611,12 @@ func _annotate(event: Dictionary) -> Dictionary:
 		var launcher := shooter != null and shooter.has_launcher()
 		var limited := launcher and shooter.launcher_limited()
 		var deploy := shooter != null and shooter.has_deployables()
+		var plan := _salvo_plan(event, shooter)
 		var annotated := EventQueue.with_view_duration(
-			event, _volley_event_duration(launcher, limited, deploy)
+			event,
+			_volley_event_duration(
+				launcher, limited, deploy, plan["count"], plan["interval"], plan["flight"]
+			)
 		)
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
@@ -632,20 +636,31 @@ func _fires_volley(attacker_id: int) -> bool:
 	return attacker != null and UnitModels.fires_volley(attacker.definition)
 
 
-## Aim + salvo + impact; the hit reaction starts with the last impact and ends with the flashes.
-## A turntable `launcher` raises and traverses before the salvo and stows after it; a `limited`
-## one always has the body turn first (zero angle when not needed), so the duration doesn't
-## depend on the view state when the event is annotated.
-static func _volley_event_duration(launcher: bool, limited: bool, deploy: bool = false) -> float:
+## A volley event's salvo when it is emitted (VolleyPlayback.salvo_plan): the shooter's tubes, the
+## distance between the tiles the attacker and the target stand on when the event plays.
+func _salvo_plan(event: Dictionary, shooter: UnitView) -> Dictionary:
+	var attacker := _sim.state.get_unit(event["attacker_id"])
+	var to := Hex.to_world(_sim.state.get_unit(event["target_id"]).coord, _map_view.hex_size)
+	var distance := VolleyPlayback.horizontal_distance(
+		Hex.to_world(attacker.coord, _map_view.hex_size), to
+	)
+	var mouths := shooter.launch_points().size() if shooter != null else 0
+	return VolleyPlayback.salvo_plan(attacker.definition.id, mouths, distance)
+
+
+## Aim + salvo (SalvoTiming.salvo_duration) + stow. A turntable `launcher` raises and traverses
+## before the salvo and stows after it; a `limited` one always has the body turn first (zero angle
+## when not needed), so the duration doesn't depend on the view state when the event is annotated.
+static func _volley_event_duration(
+	launcher: bool, limited: bool, deploy: bool, count: int, interval: float, flight: float
+) -> float:
+	var salvo := SalvoTiming.salvo_duration(count, interval, flight)
 	if launcher:
-		var duration := (
-			2.0 * (LAUNCHER_RAISE_DURATION + LAUNCHER_TRAVERSE_DURATION)
-			+ RocketVolley.total_duration()
-		)
+		var duration := 2.0 * (LAUNCHER_RAISE_DURATION + LAUNCHER_TRAVERSE_DURATION) + salvo
 		if deploy:
 			duration += 2.0 * DEPLOY_DURATION
 		return duration + AIM_DURATION if limited else duration
-	return AIM_DURATION + RocketVolley.total_duration()
+	return AIM_DURATION + salvo
 
 
 ## Turret aim + hit + turret back; a limited traverse always has the body turn first (see
@@ -673,13 +688,16 @@ func _start_burst() -> void:
 ## calls this again. Instant events are handled in the loop (no recursion).
 func _play_next_event() -> void:
 	while not _event_queue.is_empty():
-		var tween := _play_event(_event_queue.pop())
+		var event := _event_queue.pop()
+		_event_speed = EventQueue.playback_speed(event, _burst_speed)
+		var tween := _play_event(event)
 		if tween != null:
-			tween.set_speed_scale(_burst_speed)
+			tween.set_speed_scale(_event_speed)
 			tween.finished.connect(_play_next_event, CONNECT_ONE_SHOT)
 			return
 	_playing = false
 	_burst_speed = 1.0
+	_event_speed = 1.0
 	_on_queue_drained()
 
 
@@ -729,9 +747,9 @@ func _play_event(event: Dictionary) -> Tween:
 	return null
 
 
-## Turn the launcher towards the target, fire the salvo from its tubes, then the hit reaction.
-## One tween lasts the whole event (_volley_event_duration), so the queue waits for all of it.
-## A launcher with a limited traverse turns the vehicle first (it stays turned afterwards).
+## Turn the launcher towards the target, fire the salvo from its tubes (the target's HP steps down
+## as the rockets land), stow. One tween lasts the whole event (_volley_event_duration). A limited
+## traverse turns the vehicle first (it stays turned afterwards).
 func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary) -> Tween:
 	var aim_point := target.global_position
 	var tween := create_tween()
@@ -742,26 +760,27 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 		traverse = aim.y
 		elevation = shooter.launcher_elevation()
 		if shooter.launcher_limited():
-			var from_yaw := shooter.facing_yaw()
-			tween.tween_method(
-				func(f: float) -> void: shooter.set_facing_yaw(from_yaw + aim.x * f),
-				0.0,
-				1.0,
-				AIM_DURATION
-			)
+			VolleyPlayback.tween_body_turn(tween, shooter, aim.x, AIM_DURATION)
 		VolleyPlayback.append_aim(tween, shooter, traverse, elevation)
 	else:
-		var from_yaw := shooter.facing_yaw()
-		var to_yaw := shooter.yaw_towards(aim_point)
-		tween.tween_method(
-			func(f: float) -> void: shooter.set_facing_yaw(lerp_angle(from_yaw, to_yaw, f)),
-			0.0,
-			1.0,
-			AIM_DURATION
-		)
-	var impact_point := aim_point + Vector3(0.0, 0.15, 0.0)
-	var on_impact := _play_volley_hit.bind(target, target_hp, event, shooter)
-	VolleyPlayback.append_salvo(tween, self, shooter, impact_point, _fx_rng, on_impact)
+		var turn := wrapf(shooter.yaw_towards(aim_point) - shooter.facing_yaw(), -PI, PI)
+		VolleyPlayback.tween_body_turn(tween, shooter, turn, AIM_DURATION)
+	var from := shooter.global_position
+	var context := {
+		"launcher_terrain": VolleyPlayback.terrain_name(_terrain_at(from.x, from.z)),
+		"target_terrain": VolleyPlayback.terrain_name(_terrain_at(aim_point.x, aim_point.z)),
+	}
+	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
+	# View-local scatter, the same for a replayed event; never GameState.rng.
+	var rng := VolleyPlayback.scatter_rng(_event_serial, event["attacker_id"])
+	var ground := _map_view.mesh_height_at
+	var volley := VolleyPlayback.append_salvo(
+		tween, self, shooter, aim_point, rng, radius, context, ground
+	)
+	volley.effects = SalvoEffects.new()  # TASK-075 assigns its pooled effects on HIGH here
+	VolleyPlayback.connect_hp_steps(
+		volley, target, target_hp, _event_speed, _add_impact_marks.bind(event, target, shooter)
+	)
 	if shooter.has_launcher():
 		VolleyPlayback.append_stow(tween, shooter, traverse, elevation)
 	return tween
@@ -779,21 +798,15 @@ func _play_direct_fire(
 	var pose := Vector2(aim.y, elevation)
 	var tween := create_tween()
 	if shooter.turret_limited():
-		var from_yaw := shooter.facing_yaw()
-		tween.tween_method(
-			func(f: float) -> void: shooter.set_facing_yaw(from_yaw + aim.x * f),
-			0.0,
-			1.0,
-			AIM_DURATION
-		)
+		VolleyPlayback.tween_body_turn(tween, shooter, aim.x, AIM_DURATION)
 	VolleyPlayback.tween_turret(tween, shooter, Vector2.ZERO, pose, TURRET_AIM_DURATION)
-	tween.tween_callback(_play_volley_hit.bind(target, target_hp, event, shooter))
+	tween.tween_callback(_play_direct_hit.bind(target, target_hp, event, shooter))
 	tween.tween_interval(EventQueue.ATTACK_DURATION)
 	VolleyPlayback.tween_turret(tween, shooter, pose, Vector2.ZERO, TURRET_AIM_DURATION)
 	return tween
 
 
-func _play_volley_hit(
+func _play_direct_hit(
 	target: UnitView, target_hp: int, event: Dictionary, shooter: UnitView
 ) -> void:
 	if not is_instance_valid(target):
@@ -801,7 +814,7 @@ func _play_volley_hit(
 	_add_impact_marks(event, target, shooter)
 	var hit := target.play_hit(target_hp)
 	if hit != null:
-		hit.set_speed_scale(_burst_speed)
+		hit.set_speed_scale(_event_speed)
 
 
 ## Tile centres of `[from] + path` of a `unit_moved` event (`[from, to]` for events without
@@ -897,6 +910,19 @@ func _add_impact_marks(event: Dictionary, target: UnitView, shooter: UnitView) -
 		GroundMarks.impact_scorch(_event_serial, center, range_tiles, distance, counter)
 	)
 	_marks.add_marks(marks)
+
+
+## Screenshot hook (SCREENSHOT_SALVO): plays a volley view-only (VolleyPlayback.show_attack, no
+## command, no state change); its tween runs although the tool disables the scene's processing.
+func debug_salvo(attacker_id: int, target_id: int) -> void:
+	var target := _sim.state.get_unit(target_id)
+	if target == null or not _fires_volley(attacker_id) or not _unit_views.has(target_id):
+		push_error("debug_salvo: %d cannot fire a volley at %d" % [attacker_id, target_id])
+		return
+	var event := VolleyPlayback.show_attack(attacker_id, target_id, target.hp)
+	var tween := _play_event(_annotate(event))
+	if tween != null:
+		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 
 
 ## Screenshot debug hook (tools/screenshot.gd): draws a scripted move and rocket strike

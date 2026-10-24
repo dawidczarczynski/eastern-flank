@@ -1,6 +1,6 @@
 # TASK-075: Rocket salvo effects – backblast, motor plume and smoke trail, realistic impacts with a lingering smoke column (pooled particles)
 
-- **Status**: blocked (hard dependency TASK-074)
+- **Status**: ready (hard dependency TASK-074)
 - **Layers**: presentation (new `SalvoFxPool` (pooled particle layers) + its `SalvoEffects` implementation, `ParticleFx` (fire material variant), `BattleController._play_volley` (assigns the effects on HIGH), `CameraRig` (small shake), `GraphicsQuality.features` (`fx_lights`)), tests, docs (ARCHITECTURE, MANUAL), README screenshot. Role: **presentation-engineer**. No core change.
 - **Depends on**: **[TASK-074](TASK-074-mlrs-salvo-sequence.md)** (salvo timing, rocket paths, `SalvoEffects` hooks, `FlashFx`, `SCREENSHOT_SALVO` hook), **TASK-064** (done: `ParticleFx`, `MotionEffects.dust_color`, `Wind`), **TASK-050** (done: `particles` switch), **TASK-058** (done: craters and scorch – the column and dust sit on top of them). Soft: **TASK-065** (wreck smoke at the same tile after a kill; shares `ParticleFx`), **TASK-073** (v3 launcher models – the backblast origin uses the pod meshes' length, with a fallback).
 - **Model**: sonnet (the timing, callbacks and event queue are done in TASK-074; this task fills hooks with pooled particles and measures the frame time)

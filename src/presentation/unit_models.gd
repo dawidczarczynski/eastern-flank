@@ -163,6 +163,19 @@ static func has_launcher(model: Node3D) -> bool:
 	return _model_of(model).get_node_or_null("Launcher") is Node3D
 
 
+## `node`'s world transform; outside the scene tree (headless tests, a stage not yet added) the
+## product of the local transforms up its Node3D parents.
+static func world_transform(node: Node3D) -> Transform3D:
+	if node.is_inside_tree():
+		return node.global_transform
+	var result := node.transform
+	var parent := node.get_parent() as Node3D
+	while parent != null:
+		result = parent.transform * result
+		parent = parent.get_parent() as Node3D
+	return result
+
+
 ## The pod holding the "Mouth*" tube ends, on the turntable or fixed on the model; null if none.
 static func launcher_pod(model: Node3D) -> Node3D:
 	var m := _model_of(model)

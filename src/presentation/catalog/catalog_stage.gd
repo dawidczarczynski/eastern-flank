@@ -18,6 +18,8 @@ const GROUND_HEIGHT := 0.04
 ## The Fire animation shoots at a dummy this far from the unit, in the direction the launcher
 ## is traversed to.
 const TARGET_DISTANCE := 1.0
+## Radius of the salvo's landing disc around the dummy target (the battle uses most of a tile).
+const LANDING_RADIUS := 0.2
 ## Gun elevation (rad) of the tank Traverse demo.
 const TURRET_DEMO_ELEVATION := 0.1
 ## Travel speed of Drive and March (world units per second), like a move in the battle.
@@ -336,8 +338,9 @@ func _fire() -> void:
 	_firing = true
 	_pose_tween = create_tween()
 	VolleyPlayback.append_aim(_pose_tween, _view, _traverse_angle, elevation)
-	var impact := aim_point + Vector3(0.0, 0.15, 0.0)
-	_volley = VolleyPlayback.append_salvo(_pose_tween, self, _view, impact, _fx_rng, Callable())
+	_volley = VolleyPlayback.append_salvo(
+		_pose_tween, self, _view, aim_point, _fx_rng, LANDING_RADIUS
+	)
 	VolleyPlayback.append_stow(_pose_tween, _view, _traverse_angle, elevation)
 	_pose_tween.finished.connect(_on_pose_finished)
 

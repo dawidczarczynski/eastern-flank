@@ -100,7 +100,12 @@ func test_uragan_is_front_stowed_with_a_limited_traverse() -> void:
 
 
 func test_volley_event_duration() -> void:
-	var volley := RocketVolley.total_duration()
-	assert_true(absf(Battle._volley_event_duration(true, false) - (2.0 * 1.8 + volley)) < TOL)
-	assert_true(absf(Battle._volley_event_duration(true, true) - (0.5 + 3.6 + volley)) < TOL)
-	assert_true(absf(Battle._volley_event_duration(false, false) - (0.5 + volley)) < TOL)
+	# Homar-K at 6 hexes (world distance 6 * sqrt(3) with hex size 1).
+	var flight := SalvoTiming.flight_time(6.0 * sqrt(3.0))
+	var salvo := SalvoTiming.salvo_duration(12, 0.40, flight)
+	var turntable := Battle._volley_event_duration(true, false, false, 12, 0.40, flight)
+	assert_true(absf(turntable - (2.0 * 1.8 + salvo)) < TOL)
+	var limited := Battle._volley_event_duration(true, true, false, 12, 0.40, flight)
+	assert_true(absf(limited - (0.5 + 3.6 + salvo)) < TOL)
+	var fixed := Battle._volley_event_duration(false, false, false, 12, 0.40, flight)
+	assert_true(absf(fixed - (0.5 + salvo)) < TOL, "no launcher: AIM_DURATION + salvo")

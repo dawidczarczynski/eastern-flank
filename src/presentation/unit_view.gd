@@ -37,6 +37,8 @@ var quality: Dictionary = {}
 ## (x: float, z: float) -> Terrain.Type under a point, set by BattleController (dust colour).
 var terrain_at: Callable
 var unit_id: int
+## The unit's definition id (e.g. &"homar_k"): the model and the salvo profile (SalvoTiming).
+var definition_id: StringName
 
 var _pivot: Node3D  # holds the model; shaken on hit
 var _meshes: Array[MeshInstance3D] = []
@@ -67,13 +69,14 @@ var _is_tracked := false  # pivots in place before driving (HeavyMove)
 var _is_vehicle := false  # uses wheel / hull locomotion (UnitModels.is_vehicle)
 var _wheel_distance := 0.0  # accumulated across moves, never reset
 var _hit_tween: Tween
-var _hp := 0
+var _hp := 0  # the HP the label shows (events play in order: the HP before the next hit)
 var _max_hp := 0
 var _dying := false
 var _burn_meshes: Array[MeshInstance3D] = []  # camo-shaded parts that burn black (wreck death)
 var _turret: Node3D
 var _turret_rest := Transform3D.IDENTITY
 var _death_flash: OmniLight3D
+var _launcher_pose := Vector2.ZERO  # last set_launcher_pose (traverse, elevation)
 
 
 ## `faction` is the owner's faction (colours; null = neutral); `ground_height` is a Callable
@@ -86,6 +89,7 @@ func setup(
 	ground_height: Callable
 ) -> void:
 	unit_id = unit.id
+	definition_id = unit.definition.id
 	position = world_position
 	_ground_height = ground_height
 	_owner_color = UiPalette.color_of(faction)
@@ -282,12 +286,32 @@ func _set_markers_visible(markers_visible: bool) -> void:
 ## for units without a launcher.
 func launch_points() -> Array[Vector3]:
 	var points: Array[Vector3] = []
+	for mouth in _mouths():
+		points.append(UnitModels.world_transform(mouth).origin)
+	return points
+
+
+## Launch direction of each tube in launch_points() order: the pod's world +X (the tube axis),
+## normalised; empty without tubes.
+func launch_directions() -> Array[Vector3]:
+	var directions: Array[Vector3] = []
+	var mouths := _mouths()
+	if mouths.is_empty():
+		return directions
+	var axis := UnitModels.world_transform(UnitModels.launcher_pod(_model)).basis.x.normalized()
+	for mouth in mouths:
+		directions.append(axis)
+	return directions
+
+
+func _mouths() -> Array[Node3D]:
+	var mouths: Array[Node3D] = []
 	var pod := UnitModels.launcher_pod(_model)
 	if pod != null:
 		for child in pod.get_children():
 			if (child as Node3D) != null and child.name.begins_with("Mouth"):
-				points.append((child as Node3D).global_position)
-	return points
+				mouths.append(child as Node3D)
+	return mouths
 
 
 ## Yaw (pivot rotation.y) that makes the model face the world point `target`.
@@ -317,8 +341,16 @@ func launcher_elevation() -> float:
 
 
 func set_launcher_pose(traverse: float, elevation: float) -> void:
+	_launcher_pose = Vector2(traverse, elevation)
 	if not _dying:
 		UnitModels.pose_launcher(_model, traverse, elevation)
+
+
+## Recoil of the pod (TASK-074): the last set_launcher_pose with `offset` (rad) added to the
+## elevation; 0 restores that pose exactly.
+func set_launcher_jolt(offset: float) -> void:
+	if not _dying:
+		UnitModels.pose_launcher(_model, _launcher_pose.x, _launcher_pose.y + offset)
 
 
 ## Whether the turret turns and the gun elevates before a direct-fire attack.
@@ -375,6 +407,19 @@ func set_facing_yaw(yaw: float) -> void:
 	if not _dying:
 		_pivot.rotation.y = yaw
 		_apply_rest_pose()  # slope tilt depends on the heading
+
+
+## The HP the label shows right now.
+func shown_hp() -> int:
+	return _hp
+
+
+## Shows `hp` on the label without the hit reaction (a rocket salvo's HP steps, TASK-074).
+func set_shown_hp(hp: int) -> void:
+	if _dying:
+		return
+	_hp = hp
+	_label.set_hp(hp, _max_hp)
 
 
 ## Short "got hit" reaction: sideways shake of the model plus a white flash, then the new HP.

@@ -103,6 +103,11 @@ func _process(_delta: float) -> bool:
 		var wreck_unit := OS.get_environment("SCREENSHOT_WRECK")
 		if wreck_unit.is_valid_int():  # early, so the smoke has the other frames to rise
 			_battle.call("debug_wreck_demo", wreck_unit.to_int())
+		var salvo := OS.get_environment("SCREENSHOT_SALVO").split(",")
+		if salvo.size() == 2 and salvo[0].is_valid_int() and salvo[1].is_valid_int():
+			_battle.call("debug_salvo", salvo[0].to_int(), salvo[1].to_int())
+		elif OS.get_environment("SCREENSHOT_SALVO") != "":
+			printerr("ERROR: invalid SCREENSHOT_SALVO (expected <attacker id>,<target id>)")
 	_frames_left -= 1
 	if _frames_left == 3 and _is_battle:
 		# Decals need a few frames in the renderer's cluster before they show.
@@ -236,6 +241,10 @@ func _fail(message: String, exit_code: int) -> void:
 ## unit's tile (TASK-058), without animation.
 ## SCREENSHOT_WRECK=<unit id> destroys that unit's view on the first frame (TASK-065: burnt hulk,
 ## turret askew, smoke; use --frames=200 or more to see the column).
+## SCREENSHOT_SALVO=<attacker id>,<target id> plays that rocket launcher's volley at the target
+## view-only from the first frame (TASK-074: aim, ripple salvo, HP steps; no command, no state
+## change); --frames=N picks the moment (≈ N / 60 s in, the aim takes 2-3 s before the first
+## launch), e.g. SCREENSHOT_SALVO=4,9 SCREENSHOT_FOCUS=... tools/screenshot.sh --frames=200.
 ## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
 ## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
 ## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
