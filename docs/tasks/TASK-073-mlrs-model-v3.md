@@ -1,6 +1,6 @@
 # TASK-073: Rocket launcher v3 – rework `homar_k` / `bm27_uragan` on MeshKits (chamfers, small parts, hidden geometry cut, shared wheeled running gear, ≤ 40k)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`models/homar_k.gd`, `models/bm27_uragan.gd`, a shared wheeled running gear in `models/parts/` (new, e.g. `wheeled_running_gear.gd`), `MeshKit` / `MeshKits` only if a primitive is missing), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`, `test_launcher_pose.gd`, new `test_mlrs_models.gd`), docs (both `blueprint.md`). Roles: **unit-modeler** (both launchers, render-compare, via `/model-unit <id>` as a rework); **presentation-engineer** for the shared wheeled running gear and any missing kit primitive.
 - **Depends on**: **TASK-045** (jacks and blast shields – the deploy pivots and the Uragan's jacks / shields exist before this rework, so they are rebuilt once on the kit, not designed twice; 045 needs 044 → 043 → 042), **TASK-069** (done: tank v3 – `MeshKits` workflow, `ModelParts.cached_meshes`, shared wheel meshes per side, `HULL_INTERIOR` / clearance test pattern, `test_tank_models.gd` as the template). Soft: TASK-062 (done: weathering paint on the RGB masks), TASK-064 (done: `MotionFx` reads `Exhaust` / `Dust_L` / `Dust_R`), TASK-063 (`Marking_*` / `Number_*` anchors – add them here if 063 is done first), TASK-034 (done: portraits show the launchers close up), TASK-067 (in progress – do not edit `model_parts.gd` / `vehicle_frame.gd` / `soldier.gd` while its changes are uncommitted).
 - **Model**: opus (two large models plus a new shared running gear, triangle and build-time budgets, launcher / deploy pivot contracts that must survive the rebuild)
@@ -94,4 +94,18 @@ None (visual only – unit stats, rules and controls do not change).
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Both launchers are rebuilt on MeshKits; wheels come from the new shared `WheeledRunningGear` (`models/parts/wheeled_running_gear.gd`, tests in `test_wheeled_running_gear.gd`; `ModelParts.wheel` untouched). New `tests/unit/test_mlrs_models.gd` covers both trucks. Details (part tables, cuts, clearance) are in both `blueprint.md` files.
+
+| | Triangles before → after | Body / all mesh instances after | Cold build before → after | Stats AABB |
+|---|---|---|---|---|
+| `homar_k` (both factions) | 6 328 → 30 972 | 21 / 45 | 14.8 → ~77 ms (warm ~1.3 ms) | 8.6×2.3×2.6 → 8.7×2.3×2.7 m |
+| `bm27_uragan` (both factions) | 9 096 → 36 516 | 22 / 46 | 25 → 94 ms (warm 1.6 ms) | unchanged 8.8×3.3×3.0 m |
+
+`Real` diffs stay within ±2 pp (Homar-K −21.0 / −18.9 / −19.3 %; Uragan −8.7 / +17.2 / −7.1 %). Sheets: `.screenshots/units/{homar_k_poland,homar_k_poland_fire,homar_k_russia,bm27_uragan_russia,bm27_uragan_russia_fire,bm27_uragan_poland}_sheet.png`. `docs/images/gameplay.png` re-rendered.
+
+Decisions / deviations:
+- The sweep test follows the TASK-069 turret pattern (every hull vertex outside the ring stays ≥ 0.01 m below the lowest raised-pod vertex at its distance or farther; `LAUNCHER_CLEARANCE_H` pinned to that vertex) instead of the literal "highest hull vertex in the swept disc" wording, which the Homar-K cannot meet without a big silhouette change.
+- Homar-K: the old layout collided (pod hinge corners vs. the middle module at ~40° traverse). Pod front is now vertical with a bevel, the module slopes back at the top, the fixed base is a low bearing ring and the carriage moved under `Launcher`.
+- Uragan: tube bundle shortened 0.28 m at the rear (`TUBE_X1` 8.7 → 8.42), cradle beams end before the trunnions, engine-roof handles removed – at 55° the bundle dipped below the engine roof. AABB unchanged.
+
+Known limitations: no per-material dust/mud shader params on tyres (plain PBR rubber, as on the tanks; only Homar-K's dark paint has wear/dust/mud); Uragan exhaust position is an assumption; Uragan cab is still a squarer profile prism; Homar-K pod front leans less than the real one; no close-up screenshot crop and no FPS measurement on the Windows build (human to check).
