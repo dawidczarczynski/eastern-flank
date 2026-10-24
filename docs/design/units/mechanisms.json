@@ -94,8 +94,8 @@
   {
     "id": "stabilisers",
     "label": "Stabiliser jacks lowered before firing",
-    "status": "planned",
-    "description": "Planned (TASK-045). Stabiliser jacks lower to the ground before a volley and lift again afterwards.",
+    "status": "implemented",
+    "description": "Stabiliser jacks lower to the ground before a volley and lift again afterwards (deploy step, UnitModels.pose_deployables).",
     "params": {},
     "pivots": [
       {
@@ -113,8 +113,8 @@
   {
     "id": "blast_shields",
     "label": "Cab window blast shields lowered before firing",
-    "status": "planned",
-    "description": "Planned (TASK-046). Shields over the cab windows close before a volley.",
+    "status": "implemented",
+    "description": "Shields over the cab windows close before a volley and open again afterwards (same deploy step as the jacks).",
     "params": {},
     "pivots": [
       {

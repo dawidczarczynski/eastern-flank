@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name UnitView
 extends Node3D
 ## Visual representation of a unit: primitive model, faction marker on the ground and a HUD
@@ -320,8 +321,24 @@ func set_launcher_pose(traverse: float, elevation: float) -> void:
 		UnitModels.pose_launcher(_model, traverse, elevation)
 
 
+## Whether the vehicle lowers jacks / closes shields before a volley.
+func has_deployables() -> bool:
+	return UnitModels.has_deployables(_model)
+
+
+## Deploy step pose: 0 = stowed, 1 = jacks down and shields closed.
+func set_deploy_pose(t: float) -> void:
+	if not _dying:
+		UnitModels.pose_deployables(_model, t)
+
+
 func facing_yaw() -> float:
 	return _pivot.rotation.y
+
+
+## The "Model" node that locomotion and the mechanisms pose (the catalog poses it directly).
+func model() -> Node3D:
+	return _model
 
 
 func set_facing_yaw(yaw: float) -> void:
@@ -464,6 +481,7 @@ func set_wreck_time(t: float) -> void:
 		)
 	if t >= WreckPlan.TURRET_END:
 		UnitModels.pose_launcher(_model, 0.0, 0.0)  # launcher pods drop to their stowed pose
+		UnitModels.pose_deployables(_model, 0.0)
 
 
 ## Starts a wreck death without a tween (tests): everything `play_death` sets up before the clock.

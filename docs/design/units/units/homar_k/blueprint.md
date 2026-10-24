@@ -27,7 +27,8 @@ converted by `_p()` / `_slab()`.
 | Lockers | 4.85–7.00 | 0.85–1.30 | 1.05 | truck camo | merged |
 | Rear deck (over rear axles) | 7.00–10.60 | 1.45–1.66 | 1.38 | truck camo | merged |
 | Frame rails | 0.40–10.80 | 1.00–1.50 | 0.50 | dark | merged |
-| Bumpers, grille, steps, mirrors, door seams, louvres, mudflaps, stabiliser legs | – | – | – | dark | merged |
+| Bumpers, grille, steps, mirrors, door seams, louvres, mudflaps, stabiliser housings | – | – | – | dark | merged |
+| Stabiliser jacks `Stabiliser0/1` (rear, z ±1.1 m, x 10.51 m): steel leg + dark foot disc, slide down 0.45 m (`deployed` meta) out of the fixed housing | 0.07 m leg r, 0.2 m foot r | pivots at the rear corners | – | steel, dark | pivot children |
 | Launcher base / turntable | 6.80–10.40 | 1.66–2.00 | 1.05 | dark | merged |
 | Windows (2 per side + 2 windscreen panes) | 0.5–1.26, 1.97–2.7 / front | 2.35–2.95 | – | glass | merged `homar_k:glass` |
 | Accent plates (doors both sides + cab front) | 0.55–1.20 | 1.72–2.05 | – | faction accent | merged `homar_k:accent` |

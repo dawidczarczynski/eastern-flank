@@ -7,6 +7,8 @@ extends SceneTree
 const ScreenshotOptions := preload("res://tools/screenshot_options.gd")
 const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
+const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
+const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
 const USAGE := "Usage: tools/screenshot.sh [out.png] [--frames=N]"
 const EXPECTED_SIZE := Vector2i(1280, 720)
 const GALLERY_SETTLE_FRAMES := 4
@@ -14,6 +16,8 @@ const GALLERY_SETTLE_FRAMES := 4
 var _output := ""
 var _frames_left := 0
 var _battle: Node
+var _catalog_spec := ""  # SCREENSHOT_CATALOG, applied once the scene is ready
+var _is_battle := true  # false for the menu and catalog scenes (SCREENSHOT_SCENE)
 var _first_frame := true
 var _finished := false  # capture started or run failed – quit() only takes effect after this frame
 ## Frame-time probe (SCREENSHOT_MEASURE_FRAMES): frames still to time after the warm-up, and the
@@ -53,12 +57,33 @@ func _initialize() -> void:
 	var look_preset := OS.get_environment("SCREENSHOT_LOOK")
 	if look_preset != "":
 		LookPreset.apply(StringName(look_preset))
-	var scene: PackedScene = load(SCENE_PATH)
+	var scene_name := OS.get_environment("SCREENSHOT_SCENE")
+	var scene_path := SCENE_PATH
+	match scene_name:
+		"menu":
+			scene_path = MENU_SCENE_PATH
+		"catalog":
+			scene_path = CATALOG_SCENE_PATH
+		"", "battle":
+			pass
+		_:
+			_fail("unknown SCREENSHOT_SCENE '%s' (battle, menu or catalog)" % scene_name, 2)
+			return
+	_is_battle = scene_path == SCENE_PATH
+	var scene: PackedScene = load(scene_path)
 	if scene == null:
-		_fail("could not load %s" % SCENE_PATH, 1)
+		_fail("could not load %s" % scene_path, 1)
 		return
+	var locale := OS.get_environment("SCREENSHOT_LOCALE")
 	_battle = scene.instantiate()
 	root.add_child(_battle)
+	if locale != "":
+		TranslationServer.set_locale(locale)
+		if not _is_battle and _battle.has_method("refresh_texts"):
+			_battle.call("refresh_texts")
+	if not _is_battle:
+		_catalog_spec = OS.get_environment("SCREENSHOT_CATALOG") if not _is_battle else ""
+		return  # menu and catalog keep processing (the catalog's camera and tweens need it)
 	# The scene is set up in _ready; stop its processing so that polled input (Input singleton,
 	# mouse position) can't move the camera or add a hover highlight. Rendering continues.
 	_battle.process_mode = Node.PROCESS_MODE_DISABLED
@@ -67,20 +92,24 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
-	if not bool(_battle.get("is_built")):
+	if _is_battle and not bool(_battle.get("is_built")):
 		return false  # the battle scene shows its loading screen for a frame before building
-	if _first_frame:
+	if _first_frame and not _is_battle:
+		_first_frame = false
+		if _battle.has_method("select_unit"):
+			_apply_catalog_state(_catalog_spec)
+	if _first_frame and _is_battle:
 		_first_frame = false
 		var wreck_unit := OS.get_environment("SCREENSHOT_WRECK")
 		if wreck_unit.is_valid_int():  # early, so the smoke has the other frames to rise
 			_battle.call("debug_wreck_demo", wreck_unit.to_int())
 	_frames_left -= 1
-	if _frames_left == 3:
+	if _frames_left == 3 and _is_battle:
 		# Decals need a few frames in the renderer's cluster before they show.
 		var marks_unit := OS.get_environment("SCREENSHOT_MARKS")
 		if marks_unit.is_valid_int():
 			_battle.call("debug_marks_demo", marks_unit.to_int())
-	if _frames_left == 1:
+	if _frames_left == 1 and _is_battle:
 		_apply_debug_selection()
 	if _frames_left <= 0:
 		if _measure_left > 0:
@@ -151,6 +180,8 @@ func _capture() -> void:
 
 
 func _apply_gallery_state(state: String, argument: String) -> bool:
+	if not _is_battle:
+		return false
 	match state:
 		"hover":
 			_battle.call("debug_hover_unit", argument.to_int())
@@ -210,6 +241,13 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
 ## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner – e.g.
 ## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
+## SCREENSHOT_SCENE=<battle|menu|catalog> renders another scene (default battle);
+## SCREENSHOT_LOCALE=<pl|en> switches the language first.
+## SCREENSHOT_CATALOG=<unit id>[:<animation>[+<animation>...][:<yaw>,<pitch>,<distance>]] picks
+## the catalog unit, plays the animations to their end (finish_pose; "fire" is left running, so
+## --frames=N decides which moment of the salvo is captured) and sets the orbit camera (degrees),
+## e.g. SCREENSHOT_SCENE=catalog SCREENSHOT_CATALOG=homar_k:deploy+raise+traverse
+## tools/screenshot.sh.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -245,3 +283,33 @@ func _apply_debug_selection() -> void:
 	var hover_id := OS.get_environment("SCREENSHOT_HOVER_UNIT")
 	if hover_id.is_valid_int():
 		_battle.call("debug_hover_unit", hover_id.to_int())
+
+
+## Catalog scene: "<unit id>[:<animations joined by +>[:<yaw>,<pitch>,<distance>]]".
+func _apply_catalog_state(spec: String) -> void:
+	if spec.strip_edges() == "":
+		return
+	var parts := spec.split(":")
+	var definition: UnitDefinition
+	for candidate in CatalogUnits.definitions():
+		if String(candidate.id) == parts[0]:
+			definition = candidate
+	if definition == null:
+		printerr("ERROR: unknown unit '%s' in SCREENSHOT_CATALOG" % parts[0])
+		return
+	_battle.call("select_unit", definition)
+	var stage: CatalogStage = _battle.call("stage")
+	if parts.size() > 1 and parts[1] != "":
+		for animation in parts[1].split("+"):
+			stage.play(StringName(animation))
+			if animation != "fire":
+				stage.finish_pose()
+	if parts.size() > 2:
+		var orbit := parts[2].split(",")
+		if orbit.size() == 3:
+			_battle.call(
+				"set_orbit",
+				deg_to_rad(orbit[0].to_float()),
+				deg_to_rad(orbit[1].to_float()),
+				orbit[2].to_float()
+			)

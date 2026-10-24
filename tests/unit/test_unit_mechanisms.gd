@@ -174,6 +174,8 @@ func test_every_model_agrees_with_its_catalog_entry_and_the_registry() -> void:
 		var catalog: Variant = Contract.load_catalog_mechanisms(id)
 		for problem in Contract.problems(id, root.get_node("Model"), catalog, registry):
 			assert_true(false, problem)
+		for problem in Contract.stabiliser_violations(root.get_node("Model")):
+			assert_true(false, "%s: %s" % [id, problem])
 		root.free()
 
 
@@ -201,3 +203,14 @@ func test_mouths_sit_on_the_front_face_and_kneelers_have_a_stand_pose() -> void:
 			if rig != null and rig.get_node_or_null("Kneel") != null:
 				assert_true(rig.get_node_or_null("Stand") != null, "%s: Soldier%d" % [id, i])
 		root.free()
+
+
+func test_launchers_have_their_deployables() -> void:
+	var homar := _homar()
+	assert_true(UnitModels.has_deployables(homar))
+	assert_true(homar.get_node_or_null("Model/Stabiliser1") != null, "Homar-K jacks")
+	homar.free()
+	var uragan := UnitModels.build(&"bm27_uragan", 0, FactionRegistry.get_faction(&"russia"))
+	for path in ["Stabiliser1", "BlastShield0", "BlastShield4"]:
+		assert_true(uragan.get_node_or_null("Model/" + path) != null, "Uragan " + path)
+	uragan.free()

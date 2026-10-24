@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Eastern Flank"
 config/description="Turn-based 3D strategy"
-run/main_scene="res://scenes/battle/battle.tscn"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
 boot_splash/bg_color=Color(0.078, 0.094, 0.114, 1)
 boot_splash/image="res://assets/branding/splash.png"

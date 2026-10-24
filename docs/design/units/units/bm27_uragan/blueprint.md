@@ -20,7 +20,6 @@ ground, `z` across.
 |---|---|---|---|---|---|
 | Wheels ×8 (`Wheel0..7`) | axles 2.30, 4.715, 6.225, 8.64 (ZIL-135: 2.415 + 1.51 + 2.415) | r 0.67 | tyre 0.42, z ±1.10 | rubber, camo hub | `ModelParts.wheel` |
 | Cab (side profile prism) | 0.16–2.70 | 1.10–2.62, windscreen raked back from 2.04 | 1.22 | truck camo | `Frame.profile` |
-| Folded blast shield on the nose ledge | 0.05–0.62 | 1.99–2.05 | 1.18 | truck camo | slab |
 | Front bumper | 0.0–0.4 | 0.85–1.28 | 1.30 | truck camo | slab |
 | Engine compartment (twin engines) | 2.70–4.55 | 1.20–2.22 | 1.18 | truck camo, dark grilles both sides | slabs |
 | Rear deck | 4.55–9.30 | 1.30–1.55 | 1.16 | truck camo | slab |
@@ -29,6 +28,8 @@ ground, `z` across.
 | Windscreen (3 panes), door windows | 0.5 / 1.75–2.5 | 2.05–2.55 | – | glass | merged |
 | Headlights, rear lights | nose / rear | – | – | steel | merged |
 | Accent plates: cab doors both sides, bumper; muzzle-frame sides both sides | – | – | – | faction accent | merged |
+| **Stabiliser jacks ×2** (`Stabiliser0/1`) | 8.95, rear of the frame, z ±0.62 | rod 0.45–1.25 + foot pad r 0.16 at 0.35–0.45 (stowed); sleeve 0.6–1.3 and bracket 0.85–1.15 fixed in the dark parts | rod r 0.06 | steel | rod slides down 0.35 m: `deployed` = pivot translated −0.35 m, pad on y = 0 |
+| **Blast shields ×5** (`BlastShield0..2` windscreen panes z −0.78 / 0 / 0.78, `BlastShield3/4` door windows z ∓1.245) | hinge at pane bottom (0.489, 2.106) / door window top (2.125, 2.54) | plates 0.5 × 0.74 and 0.8 × 0.52, 0.05 thick | – | truck camo | built = open (windscreen plates lie on the nose ledge; door plates stand out as awnings), `deployed` = closed: windscreen plates rotated 90° + 0.23 rad rake about the hinge onto the glass, door plates hanging over the window |
 | **Launcher** turntable (dark ring r 0.95) + upper carriage, side girders, trunnion brackets | centre 6.0 | 1.55–2.55 | 0.85 | camo / dark | `Launcher` node |
 | **Pod**: 16 tubes r 0.13 (6 + 6 + 4) | 2.80–8.70 | rows 2.50 / 2.76 / 3.02; columns ±0.135, ±0.405, ±0.675 (top row the inner four) | – | truck camo | `Frame.drum` ×16 |
 | Muzzle frame (stepped box) | 2.88–3.38 | 2.28–3.22 | 0.88 low, 0.61 top | truck camo | slabs |
@@ -43,7 +44,7 @@ facing forward: the `launcher` mechanism declares `stowed: front` (Homar-K's def
 with a traverse of ±30° and 55° maximum elevation (UnitModels.launcher_aim / launcher_elevation).
 
 Mesh instances: 14 body (5 hull materials, 2 turntable, 3 pod, 4 actuator parts) + 4 per wheel;
-7 296 triangles.
+about 9 100 triangles, 53 mesh instances in all (2 jack + 5 shield pivots).
 
 ## Silhouette features
 
@@ -57,5 +58,6 @@ Mesh instances: 14 body (5 hull materials, 2 turntable, 3 pod, 4 actuator parts)
    The catalogue's "traversed to point rearward over the tail, muzzles under a sheet-metal cover"
    does not match the photos; the model follows the photos. No cover modelled (the parade photos
    show red caps / open muzzles).
-4. **Forward cab with blast shield** – modelled folded on the nose ledge under the windscreen
-   (travel); raising it for firing would need an extra pivot (not in the contract).
+4. **Forward cab with blast shields** – five hinged `BlastShield` plates, one per window (three
+   windscreen panes, two door windows): open in travel, closed over the glass when deployed
+   (`--pose=fire`). Jacks and shields share the deploy step (`UnitModels.pose_deployables`).

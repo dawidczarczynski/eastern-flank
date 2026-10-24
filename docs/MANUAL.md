@@ -10,6 +10,8 @@ The two sides field different, real-world equipment with its own stats: Poland h
 
 **Goal:** destroy every enemy unit. The last side with units left on the map wins.
 
+The game opens in a main menu, where you start the battle, pick the language or browse the units in the unit catalog (see section 12).
+
 ## 2. The battle
 
 - The map is **12 × 10 hexes**. It is the same map every time you start the game.
@@ -190,6 +192,38 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 - While animations are playing or the enemy is moving, clicks and keys (except camera controls, G and F5) are ignored, not queued.
 - **F5** saves a record of the match so far (the moves made, for reporting bugs); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet. Match records saved by earlier versions of the game (before the real Polish and Russian units) can no longer be replayed: they are refused with a clear "unsupported match record version" message instead of replaying a different battle.
 
-## 12. Not in the game yet
+## 12. Main menu and unit catalog
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, a menu, and saving/loading a match to continue later.
+The game opens in the main menu:
+
+- **Start operation** starts the battle. There is no way back to the menu from a battle; restart the game for that.
+- **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
+- **Unit catalog** opens a viewer where you can look at every unit in the game.
+
+**Unit catalog.** The list on the left has every unit, grouped by class; a unit without a finished 3D model is marked `(!)` and shown as a simple placeholder. The selected unit stands on a ground disc in the middle. The panel on the right shows its name, its side (with buttons to switch sides when more than one army fields it, e.g. a squad in Polish or Russian colours), its class, how it moves, its HP, Attack, Defense, Moves and Range, and the model's size in metres.
+
+Below that are the animation buttons. Each unit only gets the ones it has:
+
+| Button | Units | What it shows |
+|---|---|---|
+| Drive | vehicles | the unit drives on the spot, wheels or tracks turning (on/off) |
+| March / Kneel / stand | infantry squads | the soldiers march (on/off); kneel down or stand up |
+| Deploy | rocket artillery | stabiliser jacks down (Uragan: also the blast shields closed over the cab windows) (on/off) |
+| Raise launcher / Traverse | rocket artillery | raises the launcher, turns it to the side (on/off) |
+| Fire | rocket artillery | the full battle salvo at a target post: deploy, raise, turn, fire, then everything back to travel position |
+| Hit / Death | all | the hit reaction and the destruction (a vehicle leaves its burnt wreck) |
+| Reset | all | rebuilds the model in its normal state, e.g. after Death |
+| Auto-rotate | all | slowly turns the camera around the unit (on/off) |
+
+While Deploy, Raise launcher, Traverse or Fire is running, the other pose buttons are greyed out. Fire is only available when the launcher is in travel position (Deploy, Raise launcher and Traverse all off). After Death, only Reset brings the unit back.
+
+| Action (catalog) | Control |
+|---|---|
+| Rotate around the unit | Left-drag (up and down tilts the view, within limits) |
+| Zoom | Mouse wheel |
+| Reset the view | Double-click, or Home |
+| Back to the main menu | Esc, or the ‹ Back button |
+
+## 13. Not in the game yet
+
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, an options or graphics settings menu, and saving/loading a match to continue later.

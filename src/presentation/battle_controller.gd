@@ -9,11 +9,10 @@ const BOTTOM_LEFT_MARGIN := 24
 ## fixed launcher always turns; a turntable launcher with a limited traverse (Uragan) turns first
 ## when the target is outside its range (by zero when it isn't, same duration).
 const AIM_DURATION := 0.5
-## Turntable launchers (Homar-K, Uragan) aim the launcher: the pod rises on its actuators to the
-## unit's max elevation, the turntable turns to the target, and after the salvo both return to the
-## stowed pose (seconds at speed 1, each way; global pacing, not per unit).
-const LAUNCHER_RAISE_DURATION := 0.9
-const LAUNCHER_TRAVERSE_DURATION := 0.9
+## Launcher and deploy step durations (seconds at speed 1, each way), shared with the unit catalog.
+const LAUNCHER_RAISE_DURATION := VolleyPlayback.LAUNCHER_RAISE_DURATION
+const LAUNCHER_TRAVERSE_DURATION := VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
+const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
 
 ## Command.validate() reasons the player can hit with a click, and the toast (translation key)
 ## that explains them. Other reasons (game_over, not_your_unit, ...) are not reachable by the UI.
@@ -610,8 +609,9 @@ func _annotate(event: Dictionary) -> Dictionary:
 		var shooter: UnitView = _unit_views.get(event["attacker_id"])
 		var launcher := shooter != null and shooter.has_launcher()
 		var limited := launcher and shooter.launcher_limited()
+		var deploy := shooter != null and shooter.has_deployables()
 		var annotated := EventQueue.with_view_duration(
-			event, _volley_event_duration(launcher, limited)
+			event, _volley_event_duration(launcher, limited, deploy)
 		)
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
@@ -627,12 +627,14 @@ func _fires_volley(attacker_id: int) -> bool:
 ## A turntable `launcher` raises and traverses before the salvo and stows after it; a `limited`
 ## one always has the body turn first (zero angle when not needed), so the duration doesn't
 ## depend on the view state when the event is annotated.
-static func _volley_event_duration(launcher: bool, limited: bool) -> float:
+static func _volley_event_duration(launcher: bool, limited: bool, deploy: bool = false) -> float:
 	if launcher:
 		var duration := (
 			2.0 * (LAUNCHER_RAISE_DURATION + LAUNCHER_TRAVERSE_DURATION)
 			+ RocketVolley.total_duration()
 		)
+		if deploy:
+			duration += 2.0 * DEPLOY_DURATION
 		return duration + AIM_DURATION if limited else duration
 	return AIM_DURATION + RocketVolley.total_duration()
 
@@ -725,16 +727,7 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 				1.0,
 				AIM_DURATION
 			)
-		_tween_launcher(
-			tween, shooter, Vector2.ZERO, Vector2(0.0, elevation), LAUNCHER_RAISE_DURATION
-		)
-		_tween_launcher(
-			tween,
-			shooter,
-			Vector2(0.0, elevation),
-			Vector2(traverse, elevation),
-			LAUNCHER_TRAVERSE_DURATION
-		)
+		VolleyPlayback.append_aim(tween, shooter, traverse, elevation)
 	else:
 		var from_yaw := shooter.facing_yaw()
 		var to_yaw := shooter.yaw_towards(aim_point)
@@ -744,56 +737,12 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 			1.0,
 			AIM_DURATION
 		)
-	var origins := shooter.launch_points()
-	if origins.is_empty():
-		origins.append(shooter.global_position + Vector3(0.0, 0.4, 0.0))
 	var impact_point := aim_point + Vector3(0.0, 0.15, 0.0)
-	var volley := RocketVolley.new()
-	volley.name = "RocketVolley"
-	add_child(volley)  # in the tree from the start (freed with the controller if the tween dies)
-	tween.tween_callback(
-		func() -> void:
-			# Tubes move with the turned model: read their positions after aiming.
-			var tubes := shooter.launch_points()
-			volley.setup(tubes if not tubes.is_empty() else origins, impact_point, _fx_rng)
-	)
-	tween.tween_method(
-		volley.update, 0.0, RocketVolley.total_duration(), RocketVolley.total_duration()
-	)
-	# The hit reaction starts with the last impact.
-	tween.parallel()
-	var hit_step := tween.tween_callback(_play_volley_hit.bind(target, target_hp, event, shooter))
-	hit_step.set_delay(RocketVolley.last_impact_time())
-	tween.tween_callback(volley.queue_free)
+	var on_impact := _play_volley_hit.bind(target, target_hp, event, shooter)
+	VolleyPlayback.append_salvo(tween, self, shooter, impact_point, _fx_rng, on_impact)
 	if shooter.has_launcher():
-		_tween_launcher(
-			tween,
-			shooter,
-			Vector2(traverse, elevation),
-			Vector2(0.0, elevation),
-			LAUNCHER_TRAVERSE_DURATION
-		)
-		_tween_launcher(
-			tween, shooter, Vector2(0.0, elevation), Vector2.ZERO, LAUNCHER_RAISE_DURATION
-		)
+		VolleyPlayback.append_stow(tween, shooter, traverse, elevation)
 	return tween
-
-
-## Appends a launcher step from pose `from` to `to` (x traverse, y elevation, both in radians),
-## eased in and out like a hydraulic drive.
-func _tween_launcher(
-	tween: Tween, shooter: UnitView, from: Vector2, to: Vector2, duration: float
-) -> void:
-	var step := tween.tween_method(
-		func(f: float) -> void:
-			if is_instance_valid(shooter):
-				var pose := from.lerp(to, f)
-				shooter.set_launcher_pose(pose.x, pose.y),
-		0.0,
-		1.0,
-		duration
-	)
-	step.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _play_volley_hit(

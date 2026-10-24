@@ -40,7 +40,8 @@
       "traverse_deg": "full",
       "max_elevation_deg": 40,
       "stowed": "rear"
-    }
+    },
+    "stabilisers": {}
   },
   "images": [
     {
@@ -157,6 +158,10 @@
     "mechanisms.launcher.stowed": {
       "source": "human decision 2026-10-19: launcher stowed facing the rear",
       "verified": true
+    },
+    "mechanisms.stabilisers": {
+      "source": "The Homar-K (K239 Chunmoo launcher on a Jelcz P882.57 8×8) braces on rear hydraulic stabiliser jacks before firing; added by TASK-045 from general knowledge – NOT yet checked against a source",
+      "verified": false
     }
   },
   "status": "modeled",

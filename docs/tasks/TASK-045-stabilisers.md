@@ -1,6 +1,6 @@
 # TASK-045: Deploy step – `stabilisers` (jacks) and `blast_shields` (cab window shields) before a volley; Homar-K jacks, Uragan rework
 
-- **Status**: ready (2026-10-22: TASK-046 `blast_shields` merged in – the Uragan's shields are verified in the catalog (FAS 9P140), so both deployables and the Uragan rework go in one task)
+- **Status**: done (2026-10-22: TASK-046 `blast_shields` merged in – the Uragan's shields are verified in the catalog (FAS 9P140), so both deployables and the Uragan rework go in one task)
 - **Layers**: presentation (`UnitModels.pose_deployables`, `UnitView`, `BattleController` volley sequence), models `homar_k.gd` (jacks) and `bm27_uragan.gd` (jacks + shields) – via `unit-modeler`, `mechanisms.json` (status + pivot contracts), tests, catalog `homar_k`
 - **Depends on**: **TASK-044**, TASK-042 (done: Homar-K and Uragan mechanisms verified in the catalog). The Uragan model already exists (built before this task, without `Stabiliser*` / `BlastShield*` pivots although its catalog entry declares `stabilisers` and `blast_shields`) – it is reworked here. Later used by any vehicle that braces itself before firing. Coordinate the Homar-K / Uragan `/model-unit` reworks with the anchor pass of TASK-063 / TASK-064 (one rework per vehicle if they run close together).
 - **Model**: sonnet
@@ -53,4 +53,8 @@ None (presentation only, no rule effect).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Deploy step: `UnitModels.pose_deployables` / `has_deployables` (Stabiliser<i>, BlastShield<i>; `rest` meta = built pose, `deployed` meta from the model), `UnitView.set_deploy_pose`, `_play_volley` deploys after the body turn and stows last (`DEPLOY_DURATION` 0.6), `_volley_event_duration(…, deploy)`. Registry `stabilisers` / `blast_shields` now `implemented`. `tools/render_unit.sh --pose=fire` also deploys. Contract helper `Contract.stabiliser_violations` runs for every model in `test_unit_mechanisms`.
+- Homar-K: two rear jacks (leg slides 0.45 m). **The catalog provenance for `mechanisms.stabilisers` is unverified** (added from general knowledge): verify it in the catalog tool, then drop the `unverified` exemption in `tools/unit_catalog/test_mechanisms.py`.
+- Uragan: two rear jacks (0.35 m) and five shields (3 windscreen panes, hinged at the bottom; 2 door windows, hinged at the top, open = awnings sticking out ~0.5 m).
+- Render sheets: `.screenshots/units/homar_k_poland_fire.png`, `.screenshots/units/bm27_uragan_russia_fire_sheet.png`.
+- `unit_view.gd` got `# gdlint: disable=max-public-methods` (facade class). README screenshot re-rendered, unchanged look.

@@ -24,6 +24,10 @@ const LAUNCHER_DEFAULTS := {"traverse_deg": "full", "max_elevation_deg": 40, "st
 const TRAVERSE_TIE := 0.000001
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
 const MAX_ACTUATORS := 4
+## Two-state parts that move in the deploy step before a volley (Stabiliser0.., BlastShield0..):
+## contiguous direct children of the model, see pose_deployables.
+const DEPLOYABLE_PREFIXES: Array[String] = ["Stabiliser", "BlastShield"]
+const MAX_DEPLOYABLES := 8
 ## Label anchor height above the unit's feet for a model file without a LABEL_HEIGHT constant.
 const DEFAULT_LABEL_HEIGHT := 0.5
 ## Range and resolution of `wear_seed` (the shader adds multiples of it to its noise coordinates).
@@ -238,6 +242,36 @@ static func pose_launcher(model: Node3D, traverse: float, elevation: float) -> v
 		barrel.basis = _along(top - barrel.position)
 		rod.position = top
 		rod.basis = _along(barrel.position - top)
+
+
+## The model's deployable pivots (see DEPLOYABLE_PREFIXES), in order.
+static func _deployables(m: Node3D) -> Array[Node3D]:
+	var result: Array[Node3D] = []
+	for prefix in DEPLOYABLE_PREFIXES:
+		for i in MAX_DEPLOYABLES:
+			var pivot := m.get_node_or_null("%s%d" % [prefix, i]) as Node3D
+			if pivot == null:
+				break
+			result.append(pivot)
+	return result
+
+
+## Whether the model has stabiliser jacks and / or blast shields (the volley then has a deploy
+## and a stow step).
+static func has_deployables(model: Node3D) -> bool:
+	return not _deployables(_model_of(model)).is_empty()
+
+
+## Deploy pose: each Stabiliser<i> / BlastShield<i> goes from its built (stowed) transform, kept in
+## the "rest" meta, to the transform in its "deployed" meta (set by the model): t = 0 stowed,
+## t = 1 deployed. No-op without such pivots.
+static func pose_deployables(model: Node3D, t: float) -> void:
+	for pivot in _deployables(_model_of(model)):
+		var rest: Transform3D = pivot.get_meta(&"rest", pivot.transform)
+		if not pivot.has_meta(&"rest"):
+			pivot.set_meta(&"rest", rest)
+		var deployed: Transform3D = pivot.get_meta(&"deployed", rest)
+		pivot.transform = rest.interpolate_with(deployed, t)
 
 
 ## Rotation whose Y axis points along `direction`; the hinge axis (Z) stays as close to the

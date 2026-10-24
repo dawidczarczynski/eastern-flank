@@ -9,6 +9,7 @@ const LABEL_HEIGHT := 0.62
 ## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
 const MECHANISMS := {
 	"wheels": {},
+	"stabilisers": {},
 	"launcher": {"traverse_deg": "full", "max_elevation_deg": 40, "stowed": "rear"},
 }
 
@@ -43,6 +44,12 @@ const ACTUATOR_MOUNT := Vector2(8.9, 2.0)
 const ACTUATOR_LENGTH := 1.1
 const CYLINDER_RADIUS := 0.13
 const PISTON_RADIUS := 0.07
+## Rear stabiliser jacks: x, |z|, housing bottom (h), stowed foot underside (h), leg radius.
+const JACK_X := 10.51
+const JACK_Z := 1.1
+const JACK_HOUSING_H0 := 0.9
+const JACK_STOWED_H := 0.45
+const JACK_LEG_RADIUS := 0.07
 
 
 ## The "Launcher" turntable sits on the rear deck; its "Pod" child hinges on the front-bottom
@@ -73,6 +80,7 @@ static func build(faction: FactionDefinition) -> Node3D:
 	_merged(g, "homar_k:dark", _dark_parts(), dark)
 	_merged(g, "homar_k:glass", _glass_parts(), glass)
 	_merged(g, "homar_k:accent", _accent_parts(), acc)
+	_build_jacks(g, dark, steel)
 	_build_pod(g, body, dark, steel, acc)
 	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
@@ -150,8 +158,7 @@ static func _dark_parts() -> Array:
 	_drum(p, 4.47, 2.45, 0.9, 0.08, 1.7, &"y")  # exhaust stack
 	_slab(p, 6.8, 10.4, 1.66, 2.0, 1.05)  # launcher base and turntable
 	_pair(p, 10.3, 10.36, 0.4, 1.45, 0.22, 1.17)  # mudflaps
-	_pair(p, 10.4, 10.62, 0.45, 1.55, 0.13, 1.1)  # stabiliser legs
-	_pair(p, 10.3, 10.72, 0.4, 0.46, 0.2, 1.1)  # stabiliser feet
+	_pair(p, 10.38, 10.64, JACK_HOUSING_H0, 1.55, 0.14, JACK_Z)  # stabiliser housings
 	_slab(p, 10.6, 11.0, 1.1, 1.48, 1.3)  # rear bumper and light bar
 	_pair(p, 0.02, 0.1, 2.35, 3.0, 0.05, 1.4)  # mirrors
 	_pair(p, 0.1, 0.3, 2.9, 2.94, 0.13, 1.33)  # mirror arms
@@ -172,6 +179,26 @@ static func _accent_parts() -> Array:
 	_pair(p, 0.55, 1.2, 1.72, 2.05, 0.015, 1.27)
 	_slab(p, 0.08, 0.11, 2.1, 2.25, 0.5)
 	return p
+
+
+## "Stabiliser0/1": a steel leg with a dark foot sliding down out of the fixed housing; built
+## stowed (foot JACK_STOWED_H above the ground), meta "deployed" lowers it onto y = 0.
+static func _build_jacks(g: Node3D, dark: Material, steel: Material) -> void:
+	var leg_top := 1.45
+	var leg_len := leg_top - JACK_STOWED_H
+	var leg := ModelParts.cyl_mesh(JACK_LEG_RADIUS * K, JACK_LEG_RADIUS * K, leg_len * K, 8)
+	var foot := ModelParts.cyl_mesh(0.2 * K, 0.2 * K, 0.06 * K, 10)
+	for i in 2:
+		var jack := Node3D.new()
+		jack.name = "Stabiliser%d" % i
+		jack.position = _p(JACK_X, 0.0, JACK_Z * (-1.0 if i == 0 else 1.0))
+		g.add_child(jack)
+		ModelParts.add(jack, leg, steel, Vector3(0.0, (JACK_STOWED_H + leg_len / 2.0) * K, 0.0))
+		ModelParts.add(jack, foot, dark, Vector3(0.0, (JACK_STOWED_H + 0.03) * K, 0.0))
+		jack.set_meta(
+			&"deployed",
+			Transform3D(Basis.IDENTITY, jack.position - Vector3(0.0, JACK_STOWED_H * K, 0.0))
+		)
 
 
 static func _build_pod(

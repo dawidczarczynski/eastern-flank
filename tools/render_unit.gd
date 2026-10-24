@@ -142,6 +142,7 @@ func _build_scene() -> void:
 	_model.scale = Vector3.ONE  # model space: 1 unit = 10 m
 	if _options["pose"] == "fire":
 		UnitModels.pose_launcher(_model, 0.0, UnitModels.launcher_elevation(_model))
+		UnitModels.pose_deployables(_model, 1.0)
 	root.add_child(model_root)
 	_aabb = _visible_aabb(model_root)  # root yaw is 0: the model faces +X
 

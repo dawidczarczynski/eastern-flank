@@ -156,3 +156,45 @@ static func problems(
 			)
 		)
 	return result
+
+
+## Lowest y of the meshes below `node`, in `model`'s space; INF without meshes.
+static func lowest_y(model: Node3D, node: Node3D) -> float:
+	var lowest := INF
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+		var to_model := _relative(node, model)
+		var box := (node as MeshInstance3D).mesh.get_aabb()
+		for corner in 8:
+			lowest = minf(lowest, (to_model * box.get_endpoint(corner)).y)
+	for child in node.get_children():
+		if child is Node3D:
+			lowest = minf(lowest, lowest_y(model, child as Node3D))
+	return lowest
+
+
+static func _relative(node: Node3D, ancestor: Node3D) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var current := node
+	while current != ancestor and current != null:
+		t = current.transform * t
+		current = current.get_parent() as Node3D
+	return t
+
+
+## Stabiliser contract: deployed (t = 1) the lowest point of each `Stabiliser<i>` is on the ground
+## (y = 0 ± 0.005 in the model's space), stowed (t = 0) at least 0.005 above it. Leaves the model
+## stowed.
+static func stabiliser_violations(model: Node3D) -> Array[String]:
+	var result: Array[String] = []
+	for t in [1.0, 0.0]:
+		UnitModels.pose_deployables(model, t)
+		for i in UnitModels.MAX_DEPLOYABLES:
+			var jack := model.get_node_or_null("Stabiliser%d" % i) as Node3D
+			if jack == null:
+				break
+			var low := lowest_y(model, jack)
+			if t == 1.0 and absf(low) > 0.005:
+				result.append("Stabiliser%d: deployed foot at y = %.4f, needs 0 ± 0.005" % [i, low])
+			elif t == 0.0 and low < 0.005:
+				result.append("Stabiliser%d: stowed foot at y = %.4f, needs >= 0.005" % [i, low])
+	return result

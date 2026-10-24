@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/presentation/ui/unit_catalog.gd" id="1_catalog"]
+
+[node name="UnitCatalog" type="Node3D"]
+script = ExtResource("1_catalog")

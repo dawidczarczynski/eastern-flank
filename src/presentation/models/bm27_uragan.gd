@@ -13,6 +13,23 @@ const MECHANISMS := {
 	"stabilisers": {},
 	"blast_shields": {},
 }
+## Stabiliser jacks at the rear of the frame (x, |z|): the telescopic rod slides down JACK_STROKE
+## out of a fixed sleeve; stowed the foot pad hangs JACK_STOWED_H above the ground.
+const JACK_X := 8.95
+const JACK_Z := 0.62
+const JACK_STOWED_H := 0.35
+const JACK_ROD_TOP := 1.25
+const JACK_PAD_RADIUS := 0.16
+## Blast shields: plate size (m) and the glass they cover. Windscreen: three plates hinged at the
+## lower edge of each pane (open = lying on the nose ledge); side: one per door window hinged at
+## its top edge (open = awning over the window).
+const SHIELD_THICKNESS := 0.05
+const SCREEN_HINGE := Vector2(0.489, 2.106)
+const SCREEN_LENGTH := 0.5
+const SCREEN_RAKE := 0.23
+const SCREEN_Z: Array[float] = [-0.78, 0.0, 0.78]
+const SIDE_HINGE := Vector3(2.125, 2.54, 1.245)
+const SIDE_SHIELD := Vector2(0.8, 0.52)
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 
 const LENGTH_M := 9.4
@@ -83,6 +100,8 @@ static func build(faction: FactionDefinition) -> Node3D:
 	Frame.merged(g, "bm27_uragan:steel", _steel_parts(f), steel)
 	Frame.merged(g, "bm27_uragan:accent", _accent_parts(f), acc)
 	_build_launcher(g, f, body, dark, steel, acc)
+	_build_jacks(g, f, steel)
+	_build_shields(g, f, body)
 	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
 
@@ -113,7 +132,7 @@ static func _arch(f: Frame, parts: Array, x0: float, x1: float, r: float) -> voi
 			parts.append([ModelParts.box_mesh(size), t])
 
 
-## Camo: cab, folded blast shield, engine compartment, fenders, lockers, rear deck, bumper.
+## Camo: cab, engine compartment, fenders, lockers, rear deck, bumper.
 static func _body_parts(f: Frame) -> Array:
 	var p: Array = []
 	var cab := [
@@ -126,7 +145,6 @@ static func _body_parts(f: Frame) -> Array:
 	]
 	f.profile(p, "bm27_uragan:cab", cab, 1.22)
 	f.slab(p, 0.7, 2.6, 2.62, 2.68, 1.1)  # cab roof
-	f.slab(p, 0.05, 0.62, 1.99, 2.05, 1.18)  # blast shield folded on the nose ledge
 	f.slab(p, 0.0, 0.4, 0.85, 1.28, 1.3)  # front bumper
 	f.slab(p, 2.7, 4.55, 1.2, 2.16, 1.18)  # engine compartment
 	f.slab(p, 2.8, 4.45, 2.16, 2.22, 1.08)  # its roof
@@ -153,6 +171,8 @@ static func _dark_parts(f: Frame) -> Array:
 	f.pair(p, 1.28, 1.32, 2.55, 2.59, 0.08, 1.28)  # mirror arms
 	f.pair(p, 9.3, 9.36, 0.45, 1.25, 0.22, 1.1)  # mudflaps
 	f.slab(p, 4.4, 9.2, 1.55, 1.6, 0.7)  # turntable ring base
+	f.pair(p, JACK_X - 0.15, JACK_X + 0.15, 0.85, 1.15, 0.16, JACK_Z, 0.02)  # jack brackets
+	f.pair(p, JACK_X - 0.09, JACK_X + 0.09, 0.6, 1.3, 0.09, JACK_Z, 0.02)  # jack sleeves
 	return p
 
 
@@ -286,3 +306,56 @@ static func _build_actuators(
 		mount.name = "ActuatorMount%d" % i
 		mount.position = to_pod * f.p(ACTUATOR_MOUNT.x, ACTUATOR_MOUNT.y, z)
 		pod.add_child(mount)
+
+
+## "Stabiliser0/1" (left, right): rod + foot pad sliding down out of the fixed sleeves in the dark
+## parts; meta "deployed" = the pivot lowered until the pad touches y = 0.
+static func _build_jacks(g: Node3D, f: Frame, steel: Material) -> void:
+	for i in 2:
+		var z := JACK_Z * (-1.0 if i == 0 else 1.0)
+		var jack := Node3D.new()
+		jack.name = "Stabiliser%d" % i
+		g.add_child(jack)
+		var parts: Array = []
+		var rod_bottom := JACK_STOWED_H + 0.1
+		f.drum(
+			parts,
+			JACK_X,
+			(rod_bottom + JACK_ROD_TOP) / 2.0,
+			z,
+			0.06,
+			JACK_ROD_TOP - rod_bottom,
+			&"y",
+			8
+		)
+		f.drum(parts, JACK_X, JACK_STOWED_H + 0.05, z, JACK_PAD_RADIUS, 0.1, &"y", 12)
+		Frame.merged(jack, "bm27_uragan:jack%d" % i, parts, steel)
+		jack.set_meta(
+			&"deployed", Transform3D(Basis.IDENTITY, Vector3(0.0, -JACK_STOWED_H * f.k, 0.0))
+		)
+
+
+## "BlastShield0..2" over the windscreen panes, "BlastShield3/4" over the door windows. Built pose
+## = open, meta "deployed" = closed in front of the glass.
+static func _build_shields(g: Node3D, f: Frame, body: Material) -> void:
+	var index := 0
+	var screen_closed := Basis(Vector3.BACK, PI / 2.0 + SCREEN_RAKE)
+	var screen := ModelParts.box_mesh(Vector3(SCREEN_LENGTH, SHIELD_THICKNESS, 0.74) * f.k)
+	for z: float in SCREEN_Z:
+		var pivot := Node3D.new()
+		pivot.name = "BlastShield%d" % index
+		index += 1
+		pivot.position = f.p(SCREEN_HINGE.x, SCREEN_HINGE.y, z)
+		g.add_child(pivot)
+		ModelParts.add(pivot, screen, body, Vector3(SCREEN_LENGTH / 2.0, -0.065, 0.0) * f.k)
+		pivot.set_meta(&"deployed", Transform3D(screen_closed, pivot.position))
+	var side := ModelParts.box_mesh(Vector3(SIDE_SHIELD.x, SIDE_SHIELD.y, SHIELD_THICKNESS) * f.k)
+	for s: float in [-1.0, 1.0]:
+		var pivot := Node3D.new()
+		pivot.name = "BlastShield%d" % index
+		index += 1
+		pivot.position = f.p(SIDE_HINGE.x, SIDE_HINGE.y, s * SIDE_HINGE.z)
+		pivot.basis = Basis(Vector3.RIGHT, -s * PI / 2.0)
+		g.add_child(pivot)
+		ModelParts.add(pivot, side, body, Vector3(0.0, -SIDE_SHIELD.y / 2.0, s * 0.025) * f.k)
+		pivot.set_meta(&"deployed", Transform3D(Basis.IDENTITY, pivot.position))
