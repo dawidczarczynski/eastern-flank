@@ -48,10 +48,10 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-041](TASK-041-catalog-mechanisms.md) | Unit catalog: mechanisms registry (`mechanisms.json`), per-unit `mechanisms` with params, validation, research, readiness | 🔵 done | TASK-037, TASK-040 |
 | [TASK-042](TASK-042-catalog-mechanisms-ui.md) | Unit catalog: edit mechanisms in the form; research + verify Uragan / Homar-K mechanisms | 🔵 done | **TASK-041** |
 | [TASK-043](TASK-043-model-mechanisms-contract.md) | Models carry their mechanisms (`MECHANISMS` metadata), registry contract test, `/model-unit` passes them on; fills the empty catalog mechanisms of tanks and squads | 🔵 done | **TASK-041**, TASK-042 |
-| [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction (replaces the Uragan's `stowed_yaw` meta), elevation per unit | 🟡 in progress | **TASK-043** |
-| [TASK-045](TASK-045-stabilisers.md) | Deploy step: `stabilisers` (jacks) + `blast_shields` (cab shields) before a volley; Homar-K jacks, Uragan rework (TASK-046 merged in) | 🔴 blocked | **TASK-044**, TASK-042 |
+| [TASK-044](TASK-044-launcher-parameters.md) | Launcher with parameters: traverse range (vehicle turns first), stowed direction (replaces the Uragan's `stowed_yaw` meta), elevation per unit | 🔵 done | **TASK-043** |
+| [TASK-045](TASK-045-stabilisers.md) | Deploy step: `stabilisers` (jacks) + `blast_shields` (cab shields) before a volley; Homar-K jacks, Uragan rework (TASK-046 merged in) | 🟢 ready | **TASK-044**, TASK-042 |
 | [TASK-031](TASK-031-tank-model-v2.md) | First detailed tank (v2 design → real tank) + reusable tracked running gear – `unit-modeler` | 🔵 done (superseded by `/model-unit m1a2_sepv3`, `t72b3`) | – |
-| [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | 🔴 blocked | **TASK-044**, **TASK-043** (tank models exist) |
+| [TASK-047](TASK-047-turret-traverse.md) | `turret_traverse`: turret turns and gun elevates before direct fire (also counters) | 🟢 ready | **TASK-044**, **TASK-043** (tank models exist) |
 | [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | 🔵 done (superseded by `/model-unit pl_mech_infantry`, `ru_motor_rifle`; next: TASK-067) | – |
 | [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | 🔵 done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🔵 done | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
