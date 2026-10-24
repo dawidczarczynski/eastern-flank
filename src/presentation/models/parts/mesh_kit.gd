@@ -43,6 +43,12 @@ var count := 0
 var _st := SurfaceTool.new()
 var _map := Transform3D.IDENTITY
 var _normal_map := Basis.IDENTITY
+## `_map * xf` and its normal map, remade when `xf` changes (one primitive keeps one `xf`).
+var _xf_used := Transform3D.IDENTITY
+var _point_map := Transform3D.IDENTITY
+var _dir_map := Basis.IDENTITY
+## MIN_CROSS_SQ in mapped units.
+var _min_cross := MIN_CROSS_SQ
 var _tint := 0.5
 var _inner := 1.0
 
@@ -61,6 +67,11 @@ func _init(frame: Frame = null, base := Transform3D.IDENTITY) -> void:
 		)
 	_map = base * to_model
 	_normal_map = _map.basis.inverse().transposed()
+	_point_map = _map
+	_dir_map = _normal_map
+	# Exact for a uniform scale (every caller: Frame = mirror + uniform k, rigid pivots, soldiers'
+	# Basis.from_scale(ONE * 0.1)); only a threshold for dropping degenerate triangles otherwise.
+	_min_cross = MIN_CROSS_SQ * pow(absf(_map.basis.determinant()), 4.0 / 3.0)
 	_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
@@ -363,6 +374,77 @@ func sweep(path: Array, radii: Array, sides := 12, side0 := Vector3.BACK) -> voi
 	_sweep(path, radii, sides, side0, 0.0)
 
 
+## Sweep with a cross-section profile per ring instead of elliptic radii (TASK-085: anatomical
+## sections, boots, gear that follows a body): `profiles[i]` is the ring at `path[i]`, an Array of
+## Vector2(a, b) (the same count for every ring, one winding, star-shaped around the path).
+## Point (a, b) lies at path + side * a + (tangent x side) * b, the side axis starting as `side0`
+## and parallel-transported like `sweep`'s – with the path going up and side0 = +Z, b points
+## forward (+X); `side0 = wanted_b.cross(first_tangent)` makes b point along `wanted_b`. Smooth
+## normals (see `loft_rings`), flat end caps when `caps`.
+func sweep_profile(path: Array, profiles: Array, side0 := Vector3.BACK, caps := true) -> void:
+	var frames := sweep_frames(path, side0)
+	var loops := []
+	for i in path.size():
+		var t: Vector3 = frames[i][0]
+		var side: Vector3 = frames[i][1]
+		var forward := t.cross(side)
+		var loop := []
+		for q: Vector2 in profiles[i]:
+			loop.append((path[i] as Vector3) + side * q.x + forward * q.y)
+		loops.append(loop)
+	loft_rings(loops, caps)
+
+
+## Smooth loft through closed rings of points (`loops`: Arrays of Vector3, the same count, one
+## winding, each star-shaped around its centre; rings may be non-planar), capped at both ends with
+## flat fans when `caps` (a ring shrunk to a point needs no cap). Vertex normals: the cross product
+## of the neighbours around the ring and along the loft, one orientation for the whole loft
+## (outwards, or towards the ring centres when not `outward`: the inside of an open shell); a
+## ring shrunk to a point takes the loft direction. Edge flag 0.
+func loft_rings(loops: Array, caps := true, outward := true) -> void:
+	var m := loops.size()
+	var n := (loops[0] as Array).size()
+	var centres: Array[Vector3] = []
+	var total := Vector3.ZERO
+	for loop: Array in loops:
+		var c := Vector3.ZERO
+		for p: Vector3 in loop:
+			c += p
+		centres.append(c / n)
+		total += c / n
+	_set_tint(total / m)
+	var normals := []
+	var facing := 0.0
+	for i in m:
+		var loop: Array = loops[i]
+		var prev: Array = loops[maxi(i - 1, 0)]
+		var next: Array = loops[mini(i + 1, m - 1)]
+		var row := []
+		for k in n:
+			var around: Vector3 = (
+				(loop[(k + 1) % n] as Vector3) - (loop[(k - 1 + n) % n] as Vector3)
+			)
+			var along: Vector3 = (next[k] as Vector3) - (prev[k] as Vector3)
+			var nn := around.cross(along)
+			facing += nn.dot((loop[k] as Vector3) - centres[i])
+			row.append(nn)
+		normals.append(row)
+	var flip := -1.0 if (facing < 0.0) == outward else 1.0
+	for i in m:
+		var tip := centres[mini(i + 1, m - 1)] - centres[maxi(i - 1, 0)]
+		if i == 0:
+			tip = -tip
+		for k in n:
+			var nn: Vector3 = normals[i][k]
+			normals[i][k] = (
+				(nn * flip).normalized() if nn.length_squared() > 1e-16 else tip.normalized()
+			)
+	_grid(loops, normals)
+	if caps:
+		_cap(loops[0], centres[0], centres[0] - centres[mini(1, m - 1)])
+		_cap(loops[m - 1], centres[m - 1], centres[m - 1] - centres[maxi(m - 2, 0)])
+
+
 ## Round tube of radius `r` along `path` (cables, rails, handles, straps), smooth, end caps flagged
 ## as edges (`r` = 1).
 func tube(path: Array, r: float, sides := 8) -> void:
@@ -419,32 +501,32 @@ func _set_tint(at: Vector3) -> void:
 func _tri(
 	a: Vector3, b: Vector3, c: Vector3, na: Vector3, nb: Vector3, nc: Vector3, e: float
 ) -> void:
-	var la := xf * a
-	var lb := xf * b
-	var lc := xf * c
-	if (lb - la).cross(lc - la).length_squared() < MIN_CROSS_SQ:
+	if xf != _xf_used:
+		_xf_used = xf
+		_point_map = _map * xf
+		_dir_map = _normal_map * xf.basis
+	var ma := _point_map * a
+	var mb := _point_map * b
+	var mc := _point_map * c
+	var cross := (mb - ma).cross(mc - ma)
+	if cross.length_squared() < _min_cross:
 		return
-	var ma := _map * la
-	var mb := _map * lb
-	var mc := _map * lc
-	var n0 := (_normal_map * (xf.basis * na)).normalized()
-	var n1 := (_normal_map * (xf.basis * nb)).normalized()
-	var n2 := (_normal_map * (xf.basis * nc)).normalized()
-	if (mb - ma).cross(mc - ma).dot(n0 + n1 + n2) > 0.0:
+	var n0 := (_dir_map * na).normalized()
+	var n1 := (_dir_map * nb).normalized()
+	var n2 := (_dir_map * nc).normalized()
+	if cross.dot(n0 + n1 + n2) > 0.0:
 		var t := mb
 		mb = mc
 		mc = t
 		var tn := n1
 		n1 = n2
 		n2 = tn
-	var col := Color(e, openness * _inner, _tint)
-	_st.set_color(col)
+	# SurfaceTool keeps the colour for the following vertices: one call per triangle.
+	_st.set_color(Color(e, openness * _inner, _tint))
 	_st.set_normal(n0)
 	_st.add_vertex(ma)
-	_st.set_color(col)
 	_st.set_normal(n1)
 	_st.add_vertex(mb)
-	_st.set_color(col)
 	_st.set_normal(n2)
 	_st.add_vertex(mc)
 	count += 1
@@ -506,28 +588,62 @@ func _cbox_chamfers(h: Vector3, i: Vector3) -> void:
 
 ## Quads between consecutive rows of a point grid; each row wraps around.
 func _grid(grid: Array, normals: Array) -> void:
+	# Fast path of `_tri` for grids: every vertex mapped once, one colour for the whole grid.
+	if xf != _xf_used:
+		_xf_used = xf
+		_point_map = _map * xf
+		_dir_map = _normal_map * xf.basis
 	var sides := (grid[0] as Array).size()
+	var points := PackedVector3Array()
+	var dirs := PackedVector3Array()
+	for i in grid.size():
+		var row: Array = grid[i]
+		var nrow: Array = normals[i]
+		for j in sides:
+			points.append(_point_map * (row[j] as Vector3))
+			dirs.append((_dir_map * (nrow[j] as Vector3)).normalized())
+	_st.set_color(Color(0.0, openness * _inner, _tint))
 	for i in grid.size() - 1:
+		var row := i * sides
 		for j in sides:
 			var k := (j + 1) % sides
-			_tri(
-				grid[i][j],
-				grid[i][k],
-				grid[i + 1][k],
-				normals[i][j],
-				normals[i][k],
-				normals[i + 1][k],
-				0.0
-			)
-			_tri(
-				grid[i][j],
-				grid[i + 1][k],
-				grid[i + 1][j],
-				normals[i][j],
-				normals[i + 1][k],
-				normals[i + 1][j],
-				0.0
-			)
+			_emit(points, dirs, row + j, row + k, row + sides + k)
+			_emit(points, dirs, row + j, row + sides + k, row + sides + j)
+
+
+## One triangle of mapped `points` / `dirs` (see `_grid`), wound like `_tri`, degenerate ones
+## dropped; the current colour is kept.
+func _emit(points: PackedVector3Array, dirs: PackedVector3Array, ia: int, ib: int, ic: int) -> void:
+	var ma := points[ia]
+	var cross := (points[ib] - ma).cross(points[ic] - ma)
+	if cross.length_squared() < _min_cross:
+		return
+	if cross.dot(dirs[ia] + dirs[ib] + dirs[ic]) > 0.0:
+		var t := ib
+		ib = ic
+		ic = t
+	_st.set_normal(dirs[ia])
+	_st.add_vertex(ma)
+	_st.set_normal(dirs[ib])
+	_st.add_vertex(points[ib])
+	_st.set_normal(dirs[ic])
+	_st.add_vertex(points[ic])
+	count += 1
+
+
+## Flat fan closing `loop` around `centre`, facing `out` (skipped for a ring shrunk to a point).
+func _cap(loop: Array, centre: Vector3, out: Vector3) -> void:
+	var area := Vector3.ZERO
+	var n := loop.size()
+	for k in n:
+		area += ((loop[k] as Vector3) - centre).cross((loop[(k + 1) % n] as Vector3) - centre)
+	if area.length_squared() < 1e-14:
+		return
+	var normal := area.normalized()
+	if normal.dot(out) < 0.0:
+		normal = -normal
+	for k in n:
+		_tri(centre, loop[k], loop[(k + 1) % n], normal, normal, normal, 0.0)
 
 
 func _sweep(path: Array, radii: Array, sides: int, side0: Vector3, cap_edge: float) -> void:

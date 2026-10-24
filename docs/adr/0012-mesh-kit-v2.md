@@ -23,3 +23,25 @@ The six real-unit models are built in code with `ModelParts` / `VehicleFrame` he
 - (−) Chamfers cost triangles (a chamfered box is 44 triangles instead of 12) and GDScript build time; ADR 0010's budgets (40 000 triangles per vehicle, ≤ 500 ms cold build) still apply.
 - (−) Meshes are unindexed triangle lists (flat and smooth parts mixed); vertex count is 3 × triangles. Indexing can come later if memory matters.
 - (−) Colours are 8-bit, so the tint seed has 256 levels and `g` steps of 1/255.
+
+## Amendment (TASK-085, soldier v4)
+
+The meaning of the masks is unchanged; TASK-085 adds producers and consumers of `g` (openness):
+
+- **Baked analytic AO**: `OcclusionBake` (`src/presentation/models/parts/occlusion_bake.gd`)
+  multiplies a mesh's `g` by the light left by proxy capsules / spheres and helmet-rim caps (no ray
+  casting; build time, deterministic). The soldiers bake it into their uniform, skin and vest
+  meshes; "baked AO" in a mask is thus allowed, and "No baked normal or AO maps" above still holds
+  (no textures).
+- **Mask as AO output** (opt-in): the camo shader's `mask_ao` uniform (default 0, soldiers' paints 1)
+  also writes `g` to the shader's `AO` / `AO_LIGHT_AFFECT`, on top of the albedo darkening that every
+  camo material keeps. Vehicles are unchanged.
+- **Second mask-reading material family**: `assets/shaders/skin.gdshader` (soldiers' skin) reads `g`
+  (darker, redder, and as AO) and `b` (tint); it declares the `part_origin` / `wear_seed` instance
+  uniforms that `ModelParts` sets on every ShaderMaterial copy. Every soldier material reads the
+  masks (tested in `tests/unit/test_soldier_anatomy.gd`).
+- **Indexed meshes**: `MeshKits.commit_all(indexed)` may commit chosen roles indexed; the soldiers'
+  AO roles are indexed so each shared vertex is baked once (and rendered once). Other meshes stay
+  triangle lists.
+- New kit primitives: `sweep_profile` (per-ring profiles) and `loft_rings` (smooth loft of arbitrary
+  rings; `outward = false` for the inside of an open shell).

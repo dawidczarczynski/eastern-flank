@@ -26,6 +26,8 @@ const PRIMITIVES: Array[String] = [
 	"profile",
 	"sweep",
 	"sweep_pointed",
+	"sweep_profile",
+	"loft_rings_tip",
 	"tube",
 ]
 const CLOSED: Array[String] = [
@@ -41,6 +43,8 @@ const CLOSED: Array[String] = [
 	"profile",
 	"sweep",
 	"sweep_pointed",
+	"sweep_profile",
+	"loft_rings_tip",
 	"tube",
 ]
 const CONVEX: Array[String] = ["cbox", "pillow", "lathe", "lathe_oval", "rod", "stack", "loft"]
@@ -141,6 +145,16 @@ func _l_path() -> Array:
 	]
 
 
+## Non-convex (kidney-shaped) cross-section of size `r`, counter-clockwise in (a, b).
+func _kidney(r: float) -> Array:
+	var ring := []
+	for j in 16:
+		var a := TAU * j / 16
+		var dent := 1.0 - 0.3 * exp(-pow(angle_difference(a, -PI / 2.0) / 0.5, 2.0))
+		ring.append(Vector2(cos(a) * r * 1.3, sin(a) * r) * dent)
+	return ring
+
+
 func _constant_radii(path: Array, r: float) -> Array:
 	var radii := []
 	for p: Vector3 in path:
@@ -233,6 +247,22 @@ func _build(k: MeshKit, name: String) -> void:
 			]
 			var radii := [Vector2.ZERO, Vector2(0.1, 0.1), Vector2(0.08, 0.06), Vector2.ZERO]
 			k.sweep(path, radii, 10)
+		"sweep_profile":
+			var profiles := []
+			for i in _l_path().size():
+				profiles.append(_kidney(0.1 - i * 0.01))
+			k.sweep_profile(_l_path(), profiles, Vector3.UP)
+		"loft_rings_tip":
+			# A dome: rings shrinking to a point (closed tip, open-cap free).
+			var loops := []
+			for i in 5:
+				var r := 0.2 * cos(PI / 2.0 * i / 4.0)
+				var loop := []
+				for j in 12:
+					var a := TAU * j / 12
+					loop.append(Vector3(cos(a) * r, 0.2 * sin(PI / 2.0 * i / 4.0), sin(a) * r))
+				loops.append(loop)
+			k.loft_rings(loops)
 		"tube":
 			k.tube(_l_path(), 0.04, 8)
 		_:
@@ -363,6 +393,64 @@ func test_sweep_frames_do_not_twist() -> void:
 		assert_true(rad_to_deg(a.angle_to(b)) < MAX_TWIST_DEG, "no twist %s" % pair)
 	var last: Vector3 = frames[4][1]
 	assert_true(last.is_equal_approx(Vector3.LEFT), "carried around the bend: %s" % last)
+
+
+## TASK-085: sweep_profile places profile point (a, b) at path + side * a + (tangent x side) * b:
+## with the path going up and side0 = +Z, b points forward (+X).
+func test_sweep_profile_maps_a_to_the_side_axis_and_b_forward() -> void:
+	var path := [Vector3(0, 0, 0), Vector3(0, 1, 0)]
+	var square := [Vector2(0.2, 0.0), Vector2(0.0, 0.1), Vector2(-0.2, 0.0), Vector2(0.0, -0.1)]
+	var kit := MeshKit.new()
+	kit.sweep_profile(path, [square, square], Vector3.BACK)
+	var mesh := kit.commit()
+	_assert_aabb(mesh, AABB(Vector3(-0.1, 0.0, -0.2), Vector3(0.2, 1.0, 0.4)), "profile sweep")
+	var found := 0
+	for v in _verts(mesh):
+		if v.is_equal_approx(Vector3(0.1, 1.0, 0.0)) or v.is_equal_approx(Vector3(0.0, 0.0, 0.2)):
+			found += 1
+	assert_true(found > 0, "b forward, a along +Z")
+
+
+## Smooth normals of a profile sweep: on a round profile they point radially, like `sweep`'s.
+func test_sweep_profile_normals_are_smooth_and_radial() -> void:
+	var circle := []
+	for j in 16:
+		circle.append(Vector2(cos(TAU * j / 16), sin(TAU * j / 16)) * 0.1)
+	var path := [Vector3(0, 0, 0), Vector3(0, 0.5, 0), Vector3(0, 1, 0)]
+	var kit := MeshKit.new()
+	kit.sweep_profile(path, [circle, circle, circle], Vector3.BACK, false)
+	var mesh := kit.commit()
+	var verts := _verts(mesh)
+	var normals := _normals(mesh)
+	var worst := 0.0
+	for i in verts.size():
+		var radial := Vector3(verts[i].x, 0.0, verts[i].z).normalized()
+		worst = maxf(worst, rad_to_deg(normals[i].angle_to(radial)))
+	assert_true(worst < 1.0, "radial normals (worst %.2f deg)" % worst)
+
+
+## TASK-085: an open shell lofted with `outward = false` (a helmet's inside) faces its axis.
+func test_loft_rings_inward_faces_the_ring_centres() -> void:
+	var loops := []
+	for i in 3:
+		var loop := []
+		for j in 12:
+			var a := TAU * j / 12
+			loop.append(Vector3(cos(a) * 0.2, i * 0.1, sin(a) * 0.2))
+		loops.append(loop)
+	for outward: bool in [true, false]:
+		var kit := MeshKit.new()
+		kit.loft_rings(loops, false, outward)
+		var mesh := kit.commit()
+		_assert_well_formed(mesh, "loft outward %s" % outward)
+		var verts := _verts(mesh)
+		var normals := _normals(mesh)
+		var wrong := 0
+		for i in verts.size():
+			var radial := Vector3(verts[i].x, 0.0, verts[i].z)
+			if (normals[i].dot(radial) > 0.0) != outward:
+				wrong += 1
+		assert_eq(wrong, 0, "outward %s: normals on the wrong side" % outward)
 
 
 func test_tube_is_closed_with_the_expected_bounds() -> void:

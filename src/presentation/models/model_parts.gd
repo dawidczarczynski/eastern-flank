@@ -9,13 +9,15 @@ const NEUTRAL_BODY := Color("#5a5a52")
 const NEUTRAL_VEST := Color("#44443d")
 const NEUTRAL_ACCENT := Color("#a8a598")
 const CAMO_SHADER := preload("res://assets/shaders/camo.gdshader")
+const SKIN_SHADER := preload("res://assets/shaders/skin.gdshader")
 ## PBR palette: [colour, roughness, metallic] (TASK-029, docs/design/v2 "PBR materials").
 const DARK := [Color("#24251f"), 0.85, 0.15]
 const STEEL := [Color("#55564f"), 0.42, 0.75]
 const RUBBER := [Color("#171715"), 0.95, 0.0]
 const GLASS := [Color("#0b1820"), 0.06, 0.9]
 const TRACK := [Color("#2f2d28"), 0.7, 0.55]
-const SKIN := [Color("#a87c5f"), 0.75, 0.0]
+## Soldiers' skin (TASK-085: the skin shader with baked AO and subsurface scattering, `skin()`).
+const SKIN := [Color("#a2785f"), 0.6, 0.0]
 const GUN := [Color("#1b1c19"), 0.45, 0.55]
 ## Default chamfer of the part helpers (box, cylinder, prism, loft, lathe rims), model units
 ## (1 unit = 10 m before the model scale, so ~4 cm). Smaller than `MIN_BEVEL` after limiting it to
@@ -27,10 +29,28 @@ const MIN_BEVEL := 0.0015
 const PLAIN_MASK := Color(0.0, 1.0, 0.5)
 const ACCENT_ROUGHNESS := 0.55
 const ACCENT_METALLIC := 0.1
-## Camo presets: pattern scale, mud height, base roughness, metallic.
+## Camo presets: pattern scale, mud height, base roughness, metallic; optional camo shader
+## uniforms by name (`OPTIONAL_CAMO_KEYS`).
 const CAMO_VEHICLE := {"scale": 9.0, "dirt": 0.12, "rough": 0.8, "metal": 0.12}
 const CAMO_TRUCK := {"scale": 9.0, "dirt": 0.11, "rough": 0.8, "metal": 0.12}
-const CAMO_UNIFORM := {"scale": 80.0, "dirt": 0.015, "rough": 0.95, "metal": 0.0}
+## Uniform fabric (TASK-085): blotches at the real scale of the printed patterns (dominant shapes
+## ~5–15 cm on the unscaled soldier, 1 model unit = 10 m), softer contrast and saturation than
+## painted vehicles, the cloth bump and sheen.
+const CAMO_UNIFORM := {
+	"scale": 150.0,
+	"dirt": 0.015,
+	"rough": 0.95,
+	"metal": 0.0,
+	"pattern_contrast": 0.72,
+	"fade": 0.22,
+	"fabric": 1.0,
+	"mask_ao": 1.0,
+	"wear_amount": 0.0,
+	"dust_amount": 0.3,
+}
+const OPTIONAL_CAMO_KEYS: Array[String] = [
+	"pattern_contrast", "fade", "fabric", "mask_ao", "wear_amount", "dust_amount"
+]
 ## Shader pattern mode (0 = blotches, 1 = digital). Not per faction yet: change the
 ## `pattern_mode` uniform of a camo material to switch.
 const PATTERN_BLOTCHES := 0
@@ -47,12 +67,16 @@ const TURRET_OUTLINE: Array[Vector2] = [
 ]
 
 static var _meshes: Dictionary = {}  # key string -> Mesh (or a Dictionary of meshes)
-static var _materials: Dictionary = {}  # key string -> StandardMaterial3D
+static var _materials: Dictionary = {}  # key string -> Material
 ## Keyed by faction id, not owner: a faction resource edited at runtime under the same id keeps
 ## its old materials until the game restarts.
 static var _faction_materials: Dictionary = {}  # "faction_id:role" -> Material
 ## Prototypes live for the process lifetime on purpose (a few small trees, never in a scene tree).
 static var _prototypes: Dictionary = {}  # "unit_id:faction_id" -> Node3D
+## Fabric term of the uniform camo (GraphicsQuality "fabric") on or off, and the materials that
+## have one (their preset's "fabric", stored as metadata, is the value when on).
+static var _fabric_on := true
+static var _fabric_materials: Array[ShaderMaterial] = []
 
 
 ## Drops the shared meshes so the next build generates them again (tests timing a cold build).
@@ -147,6 +171,14 @@ static func camo_colors(faction: FactionDefinition) -> Array[Color]:
 	return [faction.camo[0], faction.camo[1], faction.camo[2]]
 
 
+## Switches the uniform camo's fabric bump and sheen on or off (LOW quality), for the existing and
+## the later uniform materials.
+static func set_fabric(enabled: bool) -> void:
+	_fabric_on = enabled
+	for m in _fabric_materials:
+		m.set_shader_parameter(&"fabric", m.get_meta(&"fabric") if enabled else 0.0)
+
+
 static func _build_camo(faction: FactionDefinition, preset: Dictionary) -> ShaderMaterial:
 	var colors := camo_colors(faction)
 	var m := ShaderMaterial.new()
@@ -159,6 +191,13 @@ static func _build_camo(faction: FactionDefinition, preset: Dictionary) -> Shade
 	m.set_shader_parameter(&"base_roughness", preset["rough"])
 	m.set_shader_parameter(&"metallic", preset["metal"])
 	m.set_shader_parameter(&"pattern_mode", PATTERN_BLOTCHES)
+	for key in OPTIONAL_CAMO_KEYS:
+		if preset.has(key):
+			m.set_shader_parameter(StringName(key), preset[key])
+	if preset.has("fabric"):
+		m.set_meta(&"fabric", preset["fabric"])
+		m.set_shader_parameter(&"fabric", preset["fabric"] if _fabric_on else 0.0)
+		_fabric_materials.append(m)
 	return m
 
 
@@ -183,6 +222,18 @@ static func weathered_paint(key: String, values: Dictionary) -> ShaderMaterial:
 				m.set_shader_parameter(StringName(name), values[name])
 		_materials[cache_key] = m
 	return _materials[cache_key]
+
+
+## Soldiers' skin: the skin shader (vertex-mask AO, subsurface scattering) in the SKIN palette
+## colour, shared.
+static func skin() -> ShaderMaterial:
+	if not _materials.has("skin"):
+		var m := ShaderMaterial.new()
+		m.shader = SKIN_SHADER
+		m.set_shader_parameter(&"albedo", SKIN[0])
+		m.set_shader_parameter(&"roughness", SKIN[1])
+		_materials["skin"] = m
+	return _materials["skin"]
 
 
 ## Faction accent colour material (plates, bands).

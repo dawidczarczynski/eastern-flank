@@ -137,3 +137,16 @@ func test_apply_viewport_sets_msaa_and_render_scale() -> void:
 	assert_eq(viewport.msaa_3d, Viewport.MSAA_4X)
 	assert_eq(viewport.scaling_3d_scale, 1.0)
 	viewport.free()
+
+
+## TASK-085: LOW switches the uniform camo's fabric bump and sheen off (the AO mask stays).
+func test_low_turns_the_uniform_fabric_off() -> void:
+	var faction: FactionDefinition = load("res://data/factions/poland.tres")
+	var uniform := ModelParts.faction_material(faction, &"uniform") as ShaderMaterial
+	assert_false(GraphicsQuality.features(LOW)["fabric"])
+	assert_true(GraphicsQuality.features(HIGH)["fabric"])
+	GraphicsQuality.apply_materials(GraphicsQuality.features(LOW))
+	assert_eq(uniform.get_shader_parameter(&"fabric"), 0.0)
+	assert_true(uniform.get_shader_parameter(&"mask_ao") > 0.0)
+	GraphicsQuality.apply_materials(GraphicsQuality.features(HIGH))
+	assert_eq(uniform.get_shader_parameter(&"fabric"), ModelParts.CAMO_UNIFORM["fabric"])

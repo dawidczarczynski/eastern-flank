@@ -217,14 +217,24 @@ func test_soldier_bodies_are_smooth_kit_meshes() -> void:
 			body_meshes += 1
 			var mesh := instance.mesh as ArrayMesh
 			assert_true(mesh != null, "%s %s is an ArrayMesh" % [id, role])
-			var arrays := mesh.surface_get_arrays(0)
-			assert_true(arrays[Mesh.ARRAY_INDEX] == null, "%s %s: written by MeshKit" % [id, role])
+			var arrays := _triangle_list(mesh)
 			assert_false((arrays[Mesh.ARRAY_COLOR] as PackedColorArray).is_empty())
 			if role != &"dark":
 				var smooth := _smooth_fraction(arrays)
 				assert_true(smooth > 0.7, "%s %s smooth vertices: %.2f" % [id, role, smooth])
 		assert_true(body_meshes >= 15, "%s: body meshes %d" % [id, body_meshes])
 		model.free()
+
+
+## The mesh's arrays as a triangle list (TASK-085: the soldiers' AO roles are indexed).
+func _triangle_list(mesh: ArrayMesh) -> Array:
+	var arrays := mesh.surface_get_arrays(0)
+	if arrays[Mesh.ARRAY_INDEX] == null:
+		return arrays
+	var st := SurfaceTool.new()
+	st.create_from(mesh, 0)
+	st.deindex()
+	return st.commit_to_arrays()
 
 
 ## Share of vertices (non-indexed triangles) whose normal differs from the face normal by > 2°.
@@ -253,14 +263,16 @@ func test_camo_materials_shared_per_faction_and_preset() -> void:
 	ia.free()
 
 
-func test_vests_stay_plain_standard_materials() -> void:
+## TASK-085: vests, pouches and packs are weathered paint in the faction's vest colour (reads the
+## AO mask), not a plain StandardMaterial3D.
+func test_vests_are_weathered_paint_in_the_vest_color() -> void:
 	var model := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
 	var found := false
 	for instance in _all_meshes(model):
-		var m := instance.material_override as StandardMaterial3D
-		if m != null and m.albedo_color == _faction(0).vest_color:
+		var m := instance.material_override as ShaderMaterial
+		if m != null and m.get_shader_parameter(&"color_a") == _faction(0).vest_color:
 			found = true
-	assert_true(found, "vest should be a StandardMaterial3D in vest_color")
+	assert_true(found, "vest should be a weathered paint in vest_color")
 	model.free()
 
 

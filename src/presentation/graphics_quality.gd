@@ -75,6 +75,9 @@ static func features(level: Level) -> Dictionary:
 		# quality (256 px per cube face); LOW converges it incrementally at a small size.
 		"sky_process_mode": Sky.PROCESS_MODE_QUALITY if high else Sky.PROCESS_MODE_INCREMENTAL,
 		"sky_radiance_size": Sky.RADIANCE_SIZE_256 if high else Sky.RADIANCE_SIZE_64,
+		# Soldiers' uniform cloth (TASK-085): the crease / weave bump and sheen of the camo shader
+		# (a few noise lookups and screen derivatives per pixel); LOW keeps the plain camo.
+		"fabric": high,
 	}
 
 
@@ -106,8 +109,16 @@ static func apply_sun(sun: DirectionalLight3D, feature_set: Dictionary) -> void:
 	sun.directional_shadow_max_distance = feature_set["shadow_max_distance"]
 
 
-## Shadow atlas (global), MSAA and 3D render scale (per viewport).
+## Shared unit materials: the uniform camo's fabric term on or off (ModelParts.set_fabric; also for
+## materials made later).
+static func apply_materials(feature_set: Dictionary) -> void:
+	ModelParts.set_fabric(feature_set["fabric"])
+
+
+## Shadow atlas (global), MSAA and 3D render scale (per viewport); also the shared unit materials
+## (`apply_materials`), which every scene with a viewport to set up needs too.
 static func apply_viewport(viewport: Viewport, feature_set: Dictionary) -> void:
+	apply_materials(feature_set)
 	RenderingServer.directional_shadow_atlas_set_size(feature_set["shadow_atlas_size"], true)
 	viewport.msaa_3d = feature_set["msaa_3d"]
 	viewport.scaling_3d_scale = feature_set["render_scale"]

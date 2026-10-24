@@ -34,13 +34,14 @@ func triangle_count() -> int:
 
 
 ## The non-empty kits committed as {role: ArrayMesh} (insertion order kept): geometry that does not
-## depend on the materials, e.g. to share it through `ModelParts.cached_meshes`.
-func commit_all() -> Dictionary:
+## depend on the materials, e.g. to share it through `ModelParts.cached_meshes`. The roles in
+## `indexed` are committed indexed (identical vertices shared, see `MeshKit.commit`).
+func commit_all(indexed: Array[StringName] = []) -> Dictionary:
 	var meshes := {}
 	for name: StringName in _kits:
 		var kit: MeshKit = _kits[name]
 		if kit.count > 0:
-			meshes[name] = kit.commit()
+			meshes[name] = kit.commit(name in indexed)
 	return meshes
 
 

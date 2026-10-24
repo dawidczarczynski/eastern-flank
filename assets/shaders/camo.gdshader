@@ -19,6 +19,9 @@ uniform float pattern_scale = 9.0;
 uniform float base_roughness = 0.8;
 uniform float metallic = 0.12;
 uniform int pattern_mode = 0;
+// Blotch contrast: 1 = the faction colours as they are, lower pulls them towards their mean
+// (printed uniform fabric, TASK-085).
+uniform float pattern_contrast = 1.0;
 uniform float digital_cells = 6.0;
 // Paint wear on edges (COLOR.r): chipped to the bare, slightly metallic steel colour.
 uniform vec4 wear_color : source_color = vec4(0.38, 0.36, 0.32, 1.0);
@@ -37,6 +40,16 @@ uniform float ground_ao_height = 0.03;
 // Rain streaks on vertical faces, sun-faded (desaturated) paint.
 uniform float streak_amount = 0.12;
 uniform float fade = 0.15;
+// Fabric (soldiers' uniforms, TASK-085): 0 = paint; 1 = cloth – creases across the limbs and a
+// fine rip-stop weave bumped into the normal (both fade out below ~1 px like the other noises)
+// and a soft sheen at grazing angles. `fabric_relief` = crease depth in model units.
+uniform float fabric = 0.0;
+uniform float fabric_relief = 0.00025;
+// Baked occlusion (COLOR.g) as the AO output too (soldiers, TASK-085): 0 = albedo darkening only
+// (vehicles), 1 = the ambient light and part of the direct light follow it as well. The two stack
+// on purpose: the albedo term keeps creases dark in full sun, the AO term shades the ambient light
+// the sky would not reach (armpits, under a brim); the soldier renders were tuned with both.
+uniform float mask_ao = 0.0;
 // Offset of this part inside the model (set per MeshInstance3D by ModelParts) so the pattern
 // and the mud line are continuous across the separate primitives of one model.
 instance uniform vec3 part_origin = vec3(0.0);
@@ -116,6 +129,7 @@ void fragment() {
 		col = mix(col, color_b.rgb, smoothstep(0.52 - aa, 0.52 + aa, na));
 		col = mix(col, color_c.rgb, smoothstep(0.585 - ab, 0.585 + ab, nb));
 	}
+	col = mix((color_a.rgb + color_b.rgb + color_c.rgb) / 3.0, col, pattern_contrast);
 	col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), fade);
 	col *= 1.0 + (COLOR.b - 0.5) * tint_amount;
 
@@ -157,6 +171,30 @@ void fragment() {
 		metal = mix(metal, 0.05, burnt);
 	}
 
+	if (fabric > 0.0) {
+		// Bump from a height field in model units (Mikkelsen's surface-gradient bump mapping, no
+		// tangents needed): creases ~3 cm apart across the limbs, the weave at ~5 mm.
+		vec3 m = p * 10.0;
+		float pm = px * 10.0;
+		float crease = fbl(vec3(m.x * 14.0, m.y * 34.0, m.z * 14.0), pm * 34.0);
+		float weave = n3l(m * 190.0, pm * 190.0);
+		float h = crease * 0.75 + weave * 0.25;
+		vec3 dpdx = dFdx(VERTEX);
+		vec3 dpdy = dFdy(VERTEX);
+		float to_view = length(dpdx) / max(length(dFdx(obj_pos)), 1e-9);
+		vec3 r1 = cross(dpdy, NORMAL);
+		vec3 r2 = cross(NORMAL, dpdx);
+		float det = dot(dpdx, r1);
+		vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2) * fabric_relief * to_view;
+		NORMAL = normalize(abs(det) * NORMAL - fabric * grad);
+		RIM = 0.3 * fabric;
+		RIM_TINT = 0.6;
+		rough = min(rough + 0.03, 1.0);
+	}
+	if (mask_ao > 0.0) {
+		AO = mix(1.0, COLOR.g, mask_ao);
+		AO_LIGHT_AFFECT = 0.5 * mask_ao;
+	}
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = metal;

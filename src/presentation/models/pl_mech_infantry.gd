@@ -1,11 +1,12 @@
 ## Polish mechanised infantry squad (12th Mechanized Brigade dismounts, current kit): five
-## soldiers in wz. 93 Pantera (faction uniform camo), wz. 2005 PASGT-like helmets, plate carriers
-## with front pouches and assault packs; three MSBS Grot C riflemen, a kneeling RPG-7 gunner and a
-## UKM-2000 machine gunner. Squad contract: Soldier0..4, each with a Rig; kneelers have Kneel +
-## Stand (Stand hidden). Blueprint: docs/design/units/units/pl_mech_infantry/blueprint.md.
-## The soldier (squad pivots, smooth MeshKit body, RPG-7, helpers) is the shared parts/soldier.gd;
-## this file adds the Polish kit. SOLDIER_SCALE exaggerates the real 1.82 m so the squad reads at
-## game zoom.
+## soldiers in wz. 93 Pantera (faction uniform camo), wz. 2005 PASGT-like helmets, KKZ plate
+## carriers with front pouches and assault packs; three MSBS Grot C riflemen, a kneeling RPG-7
+## gunner and a UKM-2000 machine gunner. Squad contract: Soldier0..4, each with a Rig; kneelers
+## have Kneel + Stand (Stand hidden).
+## Blueprint: docs/design/units/units/pl_mech_infantry/blueprint.md.
+## The soldier (pose, anatomical body, AO, RPG-7, helpers) is the shared parts/soldier.gd; this
+## file adds the Polish kit through `dress`. SOLDIER_SCALE exaggerates the real 1.82 m so the
+## squad reads at game zoom.
 
 const Soldier := preload("res://src/presentation/models/parts/soldier.gd")
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
@@ -18,6 +19,12 @@ const SOLDIER_SCALE := 1.75
 const RIFLE := 0
 const RPG := 1
 const MG := 2
+## How each kit holds its weapon (SoldierPose stances).
+const STANCES := {
+	RIFLE: Soldier.RIFLE_STANCE,
+	RPG: Soldier.LAUNCHER_STANCE,
+	MG: Soldier.HIP_STANCE,
+}
 ## Squad layout: [x, z, kneeling, kit, carry, yaw] (Soldier.squad); front rifleman first, aiming;
 ## the rear rifleman carries low and watches the right flank, the kneeling one covers the left.
 const SQUAD: Array = [
@@ -27,148 +34,114 @@ const SQUAD: Array = [
 	[-0.19, 0.06, false, RIFLE, Soldier.LOW, 0.7],
 	[-0.16, -0.13, true, RIFLE, Soldier.AIM, -0.5],
 ]
-## wz. 2005 helmet (PASGT-like): dome flaring into a short brim, lower over the ears and neck
-## (Vector2(radius, y) from the crown base, metres); crown base height and back tilt.
+## wz. 2005 helmet (PASGT-like, outer 0.32 × 0.29 m): dome flaring into a short brim, then the
+## inner wall of the shell (Vector2(radius, y) from the rim plane, metres); `oval` stretches it to
+## the real length / width; rim plane in head pivot coordinates and its back tilt.
 const HELMET: Array[Vector2] = [
-	Vector2(0.0, 0.175),
-	Vector2(0.07, 0.163),
-	Vector2(0.112, 0.135),
-	Vector2(0.138, 0.09),
-	Vector2(0.15, 0.04),
-	Vector2(0.155, 0.0),
-	Vector2(0.165, -0.035),
-	Vector2(0.172, -0.05),
-	Vector2(0.15, -0.055),
-	Vector2(0.0, -0.055),
+	Vector2(0.0, 0.128),
+	Vector2(0.055, 0.123),
+	Vector2(0.095, 0.108),
+	Vector2(0.123, 0.083),
+	Vector2(0.14, 0.052),
+	Vector2(0.148, 0.022),
+	Vector2(0.152, 0.004),
+	Vector2(0.157, -0.01),
+	Vector2(0.153, -0.016),
+	Vector2(0.143, -0.006),
+	Vector2(0.128, 0.05),
+	Vector2(0.0, 0.05),
 ]
-const HELMET_BASE := 1.635
-const HELMET_TILT := 0.16
+const HELMET_OVAL := Vector2(1.03, 0.93)
+const HELMET_AT := Vector3(0.004, 0.07, 0.0)
+const HELMET_TILT := 0.24
 
 
 static func build(faction: FactionDefinition) -> Node3D:
-	var dress := func(
-		k: MeshKits, up: Vector3, kit: int, kneel: bool, carry: int
-	) -> Array[Vector3]:
-		return _dress(k, up, kit, kneel, carry)
 	var g := Soldier.squad(
-		"pl_mech_infantry", SQUAD, SOLDIER_SCALE, Soldier.materials(faction), dress
+		"pl_mech_infantry", SQUAD, SOLDIER_SCALE, Soldier.materials(faction), dress, STANCES
 	)
 	ModelParts.declare_mechanisms(g, MECHANISMS)
 	return g
 
 
-## The Polish kit on one soldier: helmet, plate carrier, pack and the weapon of `kit`.
-static func _dress(k: MeshKits, up: Vector3, kit: int, kneel: bool, carry: int) -> Array[Vector3]:
-	_helmet(k, up)
-	_carrier(k, up)
-	_pack(k, up)
-	match kit:
+## The Polish kit on one soldier: helmet, plate carrier, pack and the weapon of `pose.kit`; returns
+## the grips (see Soldier.squad).
+static func dress(k: MeshKits, pose: SoldierPose) -> Array[Vector3]:
+	_helmet(k, pose)
+	_carrier(k, pose)
+	_pack(k, pose)
+	match pose.kit:
 		RPG:
-			return Soldier.rpg7(k, Soldier.rpg7_shoulder(up))
+			return Soldier.rpg7(k, pose.launcher())
 		MG:
-			return _mg(k, up)
-	return _rifle(k, up, Soldier.carry_angle(carry, kneel, -0.45, -0.25))
+			return _mg(k, pose)
+	return _rifle(k, pose.shouldered(Soldier.carry_angle(pose.carry, pose.kneel, -0.45, -0.25)))
 
 
-## wz. 2005 helmet with the Pantera cover (uniform camo), elastic band, NVG shroud, chin strap and
-## ballistic glasses.
-static func _helmet(k: MeshKits, up: Vector3) -> void:
-	var h := Soldier.helmet_frame(up, HELMET_BASE, HELMET_TILT)
-	Soldier.helmet(k, up, h, HELMET, -0.03)
+## wz. 2005 helmet with the Pantera cover (uniform camo), elastic band, NVG shroud and chin strap.
+static func _helmet(k: MeshKits, pose: SoldierPose) -> void:
+	var h := Soldier.helmet(k, pose, HELMET, HELMET_AT, HELMET_TILT, HELMET_OVAL)
 	var dark := k.k(&"dark")
-	dark.lathe(
-		h.origin,
-		h.basis,
-		[Vector2(0.149, 0.06), Vector2(0.155, 0.057), Vector2(0.157, 0.04), Vector2(0.151, 0.037)],
-		18
+	dark.loft_rings(
+		Soldier.oval_rings(
+			h,
+			[
+				Vector2(0.138, 0.062),
+				Vector2(0.144, 0.06),
+				Vector2(0.146, 0.05),
+				Vector2(0.141, 0.048)
+			],
+			HELMET_OVAL,
+			16
+		)
 	)
 	dark.cbox(
-		h * Vector3(0.14, 0.09, 0.0),
-		Vector3(0.03, 0.05, 0.06),
+		h * Vector3(0.132, 0.085, 0.0),
+		Vector3(0.022, 0.035, 0.045),
 		0.008,
-		h.basis.rotated(Vector3.BACK, -0.6)
-	)
-	var c := up + Soldier.HEAD
-	k.k(&"gun").cbox(
-		c + Vector3(0.085, 0.022, 0.0), Vector3(0.03, 0.035, 0.15), 0.008, Basis(Vector3.BACK, 0.1)
+		h.basis.rotated(h.basis.z, -0.55)
 	)
 
 
-## KKZ plate carrier: front and back plates, cummerbund, shoulder straps, three magazine pouches,
-## radio and IFAK on the sides, belt with buckle.
-static func _carrier(k: MeshKits, up: Vector3) -> void:
+## KKZ plate carrier following the torso: plates front and back with the cummerbund lower at the
+## sides, padded shoulder straps, three magazine pouches (8 × 13 × 4.5 cm) with flaps, radio
+## (left) and IFAK (right) on the sides, belt with buckle.
+static func _carrier(k: MeshKits, pose: SoldierPose) -> void:
 	var vest := k.k(&"vest")
 	var dark := k.k(&"dark")
+	Soldier.torso_shell(vest, pose, 1.04, 1.42, Vector3(0.036, 0.016, 0.034), 0.15, 6)
+	Soldier.shoulder_pads(vest, pose, Vector3(0.13, 0.012, 0.05))
+	var pouches := []
+	for d: float in [-0.42, 0.0, 0.42]:
+		var f := Soldier.on_torso(pose, 1.18, PI / 2.0 + d, 0.036)
+		vest.cbox(f * Vector3(0.022, 0.0, 0.0), Vector3(0.045, 0.13, 0.08), 0.01, f.basis)
+		vest.cbox(f * Vector3(0.025, 0.06, 0.0), Vector3(0.05, 0.024, 0.084), 0.007, f.basis)
+		pouches.append(f * Vector3(0.022, 0.0, 0.0))
+	pose.occluders.capsule(pouches[0], pouches[2], 0.03, 0.8)
+	var radio := Soldier.on_torso(pose, 1.2, PI, 0.016)
 	vest.pillow(
-		up + Vector3(0.11, 1.26, 0.0),
-		Vector3(0.075, 0.34, 0.33),
-		Basis(Vector3.BACK, -0.05),
-		0.3,
-		6,
-		12
+		radio * Vector3(0.025, 0.0, 0.0), Vector3(0.05, 0.16, 0.085), radio.basis, 0.45, 4, 8
 	)
-	vest.pillow(
-		up + Vector3(-0.115, 1.28, 0.0),
-		Vector3(0.07, 0.36, 0.33),
-		Basis(Vector3.BACK, 0.04),
-		0.3,
-		6,
-		12
-	)
-	vest.sweep(
-		[up + Vector3(0.0, 1.07, 0.0), up + Vector3(0.005, 1.18, 0.0)],
-		[Vector2(0.185, 0.13), Vector2(0.19, 0.135)],
-		16
-	)
-	for side: float in [-1.0, 1.0]:
-		(
-			vest
-			. tube(
-				[
-					up + Vector3(0.12, 1.42, side * 0.12),
-					up + Vector3(0.03, 1.47, side * 0.13),
-					up + Vector3(-0.08, 1.46, side * 0.13),
-					up + Vector3(-0.13, 1.42, side * 0.12),
-				],
-				0.022,
-				6
-			)
-		)
-	var tilt := Basis(Vector3.BACK, -0.05)
-	for z: float in [-0.085, 0.0, 0.085]:
-		vest.cbox(up + Vector3(0.165, 1.15, z), Vector3(0.05, 0.12, 0.075), 0.012, tilt)
-		vest.cbox(up + Vector3(0.17, 1.2, z), Vector3(0.055, 0.025, 0.08), 0.008, tilt)
-	# Radio (left) and IFAK (right) pouches.
-	vest.pillow(
-		up + Vector3(-0.02, 1.2, -0.2), Vector3(0.09, 0.16, 0.05), Basis.IDENTITY, 0.45, 4, 8
-	)
-	vest.pillow(
-		up + Vector3(-0.03, 1.17, 0.2), Vector3(0.08, 0.12, 0.05), Basis.IDENTITY, 0.45, 4, 8
-	)
-	dark.sweep(
-		[up + Vector3(0.0, 0.96, 0.0), up + Vector3(0.0, 1.0, 0.0)],
-		[Vector2(0.178, 0.122), Vector2(0.176, 0.12)],
-		16
-	)
-	dark.cbox(up + Vector3(0.12, 0.98, 0.0), Vector3(0.02, 0.04, 0.05), 0.006)
+	var ifak := Soldier.on_torso(pose, 1.17, 0.15, 0.016)
+	vest.pillow(ifak * Vector3(0.025, 0.0, 0.0), Vector3(0.05, 0.12, 0.08), ifak.basis, 0.45, 4, 8)
+	Soldier.torso_shell(dark, pose, 0.975, 1.02, Vector3(0.012, 0.012, 0.012), 0.0, 3)
+	var buckle := Soldier.on_torso(pose, 0.998, PI / 2.0, 0.014)
+	dark.cbox(buckle.origin, Vector3(0.012, 0.042, 0.055), 0.004, buckle.basis)
 
 
-## Assault pack with lid, compression straps and a side bottle.
-static func _pack(k: MeshKits, up: Vector3) -> void:
+## Assault pack on the back plate: body, lid, compression straps and a side bottle.
+static func _pack(k: MeshKits, pose: SoldierPose) -> void:
 	var vest := k.k(&"vest")
 	var dark := k.k(&"dark")
-	vest.pillow(
-		up + Vector3(-0.24, 1.25, 0.0), Vector3(0.15, 0.32, 0.27), Basis.IDENTITY, 0.35, 6, 12
-	)
-	vest.pillow(
-		up + Vector3(-0.235, 1.4, 0.0), Vector3(0.17, 0.07, 0.28), Basis.IDENTITY, 0.4, 4, 12
-	)
+	var f := Soldier.on_torso(pose, 1.25, -PI / 2.0, 0.034)
+	vest.pillow(f * Vector3(0.072, -0.01, 0.0), Vector3(0.14, 0.32, 0.27), f.basis, 0.35, 6, 12)
+	vest.pillow(f * Vector3(0.07, 0.15, 0.0), Vector3(0.16, 0.07, 0.28), f.basis, 0.4, 4, 8)
 	for z: float in [-0.08, 0.08]:
 		dark.tube(
 			[
-				up + Vector3(-0.32, 1.38, z),
-				up + Vector3(-0.325, 1.2, z),
-				up + Vector3(-0.31, 1.12, z)
+				f * Vector3(0.14, 0.13, z),
+				f * Vector3(0.147, -0.03, z),
+				f * Vector3(0.135, -0.13, z)
 			],
 			0.008,
 			4
@@ -176,8 +149,8 @@ static func _pack(k: MeshKits, up: Vector3) -> void:
 	(
 		dark
 		. lathe(
-			up + Vector3(-0.24, 1.17, 0.16),
-			Basis.IDENTITY,
+			f * Vector3(0.07, -0.08, 0.155),
+			f.basis,
 			[
 				Vector2(0.0, 0.09),
 				Vector2(0.02, 0.09),
@@ -188,14 +161,15 @@ static func _pack(k: MeshKits, up: Vector3) -> void:
 			8
 		)
 	)
+	pose.occluders.capsule(f * Vector3(0.07, -0.12, 0.0), f * Vector3(0.07, 0.12, 0.0), 0.075)
 
 
-## MSBS Grot C at the ready: butt in the right shoulder, muzzle `angle` rad below level. Polymer
-## stock, receiver, long top rail, handguard, magazine, pistol grip, round barrel with the muzzle
-## device, red-dot tube and a sling. Returns [left, right] hand.
-static func _rifle(k: MeshKits, up: Vector3, angle: float) -> Array[Vector3]:
+## MSBS Grot C in the shoulder (frame `t`: origin on the bore at the butt, see
+## SoldierPose.shouldered): polymer stock, receiver, long top rail, handguard, magazine, pistol
+## grip, round barrel with the muzzle device, red-dot tube and a sling. Returns the grips (support
+## hand under the handguard, firing hand on the pistol grip) and the fingers' curl.
+static func _rifle(k: MeshKits, t: Transform3D) -> Array[Vector3]:
 	var gun := k.k(&"gun")
-	var t := Transform3D(Basis(Vector3.BACK, angle), up + Soldier.RIFLE_BUTT)
 	Soldier.part(gun, t, Vector3(0.12, -0.03, 0.0), Vector3(0.24, 0.09, 0.04))
 	Soldier.part(gun, t, Vector3(0.37, 0.0, 0.0), Vector3(0.3, 0.07, 0.05))
 	Soldier.part(gun, t, Vector3(0.48, 0.045, 0.0), Vector3(0.54, 0.022, 0.032), 0.0, 0.004)
@@ -227,19 +201,19 @@ static func _rifle(k: MeshKits, up: Vector3, angle: float) -> Array[Vector3]:
 		k,
 		[
 			t * Vector3(0.02, -0.06, -0.025),
-			up + Vector3(0.1, 1.2, -0.17),
+			t * Vector3(0.3, -0.2, -0.06),
 			t * Vector3(0.7, -0.03, -0.03)
 		]
 	)
-	return [t * Vector3(0.62, -0.06, -0.02), t * Vector3(0.29, -0.11, 0.0)]
+	return [t * Vector3(0.53, -0.055, 0.0), t * Vector3(0.305, -0.1, 0.0), t.basis.y, -t.basis.z]
 
 
-## UKM-2000 carried at the hip: stock, receiver, feed cover, carrying handle, long barrel with the
-## flash hider and gas block, folded bipod, olive ammunition box on the left, sling over the
-## shoulder.
-static func _mg(k: MeshKits, up: Vector3) -> Array[Vector3]:
+## UKM-2000 carried at the hip (the stock under the right forearm): stock, receiver, feed cover,
+## carrying handle, long barrel with the flash hider and gas block, folded bipod, olive ammunition
+## box on the left, sling over the left shoulder.
+static func _mg(k: MeshKits, pose: SoldierPose) -> Array[Vector3]:
 	var gun := k.k(&"gun")
-	var t := Transform3D(Basis(Vector3.BACK, 0.05), up + Vector3(-0.12, 1.1, 0.22))
+	var t := Transform3D(Basis(Vector3.BACK, 0.06), pose.torso(1.1) * Vector3(-0.1, 1.07, 0.17))
 	Soldier.part(gun, t, Vector3(0.13, -0.03, 0.0), Vector3(0.26, 0.11, 0.045))
 	Soldier.part(gun, t, Vector3(0.44, 0.0, 0.0), Vector3(0.36, 0.1, 0.07))
 	Soldier.part(gun, t, Vector3(0.42, 0.06, 0.0), Vector3(0.22, 0.025, 0.045), 0.0, 0.004)
@@ -275,10 +249,10 @@ static func _mg(k: MeshKits, up: Vector3) -> Array[Vector3]:
 			k,
 			[
 				t * Vector3(0.05, 0.0, -0.03),
-				up + Vector3(0.12, 1.42, 0.14),
-				up + Vector3(-0.1, 1.44, -0.14),
-				t * Vector3(0.7, 0.02, -0.04),
+				Soldier.on_torso(pose, 1.3, PI / 2.0 - 0.3, 0.05).origin,
+				pose.chest * Vector3(-0.01, 1.51, -0.11),
+				Soldier.on_torso(pose, 1.25, -PI / 2.0 - 0.6, 0.05).origin,
 			]
 		)
 	)
-	return [t * Vector3(0.6, -0.04, -0.03), t * Vector3(0.29, -0.12, 0.0)]
+	return [t * Vector3(0.52, -0.06, -0.01), t * Vector3(0.3, -0.105, 0.0), t.basis.y, -t.basis.z]
