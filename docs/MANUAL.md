@@ -251,11 +251,11 @@ Below that are the animation buttons. Each unit only gets the ones it has:
 
 | Button | Units | What it shows |
 |---|---|---|
-| Drive | vehicles | the unit drives on the spot, wheels or tracks turning (on/off) |
+| Drive | vehicles | the unit drives on the spot, wheels or tracks turning, with dust and exhaust smoke (on/off) |
 | March / Kneel / stand | infantry squads | the soldiers march (on/off); kneel down or stand up |
 | Deploy | rocket artillery | stabiliser jacks down (Uragan: also the blast shields closed over the cab windows) (on/off) |
 | Raise launcher / Traverse | rocket artillery | raises the launcher, turns it to the side (on/off) |
-| Fire | rocket artillery | the full battle salvo at a target post: deploy, raise, turn, fire, then everything back to travel position |
+| Fire | rocket artillery | the full battle salvo with its fire, smoke and trails, at a distant target off-screen: deploy, raise, turn, fire, then everything back to travel position |
 | Hit / Death | all | the hit reaction and the destruction (a vehicle leaves its burnt wreck) |
 | Reset | all | rebuilds the model in its normal state, e.g. after Death |
 | Auto-rotate | all | slowly turns the camera around the unit (on/off) |

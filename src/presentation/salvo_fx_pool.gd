@@ -170,9 +170,10 @@ static func effects(pool: SalvoFxPool, quality: Dictionary) -> SalvoEffects:
 	return pool.effects_for_volley(quality.get("fx_lights", false))
 
 
-## Pool implementation of SalvoEffects for one volley.
-func effects_for_volley(with_lights := true) -> SalvoEffects:
-	return VolleyFx.new(self, with_lights)
+## Pool implementation of SalvoEffects for one volley. Without `with_impacts` only the launch and
+## the flight show (the unit catalog's rockets land far off-screen, over no ground).
+func effects_for_volley(with_lights := true, with_impacts := true) -> SalvoEffects:
+	return VolleyFx.new(self, with_lights, with_impacts)
 
 
 ## Direction the backblast leaves in: opposite to the tube horizontally, but never into the ground
@@ -581,6 +582,7 @@ class VolleyFx:
 
 	var _pool: SalvoFxPool
 	var _with_lights: bool
+	var _with_impacts: bool
 	var _volley: Node3D
 	var _shooter: UnitView
 	var _pod_length := SalvoFxPool.POD_LENGTH_FALLBACK
@@ -596,9 +598,10 @@ class VolleyFx:
 	var _impact_light: SalvoLight
 	var _rocket_length := 0.3
 
-	func _init(pool: SalvoFxPool, with_lights: bool) -> void:
+	func _init(pool: SalvoFxPool, with_lights: bool, with_impacts: bool) -> void:
 		_pool = pool
 		_with_lights = with_lights
+		_with_impacts = with_impacts
 
 	func begin(context: Dictionary) -> void:
 		_volley = context["volley"]
@@ -664,6 +667,8 @@ class VolleyFx:
 		var trail: SalvoTrail = _trails.get(index)
 		if trail != null:
 			trail.stop()
+		if not _with_impacts:
+			return
 		_pool.emit_impact(point, _target_dust)
 		_pool.emit_column(_target_centre, SalvoFxPool.COLUMN_PER_IMPACT)
 		if _impact_light != null:
@@ -675,7 +680,7 @@ class VolleyFx:
 		for index: int in _trails:
 			if is_instance_valid(_trails[index]):
 				(_trails[index] as SalvoTrail).stop()
-		if is_instance_valid(_pool):
+		if _with_impacts and is_instance_valid(_pool):
 			_pool.add_column(target_centre)
 
 	## The flame `age` seconds after the launch, behind the rocket's tail (hidden after PLUME_TIME).

@@ -2,7 +2,8 @@ class_name CatalogStage
 extends Node3D
 ## The 3D side of the in-game unit catalog (TASK-084): lighting like the battle, a ground disc, one
 ## stand-alone UnitView built through UnitModels.build (the battle's path) and the animations the
-## model offers (CatalogAnimations). The launcher steps are the battle's own (VolleyPlayback).
+## model offers (CatalogAnimations). The launcher steps and the salvo effects are the battle's own
+## (VolleyPlayback, SalvoFxPool); Drive raises the battle's dust and exhaust.
 ## Holds no GameState and no rules; the camera and the UI live in unit_catalog.gd.
 ## Lasting animations (Drive, March) are toggles advanced in _process; pose animations (Deploy,
 ## Raise, Traverse, Fire) run one at a time on `_pose_tween`.
@@ -15,11 +16,14 @@ const BACKGROUND := Color("#171a15")
 const GROUND_COLOR := Color("#34372f")
 const GROUND_RADIUS := 1.9
 const GROUND_HEIGHT := 0.04
-## The Fire animation shoots at a dummy this far from the unit, in the direction the launcher
-## is traversed to.
-const TARGET_DISTANCE := 1.0
-## Radius of the salvo's landing disc around the dummy target (the battle uses most of a tile).
-const LANDING_RADIUS := 0.2
+## The Fire animation shoots at a point this far from the unit, in the direction the launcher is
+## traversed to: far beyond the ground disc, so the rockets climb out of the picture (their
+## impacts are not shown).
+const TARGET_DISTANCE := 30.0
+## Radius of the salvo's landing disc around that point.
+const LANDING_RADIUS := 1.0
+## Culling box (XZ) of the salvo effects: the stage and the rockets' whole flight.
+const FX_BOUNDS := Rect2(-35.0, -35.0, 70.0, 70.0)
 ## Gun elevation (rad) of the tank Traverse demo.
 const TURRET_DEMO_ELEVATION := 0.1
 ## Travel speed of Drive and March (world units per second), like a move in the battle.
@@ -34,7 +38,6 @@ var _view: UnitView
 var _definition: UnitDefinition
 var _faction: FactionDefinition
 var _hud_holder := Control.new()
-var _target := Node3D.new()
 var _wreck: WreckView
 var _bounds := AABB()
 var _animations: Array[StringName] = []
@@ -54,6 +57,8 @@ var _dead := false
 var _traverse_angle := 0.0
 var _pose_tween: Tween
 var _volley: RocketVolley
+var _salvo_fx: SalvoFxPool  # created at the first Fire; null without particles
+var _drive_time := 0.0
 
 
 func _init() -> void:
@@ -63,7 +68,6 @@ func _init() -> void:
 	add_child(_hud_holder)
 	_build_environment()
 	_build_ground()
-	_build_target()
 
 
 # --- Queries ----------------------------------------------------------------------------------
@@ -96,12 +100,14 @@ func bounds() -> AABB:
 	return _bounds
 
 
-## Box the camera frames: the model, plus the Fire target for a unit that can fire.
+## Box the camera frames: the model (the Fire target is far off-screen).
 func framing_bounds() -> AABB:
-	if view() == null or CatalogAnimations.FIRE not in _animations:
-		return _bounds
-	var target := _fire_point()
-	return _bounds.merge(AABB(target - Vector3(0.1, 0.0, 0.1), Vector3(0.2, 0.2, 0.2)))
+	return _bounds
+
+
+## The salvo effects pool; null before the first launcher is shown or without particles.
+func salvo_fx() -> SalvoFxPool:
+	return _salvo_fx
 
 
 ## Length, height and width of the model in real metres (without the game's model scale).
@@ -183,6 +189,8 @@ func show_unit(unit_definition: UnitDefinition, unit_faction: FactionDefinition)
 	_animations = CatalogAnimations.for_model(model)
 	if CatalogAnimations.FIRE in _animations or CatalogAnimations.TRAVERSE in _animations:
 		_traverse_angle = CatalogAnimations.traverse_angle(model)
+	if CatalogAnimations.FIRE in _animations:
+		_salvo_pool()  # built (and its shaders compiled) now, not at the first launch
 	state_changed.emit()
 
 
@@ -200,12 +208,12 @@ func clear() -> void:
 		remove_child(_wreck)
 		_wreck.queue_free()
 	_wreck = null
-	_target.visible = false
 	_driving = false
 	_marching = false
 	_standing = false
 	_env = 0.0
 	_distance = 0.0
+	_drive_time = 0.0
 	_deploy_on = false
 	_raise_on = false
 	_traverse_on = false
@@ -253,6 +261,8 @@ func _process(delta: float) -> void:
 		return
 	_env = move_toward(_env, 1.0 if moving else 0.0, delta / Locomotion.ENVELOPE_RAMP)
 	_distance += delta * TRAVEL_SPEED * _env
+	_drive_time = _drive_time + delta if _env > 0.0 else 0.0
+	unit_view.drive_effects(_drive_time, TRAVEL_SPEED * _env)
 	var model := unit_view.model()
 	if UnitModels.is_vehicle(_definition):
 		UnitModels.pose_tank(model, _distance, _env, Vector2.ZERO)
@@ -328,19 +338,21 @@ func _traverse_turret() -> void:
 	_pose_tween.finished.connect(_on_pose_finished)
 
 
-## The battle's volley sequence (deploy, raise, traverse, salvo, back) at a dummy target in the
-## direction the launcher is traversed to, so the body never has to turn.
+## The battle's volley sequence (deploy, raise, traverse, salvo, back) at a point far away in the
+## direction the launcher is traversed to, so the body never has to turn. Launch fire, smoke,
+## trails and lights are the battle's (SalvoFxPool on particle quality); impacts are not shown.
 func _fire() -> void:
 	var elevation := UnitModels.launcher_elevation(_view.model())
-	var aim_point := _fire_point()
-	_target.position = aim_point
-	_target.visible = true
+	var aim_point := fire_point()
 	_firing = true
 	_pose_tween = create_tween()
 	VolleyPlayback.append_aim(_pose_tween, _view, _traverse_angle, elevation)
 	_volley = VolleyPlayback.append_salvo(
 		_pose_tween, self, _view, aim_point, _fx_rng, LANDING_RADIUS
 	)
+	var pool := _salvo_pool()
+	if pool != null:
+		_volley.effects = pool.effects_for_volley(quality.get("fx_lights", false), false)
 	VolleyPlayback.append_stow(_pose_tween, _view, _traverse_angle, elevation)
 	_pose_tween.finished.connect(_on_pose_finished)
 
@@ -352,9 +364,20 @@ func finish_pose() -> void:
 	_on_pose_finished()
 
 
+## The battle's salvo effects pool, created for the first launcher shown; null when `quality` has
+## no particles.
+func _salvo_pool() -> SalvoFxPool:
+	if _salvo_fx == null and quality.get("particles", false):
+		_salvo_fx = SalvoFxPool.new(FX_BOUNDS)
+		add_child(_salvo_fx)
+		_salvo_fx.set_sun(_sun.transform.basis.z, _sun.light_color)
+		_salvo_fx.warm_up(Vector2.ZERO, quality.get("fx_lights", false))
+	return _salvo_fx
+
+
 ## Where the Fire animation shoots: TARGET_DISTANCE from the unit in the direction the launcher
 ## traverses to, so the body never has to turn.
-func _fire_point() -> Vector3:
+func fire_point() -> Vector3:
 	var stowed := 0.0 if UnitModels.launcher_params(_view.model())["stowed"] == "front" else PI
 	var yaw := _view.facing_yaw() + stowed + _traverse_angle
 	return _view.position + Vector3(cos(yaw), 0.0, -sin(yaw)) * TARGET_DISTANCE
@@ -365,7 +388,6 @@ func _on_pose_finished() -> void:
 	_pose_tween = null
 	_free_volley()
 	_firing = false
-	_target.visible = false
 	var unit_view := view()
 	if unit_view != null:
 		unit_view.set_deploy_pose(1.0 if _deploy_on else 0.0)
@@ -391,10 +413,10 @@ func _die() -> void:
 	_pose_tween = null
 	_free_volley()
 	_firing = false
-	_target.visible = false
 	_driving = false
 	_marching = false
 	_dead = true
+	_view.drive_effects(0.0, 0.0)
 	var tween := _view.play_death(_adopt_wreck)
 	if tween != null:
 		tween.finished.connect(func() -> void: state_changed.emit())
@@ -458,34 +480,3 @@ func _build_ground() -> void:
 	material.roughness = 1.0
 	ground.material_override = material
 	add_child(ground)
-
-
-## The dummy the Fire animation shoots at: a post with a red-and-white ring on the ground.
-func _build_target() -> void:
-	_target.name = "Target"
-	_target.visible = false
-	var white := StandardMaterial3D.new()
-	white.albedo_color = Color("#d9d6cc")
-	var red := StandardMaterial3D.new()
-	red.albedo_color = Color("#b3402f")
-	for i in 3:
-		var ring := MeshInstance3D.new()
-		var mesh := CylinderMesh.new()
-		var radius := 0.16 - i * 0.05
-		mesh.top_radius = radius
-		mesh.bottom_radius = radius
-		mesh.height = 0.004
-		mesh.radial_segments = 24
-		ring.mesh = mesh
-		ring.position.y = 0.003 + i * 0.002
-		ring.material_override = red if i % 2 == 0 else white
-		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_target.add_child(ring)
-	var post := MeshInstance3D.new()
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.02, 0.2, 0.02)
-	post.mesh = post_mesh
-	post.position.y = 0.1
-	post.material_override = white
-	_target.add_child(post)
-	add_child(_target)

@@ -225,6 +225,19 @@ func _step_heavy(elapsed: float, dt: float) -> void:
 	_pose_moving(pose["path_time"], env)
 
 
+## Dust and exhaust of a vehicle driving on the spot (the unit catalog's Drive): `speed` world units
+## per second, `since_start` seconds after it pulled away; a speed of 0 switches them off. No-op
+## without particles or for a class that raises none.
+func drive_effects(since_start: float, speed: float) -> void:
+	if _fx == null:
+		return
+	if speed <= 0.0:
+		_fx.end()
+		return
+	_fx.begin()
+	_fx.update(since_start, speed, 0.0, Terrain.Type.PLAINS)
+
+
 func _ground_point(p: Vector3) -> Vector3:
 	if _move_height.is_valid():
 		p.y = _move_height.call(p.x, p.z)

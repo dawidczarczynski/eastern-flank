@@ -180,18 +180,86 @@ func test_fire_target_is_in_the_traversed_direction() -> void:
 		var stage := _make_stage()
 		stage.show_unit(_definition(unit_id), _faction(unit_id))
 		stage.play(IDS.FIRE)
-		var target := stage.find_child("Target", false, false) as Node3D
-		assert_true(target.visible)
+		var target := stage.fire_point()
 		var model := stage.view().model()
-		var yaw := MoveAnimation.facing_yaw(stage.view().position, target.position)
+		var yaw := MoveAnimation.facing_yaw(stage.view().position, target)
 		var aim := UnitModels.launcher_aim(model, stage.view().facing_yaw(), yaw)
 		assert_true(absf(aim.x) < TOL, "the body does not need to turn")
 		assert_true(absf(wrapf(aim.y - IDS.traverse_angle(model), -PI, PI)) < 0.001)
-		assert_true(absf(target.position.length() - CatalogStage.TARGET_DISTANCE) < 0.001)
+		assert_true(absf(target.length() - CatalogStage.TARGET_DISTANCE) < 0.001)
 		stage.finish_pose()
-		assert_false(target.visible)
 		stage.free()
 		_stage = null
+
+
+func test_fire_target_is_far_off_screen() -> void:
+	var stage := _make_stage()
+	stage.show_unit(_definition(&"homar_k"), _faction(&"homar_k"))
+	var target := stage.fire_point()
+	assert_true(target.length() > CatalogStage.GROUND_RADIUS * 10.0, "far beyond the ground disc")
+	assert_false(stage.framing_bounds().has_point(target), "the camera frames the unit only")
+	var bounds := CatalogStage.FX_BOUNDS
+	assert_true(
+		bounds.grow(-1.0).has_point(Vector2(target.x, target.z)), "inside the fx culling box"
+	)
+
+
+func test_fire_uses_the_battle_salvo_effects_without_impacts() -> void:
+	var stage := _make_stage()
+	stage.quality = {"particles": true, "fx_lights": true}
+	stage.show_unit(_definition(&"homar_k"), _faction(&"homar_k"))
+	var pool := stage.salvo_fx()
+	assert_true(pool != null, "a launcher gets the salvo pool")
+	pool.emitted[&"blast"] = 0
+	pool.emitted[&"fire"] = 0
+	pool.emitted[&"smoke"] = 0
+	pool.emitted[&"debris"] = 0
+	stage.play(IDS.FIRE)
+	# The pose tween does not run outside the tree: set the salvo up and drive it by hand.
+	var volley := stage.find_child("RocketVolley", false, false) as RocketVolley
+	assert_true(volley.effects is SalvoFxPool.VolleyFx, "the battle's salvo effects")
+	var target := stage.fire_point()
+	var plan := VolleyPlayback.plan_for(stage.view(), target)
+	var rng := RandomNumberGenerator.new()
+	var landings := VolleyPlayback.landing_points(rng, target, plan["count"], 1.0)
+	VolleyPlayback.setup_salvo(volley, stage.view(), target, landings, plan)
+	var t := 0.0
+	while t < volley.duration():
+		volley.update(t)
+		t += 0.05
+	volley.update(volley.duration())
+	volley.free()
+	assert_true(pool.emitted[&"blast"] > 0, "backblast smoke")
+	assert_true(pool.emitted[&"fire"] > 0, "backblast fire")
+	assert_true(pool.emitted[&"trail"] > 0, "smoke trails")
+	assert_eq(pool.emitted[&"smoke"], 0, "no impact smoke")
+	assert_eq(pool.emitted[&"debris"], 0, "no impact debris")
+	assert_eq(pool.column_count(), 0, "no smoke column")
+
+
+func test_a_launcher_without_particles_gets_no_pool() -> void:
+	var stage := _make_stage()
+	stage.quality = {"particles": false}
+	stage.show_unit(_definition(&"homar_k"), _faction(&"homar_k"))
+	assert_eq(stage.salvo_fx(), null)
+
+
+func test_drive_raises_dust_and_exhaust() -> void:
+	var stage := _make_stage()
+	stage.quality = {"particles": true}
+	stage.show_unit(_definition(&"m1a2_sepv3"), _faction(&"m1a2_sepv3"))
+	var emitters := stage.view().find_children("Exhaust", "GPUParticles3D", true, false)
+	assert_eq(emitters.size(), 1)
+	var exhaust := emitters[0] as GPUParticles3D
+	assert_false(exhaust.emitting)
+	stage.play(IDS.DRIVE)
+	stage._process(0.3)
+	assert_true(exhaust.emitting, "exhaust while driving")
+	assert_true(exhaust.amount_ratio > 0.0)
+	stage.play(IDS.DRIVE)
+	for i in 20:
+		stage._process(0.1)
+	assert_false(exhaust.emitting, "off at rest")
 
 
 func test_show_unit_while_firing_clears_the_salvo() -> void:
