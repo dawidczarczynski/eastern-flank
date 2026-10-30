@@ -60,7 +60,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-091](TASK-091-command-points.md) | Command points – tactical C2 delay (N activations per turn, `no_command_points`) | 🔵 done | – (soft: TASK-086) |
 | [TASK-087](TASK-087-real-map-import.md) | Maps from real geography: sources + licences, hex scales, offline import tool (OSM + DEM → `data/maps/`), sample real battle (study first) | 🟢 ready | – (soft: TASK-086) |
 | [TASK-089a](TASK-089a-company-combat-rolls.md) | Company combat: per-element rolls, weaker when battered, `forecast()` API, AI by expected value, simulation before/after | 🔵 done | – (soft: TASK-088) |
-| [TASK-089b](TASK-089b-combat-forecast-hud.md) | Combat forecast in the HUD hover card: damage + 10–90 % range, destroy chance, counter | 🟢 ready | **TASK-089a** |
+| [TASK-089b](TASK-089b-combat-forecast-hud.md) | Combat forecast: target tag + crosshair cursor, unit ring on RMB (ATTACK with forecast, INFO card – no hover card) | 🔵 done | **TASK-089a** |
 | TASK-092 | Operational state: operational map from real data, formations (battalion / brigade = companies) as data, `MoveFormationCommand`, operational turns | 💡 idea | TASK-086, TASK-087 |
 | TASK-094 | Contact → battle: contact rule, `BattleSetup` from formations, tactical map cut at the contact point, objectives derived from the situation, scene transition | 💡 idea | TASK-092, TASK-088, TASK-087 |
 | TASK-095 | Battle result → operation: losses into formations, fatigue / readiness, retreat, initiative | 💡 idea | TASK-094 |

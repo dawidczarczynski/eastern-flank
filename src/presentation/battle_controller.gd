@@ -43,9 +43,8 @@ var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
 var _hovered_unit_id := -1
 var _hud_root: Control
-var _unit_popup: UnitPopup
 var _portraits: PortraitRenderer
-var _popup_unit_id := -1  # unit shown on the hover card, -1 = hidden
+var _target_ring := TargetRingController.new()  # TASK-089b: target tag, crosshair, target ring
 var _hud: BattleHud
 var _terrain_panel: TerrainPanel
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
@@ -179,21 +178,21 @@ func _setup_graphics_quality() -> void:
 func _process(_delta: float) -> void:
 	if not is_built:
 		return
-	_update_unit_popup()
+	_update_target_tag()
 	_map_view.set_camera_distance(_camera_rig.distance())
 	_map_view.set_camera_target(_camera_rig.target())
 	var camera := get_viewport().get_camera_3d()
 	if camera == null or camera.global_transform == _last_camera_transform:
 		return
 	_last_camera_transform = camera.global_transform
-	_on_mouse_motion(get_viewport().get_mouse_position())
+	_set_hovered_hex(_pick_hex(get_viewport().get_mouse_position()))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	var motion := event as InputEventMouseMotion
 	if motion != null:
 		if is_built:
-			_on_mouse_motion(motion.position)
+			_set_hovered_hex(_pick_hex(motion.position))
 		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo or not is_built:
@@ -204,22 +203,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if (
 		key.keycode == KEY_G
 		and not (key.ctrl_pressed or key.alt_pressed or key.meta_pressed)
-		and not _text_input_has_focus()
+		and not (is_inside_tree() and get_viewport().gui_get_focus_owner() is LineEdit)
 	):  # view setting, like camera keys
 		_map_view.cycle_grid_mode()
 		return
-	if not _input_allowed():
+	if not _input_allowed() or _target_ring.handle_key(key.keycode):
 		return
 	if key.keycode == KEY_ENTER:
 		_end_human_turn()
 	elif key.keycode == KEY_ESCAPE:
 		_select(-1)
-
-
-func _text_input_has_focus() -> bool:
-	var viewport := get_viewport()
-	var focus := viewport.gui_get_focus_owner() if viewport != null else null
-	return focus is LineEdit or focus is TextEdit
 
 
 ## Screenshot debug hook (tools/screenshot.gd): selects a unit and hovers a tile near it.
@@ -228,16 +221,26 @@ func debug_select_and_hover(unit_id: int) -> void:
 	var unit := _sim.state.get_unit(unit_id)
 	if unit != null:
 		_set_hovered_hex(unit.coord + Vector2i(2, 0))
-	_update_unit_popup()  # _process is disabled in the screenshot tool
+	_update_target_tag()  # _process is disabled in the screenshot tool
 
 
-## Screenshot debug hook (tools/screenshot.gd): hovers the unit's own tile (hover card).
+## Screenshot debug hook (tools/screenshot.gd): hovers the unit's tile, the mouse on the unit.
 func debug_hover_unit(unit_id: int) -> void:
-	get_viewport().warp_mouse(get_viewport().get_visible_rect().size * 0.4)
+	var on_unit: Variant = _target_ring.screen_position(unit_id)
+	get_viewport().warp_mouse(on_unit if on_unit != null else get_viewport().size * 0.4)
 	var unit := _sim.state.get_unit(unit_id)
 	if unit != null:
 		_set_hovered_hex(unit.coord)
-	_update_unit_popup()
+	_update_target_tag()
+
+
+## Screenshot hook (tag/ring shots), debug only: puts `target_id` next to `attacker_id` directly.
+func debug_place_next_to(attacker_id: int, target_id: int) -> void:
+	var coord := TargetRingController.debug_target_tile(_sim.state, attacker_id, target_id)
+	_sim.state.get_unit(target_id).coord = coord
+	var view: UnitView = _unit_views[target_id]
+	view.position = _map_view.tile_top_position(coord)
+	view.refresh_label()
 
 
 ## Screenshot debug hook (tools/screenshot.gd): points the camera at a unit's tile.
@@ -249,11 +252,8 @@ func debug_focus_camera(
 		push_error("debug_focus_camera: no unit %d" % unit_id)
 		return
 	var focus := _map_view.tile_top_position(unit.coord)
-	_camera_rig.set_view(Vector2(focus.x, focus.z), yaw, distance)
 	_camera_rig.set_pitch_offset(pitch_offset)
-	for view: UnitView in _unit_views.values():
-		view.refresh_label()  # _process is disabled in the screenshot tool
-	debug_build_grass()
+	debug_focus_point(Vector2(focus.x, focus.z), yaw, distance)
 
 
 ## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_FOCUS): points the camera at a world
@@ -307,15 +307,17 @@ func _save_match() -> void:
 		print("Match saved (%d commands): %s" % [record.commands.size(), path])
 
 
-## A click that never became a camera drag: LMB selects/moves/attacks, RMB deselects.
+## A click that never became a camera drag: the unit ring first (RMB on a unit opens it, any
+## click closes it), then LMB selects/moves/attacks and RMB on the ground deselects.
 func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 	if not _input_allowed():
 		return
+	var coord: Variant = _pick_hex(screen_position)
+	if _target_ring.handle_click(button, coord, _selected_unit_id):
+		return
 	if button == MOUSE_BUTTON_RIGHT:
 		_select(-1)
-		return
-	var coord: Variant = _pick_hex(screen_position)
-	if coord != null:
+	elif coord != null:
 		_on_hex_clicked(coord)
 
 
@@ -364,10 +366,6 @@ func _pick_hex(screen_position: Vector2) -> Variant:
 
 
 ## Tracks the hovered tile; the path preview is recomputed only when it changes.
-func _on_mouse_motion(screen_position: Vector2) -> void:
-	_set_hovered_hex(_pick_hex(screen_position))
-
-
 func _set_hovered_hex(coord: Variant) -> void:
 	if typeof(coord) == typeof(_hovered_hex) and coord == _hovered_hex:
 		return
@@ -401,9 +399,7 @@ func _draw_path_preview() -> int:
 		or unit == null
 		or not unit.is_alive()
 		or unit.owner_id != HUMAN_PLAYER
-		or _is_playing_events()
-		or state.current_player != HUMAN_PLAYER
-		or state.is_over()
+		or not _input_allowed()
 	):
 		_map_view.clear_path()
 		return -1
@@ -432,6 +428,7 @@ func _on_hex_clicked(coord: Vector2i) -> void:
 ## Runs the end of the human turn and every AI turn synchronously; their events are queued in
 ## _on_event and replayed afterwards as one burst.
 func _end_human_turn() -> void:
+	_target_ring.close()
 	_sim.execute(EndTurnCommand.new())
 	while not _sim.state.is_over() and _sim.state.current_player != HUMAN_PLAYER:
 		_ai.take_turn(_sim)
@@ -446,9 +443,8 @@ func _select(unit_id: int) -> void:
 	_refresh_selection_ui()
 
 
-## Everything that depends on the selected unit: move highlights, the info panel
-## and the path preview (recomputed for the hovered tile; it hides itself when there is
-## no valid target, e.g. after a move, on turn end or game over).
+## Everything that depends on the selected unit: move highlights, the info panel and the path
+## preview (it hides itself without a valid target, e.g. after a move, turn end or game over).
 func _refresh_selection_ui() -> void:
 	_refresh_unit_markers()
 	_refresh_path_preview()
@@ -522,10 +518,9 @@ func _refresh_highlights() -> void:
 ## Red markers on enemies the selected unit can attack now (ids from AttackCommand, tiles here).
 ## valid_targets is empty on the AI's turn and after game over, so no extra guards are needed.
 func _refresh_attack_targets(unit: Unit) -> void:
-	var state := _sim.state
 	var coords: Array[Vector2i] = []
-	for id: int in AttackCommand.valid_targets(state, unit.id):
-		coords.append(state.get_unit(id).coord)
+	for id: int in AttackCommand.valid_targets(_sim.state, unit.id):
+		coords.append(_sim.state.get_unit(id).coord)
 	_map_view.show_attack_targets(coords)
 
 
@@ -563,39 +558,24 @@ func _build_bottom_left_stack() -> void:
 	stack.add_child(operation)
 	_terrain_panel = TerrainPanel.new()
 	stack.add_child(_terrain_panel)
-	_unit_popup = UnitPopup.new()
-	_hud_root.add_child(_unit_popup)
 	_portraits = PortraitRenderer.new()
 	add_child(_portraits)
 	_portraits.setup(quality)
+	_target_ring.setup(_sim, HUMAN_PLAYER, _hud_root, _unit_views, _portrait_of, _input_allowed)
+	add_child(_target_ring)
 
 
-## Shows the hover card while the hovered tile holds a living unit, follows the cursor and hides
-## during a camera drag, event playback and after game over. The card is rebuilt when the shown
-## unit changes (and after every event burst, because hiding resets it).
-func _update_unit_popup() -> void:
+## The target tag over a valid target of the selected unit (TASK-089b), hidden during a camera
+## drag, event playback and after game over. The unit card has no hover version: it shows only
+## through the unit ring's INFO.
+func _update_target_tag() -> void:
 	var state := _sim.state
 	var unit: Unit = null
-	if (
-		_hovered_hex != null
-		and not state.is_over()
-		and not _camera_rig.is_dragging()
-		and not _is_playing_events()
-	):
+	var hidden := state.is_over() or _camera_rig.is_dragging() or _is_playing_events()
+	if _hovered_hex != null and not hidden:
 		unit = state.unit_at(_hovered_hex)
-	if unit == null or not unit.is_alive() or _unit_popup.suppressed:
-		_popup_unit_id = -1
-		_unit_popup.hide()
-		return
-	if unit.id != _popup_unit_id or not _unit_popup.visible:
-		_popup_unit_id = unit.id
-		_unit_popup.show_model(UnitPopupModel.build(state, unit, HUMAN_PLAYER))
-	_unit_popup.set_portrait(_portrait_of(state, unit))  # may finish rendering while shown
-	_unit_popup.position = UnitPopupModel.placement(
-		get_viewport().get_mouse_position(),
-		get_viewport().get_visible_rect().size,
-		_unit_popup.card_size()
-	)
+	var mouse := get_viewport().get_mouse_position()
+	_target_ring.update_tag(_selected_unit_id, unit, hidden, mouse)
 
 
 ## The unit's portrait once rendered, else null.

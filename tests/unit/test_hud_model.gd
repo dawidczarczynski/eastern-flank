@@ -1,6 +1,10 @@
 extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
+const ABRAMS := preload("res://data/units/m1a2_sepv3.tres")
+const SQUAD := preload("res://data/units/pl_mech_infantry.tres")
+const HOMAR := preload("res://data/units/homar_k.tres")
+const URAGAN := preload("res://data/units/bm27_uragan.tres")
 
 var state: GameState
 var sim: GameSimulation
@@ -128,3 +132,77 @@ func test_result_reason_follows_the_end_reason_and_the_side() -> void:
 	assert_eq(HudModel.result_reason(state, 0), "TURN LIMIT REACHED")
 	state.finish(-1, &"no_such_reason")
 	assert_eq(HudModel.result_reason(state, 0), "")
+
+
+func _forecast_texts(
+	attacker_def: UnitDefinition, defender_def: UnitDefinition, distance: int = 1
+) -> Array[String]:
+	var forecast_state := GameState.new(Fixtures.plains_grid(7), 2, 1)
+	var a := forecast_state.add_unit(0, attacker_def, Vector2i(0, 0))
+	var d := forecast_state.add_unit(1, defender_def, Vector2i(distance, 0))
+	var texts: Array[String] = []
+	for line: Dictionary in HudModel.attack_forecast(forecast_state, a.id, d.id):
+		texts.append(("%s %s" % [line["label"], line["value"]]).strip_edges())
+	return texts
+
+
+func test_forecast_abrams_on_a_squad() -> void:
+	assert_eq(
+		_forecast_texts(ABRAMS, SQUAD), ["DAMAGE 4.0 (2–6)", "DESTROY <1 %", "COUNTER 0.6 (0–2)"]
+	)
+
+
+func test_forecast_abrams_on_an_uragan() -> void:
+	assert_eq(
+		_forecast_texts(ABRAMS, URAGAN), ["DAMAGE 5.4 (4–6)", "DESTROY 63 %", "COUNTER 0.2 (0–1)"]
+	)
+
+
+func test_forecast_homar_on_an_uragan_at_six_hexes() -> void:
+	assert_eq(_forecast_texts(HOMAR, URAGAN, 6), ["DAMAGE 5.0 (4–6)", "DESTROY 33 %", "NO COUNTER"])
+
+
+func test_forecast_hides_a_zero_destroy_chance() -> void:
+	var texts := _forecast_texts(Fixtures.fighter(5, 2, 5), Fixtures.fighter(5, 2))  # 5 shots, 10 HP
+	assert_eq(texts.size(), 2)
+	assert_true(texts[0].begins_with("DAMAGE "))
+	assert_true(texts[1].begins_with("COUNTER "))
+
+
+func test_destroy_chance_text_at_the_edges() -> void:
+	assert_eq(HudModel.destroy_chance_text(0.0), "")
+	assert_eq(HudModel.destroy_chance_text(0.0001), "<1 %")
+	assert_eq(HudModel.destroy_chance_text(0.6331), "63 %")
+	assert_eq(HudModel.destroy_chance_text(0.996), ">99 %")
+	assert_eq(HudModel.destroy_chance_text(1.0), "100 %")
+
+
+func test_forecast_only_for_a_valid_target() -> void:
+	assert_eq(HudModel.attack_forecast(state, attacker.id, victim.id).size(), 3)
+	var far := state.unit_at(Vector2i(3, 0))
+	assert_true(HudModel.attack_forecast(state, attacker.id, far.id).is_empty())  # out of range
+	assert_eq(HudModel.attack_tag(state, attacker.id, victim.id).size(), 3)
+	assert_true(HudModel.attack_tag(state, attacker.id, far.id).is_empty())
+	assert_true(HudModel.attack_tag(state, -1, victim.id).is_empty())
+	var own := state.unit_at(Vector2i(-3, 0))
+	assert_true(HudModel.attack_forecast(state, attacker.id, own.id).is_empty())
+	assert_true(HudModel.attack_forecast(state, -1, victim.id).is_empty())  # nothing selected
+	attacker.has_attacked = true
+	assert_true(HudModel.attack_forecast(state, attacker.id, victim.id).is_empty())
+
+
+func _tag_texts(
+	attacker_def: UnitDefinition, defender_def: UnitDefinition, distance: int = 1
+) -> Array[String]:
+	var tag_state := GameState.new(Fixtures.plains_grid(7), 2, 1)
+	var a := tag_state.add_unit(0, attacker_def, Vector2i(0, 0))
+	var d := tag_state.add_unit(1, defender_def, Vector2i(distance, 0))
+	var texts: Array[String] = []
+	for line: Dictionary in HudModel.attack_tag(tag_state, a.id, d.id):
+		texts.append(("%s %s" % [line["label"], line["value"]]).strip_edges())
+	return texts
+
+
+func test_tag_abrams_on_a_squad_and_homar_on_an_uragan_at_six_hexes() -> void:
+	assert_eq(_tag_texts(ABRAMS, SQUAD), ["ATTACK ~4.0 (2–6)", "DESTROY <1 %", "COUNTER ~0.6"])
+	assert_eq(_tag_texts(HOMAR, URAGAN, 6), ["ATTACK ~5.0 (4–6)", "DESTROY 33 %", "NO COUNTER"])

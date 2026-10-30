@@ -100,7 +100,9 @@ When a unit is selected, the area it can reach is outlined in your side's colour
 - Any of your units can attack **one enemy unit per turn** that is within its range (counted in hexes, from 1 up to its range).
 - Range is not blocked by terrain, water or other units.
 - You can attack without moving, or move first and then attack. Attacking ends the unit's movement for the turn.
-- When a unit is selected, enemies it can attack right now are marked in red. Click one to attack it.
+- When a unit is selected, enemies it can attack right now are marked in red. Click one to attack it at once.
+- Hovering a red-marked enemy turns the cursor into an amber crosshair and shows a small **attack tag** beside it: your expected damage, the chance to destroy the target and its expected counterattack, so you don't have to work out the odds below by hand.
+- **Right-click any enemy** to open the **unit ring** around it: its ATTACK action shows the full forecast and lets you attack from there, or tells you why you can't. See Screen for both.
 
 ### Damage
 
@@ -115,7 +117,7 @@ So the hit chance of each shot is the hit number out of the attacker's full HP �
 What this means:
 
 - A unit at **full strength deals on average exactly the hit number** (the damage table below). A unit at half its HP fires half the shots and deals half as much on average.
-- **An attack can deal 0 damage.** With a hit number of 1, about one attack in three misses completely (e.g. a squad attacking a tank).
+- **An attack can deal 0 damage.** With a hit number of 1, about one attack in three misses completely (e.g. a squad attacking a tank). Such an attack plays out normally, the target just loses no HP; there is no separate "miss" message.
 - An attack can never deal more damage than the attacker has HP (one hit per shot at most).
 - A unit can only be destroyed in one attack if the attacker fires at least as many shots as the target has HP left, and the more the attacker has to spare, the likelier it is. Against a full squad even a full Abrams has only a tiny chance (all ten shots must hit: about 1 in 10,000); against a full rocket launcher (6 HP) on plains it succeeds 63 % of the time.
 
@@ -135,6 +137,7 @@ Your Abrams (Attack 7, Defense 4, on plains) attacks an enemy T-72B3 (Attack 6, 
 
 1. Your hit number: 7 − (4 + 0) = **3**. Your Abrams fires 10 shots with a d10, each hitting on 1–3 (30 %). On average **3** damage, usually 1 to 5 (only about 3 % of attacks miss completely); the T-72B3 goes from 8 HP to about 5.
 2. If the T-72B3 survives (it almost always does), it hits back, because your Abrams is adjacent (within range 1): hit number 6 − (4 + 0) = **2** on a d8 (25 % per shot), one shot per HP it has left. With about 5 HP left that is **1.25** damage on average; about a quarter of the time it doesn't hit at all.
+3. The attack tag sums this up as `ATTACK ~3.0 (1–5)`, `DESTROY <1 %`, `COUNTER ~1.3`; the unit ring's ATTACK card also gives the counter's range, `COUNTER 1.3 (0–3)`.
 
 Your Abrams attacks an enemy Motor Rifle Squad (Attack 4, Defense 3) standing in a **forest** (+1).
 
@@ -143,7 +146,7 @@ Your Abrams attacks an enemy Motor Rifle Squad (Attack 4, Defense 3) standing in
 
 The same attack on a squad standing on plains would deal 4 damage on average, on hills only 2. Attacking units in good terrain is costly.
 
-Your Homar-K (Attack 6) fires at the Uragan (Defense 1) on plains from 6 hexes away: hit number 6 − (1 + 0) = **5**, six shots with a d6, each hitting on 1–5. On average **5** damage, usually 4 to 6, and a 33 % chance that all six hit and the Uragan is destroyed. The Uragan can't hit back because it has range 5.
+Your Homar-K (Attack 6) fires at the Uragan (Defense 1) on plains from 6 hexes away: hit number 6 − (1 + 0) = **5**, six shots with a d6, each hitting on 1–5. On average **5** damage, usually 4 to 6, and a 33 % chance that all six hit and the Uragan is destroyed. The Uragan can't hit back because it has range 5. Attack tag: `ATTACK ~5.0 (4–6)`, `DESTROY 33 %`, `NO COUNTER`.
 
 ### Damage table
 
@@ -221,8 +224,8 @@ In a battle with command points it spends its points on its most valuable action
 ## 10. Screen
 
 - **Top bar**: a bar hanging from the top edge, with a tick ruler under it. The turn number is in the centre (e.g. "01"; in a battle with a turn limit followed by the limit in smaller type, e.g. "01/08"), with the side whose turn it is ("▸ POLAND"). On each side: a hexagonal badge with the side's short code (PL for Poland, RU for Russia), its name, its status (ACTIVE / WAITING) and how many units it has. The active side is lit and has a hatched bar under it in its colour; the waiting side is dimmed. In a battle with command points, the active side's name has a `C2 remaining/N` line under it (e.g. `C2 1/2`); without a limit it is not shown.
-- **Bottom right**: a row of key hints (only keys the game has, see Controls), the **READY** counter (your units that can still do something / all your units, one block per unit: filled = can still act; once your command points run out, units that have not acted no longer count as ready) and the **End turn** button in your side's colour. The button is greyed out while animations play and during the enemy turn.
-- **Unit card**: hover any unit (yours or the enemy's) to open its card next to the cursor (it moves to the left of the cursor near the right screen edge, and always stays below the top bar). The card is framed in the unit's side colour. From top to bottom:
+- **Bottom right**: a row of key hints (only keys the game has, see Controls, e.g. `RMB ON UNIT – UNIT MENU`; in Polish `PPM NA JEDNOSTCE – MENU JEDNOSTKI`), the **READY** counter (your units that can still do something / all your units, one block per unit: filled = can still act; once your command points run out, units that have not acted no longer count as ready) and the **End turn** button in your side's colour. The button is greyed out while animations play and during the enemy turn.
+- **Unit card**: shown only through the unit ring's **INFO** action (see Unit ring below) – hovering a unit on the map does not show it. It appears beside the ring and is framed in the unit's side colour. From top to bottom:
   - **Tab**: the unit's class (INFANTRY, TANK or ROCKET ARTILLERY) on the left and its side (POLAND / RUSSIA) on the right.
   - **Name**: the unit's real name in capitals (e.g. M1A2 SEPv3 ABRAMS), with its short designation in small grey type below it (M1A2, HOMAR, BM-27). Squads and the T-72B3 have no designation line, because it would only repeat the class or the name. In the Polish version the class and the squad names are translated (Drużyna piechoty zmechanizowanej, Drużyna zmotoryzowana); vehicle names stay as they are.
   - **Portrait**: a lit 3D picture of the unit in its side's camouflage (rendered once per unit type and side at the start of the battle), behind amber corner brackets and a crosshair. Until it is ready the box is plain dark.
@@ -230,6 +233,16 @@ In a battle with command points it spends its points on its most valuable action
   - **Stats**: Attack, Defense, Moves (left / per turn) and Range, each with its number and a short bar. Attack and Defense bars are full at 10, Moves and Range bars at 6. Defense includes the terrain bonus of the unit's tile, e.g. `5 (3+2)` on hills, and its bar shows that total.
   - **Mobility tag**: how the unit moves – FOOT (infantry), WHEELED (rocket artillery) or TRACKED (tanks). For now this is information only; all units pay the same movement costs.
   - **Status**: a small hexagon and a line saying READY (green), READY · ALREADY ATTACKED (green), DONE THIS TURN (grey) or ENEMY UNIT (in the enemy's colour).
+- **Attack tag**: while one of your units is selected and you hover an enemy it can attack right now, the cursor becomes an amber crosshair and a small tag appears next to it. Anything else (your own unit, an enemy out of range, nothing selected) shows the normal cursor and nothing extra. The numbers follow the dice rules in Combat, including a weakened attacker firing fewer shots and the target's terrain:
+  - `ATTACK ~3.0 (1–5)`: your attack's average damage and, in brackets, the range it lands in 8 times out of 10. It never exceeds the HP the target has left.
+  - `DESTROY 63 %`: the chance your attack destroys the target outright. Shows `<1 %` or `>99 %` near the edges and `100 %` when certain; the line is left out when it is impossible (you fire fewer shots than the target has HP).
+  - `COUNTER ~1.3`: the average damage of the enemy's counterattack, counting only the HP it would have left after your attack (a destroyed target doesn't hit back). `NO COUNTER` when your unit is outside the enemy's range, e.g. a Homar-K firing from 6 hexes at an Uragan.
+  - Examples on plains, both units at full strength: Abrams → T-72B3 `ATTACK ~3.0 (1–5)`, `DESTROY <1 %`, `COUNTER ~1.3`; Abrams → Motor Rifle Squad `ATTACK ~4.0 (2–6)`, `DESTROY <1 %`, `COUNTER ~0.6`; Abrams → Uragan `ATTACK ~5.4 (4–6)`, `DESTROY 63 %`, `COUNTER ~0.2`; Homar-K → Uragan from 6 hexes `ATTACK ~5.0 (4–6)`, `DESTROY 33 %`, `NO COUNTER`.
+- **Unit ring**: right-click (without dragging) any living unit – yours or the enemy's – during your turn to open a ring of six segments around it. It stays on the unit when you pan, rotate or zoom. Beside the ring is a card: with nothing hovered it shows the unit's name and Strength under a UNIT tab (your own unit) or a TARGET tab (an enemy); hovering a segment shows that action's description instead. On an enemy the first two segments are used (1 ATTACK, 2 INFO); on your own unit only 2 INFO is used for now and segment 1 is empty (its orders come later). The remaining segments are empty and dimmed.
+  - **1 ATTACK**: the card shows the full forecast for your selected unit – the average damage as a big number (AVG DAMAGE), a bar with the range it lands in 8 times out of 10 (RANGE 10–90 %), DESTROY, COUNTER with its range (e.g. `COUNTER 1.3 (0–3)`) or NO COUNTER, and the cost: ENDS MOVEMENT. Click the segment or press **1** to attack; the ring closes and the attack plays. When the attack isn't possible the segment is red and the card says UNAVAILABLE with the reason: NO UNIT SELECTED, TARGET OUT OF RANGE, ALREADY ATTACKED THIS TURN or NO COMMAND POINTS LEFT THIS TURN (or THE BATTLE IS OVER).
+  - **2 INFO** (any unit): hovering it only shows the action's card (`ACTION [2] INFO` – "Show the unit's card: strength, stats and status."). Click it or press **2** to show the unit's card (see Unit card) beside the ring; click it or press **2** again to hide it.
+  - **Closing**: Esc, a click anywhere outside the ring, or another right-click closes it; that click does nothing else (a right-click on another unit opens the ring there instead). It also closes when your turn ends or the unit is destroyed.
+  - In the Polish version the labels read ATAK, INFO, ZNISZCZENIE, KONTRATAK, BEZ KONTRATAKU, KOŃCZY RUCH and NIEDOSTĘPNE.
 - **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus a `PATH · 2 / 5 MP` row (in your faction colour) when you have a unit selected and the tile is reachable. Above the panel, `■ OP. IRON SHORE` names the operation.
 - **Selection**: selecting a unit outlines the area it can reach in your colour and slightly darkens the rest of the map; the tile under the cursor is tinted when the unit can move there. Water is never darkened, and unreachable tiles inside the area (such as a lake) get their own outline.
 - **Beyond the map edge**: the land around the map (a little greyer and paler, with trees on HIGH graphics) is scenery only. You can't hover or click tiles there, units can't go there, and the camera can't be panned off the map.
@@ -250,8 +263,12 @@ In a battle with command points it spends its points on its most valuable action
 |---|---|
 | Select your unit | Left-click it |
 | Move the selected unit | Left-click a tile inside the outlined area |
-| Attack with the selected unit | Left-click a red-marked enemy |
-| Deselect | Right-click, or Esc |
+| Attack with the selected unit | Left-click a red-marked enemy, or ATTACK (key 1) in its unit ring |
+| Open the unit ring | Right-click any unit, yours or the enemy's (without dragging) |
+| Use the unit ring | Click a segment, or keys 1 (ATTACK, enemies only) / 2 (INFO) |
+| Show / hide a unit's card | INFO in its unit ring (click or key 2, again to hide) |
+| Close the unit ring | Esc, a click outside it, or right-click |
+| Deselect | Right-click the ground, or Esc (with the unit ring closed) |
 | End turn | Enter, or the End turn button |
 | Pan the camera | Left-drag, or W A S D / arrow keys |
 | Rotate the camera | Right-drag, or Q / E |
@@ -300,4 +317,4 @@ While Deploy, Raise launcher, Traverse or Fire is running, the other pose button
 
 ## 13. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, an on-screen attack forecast (the odds in Combat have to be worked out by hand for now), vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.

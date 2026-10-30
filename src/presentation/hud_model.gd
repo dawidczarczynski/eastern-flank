@@ -67,6 +67,85 @@ static func command_points_text(state: GameState, player: int) -> String:
 	return "C2 %d/%d" % [remaining, per_turn]
 
 
+## The full attack forecast (TASK-089b) while `attacker_id` is selected and `defender_id` is one
+## of its valid targets, else []. Each line is {label, value} (label an untranslated key, value ""
+## when the label says it all), numbers from AttackCommand.forecast():
+## DAMAGE 4.0 (2–6) · DESTROY 63 % (omitted when impossible) · COUNTER 0.6 (0–2) / NO COUNTER.
+## The target ring's ATTACK card shows the DAMAGE line as its big number and lists the rest.
+static func attack_forecast(
+	state: GameState, attacker_id: int, defender_id: int
+) -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	var f := _forecast_of(state, attacker_id, defender_id)
+	if f == null:
+		return lines
+	lines.append(
+		_forecast_line("DAMAGE", _spread_text(f.expected_damage, f.damage_low, f.damage_high))
+	)
+	var destroy := destroy_chance_text(f.kill_chance)
+	if destroy != "":
+		lines.append(_forecast_line("DESTROY", destroy))
+	if f.counter_possible:
+		lines.append(
+			_forecast_line(
+				"COUNTER", _spread_text(f.counter_expected, f.counter_low, f.counter_high)
+			)
+		)
+	else:
+		lines.append(_forecast_line("NO COUNTER", ""))
+	return lines
+
+
+## The compact attack tag beside the cursor (TASK-089b) while `attacker_id` is selected and
+## `defender_id` is one of its valid targets, else []. Lines {label, value} like attack_forecast:
+## ATTACK ~4.0 (2–6) · DESTROY <1 % (omitted when impossible) · COUNTER ~0.6 / NO COUNTER.
+static func attack_tag(state: GameState, attacker_id: int, defender_id: int) -> Array[Dictionary]:
+	var lines: Array[Dictionary] = []
+	var f := _forecast_of(state, attacker_id, defender_id)
+	if f == null:
+		return lines
+	lines.append(
+		_forecast_line("ATTACK", "~" + _spread_text(f.expected_damage, f.damage_low, f.damage_high))
+	)
+	var destroy := destroy_chance_text(f.kill_chance)
+	if destroy != "":
+		lines.append(_forecast_line("DESTROY", destroy))
+	if f.counter_possible:
+		lines.append(_forecast_line("COUNTER", "~%.1f" % f.counter_expected))
+	else:
+		lines.append(_forecast_line("NO COUNTER", ""))
+	return lines
+
+
+## "63 %", "<1 %" / ">99 %" near the edges, "100 %" when certain, "" when impossible.
+static func destroy_chance_text(chance: float) -> String:
+	if chance <= 0.0:
+		return ""
+	if chance >= 1.0:
+		return "100 %"
+	if chance < 0.01:
+		return "<1 %"
+	if chance > 0.99:
+		return ">99 %"
+	return "%d %%" % roundi(chance * 100.0)
+
+
+## The forecast of `attacker_id` attacking `defender_id`, null unless it is a valid target.
+static func _forecast_of(state: GameState, attacker_id: int, defender_id: int) -> CombatForecast:
+	if attacker_id == -1 or not AttackCommand.valid_targets(state, attacker_id).has(defender_id):
+		return null
+	return AttackCommand.forecast(state, state.get_unit(attacker_id), state.get_unit(defender_id))
+
+
+## "4.0 (2–6)": the average and its 10–90 % range.
+static func _spread_text(expected: float, low: int, high: int) -> String:
+	return "%.1f (%d–%d)" % [expected, low, high]
+
+
+static func _forecast_line(label: String, value: String) -> Dictionary:
+	return {"label": label, "value": value}
+
+
 ## Whether a `turn_started` moving from (prev_turn, prev_player) to (turn, player) shows the
 ## banner.
 static func banner_for(prev_turn: int, prev_player: int, turn: int, player: int) -> bool:

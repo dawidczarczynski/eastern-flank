@@ -104,3 +104,26 @@ Hit points,Hit points,Punkty życia
 No model yet (placeholder),No model yet (placeholder),Brak modelu (zastępczy)
 ROTATE,ROTATE,OBRÓT
 HOME / DOUBLE CLICK,HOME / DOUBLE CLICK,HOME / DWUKLIK
+DESTROY,DESTROY,ZNISZCZENIE
+COUNTER,COUNTER,KONTRATAK
+NO COUNTER,NO COUNTER,BEZ KONTRATAKU
+ATTACK,ATTACK,ATAK
+INFO,INFO,INFO
+ORDER,ORDER,ROZKAZ
+TARGET,TARGET,CEL
+COST,COST,KOSZT
+UNAVAILABLE,UNAVAILABLE,NIEDOSTĘPNE
+ENDS MOVEMENT,ENDS MOVEMENT,KOŃCZY RUCH
+AVG DAMAGE,AVG DAMAGE,ŚR. OBRAŻENIA
+RANGE 10–90 %,RANGE 10–90 %,ZAKRES 10–90 %
+Choose an action…,Choose an action…,Wybierz działanie…
+NO UNIT SELECTED,NO UNIT SELECTED,Nie wybrano jednostki
+NOT YOUR UNIT,NOT YOUR UNIT,To nie jest twoja jednostka
+UNIT NOT FOUND,UNIT NOT FOUND,Nie znaleziono jednostki
+THE BATTLE IS OVER,THE BATTLE IS OVER,Bitwa zakończona
+"Fire at the target. Every strength point rolls to hit, so the result varies around the average.","Fire at the target. Every strength point rolls to hit, so the result varies around the average.","Ogień do celu. Każdy punkt siły rzuca na trafienie, więc wynik waha się wokół średniej."
+RMB ON UNIT,RMB ON UNIT,PPM NA JEDNOSTCE
+UNIT MENU,UNIT MENU,MENU JEDNOSTKI
+ACTION,ACTION,AKCJA
+UNIT,UNIT,JEDNOSTKA
+"Show the unit's card: strength, stats and status.","Show the unit's card: strength, stats and status.","Pokaż kartę jednostki: siłę, parametry i stan."

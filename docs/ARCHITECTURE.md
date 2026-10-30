@@ -158,3 +158,5 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 | `docs/` | GDD, architecture, ADRs, tasks |
 
 HUD v3 turn bar and end-turn module (TASK-077, `BattleHud`): `TurnBarFrame` (trapezoid frame), `HexBadge`, `TickRuler`, `ReadyBlocks`, `KeyCap` (the Enter key is drawn with `HudShapes.enter_glyph`), `EndTurnButton` (a `Button` that draws itself). `HudModel` is unchanged; the HUD maps `active` to ACTIVE / WAITING.
+
+Target ring and attack tag (TASK-089b): `TargetRingController` (a Node owned by `BattleController`) routes RMB-on-enemy clicks, keys 1–6/Esc and the hover tag + `CrosshairCursor`, and executes `AttackCommand` through `GameSimulation.execute()`. The pure parts – `RadialRingGeometry` (HUD v3 §04 segment polygons, hit test, on-screen clamp, card position) and `TargetRingModel` (slots with enabled/reason from `AttackCommand.validate()`, detail cards) – and the reusable views `RadialRing` / `RingDetailCard` are meant for TASK-082's own-unit orders ring too. Forecast texts come from `HudModel.attack_forecast` / `attack_tag` (numbers from `CombatForecast`).

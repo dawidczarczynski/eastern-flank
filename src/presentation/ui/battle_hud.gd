@@ -19,6 +19,7 @@ const FADE_SECONDS := 0.3
 const KEY_HINTS: Array[Array] = [
 	["LMB", "SELECT / MOVE / ATTACK"],
 	["RMB", "ROTATE / DESELECT"],
+	["RMB ON UNIT", "UNIT MENU"],
 	["LMB DRAG", "PAN"],
 	["WASD/QE", "CAMERA"],
 	["WHEEL", "ZOOM"],

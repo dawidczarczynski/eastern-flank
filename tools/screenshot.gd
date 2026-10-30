@@ -212,10 +212,37 @@ func _apply_gallery_state(state: String, argument: String) -> bool:
 			_battle.call("debug_select_and_hover", argument.to_int())
 		"toast", "targeting", "banner":
 			_battle.call("debug_notice", state)
+		"tag", "ring", "ring_attack", "ring_info", "ring_blocked", "ring_own":
+			return _apply_target_state(state, argument)
 		"result":
 			_battle.call("debug_result", argument if argument != "" else "victory")
 		_:
 			return false
+	return true
+
+
+## Target tag / ring states (TASK-089b), argument "<attacker id>-<target id>": selects the
+## attacker and hovers the target (tag), then opens the unit ring (ring: nothing hovered,
+## ring_attack / ring_blocked: ATTACK hovered, ring_info: INFO triggered – the unit's card,
+## ring_own: the same on an own unit as the target). All but ring_blocked and ring_own first move
+## the target next to the attacker (a debug-only state change), so it is in range.
+func _apply_target_state(state: String, argument: String) -> bool:
+	var ids := argument.split("-")
+	if ids.size() != 2 or not ids[0].is_valid_int() or not ids[1].is_valid_int():
+		printerr("ERROR: SCREENSHOT_SHOTS %s needs <attacker id>-<target id>" % state)
+		return false
+	var attacker := ids[0].to_int()
+	var target := ids[1].to_int()
+	if state != "ring_blocked" and state != "ring_own":
+		_battle.call("debug_place_next_to", attacker, target)
+	_battle.call("debug_select_and_hover", attacker)
+	_battle.call("debug_hover_unit", target)
+	var ring := _battle.find_child("TargetRing", true, false)
+	var slots := {"ring": -1, "ring_attack": 0, "ring_info": 1, "ring_blocked": 0, "ring_own": 1}
+	if state == "tag":
+		ring.call("close")
+	else:
+		ring.call("debug_open", attacker, target, slots[state])
 	return true
 
 
@@ -270,11 +297,14 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_MOVE=<unit id>,<direction 0-5>,<tiles> plays a view-only move of that unit from the
 ## first frame (TASK-064 dust and exhaust, tracks; no command, no state change); --frames=N picks
 ## the moment (≈ N / 60 s in), e.g. SCREENSHOT_MOVE=2,0,3 tools/screenshot.sh --frames=120.
-## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
+## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (the target tag over a valid target of
+## the selected unit; there is no hover card since TASK-089b – the card shows via the ring's INFO).
 ## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
 ## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
 ## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner,
-## result:<victory|defeat|draw> (the held result banner with its reason line) – e.g.
+## result:<victory|defeat|draw> (the held result banner with its reason line),
+## tag:<attacker>-<target>, ring:…, ring_attack:…, ring_info:…, ring_blocked:…, ring_own:…
+## (TASK-089b target tag and unit ring, see _apply_target_state) – e.g.
 ## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
 ## SCREENSHOT_SCENARIO=<one of Scenario.NAMES> starts that scenario (like the game's
 ## `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
