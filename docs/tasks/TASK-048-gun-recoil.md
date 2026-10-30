@@ -1,35 +1,75 @@
 # TASK-048: `gun_recoil` mechanism – barrel recoil and muzzle flash on direct fire
 
-- **Status**: idea – needs TASK-047 done and a look at it in game first (is the aim alone readable enough?); open: how much to exaggerate the recoil at miniature scale, whether the flash is a shared effect for all direct-fire units (also infantry), sound (none in the game yet).
-- **Layers**: presentation (`UnitModels.pose_recoil`, muzzle flash effect, attack playback), `mechanisms.json`, tests
-- **Depends on**: **TASK-047**
+- **Status**: ready (specified 2026-10-30; TASK-047 is done. Priority: like the other visual polish (063, 066, model reworks) it waits behind the two-layer vision track – BACKLOG.md, GDD "Vision decisions" → Priorities – so it is not the next task even though it is `ready`.)
+- **Layers**: presentation (`UnitModels.pose_recoil` / `has_gun_recoil` / `recoil_params`, `UnitView.set_gun_recoil` / `muzzle_point` / `bore_direction`, `VolleyPlayback` recoil profile and shot step, new `MuzzleFlash` built on `FlashFx`, `BattleController._play_direct_fire`, `CatalogAnimations` / `CatalogStage` Fire for tanks), `docs/design/units/mechanisms.json`, the tank models' `MECHANISMS` + their catalog `unit.json`, tests
+- **Depends on**: **TASK-047** (done: `Turret`, `Turret/Gun`, `Turret/Gun/Muzzle`, `FX_DIRECT_FIRE` playback). Soft: TASK-069 (done – both tanks already have the `Turret/Gun/Barrel` pivot with the barrel meshes), TASK-074 (done – `FlashFx` was built for this task), TASK-084 (done – the catalog's mechanism → animation table).
 - **Model**: sonnet
 
 ## Goal
 
-The tank's shot reads at game zoom: the barrel kicks back and returns, a short flash at the muzzle, at the moment the target is hit.
+A tank's shot reads at game zoom: as the target is hit, the barrel kicks back and runs out again and a short flash bursts at the muzzle. Counterattacks fire the same way. Purely visual – no rule, timing or event change.
 
-## Design (draft)
+## Decisions (open questions of the idea, resolved 2026-10-30)
 
-- Pivot `Turret/Gun/Barrel` (moves along its local −X by `recoil_m` × `UnitModels`' model scale, built pose = in battery); `Turret/Gun/Muzzle` for the flash (from TASK-047).
-- Param `recoil_m` (registry: number 0…2, default 0.5; the real recoil length is shorter – the value is an exaggeration for the miniature, decided per unit (?)).
-- In the TASK-047 sequence: at the start of the hit step the barrel snaps back (0.05 s) and returns (0.3 s, ease out) while a flash (billboard + light, ≈ 0.15 s, deterministic, view-local) plays at the `Muzzle`; no change to the event duration.
+- **Recoil length – per unit, modest exaggeration.** `recoil_m` stays a per-unit parameter of the `gun_recoil` mechanism (mechanisms are properties of the real vehicle, GDD "Unit mechanisms"), with a registry default of 0.5 m. Values ≈ 1.3–1.6 × the real recoil stroke, not more: the **flash** is the main "it fired" cue at game zoom, the recoil a secondary twitch; a big toy-like kick fights the realism direction. Abrams (M256, real stroke ≈ 0.33 m (?)) → **0.5 m**; T-72B3 (2A46M-5, real ≈ 0.3 m (?)) → **0.4 m** – capped by the model: the fume extractor starts 1.04 m in front of the trunnions and the canvas cover ends at 0.6 m, so more than 0.44 m would push the extractor into the cover. Registry range tightened to 0 … 1 m (more slides the barrel visibly through the mantlet on every model). Both values `verified: false` in the catalog until the human checks the real strokes.
+- **Conversion**: model units = `recoil_m / UnitModels.METERS_PER_UNIT` (the nominal 1 unit = 10 m of the registry; the tank files' real `K` ≈ 0.087–0.088 units/m makes the slide ≈ 13 % longer than the metres say – irrelevant for an exaggerated value and keeps one rule for every model).
+- **Muzzle flash is tied to the `gun_recoil` mechanism, not to a unit class.** Every model that declares `gun_recoil` (and has `Turret/Gun/Muzzle` from `turret_traverse`) gets recoil + flash; today that is the two tanks. **Infantry: no flash** – no muzzle markers, rifle flashes are invisible at this scale and squads have no firing animation yet (separate idea, out of scope). A future IFV autocannon declares `gun_recoil` with a small `recoil_m` and gets the same flash; a per-unit flash size (`flash_scale`) is added then, not now (one global size until a second calibre exists).
+- **Flash = the shared `FlashFx` (TASK-074), not `SalvoFxPool`.** `FlashFx` is mesh-only, additive, a pure function of its age (`pose(age)`) and was built for this task. The salvo pool's fire puffs (0.35–0.5 s, ~1 world unit) are too slow and big for a gun flash and the pool doesn't exist on LOW. No muzzle smoke in this task (follow-up; it would use `ParticleFx`).
+- **60 FPS budget**: per shot at most **one** additive ball (`FlashFx`) and **one** `OmniLight3D` (no shadow, short range); the light only when `quality["fx_lights"]` (HIGH), the ball on every quality (one unshaded draw call – the same cost as the LOW salvo flashes). Direct-fire events play one at a time, so **one `MuzzleFlash` per battle**, created at battle start and reused (no node created per shot); its material and light variant are warmed up at creation (shown once far below the map, like `SalvoFxPool.warm_up`) so the first shot doesn't hitch.
+- **Timing – event duration unchanged.** The shot plays inside the existing 0.4 s hit step of `_play_direct_fire`: kick 0.05 s, run-out 0.3 s ease-out (0.35 s ≤ `EventQueue.ATTACK_DURATION`), flash 0.12 s. Direct fire stays 1.4 s (1.9 s with a limited traverse).
+- **AI-turn speed-up**: direct fire keeps following the burst speed (it is not exempt like salvos). Recoil and flash are driven by the event's own tween (age = tween time), so they scale with `_event_speed` and stay in step with the target's hit reaction; at high burst speeds they shorten to a twitch, which is fine.
+- **Counterattacks**: same event type with `counter: true`, already annotated `FX_DIRECT_FIRE` by TASK-047 → the counter-attacking tank recoils and flashes the same way; nothing extra.
+- **Flash position**: the `Muzzle` marker's world position at the shot (after the aim step), pushed forward along the bore by half the flash size, so the ball sits in front of the muzzle. The marker is on `Turret/Gun`, not on the `Barrel`, so the recoil doesn't drag the flash back.
+- **Unit catalog**: tanks get the **Fire** button (the launchers' Fire stays as it is): turret to the catalog's traverse angle with the demo elevation, the shot (recoil + flash, light per the viewer's quality), back to the front – the same steps as the battle without a target.
+- **Sound**: out of scope – the game has no audio yet.
+
+## Design
+
+- **Registry** (`docs/design/units/mechanisms.json`, `gun_recoil`): `status` `planned` → `implemented`; description says what it does (like `turret_traverse`); `recoil_m` `max` 2 → 1, default 0.5; pivots `Turret/Gun/Barrel` (keep) – `Turret/Gun/Muzzle` is already required by `turret_traverse`; `owns: ["Turret/Gun/Barrel"]` (a model with a `Barrel` pivot must declare the mechanism).
+- **Models**: add `"gun_recoil": {"recoil_m": 0.5}` (`m1a2_sepv3`) and `{"recoil_m": 0.4}` (`t72b3`) to `MECHANISMS` and the same to `docs/design/units/units/<id>/unit.json` `mechanisms`, with `facts` entries `mechanisms.gun_recoil` / `.recoil_m` (`source`: real stroke + "exaggerated for the miniature, TASK-048", `verified: false`). The `Barrel` pivot already exists (TASK-069: identity transform at the gun pivot, meshes from the barrel root to the muzzle) – no model geometry change.
+- **`UnitModels`**: `RECOIL_DEFAULTS := {"recoil_m": 0.5}` (= registry defaults, a test keeps them equal); `recoil_params(model)`; `has_gun_recoil(model)` = declares `gun_recoil` and has `Turret/Gun/Barrel`; `pose_recoil(model, t: float)`: `Barrel.transform = rest * Transform3D(Basis(), Vector3(-clampf(t, 0, 1) * recoil_m / METERS_PER_UNIT, 0, 0))` (rest stored in the `rest` meta on first use, like `pose_turret`); no-op without the pivot or the declaration. Moving along the `Gun`'s local −X keeps the slide on the bore axis at any elevation.
+- **`VolleyPlayback`** (shared by the battle and the catalog): `RECOIL_KICK := 0.05`, `RECOIL_RETURN := 0.3`; `static func recoil_at(age: float) -> float`: 0 for `age ≤ 0`; linear 0 → 1 over the kick; then `(1 − u)²` with `u = (age − RECOIL_KICK) / RECOIL_RETURN` (fast out, settles slowly); 0 from `RECOIL_KICK + RECOIL_RETURN` on. `static func append_shot(tween, shooter: UnitView, flash: MuzzleFlash, duration: float)`: one `tween_method` over `duration` from age 0 to `duration` that calls `shooter.set_gun_recoil(recoil_at(age))` and `flash.pose(age)` (both guarded by `is_instance_valid`); `flash.fire(shooter.muzzle_point(), shooter.bore_direction())` happens in a callback right before it. A shooter without `gun_recoil` gets only the interval (no flash).
+- **`MuzzleFlash`** (`src/presentation/muzzle_flash.gd`, `Node3D`): one `FlashFx` child (colour `#ffd28a`, size `FLASH_SIZE := 0.2 × VisualScale.unit_model_scale()` world units, life `FLASH_TIME := 0.12`) and, when created `with_light`, one `OmniLight3D` (`#ffb060`, energy 4.0, range 2.0, no shadow). `fire(muzzle: Vector3, bore_dir: Vector3)` places it at `muzzle + bore_dir × FLASH_SIZE / 2`; `pose(age)` poses the ball and sets `light_energy = 4.0 × clamp(1 − age / FLASH_TIME, 0, 1)` (0 outside `[0, FLASH_TIME)`), so the light is scrubbable like the ball (not the real-time `SalvoLight` fade). Constants in the class, not data (`data/` holds rules and balance, the flash is look).
+- **`UnitView`**: `has_gun_recoil()`, `set_gun_recoil(t)` (→ `pose_recoil`), `muzzle_point() -> Vector3` (global position of `Turret/Gun/Muzzle`, or the view position + 0.15 up without it), `bore_direction() -> Vector3` (the `Gun`'s global +X, normalised).
+- **`BattleController`**: creates one `MuzzleFlash` at battle start (`with_light = quality["fx_lights"]`); `_play_direct_fire` replaces `tween.tween_interval(EventQueue.ATTACK_DURATION)` by `VolleyPlayback.append_shot(tween, shooter, _muzzle_flash, EventQueue.ATTACK_DURATION)`; the target's `play_hit` callback stays where it is (same moment as the flash). `_annotate` / `_direct_fire_duration` unchanged.
+- **Catalog**: `CatalogAnimations.TABLE["gun_recoil"] = [FIRE]`; `for_model` must keep `FIRE` (and `TRAVERSE`) for a model with `has_gun_recoil`: today, when `FIRE` is found on a model without a launcher, it drops RAISE, TRAVERSE and FIRE together – with the new row that would strip a tank's Traverse and Fire, so the check becomes "drop RAISE always without a launcher; drop FIRE without a launcher and without `has_gun_recoil`; drop TRAVERSE only without a launcher and without a turret". `CatalogStage._fire()` branches like `_traverse()`: a turreted model plays `tween_turret` (0 → traverse angle, `TURRET_DEMO_ELEVATION`) → `append_shot` → `tween_turret` back, with its own `MuzzleFlash` (light per the viewer's `quality`); `_on_pose_finished` also snaps the recoil to 0. Fire's availability rule is the existing one (not busy, Traverse off).
+- **Docs**: `docs/ARCHITECTURE.md` – the `FX_DIRECT_FIRE` note gains "recoil + muzzle flash in the hit step"; GDD "Unit feel" / mechanisms line (game-designer, already worded in this pass – update "planned" to implemented when done).
 
 ## Acceptance criteria (testable)
 
-- [ ] (to be written when the task becomes `ready`) `pose_recoil(model, 1.0)` moves the `Barrel` origin by `recoil_m / METERS_PER_UNIT` along the gun's −X; `0.0` = built pose; the event duration of a direct-fire attack is unchanged (1.4 s).
+- [ ] `pose_recoil` on a synthetic model (`Model/Turret/Gun/Barrel`, `Barrel` at (0.02, 0, 0) in the `Gun`, declaring `gun_recoil {"recoil_m": 0.5}`): `t = 1.0` → `Barrel.position` = (0.02 − 0.05, 0, 0) (±1e-6); `t = 0.5` → x = −0.005; `t = 0.0` → the built transform exactly; `t = 1.7` → same as 1.0 (clamped); `t = −1` → built.
+- [ ] With the gun elevated (`pose_turret(model, 0, deg_to_rad(10))`) and `pose_recoil(model, 1.0)`: the `Barrel` origin in model space moves by 0.05 along (−cos 10°, −sin 10°, 0) (±1e-4); the `Muzzle` (on the `Gun`) does not move.
+- [ ] No-op cases: a model without `Turret/Gun/Barrel`, and a model with the pivot that doesn't declare `gun_recoil` – `pose_recoil(…, 1.0)` leaves every transform unchanged and doesn't error; `has_gun_recoil` is false for both.
+- [ ] Declared without params → `recoil_params` = `{"recoil_m": 0.5}`; `RECOIL_DEFAULTS` equals the registry defaults (normalised, like `test_turret_defaults_match_the_registry`).
+- [ ] The built tanks: `m1a2_sepv3` and `t72b3` have `has_gun_recoil` true with `recoil_m` 0.5 / 0.4; `homar_k`, `bm27_uragan` and both squads false. The mechanism contract passes (model `MECHANISMS` = catalog `unit.json`, registry `implemented`, `owns` respected): a synthetic model with `Turret/Gun/Barrel` that doesn't declare `gun_recoil` is reported by `Contract.owned_pivots`.
+- [ ] `VolleyPlayback.recoil_at`: −0.1 → 0; 0 → 0; 0.025 → 0.5; 0.05 → 1.0; 0.2 → 0.25; 0.35 → 0; 0.4 → 0 (±1e-6); `RECOIL_KICK + RECOIL_RETURN ≤ EventQueue.ATTACK_DURATION`.
+- [ ] `MuzzleFlash.pose`: hidden before `fire` and for age < 0 and ≥ 0.12; visible at 0 and 0.06; with a light: energy 4.0 at age 0, 2.0 at 0.06 (±1e-4), 0 at ≥ 0.12; created without a light it has no `OmniLight3D` child. `fire(Vector3(1, 0.5, 0), Vector3.RIGHT)` puts it at (1 + FLASH_SIZE / 2, 0.5, 0).
+- [ ] Event durations unchanged: `_direct_fire_duration(false)` = 1.4 s, `(true)` = 1.9 s, `EventQueue.ATTACK_DURATION` = 0.4 s (the existing `test_direct_fire_duration` still passes untouched).
+- [ ] `append_shot` on a fresh tween with a stand-alone `UnitView` of `t72b3`: the tween's total time is exactly the given duration (0.4 s); after it finishes (or stepping it with `custom_step` to the end) the `Barrel` is at its built transform and the flash is hidden. With a shooter without `gun_recoil` (Homar-K view) it only waits 0.4 s and never shows the flash.
+- [ ] Catalog: `CatalogAnimations.for_model` → `t72b3` / `m1a2_sepv3`: `[drive, traverse, fire]`; `homar_k` and `bm27_uragan`: unchanged from today; a synthetic model declaring only `turret_traverse` (no `gun_recoil`): `[traverse]` (no fire). After a tank's Fire finishes (`finish_pose()`), the turret is at (0, 0) and the barrel at its built transform.
+- [ ] `tools/check.sh` passes. README screenshot not re-rendered (the battle at rest doesn't change) – say so in the notes.
 
 ## Playtest (for the human)
 
-1. Attack with the tank at normal zoom: the barrel kicks and a flash appears at the muzzle as the target is hit.
+1. Start a battle (HIGH graphics), attack an enemy with the Abrams at normal battle zoom: the turret turns, then at the moment the target flashes red the barrel kicks back and runs out again and a short orange flash with a brief glow on the ground and hull appears just in front of the muzzle; the turret returns. The flash must not appear behind or inside the barrel.
+2. Attack an enemy tank so it counterattacks: the defending T-72B3's barrel recoils and flashes as well.
+3. Zoom right in on a T-72B3 firing: the barrel slides into the canvas cover and back; nothing visibly cuts through the cover or leaves a gap at the mantlet. Same on the Abrams (barrel slides into the gun shield).
+4. Fire at a target on a hill and in a valley: the recoil follows the elevated / depressed barrel.
+5. End the turn and watch the AI's turn with several tank attacks: the shots are faster but the flash still appears with every hit; frame rate stays at 60 FPS (no hitch at the first shot of the battle).
+6. Start with `--quality=low`: the flash is still there but casts no light.
+7. Unit catalog → T-72B3 / Abrams: a **Fire** button; pressing it turns the turret, fires (recoil + flash), turns back. Homar-K and Uragan Fire unchanged.
 
 ## Player manual
 
-None (presentation only).
+- Section 10 (Screen): extend the **Tank fire** bullet: a tank turns its turret and aims its gun at the target before it fires (also when it fires back); as the shot lands the barrel kicks back and a flash appears at the muzzle (the glow only on HIGH graphics). Purely visual. (The turret-aiming half is already implemented by TASK-047 and was added to the manual in this pass as the **Tank fire** bullet, plus a tank **Traverse** row in the catalog table – the task only adds the recoil and flash sentence to that bullet.)
+- Section 12 (unit catalog): the **Fire** row gets tanks ("tanks: turn the turret, fire one shot with recoil and muzzle flash, turn back"); the availability sentence covers tanks (Fire only with Traverse off).
 
 ## Out of scope
 
-- Smoke, shell tracers, sound.
+- Muzzle smoke / dust kicked up by the blast (follow-up with `ParticleFx`), shell tracers, the hull rocking back on the shot, a hit effect at the target beyond today's `play_hit`, sound (no audio in the game).
+- Infantry firing animation and flashes; IFV autocannons (no such unit yet; they get a per-unit flash size then).
+- Pod / launcher recoil (TASK-074's pod jolt already covers it).
+- Verifying the real recoil strokes – that's the human's catalog review (`verified: false`).
 
 ## Implementation notes
 
