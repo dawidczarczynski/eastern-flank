@@ -96,25 +96,25 @@ BUILD = _param("build", "choice", "Godot", "windows", choices=lambda: ["windows"
 
 COMMANDS: List[Dict[str, Any]] = [
     {
-        "id": "check", "group": "Verify", "label": "Check", "description": "tools/check.sh – lint + all tests + backlog statuses",
+        "id": "check", "group": "Verify", "label": "Full check", "script": "tools/check.sh", "description": "Lint, all tests and backlog statuses – run before calling a task done",
         "params": [], "argv": lambda p: ["tools/check.sh"],
     },
     {
-        "id": "test", "group": "Verify", "label": "Tests", "description": "tools/test.sh – headless tests, optional file filter",
+        "id": "test", "group": "Verify", "label": "Tests", "script": "tools/test.sh", "description": "Headless tests, optionally only files matching a filter",
         "params": [_param("filter", "text", "filter", "", pattern=TEST_FILTER, placeholder="test_commands"),
                    _param("verbose", "bool", "verbose", False)],
         "argv": _test,
     },
     {
-        "id": "lint_fix", "group": "Verify", "label": "Lint --fix", "description": "tools/lint.sh --fix – gdformat + gdlint",
+        "id": "lint_fix", "group": "Verify", "label": "Format & lint", "script": "tools/lint.sh --fix", "description": "gdformat fixes the formatting, gdlint reports the rest",
         "params": [], "argv": lambda p: ["tools/lint.sh", "--fix"],
     },
     {
-        "id": "backlog_fix", "group": "Verify", "label": "Backlog --fix", "description": "tools/backlog.py --fix – status icons, blocked ↔ ready",
+        "id": "backlog_fix", "group": "Verify", "label": "Fix backlog statuses", "script": "tools/backlog.py --fix", "description": "Status icons, blocked ↔ ready from the dependencies",
         "params": [], "argv": lambda p: [PYTHON, "tools/backlog.py", "--fix"], "exclusive": False,
     },
     {
-        "id": "simulate", "group": "Balance", "label": "Simulate", "description": "tools/simulate.sh – headless AI-vs-AI matches",
+        "id": "simulate", "group": "Balance", "label": "AI-vs-AI simulation", "script": "tools/simulate.sh", "description": "Headless matches – win rates, draws, match length",
         "params": [_param("count", "int", "matches", 20, min=1, max=1000),
                    _param("player0", "choice", "player 0", "poland", choices=factions),
                    _param("player1", "choice", "player 1", "russia", choices=factions),
@@ -125,7 +125,7 @@ COMMANDS: List[Dict[str, Any]] = [
     },
     {
         "id": "screenshot", "group": "Visual", "label": "Battle screenshot",
-        "description": "tools/screenshot.sh – battle scene to .screenshots/battle.png, optional HUD states",
+        "script": "tools/screenshot.sh", "description": "Renders the battle scene; optional HUD states (hover, select, toast, …)",
         "params": [_param("shots", "text", "HUD states", "", pattern=SHOTS, placeholder="hover:2,select:2,toast")],
         "argv": lambda p: ["tools/screenshot.sh", ".screenshots/battle.png"],
         "env": lambda p: {"SCREENSHOT_SHOTS": p["shots"]} if p["shots"] else {},
@@ -133,19 +133,19 @@ COMMANDS: List[Dict[str, Any]] = [
     },
     {
         "id": "readme_screenshot", "group": "Visual", "label": "README screenshot",
-        "description": "tools/readme_screenshot.sh – re-render docs/images/gameplay.png",
+        "script": "tools/readme_screenshot.sh", "description": "Re-renders docs/images/gameplay.png",
         "params": [], "argv": lambda p: ["tools/readme_screenshot.sh"], "images": lambda p: ["docs/images/gameplay.png"],
     },
     {
         "id": "render_unit", "group": "Visual", "label": "Render unit",
-        "description": "tools/render_unit.sh – one unit model on a 1 m grid (side / front / top / three-quarter)",
+        "script": "tools/render_unit.sh", "description": "One model on a 1 m grid: side, front, top and three-quarter views",
         "params": [_param("unit", "choice", "unit", "", choices=units),
                    _param("faction", "choice", "faction", "", choices=lambda: [""] + factions())],
         "argv": _render_unit,
         "images": lambda p: [".screenshots/units/%s_*_sheet.png" % p["unit"]],
     },
     {
-        "id": "play", "group": "Game", "label": "Play", "description": "tools/run_windows.sh / tools/run.sh – start the game window",
+        "id": "play", "group": "Game", "label": "Play", "script": "tools/run_windows.sh / tools/run.sh", "description": "Start the game window",
         "exclusive": False,
         "params": [BUILD,
                    _param("scenario", "choice", "scenario", "default_battle", choices=scenarios),
@@ -153,7 +153,7 @@ COMMANDS: List[Dict[str, Any]] = [
         "argv": _game(editor=False),
     },
     {
-        "id": "editor", "group": "Game", "label": "Editor", "description": "Open the Godot editor",
+        "id": "editor", "group": "Game", "label": "Godot editor", "script": "tools/run_windows.sh --editor", "description": "Open the project in the editor",
         "params": [BUILD], "argv": _game(editor=True), "exclusive": False,
     },
 ]
@@ -209,7 +209,7 @@ def describe() -> List[Dict[str, Any]]:
             if "choices" in param:
                 item["choices"] = _choices(param)
             params.append(item)
-        item = {k: command[k] for k in ("id", "group", "label", "description")}
+        item = {k: command[k] for k in ("id", "group", "label", "description", "script")}
         item.update(params=params, exclusive=command.get("exclusive", True))
         out.append(item)
     return out

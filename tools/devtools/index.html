@@ -3,39 +3,69 @@
 <head>
 <meta charset="utf-8">
 <title>Devtools – Eastern Flank</title>
+<link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="topbar">
-  <span class="brand">Eastern Flank <span class="muted">devtools</span></span>
-  <nav id="tabs"><a data-tab="home" class="active">Home</a></nav>
-  <a id="newtab" target="_blank" rel="noopener" hidden>open in a new tab ↗</a>
-</header>
-<section id="home" class="page">
-  <div class="col">
-    <h2>Web tools</h2>
-    <div id="services" class="cards"></div>
-    <h2>Commands</h2>
-    <div id="commands"></div>
+<aside class="sidebar">
+  <div class="brand">
+    <span class="logo">EF</span>
+    <span><b>Eastern Flank</b><small>devtools</small></span>
   </div>
-  <div class="col jobs-col">
-    <h2>Jobs</h2>
-    <ul id="jobs" class="jobs"><li class="muted">No jobs yet – run a command.</li></ul>
-    <div id="job" class="job" hidden>
-      <div class="job-bar">
-        <span id="job-title"></span>
-        <span>
-          <button id="job-rerun" type="button">Run again</button>
-          <button id="job-cancel" type="button">Cancel</button>
-        </span>
-      </div>
-      <code id="job-argv" class="argv"></code>
-      <pre id="job-log"></pre>
-      <div id="job-images" class="images"></div>
+  <nav id="nav"></nav>
+  <div class="side-foot">
+    <span class="eyebrow">Shortcuts</span>
+    <span><kbd>1</kbd>–<kbd>3</kbd> switch page</span>
+    <span><kbd>Enter</kbd> in a field runs it</span>
+  </div>
+</aside>
+<main>
+  <section id="home" class="home">
+    <div class="commands-pane">
+      <header class="page-head">
+        <div>
+          <h1>Commands</h1>
+          <p>Run the project's command-line tools. Output and images show up under Activity.</p>
+        </div>
+        <input id="find" type="search" placeholder="Find a command…" autocomplete="off">
+      </header>
+      <div id="commands"></div>
     </div>
-  </div>
-</section>
-<div id="frames"></div>
+    <div class="activity-pane">
+      <header class="activity-head">
+        <h2>Activity</h2>
+        <span id="running" class="muted"></span>
+      </header>
+      <ul id="jobs" class="jobs"></ul>
+      <div id="job" class="job" hidden>
+        <div class="job-card">
+          <div class="job-title-row">
+            <div>
+              <div id="job-title" class="job-title"></div>
+              <div id="job-meta" class="job-meta"></div>
+            </div>
+            <div class="job-actions">
+              <button id="job-cancel" type="button" class="btn danger">Cancel</button>
+              <button id="job-rerun" type="button" class="btn">↻ Run again</button>
+            </div>
+          </div>
+          <code id="job-argv" class="argv"></code>
+        </div>
+        <div id="job-images" class="images"></div>
+        <div class="log-bar">
+          <span class="eyebrow">Output</span>
+          <span id="log-counts" class="log-counts"></span>
+          <label class="toggle"><input id="log-problems" type="checkbox"> errors &amp; warnings only</label>
+          <button id="log-copy" type="button" class="btn ghost sm">Copy</button>
+        </div>
+        <div id="job-log" class="log"></div>
+      </div>
+      <div id="job-empty" class="empty">Nothing has run yet.<br>Pick a command on the left and press <b>Run</b>.</div>
+    </div>
+  </section>
+  <div id="frames"></div>
+</main>
+<div id="toasts" class="toasts"></div>
 <script src="/app.js"></script>
 </body>
 </html>

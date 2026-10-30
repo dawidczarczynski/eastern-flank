@@ -153,6 +153,16 @@ class ServiceTest(unittest.TestCase):
         self.assertFalse(service.alive())
 
 
+class StaticTest(unittest.TestCase):
+    def test_fonts_only_from_assets_fonts(self) -> None:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
+        import static  # noqa: E402
+
+        self.assertIsNotNone(static.font("ChakraPetch-SemiBold.ttf"))
+        for bad in ("../../README.md", "OFL.txt", "x/../JetBrainsMono.ttf", "missing.ttf"):
+            self.assertIsNone(static.font(bad), bad)
+
+
 class ServerTest(unittest.TestCase):
     def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp())
@@ -178,7 +188,7 @@ class ServerTest(unittest.TestCase):
         return res.status, data
 
     def test_static_and_commands(self) -> None:
-        for path in ("/", "/app.js", "/style.css"):
+        for path in ("/", "/app.js", "/style.css", "/theme.css", "/fonts/JetBrainsMono.ttf"):
             self.assertEqual(self.request("GET", path)[0], 200, path)
         status, body = self.request("GET", "/api/commands")
         self.assertEqual(status, 200)

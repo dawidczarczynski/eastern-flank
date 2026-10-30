@@ -1,0 +1,101 @@
+/* Shared look of the local dev web tools (tools/devtools, tools/backlog_view): tokens + base components.
+   Served by each tool at /theme.css; fonts at /fonts/<file>.ttf. */
+@font-face { font-family: "Chakra Petch"; font-weight: 600; src: url("/fonts/ChakraPetch-SemiBold.ttf"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 100 800; src: url("/fonts/JetBrainsMono.ttf"); }
+
+:root {
+  color-scheme: dark;
+  /* surfaces: each layer clearly lighter than the one below */
+  --bg: #0c0e0d;
+  --surface: #161a18;
+  --surface-2: #1f2421;
+  --surface-3: #293029;
+  --line: #2b322d;
+  --line-strong: #3d463f;
+  /* text */
+  --text: #f1efe8;
+  --text-2: #b9b8ae;
+  --text-3: #85857b;
+  /* brand + states */
+  --accent: #e8c46a;
+  --accent-ink: #1b1608;
+  --ok: #6fcf7c;
+  --bad: #ff7a66;
+  --warn: #f2b84b;
+  --run: #63a9ff;
+  --violet: #b892ff;
+  --teal: #45c9b5;
+  --grey: #8d918b;
+  /* backlog statuses */
+  --s-in-progress: var(--warn);
+  --s-to-playtest: var(--violet);
+  --s-ready: var(--ok);
+  --s-blocked: var(--bad);
+  --s-idea: #d7cf9e;
+  --s-done: var(--run);
+  --s-merged: var(--grey);
+
+  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --display: "Chakra Petch", var(--sans);
+  --radius: 8px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 6px 20px rgba(0, 0, 0, .35);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-decoration: none; cursor: pointer; }
+a:hover { text-decoration: underline; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
+::selection { background: rgba(232, 196, 106, .35); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 10px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-track { background: transparent; }
+[hidden] { display: none !important; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; font: 500 13px/1 var(--sans); color: var(--text); background: var(--surface-2);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 7px 12px; cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.btn:hover { background: var(--surface-3); border-color: var(--text-3); text-decoration: none; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--text-2); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn.danger { color: var(--bad); }
+.btn.sm { padding: 4px 9px; font-size: 12px; }
+
+/* form fields */
+input, select { font: 13px var(--sans); color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px; }
+input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 196, 106, .18); }
+input::placeholder { color: var(--text-3); }
+input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+
+/* pills, chips, dots */
+.pill { --c: var(--text-2); display: inline-flex; align-items: center; gap: 6px; font: 600 11.5px/1 var(--sans); letter-spacing: .02em;
+  color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+  padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; font: 500 11.5px/1 var(--mono); color: var(--text-2); background: var(--surface-2);
+  border: 1px solid var(--line); padding: 3px 6px; border-radius: 4px; white-space: nowrap; cursor: pointer; }
+.chip:hover { border-color: var(--text-3); color: var(--text); text-decoration: none; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--bad)); flex: none; display: inline-block; }
+.dot.up { --c: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+.spinner { width: 12px; height: 12px; border: 2px solid color-mix(in srgb, var(--run) 30%, transparent); border-top-color: var(--run);
+  border-radius: 50%; animation: spin .8s linear infinite; flex: none; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+kbd { font: 11px var(--mono); color: var(--text-2); background: var(--surface-2); border: 1px solid var(--line-strong); border-bottom-width: 2px;
+  border-radius: 4px; padding: 1px 5px; }
+
+.s-in-progress { --c: var(--s-in-progress); } .s-to-playtest { --c: var(--s-to-playtest); } .s-ready { --c: var(--s-ready); }
+.s-blocked { --c: var(--s-blocked); } .s-idea { --c: var(--s-idea); } .s-done { --c: var(--s-done); } .s-merged { --c: var(--s-merged); }
+
+.eyebrow { font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+.empty { color: var(--text-3); text-align: center; padding: 28px 12px; }
+
+/* toast */
+.toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 50; }
+.toast { --c: var(--text-2); display: flex; align-items: center; gap: 10px; background: var(--surface-2); border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--c); border-radius: var(--radius); padding: 10px 14px; box-shadow: var(--shadow); cursor: pointer;
+  animation: toast-in .18s ease-out; max-width: 380px; }
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }

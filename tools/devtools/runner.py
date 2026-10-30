@@ -220,8 +220,9 @@ class JobRunner:
                 self.lock.notify_all()
                 return
         assert job.proc.stdout is not None
-        for raw in job.proc.stdout:
-            self._add(job, ANSI.sub("", raw.decode("utf-8", errors="replace").rstrip("\r\n")))
+        with job.proc.stdout:
+            for raw in job.proc.stdout:
+                self._add(job, ANSI.sub("", raw.decode("utf-8", errors="replace").rstrip("\r\n")))
         code = job.proc.wait()
         with self.lock:
             job.exit_code = code

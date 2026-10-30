@@ -3,24 +3,42 @@
 <head>
 <meta charset="utf-8">
 <title>Backlog – Eastern Flank</title>
+<link rel="stylesheet" href="/theme.css">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="topbar">
-  <span class="brand">Backlog</span>
-  <input id="search" type="search" placeholder="Search id, title, dependencies, layers…  ( / )" autocomplete="off">
-  <select id="model" title="Model"><option value="">any model</option></select>
-  <button id="notes-toggle" type="button">Notes</button>
-  <span id="live" class="live" title="The page reloads the data when BACKLOG.md or a task file changes">●</span>
+<header class="top">
+  <div class="title-row">
+    <div class="heading">
+      <h1>Backlog</h1>
+      <span id="summary" class="summary"></span>
+    </div>
+    <div class="search">
+      <input id="search" type="search" placeholder="Search id, title, dependencies, layers…" autocomplete="off">
+      <kbd>/</kbd>
+    </div>
+    <div class="segmented" id="view">
+      <button type="button" data-view="table">☰ Table</button>
+      <button type="button" data-view="board">▦ Board</button>
+    </div>
+    <select id="model" title="Model"></select>
+    <button id="notes-toggle" type="button" class="btn ghost">Notes</button>
+    <span id="live" class="live" title="Follows BACKLOG.md and the task files">Live</span>
+  </div>
+  <div class="progress" id="progress"></div>
+  <div class="filter-row">
+    <div id="chips" class="chips"></div>
+    <div class="segmented presets">
+      <button type="button" data-preset="open" title="Everything except done and merged">Open work</button>
+      <button type="button" data-preset="all">All</button>
+    </div>
+    <span id="count" class="count"></span>
+    <button id="reset" type="button" class="btn ghost sm">Reset</button>
+  </div>
 </header>
-<div class="filters">
-  <div id="chips" class="chips"></div>
-  <span id="count" class="muted"></span>
-  <button id="reset" type="button" class="link">reset filters</button>
-</div>
 <div class="layout">
-  <main>
-    <section id="notes" class="panel md" hidden></section>
+  <main id="main">
+    <section id="notes" class="notes md" hidden></section>
     <table id="table">
       <thead>
         <tr>
@@ -28,7 +46,7 @@
           <th data-sort="id">ID</th>
           <th data-sort="title">Title</th>
           <th data-sort="status">Status</th>
-          <th data-sort="hard" title="Hard dependencies; soft ones dimmed">Depends on</th>
+          <th data-sort="hard" title="Hard dependencies; soft ones dashed">Depends on</th>
           <th data-sort="dependents" title="Tasks that hard-depend on this one">Unblocks</th>
           <th data-sort="layers">Layers</th>
           <th data-sort="model">Model</th>
@@ -36,12 +54,17 @@
       </thead>
       <tbody></tbody>
     </table>
+    <div id="board" class="board" hidden></div>
+    <div id="nothing" class="empty" hidden>No task matches the filters.</div>
   </main>
   <aside id="detail" hidden>
     <div class="detail-bar">
-      <span id="detail-title" class="mono"></span>
-      <button id="detail-close" type="button" title="Close (Esc)">×</button>
+      <span id="detail-id" class="detail-id"></span>
+      <span id="detail-status"></span>
+      <span class="spacer"></span>
+      <button id="detail-close" type="button" class="btn ghost sm" title="Close (Esc)">✕</button>
     </div>
+    <div id="detail-facts"></div>
     <article id="detail-body" class="md"></article>
   </aside>
 </div>

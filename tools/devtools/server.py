@@ -17,13 +17,14 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
 import registry  # noqa: E402
 import runner  # noqa: E402
+import static  # noqa: E402
 
 HOST = "127.0.0.1"
 HERE = Path(__file__).resolve().parent
 LOG_DIR = registry.REPO_ROOT / ".devtools"  # service logs, git-ignored
-FONTS_DIR = registry.REPO_ROOT / "assets" / "fonts" / "ibm_plex"
 IMAGE_DIRS = (".screenshots/", "docs/images/")  # the only places /files/ serves images from
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -83,12 +84,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(job if job else {"error": "unknown job"}, 200 if job else 404)
         elif path.startswith("/files/"):
             self._image(path[len("/files/") :])
-        elif path.startswith("/fonts/") and path.endswith(".ttf") and "/" not in path[len("/fonts/") :]:
-            font = FONTS_DIR / path[len("/fonts/") :]
-            if font.is_file():
-                self._send(200, font.read_bytes(), "font/ttf")
-            else:
-                self._json({"error": "not found"}, 404)
+        elif path == "/theme.css":
+            self._send(200, static.THEME.read_bytes(), "text/css; charset=utf-8")
+        elif path.startswith("/fonts/") and static.font(path[len("/fonts/") :]):
+            self._send(200, static.font(path[len("/fonts/") :]).read_bytes(), "font/ttf")
         else:
             self._json({"error": "not found"}, 404)
 

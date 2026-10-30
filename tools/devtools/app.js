@@ -1,7 +1,14 @@
 "use strict";
-// Devtools hub: web tools as tabs (iframes), command-line tools as jobs with live output.
+// Devtools hub: command-line tools as tiles + an activity panel with live output; web tools as embedded pages.
 
 const PARAMS_STORE = "devtools.params";
+const GROUPS = {
+  Verify: { color: "var(--accent)", text: "Before handing in a task" },
+  Balance: { color: "var(--violet)", text: "Headless AI-vs-AI runs" },
+  Visual: { color: "var(--teal)", text: "Renders – the images appear under Activity" },
+  Game: { color: "var(--ok)", text: "Open a game or editor window" },
+};
+const ICONS = { ok: "✓", failed: "✕", cancelled: "–", queued: "…" };
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const api = async (path, body) => {
@@ -15,36 +22,52 @@ let services = [];
 let commands = [];
 let jobs = [];
 let tab = "home";
-let selectedJob = null; // { id, next, state }
+let selectedJob = null; // { id, next, state, command, params }
+let lastStates = null; // job id → state, for "finished" toasts
 const savedParams = JSON.parse(localStorage.getItem(PARAMS_STORE) || "{}");
 
 const toolUrl = (s) => location.protocol + "//" + location.hostname + ":" + s.port + "/";
-const duration = (job) => {
-  if (!job.started) return "";
-  const sec = Math.round((job.finished || Date.now() / 1000) - job.started);
-  return sec < 60 ? sec + " s" : Math.floor(sec / 60) + " min " + (sec % 60) + " s";
-};
+const now = () => Date.now() / 1000;
+const active = (job) => job.state === "running" || job.state === "queued";
+const statusIcon = (state) => state === "running" ? '<span class="spinner"></span>' : '<span class="st ' + state + '">' + (ICONS[state] || "") + "</span>";
+const STATE_TEXT = { ok: "passed", failed: "failed", cancelled: "cancelled", running: "running", queued: "queued" };
 
-// ---- tabs + web tools
-
-function renderTabs() {
-  $("#tabs").innerHTML = '<a data-tab="home">Home</a>' + services.map((s) =>
-    '<a data-tab="' + s.id + '"><span class="dot' + (s.up ? " up" : "") + '"></span>' + esc(s.label) + "</a>").join("");
-  document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
+function seconds(sec) {
+  sec = Math.max(0, Math.round(sec));
+  return sec < 60 ? sec + " s" : Math.floor(sec / 60) + " min " + String(sec % 60).padStart(2, "0") + " s";
 }
+function ago(t) {
+  const sec = now() - t;
+  if (sec < 45) return "just now";
+  if (sec < 3600) return Math.round(sec / 60) + " min ago";
+  if (sec < 86400) return Math.round(sec / 3600) + " h ago";
+  return new Date(t * 1000).toLocaleDateString();
+}
+const duration = (job) => job.started ? seconds((job.finished || now()) - job.started) : "";
 
-function renderServices() {
-  $("#services").innerHTML = services.map((s) => {
-    const state = s.up ? (s.managed ? "started by the hub" : "already running") : (s.exit_code !== undefined ? "stopped (exit " + s.exit_code + ")" : "not running");
-    return '<div class="card"><div class="head"><span class="dot' + (s.up ? " up" : "") + '"></span>' + esc(s.label) +
-      '<span class="state">' + state + '</span></div><div class="desc">' + esc(s.description) + "</div>" +
-      '<div class="actions"><button type="button" class="primary" data-open="' + s.id + '"' + (s.up ? "" : " disabled") + ">Open</button>" +
-      '<a href="' + toolUrl(s) + '" target="_blank" rel="noopener">localhost:' + s.port + " ↗</a>" +
-      (s.up ? (s.managed ? '<button type="button" data-service="' + s.id + '" data-action="restart">Restart</button>' +
-        '<button type="button" data-service="' + s.id + '" data-action="stop">Stop</button>' : "")
-        : '<button type="button" data-service="' + s.id + '" data-action="start">Start</button>') +
-      "</div></div>";
+// ---- navigation + web tools
+
+function renderNav() {
+  const running = jobs.filter((j) => j.state === "running").length;
+  const svc = services.map((s, i) => {
+    const activeTab = s.id === tab;
+    const state = s.up ? (s.managed ? "started by the hub" : "already running – not managed here") : (s.exit_code !== undefined ? "stopped (exit " + s.exit_code + ")" : "not running");
+    let html = '<a class="nav-item' + (activeTab ? " active" : "") + '" data-tab="' + s.id + '" title="' + esc(s.description) + " (" + (i + 2) + ')">' +
+      '<span class="icon"><span class="dot' + (s.up ? " up" : "") + '"></span></span>' + esc(s.label) + '<span class="sub">:' + s.port + "</span></a>";
+    if (activeTab || !s.up) {
+      html += '<div class="svc-state">' + state + "</div>";
+      html += '<div class="svc-tools">' + (s.up
+        ? '<a class="btn ghost sm" href="' + toolUrl(s) + '" target="_blank" rel="noopener">↗ New tab</a>' +
+          (s.managed ? '<button class="btn ghost sm" data-service="' + s.id + '" data-action="restart">↻ Restart</button>' +
+            '<button class="btn ghost sm" data-service="' + s.id + '" data-action="stop">■ Stop</button>' : "")
+        : '<button class="btn sm" data-service="' + s.id + '" data-action="start">▶ Start</button>') + "</div>";
+    }
+    return html;
   }).join("");
+  $("#nav").innerHTML =
+    '<a class="nav-item' + (tab === "home" ? " active" : "") + '" data-tab="home" title="Commands (1)"><span class="icon">⌘</span>Commands' +
+    (running ? '<span class="badge"><span class="spinner"></span>' + running + "</span>" : "") + "</a>" +
+    '<div class="nav-label eyebrow">Web tools</div>' + svc;
 }
 
 function frameFor(service) {
@@ -58,11 +81,15 @@ function frameFor(service) {
   }
   const hasFrame = box.querySelector("iframe");
   if (service.up && !hasFrame) {
-    box.innerHTML = '<iframe class="frame" src="' + toolUrl(service) + '" title="' + esc(service.label) + '"></iframe>';
+    box.innerHTML = '<iframe src="' + toolUrl(service) + '" title="' + esc(service.label) + '"></iframe>';
   } else if (!service.up && (hasFrame || !box.innerHTML)) {
-    box.innerHTML = '<div class="down"><h2>' + esc(service.label) + ' is not running</h2><p><button type="button" class="primary" data-service="' +
-      service.id + '" data-action="start">Start</button></p><pre class="log">…</pre></div>';
-    api("/api/services/" + service.id + "/log").then((d) => { const pre = box.querySelector(".log"); if (pre) pre.textContent = d.log || "(no log)"; }).catch(() => {});
+    box.innerHTML = '<div class="down"><h1>' + esc(service.label) + " is not running</h1><p>" + esc(service.description) +
+      '</p><p><button type="button" class="btn primary" data-service="' + service.id + '" data-action="start">▶ Start ' + esc(service.label) +
+      '</button></p><div class="eyebrow">Last log lines</div><pre class="log-tail">…</pre></div>';
+    api("/api/services/" + service.id + "/log").then((d) => {
+      const pre = box.querySelector(".log-tail");
+      if (pre) pre.textContent = d.log || "(no log yet)";
+    }).catch(() => {});
   }
   return box;
 }
@@ -72,10 +99,7 @@ function showTab(name) {
   history.replaceState(null, "", tab === "home" ? location.pathname : "#" + tab);
   $("#home").hidden = tab !== "home";
   services.forEach((s) => { frameFor(s).hidden = s.id !== tab; });
-  const service = services.find((s) => s.id === tab);
-  $("#newtab").hidden = !service;
-  if (service) $("#newtab").href = toolUrl(service);
-  renderTabs();
+  renderNav();
 }
 
 async function loadServices() {
@@ -84,34 +108,53 @@ async function loadServices() {
   } catch (err) {
     services = services.map((s) => Object.assign({}, s, { up: false }));
   }
-  renderTabs();
-  renderServices();
   services.forEach((s) => frameFor(s));
+  renderNav();
 }
 
-// ---- commands
+// ---- command tiles
 
-function paramInput(cmd, p) {
+function field(cmd, p) {
   const saved = (savedParams[cmd.id] || {})[p.name];
   const value = saved !== undefined ? saved : p.default;
-  const name = 'data-param="' + p.name + '"';
+  const attr = 'data-param="' + p.name + '"';
+  if (p.type === "bool") return '<label class="field check"><input type="checkbox" ' + attr + (value ? " checked" : "") + ">" + esc(p.label) + "</label>";
   let input;
-  if (p.type === "bool") input = '<input type="checkbox" ' + name + (value ? " checked" : "") + ">";
-  else if (p.type === "choice") input = "<select " + name + ">" + p.choices.map((c) => "<option" + (c === value ? " selected" : "") + ' value="' + esc(c) + '">' + esc(c || "–") + "</option>").join("") + "</select>";
-  else if (p.type === "int") input = '<input type="number" ' + name + ' min="' + p.min + '" max="' + p.max + '" value="' + esc(value) + '"' + (p.optional ? ' placeholder="–"' : "") + ">";
-  else input = '<input type="text" ' + name + ' value="' + esc(value) + '" placeholder="' + esc(p.placeholder || "") + '" pattern="' + esc(p.pattern) + '">';
-  return "<label>" + esc(p.label) + " " + input + "</label>";
+  if (p.type === "choice") {
+    input = "<select " + attr + ">" + p.choices.map((c) => '<option value="' + esc(c) + '"' + (c === value ? " selected" : "") + ">" + esc(c || "default") + "</option>").join("") + "</select>";
+  } else if (p.type === "int") {
+    input = '<input type="number" ' + attr + ' min="' + p.min + '" max="' + p.max + '" value="' + esc(value) + '"' + (p.optional ? ' placeholder="optional"' : "") + ">";
+  } else {
+    input = '<input type="text" ' + attr + ' value="' + esc(value) + '" placeholder="' + esc(p.placeholder || "") + '" pattern="' + esc(p.pattern) + '">';
+  }
+  return '<label class="field' + (p.type === "text" ? " wide" : "") + '"><span>' + esc(p.label) + "</span>" + input + "</label>";
 }
 
 function renderCommands() {
   const groups = [];
   commands.forEach((c) => { if (!groups.includes(c.group)) groups.push(c.group); });
-  $("#commands").innerHTML = groups.map((g) => '<div class="group"><h3>' + esc(g) + "</h3>" +
-    commands.filter((c) => c.group === g).map((c) =>
-      '<form class="cmd" data-command="' + c.id + '"><span class="name">' + esc(c.label) + "</span>" +
-      c.params.map((p) => paramInput(c, p)).join("") +
-      '<button type="submit" class="run primary">Run</button><span class="desc">' + esc(c.description) + "</span></form>").join("") +
-    "</div>").join("");
+  $("#commands").innerHTML = groups.map((g) => {
+    const meta = GROUPS[g] || { color: "var(--text-2)", text: "" };
+    return '<section class="group" data-group="' + esc(g) + '" style="--c: ' + meta.color + '"><div class="group-head"><h2>' + esc(g) + "</h2><p>" + esc(meta.text) + '</p></div><div class="tiles">' +
+      commands.filter((c) => c.group === g).map((c) =>
+        '<form class="tile" data-command="' + c.id + '" data-search="' + esc((c.label + " " + c.description + " " + c.script).toLowerCase()) + '">' +
+        '<div class="tile-head"><div><div class="tile-title">' + esc(c.label) + '</div><div class="tile-desc">' + esc(c.description) + "</div></div>" +
+        '<button type="submit" class="btn run">▶ Run</button></div>' +
+        (c.params.length ? '<div class="fields">' + c.params.map((p) => field(c, p)).join("") + "</div>" : "") +
+        '<div class="tile-foot"><code class="script" title="' + esc(c.script) + '">' + esc(c.script) + '</code><span class="last" data-last="' + c.id + '"></span></div>' +
+        "</form>").join("") + "</div></section>";
+  }).join("");
+}
+
+function renderTileStates() {
+  document.querySelectorAll("form.tile").forEach((form) => {
+    const job = jobs.find((j) => j.command === form.dataset.command); // jobs are newest first
+    form.classList.toggle("busy", !!job && active(job));
+    const last = form.querySelector(".last");
+    if (!job) { last.innerHTML = '<span class="muted">never run</span>'; last.removeAttribute("data-job"); return; }
+    last.dataset.job = job.id;
+    last.innerHTML = statusIcon(job.state) + (active(job) ? STATE_TEXT[job.state] + (job.started ? " · " + duration(job) : "") : STATE_TEXT[job.state] + " " + ago(job.finished || job.created));
+  });
 }
 
 function readParams(form, cmd) {
@@ -130,39 +173,95 @@ async function run(commandId, params) {
     const job = await api("/api/jobs", { command: commandId, params });
     savedParams[commandId] = params;
     localStorage.setItem(PARAMS_STORE, JSON.stringify(savedParams));
+    await loadJobs();
     selectJob(job.id);
-    loadJobs();
   } catch (err) {
-    alert("Cannot run: " + err.message);
+    toast("Cannot run: " + err.message, "var(--bad)");
   }
 }
 
-// ---- jobs
+// ---- activity
+
+function paramsText(job) {
+  return Object.entries(job.params).filter(([, v]) => v !== "" && v !== false).map(([k, v]) => (v === true ? k : k + "=" + v)).join("  ");
+}
 
 function renderJobs() {
-  if (!jobs.length) return;
-  $("#jobs").innerHTML = jobs.map((j) => {
-    const params = Object.entries(j.params).filter(([, v]) => v !== "" && v !== false).map(([k, v]) => k + "=" + v).join(" ");
-    return '<li data-job="' + j.id + '" class="' + (selectedJob && selectedJob.id === j.id ? "selected" : "") + '">' +
-      '<span class="badge ' + j.state + '">' + j.state + "</span><span>" + esc(j.label) + '</span><span class="params">' + esc(params) +
-      '</span><span class="time">' + duration(j) + "</span></li>";
-  }).join("");
-  const busy = new Set(jobs.filter((j) => j.state === "running" || j.state === "queued").map((j) => j.command));
-  document.querySelectorAll("form.cmd").forEach((f) => f.classList.toggle("busy", busy.has(f.dataset.command)));
+  $("#jobs").innerHTML = jobs.map((j) =>
+    '<li data-job="' + j.id + '" class="' + (selectedJob && selectedJob.id === j.id ? "selected" : "") + '">' + statusIcon(j.state) +
+    '<span class="name">' + esc(j.label) + '</span><span class="params">' + esc(paramsText(j)) + '</span><span class="time">' +
+    (active(j) ? duration(j) || "queued" : ago(j.finished || j.created) + " · " + duration(j)) + "</span></li>").join("");
+  $("#job-empty").hidden = jobs.length > 0;
+  const running = jobs.filter((j) => j.state === "running").length;
+  const queued = jobs.filter((j) => j.state === "queued").length;
+  $("#running").textContent = running ? running + " running" + (queued ? ", " + queued + " queued" : "") : "";
+  const current = jobs.find((j) => j.state === "running");
+  document.title = (current ? "● " + current.label + " – " : "") + "Devtools – Eastern Flank";
+}
+
+function notifyFinished() {
+  const states = {};
+  jobs.forEach((j) => { states[j.id] = j.state; });
+  if (lastStates) {
+    jobs.forEach((j) => {
+      const before = lastStates[j.id];
+      if (before && (before === "running" || before === "queued") && !active(j) && j.state !== "cancelled") {
+        const ok = j.state === "ok";
+        toast((ok ? "✓ " : "✕ ") + j.label + " " + (ok ? "passed" : "failed (exit " + j.exit_code + ")") + " · " + duration(j), ok ? "var(--ok)" : "var(--bad)", j.id);
+      }
+    });
+  }
+  lastStates = states;
 }
 
 async function loadJobs() {
   try {
     jobs = await api("/api/jobs");
-    renderJobs();
-  } catch (err) { /* hub stopped; the next poll retries */ }
+  } catch (err) {
+    return; // hub stopped; the next poll retries
+  }
+  notifyFinished();
+  renderJobs();
+  renderTileStates();
+  renderNav();
+}
+
+function classify(line) {
+  if (/\b(ERROR|FAILED|FAIL|Error|Traceback|SCRIPT ERROR|failed)\b/.test(line) && !/\b0 failed\b/.test(line)) return "e";
+  if (/\bWARNING\b|\bwarning:/.test(line)) return "w";
+  if (/\b(OK|passed|0 failed)\b|^== OK ==/.test(line)) return "o";
+  return "";
+}
+
+function appendLines(lines) {
+  const log = $("#job-log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 40;
+  const placeholder = log.querySelector(".placeholder");
+  if (placeholder && lines.length) placeholder.remove();
+  const frag = document.createDocumentFragment();
+  for (const line of lines) {
+    const div = document.createElement("div");
+    const cls = classify(line);
+    if (cls) {
+      div.className = cls;
+      selectedJob.counts[cls] = (selectedJob.counts[cls] || 0) + 1;
+    }
+    div.textContent = line || " ";
+    frag.appendChild(div);
+  }
+  log.appendChild(frag);
+  if (atBottom) log.scrollTop = log.scrollHeight;
+  const c = selectedJob.counts;
+  $("#log-counts").innerHTML = (c.e ? '<span class="e">' + c.e + " error" + (c.e > 1 ? "s" : "") + "</span>" : "") +
+    (c.w ? '<span class="w">' + c.w + " warning" + (c.w > 1 ? "s" : "") + "</span>" : "");
 }
 
 function selectJob(id) {
-  selectedJob = { id, next: 0, state: null };
+  selectedJob = { id, next: 0, state: null, counts: {} };
   $("#job").hidden = false;
-  $("#job-log").textContent = "";
+  $("#job-log").innerHTML = '<div class="placeholder">Waiting for output…</div>';
   $("#job-images").innerHTML = "";
+  $("#log-counts").innerHTML = "";
   renderJobs();
   pollJob();
 }
@@ -177,24 +276,43 @@ async function pollJob() {
     return;
   }
   if (selectedJob !== sel) return;
-  const log = $("#job-log");
-  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
-  if (job.lines.length) log.textContent += job.lines.join("\n") + "\n";
-  if (atBottom) log.scrollTop = log.scrollHeight;
+  appendLines(job.lines);
   sel.next = job.next;
-  $("#job-title").innerHTML = esc(job.label) + ' <span class="badge ' + job.state + '">' + job.state +
-    (job.exit_code !== null && job.state !== "ok" ? " (" + job.exit_code + ")" : "") + "</span>";
-  $("#job-argv").textContent = job.argv.join(" ");
-  $("#job-cancel").hidden = !(job.state === "running" || job.state === "queued");
   sel.command = job.command;
   sel.params = job.params;
+  $("#job-title").innerHTML = esc(job.label) + ' <span class="pill ' + job.state + '">' + (job.state === "running" ? '<span class="spinner"></span>' : "") +
+    STATE_TEXT[job.state] + (job.state === "failed" ? " · exit " + job.exit_code : "") + "</span>";
+  const params = paramsText(job);
+  $("#job-meta").textContent = (job.started ? "started " + new Date(job.started * 1000).toLocaleTimeString() + " · " + duration(job) : "waiting for the running job to finish") +
+    (params ? " · " + params : "");
+  $("#job-argv").textContent = job.argv.join(" ");
+  $("#job-cancel").hidden = !active(job);
   if (sel.state !== job.state) {
     sel.state = job.state;
-    $("#job-images").innerHTML = job.images.map((path) =>
-      '<figure><a href="/files/' + esc(path) + "?t=" + job.finished + '" target="_blank"><img src="/files/' + esc(path) + "?t=" + job.finished +
-      '" alt=""></a><figcaption>' + esc(path) + "</figcaption></figure>").join("");
+    const images = $("#job-images");
+    images.classList.toggle("single", job.images.length === 1);
+    images.innerHTML = job.images.map((path) => {
+      const src = "/files/" + esc(path) + "?t=" + job.finished;
+      return '<figure><a href="' + src + '" target="_blank" title="Open full size"><img src="' + src + '" alt=""></a><figcaption>' + esc(path) + "</figcaption></figure>";
+    }).join("");
+    if (!active(job) && !job.lines.length && sel.next === 0) $("#job-log").innerHTML = '<div class="placeholder">No output.</div>';
   }
-  if (job.state === "running" || job.state === "queued") setTimeout(pollJob, 600);
+  if (active(job)) setTimeout(pollJob, 600);
+}
+
+// ---- toasts
+
+function toast(text, color, jobId) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.style.setProperty("--c", color || "var(--text-2)");
+  el.textContent = text;
+  el.addEventListener("click", () => {
+    if (jobId) { showTab("home"); selectJob(jobId); }
+    el.remove();
+  });
+  $("#toasts").appendChild(el);
+  setTimeout(() => el.remove(), 7000);
 }
 
 // ---- events
@@ -202,32 +320,47 @@ async function pollJob() {
 document.addEventListener("click", async (ev) => {
   const tabLink = ev.target.closest("[data-tab]");
   if (tabLink) { ev.preventDefault(); showTab(tabLink.dataset.tab); return; }
-  const open = ev.target.closest("[data-open]");
-  if (open) { showTab(open.dataset.open); return; }
   const action = ev.target.closest("[data-action]");
   if (action) {
     action.disabled = true;
-    try { await api("/api/services/" + action.dataset.service + "/" + action.dataset.action, {}); } catch (err) { alert(err.message); }
+    try { await api("/api/services/" + action.dataset.service + "/" + action.dataset.action, {}); } catch (err) { toast(err.message, "var(--bad)"); }
     const box = document.getElementById("frame-" + action.dataset.service);
     if (box && action.dataset.action === "restart") box.innerHTML = "";
     await loadServices();
     showTab(tab);
     return;
   }
-  const li = ev.target.closest("li[data-job]");
-  if (li) selectJob(li.dataset.job);
+  const item = ev.target.closest("[data-job]");
+  if (item && item.dataset.job) selectJob(item.dataset.job);
 });
 
 document.addEventListener("submit", (ev) => {
-  const form = ev.target.closest("form.cmd");
+  const form = ev.target.closest("form.tile");
   if (!form) return;
   ev.preventDefault();
   const cmd = commands.find((c) => c.id === form.dataset.command);
   run(cmd.id, readParams(form, cmd));
 });
 
+document.addEventListener("keydown", (ev) => {
+  if (ev.target.closest("input, select, textarea") || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const pages = ["home"].concat(services.map((s) => s.id));
+  const index = Number(ev.key) - 1;
+  if (index >= 0 && index < pages.length) showTab(pages[index]);
+});
+
+$("#find").addEventListener("input", (ev) => {
+  const q = ev.target.value.toLowerCase().trim();
+  document.querySelectorAll("form.tile").forEach((f) => { f.hidden = !!q && !f.dataset.search.includes(q); });
+  document.querySelectorAll(".group").forEach((g) => { g.hidden = !g.querySelector("form.tile:not([hidden])"); });
+});
 $("#job-cancel").addEventListener("click", () => selectedJob && api("/api/jobs/" + selectedJob.id + "/cancel", {}).then(loadJobs));
 $("#job-rerun").addEventListener("click", () => selectedJob && selectedJob.command && run(selectedJob.command, selectedJob.params));
+$("#log-problems").addEventListener("change", (ev) => $("#job-log").classList.toggle("problems", ev.target.checked));
+$("#log-copy").addEventListener("click", () => {
+  const text = [...$("#job-log").children].filter((d) => !d.classList.contains("placeholder")).map((d) => d.textContent).join("\n");
+  navigator.clipboard.writeText(text).then(() => toast("Output copied", "var(--ok)"), () => toast("Copy failed", "var(--bad)"));
+});
 
 (async () => {
   [commands] = await Promise.all([api("/api/commands"), loadServices()]);

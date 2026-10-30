@@ -18,8 +18,10 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
 import catalog  # noqa: E402
 import jobs  # noqa: E402
+import static  # noqa: E402  (shared look of the dev web tools: /theme.css, /fonts/)
 
 HOST = "127.0.0.1"
 HERE = Path(__file__).resolve().parent
@@ -154,6 +156,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._api(method, [unquote(p) for p in raw_path[len("/api/"):].strip("/").split("/")])
             elif path.startswith("/files/") and method in ("GET", "HEAD"):
                 self._file(path[len("/files/"):])
+            elif method in ("GET", "HEAD") and path == "/theme.css":
+                self._send(200, static.THEME.read_bytes(), "text/css; charset=utf-8")
+            elif method in ("GET", "HEAD") and path.startswith("/fonts/") and static.font(path[len("/fonts/"):]):
+                self._send(200, static.font(path[len("/fonts/"):]).read_bytes(), "font/ttf")
             elif method in ("GET", "HEAD") and path in STATIC:
                 body = (HERE / STATIC[path]).read_bytes()
                 ctype = mimetypes.guess_type(STATIC[path])[0] or "text/plain"

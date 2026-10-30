@@ -136,7 +136,7 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.get("/fonts/..%2F..%2FREADME.md")[0], 404)
 
     def test_static_files(self) -> None:
-        for path in ("/", "/app.js", "/style.css"):
+        for path in ("/", "/app.js", "/style.css", "/theme.css", "/fonts/JetBrainsMono.ttf"):
             self.assertEqual(self.get(path)[0], 200, path)
 
 

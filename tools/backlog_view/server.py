@@ -15,11 +15,12 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
 import backlog_data  # noqa: E402
+import static  # noqa: E402
 
 HOST = "127.0.0.1"
 HERE = Path(__file__).resolve().parent
-FONTS_DIR = HERE.parent.parent / "assets" / "fonts" / "ibm_plex"
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "application/javascript; charset=utf-8"),
@@ -63,12 +64,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"error": "no such task file"}, 404)
                 else:
                     self._send(200, text.encode("utf-8"), "text/markdown; charset=utf-8")
-            elif path.startswith("/fonts/") and path.endswith(".ttf") and "/" not in path[len("/fonts/") :]:
-                font = FONTS_DIR / path[len("/fonts/") :]
-                if font.is_file():
-                    self._send(200, font.read_bytes(), "font/ttf")
-                else:
-                    self._json({"error": "not found"}, 404)
+            elif path == "/theme.css":
+                self._send(200, static.THEME.read_bytes(), "text/css; charset=utf-8")
+            elif path.startswith("/fonts/") and static.font(path[len("/fonts/") :]):
+                self._send(200, static.font(path[len("/fonts/") :]).read_bytes(), "font/ttf")
             else:
                 self._json({"error": "not found"}, 404)
         except (OSError, ValueError, IndexError) as exc:  # e.g. a file read mid-save; the page retries

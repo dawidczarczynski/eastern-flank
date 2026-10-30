@@ -291,6 +291,13 @@ class TestServer(ServerCase):
         self.assertEqual(status, 200)
         self.assertIn(b"<html", raw)
 
+    def test_shared_theme_and_fonts(self):
+        status, raw = self.req("GET", "/theme.css")
+        self.assertEqual(status, 200)
+        self.assertIn(b"--surface", raw)
+        self.assertEqual(self.req("GET", "/fonts/JetBrainsMono.ttf")[0], 200)
+        self.assertEqual(self.req("GET", "/fonts/..%2F..%2FREADME.md")[0], 404)
+
     def test_create_put_get_and_images(self):
         status, data = self.jreq("POST", "/api/units", {"real_name": "Leopard 2A4", "class": "tank", "operators": ["poland"]})
         self.assertEqual(status, 201)
