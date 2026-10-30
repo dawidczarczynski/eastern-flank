@@ -1,9 +1,9 @@
-// Salvo fire puffs (TASK-075): additive and unshaded, brighter than 1 so HIGH's glow catches
+// Fire puffs (salvo TASK-075): additive and unshaded, brighter than 1 so HIGH's glow catches
 // them; the denser middle of the texture burns hotter than its ragged edge.
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, skip_vertex_transform, fog_disabled;
 
-#include "res://assets/shaders/salvo_puff.gdshaderinc"
+#include "res://assets/shaders/puff_billboard.gdshaderinc"
 
 uniform float energy = 3.0;
 

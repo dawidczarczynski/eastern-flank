@@ -7,8 +7,9 @@ extends Node3D
 ## - impact: a fireball, dark smoke, dust thrown up and rolling along the ground, a smoke column
 ##   that lingers over the target, short light pulses and a small camera shake.
 ## The puffs live in one world-space GPUParticles3D per layer for the whole battle, simulated by
-## assets/shaders/salvo_particles.gdshader (drag towards the wind drift, rise, gravity) and drawn
-## by salvo_smoke / salvo_fire (sun-lit soft puffs / additive fire); every volley emits into them
+## assets/shaders/smoke_particles.gdshader (drag towards the wind drift, rise, gravity) and drawn
+## by smoke_puff / fire_puff (sun-lit soft puffs / additive fire, ParticleFx.puff_emitter); every
+## volley emits into them
 ## with emit_particle() – no particle node is ever created per volley. Trails are a fixed set of
 ## reused ribbons. The per-volley nodes (flame cones, two OmniLight3D) are children of the
 ## RocketVolley and are freed with it. Purely visual: own RNG, never GameState.rng.
@@ -69,9 +70,6 @@ const EMIT_FLAGS := (
 	| GPUParticles3D.EMIT_FLAG_CUSTOM
 )
 const SEED := 7500
-const PROCESS_SHADER := preload("res://assets/shaders/salvo_particles.gdshader")
-const SMOKE_SHADER := preload("res://assets/shaders/salvo_smoke.gdshader")
-const FIRE_SHADER := preload("res://assets/shaders/salvo_fire.gdshader")
 const PLUME_SHADER := preload("res://assets/shaders/salvo_plume.gdshader")
 
 static var _cone_mesh: CylinderMesh
@@ -136,7 +134,7 @@ static func create(parent: Node, quality: Dictionary, bounds: Rect2, rig: Camera
 func set_sun(towards_sun: Vector3, color: Color) -> void:
 	for layer: StringName in _layers:
 		var material := (_layers[layer] as GPUParticles3D).draw_pass_1.surface_get_material(0)
-		if (material as ShaderMaterial).shader == SMOKE_SHADER:
+		if (material as ShaderMaterial).shader == ParticleFx.SMOKE_SHADER:
 			material.set_shader_parameter("sun_dir", towards_sun.normalized())
 			material.set_shader_parameter("lit_color", color.lerp(Color.WHITE, 0.4))
 
@@ -435,7 +433,7 @@ func _layer_config(layer: StringName) -> Dictionary:
 				"size_start": 0.15,
 				"size_end": 0.7,
 				"grow": 2.0,
-				"shader": FIRE_SHADER,
+				"fire": true,
 				# White-hot -> orange -> deep red -> nothing (additive).
 				"ramp":
 				[
@@ -459,7 +457,6 @@ func _layer_config(layer: StringName) -> Dictionary:
 				"size_start": 0.18,
 				"size_end": 1.3,
 				"grow": 2.5,
-				"shader": SMOKE_SHADER,
 				# Hidden behind the fire for a moment, then dense, thinning and paling as it spreads.
 				"ramp":
 				[
@@ -481,7 +478,6 @@ func _layer_config(layer: StringName) -> Dictionary:
 				"size_start": 0.2,
 				"size_end": 1.4,
 				"grow": 2.5,
-				"shader": SMOKE_SHADER,
 				"ramp":
 				[
 					0.0,
@@ -503,7 +499,6 @@ func _layer_config(layer: StringName) -> Dictionary:
 				"size_start": 0.06,
 				"size_end": 0.5,
 				"grow": 1.5,
-				"shader": SMOKE_SHADER,
 				"ramp":
 				[
 					0.0,
@@ -524,7 +519,6 @@ func _layer_config(layer: StringName) -> Dictionary:
 				"size_start": 0.12,
 				"size_end": 0.8,
 				"grow": 2.5,
-				"shader": SMOKE_SHADER,
 				"ramp":
 				[
 					0.0,
@@ -542,32 +536,11 @@ func _layer_config(layer: StringName) -> Dictionary:
 ## A resting world-space emitter of `layer` that only shows what emit_particle() adds.
 func _make_layer(layer: StringName) -> GPUParticles3D:
 	var config := _layer_config(layer)
-	var particles := GPUParticles3D.new()
+	config["amount"] = LAYER_AMOUNTS[layer]
+	config["wind"] = _wind
+	var particles := ParticleFx.puff_emitter(config)
 	particles.name = String(layer).capitalize()
-	particles.amount = LAYER_AMOUNTS[layer]
-	particles.lifetime = config["lifetime"]
-	particles.local_coords = false
-	particles.emitting = false
 	particles.amount_ratio = 1.0
-	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var process := ShaderMaterial.new()
-	process.shader = PROCESS_SHADER
-	process.set_shader_parameter("drag", config["drag"])
-	process.set_shader_parameter("rise", config["rise"])
-	process.set_shader_parameter("gravity", config.get("gravity", 0.0))
-	process.set_shader_parameter("wind", _wind)
-	process.set_shader_parameter("size_start", config["size_start"])
-	process.set_shader_parameter("size_end", config["size_end"])
-	process.set_shader_parameter("grow", config["grow"])
-	particles.process_material = process
-	var material := ShaderMaterial.new()
-	material.shader = config["shader"]
-	material.set_shader_parameter("puff_texture", ParticleFx.billow_texture())
-	material.set_shader_parameter("ramp", ParticleFx.color_ramp(config["ramp"]))
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
-	quad.material = material
-	particles.draw_pass_1 = quad
 	return particles
 
 

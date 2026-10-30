@@ -1,4 +1,4 @@
-// Shared billboard of the salvo puffs (TASK-075): a camera-facing quad of the particle's size,
+// Shared billboard of the smoke / fire puffs (TASK-075): a camera-facing quad of the particle's size,
 // turned by INSTANCE_CUSTOM.x, its colour and opacity = particle COLOR x the layer's ramp over the
 // particle's life (INSTANCE_CUSTOM.y), faded where it meets the ground (soft particles).
 

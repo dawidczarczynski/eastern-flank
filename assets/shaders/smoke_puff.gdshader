@@ -1,13 +1,13 @@
-// Salvo smoke and dust puffs (TASK-075): alpha-blended, lit like a soft ball by the sun (a sphere
-// normal across the quad), with the texture's grain as self-shadowing, so a puff reads as a
-// volume of smoke rather than a flat disc.
+// Smoke and dust puffs (salvo TASK-075, vehicle dust and exhaust): alpha-blended, lit like a soft
+// ball by the sun (a sphere normal across the quad), with the texture's grain as self-shadowing,
+// so a puff reads as a volume of smoke rather than a flat disc.
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, skip_vertex_transform;
 
-#include "res://assets/shaders/salvo_puff.gdshaderinc"
+#include "res://assets/shaders/puff_billboard.gdshaderinc"
 
-// World direction towards the sun, its colour on the lit side and the colour of the shaded side.
-uniform vec3 sun_dir = vec3(0.4, 0.8, 0.3);
+// World direction towards the sun (default: the battle scene's Sun), its colour on the lit side and the colour of the shaded side.
+uniform vec3 sun_dir = vec3(-0.62, 0.61, 0.48);
 uniform vec3 lit_color : source_color = vec3(1.0, 0.97, 0.9);
 uniform vec3 shade_color : source_color = vec3(0.45, 0.47, 0.52);
 

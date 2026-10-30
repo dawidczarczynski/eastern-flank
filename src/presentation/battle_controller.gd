@@ -912,6 +912,19 @@ func debug_salvo(attacker_id: int, target_id: int) -> void:
 		tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 
 
+## Screenshot hook: a view-only move of `unit_id`, `tiles` tiles in Hex.DIRECTIONS[`direction`].
+func debug_move(unit_id: int, direction: int, tiles: int) -> void:
+	var from := _sim.state.get_unit(unit_id).coord
+	var path: Array[Vector2i] = []
+	for i in range(1, tiles + 1):
+		path.append(from + Hex.DIRECTIONS[direction] * i)
+	_unit_views[unit_id].process_mode = Node.PROCESS_MODE_ALWAYS  # the scene is paused
+	var event := {
+		"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": path[-1], "path": path
+	}
+	_play_event(event).set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+
+
 ## Screenshot debug hook (tools/screenshot.gd): draws a scripted move and rocket strike
 ## around a unit without animation – tracks leading up to its tile, craters and a scorch patch
 ## three tiles to its right.

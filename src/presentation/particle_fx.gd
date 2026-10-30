@@ -8,11 +8,15 @@ const TEXTURE_SIZE := 64
 const NOISE_SEED := 6407
 ## Particles may drift this far from the emitter before the node is culled (world units).
 const CULL_EXTENT := 6.0
+const PUFF_PROCESS_SHADER := preload("res://assets/shaders/smoke_particles.gdshader")
+const SMOKE_SHADER := preload("res://assets/shaders/smoke_puff.gdshader")
+const FIRE_SHADER := preload("res://assets/shaders/fire_puff.gdshader")
 
 static var _texture: ImageTexture
 static var _material: StandardMaterial3D
 static var _mesh: QuadMesh
 static var _billow: ImageTexture
+static var _puff_draws: Dictionary = {}  # look name -> QuadMesh shared by puff emitters
 
 
 ## Round puff with a noisy, soft edge (white, alpha from the noise and a radial falloff).
@@ -77,6 +81,58 @@ static func billow_texture() -> ImageTexture:
 		image.generate_mipmaps()
 		_billow = ImageTexture.create_from_image(image)
 	return _billow
+
+
+## A resting world-space emitter of sun-lit soft puffs (or additive fire) simulated by
+## assets/shaders/smoke_particles.gdshader (TASK-075; vehicle dust and exhaust reuse it).
+## `config`: amount, lifetime (s), drag (1/s, towards the drift), rise (drift up, u/s), wind
+## (Vector3 drift), size_start / size_end (world units), grow (ease-out exponent), ramp (flat
+## [offset, Color, ...] over the puff's life, multiplies its tint); optional gravity, fire (bool),
+## look (a name: emitters of the same look share one draw mesh) and, for puffs the node emits
+## itself, direction (emitter space), spread (deg), speed / size / life (Vector2 ranges; size
+## and life multiply size_* and lifetime), jitter (world units), tint (Color, alpha = opacity).
+## The emitter shows `amount_ratio` of amount per lifetime: rate = ratio * amount / lifetime.
+static func puff_emitter(config: Dictionary) -> GPUParticles3D:
+	var particles := GPUParticles3D.new()
+	particles.amount = config["amount"]
+	particles.lifetime = config["lifetime"]
+	particles.local_coords = false
+	particles.emitting = false
+	particles.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	particles.visibility_aabb = AABB(Vector3.ONE * -CULL_EXTENT, Vector3.ONE * CULL_EXTENT * 2.0)
+	var process := ShaderMaterial.new()
+	process.shader = PUFF_PROCESS_SHADER
+	for key: String in ["drag", "rise", "wind", "size_start", "size_end", "grow"]:
+		process.set_shader_parameter(key, config[key])
+	process.set_shader_parameter("gravity", config.get("gravity", 0.0))
+	process.set_shader_parameter("emit_direction", config.get("direction", Vector3.UP))
+	process.set_shader_parameter("emit_spread", config.get("spread", 0.0))
+	process.set_shader_parameter("emit_speed", config.get("speed", Vector2.ZERO))
+	process.set_shader_parameter("emit_jitter", config.get("jitter", 0.0))
+	process.set_shader_parameter("emit_tint", config.get("tint", Color.WHITE))
+	process.set_shader_parameter("emit_size", config.get("size", Vector2.ONE))
+	process.set_shader_parameter("emit_life", config.get("life", Vector2.ONE))
+	particles.process_material = process
+	var look: String = config.get("look", "")
+	if look != "" and _puff_draws.has(look):
+		particles.draw_pass_1 = _puff_draws[look]
+		return particles
+	var material := ShaderMaterial.new()
+	material.shader = FIRE_SHADER if config.get("fire", false) else SMOKE_SHADER
+	material.set_shader_parameter("puff_texture", billow_texture())
+	material.set_shader_parameter("ramp", color_ramp(config["ramp"]))
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	quad.material = material
+	particles.draw_pass_1 = quad
+	if look != "":
+		_puff_draws[look] = quad
+	return particles
+
+
+## Changes the colour new puffs of a `puff_emitter` get (those in the air keep theirs).
+static func set_puff_tint(particles: GPUParticles3D, tint: Color) -> void:
+	(particles.process_material as ShaderMaterial).set_shader_parameter("emit_tint", tint)
 
 
 ## A resting (not emitting) emitter of world-space puffs. `config`: lifetime (s), max_particles,
