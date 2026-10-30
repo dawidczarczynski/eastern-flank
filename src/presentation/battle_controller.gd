@@ -33,6 +33,7 @@ var quality: Dictionary = {}
 ## True once _ready has built the whole scene (it waits one frame so the loading screen shows).
 var is_built := false
 var _sim: GameSimulation
+var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
@@ -89,6 +90,7 @@ func _ready() -> void:
 	_wrecks.quality = quality
 	_units_root.add_child(_wrecks)
 	_camera_rig.set_bounds(_map_bounds())
+	_salvo_fx_pool = SalvoFxPool.create(self, quality, _map_bounds(), _camera_rig)
 	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
@@ -753,36 +755,21 @@ func _play_event(event: Dictionary) -> Tween:
 func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary) -> Tween:
 	var aim_point := target.global_position
 	var tween := create_tween()
-	var traverse := 0.0
-	var elevation := 0.0
-	if shooter.has_launcher():
-		var aim := shooter.launcher_aim_towards(aim_point)
-		traverse = aim.y
-		elevation = shooter.launcher_elevation()
-		if shooter.launcher_limited():
-			VolleyPlayback.tween_body_turn(tween, shooter, aim.x, AIM_DURATION)
-		VolleyPlayback.append_aim(tween, shooter, traverse, elevation)
-	else:
-		var turn := wrapf(shooter.yaw_towards(aim_point) - shooter.facing_yaw(), -PI, PI)
-		VolleyPlayback.tween_body_turn(tween, shooter, turn, AIM_DURATION)
-	var from := shooter.global_position
-	var context := {
-		"launcher_terrain": VolleyPlayback.terrain_name(_terrain_at(from.x, from.z)),
-		"target_terrain": VolleyPlayback.terrain_name(_terrain_at(aim_point.x, aim_point.z)),
-	}
-	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
+	var pose := VolleyPlayback.append_aim_at(tween, shooter, aim_point, AIM_DURATION)
+	var context := VolleyPlayback.terrain_context(shooter.global_position, aim_point, _terrain_at)
 	# View-local scatter, the same for a replayed event; never GameState.rng.
 	var rng := VolleyPlayback.scatter_rng(_event_serial, event["attacker_id"])
+	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
 	var ground := _map_view.mesh_height_at
 	var volley := VolleyPlayback.append_salvo(
 		tween, self, shooter, aim_point, rng, radius, context, ground
 	)
-	volley.effects = SalvoEffects.new()  # TASK-075 assigns its pooled effects on HIGH here
+	volley.effects = SalvoFxPool.effects(_salvo_fx_pool, quality)
 	VolleyPlayback.connect_hp_steps(
 		volley, target, target_hp, _event_speed, _add_impact_marks.bind(event, target, shooter)
 	)
 	if shooter.has_launcher():
-		VolleyPlayback.append_stow(tween, shooter, traverse, elevation)
+		VolleyPlayback.append_stow(tween, shooter, pose.x, pose.y)
 	return tween
 
 

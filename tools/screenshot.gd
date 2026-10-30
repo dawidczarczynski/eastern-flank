@@ -234,6 +234,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## (ignored when SCREENSHOT_CAMERA is set).
 ## SCREENSHOT_MEASURE_FRAMES=<N> times N frames after the warm-up (vsync off) and prints
 ## "Frame time: avg X ms, max Y ms over N frames" before the capture.
+## SCREENSHOT_FOV=<degrees> narrows the camera's field of view (a tele close-up of effects that are
+## tiny at the closest camera distance, e.g. salvo backblast; the default is the game's fov).
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
 ## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
 ## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
@@ -283,6 +285,9 @@ func _apply_debug_selection() -> void:
 			)
 		elif focus["error"] != "none":
 			printerr("ERROR: invalid SCREENSHOT_FOCUS (expected <x>,<z>,<yaw degrees>,<distance>)")
+	var fov := OS.get_environment("SCREENSHOT_FOV")
+	if fov.is_valid_float() and get_root().get_camera_3d() != null:
+		get_root().get_camera_3d().fov = clampf(fov.to_float(), 5.0, 120.0)
 	var notice := OS.get_environment("SCREENSHOT_NOTICE")
 	if notice != "":
 		_battle.call("debug_notice", notice)

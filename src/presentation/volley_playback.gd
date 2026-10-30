@@ -133,6 +133,34 @@ static func terrain_name(type: int) -> StringName:
 	return StringName(String(Terrain.Type.keys()[type]).to_lower())
 
 
+## Effect-hook context terrains of a salvo from `from` to `to` (world); `terrain_at` is
+## Callable(x, z) -> Terrain.Type.
+static func terrain_context(from: Vector3, to: Vector3, terrain_at: Callable) -> Dictionary:
+	return {
+		"launcher_terrain": terrain_name(terrain_at.call(from.x, from.z)),
+		"target_terrain": terrain_name(terrain_at.call(to.x, to.z)),
+	}
+
+
+## Aims `shooter` at `aim_point` before a salvo: a limited launcher turns the hull first (taking
+## `body_turn_duration`), then the pod rises and traverses (append_aim); a model without a launcher
+## turns the whole vehicle. Returns Vector2(traverse, elevation) for append_stow (zero without a
+## launcher).
+static func append_aim_at(
+	tween: Tween, shooter: UnitView, aim_point: Vector3, body_turn_duration: float
+) -> Vector2:
+	if not shooter.has_launcher():
+		var turn := wrapf(shooter.yaw_towards(aim_point) - shooter.facing_yaw(), -PI, PI)
+		tween_body_turn(tween, shooter, turn, body_turn_duration)
+		return Vector2.ZERO
+	var aim := shooter.launcher_aim_towards(aim_point)
+	var elevation := shooter.launcher_elevation()
+	if shooter.launcher_limited():
+		tween_body_turn(tween, shooter, aim.x, body_turn_duration)
+	append_aim(tween, shooter, aim.y, elevation)
+	return Vector2(aim.y, elevation)
+
+
 ## A view-only `unit_attacked` event for showing a volley without a command (screenshot hook):
 ## no damage, the target keeps `target_hp`.
 static func show_attack(attacker_id: int, target_id: int, target_hp: int) -> Dictionary:

@@ -1,6 +1,6 @@
 # TASK-075: Rocket salvo effects – backblast, motor plume and smoke trail, realistic impacts with a lingering smoke column (pooled particles)
 
-- **Status**: ready (hard dependency TASK-074)
+- **Status**: done
 - **Layers**: presentation (new `SalvoFxPool` (pooled particle layers) + its `SalvoEffects` implementation, `ParticleFx` (fire material variant), `BattleController._play_volley` (assigns the effects on HIGH), `CameraRig` (small shake), `GraphicsQuality.features` (`fx_lights`)), tests, docs (ARCHITECTURE, MANUAL), README screenshot. Role: **presentation-engineer**. No core change.
 - **Depends on**: **[TASK-074](TASK-074-mlrs-salvo-sequence.md)** (salvo timing, rocket paths, `SalvoEffects` hooks, `FlashFx`, `SCREENSHOT_SALVO` hook), **TASK-064** (done: `ParticleFx`, `MotionEffects.dust_color`, `Wind`), **TASK-050** (done: `particles` switch), **TASK-058** (done: craters and scorch – the column and dust sit on top of them). Soft: **TASK-065** (wreck smoke at the same tile after a kill; shares `ParticleFx`), **TASK-073** (v3 launcher models – the backblast origin uses the pod meshes' length, with a fallback).
 - **Model**: sonnet (the timing, callbacks and event queue are done in TASK-074; this task fills hooks with pooled particles and measures the frame time)
@@ -87,4 +87,74 @@ In section 10 (Screen), in the "**Rocket salvos**" paragraph added by TASK-074, 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+**Done (2026-10-25).** `tools/check.sh` passes: lint clean, 1017 tests, 0 failed. No core change and no new event types.
+
+- **New files**:
+  - `src/presentation/salvo_fx_pool.gd`, with the inner classes `VolleyFx` (the HIGH `SalvoEffects`), `SalvoLight` and `RingFx`.
+  - `tests/unit/test_salvo_fx.gd` (pool, quality, lights, linger list).
+  - `tests/unit/test_salvo_fx_helpers.gd` (pure helpers: `backblast_origin`, `backblast_dir`, `pod_length` fallback, `trail_points`, `dust_for`, `shake_strength`, `fx_lights`).
+- **Edited files**:
+  - `ParticleFx`: adds `fire_mesh`, `pooled_puff_mesh` and `color_ramp`.
+  - `GraphicsQuality`: `fx_lights` is true on HIGH and false on LOW.
+  - `CameraRig`: `shake_strength` and `add_shake`; the shake offsets only the camera node, and `SHAKE_ENABLED` is true.
+  - `BattleController`: creates the pool in `_ready`; `_play_volley` assigns the effects.
+  - `VolleyPlayback`: gains `terrain_context` and `append_aim_at`, moved out of `BattleController`, which is now 987 lines.
+  - ARCHITECTURE: a new paragraph on salvo effects.
+  - MANUAL: one sentence, marked as HIGH graphics only.
+  - Screenshot tool: `SCREENSHOT_FOV`, a telephoto close-up.
+- **Pool**: six layers on HIGH that never emit by themselves. Everything comes from `emit_particle()` with an identity basis and custom data; without these, recycled slots rendered as huge discs on the GPU.
+  - Layer amounts: trail 512, fire 128, smoke 192, column 256, blast_dust 64, dust 96. The total is 1 248, within the 1 250 budget.
+  - The round-robin fallback was not needed.
+  - `process_mode = ALWAYS`, because the screenshot tool pauses the battle node.
+  - LOW creates no pool, no particles and no lights.
+- **Deviations from the spec**:
+  - Backblast speed is 1.6–2.6 u/s instead of 2.5–4; at 2.5–4 the cloud was too big at battle zoom.
+  - The backblast direction is tilted up (`backblast_dir`), so a raised pod does not blow into the ground.
+  - Smoke damping is a constant deceleration in Godot. So there is no gravity; rise and wind are emitted as initial velocity.
+  - No per-particle colour: colours come from each layer's ramp.
+  - The dust tint is set per layer. Launcher dust and impact dust are separate layers, but a volley over a different terrain recolours dust that is still alive.
+  - Backblast fire and the fireball share one layer, so they have the same lifetime and size.
+- **Screenshots** (Windows build, HIGH, `.screenshots/`, with `SCREENSHOT_SALVO=4,9`):
+  - (a) `a_275.png`, `a_300.png` and `r_a.png` (frame 285): the backblast behind the launcher, a white trail climbing to the top of the frame, a rocket with a bright streak.
+  - (b) Mid salvo: no clean capture; the trails merge into one streak.
+  - (c) `c_345.png` and `c_375.png`: an orange fireball, a growing grey smoke column, small dust puffs.
+  - Not visible in stills: the plume flame (tiny at battle zoom), launcher ground dust as distinct from the smoke, the dust-ring quad, the lights and the shake.
+  - In `r_a.png` the backblast puffs near the camera read as **large, hard-edged grey discs**, not a soft cloud. This needs a check in play.
+- **Frame time** (Windows, RX 580, default camera, 240 frames):
+
+  | Run | avg | max |
+  |---|---|---|
+  | No salvo (baseline) | 17.57 ms | 20.05 ms |
+  | Uragan salvo, HIGH with the pool | 19.49 ms | 322 ms |
+  | Same salvo without TASK-075 | 19.17 ms | 324 ms |
+  | Same salvo on LOW | 17.88 ms | 324 ms |
+  | Late in the salvo | 18.03 ms | 18.74 ms |
+
+  The pool costs about 0.3–0.5 ms. The 16.7 ms target is missed on this machine, but the baseline already misses it. The ~320 ms hitch at salvo start also happens without this task and on LOW, so it comes from TASK-074 or earlier; it has not been located.
+- **README image**: re-rendered and visually identical, so the committed `gameplay.png` is kept.
+- **Review fixes applied**:
+  - The pool layers no longer self-emit, so every slot is free for `emit_particle()`.
+  - Dust is split into launcher and impact layers.
+  - Terrain is looked up through the enum.
+  - Tests added for the plume, `create` on LOW and HIGH, and `backblast_dir`.
+  - `_shake_clock` is reset when the shake ends.
+- **Skipped review items**: the `_layer_config` table refactor, the test-only `emitted` counter, freeing `RingFx` early.
+- **Open for the playtest**:
+  - Backblast disc look and size.
+  - Trail heaviness: lower its alpha or end size in `_layer_config` if it is too strong.
+  - Plume visibility.
+  - Whether the camera shake is welcome.
+
+**Rework after the playtest (2026-10-30).** The first version looked like big soap bubbles: flat, unlit discs of a simple round texture (`ParticleFx.puff_mesh` look), drifting far because `ParticleProcessMaterial` damping on `emit_particle()` particles did not hold them, and a trail made of a chain of light discs. The human asked for: a thin dark-grey smoke trail per rocket in the first phase of flight, clouds of smoke behind the launcher at every launch, a visible column of motor fire only at the launch, fire, smoke and dust at the impact. Changes:
+
+- **Custom particle shaders** instead of `ParticleProcessMaterial`:
+  - `assets/shaders/salvo_particles.gdshader` simulates the puffs: drag towards wind + rise (fast puffs billow out, stop, then drift), gravity on the debris layer, ease-out growth, slow spin; per-particle tint, size and lifetime come from `emit_particle()` (colour + custom), so no layer retinting.
+  - `salvo_smoke.gdshader` lights each billboard like a soft ball from the battle's `Sun` (sphere normal across the quad, texture grain as self-shadow) and fades it where it meets the ground (depth texture); `salvo_fire.gdshader` is additive HDR fire. Shared `salvo_puff.gdshaderinc`.
+  - New `ParticleFx.billow_texture()` (128 px, noise-bent ragged silhouette, mipmapped); `fire_mesh` / `pooled_puff_mesh` removed.
+- **Layers**: `fire` 192, `smoke` 256 (impact smoke + column), `blast` 256 (backblast cloud: low rise, spreads wide), `dust` 256 (launcher dust + impact dust rolling out), `debris` 128 (dust thrown up, falls back) = 1 088.
+- **Trail**: `SalvoTrail` ribbons (20, reused round-robin, owned by the pool) instead of trail particles – thin (0.022) dark grey (`#403d3a`-ish, alpha 0.8) at the rocket, widening to 0.32, thinning and drifting over 4.5 s; only while the motor burns.
+- **Motor flame**: one additive cone with `salvo_plume.gdshader` (white core, orange ragged tip, soft silhouette), 1.0 × 0.11 units, shown only for `PLUME_TIME` 0.32 s after the launch (`plume_at`); TASK-074's small tail glow is unchanged.
+- **Impact**: 8 fire puffs, 5 dark smoke puffs, 7 debris dust puffs, 8 ground dust puffs, 2 column puffs; the flat ring quad (`RingFx`) was dropped.
+- **Tests**: `test_salvo_fx.gd` updated (per-layer counts, `test_plume_burns_only_at_the_launch`, `test_plume_shape_over_time`, trails grow then fade, ribbons reused). `tools/check.sh`: lint clean, 1020 tests, 0 failed.
+- **Screenshots** (Windows build, HIGH, `.screenshots/salvo/`, `SCREENSHOT_SALVO=4,9`): `v2_launch.png` / `v3_launch.png` (camera `4,30,5–6`, FOV 18–22, frames 198–203): rocket leaving with a short orange flame, fire glow at the tube's rear, a soft grey billowing cloud behind the launcher, thin dark trail; `v2_cloud.png` (frame 330): the cloud built up over the salvo, trails widening into grey bands; `v2_impact.png` / `v3_impact.png` (camera `9,30,6`, frames 425–440): fire glow over the target, dust haze around the vehicle; `v2_column.png` (frame 520): dark smoke column over the target. At the very first frames of a launch the flame cone is partly hidden inside the pod (it points back through the tubes); it shows once the rocket is out.
+- **Frame time** (Windows, RX 580, 300 frames): no salvo 17.86 ms avg; salvo at the default camera 19.39 ms avg (TASK-074 alone measured 19.17 ms); salvo close to the launcher 17.64 ms. The ~325 ms hitch at salvo start is still there (pre-existing, also on LOW).

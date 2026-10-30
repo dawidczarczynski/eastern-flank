@@ -15,6 +15,13 @@ const CLAMP_MARGIN := 2.0
 const KEY_PAN_SPEED := 0.9  # units/s per unit of distance
 const KEY_ROTATE_SPEED := 1.2  # rad/s
 const MOUSE_ROTATE_SPEED := 0.005  # rad/px
+## Impact shake (TASK-075): a decaying offset of the camera node only. Largest offset (world
+## units) at SHAKE_NEAR or closer, fading linearly to 0 at SHAKE_FAR; SHAKE_ENABLED switches it off.
+const SHAKE_ENABLED := true
+const SHAKE_MAX := 0.03
+const SHAKE_NEAR := 6.0
+const SHAKE_FAR := 25.0
+const SHAKE_DECAY := 0.25  # seconds from SHAKE_MAX to 0
 
 var _target := Vector2.ZERO  # XZ look-at point (the rig's position, y = 0)
 var _yaw := 0.0
@@ -29,6 +36,8 @@ var _resetting_tilt := false  # Home pressed: the offset is easing back to 0
 var _tilt_dragging := false  # middle mouse held
 ## Callable(x: float, z: float) -> float: the drawn ground height; null = flat ground at 0.
 var _ground_height := Callable()
+var _shake := 0.0  # current shake amplitude (world units)
+var _shake_clock := 0.0
 
 @onready var _camera: Camera3D = $Camera3D
 
@@ -97,8 +106,30 @@ func set_view(target: Vector2, yaw: float, distance: float) -> void:
 	_apply()
 
 
+## Shake amplitude of an impact `distance` world units from the camera.
+static func shake_strength(distance: float) -> float:
+	return SHAKE_MAX * clampf((SHAKE_FAR - distance) / (SHAKE_FAR - SHAKE_NEAR), 0.0, 1.0)
+
+
+## Adds `strength` (shake_strength) to the shake; the sum never exceeds SHAKE_MAX.
+func add_shake(strength: float) -> void:
+	if SHAKE_ENABLED:
+		_shake = minf(SHAKE_MAX, _shake + maxf(strength, 0.0))
+
+
+## Current shake amplitude (0 at rest).
+func shake() -> float:
+	return _shake
+
+
 func _process(delta: float) -> void:
 	var changed := false
+	if _shake > 0.0:
+		_shake_clock += delta
+		_shake = maxf(0.0, _shake - SHAKE_MAX / SHAKE_DECAY * delta)
+		if _shake == 0.0:
+			_shake_clock = 0.0
+		changed = true
 	var input := Vector2.ZERO
 	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP):
 		input.y += 1.0
@@ -222,6 +253,9 @@ func _apply() -> void:
 	var look_at_point := Vector3.UP * TARGET_HEIGHT
 	_camera.position = look_at_point + _clear_offset(look_at_point)
 	_camera.look_at(global_position + look_at_point, Vector3.UP)
+	if _shake > 0.0:  # translation only: the rig target, the pitch and the aim stay untouched
+		var t := _shake_clock
+		_camera.position += (Vector3(sin(t * 91.0), sin(t * 77.0 + 1.3), cos(t * 63.0)) * _shake)
 
 
 ## Camera offset with the pitch raised where needed so the camera stays above the ground under it.

@@ -78,6 +78,8 @@ static func features(level: Level) -> Dictionary:
 		# Soldiers' uniform cloth (TASK-085): the crease / weave bump and sheen of the camo shader
 		# (a few noise lookups and screen derivatives per pixel); LOW keeps the plain camo.
 		"fabric": high,
+		# Short OmniLight3D pulses of a rocket salvo (TASK-075): launcher flash and impact flash.
+		"fx_lights": high,
 	}
 
 

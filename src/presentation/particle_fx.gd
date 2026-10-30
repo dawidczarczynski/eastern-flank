@@ -12,6 +12,7 @@ const CULL_EXTENT := 6.0
 static var _texture: ImageTexture
 static var _material: StandardMaterial3D
 static var _mesh: QuadMesh
+static var _billow: ImageTexture
 
 
 ## Round puff with a noisy, soft edge (white, alpha from the noise and a radial falloff).
@@ -47,6 +48,35 @@ static func puff_mesh() -> QuadMesh:
 		_mesh.size = Vector2.ONE
 		_mesh.material = _material
 	return _mesh
+
+
+## Billowy puff for the salvo effects (TASK-075): a lumpy, ragged silhouette (the radius is bent
+## by noise) with denser knots inside. Alpha = density; red = the grain the smoke shader uses as
+## self-shadowing. Mipmapped, 128 px (puffs get large near the camera).
+static func billow_texture() -> ImageTexture:
+	if _billow == null:
+		var size := 128
+		var shape := FastNoiseLite.new()
+		shape.seed = NOISE_SEED + 1
+		shape.frequency = 0.035
+		shape.fractal_octaves = 2
+		var grain := FastNoiseLite.new()
+		grain.seed = NOISE_SEED + 2
+		grain.frequency = 0.06
+		grain.fractal_octaves = 4
+		var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+		var half := size / 2.0
+		for y in size:
+			for x in size:
+				var offset := Vector2(x + 0.5 - half, y + 0.5 - half) / half
+				var lump := shape.get_noise_2d(x, y) * 0.5 + 0.5
+				var r := offset.length() * lerpf(0.8, 1.35, lump)
+				var detail := grain.get_noise_2d(x, y) * 0.5 + 0.5
+				var density := (1.0 - smoothstep(0.35, 0.95, r)) * lerpf(0.55, 1.0, detail)
+				image.set_pixel(x, y, Color(detail, detail, detail, clampf(density, 0.0, 1.0)))
+		image.generate_mipmaps()
+		_billow = ImageTexture.create_from_image(image)
+	return _billow
 
 
 ## A resting (not emitting) emitter of world-space puffs. `config`: lifetime (s), max_particles,
@@ -96,6 +126,21 @@ static func _curve_texture(points: Array) -> CurveTexture:
 		curve.add_point(Vector2(points[i], points[i + 1]))
 	var texture := CurveTexture.new()
 	texture.curve = curve
+	return texture
+
+
+## Colour over a particle's life from flat [offset, Color, offset, Color, ...] pairs.
+static func color_ramp(stops: Array) -> GradientTexture1D:
+	var gradient := Gradient.new()
+	var offsets := PackedFloat32Array()
+	var colors := PackedColorArray()
+	for i in range(0, stops.size(), 2):
+		offsets.append(stops[i])
+		colors.append(stops[i + 1])
+	gradient.offsets = offsets
+	gradient.colors = colors
+	var texture := GradientTexture1D.new()
+	texture.gradient = gradient
 	return texture
 
 
