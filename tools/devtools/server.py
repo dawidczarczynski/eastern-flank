@@ -16,7 +16,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlsplit
-from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
@@ -105,9 +104,6 @@ class Handler(BaseHTTPRequestHandler):
             self._json(job if job else {"error": "unknown job"}, 200 if job else 404)
         elif path == "/api/chat":
             self._json(dict(self.chat.status(), sessions=self.chat.list()))
-        elif path == "/api/chat/busy":
-            what = self.chat.busy()
-            self._json({"busy": what is not None, "what": what or ""})
         elif path.startswith("/api/chat/"):
             since = query.get("since", ["0"])[0]
             try:
@@ -181,6 +177,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(out, 200 if out.get("existing") else 201)
             elif len(parts) == 2 and parts[1] == "send":
                 self._json(self.chat.send(parts[0], body.get("text")))
+            elif len(parts) == 2 and parts[1] == "answer":
+                self._json(self.chat.answer(parts[0], body.get("request_id"), body.get("behavior"), body.get("answers"),
+                                            body.get("message", "")))  # fmt: skip
             elif len(parts) == 2 and parts[1] == "stop":
                 self._json(self.chat.stop(parts[0]))
             else:
@@ -197,19 +196,6 @@ def make_handler(repo_root: Path, services: Dict[str, runner.Service], jobs: run
     return type("DevtoolsHandler", (Handler,), {"repo_root": repo_root, "services": services, "jobs": jobs, "chat": chats})
 
 
-def catalog_busy(port: int) -> Optional[str]:
-    """A queued or running unit catalog agent job (it edits the same working tree), as a message, or None."""
-    try:
-        with urlopen("http://127.0.0.1:%d/api/jobs" % port, timeout=1) as res:
-            jobs = json.loads(res.read().decode("utf-8")).get("jobs") or []
-    except (OSError, ValueError, AttributeError):
-        return None
-    for job in jobs:
-        if isinstance(job, dict) and job.get("state") in ("queued", "running"):
-            return "a unit catalog %s job for %s is %s" % (job.get("kind"), job.get("unit_id"), job.get("state"))
-    return None
-
-
 def _raise_interrupt(*_: Any) -> None:
     raise KeyboardInterrupt
 
@@ -220,11 +206,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parser.parse_args(argv)
     services = {spec["id"]: runner.Service(spec, registry.REPO_ROOT, LOG_DIR) for spec in registry.SERVICES}
     jobs = runner.JobRunner(registry.REPO_ROOT)
-    catalog_port = next(s["port"] for s in registry.SERVICES if s["id"] == "unit_catalog")
     history = LOG_DIR / "chats.json"
     history_lock = chat.lock_history(history)  # noqa: F841 (held until the process exits)
     chats = chat.ChatManager(registry.REPO_ROOT, chat.find_claude(), state_file=history if history_lock else None,
-                             busy_probe=lambda: catalog_busy(catalog_port),
                              unavailable="" if history_lock else "another devtools instance runs the Claude chat "
                              "(it holds .devtools/chats.json.lock) - use that one")  # fmt: skip
     server = ThreadingHTTPServer((HOST, args.port), make_handler(registry.REPO_ROOT, services, jobs, chats))

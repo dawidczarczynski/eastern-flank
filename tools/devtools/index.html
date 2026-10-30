@@ -71,20 +71,18 @@
         <button id="chat-new" type="button" class="btn sm">+ New chat</button>
       </header>
       <ul id="chat-sessions" class="jobs chat-sessions"></ul>
-      <details class="chat-perms">
-        <summary>What Claude may do here</summary>
-        <p>Claude Code runs headless with your login and subscription, in <b>auto</b> permission mode: a classifier approves safe actions and blocks risky ones
-          (nobody gets a prompt – Claude tells you what it needed). The allow-list below skips the classifier; the deny-list always wins, so it never commits or pushes.
-          One chat works at a time, and none while a unit catalog job runs.</p>
-        <ul id="chat-perms"></ul>
-      </details>
+      <div class="chat-perms">
+        <p>A Claude Code session like the one in your editor: <b>auto</b> permission mode and your own settings. Permission prompts and Claude's questions show up in the chat;
+          <kbd>Esc</kbd> or Stop interrupts a turn, and you can write while Claude works. Sessions share the working tree with your other sessions.</p>
+      </div>
     </div>
     <div class="chat-main">
       <div id="chat-head" class="chat-head"></div>
       <div id="chat-log" class="chat-log"></div>
       <details id="chat-files" class="chat-files" hidden><summary></summary><pre></pre></details>
+      <ul id="chat-commands" class="chat-commands" hidden></ul>
       <form id="chat-form" class="composer">
-        <textarea id="chat-input" rows="3" placeholder="Message Claude…  (Enter sends, Shift+Enter new line)"></textarea>
+        <textarea id="chat-input" rows="3" placeholder="Message Claude…  (Enter sends, Shift+Enter new line, / for commands)"></textarea>
         <div class="composer-side">
           <label class="toggle"><input id="chat-steps" type="checkbox" checked> steps</label>
           <button id="chat-send" type="submit" class="btn primary">Send</button>

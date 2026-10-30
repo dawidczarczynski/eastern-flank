@@ -301,27 +301,13 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, target.read_bytes(), ctype)
 
 
-DEVTOOLS_PORT = 8760
-
-
-def devtools_chat_busy() -> Optional[str]:
-    """The devtools Claude chat working on the same tree (tools/devtools/chat.py), as a message, or None."""
-    try:
-        with urlopen("http://127.0.0.1:%d/api/chat/busy" % DEVTOOLS_PORT, timeout=1) as res:
-            data = json.loads(res.read().decode("utf-8"))
-    except (OSError, ValueError):
-        return None
-    return str(data.get("what") or "the devtools Claude chat is working") if isinstance(data, dict) and data.get("busy") else None
-
-
 def make_server(port: int, root: Optional[Path] = None, screenshots: Optional[Path] = None,
                 fonts: Optional[Path] = None, fetch: Optional[Callable[[str], bytes]] = None,
                 job_manager: Optional[jobs.JobManager] = None) -> ThreadingHTTPServer:  # fmt: skip
     """Create (but don't start) the server. Always bound to 127.0.0.1; port 0 picks a free port."""
     data_root = Path(root) if root else catalog.DEFAULT_ROOT
     manager = job_manager or jobs.JobManager(catalog.REPO_ROOT, data_root, jobs.find_claude(),
-                                             state_file=None if root else JOB_HISTORY,
-                                             busy_probe=None if root else devtools_chat_busy)  # fmt: skip
+                                             state_file=None if root else JOB_HISTORY)  # fmt: skip
     handler = type("BoundHandler", (Handler,), {
         "root": data_root,
         "screenshots": Path(screenshots) if screenshots else catalog.DEFAULT_SCREENSHOTS,

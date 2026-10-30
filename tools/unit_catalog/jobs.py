@@ -175,10 +175,8 @@ class JobManager:
     """FIFO queue with a single worker thread. `popen` is injectable for tests."""
 
     def __init__(self, repo_root: Path, catalog_root: Path, claude: Optional[str],
-                 popen: Popen = subprocess.Popen, state_file: Optional[Path] = None,
-                 busy_probe: Optional[Callable[[], Optional[str]]] = None) -> None:  # fmt: skip
+                 popen: Popen = subprocess.Popen, state_file: Optional[Path] = None) -> None:  # fmt: skip
         self.repo_root = Path(repo_root)
-        self._busy_probe = busy_probe  # another tool's agent working on the tree (devtools chat), as a message
         self.state_file = Path(state_file) if state_file else None
         self.catalog_root = Path(catalog_root)
         self.claude = claude
@@ -222,7 +220,6 @@ class JobManager:
         catalog.load_unit(self.catalog_root, unit_id)  # 404 for unknown units
         if faction and not catalog.faction_path(self.catalog_root, faction).is_file():
             raise catalog._err("faction", "unknown faction %r" % faction)
-        self._check_tree_free()
         with self._lock:
             busy = [j for j in self._jobs.values() if j.unit_id == unit_id and j.state in ACTIVE]
             if busy:
@@ -238,7 +235,6 @@ class JobManager:
         """Queue a job that continues `job_id`'s Claude Code session (same kind, unit, faction and allow-list)."""
         if self.claude is None:
             raise catalog._err("ai", self.status()["hint"], 503)
-        self._check_tree_free()
         with self._lock:
             old = self._jobs.get(job_id)
             if old is None:
@@ -315,11 +311,6 @@ class JobManager:
                     return True
             time.sleep(0.02)
         return False
-
-    def _check_tree_free(self) -> None:
-        message = self._busy_probe() if self._busy_probe else None
-        if message:
-            raise catalog._err("job", message + " - wait until it ends (shared working tree)", 409)
 
     # ---- state file
     def _new_id(self) -> str:

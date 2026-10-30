@@ -1,21 +1,16 @@
 """Claude chat of the devtools hub: Claude Code sessions the human talks to in the browser. Python 3.8, stdlib only.
 
-A session is one `claude -p --input-format stream-json --output-format stream-json` process: every message the
-human sends goes to its stdin as a stream-json user message, so the agent keeps its context between turns.
-A session started from the backlog opens with the fixed prompt `/implement-task <TASK-ID>`; a free chat opens
-with the human's text. When the process is gone (Stop, a devtools restart, a crash) the next message starts a new
-one with `--resume <session id>`.
+A session is one `claude -p --input-format stream-json --output-format stream-json` process, driven like the
+Agent SDK drives it (ADR 0017): every message goes to its stdin as a stream-json user message - also while a turn
+runs (the CLI folds it into the work) and slash commands like `/compact` - and the control protocol on the same
+pipes carries what the IDE would show: permission prompts and `AskUserQuestion` (`can_use_tool` requests, answered
+from the browser), the session's slash commands (`initialize`) and Stop (`interrupt`, the process stays alive).
 
-Permissions (ADR 0017): every process runs in Claude Code's `auto` permission mode with `--permission-prompts none`.
-A classifier approves safe actions and blocks risky ones (data exfiltration, destructive commands, …); nobody can
-answer a prompt, so a blocked action is denied and the agent tells the human what it needs. A pre-approved
-allow-list (repository edits, the project's `tools/` scripts, read-only git, web, skills, subagents) skips the
-classifier; a deny-list wins over both: no commit, push, reset, clean, rebase or stash, no edits in `.git/`,
-`.godot/` or `*.import`.
-
-One session works at a time (sessions and unit catalog jobs share the working tree), and only one Claude process
-stays alive: starting one stops the idle process of any other session (it resumes on its next message).
-History is saved to `.devtools/chats.json` (git-ignored).
+The session behaves like Claude Code in the IDE: `auto` permission mode plus the human's own settings, no extra
+rules and no extra system prompt. A session started from the backlog opens with `/implement-task <TASK-ID>`; a
+free chat opens with the human's text. When the process is gone (a devtools restart, a crash, too many idle
+processes) the next message starts a new one with `--resume <session id>`. History is saved to
+`.devtools/chats.json` (git-ignored); one devtools instance owns it (`lock_history`).
 """
 from __future__ import annotations
 
@@ -41,21 +36,11 @@ MAX_TEXT = 32 * 1024  # characters per message
 MAX_LOG = 4000  # log entries kept per session
 PERSIST_LOG = 1500  # log entries per session written to the state file
 MAX_SESSIONS = 40
+MAX_IDLE_PROCESSES = 4  # idle Claude processes kept alive; older ones stop and resume on their next message
 SAVE_EVERY = 2.0  # seconds between state file writes while a session streams
+INTERRUPT_GRACE = 8.0  # seconds a Stop waits for the turn to end before the process is killed
 CLOSED_STATUSES = ("done", "merged", "idea")  # tasks the backlog button does not implement
-BASH_ALLOWED = (
-    "tools/check.sh", "tools/test.sh", "tools/lint.sh", "tools/backlog.py", "python3 tools/backlog.py",
-    "tools/screenshot.sh", "tools/readme_screenshot.sh", "tools/render_unit.sh", "tools/simulate.sh",
-    "godot --headless", "git status", "git diff", "git log", "git show",
-)  # fmt: skip
-GIT_DENIED = ("commit", "push", "reset", "clean", "rebase", "stash")  # history and the human's uncommitted work
-SYSTEM_PROMPT = (
-    "You run headless inside the Eastern Flank devtools chat (tools/devtools.sh). The human reads your messages in "
-    "a browser and replies there. Your permission mode is auto: a classifier blocks risky actions and nobody can "
-    "answer a permission prompt - if an action you need is denied, say exactly what the human should run and wait. "
-    "When you need a decision, "
-    "ask it at the end of your message and end your turn. Never commit or push; the human does that."
-)
+PERMISSION_MODE = "auto"  # what the human uses in the IDE
 
 
 class ChatError(Exception):
@@ -70,21 +55,9 @@ def find_claude() -> Optional[str]:
     return claude_cli.find_claude(CLAUDE_ENV)
 
 
-def permissions(repo_root: Path) -> Dict[str, List[str]]:
-    """The pre-approved allow-list and the deny-list of every chat process (everything else goes to the auto mode
-    classifier). File rules are absolute (`//abs/path`): a `cd` in the agent's shell moves the directory relative
-    rules are resolved against. `Edit(...)` covers every file-writing tool; deny rules win over everything."""
-    base = "/" + str(Path(repo_root).resolve()).rstrip("/")
-    allow = ["Read", "Glob", "Grep", "WebSearch", "WebFetch", "Skill", "Agent", "SendMessage", "TodoWrite",
-             "Edit(%s/**)" % base] + ["Bash(%s:*)" % cmd for cmd in BASH_ALLOWED]  # fmt: skip
-    deny = ["Edit(%s/.git/**)" % base, "Edit(%s/.godot/**)" % base, "Edit(%s/**/*.import)" % base, "AskUserQuestion"]
-    deny += ["Bash(git %s:*)" % cmd for cmd in GIT_DENIED]
-    return {"allow": allow, "deny": deny}
-
-
 def lock_history(state_file: Path) -> Optional[Any]:
     """Hold `<state_file>.lock` for the life of the process (an open file with an flock), or None when another
-    devtools instance holds it: two hubs would overwrite each other's history and miss each other's working chat."""
+    devtools instance holds it: two hubs would overwrite each other's history."""
     import fcntl
 
     state_file.parent.mkdir(parents=True, exist_ok=True)
@@ -103,12 +76,11 @@ def check_task(task_id: Any) -> str:
     return task_id
 
 
-def build_command(claude: str, repo_root: Path, resume: str = "") -> List[str]:
-    """argv of one chat process (no shell). Messages, the first prompt too, arrive on stdin."""
-    perms = permissions(repo_root)
+def build_command(claude: str, resume: str = "") -> List[str]:
+    """argv of one chat process (no shell). Messages, the first prompt too, and control responses arrive on stdin;
+    permission prompts come back as `can_use_tool` control requests (`--permission-prompt-tool stdio`)."""
     cmd = [claude, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
-           "--permission-mode", "auto", "--permission-prompts", "none", "--append-system-prompt", SYSTEM_PROMPT,
-           "--allowedTools", ",".join(perms["allow"]), "--disallowedTools", ",".join(perms["deny"])]  # fmt: skip
+           "--permission-mode", PERMISSION_MODE, "--permission-prompt-tool", "stdio"]  # fmt: skip
     if resume:
         if not claude_cli.SESSION_RE.match(resume):
             raise ChatError("not a Claude Code session id")
@@ -118,6 +90,15 @@ def build_command(claude: str, repo_root: Path, resume: str = "") -> List[str]:
 
 def user_message(text: str) -> str:
     return json.dumps({"type": "user", "message": {"role": "user", "content": text}}, ensure_ascii=False) + "\n"
+
+
+def control_request(request_id: str, request: Dict[str, Any]) -> str:
+    return json.dumps({"type": "control_request", "request_id": request_id, "request": request}) + "\n"
+
+
+def control_response(request_id: str, response: Dict[str, Any]) -> str:
+    return json.dumps({"type": "control_response", "response": {"subtype": "success", "request_id": request_id,
+                                                                "response": response}}, ensure_ascii=False) + "\n"  # fmt: skip
 
 
 def backlog_task(repo_root: Path, task_id: str) -> Optional[Dict[str, str]]:
@@ -160,14 +141,16 @@ class Session:
         self.log_offset = 0
         self.proc: Optional[Any] = None
         self.busy = False  # a turn is running
+        self.pending: Dict[str, Dict[str, Any]] = {}  # request id → permission prompt / question waiting for the human
         self.stop_requested = False
+        self.used = self.created  # last time a message was sent (which idle process stops first)
 
     def alive(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
 
     def state(self) -> str:
         if self.alive():
-            return "working" if self.busy else "idle"
+            return "asking" if self.pending else "working" if self.busy else "idle"
         return "failed" if self.error else "stopped"
 
     def add(self, entry: Dict[str, Any]) -> None:
@@ -184,12 +167,13 @@ class Session:
                 "session_id": self.session_id, "cost_usd": self.cost_usd, "created": self.created,
                 "updated": self.updated, "error": self.error, "log_size": self.log_offset + len(self.log),
                 "changed": len(self.changed_files), "context_tokens": self.context_tokens,
-                "context_window": self.context_window}  # fmt: skip
+                "context_window": self.context_window, "pending": len(self.pending)}  # fmt: skip
 
     def detail(self, since: int = 0) -> Dict[str, Any]:
         start = max(0, since - self.log_offset)
         out = self.summary()
         out.update(log=self.log[start:], log_from=self.log_offset + start, changed_files=self.changed_files,
+                   pending_requests=list(self.pending.values()),
                    resume_command="claude --resume %s" % self.session_id if self.session_id else "")  # fmt: skip
         return out
 
@@ -212,29 +196,28 @@ class Session:
 
 
 Popen = Callable[..., Any]
-Probe = Callable[[], Optional[str]]
 
 
 class ChatManager:
-    """Claude sessions of the hub. `popen`, `busy_probe` (another tool's running agent, as a message) and
-    `changed` (`git status` lines) are injectable for tests."""
+    """Claude sessions of the hub. `popen` and `changed` (`git status` lines) are injectable for tests."""
 
     def __init__(self, repo_root: Path, claude: Optional[str], popen: Popen = subprocess.Popen,
-                 state_file: Optional[Path] = None, busy_probe: Optional[Probe] = None,
-                 changed: Optional[Callable[[], List[str]]] = None, unavailable: str = "") -> None:  # fmt: skip
+                 state_file: Optional[Path] = None, changed: Optional[Callable[[], List[str]]] = None,
+                 unavailable: str = "") -> None:  # fmt: skip
         self.repo_root = Path(repo_root)
         self.claude = None if unavailable else claude
         self._unavailable = unavailable  # why the chat is off although the CLI may exist
         self.state_file = Path(state_file) if state_file else None
         self._popen = popen
-        self._busy_probe = busy_probe
         self._changed = changed or self._git_status
         self._sessions: Dict[str, Session] = {}
         self._lock = threading.RLock()
         self._write_lock = threading.Lock()  # the state file is written outside `_lock`
         self._counter = 0
+        self._requests = 0
         self._saved_at = 0.0
         self.limits: Optional[Dict[str, Any]] = None  # the subscription's usage windows, as last reported by the CLI
+        self.commands: List[Dict[str, str]] = []  # slash commands, from the last `initialize` answer
         self._load()
 
     # ---- API used by the server
@@ -242,7 +225,7 @@ class ChatManager:
         return {"available": self.claude is not None, "claude": self.claude or "",
                 "hint": "" if self.claude else self._unavailable or "Claude Code CLI not found: install it (`claude` on "
                 "PATH) or set %s to its path, log in once with `claude`, then restart devtools." % CLAUDE_ENV,
-                "permissions": permissions(self.repo_root), "limits": self.limits}  # fmt: skip
+                "permission_mode": PERMISSION_MODE, "limits": self.limits, "commands": self.commands}  # fmt: skip
 
     def list(self) -> List[Dict[str, Any]]:
         with self._lock:
@@ -252,16 +235,8 @@ class ChatManager:
         with self._lock:
             return self._find(sid).detail(since)
 
-    def busy(self) -> Optional[str]:
-        """What is working right now (for other tools' lock), or None."""
-        with self._lock:
-            for s in self._sessions.values():
-                if s.state() == "working":
-                    return "the devtools Claude chat is working on %s" % (s.task or "\"%s\"" % s.title)
-        return None
-
     def create(self, task: Any = None, text: Any = None) -> Dict[str, Any]:
-        """A new session: `task` → `/implement-task <task>` (an open session of that task is returned instead),
+        """A new session: `task` → `/implement-task <task>` (an existing session of that task is returned instead),
         otherwise a free chat starting with `text`."""
         self._require_claude()
         if task is not None:
@@ -282,7 +257,6 @@ class ChatManager:
             prompt = self._check_text(text)
             title = claude_cli.short(prompt, 70)
         with self._lock:
-            self._check_free(None)
             self._counter += 1
             s = Session("%s-%d" % (time.strftime("%m%d%H%M%S"), self._counter), title, task or "")
             self._sessions[s.id] = s
@@ -293,24 +267,56 @@ class ChatManager:
         return out
 
     def send(self, sid: str, text: Any) -> Dict[str, Any]:
+        """A message to the session - while a turn runs too: the CLI folds it into the work, as the IDE does."""
         self._require_claude()
         text = self._check_text(text)
         with self._lock:
             s = self._find(sid)
-            if s.busy and s.alive():
-                raise ChatError("Claude is still working on the last message - wait for it or press Stop", 409)
-            self._check_free(s)
+            if not s.alive() and claude_cli.agent_alive(s.pid):
+                raise ChatError("the old Claude process of this chat (pid %d) is still running - stop it first" % s.pid, 409)
             self._send(s, text)
             out = s.summary()
         self._save()
         return out
 
-    def stop(self, sid: str) -> Dict[str, Any]:
+    def answer(self, sid: str, request_id: Any, behavior: Any, answers: Any = None, message: Any = "") -> Dict[str, Any]:
+        """The human's answer to a pending prompt: `allow`, `always` (allow and add the CLI's suggested rules),
+        `deny` (with an optional message), or `answers` ({question: answer}) for `AskUserQuestion`."""
         with self._lock:
             s = self._find(sid)
-            if s.alive():
-                s.stop_requested = True
-                self._terminate(s)
+            pending = s.pending.get(request_id) if isinstance(request_id, str) else None
+            if pending is None:
+                raise ChatError("this request was already answered or has expired", 404)
+            if pending["tool"] == "AskUserQuestion" and behavior != "deny":
+                response = {"behavior": "allow", "updatedInput": dict(pending["input"], answers=self._check_answers(pending, answers))}
+                done = {"kind": "answered", "request_id": request_id, "answers": response["updatedInput"]["answers"]}
+            elif behavior in ("allow", "always"):
+                response = {"behavior": "allow", "updatedInput": pending["input"]}
+                if behavior == "always" and pending["suggestions"]:
+                    response["updatedPermissions"] = pending["suggestions"]
+                done = {"kind": "answered", "request_id": request_id, "behavior": behavior}
+            elif behavior == "deny":
+                note = message.strip() if isinstance(message, str) and message.strip() else ""
+                response = {"behavior": "deny", "message": note or "The user denied this action."}
+                done = {"kind": "answered", "request_id": request_id, "behavior": "deny", "text": note}
+            else:
+                raise ChatError("behavior must be allow, always or deny")
+            del s.pending[request_id]
+            s.add(done)
+            self._write(s, control_response(request_id, response))
+            out = s.summary()
+        self._save()
+        return out
+
+    def stop(self, sid: str) -> Dict[str, Any]:
+        """Interrupt the running turn (like Esc in the IDE); the process stays. Killed if the turn doesn't end."""
+        with self._lock:
+            s = self._find(sid)
+            if s.alive() and (s.busy or s.pending):
+                s.pending.clear()
+                self._requests += 1
+                self._write(s, control_request("interrupt_%d" % self._requests, {"subtype": "interrupt"}))
+                threading.Thread(target=self._kill_if_stuck, args=(s, s.proc), daemon=True).start()
             out = s.summary()
         return out
 
@@ -325,12 +331,12 @@ class ChatManager:
         for s in live:
             self._terminate(s)
 
-    def wait_idle(self, sid: str, timeout: float = 10.0) -> bool:
-        """Test helper: wait until the session's turn ended."""
+    def wait_state(self, sid: str, states: tuple = ("idle", "stopped", "failed", "asking"), timeout: float = 10.0) -> bool:
+        """Test helper: wait until the session is in one of `states`."""
         end = time.time() + timeout
         while time.time() < end:
             with self._lock:
-                if self._sessions[sid].state() != "working":
+                if self._sessions[sid].state() in states:
                     return True
             time.sleep(0.02)
         return False
@@ -354,16 +360,24 @@ class ChatManager:
             raise ChatError("message too long (max %d characters)" % MAX_TEXT)
         return text.strip()
 
-    def _check_free(self, me: Optional[Session]) -> None:
-        """One working session at a time, and none while another tool's agent edits the tree."""
-        for s in self._sessions.values():
-            if s is not me and s.state() == "working":
-                raise ChatError("another chat is working (%s) - wait for it or stop it first" % (s.task or s.title), 409)
-        if me is not None and not me.alive() and claude_cli.agent_alive(me.pid):
-            raise ChatError("the old Claude process of this chat (pid %d) is still running - stop it first" % me.pid, 409)
-        message = self._busy_probe() if self._busy_probe else None
-        if message:
-            raise ChatError(message + " - wait until it ends (shared working tree)", 409)
+    @staticmethod
+    def _check_answers(pending: Dict[str, Any], answers: Any) -> Dict[str, str]:
+        questions = [q.get("question") for q in pending["input"].get("questions") or [] if isinstance(q, dict)]
+        if not isinstance(answers, dict) or set(answers) != set(questions):
+            raise ChatError("answer every question")
+        for value in answers.values():
+            if not isinstance(value, str) or not value.strip() or len(value) > MAX_TEXT:
+                raise ChatError("every answer must be a non-empty text")
+        return {q: answers[q].strip() for q in questions}
+
+    def _write(self, s: Session, line: str) -> None:
+        try:
+            s.proc.stdin.write(line)
+            s.proc.stdin.flush()
+        except (OSError, ValueError, AttributeError) as exc:
+            s.busy = False
+            s.error = "cannot write to claude: %s" % exc
+            s.add({"kind": "error", "text": s.error})
 
     def _send(self, s: Session, text: str) -> None:
         if not s.alive():
@@ -371,20 +385,16 @@ class ChatManager:
         s.add({"kind": "user", "text": text})
         s.busy = True
         s.error = ""
-        try:
-            s.proc.stdin.write(user_message(text))
-            s.proc.stdin.flush()
-        except (OSError, ValueError) as exc:
-            s.busy = False
-            s.error = "cannot send to claude: %s" % exc
-            s.add({"kind": "error", "text": s.error})
+        s.used = time.time()
+        self._write(s, user_message(text))
 
     def _spawn(self, s: Session) -> None:
-        for other in self._sessions.values():  # keep a single Claude process alive
-            if other is not s and other.alive():
-                other.stop_requested = True
-                self._terminate(other)
-        cmd = build_command(str(self.claude), self.repo_root, s.session_id)
+        idle = sorted((o for o in self._sessions.values() if o is not s and o.alive() and o.state() == "idle"),
+                      key=lambda o: o.used)  # fmt: skip
+        for other in idle[: max(0, len(idle) - MAX_IDLE_PROCESSES + 1)]:
+            other.stop_requested = True
+            self._terminate(other)
+        cmd = build_command(str(self.claude), s.session_id)
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)  # devtools may itself be started from a Claude Code session
         if s.session_id:
@@ -397,34 +407,66 @@ class ChatManager:
         s.proc = proc
         s.pid = getattr(proc, "pid", None)
         s.stop_requested = False
+        s.pending.clear()
         s.cost_base = float(s.cost_usd or 0.0)
+        self._requests += 1
+        self._write(s, control_request("init_%d" % self._requests, {"subtype": "initialize", "hooks": None}))
         threading.Thread(target=self._read, args=(s, proc), name="chat-%s" % s.id, daemon=True).start()
+
+    def _control(self, s: Session, msg: Dict[str, Any]) -> None:
+        """A control protocol message from the CLI (called with `_lock` held)."""
+        if msg.get("type") == "control_response":
+            response = (msg.get("response") or {}).get("response") or {}
+            if isinstance(response.get("commands"), list):
+                self.commands = [{"name": str(c.get("name")), "description": str(c.get("description") or ""),
+                                  "hint": str(c.get("argumentHint") or "")}
+                                 for c in response["commands"] if isinstance(c, dict) and c.get("name")]  # fmt: skip
+            return
+        request_id, request = str(msg.get("request_id") or ""), msg.get("request") or {}
+        if request.get("subtype") == "can_use_tool" and request_id:
+            tool = str(request.get("tool_name") or "?")
+            inp = request.get("input") if isinstance(request.get("input"), dict) else {}
+            rules = [x for x in request.get("permission_suggestions") or [] if isinstance(x, dict) and x.get("type") == "addRules"]
+            s.pending[request_id] = {"request_id": request_id, "tool": tool, "input": inp, "suggestions": rules,
+                                     "description": str(request.get("description") or ""),
+                                     "blocked_path": str(request.get("blocked_path") or "")}  # fmt: skip
+            s.add({"kind": "ask", "request_id": request_id, "tool": tool, "input": claude_cli.clip(inp),
+                   "text": claude_cli.tool_summary(tool, inp), "always": bool(rules)})  # fmt: skip
+        else:  # nothing else is supported: answer so the CLI doesn't wait
+            self._write(s, json.dumps({"type": "control_response", "response": {
+                "subtype": "error", "request_id": request_id, "error": "not supported by the devtools chat"}}) + "\n")
 
     def _read(self, s: Session, proc: Any) -> None:
         seen_init = False
         with proc.stdout:
             for line in proc.stdout:
                 turn_ended = False
-                for entry in claude_cli.parse_stream_line(line):
+                for entry in claude_cli.parse_stream_line(line, detail=True):
                     with self._lock:
-                        if entry["kind"] == "limits":
+                        kind = entry["kind"]
+                        if kind == "control":
+                            self._control(s, entry["msg"])
+                            continue
+                        if kind == "limits":
                             self.limits = {"status": entry["status"], "windows": entry["windows"], "updated": time.time()}
                             continue
-                        if entry["kind"] == "usage":
+                        if kind == "usage":
                             s.context_tokens = entry["context_tokens"]
                             continue
                         if entry.get("session_id"):
                             s.session_id = entry["session_id"]
-                        if entry.get("init"):
+                        if entry.get("init"):  # every turn starts with one - also turns the agent starts itself
+                            s.busy = True
                             if seen_init:
                                 continue
                             seen_init = True
                             entry.pop("init")
-                        if entry["kind"] == "result":
+                        if kind == "result":
                             cost = entry.get("cost_usd")
                             if isinstance(cost, (int, float)):
                                 s.cost_usd = round(s.cost_base + cost, 4)
                             s.busy = False
+                            s.pending.clear()
                             turn_ended = True
                             s.context_window = entry.get("context_window") or s.context_window
                             s.add({"kind": "turn", "is_error": entry["is_error"], "cost_usd": s.cost_usd,
@@ -442,17 +484,30 @@ class ChatManager:
         code = proc.wait()
         try:
             proc.stdin.close()
-        except (OSError, ValueError, RuntimeError, AttributeError):  # Stop and the reader may close it at once
+        except (OSError, ValueError, RuntimeError, AttributeError):  # a Stop and the reader may close it at once
             pass
         with self._lock:
             if s.proc is proc:
                 s.busy = False
+                s.pending.clear()
                 if s.stop_requested:
-                    s.add({"kind": "info", "text": "stopped - send a message to continue (resumes the session)"})
+                    s.add({"kind": "info", "text": "process stopped - send a message to continue (resumes the session)"})
                 elif code != 0:
                     s.error = "claude exited with code %s" % code
                     s.add({"kind": "error", "text": s.error})
         self._save()
+
+    def _kill_if_stuck(self, s: Session, proc: Any) -> None:
+        end = time.time() + INTERRUPT_GRACE
+        while time.time() < end:
+            with self._lock:
+                if s.proc is not proc or not s.alive() or not s.busy:
+                    return
+            time.sleep(0.1)
+        with self._lock:
+            if s.proc is proc and s.busy:
+                s.stop_requested = True
+                self._terminate(s)
 
     def _terminate(self, s: Session) -> None:
         proc = s.proc
@@ -460,7 +515,7 @@ class ChatManager:
             return
         try:
             proc.stdin.close()
-        except (OSError, ValueError, RuntimeError, AttributeError):  # Stop and the reader may close it at once
+        except (OSError, ValueError, RuntimeError, AttributeError):  # a Stop and the reader may close it at once
             pass
         try:
             os.killpg(proc.pid, signal.SIGTERM)  # the agent's own children (godot, tests) too
@@ -490,6 +545,7 @@ class ChatManager:
                 self._sessions[s.id] = s
             self._counter = int(data.get("counter") or len(self._sessions))
             self.limits = data.get("limits") if isinstance(data.get("limits"), dict) else None
+            self.commands = [c for c in data.get("commands") or [] if isinstance(c, dict)]
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             print("Ignoring unreadable chat history %s: %s" % (self.state_file, exc), flush=True)
 
@@ -500,7 +556,7 @@ class ChatManager:
             if throttle and time.time() - self._saved_at < SAVE_EVERY:
                 return
             self._saved_at = time.time()
-            data = {"version": 1, "counter": self._counter, "limits": self.limits,
+            data = {"version": 1, "counter": self._counter, "limits": self.limits, "commands": self.commands,
                     "sessions": [s.to_dict() for s in sorted(self._sessions.values(), key=lambda s: s.created)]}  # fmt: skip
             text = json.dumps(data, ensure_ascii=False, indent=1)
         with self._write_lock:

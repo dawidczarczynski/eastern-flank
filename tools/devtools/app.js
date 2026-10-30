@@ -24,7 +24,7 @@ let jobs = [];
 let tab = "home";
 let selectedJob = null; // { id, next, state, command, params }
 let lastStates = null; // job id → state, for "finished" toasts
-let chatInfo = { available: true, hint: "", permissions: { allow: [], deny: [] } };
+let chatInfo = { available: true, hint: "", commands: [] };
 let chats = [];
 let selectedChat = null; // { id, next, timer } – null: a new chat is being drafted
 const savedParams = JSON.parse(localStorage.getItem(PARAMS_STORE) || "{}");
@@ -68,11 +68,12 @@ function renderNav() {
     return html;
   }).join("");
   const working = chats.filter((c) => c.state === "working").length;
+  const asking = chats.filter((c) => c.state === "asking").length;
   $("#nav").innerHTML =
     '<a class="nav-item' + (tab === "home" ? " active" : "") + '" data-tab="home" title="Commands (1)"><span class="icon">⌘</span>Commands' +
     (running ? '<span class="badge"><span class="spinner"></span>' + running + "</span>" : "") + "</a>" +
     '<a class="nav-item' + (tab === "chat" ? " active" : "") + '" data-tab="chat" title="Claude Code chat (2)"><span class="icon">✦</span>Claude' +
-    (working ? '<span class="badge"><span class="spinner"></span>working</span>' : "") + "</a>" +
+    (asking ? '<span class="badge asking">needs you</span>' : working ? '<span class="badge"><span class="spinner"></span>working</span>' : "") + "</a>" +
     '<div class="nav-label eyebrow">Web tools</div>' + svc;
 }
 
@@ -310,9 +311,12 @@ async function pollJob() {
 
 // ---- Claude chat (tools/devtools/chat.py)
 
-const CHAT_STATE = { working: "working", idle: "waiting for you", stopped: "stopped", failed: "failed" };
+const CHAT_STATE = { working: "working", asking: "needs you", idle: "waiting for you", stopped: "stopped", failed: "failed" };
 const chatPill = (state) => '<span class="pill chat-' + state + '">' + (state === "working" ? '<span class="spinner"></span>' : "") + CHAT_STATE[state] + "</span>";
 const money = (usd) => (typeof usd === "number" ? "$" + usd.toFixed(2) : "");
+const WINDOW_LABELS = { five_hour: "5-hour limit", seven_day: "Weekly limit", seven_day_opus: "Weekly · Opus", seven_day_sonnet: "Weekly · Sonnet" };
+const tokens = (n) => (n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : n >= 1000 ? Math.round(n / 1000) + "k" : String(n));
+const IDLE_HINT = "Message Claude…  (Enter sends, Shift+Enter new line, / for commands)";
 
 function backlogFrame() {
   const box = document.getElementById("frame-backlog");
@@ -329,24 +333,28 @@ function tellBacklog() {
   target.win.postMessage({ type: "devtools:chats", available: chatInfo.available, tasks }, target.origin);
 }
 
+function notifyAsking(before) {
+  chats.forEach((c) => {
+    const was = before.find((b) => b.id === c.id);
+    if (c.state === "asking" && (!was || was.state !== "asking")) toast("✦ " + c.title + " – Claude needs you", "var(--accent)", null, c.id);
+  });
+}
+
 async function loadChats() {
   let data;
   try { data = await api("/api/chat"); } catch (err) { return; }
+  const before = chats;
   chats = data.sessions;
-  const perms = JSON.stringify(data.permissions);
-  if (perms !== JSON.stringify(chatInfo.permissions)) {
-    $("#chat-perms").innerHTML = data.permissions.allow.map((t) => "<li><code>" + esc(t) + "</code></li>").join("") +
-      data.permissions.deny.map((t) => '<li class="deny"><code>' + esc(t) + "</code> denied</li>").join("");
-  }
   chatInfo = data;
+  notifyAsking(before);
   renderUsage();
   renderChatList();
   renderNav();
   tellBacklog();
+  const asking = chats.filter((c) => c.state === "asking").length;
+  if (asking) document.title = "● Claude needs you – Devtools";
+  else if (document.title.startsWith("● Claude")) document.title = "Devtools – Eastern Flank";
 }
-
-const WINDOW_LABELS = { five_hour: "5-hour limit", seven_day: "Weekly limit", seven_day_opus: "Weekly · Opus", seven_day_sonnet: "Weekly · Sonnet" };
-const tokens = (n) => (n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : n >= 1000 ? Math.round(n / 1000) + "k" : String(n));
 
 function resetText(t) {
   if (!t) return "";
@@ -379,7 +387,7 @@ function renderChatList() {
   $("#chat-sessions").innerHTML = chats.map((c) =>
     '<li data-chat="' + esc(c.id) + '" class="' + (selectedChat && selectedChat.id === c.id ? "selected" : "") + '">' +
     '<span class="chat-dot ' + c.state + '"></span><span class="name">' + esc(c.title) + '</span><span class="time">' +
-    (c.state === "working" ? "working" : ago(c.updated)) + (c.cost_usd ? " · " + money(c.cost_usd) : "") + "</span></li>").join("") ||
+    (c.state === "working" || c.state === "asking" ? CHAT_STATE[c.state] : ago(c.updated)) + (c.cost_usd ? " · " + money(c.cost_usd) : "") + "</span></li>").join("") ||
     '<li class="muted empty-li">No chats yet.</li>';
   if (!selectedChat) renderChatHead(null);
 }
@@ -393,15 +401,78 @@ function mdLite(text) {
   }).join("");
 }
 
-function chatEntry(e) {
+function diffHtml(oldText, newText) {
+  const del = String(oldText || "").split("\n").map((l) => '<span class="del">- ' + esc(l) + "</span>");
+  const add = String(newText || "").split("\n").map((l) => '<span class="add">+ ' + esc(l) + "</span>");
+  return '<pre class="diff">' + del.concat(add).join("\n") + "</pre>";
+}
+
+function toolInput(name, input) {
+  // what the IDE shows for a tool call: diffs for edits, the command for Bash, the list for todos
+  if (!input || typeof input !== "object") return "";
+  if (name === "Edit") return '<div class="path">' + esc(input.file_path || "") + (input.replace_all ? " (all occurrences)" : "") + "</div>" + diffHtml(input.old_string, input.new_string);
+  if (name === "MultiEdit") return '<div class="path">' + esc(input.file_path || "") + "</div>" + (input.edits || []).map((e) => diffHtml(e.old_string, e.new_string)).join("");
+  if (name === "Write") return '<div class="path">' + esc(input.file_path || "") + '</div><pre class="diff">' + String(input.content || "").split("\n").map((l) => '<span class="add">+ ' + esc(l) + "</span>").join("\n") + "</pre>";
+  if (name === "Bash") return '<pre class="cmd">$ ' + esc(input.command || "") + "</pre>" + (input.description ? '<div class="muted">' + esc(input.description) + "</div>" : "");
+  if (name === "TodoWrite") return '<ul class="todos">' + (input.todos || []).map((t) => '<li class="' + esc(t.status) + '">' + ({ completed: "☑", in_progress: "◐" }[t.status] || "☐") + " " + esc(t.content) + "</li>").join("") + "</ul>";
+  if (name === "Agent" || name === "Task") return '<div class="muted">' + esc((input.subagent_type || "agent") + (input.model ? " · " + input.model : "")) + "</div><pre>" + esc(input.prompt || "") + "</pre>";
+  return "<pre>" + esc(JSON.stringify(input, null, 2)) + "</pre>";
+}
+
+function askCard(e, pending) {
+  const div = document.createElement("div");
+  div.className = "m ask" + (pending ? " open" : "");
+  div.dataset.request = e.request_id;
+  if (e.tool === "AskUserQuestion") {
+    const qs = (e.input && e.input.questions) || [];
+    div.innerHTML = '<div class="ask-title">✦ Claude asks</div>' + qs.map((q, qi) =>
+      '<fieldset class="q" data-question="' + esc(q.question) + '" data-multi="' + (q.multiSelect ? 1 : 0) + '"><legend>' + esc(q.question) + "</legend>" +
+      (q.options || []).map((o) => '<label class="opt"><input type="' + (q.multiSelect ? "checkbox" : "radio") + '" name="q' + qi + '" value="' + esc(o.label) + '"' + (pending ? "" : " disabled") + '><span><b>' +
+        esc(o.label) + "</b>" + (o.description ? "<small>" + esc(o.description) + "</small>" : "") + "</span></label>").join("") +
+      '<input type="text" class="other" placeholder="Other…"' + (pending ? "" : " disabled") + "></fieldset>").join("") +
+      (pending ? '<div class="ask-actions"><button type="button" class="btn primary sm" data-answer="submit">Submit</button><button type="button" class="btn ghost sm" data-answer="deny">Skip</button></div>' : '<div class="ask-done muted">answered</div>');
+  } else {
+    div.innerHTML = '<div class="ask-title">✦ Allow ' + esc(e.tool) + "?</div>" + toolInput(e.tool, e.input) +
+      (pending ? '<div class="ask-actions"><button type="button" class="btn primary sm" data-answer="allow">Allow</button>' +
+        (e.always ? '<button type="button" class="btn sm" data-answer="always" title="Allow and add the suggested permission rule to your local settings">Always allow</button>' : "") +
+        '<input type="text" class="deny-note" placeholder="Why not / what instead (optional)"><button type="button" class="btn danger sm" data-answer="deny">Deny</button></div>' : '<div class="ask-done muted">answered</div>');
+  }
+  return div;
+}
+
+function chatEntry(e, c) {
+  const pending = (c.pending_requests || []).some((p) => p.request_id === e.request_id);
+  if (e.kind === "ask") return askCard(e, pending);
   const div = document.createElement("div");
   div.className = "m " + e.kind + (e.sub ? " sub" : "");
   if (e.kind === "user") div.innerHTML = '<div class="bubble">' + mdLite(e.text) + "</div>";
   else if (e.kind === "text") div.innerHTML = (e.sub ? '<span class="who">subagent</span>' : "") + mdLite(e.text);
-  else if (e.kind === "tool") div.textContent = "› " + e.text;
-  else if (e.kind === "turn") {
+  else if (e.kind === "tool") {
+    div.innerHTML = '<details' + (e.name === "TodoWrite" ? " open" : "") + '><summary>› ' + esc(e.text) + '</summary><div class="tool-body">' + toolInput(e.name, e.input) + "</div></details>";
+    if (e.id) div.dataset.tool = e.id;
+  } else if (e.kind === "tool_result") {
+    const tool = $("#chat-log").querySelector('[data-tool="' + CSS.escape(e.tool_use_id || "") + '"]');
+    const body = '<pre class="result' + (e.is_error ? " err" : "") + '">' + esc(e.text || "(no output)") + "</pre>";
+    if (tool) {
+      tool.querySelector(".tool-body").insertAdjacentHTML("beforeend", body);
+      if (e.is_error) tool.classList.add("failed");
+      return null;
+    }
+    div.innerHTML = body;
+  } else if (e.kind === "answered") {
+    const card = $("#chat-log").querySelector('[data-request="' + CSS.escape(e.request_id) + '"]');
+    const text = e.answers ? Object.values(e.answers).join(" · ") : { allow: "allowed", always: "always allowed", deny: "denied" + (e.text ? ": " + e.text : "") }[e.behavior];
+    if (card) {
+      card.classList.remove("open");
+      card.querySelectorAll(".ask-actions").forEach((a) => a.remove());
+      card.querySelectorAll("input").forEach((i) => { i.disabled = true; });
+      card.insertAdjacentHTML("beforeend", '<div class="ask-done ' + (e.behavior === "deny" ? "no" : "yes") + '">' + esc(text) + "</div>");
+      card.querySelectorAll(".ask-done.muted").forEach((d) => d.remove());
+    }
+    return null;
+  } else if (e.kind === "turn") {
     div.className += e.is_error ? " error" : "";
-    div.innerHTML = "<span>" + (e.is_error ? "turn failed" + (e.text ? ": " + esc(e.text) : "") : "turn finished") + (e.cost_usd ? " · " + money(e.cost_usd) + " so far" : "") + "</span>";
+    div.innerHTML = "<span>" + (e.is_error ? "turn stopped" + (e.text ? ": " + esc(e.text) : "") : "turn finished") + (e.cost_usd ? " · " + money(e.cost_usd) + " so far" : "") + "</span>";
   } else div.textContent = e.text;
   return div;
 }
@@ -409,7 +480,7 @@ function chatEntry(e) {
 function renderChatHead(c) {
   if (!c) {
     $("#chat-head").innerHTML = '<div><div class="job-title">New chat</div><div class="job-meta">' +
-      (chatInfo.available ? "Starts a Claude Code session in the repository. To implement a task, open it in the Backlog and press ▶ Implement." : esc(chatInfo.hint)) + "</div></div>";
+      (chatInfo.available ? "A Claude Code session in the repository – like the one in your editor. To implement a task, open it in the Backlog and press ▶ Implement." : esc(chatInfo.hint)) + "</div></div>";
     return;
   }
   const context = c.context_tokens ? "context " + tokens(c.context_tokens) + (c.context_window ? " / " + tokens(c.context_window) + " (" + Math.round(100 * c.context_tokens / c.context_window) + "%)" : "") : "";
@@ -417,33 +488,36 @@ function renderChatHead(c) {
   $("#chat-head").innerHTML = '<div class="chat-title-box"><div class="job-title">' + esc(c.title) + " " + chatPill(c.state) + '</div><div class="job-meta">' + meta + "</div></div>" +
     '<div class="job-actions">' +
     (c.session_id ? '<button type="button" class="btn ghost sm" id="chat-copy" title="Continue this session in a terminal (run it in the repository folder)">⧉ claude --resume</button>' : "") +
-    (c.state === "working" || c.state === "idle" ? '<button type="button" class="btn danger sm" id="chat-stop" title="Stops the Claude process; the next message resumes the session">■ Stop</button>' : "") + "</div>";
+    (c.state === "working" || c.state === "asking" ? '<button type="button" class="btn danger sm" id="chat-stop" title="Interrupt the turn (like Esc) – the session stays">■ Stop</button>' : "") + "</div>";
 }
 
 function renderChatBody(c, fresh) {
   const log = $("#chat-log");
   const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 60;
   if (fresh) log.innerHTML = "";
-  const frag = document.createDocumentFragment();
-  c.log.forEach((e) => frag.appendChild(chatEntry(e)));
-  log.appendChild(frag);
-  let thinking = log.querySelector(".thinking");
-  if (c.state === "working" && !thinking) {
-    thinking = document.createElement("div");
+  log.querySelectorAll(".thinking").forEach((t) => t.remove());
+  c.log.forEach((e) => { const el = chatEntry(e, c); if (el) log.appendChild(el); });
+  // cards whose request expired (turn interrupted, process gone) can't be answered any more
+  log.querySelectorAll(".ask.open").forEach((card) => {
+    if (!(c.pending_requests || []).some((p) => p.request_id === card.dataset.request)) {
+      card.classList.remove("open");
+      card.querySelectorAll(".ask-actions").forEach((a) => a.remove());
+      card.querySelectorAll("input").forEach((i) => { i.disabled = true; });
+    }
+  });
+  if (c.state === "working") {
+    const thinking = document.createElement("div");
     thinking.className = "m thinking";
     thinking.innerHTML = '<span class="spinner"></span> Claude is working…';
+    log.appendChild(thinking);
   }
-  if (thinking) {
-    if (c.state === "working") log.appendChild(thinking); else thinking.remove();
-  }
-  if (atBottom || fresh) log.scrollTop = log.scrollHeight;
+  if (atBottom || fresh || (c.state === "asking" && c.log.length)) log.scrollTop = log.scrollHeight;
   const files = $("#chat-files");
   files.hidden = !c.changed_files.length;
   files.querySelector("summary").textContent = c.changed_files.length + " changed file" + (c.changed_files.length === 1 ? "" : "s") + " in the working tree (git status)";
   files.querySelector("pre").textContent = c.changed_files.join("\n");
-  const busy = c.state === "working";
-  $("#chat-send").disabled = busy || !chatInfo.available;
-  $("#chat-input").placeholder = busy ? "Claude is working – you can type now and send when the turn ends…" : "Message Claude…  (Enter sends, Shift+Enter new line)";
+  $("#chat-send").disabled = !chatInfo.available;
+  $("#chat-input").placeholder = c.state === "working" ? "Claude is working – a message now is folded into the current turn…" : IDLE_HINT;
 }
 
 function selectChat(id) {
@@ -451,7 +525,7 @@ function selectChat(id) {
   selectedChat = id ? { id, next: 0, timer: null } : null;
   renderChatList();
   if (!id) {
-    $("#chat-log").innerHTML = '<div class="empty">' + (chatInfo.available ? "Ask anything about the project – Claude works in this repository." : esc(chatInfo.hint)) + "</div>";
+    $("#chat-log").innerHTML = '<div class="empty">' + (chatInfo.available ? "Ask anything – Claude works in this repository, with the same settings as in your editor." : esc(chatInfo.hint)) + "</div>";
     $("#chat-files").hidden = true;
     $("#chat-send").disabled = !chatInfo.available;
     $("#chat-input").focus();
@@ -469,7 +543,13 @@ async function pollChat(fresh) {
   sel.next = c.log_from + c.log.length;
   renderChatHead(c);
   renderChatBody(c, fresh);
-  sel.timer = setTimeout(() => pollChat(false), c.state === "working" ? 800 : 2500);
+  sel.timer = setTimeout(() => pollChat(false), c.state === "working" ? 700 : 2000);
+}
+
+function refreshChat() {
+  if (!selectedChat) return;
+  if (selectedChat.timer) clearTimeout(selectedChat.timer);
+  pollChat(false);
 }
 
 async function sendChat() {
@@ -477,6 +557,7 @@ async function sendChat() {
   const text = input.value.trim();
   if (!text || $("#chat-send").disabled) return;
   $("#chat-send").disabled = true;
+  hideCommands();
   try {
     if (selectedChat) {
       await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/send", { text });
@@ -489,23 +570,59 @@ async function sendChat() {
     selectChat(selectedChat.id);
   } catch (err) {
     toast("Cannot send: " + err.message, "var(--bad)");
-    $("#chat-send").disabled = false;
   }
+  $("#chat-send").disabled = !chatInfo.available;
 }
 
-async function implementTask(task) {
-  showTab("chat");
-  const existing = chats.find((c) => c.task === task);
-  if (existing) { selectChat(existing.id); return; }
-  if (!confirm("Start /implement-task " + task + " in a Claude Code session?\n\nIt runs headless with your subscription, edits the working tree " +
-    "and may take a long time. It never commits.")) return;
-  try {
-    const c = await api("/api/chat", { task });
-    await loadChats();
-    selectChat(c.id);
-  } catch (err) {
-    toast("Cannot start " + task + ": " + err.message, "var(--bad)");
+async function answerRequest(card, kind) {
+  const body = { request_id: card.dataset.request };
+  if (kind === "submit") {
+    const answers = {};
+    let missing = false;
+    card.querySelectorAll("fieldset.q").forEach((q) => {
+      const picked = [...q.querySelectorAll("input:checked")].map((i) => i.value);
+      const other = q.querySelector(".other").value.trim();
+      if (other) picked.push(other);
+      if (!picked.length) missing = true;
+      answers[q.dataset.question] = picked.join(", ");
+    });
+    if (missing) { toast("Answer every question", "var(--warn)"); return; }
+    Object.assign(body, { behavior: "allow", answers });
+  } else {
+    body.behavior = kind;
+    const note = card.querySelector(".deny-note");
+    if (kind === "deny" && note) body.message = note.value;
   }
+  card.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+  try {
+    await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/answer", body);
+  } catch (err) {
+    toast("Cannot answer: " + err.message, "var(--bad)");
+    card.querySelectorAll("button").forEach((b) => { b.disabled = false; });
+  }
+  await loadChats();
+  refreshChat();
+}
+
+// ---- slash command suggestions (the session's commands, from the CLI's initialize answer)
+
+let commandPick = 0;
+function hideCommands() { $("#chat-commands").hidden = true; }
+function showCommands() {
+  const value = $("#chat-input").value;
+  const box = $("#chat-commands");
+  const m = /^\/(\S*)$/.exec(value);
+  const list = m ? (chatInfo.commands || []).filter((c) => c.name.startsWith(m[1])).slice(0, 12) : [];
+  if (!list.length) { hideCommands(); return; }
+  commandPick = Math.min(commandPick, list.length - 1);
+  box.innerHTML = list.map((c, i) => '<li data-command-name="' + esc(c.name) + '" class="' + (i === commandPick ? "on" : "") + '"><b>/' + esc(c.name) + "</b>" +
+    (c.hint ? ' <span class="hint">' + esc(c.hint) + "</span>" : "") + "<small>" + esc(c.description) + "</small></li>").join("");
+  box.hidden = false;
+}
+function pickCommand(name) {
+  $("#chat-input").value = "/" + name + " ";
+  hideCommands();
+  $("#chat-input").focus();
 }
 
 window.addEventListener("message", (ev) => {
@@ -518,9 +635,45 @@ window.addEventListener("message", (ev) => {
   }
 });
 
+async function implementTask(task) {
+  showTab("chat");
+  const existing = chats.find((c) => c.task === task);
+  if (existing) { selectChat(existing.id); return; }
+  if (!confirm("Start /implement-task " + task + " in a Claude Code session?\n\nIt runs with your subscription and edits the working tree; it commits only when you ask.")) return;
+  try {
+    const c = await api("/api/chat", { task });
+    await loadChats();
+    selectChat(c.id);
+  } catch (err) {
+    toast("Cannot start " + task + ": " + err.message, "var(--bad)");
+  }
+}
+
 $("#chat-form").addEventListener("submit", (ev) => { ev.preventDefault(); sendChat(); });
+$("#chat-input").addEventListener("input", () => { commandPick = 0; showCommands(); });
 $("#chat-input").addEventListener("keydown", (ev) => {
+  const box = $("#chat-commands");
+  if (!box.hidden) {
+    const items = box.querySelectorAll("li");
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      commandPick = (commandPick + (ev.key === "ArrowDown" ? 1 : items.length - 1)) % items.length;
+      showCommands();
+      return;
+    }
+    if (ev.key === "Tab" || (ev.key === "Enter" && !ev.shiftKey)) {
+      ev.preventDefault();
+      pickCommand(items[commandPick].dataset.commandName);
+      return;
+    }
+    if (ev.key === "Escape") { hideCommands(); return; }
+  }
+  if (ev.key === "Escape" && selectedChat) { ev.preventDefault(); stopChat(); return; }
   if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); sendChat(); }
+});
+$("#chat-commands").addEventListener("mousedown", (ev) => {
+  const li = ev.target.closest("[data-command-name]");
+  if (li) { ev.preventDefault(); pickCommand(li.dataset.commandName); }
 });
 $("#chat-new").addEventListener("click", () => selectChat(null));
 $("#chat-steps").addEventListener("change", (ev) => $("#chat-log").classList.toggle("no-steps", !ev.target.checked));
@@ -528,12 +681,23 @@ $("#chat-sessions").addEventListener("click", (ev) => {
   const li = ev.target.closest("[data-chat]");
   if (li) selectChat(li.dataset.chat);
 });
+$("#chat-log").addEventListener("click", (ev) => {
+  const button = ev.target.closest("[data-answer]");
+  if (button && selectedChat) answerRequest(button.closest("[data-request]"), button.dataset.answer);
+});
+
+async function stopChat() {
+  const c = chats.find((x) => x.id === selectedChat.id);
+  if (!c || (c.state !== "working" && c.state !== "asking")) return;
+  try { await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/stop", {}); } catch (err) { toast(err.message, "var(--bad)"); }
+  await loadChats();
+  refreshChat();
+}
+
 $("#chat-head").addEventListener("click", async (ev) => {
   if (!selectedChat) return;
-  if (ev.target.closest("#chat-stop")) {
-    try { await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/stop", {}); } catch (err) { toast(err.message, "var(--bad)"); }
-    await loadChats();
-  } else if (ev.target.closest("#chat-copy")) {
+  if (ev.target.closest("#chat-stop")) stopChat();
+  else if (ev.target.closest("#chat-copy")) {
     const c = chats.find((x) => x.id === selectedChat.id);
     if (c) navigator.clipboard.writeText("claude --resume " + c.session_id).then(() => toast("Copied – run it in the repository folder", "var(--ok)"));
   }
@@ -541,13 +705,14 @@ $("#chat-head").addEventListener("click", async (ev) => {
 
 // ---- toasts
 
-function toast(text, color, jobId) {
+function toast(text, color, jobId, chatId) {
   const el = document.createElement("div");
   el.className = "toast";
   el.style.setProperty("--c", color || "var(--text-2)");
   el.textContent = text;
   el.addEventListener("click", () => {
     if (jobId) { showTab("home"); selectJob(jobId); }
+    if (chatId) { showTab("chat"); selectChat(chatId); }
     el.remove();
   });
   $("#toasts").appendChild(el);

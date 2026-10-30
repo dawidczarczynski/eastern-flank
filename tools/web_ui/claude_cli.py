@@ -69,10 +69,35 @@ def _denial(text: str) -> Optional[str]:
     return None
 
 
-def parse_stream_line(line: str) -> List[Dict[str, Any]]:
+def clip(value: Any, limit: int = 6000) -> Any:
+    """Strings (also inside dicts and lists) cut to `limit` characters, newlines kept - for stored tool details."""
+    if isinstance(value, str):
+        return value if len(value) <= limit else value[:limit] + "\n… (%d more characters)" % (len(value) - limit)
+    if isinstance(value, dict):
+        return {k: clip(v, limit) for k, v in value.items()}
+    if isinstance(value, list):
+        return [clip(v, limit) for v in value[:200]]
+    return value
+
+
+def _result_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = [b.get("text", "") if isinstance(b, dict) and b.get("type") == "text" else "[%s]" % (b.get("type") if isinstance(b, dict) else "?")
+                 for b in content]  # fmt: skip
+        return "\n".join(parts)
+    return json.dumps(content, ensure_ascii=False)
+
+
+def parse_stream_line(line: str, detail: bool = False) -> List[Dict[str, Any]]:
     """Turn one stream-json line into log entries `{"kind": text|tool|info|error|result, "text", ...}`, plus two
     kinds that are state, not log: `usage` (`context_tokens` of the main agent after one API call) and `limits`
-    (the subscription's usage windows: `{"status", "windows": {"five_hour": {"utilization", "resets_at"}, ...}}`)."""
+    (the subscription's usage windows: `{"status", "windows": {"five_hour": {"utilization", "resets_at"}, ...}}`).
+
+    With `detail` (the devtools chat): tool entries carry their `id` and (clipped) `input`, every tool result is a
+    `tool_result` entry, CLI notices (slash command output, compaction, interrupts) become `info`, `system` turn
+    starts are marked `turn_start`, and the control protocol comes through as `control` entries (`msg`)."""
     line = line.strip()
     if not line:
         return []
@@ -84,9 +109,13 @@ def parse_stream_line(line: str) -> List[Dict[str, Any]]:
         return []
     mtype = msg.get("type")
     sub = msg.get("parent_tool_use_id") is not None
+    if mtype in ("control_request", "control_response"):
+        return [{"kind": "control", "msg": msg}] if detail else []
     if mtype == "system" and msg.get("subtype") == "init":
         return [{"kind": "info", "text": "session %s started (%s)" % (msg.get("session_id", "?"), msg.get("model", "?")),
                  "session_id": msg.get("session_id"), "init": True}]  # fmt: skip
+    if mtype == "system" and detail and msg.get("subtype") == "status" and msg.get("status") == "compacting":
+        return [{"kind": "info", "text": "compacting the conversation…"}]
     if mtype == "rate_limit_event":
         info = msg.get("rate_limit_info") or {}
         windows = {}
@@ -106,16 +135,37 @@ def parse_stream_line(line: str) -> List[Dict[str, Any]]:
             if block.get("type") == "text" and str(block.get("text", "")).strip():
                 out.append({"kind": "text", "text": block["text"].strip(), "sub": sub})
             elif block.get("type") == "tool_use":
-                out.append({"kind": "tool", "text": tool_summary(str(block.get("name")), block.get("input")), "sub": sub})
+                entry = {"kind": "tool", "text": tool_summary(str(block.get("name")), block.get("input")), "sub": sub}
+                if detail:
+                    entry.update(id=block.get("id"), name=block.get("name"), input=clip(block.get("input")))
+                out.append(entry)
         return out
     if mtype == "user":
+        content = (msg.get("message") or {}).get("content")
+        if isinstance(content, str):  # CLI notices: slash command output, the summary after a compaction
+            if not detail:
+                return []
+            if "<local-command-stdout>" in content:
+                text = content.replace("<local-command-stdout>", "").replace("</local-command-stdout>", "").strip()
+                return [{"kind": "info", "text": text or "(command done)"}]
+            if content.startswith("This session is being continued"):
+                return [{"kind": "info", "text": "conversation compacted - earlier messages were summarized"}]
+            return [{"kind": "info", "text": short(content, 300)}]
         out = []
-        for block in (msg.get("message") or {}).get("content") or []:
-            if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
-                content = block.get("content")
-                text = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
-                text = _denial(text) or text
-                out.append({"kind": "error", "text": short(text, 300), "sub": sub})
+        for block in content or []:
+            if not isinstance(block, dict):
+                continue
+            if detail and block.get("type") == "text" and "[Request interrupted" in str(block.get("text")):
+                out.append({"kind": "info", "text": "interrupted"})
+            elif block.get("type") == "tool_result" and (detail or block.get("is_error")):
+                text = _result_text(block.get("content"))
+                if block.get("is_error"):
+                    text = _denial(text) or text
+                if detail:
+                    out.append({"kind": "tool_result", "tool_use_id": block.get("tool_use_id"), "text": clip(text),
+                                "is_error": bool(block.get("is_error")), "sub": sub})  # fmt: skip
+                else:
+                    out.append({"kind": "error", "text": short(text, 300), "sub": sub})
         return out
     if mtype == "result":
         windows = [m.get("contextWindow") for m in (msg.get("modelUsage") or {}).values() if isinstance(m, dict)]
