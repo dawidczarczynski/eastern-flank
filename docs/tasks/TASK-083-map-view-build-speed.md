@@ -4,6 +4,7 @@
 - **Layers**: presentation (presentation-engineer), tests
 - **Depends on**: none
 - **Model**: sonnet
+- **Topic**: Foundation
 
 ## Goal
 

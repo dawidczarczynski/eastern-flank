@@ -4,6 +4,7 @@
 - **Layers**: presentation (new menu scene and viewer scene, `project.godot` main scene), tests
 - **Depends on**: – (soft: TASK-023 localization is done and used for the strings; TASK-045 deploy step is done; TASK-047 `turret_traverse` adds its animation to the list when it lands)
 - **Model**: sonnet
+- **Topic**: Visual design v2 and real units
 
 ## Goal
 

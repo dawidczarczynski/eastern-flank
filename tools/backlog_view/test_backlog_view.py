@@ -92,6 +92,64 @@ class BacklogDataTest(unittest.TestCase):
         self.assertIsNone(backlog_data.read_task("../TASK-002-b.md", self.dir))
         self.assertIsNone(backlog_data.read_task("TASK-009-missing.md", self.dir))
 
+    def test_topics_from_notes_sections(self) -> None:
+        notes = "Preamble TASK-001.\n\nTerrain (TASK-010 … TASK-020, look): text\n\n030 → 031\n\nHUD v3 (vision, TASK-040 … TASK-045): more\n"
+        sections = backlog_data.topic_sections(notes)
+        self.assertEqual([(s["name"], s["first"], s["last"]) for s in sections], [("Terrain", "TASK-010", "TASK-020"), ("HUD v3", "TASK-040", "TASK-045")])
+        rows = [{"id": i} for i in ["TASK-001", "TASK-012a", "TASK-031", "TASK-035", "TASK-041", "TASK-050", "TASK-060"]]
+        topics = backlog_data.assign_topics(rows, sections, {"TASK-060": "Custom"})
+        self.assertEqual(topics, {
+            "TASK-001": "Foundation",  # before the first range
+            "TASK-012a": "Terrain",  # inside a range
+            "TASK-031": "Terrain",  # named in the section's text
+            "TASK-035": "Terrain",  # the last section starting before it
+            "TASK-041": "HUD v3",
+            "TASK-050": "HUD v3",
+            "TASK-060": "Custom",  # `- **Topic**:` in the task file
+        })
+        self.assertEqual(backlog_data.id_key("TASK-039a"), 3901)
+
+    def test_tree_hangs_tasks_under_their_deepest_dependency(self) -> None:
+        def row(order, task_id, hard=(), soft=()):
+            return {"order": order, "id": task_id, "hard": list(hard), "soft": list(soft)}
+
+        rows = [
+            row(0, "TASK-001"),
+            row(1, "TASK-002", ["TASK-001"]),
+            row(2, "TASK-003", ["TASK-001", "TASK-002"]),
+            row(3, "TASK-004", soft=["TASK-002"]),  # only soft links: hangs under them
+            row(4, "TASK-005", ["TASK-003", "TASK-010"]),
+            row(5, "TASK-010"),
+            row(6, "TASK-011", ["TASK-012"]),  # a cycle is cut, not looped
+            row(7, "TASK-012", ["TASK-011"]),
+        ]
+        topic_of = {r["id"]: ("B" if r["id"] == "TASK-010" else "A") for r in rows}
+        tree = backlog_data.build_tree(rows, topic_of, ["A", "B", "Empty"])
+        self.assertEqual([t["name"] for t in tree], ["A", "B"])
+
+        def shape(node):
+            return [node["id"], [shape(c) for c in node["children"]]]
+
+        a = tree[0]["roots"]
+        self.assertEqual([shape(n) for n in a], [
+            ["TASK-001", [["TASK-002", [["TASK-003", [["TASK-005", []]]], ["TASK-004", []]]]]],
+            ["TASK-011", [["TASK-012", []]]],
+        ])
+        task_003 = a[0]["children"][0]["children"][0]
+        self.assertEqual(task_003["also"], ["TASK-001"])
+        self.assertEqual(task_003["children"][0]["external"], [{"id": "TASK-010", "topic": "B"}])
+        self.assertEqual([n["id"] for n in tree[1]["roots"]], ["TASK-010"])
+
+    def test_real_backlog_tree_holds_every_task_once(self) -> None:
+        data = backlog_data.load()
+
+        def ids(node):
+            return [node["id"]] + [i for c in node["children"] for i in ids(c)]
+
+        listed = [i for topic in data["tree"] for root in topic["roots"] for i in ids(root)]
+        self.assertEqual(sorted(listed), sorted(r["id"] for r in data["rows"]))
+        self.assertTrue(all(r["topic"] for r in data["rows"]))
+
     def test_real_backlog_parses(self) -> None:
         data = backlog_data.load()
         self.assertGreater(len(data["rows"]), 0)

@@ -94,6 +94,49 @@ td.layers { color: var(--text-3); font-size: 12.5px; max-width: 240px; }
 .card-title { font-size: 13.5px; line-height: 1.4; }
 .card .chips-cell .label { font-size: 11px; color: var(--text-3); margin-right: 2px; align-self: center; }
 
+/* ---- tree: one lane per topic, cards placed by app.js (layoutTopic), links as SVG curves */
+.tree-view { padding: 16px 0 0; display: flex; flex-direction: column; gap: 14px; }
+.topic { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); width: max-content; min-width: 100%; box-sizing: border-box; }
+.topic-head { position: sticky; left: 0; display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; user-select: none; width: min(100%, calc(100vw - 80px)); box-sizing: border-box; }
+body.detail-open .topic-head { width: min(100%, calc(52vw - 80px)); }
+.topic-head h2 { margin: 0; font: 600 15px/1.2 var(--sans); white-space: nowrap; }
+.topic-head .n { font: 500 12px var(--mono); color: var(--text-3); white-space: nowrap; }
+.topic-head .progress { flex: 1; max-width: 240px; height: 6px; margin-left: auto; }
+.topic-head .chev { color: var(--text-3); width: 12px; }
+.topic-head:hover h2 { color: var(--accent); }
+.lane { position: relative; border-top: 1px solid var(--line); background-image: radial-gradient(color-mix(in srgb, var(--line) 70%, transparent) 1px, transparent 1px); background-size: 18px 18px; }
+.lane svg { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.lane path { fill: none; stroke-width: 1.6; }
+.tree-edge { stroke: color-mix(in srgb, var(--c) 55%, var(--line-strong)); }
+.tree-edge.s-done, .tree-edge.s-merged { stroke: var(--line-strong); }
+.also-edge { stroke: var(--text-3); stroke-dasharray: 3 4; stroke-width: 1.1; opacity: .35; }
+.lane path.hot { stroke: var(--accent); opacity: 1; stroke-width: 2.2; }
+
+.tnode { position: absolute; box-sizing: border-box; cursor: pointer; border-radius: 7px; transition: border-color .1s, background .1s; }
+.card-node { width: 232px; height: 70px; padding: 8px 10px 8px 11px; background: var(--surface-2); border: 1px solid var(--line-strong); border-left: 3px solid var(--c);
+  display: flex; flex-direction: column; gap: 4px; box-shadow: 0 1px 0 rgba(0, 0, 0, .25); }
+.card-node:hover { background: var(--surface-3); border-color: var(--text-3); border-left-color: var(--c); z-index: 2; }
+.tn-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tn-top .node-id { font: 600 11.5px var(--mono); color: var(--text); }
+.tn-top .st { font-size: 11px; color: var(--c); white-space: nowrap; }
+.tn-top .ext { font: 500 11px var(--mono); color: var(--bad); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tn-top .ext a { color: inherit; cursor: pointer; }
+.tn-top .ext a:hover { text-decoration: underline; }
+.tn-title { font-size: 12.5px; line-height: 1.3; color: var(--text); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tn-title code { font-size: 11px; padding: 0 3px; }
+.tn-title a { pointer-events: none; color: inherit; }
+.tnode .fold { margin-left: auto; flex: none; font: 600 11px/1 var(--mono); color: var(--text-3); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 4px; padding: 3px 5px; cursor: pointer; }
+.tnode .fold:hover { color: var(--text); border-color: var(--text-3); }
+.tag { width: 92px; height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 8px; background: var(--bg); border: 1px solid var(--line); color: var(--text-3); }
+.tag .node-id { font: 500 11.5px var(--mono); white-space: nowrap; }
+.tag .n { margin-left: 5px; font-size: 10.5px; color: var(--text-3); opacity: .8; }
+.tag.chain { border-style: dashed; }
+.tag .fold { padding: 2px 4px; font-size: 10px; }
+.tag:hover { border-color: var(--line-strong); color: var(--text-2); z-index: 2; }
+.tnode.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); z-index: 3; }
+.tnode.dep { box-shadow: 0 0 0 2px color-mix(in srgb, var(--bad) 60%, transparent); }
+.tnode.unblocks { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 60%, transparent); }
+
 /* ---- detail panel */
 aside { width: min(48vw, 800px); flex: none; overflow: auto; border-left: 1px solid var(--line); background: var(--surface); }
 .detail-bar { display: flex; align-items: center; gap: 10px; padding: 12px 22px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 1; }

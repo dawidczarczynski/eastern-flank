@@ -1,16 +1,17 @@
 "use strict";
-// Backlog viewer: docs/tasks/BACKLOG.md as a table or a board, with sorting, filters and a task file panel.
+// Backlog viewer: docs/tasks/BACKLOG.md as a table, a board or a dependency tree per topic, with sorting, filters and a task file panel.
 // Polls /api/version every second and re-renders when a file changed.
 
 const STORE = "backlog_view.state.v2";
 const POLL_MS = 1000;
 const OPEN = ["in progress", "to playtest", "ready", "blocked", "idea"];
 const state = Object.assign(
-  { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", view: "table" },
+  { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", view: "table", folded: [] },
   JSON.parse(localStorage.getItem(STORE) || "{}")
 );
-const urlView = new URLSearchParams(location.search).get("view"); // ?view=board / ?view=table
-if (urlView === "board" || urlView === "table") state.view = urlView;
+const VIEWS = ["table", "board", "tree"];
+const urlView = new URLSearchParams(location.search).get("view"); // ?view=board / ?view=table / ?view=tree
+if (VIEWS.includes(urlView)) state.view = urlView;
 let data = null;
 let version = null;
 let selected = null; // { id, file }
@@ -214,6 +215,134 @@ function renderBoard(rows) {
   }).join("");
 }
 
+// Tree: one lane per topic, a left-to-right diagram in it – each task right of the dependency it builds on,
+// joined by curves; other dependencies in the topic as dashed curves. A task that does not match the filters
+// still shows as a small tag while something right of it does, so the branches keep their shape; a run of
+// such tags in a row folds into one (`037 … 047`).
+const TREE = { w: 232, h: 70, tagW: 92, chainW: 132, tagH: 26, gapX: 54, gapY: 10, gapRoot: 22, pad: 14 };
+
+function layoutTopic(topic, shown, folded) {
+  const boxes = {};
+  let cursor = TREE.pad;
+  let depthMax = 0;
+  const visible = (node) => shown.has(node.id) || node.children.some(visible);
+  const shift = (node, dy) => { const b = boxes[node.id]; if (!b) return; b.y += dy; b.kids.forEach((k) => shift(k, dy)); };
+  const visibleKids = (node) => folded.has(node.id) ? [] : node.children.filter(visible);
+  function place(start, depth) {
+    const chain = [start];
+    let node = start;
+    while (!shown.has(node.id) && visibleKids(node).length === 1 && !shown.has(visibleKids(node)[0].id)) {
+      node = visibleKids(node)[0];
+      chain.push(node);
+    }
+    const full = shown.has(node.id);
+    const kids = visibleKids(node);
+    const h = full ? TREE.h : TREE.tagH;
+    const w = full ? TREE.w : chain.length > 1 ? TREE.chainW : TREE.tagW;
+    const box = { node, chain, full, depth, w, h, kids, x: TREE.pad + depth * (TREE.w + TREE.gapX), y: 0 };
+    chain.forEach((n) => { boxes[n.id] = box; });
+    depthMax = Math.max(depthMax, depth);
+    const top = cursor;
+    if (!kids.length) {
+      box.y = cursor;
+      cursor += h + TREE.gapY;
+      return;
+    }
+    kids.forEach((k) => place(k, depth + 1));
+    const first = boxes[kids[0].id];
+    const last = boxes[kids[kids.length - 1].id];
+    box.y = (first.y + first.h / 2 + last.y + last.h / 2) / 2 - h / 2;
+    if (box.y < top) { const dy = top - box.y; box.y = top; kids.forEach((k) => shift(k, dy)); cursor += dy; }
+    cursor = Math.max(cursor, box.y + h + TREE.gapY);
+  }
+  topic.roots.filter(visible).forEach((root) => { place(root, 0); cursor += TREE.gapRoot - TREE.gapY; });
+  return { boxes, width: TREE.pad * 2 + (depthMax + 1) * TREE.w + depthMax * TREE.gapX, height: cursor - TREE.gapRoot + TREE.gapY + TREE.pad };
+}
+
+function curve(a, b, cls, from, to) {
+  const x1 = a.x + a.w;
+  const y1 = a.y + a.h / 2;
+  const x2 = b.x;
+  const y2 = b.y + b.h / 2;
+  const mx = (x1 + x2) / 2;
+  const d = x2 > x1
+    ? "M" + x1 + " " + y1 + " C" + mx + " " + y1 + " " + mx + " " + y2 + " " + x2 + " " + y2
+    : "M" + x1 + " " + y1 + " C" + (x1 + 60) + " " + y1 + " " + (x2 - 60) + " " + y2 + " " + x2 + " " + y2; // a link back to the left
+  return '<path class="' + cls + '" data-a="' + from + '" data-b="' + to + '" d="' + d + '"/>';
+}
+
+function treeCard(box) {
+  const node = box.node;
+  const row = byId(node.id);
+  const style = 'style="left:' + box.x + "px;top:" + box.y + 'px"';
+  const hiddenKids = node.children.length && !box.kids.length ? countNodes(node) : 0;
+  const fold = node.children.length
+    ? '<button type="button" class="fold" data-fold="' + node.id + '" title="' + (hiddenKids ? "Unfold" : "Fold") + ' the branch">' + (hiddenKids ? "+" + hiddenKids : "−") + "</button>"
+    : "";
+  const tip = esc(node.id + " · " + row.status + "\n" + row.title.replace(/`/g, ""));
+  if (!box.full) {
+    const short = (id) => id.replace("TASK-", "");
+    const chain = box.chain.length > 1;
+    const label = chain ? short(box.chain[0].id) + " … " + short(node.id) + '<span class="n">' + box.chain.length + "</span>" : short(node.id);
+    const chainTip = esc(box.chain.map((n) => n.id + " · " + byId(n.id).status + " – " + byId(n.id).title.replace(/`/g, "")).join("\n"));
+    return '<div class="tnode tag ' + (chain ? "chain " : "") + cls(row.status) + " " + relation(node.id) + '" data-row="' + node.id + '" title="' + (chain ? chainTip : tip) + '" ' +
+      'style="left:' + box.x + "px;top:" + box.y + "px;width:" + box.w + 'px">' +
+      '<span class="dot"></span><span class="node-id">' + label + "</span>" + fold + "</div>";
+  }
+  const done = (id) => { const r = byId(id); return r && r.status === "done"; };
+  const ext = node.external.filter((e) => !done(e.id));
+  const extHtml = ext.length
+    ? '<span class="ext" title="' + esc(ext.map((e) => e.id + " – " + e.topic).join("\n")) + '">← ' + ext.map((e) => '<a data-id="' + e.id + '">' + e.id.replace("TASK-", "") + "</a>").join(" ") + "</span>"
+    : "";
+  return '<div class="tnode card-node ' + cls(row.status) + " " + relation(node.id) + '" data-row="' + node.id + '" title="' + tip + '" ' + style + '>' +
+    '<div class="tn-top"><span class="dot"></span><span class="node-id">' + node.id + '</span><span class="st">' + esc(row.status) + "</span>" + extHtml + fold + "</div>" +
+    '<div class="tn-title">' + inline(row.title) + "</div></div>";
+}
+
+const countNodes = (node) => node.children.reduce((n, c) => n + 1 + countNodes(c), 0);
+const allIds = (node) => [node.id].concat(...node.children.map(allIds));
+
+function renderTree(rows) {
+  const shown = new Set(rows.map((r) => r.id));
+  const folded = new Set(state.folded);
+  $("#tree").innerHTML = data.tree.map((topic) => {
+    const ids = [].concat(...topic.roots.map(allIds));
+    const nShown = ids.filter((id) => shown.has(id)).length;
+    if (!nShown) return "";
+    const counts = {};
+    ids.forEach((id) => { const s = byId(id).status; counts[s] = (counts[s] || 0) + 1; });
+    const bar = ["done", "to playtest", "in progress", "ready", "blocked", "idea", "merged"].filter((s) => counts[s]).map((s) =>
+      '<span class="' + cls(s) + '" style="flex: ' + counts[s] + '" title="' + s + ": " + counts[s] + '"></span>').join("");
+    const key = "topic:" + topic.name;
+    const open = !folded.has(key);
+    let body = "";
+    if (open) {
+      const lay = layoutTopic(topic, shown, folded);
+      const boxes = [...new Set(Object.values(lay.boxes))];
+      let paths = "";
+      boxes.forEach((b) => {
+        b.kids.forEach((k) => { paths += curve(b, lay.boxes[k.id], "tree-edge " + cls(byId(k.id).status), b.node.id, k.id); });
+        b.node.also.forEach((id) => { if (lay.boxes[id] && lay.boxes[id] !== b) paths += curve(lay.boxes[id], b, "also-edge", id, b.node.id); });
+      });
+      body = '<div class="lane" style="width:' + lay.width + "px;height:" + lay.height + 'px">' +
+        '<svg width="' + lay.width + '" height="' + lay.height + '">' + paths + "</svg>" + boxes.map(treeCard).join("") + "</div>";
+    }
+    return '<section class="topic' + (open ? "" : " folded") + '">' +
+      '<div class="topic-head" data-fold="' + esc(key) + '"><span class="chev">' + (open ? "▾" : "▸") + "</span>" +
+      "<h2>" + esc(topic.name) + "</h2>" +
+      '<span class="n">' + (counts.done || 0) + " / " + ids.length + " done" + (nShown !== ids.length ? " · " + nShown + " shown" : "") + "</span>" +
+      '<div class="progress">' + bar + "</div></div>" + body + "</section>";
+  }).join("");
+}
+
+// hovering a task lights up its links in the diagram
+document.addEventListener("mouseover", (ev) => {
+  const node = ev.target.closest(".tnode");
+  const id = node ? node.dataset.row : null;
+  document.querySelectorAll("#tree path.hot").forEach((p) => p.classList.remove("hot"));
+  if (id) document.querySelectorAll('#tree path[data-a="' + id + '"], #tree path[data-b="' + id + '"]').forEach((p) => p.classList.add("hot"));
+});
+
 function renderHeader() {
   const counts = {};
   data.rows.forEach((r) => { counts[r.status] = (counts[r.status] || 0) + 1; });
@@ -235,11 +364,13 @@ function renderHeader() {
 
 function renderBody() {
   const rows = visibleRows();
-  const board = state.view === "board";
-  $("#table").hidden = board || !rows.length;
-  $("#board").hidden = !board;
+  $("#table").hidden = state.view !== "table" || !rows.length;
+  $("#board").hidden = state.view !== "board";
+  $("#tree").hidden = state.view !== "tree" || !rows.length;
   $("#nothing").hidden = rows.length > 0;
-  if (board) renderBoard(rows); else renderTable(rows);
+  if (state.view === "board") renderBoard(rows);
+  else if (state.view === "tree") renderTree(rows);
+  else renderTable(rows);
   const filtered = data.rows.filter((r) => matches(r, true)).length;
   $("#count").textContent = rows.length + " shown" + (filtered !== data.rows.length ? " · " + filtered + " match the search" : "");
 }
@@ -354,6 +485,14 @@ document.addEventListener("click", (ev) => {
     }
     return;
   }
+  const fold = ev.target.closest("[data-fold]");
+  if (fold) {
+    const key = fold.dataset.fold;
+    state.folded = state.folded.includes(key) ? state.folded.filter((k) => k !== key) : state.folded.concat(key);
+    save();
+    renderBody();
+    return;
+  }
   const chip = ev.target.closest("[data-status]");
   if (chip) {
     const s = chip.dataset.status;
@@ -395,8 +534,8 @@ document.addEventListener("keydown", (ev) => {
   const typing = ev.target.closest("input, select, textarea");
   if (ev.key === "/" && !typing) { ev.preventDefault(); $("#search").focus(); }
   else if (ev.key === "Escape") { if (typing) ev.target.blur(); else closeTask(); }
-  else if (!typing && !ev.ctrlKey && !ev.metaKey && (ev.key === "b" || ev.key === "t")) {
-    state.view = ev.key === "b" ? "board" : "table";
+  else if (!typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey && ["b", "t", "r"].includes(ev.key)) {
+    state.view = { b: "board", t: "table", r: "tree" }[ev.key];
     save();
     renderHeader();
     renderBody();

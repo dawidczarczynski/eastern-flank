@@ -4,6 +4,7 @@
 - **Layers**: presentation (`models/parts/soldier.gd`, `models/pl_mech_infantry.gd`, `models/ru_motor_rifle.gd`, `ModelParts`, `MeshKit` if a primitive is missing, `assets/shaders/camo.gdshader` if needed), tests (`test_unit_model_contract.gd`, `test_unit_models.gd`, new soldier tests). Roles: **unit-modeler** (body, kits, render-compare), **presentation-engineer** (AO bake helper, materials) if needed.
 - **Depends on**: – (soft: TASK-067 – builds on its code; its playtest folds into this one)
 - **Model**: opus (organic shapes, anatomy, AO bake within the build-time budget)
+- **Topic**: Visual realism
 
 ## Goal
 

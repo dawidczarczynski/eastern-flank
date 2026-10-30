@@ -20,6 +20,7 @@
     <div class="segmented" id="view">
       <button type="button" data-view="table">☰ Table</button>
       <button type="button" data-view="board">▦ Board</button>
+      <button type="button" data-view="tree" title="Topics as branches, each task under the dependency it builds on (R)">⑂ Tree</button>
     </div>
     <select id="model" title="Model"></select>
     <button id="notes-toggle" type="button" class="btn ghost">Notes</button>
@@ -55,6 +56,7 @@
       <tbody></tbody>
     </table>
     <div id="board" class="board" hidden></div>
+    <div id="tree" class="tree-view" hidden></div>
     <div id="nothing" class="empty" hidden>No task matches the filters.</div>
   </main>
   <aside id="detail" hidden>
