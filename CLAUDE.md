@@ -1,6 +1,6 @@
 # Eastern Flank – turn-based 3D strategy (Godot 4, GDScript)
 
-Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/ARCHITECTURE.md · Agent workflow: docs/AGENTIC_WORKFLOW.md · Tasks: docs/tasks/
+Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL.md · Architecture: docs/ARCHITECTURE.md · Agent workflow: docs/AGENTIC_WORKFLOW.md · Tasks: docs/tasks/
 
 ## Commands
 

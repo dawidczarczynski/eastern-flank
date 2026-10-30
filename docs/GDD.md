@@ -4,10 +4,26 @@
 
 ## Vision
 
-- **Genre**: turn-based tactical 3D strategy on a hex grid.
-- **One sentence**: _[to be filled in – what makes this game unique?]_
-- **Inspirations**: _[e.g. Battle for Wesnoth, Into the Breach, Civilization, Heroes]_
+Full vision: [VISION.md](VISION.md) (2026-10-30). It moves the game from a single tactical battle to **two layers**: an operational map (formations, logistics, reconnaissance, air defence, deep strikes, political events) as the main scene, and tactical battles that start on contact and are fought in the conditions the operation created. Everything below this section describes the tactical layer as implemented so far.
+
+- **Genre**: turn-based (I-go-you-go) 3D operational + tactical strategy on hex grids.
+- **One sentence**: run a real present-day NATO vs. Russia operation on Europe's eastern flank, where deep strikes, supply and command shape every battle before it starts.
+- **Inspirations**: WARNO (zoom from symbols to models), Combat Mission / Steel Division (look), Panzer General / Steel Panthers (turn-based combat), operational wargames.
 - **Platform**: PC (Linux/Windows) **[ASSUMPTION]**
+
+## Vision decisions (2026-10-30)
+
+Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-layer game (vision)".
+
+- **Unit scale**: a tactical unit is a **company**; the 3D model (a squad, one tank, one launcher) only represents it. HP is the company's **strength**, not one vehicle's health. An operational formation (battalion / brigade) enters a battle as a set of companies whose HP follows the formation's state; battle losses flow back into the formation.
+- **Tactical maps come from real geography**: operational and tactical maps are generated from real map data (land use, roads, rivers, elevation – e.g. OpenStreetMap + a DEM), imported offline and committed as data; the game stays offline and deterministic. A battle's map is the real terrain around the contact point. The random generator stays only for tests and quick battles; it is not tuned further.
+- **Victory conditions and turn limits are per battle** (`BattleObjectives`): a list of conditions (hold / take objectives, destroy a share of the enemy, survive N turns, exit through a map edge) plus a turn limit. Authored for scenario battles, derived from the operational situation for contact battles. Replaces "eliminate all enemy units".
+- **C2 delay = command points**: each turn a side has N command points; activating a unit (its first move or attack in the turn) costs 1. N comes from the battle conditions – a damaged C2 (e.g. by a deep strike) lowers it.
+- **Battles are always played** – no auto-resolve for now.
+- **Fog of war** is in the MVP (both layers); reconnaissance drives deep strike accuracy.
+- **Priorities**: the core loop "operation → deep strikes → battle → consequences" comes first; new visual polish waits (TASK-048, TASK-063, TASK-066 and further model reworks move down the backlog).
+- **Tactical randomness** – proposed **[ASSUMPTION]**, to be confirmed in TASK-089: per-element rolls (each strength point of the attacking company rolls to inflict a loss, so a full company has a small spread and a battered one a large spread; a damaged company deals less), with the expected range shown before the attack; later suppression / morale checks from fire (TASK-090) and indirect-fire accuracy from spotting. All through `GameState.rng`.
+- **First theatre** – proposed **[ASSUMPTION]**: the Suwałki Gap (Poland / Lithuania / Kaliningrad / Belarus).
 
 ## Gameplay loop
 
@@ -214,16 +230,16 @@ Player-facing description of these rules: docs/MANUAL.md.
 
 Each question lists the tasks that depend on the answer.
 
-- **Victory condition**: elimination of all enemy units is the current **[ASSUMPTION]**. Alternatives: hold objectives, kill the leader, turn limit with points. → TASK-012 uses a harness-only turn limit (draw) and would change if a turn limit becomes a real rule; future scenario tasks.
-- **Turn limit as a game rule?** Not in the game yet; only the AI-vs-AI simulation (TASK-012) stops matches after N turns. → TASK-012.
-- **Randomness in combat**: deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
+- **Victory condition** (decided 2026-10-30: per-battle `BattleObjectives`, TASK-088 – see "Vision decisions"): elimination of all enemy units is the current **[ASSUMPTION]**. Alternatives: hold objectives, kill the leader, turn limit with points. → TASK-012 uses a harness-only turn limit (draw) and would change if a turn limit becomes a real rule; future scenario tasks.
+- **Turn limit as a game rule?** (decided 2026-10-30: yes, per battle, TASK-088) Not in the game yet; only the AI-vs-AI simulation (TASK-012) stops matches after N turns. → TASK-012.
+- **Randomness in combat** (2026-10-30: per-element rolls proposed, TASK-089): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
-- **Scale**: tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
+- **Scale** (decided 2026-10-30: two layers – operational formations, tactical companies; see "Vision decisions"): tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
 - **Setting**: modern military with real countries and real equipment (decided 2026-10-18). Era: present day; first factions Poland and Russia with their rosters (see "Factions and units"). → TASK-039a.
 - **Old match records** (decided 2026-10-18): records made before TASK-039a are unsupported – the loader rejects them with a clear message, and existing local saves are simply deleted. → TASK-039a.
 - **Modes**: vs AI only, hot-seat, network multiplayer? → TASK-005 (command serialization is the groundwork for network/replays), `HUMAN_PLAYER` constant in the battle controller, TASK-007 (hot-seat fog needs a hand-off screen).
-- **Fog of war**: yes/no, and per player vision rules? → TASK-007 (stays `idea` until scale and modes are decided).
+- **Fog of war** (decided 2026-10-30: yes, in the MVP on both layers; vision rules still open): yes/no, and per player vision rules? → TASK-007 (stays `idea` until scale and modes are decided).
 - **Cavalry's look**: the mock-up has no cavalry; TASK-019 uses the mock-up's **tank** model for cavalry as an interim (both are the fast 5-move unit). Answered by the setting decision: cavalry is replaced by the tank class in TASK-039a. → TASK-019, TASK-039a.
 - **Stat derivation rules**: proposed 2026-10-18 (see "Stat derivation rules"), no new stats; hard/soft attack recorded as a non-adopted option. Approved by the human on 2026-10-18 (the section header says so; this entry previously still said "waiting for approval"). → TASK-039a.
 - **Rocket artillery at close range** (found while writing the manual, 2026-10-18): the code has no minimum range, so artillery fires at adjacent enemies and counters adjacent attackers with its full attack 5 – e.g. cavalry attacking artillery takes 3 counter damage, as much as from a cavalry. The visual-design idea (indirect fire at range 3–6, no firing after moving) would change that. Keep it, add a minimum range (e.g. 2, which also removes the close-range counter), or reduce close-range damage? → TASK-039a balance / follow-up task.

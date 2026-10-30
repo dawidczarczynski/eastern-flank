@@ -55,6 +55,30 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-032](TASK-032-infantry-model-v2.md) | First detailed infantry squad + parameterised soldier kit – `unit-modeler` | 🔵 done (superseded by `/model-unit pl_mech_infantry`, `ru_motor_rifle`; next: TASK-067) | – |
 | [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | 🔵 done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🔵 done | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
+| [TASK-086](TASK-086-two-layer-architecture.md) | Two-layer architecture (ADR): operational simulation next to the tactical one, `BattleSetup` / `BattleResult` hand-off, campaign save, scene flow | 🟢 ready | – (soft: TASK-088) |
+| [TASK-088](TASK-088-battle-objectives.md) | Per-battle victory conditions and turn limit (`BattleObjectives`: hold / take hexes, destroy share, eliminate; draws) | 🟢 ready | – (soft: TASK-086) |
+| [TASK-091](TASK-091-command-points.md) | Command points – tactical C2 delay (N activations per turn, `no_command_points`) | 🟢 ready | – (soft: TASK-086) |
+| [TASK-087](TASK-087-real-map-import.md) | Maps from real geography: sources + licences, hex scales, offline import tool (OSM + DEM → `data/maps/`), sample real battle (study first) | 🟢 ready | – (soft: TASK-086) |
+| [TASK-089](TASK-089-company-combat-rolls.md) | Company combat: per-element rolls, weaker when battered, damage forecast (design first) | 💡 idea | human approval of Step 1 (soft: TASK-088) |
+| TASK-092 | Operational state: operational map from real data, formations (battalion / brigade = companies) as data, `MoveFormationCommand`, operational turns | 💡 idea | TASK-086, TASK-087 |
+| TASK-094 | Contact → battle: contact rule, `BattleSetup` from formations, tactical map cut at the contact point, objectives derived from the situation, scene transition | 💡 idea | TASK-092, TASK-088, TASK-087 |
+| TASK-095 | Battle result → operation: losses into formations, fatigue / readiness, retreat, initiative | 💡 idea | TASK-094 |
+| TASK-093 | Operational map view v0: flat map, NATO (APP-6) symbols, select and move formations – deliberately simple | 💡 idea | TASK-092 |
+| TASK-108 | Terrain types from real data: fields, urban, marsh, roads (cost 1), rivers (+1 to cross) – rules + look (replaces TASK-035) | 💡 idea | TASK-087 |
+| TASK-097 | Deep strike v1: means as data (cruise, ballistic, strike drones), targets (airfield, depot, C2, air defence, formation), resolution from recon / AD / quality via `rng`, lasting effects | 💡 idea | TASK-092 (soft: TASK-100, TASK-098) |
+| TASK-100 | Reconnaissance and operational fog: targets known / unknown / stale, recon means | 💡 idea | TASK-092 |
+| TASK-098 | Air defence and SEAD v1: coverage zones, interceptions, suppression before a strike | 💡 idea | TASK-097 |
+| TASK-099 | `BattleConditions` in battle: command points from C2 state, ammunition as a rule (ties to TASK-081 resupply), fire support from airfields, morale | 💡 idea | TASK-094, TASK-091, TASK-097 |
+| TASK-007 | Fog of war (tactical) – in the MVP (decided 2026-10-30); vision rules to design | 💡 idea | soft: TASK-100 (same visibility model) |
+| TASK-096 | Supply v1: formation in / out of supply via a line to a depot (roads), effects on movement and battle | 💡 idea | TASK-092 (soft: TASK-108) |
+| TASK-101 | Deep strike view: pick means and target, effectiveness forecast, strike report on the map | 💡 idea | TASK-097, TASK-093 |
+| TASK-102 | Operational AI: moves, strikes, air defence placement; tactical AI plays for objectives | 💡 idea | TASK-095, TASK-097 |
+| TASK-103 | Full-loop simulation: operational AI-vs-AI matches with headless battles (`tools/simulate.sh` extension) | 💡 idea | TASK-102 |
+| TASK-090 | Suppression / morale checks from fire (pinned companies act worse next turn) | 💡 idea | TASK-089 |
+| TASK-104 | Minimal technology tree (3–4 paths) unlocking strike means and defences | 💡 idea | TASK-097 |
+| TASK-105 | Replacements and mobilisation: rebuilding formation strength over time | 💡 idea | TASK-095 |
+| TASK-106 | Political events v1: escalation, ROE limits on strike targets, allied support | 💡 idea | TASK-097 |
+| TASK-107 | MVP scenario: one operation (Suwałki Gap **[ASSUMPTION]**), side objectives, campaign victory, balance via TASK-103 | 💡 idea | TASK-103 (soft: TASK-104, TASK-105, TASK-106) |
 | [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | ⚪ merged into TASK-045 | – |
 | [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil + muzzle flash on direct fire | 💡 idea | **TASK-047**; look at 047 in game first |
 | [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | 🔵 done | – |
@@ -94,8 +118,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-070](TASK-070-open-field-vegetation.md) | Varied vegetation on open ground: grass kinds (short / tall / dry stalks / nettle) by world noise, meadow flower clusters, thorn-scrub clumps on tile borders; tunables in `LookPreset.meadow` | 🔵 done | **TASK-057**, **TASK-061** (soft: TASK-071) |
 | TASK-071 | Central-Eastern European look: species, palette, terrain character (study first) | 🔵 done | soft: TASK-061, TASK-070 |
 | TASK-072 | Scalability for very large maps: benchmark tool, chunked lazy world, distance budgets (study first) | 💡 idea | soft: TASK-061, TASK-070 |
-| TASK-007 | Fog of war | 💡 idea | GDD open questions: scale, modes |
-| TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | 💡 idea | GDD decision ("Ideas from the visual design"), hand-made maps |
+| TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | ⚪ merged into TASK-108 (terrain from real data) | – |
 
 TASK-008 is not a hard dependency of anything, but it makes the visual parts of TASK-009/-004/-003/-010 easier to judge. TASK-006 lets agents check visual tasks themselves.
 
@@ -134,7 +157,15 @@ Visual realism (TASK-049 … TASK-066, requested 2026-10-20): the battle scene m
 - 059's preset choice sets the sizes in 057, 058, 061 and 064 (they read `VisualScale`, no hard-coded sizes).
 - The unit track is independent of the terrain track: 062 needs TASK-030's kit and masks; 063/064 need model anchors from `unit-modeler` – add both anchor sets in one rework per vehicle.
 - ADR numbers: 0001–0010 are taken; tasks that write an ADR use the next free number at the time (030, 043 and 053 each write one).
-- Roads, rivers and fields stay in TASK-035; 055 reserves two splat channels for them.
+- Roads, rivers and fields stay in TASK-035 (now TASK-108); 055 reserves two splat channels for them.
 - 074 (rocket salvo sequence) → 075 (salvo effects): 074 is the timing, paths, HP steps and pacing with simple flashes and is shippable alone; 075 fills its `SalvoEffects` hooks with 064's `ParticleFx` pool. Neither waits for the launcher reworks: they work with today's `Mouth*` markers. 044 / 045 edit the same `_play_volley` – whichever of them lands after 074 rebases onto `SalvoTiming.salvo_duration` instead of `RocketVolley.total_duration()`.
 
 HUD v3 (TASK-076 … TASK-082, handoff from Claude Design in `docs/design/hud_v3/`: `README.md` spec, `hud-elementy.html` pixel reference, `icons.svg`): restyles the whole HUD to the military C2 look. 076 (fonts, tokens, primitives) first; 077 / 078 / 079 / 080 are independent of each other afterwards. The radial orders menu (082) needs orders that are not rules yet – 081 (game-designer decisions) comes first, so 076–080 ship without it. The design's samples that the game cannot back yet are left out: rank pips, city names, order effect tags, `1–6` key hints.
+
+Two-layer game (vision, TASK-086 … TASK-108, added 2026-10-30 from [VISION.md](../VISION.md); decisions in GDD "Vision decisions"): the game grows an operational map (formations, supply, recon, air defence, deep strikes, politics) above the tactical battle, and battles start on contact and are fought in the conditions the operation created. The core loop comes first, polish later: new visual tasks (048, 063, 066, model reworks) wait. Every view in this track starts as a deliberately simple v0. Recommended order:
+
+086 (ADR) → 088 + 091 (tactical rules that don't need the operation) → 087 (real maps) → 089 (combat rolls, design first) → 092 → 094 → 095 (loop without strikes – already playable) → 093 → 108 → 097 → 100 → 098 → 099 → 007 → 096 → 101 → 102 → 103 → 107; 090, 104, 105, 106 when the loop works.
+
+- 088, 091 and 089 change only the tactical layer and can start right away; their defaults keep today's battle unchanged.
+- 087 is study-first: data sources, licences (OSM ODbL) and hex scales go to the human before the tool is written.
+- Phase 2 of the vision maps onto existing tasks: larger maps + artillery ranges → TASK-072, digging in / camouflage → TASK-081; drones, counter-battery, EW, helicopters, aircraft, mining and SIGINT get tasks after the MVP.
