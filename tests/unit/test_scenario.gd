@@ -153,17 +153,6 @@ func test_player_with_unknown_faction_gets_no_units() -> void:
 	assert_eq(state.units_of(1).size(), 0)
 
 
-func test_can_spawn_checks_the_roster() -> void:
-	var state := GameState.new(HexGrid.new(), 2, 1)
-	var squad: UnitDefinition = load("res://data/units/pl_mech_infantry.tres")
-	assert_true(Scenario.can_spawn(state, 0, squad))
-	assert_false(Scenario.can_spawn(state, 1, squad), "Russia does not field the Polish squad")
-	assert_false(Scenario.can_spawn(state, 2, squad), "no such player")
-	var other := UnitDefinition.new()
-	other.id = &"not_in_any_roster"
-	assert_false(Scenario.can_spawn(state, 1, other))
-
-
 func test_force_larger_than_the_slots_skips_the_extra_units() -> void:
 	# Expected engine output: push_error "no free slot" for the 6th front unit.
 	var poland := FactionRegistry.get_faction(&"poland")

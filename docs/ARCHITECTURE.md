@@ -13,7 +13,7 @@
 ├──────────────────────────────────────────────┤
 │ GameState · HexGrid · Unit · Terrain         │  src/core/
 │ Commands                                     │  src/core/commands/
-│ Scenario (headless battle setup from a seed) │  src/core/scenario.gd
+│ Scenario · BattleSetup · BattleResult        │  src/core/scenario.gd, battle_*.gd
 │ AiPlayer (issues commands like a player)     │  src/ai/
 ├──────────────────────────────────────────────┤
 │ Data: UnitDefinition, FactionDefinition, …   │  src/core/data/, data/
@@ -92,6 +92,15 @@ Tracks, craters and scorch (TASK-058) are cosmetic and view-only; no new event t
 `UnitDefinition` (`src/core/data/`, one `data/units/<id>.tres` per real unit) holds `id`, `display_name` (real designation, or a translated descriptive name for squads), `short_name` (label, ≤ 6 characters), `unit_class` (`infantry` / `tank` / `mlrs`, ids from `docs/design/units/classes.json`), `mobility` (`foot` / `wheeled` / `tracked`, from the catalog) and the combat stats (`max_hp`, `move_points`, `attack`, `defense`, `attack_range`), derived by GDD "Stat derivation rules". Core rules read only the combat stats; `unit_class` and `mobility` group shared behaviour (presentation: volleys, locomotion, model contract – TASK-039b). `test_unit_catalog_consistency.gd` checks every unit against its catalog entry (`real_name`, `class`, `mobility`, roster factions ⊆ `operators`).
 
 `FactionDefinition` (`src/core/data/`, instances in `data/factions/*.tres`) holds a faction's `id`, `display_name` (translation key), `short_name`, `roster: Array[UnitDefinition]`, `default_force: Array[UnitDefinition]` (the default battle's units in spawn order, each in the roster) and a Presentation group (`color`, `ink_color`, `camo`, `vest_color`) that core/AI never read. `FactionRegistry.get_faction(id)` / `all()` / `ids()` / `has_faction(id)` look them up (explicit path table, see ADR 0007). Each player has a faction id in `GameState.player_factions` (default `FactionRegistry.DEFAULT_IDS` = `poland`, `russia`); the view gets everything faction-specific from `state.faction_of(player_id)` – never from owner-indexed constants. `Scenario.default_battle(seed, factions)` assigns them and spawns each player's `default_force` in list order: range-1 units fill the front slots, the others the back slots (`Scenario.FRONT_SLOTS` / `BACK_SLOTS`; a force larger than the slots → `push_error`, extra units skipped). The map doesn't depend on the factions (spawn tiles are forced to plains); unit ids follow the spawn order, so they depend on the forces. Units outside the owner's roster are skipped. Balance between factions comes from `default_force` (unit counts), never from unit stats; `MatchRunner.play(seed, max_turns, factions)` / `tools/simulate.sh --factions=<p0>,<p1>` measure it.
+
+## Two layers
+
+The game is growing an operational layer (formations, supply, deep strikes) above the tactical battle; the shape is fixed in [ADR 0015](adr/0015-two-layer-architecture.md):
+
+- Operational logic goes to `src/core/operational/` and `src/ai/operational/` with the same rules as `src/core/` (pure logic, commands, its own `rng`); `OperationalState` / `OperationalSimulation` / `OperationalCommand` mirror the tactical classes but are separate. The operational layer never touches `GameState`; the tactical layer knows nothing about the operation.
+- The **only** channels between them: `BattleSetup` (`src/core/battle_setup.gd` – seed, map id + region, factions, companies with strength and operational `ref`, per-side `Conditions`, objectives) and `BattleResult` (`src/core/battle_result.gd` – winner, reason, turns, start / end strength per company; `BattleResult.from_battle(setup, state)`). Both are JSON-compatible data with strict `to_dict` / `from_dict`.
+- `Scenario.from_setup(setup)` starts every battle (company *i* = unit id *i* + 1, HP = strength, `GameState.rng` seeded with `setup.seed`); `Scenario.default_battle(seed, factions)` = `from_setup(default_battle_setup(seed, factions))`.
+- A contact battle's seed is drawn from the operational RNG inside the command that starts it; a battle is resolved in the operation by `ResolveBattleCommand(result)`. A campaign is recorded as operational commands + per-battle setup and commands (`CampaignRecord`); a presentation autoload `Session` keeps it across the operational ↔ battle scene change.
 
 ## Replays and match records
 

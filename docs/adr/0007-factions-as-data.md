@@ -23,3 +23,5 @@ Factions were implicit: "player 0 = blue, player 1 = red", with colours and name
 - (−) The registry path table must be kept in sync with `data/factions/` (guarded by a test).
 
 Amended by ADR 0009 (2026-10-20): record format version 2 makes `"factions"` required; version 1 records (with or without factions) are rejected. Spawns now follow each faction's `default_force`, so unit ids depend on the forces (TASK-039a).
+
+Amended by ADR 0015 (TASK-086): the default battle is built through a `BattleSetup`; the roster check moved into `Scenario.default_battle_setup` / `Scenario.from_setup` and `Scenario.can_spawn` was removed.
