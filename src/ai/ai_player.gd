@@ -1,7 +1,8 @@
 class_name AiPlayer
 extends RefCounted
-## Simple AI: every unit moves as close as possible to the nearest enemy, attacks the weakest
-## enemy in range (if any), then the AI ends the turn.
+## Simple AI: every unit moves as close as possible to the nearest enemy, attacks the enemy in
+## range with the best expected result (_best_target: CombatForecast expected damage + KILL_BONUS x
+## kill chance - expected counter; TASK-089a), then the AI ends the turn.
 ## Objectives (TASK-088): when the player has TAKE_HEXES / HOLD_HEXES conditions, their hexes are
 ## goals. A unit standing on one stays there (it still attacks); otherwise, when the nearest goal
 ## not occupied by an own unit is not farther than the nearest enemy, the unit moves as close to
@@ -11,6 +12,10 @@ extends RefCounted
 ## Acts only through commands – the same rules as for the player.
 
 const _INF := 1 << 30
+## Weight of the kill chance in the target score (target_score): an AI heuristic, not balance.
+const KILL_BONUS := 2.0
+## Target scores closer than this count as equal (_best_target falls back to HP, then id).
+const _SCORE_EPSILON := 1e-9
 ## Action scores used to spend limited command points (_action_score).
 const _ATTACK_SCORE := 100
 const _KILL_SCORE := 100
@@ -30,7 +35,7 @@ func take_turn(sim: GameSimulation) -> void:
 			continue
 		if best != unit.coord:
 			sim.execute(MoveUnitCommand.new(unit.id, best))
-		var target := _weakest_enemy_in_range(state, unit)
+		var target := _best_target(state, unit)
 		if target != null:
 			sim.execute(AttackCommand.new(unit.id, target.id))
 	if state.is_over():
@@ -170,12 +175,23 @@ func _nearest_enemy(state: GameState, unit: Unit) -> Unit:
 	return best
 
 
-## Living enemy within attack range with the lowest hp; ties broken by the lowest unit id.
-func _weakest_enemy_in_range(state: GameState, unit: Unit) -> Unit:
+## Valid target with the highest target_score; ties: the lowest hp, then the lowest unit id.
+## Null when nothing is in range.
+func _best_target(state: GameState, unit: Unit) -> Unit:
 	var best: Unit = null
-	# valid_targets is ascending, so the strict < keeps the lowest id on hp ties.
+	var best_score := 0.0
+	# valid_targets is ascending, so keeping the first of equals keeps the lowest id.
 	for id: int in AttackCommand.valid_targets(state, unit.id):
 		var other := state.get_unit(id)
-		if best == null or other.hp < best.hp:
+		var score := target_score(AttackCommand.forecast(state, unit, other))
+		# Scores within _SCORE_EPSILON tie: forecasts summed over different HP differ in the last bits.
+		var tie := absf(score - best_score) <= _SCORE_EPSILON
+		if best == null or (score > best_score and not tie) or (tie and other.hp < best.hp):
 			best = other
+			best_score = score
 	return best
+
+
+## Expected value of an attack: damage dealt + KILL_BONUS x kill chance - damage taken back.
+static func target_score(forecast: CombatForecast) -> float:
+	return forecast.expected_damage + KILL_BONUS * forecast.kill_chance - forecast.counter_expected

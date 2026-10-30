@@ -57,6 +57,15 @@ static func fighter(
 	return definition
 
 
+## A unit whose every shot hits (per-element rolls, TASK-089a): its attack is so high that
+## hit_on is capped at max_hp, the size of its die. A strike therefore deals exactly the
+## striker's current HP in damage – the tool for tests that need a certain result.
+static func sure_fighter(max_hp: int, defense: int = 2, attack_range: int = 1) -> UnitDefinition:
+	var definition := fighter(100, defense, max_hp, attack_range)
+	definition.id = &"test_sure_fighter"
+	return definition
+
+
 ## The generic cavalry calibration unit of the GDD (8 HP, move 5, A5 D2, range 1), class tank.
 static func generic_tank() -> UnitDefinition:
 	var definition := UnitDefinition.new()

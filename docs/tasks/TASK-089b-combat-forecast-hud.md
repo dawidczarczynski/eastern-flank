@@ -1,6 +1,6 @@
 # TASK-089b: Combat forecast in the HUD (expected damage, range, destroy chance, counter)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (HudModel, hover card); numbers only from `AttackCommand.forecast()`
 - **Depends on**: **TASK-089a**. Design and decisions: `TASK-089a-company-combat-rolls.md` (sections 5 and 8).
 - **Model**: sonnet

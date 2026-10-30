@@ -1,6 +1,11 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
+const ABRAMS := preload("res://data/units/m1a2_sepv3.tres")
+const T72B3 := preload("res://data/units/t72b3.tres")
+const URAGAN := preload("res://data/units/bm27_uragan.tres")
+const SQUAD := preload("res://data/units/pl_mech_infantry.tres")
 
 var sim: GameSimulation
 var human: Unit
@@ -26,8 +31,17 @@ func test_ai_ends_its_turn() -> void:
 
 
 func test_ai_attacks_after_moving_next_to_enemy() -> void:
+	var attacks: Array[Dictionary] = []
+	sim.event_emitted.connect(
+		func(e: Dictionary) -> void:
+			if e["type"] == &"unit_attacked" and not e["counter"]:
+				attacks.append(e)
+	)
 	AiPlayer.new().take_turn(sim)
-	assert_eq(human.hp, 8)
+	assert_eq(attacks.size(), 1)
+	assert_eq(attacks[0]["attacker_id"], ai_unit.id)
+	assert_eq(attacks[0]["target_id"], human.id)
+	assert_eq(human.hp, 10 - int(attacks[0]["damage"]))
 	assert_true(ai_unit.has_attacked)
 	assert_eq(sim.state.current_player, 0)
 
@@ -35,7 +49,7 @@ func test_ai_attacks_after_moving_next_to_enemy() -> void:
 func test_ai_attacks_without_moving_when_already_adjacent() -> void:
 	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
 	var target := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
-	var attacker := state.add_unit(1, Fixtures.infantry(), Vector2i(1, 0))
+	var attacker := state.add_unit(1, Fixtures.sure_fighter(2), Vector2i(1, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
 	AiPlayer.new().take_turn(game)
@@ -43,12 +57,12 @@ func test_ai_attacks_without_moving_when_already_adjacent() -> void:
 	assert_eq(target.hp, 8)
 
 
-func test_ai_attacks_weakest_adjacent_enemy() -> void:
+func test_ai_attacks_the_enemy_that_counters_less() -> void:
 	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
 	var healthy := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
 	var wounded := state.add_unit(0, Fixtures.infantry(), Vector2i(1, -1))
 	wounded.hp = 5
-	state.add_unit(1, Fixtures.infantry(), Vector2i(1, 0))
+	state.add_unit(1, Fixtures.sure_fighter(2), Vector2i(1, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
 	AiPlayer.new().take_turn(game)
@@ -60,7 +74,7 @@ func test_ai_breaks_hp_ties_by_lowest_unit_id() -> void:
 	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
 	var first := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
 	var second := state.add_unit(0, Fixtures.infantry(), Vector2i(1, -1))
-	state.add_unit(1, Fixtures.infantry(), Vector2i(1, 0))
+	state.add_unit(1, Fixtures.sure_fighter(2), Vector2i(1, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
 	AiPlayer.new().take_turn(game)
@@ -92,9 +106,18 @@ func test_ai_ranged_unit_keeps_distance_and_shoots_without_counter() -> void:
 	var ranged := state.add_unit(1, Fixtures.fighter(5, 1, 6, 2), Vector2i(0, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
+	var attacks: Array[Dictionary] = []
+	game.event_emitted.connect(
+		func(e: Dictionary) -> void:
+			if e["type"] == &"unit_attacked":
+				attacks.append(e)
+	)
 	AiPlayer.new().take_turn(game)
 	assert_eq(Hex.distance(ranged.coord, enemy.coord), 2)
-	assert_eq(enemy.hp, 8)
+	assert_eq(attacks.size(), 1)
+	assert_eq(attacks[0]["attacker_id"], ranged.id)
+	assert_false(attacks[0]["counter"])
+	assert_eq(enemy.hp, 10 - int(attacks[0]["damage"]))
 	assert_eq(ranged.hp, 6)
 
 
@@ -128,8 +151,8 @@ func test_ranged_destination_tie_prefers_inside_range_then_current_tile() -> voi
 
 func test_ai_rocket_artillery_moves_away_from_adjacent_enemy_and_fires_uncountered() -> void:
 	var state := GameState.new(Fixtures.plains_grid(6), 2, 1)
-	var enemy := state.add_unit(0, load("res://data/units/pl_mech_infantry.tres"), Vector2i(1, 0))
-	var artillery := state.add_unit(1, load("res://data/units/bm27_uragan.tres"), Vector2i(0, 0))
+	var enemy := state.add_unit(0, SQUAD, Vector2i(1, 0))
+	var artillery := state.add_unit(1, URAGAN, Vector2i(0, 0))
 	var game := GameSimulation.new(state)
 	game.execute(EndTurnCommand.new())
 	AiPlayer.new().take_turn(game)
@@ -201,3 +224,79 @@ func test_ai_ignores_objectives_without_a_take_or_hold_condition() -> void:
 	)
 	AiPlayer.new().take_turn(game)
 	assert_eq(Hex.distance(ai_unit.coord, human.coord), 1)
+
+
+# --- target choice by forecast (TASK-089a) ------------------------------------------------------
+
+
+## Runs one AI turn (player 1) on `state`; returns the target id of its first attack (-1: none).
+func _first_target(state: GameState) -> int:
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	var targets: Array[int] = []
+	game.event_emitted.connect(
+		func(e: Dictionary) -> void:
+			if e["type"] == &"unit_attacked" and not e["counter"]:
+				targets.append(e["target_id"])
+	)
+	AiPlayer.new().take_turn(game)
+	return targets[0] if not targets.is_empty() else -1
+
+
+func test_ai_target_score_is_expected_damage_plus_kill_bonus_minus_counter() -> void:
+	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
+	var abrams := state.add_unit(1, ABRAMS, Vector2i(0, 0))
+	var tank := state.add_unit(0, T72B3, Vector2i(1, 0))
+	var mlrs := state.add_unit(0, URAGAN, Vector2i(0, 1))
+	var on_tank := AttackCommand.forecast(state, abrams, tank)
+	assert_true(
+		is_equal_approx(
+			AiPlayer.target_score(on_tank),
+			(
+				on_tank.expected_damage
+				+ AiPlayer.KILL_BONUS * on_tank.kill_chance
+				- on_tank.counter_expected
+			)
+		)
+	)
+	assert_true(
+		(
+			AiPlayer.target_score(AttackCommand.forecast(state, abrams, mlrs))
+			> AiPlayer.target_score(on_tank)
+		)
+	)
+	assert_eq(_first_target(state), mlrs.id)
+
+
+func test_ai_prefers_a_better_attack_over_the_weakest_target() -> void:
+	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
+	state.add_unit(1, T72B3, Vector2i(0, 0))
+	state.grid.set_terrain(Vector2i(1, 0), Terrain.Type.HILLS)
+	var abrams := state.add_unit(0, ABRAMS, Vector2i(1, 0))
+	abrams.hp = 6  # the weakest, but dug in on hills and hitting back hard
+	var squad := state.add_unit(0, SQUAD, Vector2i(-1, 0))
+	squad.hp = 7
+	assert_eq(_first_target(state), squad.id)
+
+
+## A range-2 AI striker at (0, 0) that cannot be countered there: every target scores the same
+## when its HP exceeds the 3 sure hits.
+func _tie_state() -> GameState:
+	var state := GameState.new(Fixtures.plains_grid(4), 2, 1)
+	state.add_unit(1, Fixtures.sure_fighter(3, 2, 2), Vector2i(0, 0))
+	return state
+
+
+func test_ai_score_ties_fall_back_to_lowest_hp() -> void:
+	var state := _tie_state()
+	state.add_unit(0, Fixtures.infantry(), Vector2i(2, 0))
+	var weaker := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 2))
+	weaker.hp = 8
+	assert_eq(_first_target(state), weaker.id)
+
+
+func test_ai_score_and_hp_ties_fall_back_to_lowest_id() -> void:
+	var state := _tie_state()
+	var first := state.add_unit(0, Fixtures.infantry(), Vector2i(2, 0))
+	state.add_unit(0, Fixtures.infantry(), Vector2i(0, 2))
+	assert_eq(_first_target(state), first.id)

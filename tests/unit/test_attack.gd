@@ -32,27 +32,44 @@ func _events_of(type: StringName) -> Array[Dictionary]:
 	return result
 
 
-func test_attack_adjacent_enemy_deals_attack_minus_defense() -> void:
+## A player-0 unit at (0, 1) (next to `enemy`) whose every shot hits: it deals exactly `hp`.
+func _sure(hp: int) -> Unit:
+	return state.add_unit(0, Fixtures.sure_fighter(hp), Vector2i(0, 1))
+
+
+func test_attack_adjacent_enemy_deals_one_damage_per_hit() -> void:
+	var striker := _sure(2)
+	assert_true(sim.execute(AttackCommand.new(striker.id, enemy.id)))
+	assert_eq(enemy.hp, 8)
+
+
+func test_attack_reduces_hp_by_the_damage_of_the_event() -> void:
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
-	assert_eq(enemy.hp, 8)  # 10 - (4 - 2)
+	assert_eq(enemy.hp, 10 - int(events[0]["damage"]))
 
 
-func test_damage_is_at_least_one() -> void:
+func test_hit_chance_is_at_least_one_face_of_the_die() -> void:
 	var tank := state.add_unit(1, Fixtures.fighter(1, 9), Vector2i(0, 1))
-	assert_true(sim.execute(AttackCommand.new(unit.id, tank.id)))
+	assert_eq(AttackCommand.hit_on(state, unit, tank), 1)  # max(1, 4 - 9)
+	var striker := state.add_unit(0, Fixtures.fighter(4, 2, 1), Vector2i(1, 1))
+	assert_true(sim.execute(AttackCommand.new(striker.id, tank.id)))  # a d1 hitting on 1
 	assert_eq(tank.hp, 9)
 
 
 func test_unit_attacked_event_fields() -> void:
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
-	assert_eq(events.size(), 2)  # the hit and the target's counter
+	var striker := _sure(2)
+	sim.execute(AttackCommand.new(striker.id, enemy.id))
 	var e := events[0]
 	assert_eq(e["type"], &"unit_attacked")
 	assert_false(e["counter"])
-	assert_eq(e["attacker_id"], unit.id)
+	assert_eq(e["attacker_id"], striker.id)
 	assert_eq(e["target_id"], enemy.id)
+	assert_eq(e["shots"], 2)
 	assert_eq(e["damage"], 2)
 	assert_eq(e["target_hp"], 8)
+	assert_eq(events[1]["type"], &"unit_attacked", "the target's counter")
+	assert_true(events[1]["counter"])
+	assert_eq(events[1]["shots"], 8)
 
 
 func test_out_of_range_is_rejected() -> void:
@@ -99,7 +116,7 @@ func test_can_attack_only_once_per_turn() -> void:
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
 	assert_false(sim.execute(AttackCommand.new(unit.id, enemy.id)))
 	assert_eq(rejections, ["already_attacked"] as Array[String])
-	assert_eq(enemy.hp, 8)
+	assert_eq(enemy.hp, 10 - int(events[0]["damage"]))
 
 
 func test_attack_zeroes_remaining_moves() -> void:
@@ -110,19 +127,21 @@ func test_attack_zeroes_remaining_moves() -> void:
 
 
 func test_attack_resets_on_next_own_turn() -> void:
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	var striker := _sure(2)
+	sim.execute(AttackCommand.new(striker.id, enemy.id))
 	sim.execute(EndTurnCommand.new())
-	assert_true(unit.has_attacked)  # still the enemy's turn
+	assert_true(striker.has_attacked)  # still the enemy's turn
 	sim.execute(EndTurnCommand.new())
-	assert_false(unit.has_attacked)
-	assert_eq(unit.moves_left, 3)
-	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
+	assert_false(striker.has_attacked)
+	assert_eq(striker.moves_left, 3)
+	striker.hp = 2  # whatever the counter left
+	assert_true(sim.execute(AttackCommand.new(striker.id, enemy.id)))
 	assert_eq(enemy.hp, 6)
 
 
 func test_lethal_attack_kills_and_emits_unit_died() -> void:
 	enemy.hp = 2
-	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
+	assert_true(sim.execute(AttackCommand.new(_sure(2).id, enemy.id)))
 	assert_eq(enemy.hp, 0)
 	assert_false(enemy.is_alive())
 	assert_eq(events.size(), 2)
@@ -133,27 +152,27 @@ func test_lethal_attack_kills_and_emits_unit_died() -> void:
 
 func test_hp_does_not_go_below_zero() -> void:
 	enemy.hp = 1
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	sim.execute(AttackCommand.new(_sure(2).id, enemy.id))
 	assert_eq(enemy.hp, 0)
 	assert_eq(events[0]["damage"], 2)
 
 
 func test_dead_unit_is_not_returned_and_does_not_block() -> void:
 	enemy.hp = 2
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	sim.execute(AttackCommand.new(_sure(2).id, enemy.id))
 	assert_eq(state.unit_at(Vector2i(1, 0)), null)
 	assert_false(state.units_of(1).has(enemy))
 	assert_eq(state.units_of(1).size(), 1)
 	assert_false(state.occupied().has(Vector2i(1, 0)))
 	# Another own unit can step onto the freed tile.
-	var other := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 1))
+	var other := state.add_unit(0, Fixtures.infantry(), Vector2i(1, 1))
 	assert_true(sim.execute(MoveUnitCommand.new(other.id, Vector2i(1, 0))))
 
 
 func test_killing_last_enemy_ends_game() -> void:
 	far_enemy.hp = 0
 	enemy.hp = 2
-	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
+	assert_true(sim.execute(AttackCommand.new(_sure(2).id, enemy.id)))
 	assert_eq(state.winner, 0)
 	assert_eq(events.size(), 3)
 	assert_eq(events[1]["type"], &"unit_died")
@@ -162,14 +181,14 @@ func test_killing_last_enemy_ends_game() -> void:
 
 func test_killing_non_last_enemy_does_not_end_game() -> void:
 	enemy.hp = 2
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	sim.execute(AttackCommand.new(_sure(2).id, enemy.id))
 	assert_eq(state.winner, -1)
 	assert_eq(_events_of(&"game_over").size(), 0)
 
 
 func test_game_continues_while_two_players_have_units() -> void:
 	state = GameState.new(Fixtures.plains_grid(4), 3, 1)
-	unit = state.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
+	unit = state.add_unit(0, Fixtures.sure_fighter(2), Vector2i(0, 0))
 	enemy = state.add_unit(1, Fixtures.infantry(), Vector2i(1, 0))
 	state.add_unit(2, Fixtures.infantry(), Vector2i(-3, 0))
 	sim = GameSimulation.new(state)
@@ -182,10 +201,11 @@ func test_game_continues_while_two_players_have_units() -> void:
 func test_commands_rejected_after_game_over() -> void:
 	far_enemy.hp = 0
 	enemy.hp = 2
-	var second := state.add_unit(0, Fixtures.infantry(), Vector2i(0, 1))
-	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	var second := state.add_unit(0, Fixtures.infantry(), Vector2i(1, -1))
+	sim.execute(AttackCommand.new(_sure(2).id, enemy.id))
+	assert_true(state.is_over())
 	rejections.clear()
-	assert_false(sim.execute(MoveUnitCommand.new(second.id, Vector2i(0, 2))))
+	assert_false(sim.execute(MoveUnitCommand.new(second.id, Vector2i(1, -2))))
 	assert_false(sim.execute(AttackCommand.new(second.id, enemy.id)))
 	assert_false(sim.execute(EndTurnCommand.new()))
 	assert_eq(rejections, ["game_over", "game_over", "game_over"] as Array[String])
@@ -217,8 +237,17 @@ func test_attacker_tile_is_ignored() -> void:
 
 func test_attack_applies_terrain_defense() -> void:
 	state.grid.set_terrain(enemy.coord, Terrain.Type.HILLS)
+	assert_eq(AttackCommand.hit_on(state, unit, enemy), 1)  # max(1, 4 - (2 + 2))
+	var replay := RandomNumberGenerator.new()
+	replay.seed = state.rng.seed
+	replay.state = state.rng.state
+	var hits := 0
+	for i in 10:
+		if replay.randi_range(1, 10) <= 1:
+			hits += 1
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
-	assert_eq(enemy.hp, 9)  # max(1, 4 - (2 + 2))
+	assert_eq(events[0]["damage"], hits)
+	assert_eq(enemy.hp, 10 - hits)
 
 
 func test_tiles_in_range_one_in_the_middle_is_six_tiles() -> void:

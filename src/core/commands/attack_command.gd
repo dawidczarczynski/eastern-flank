@@ -1,10 +1,13 @@
 class_name AttackCommand
 extends Command
-## Attack: the attacker deals compute_damage() damage to an enemy within range
-## (max(1, attack - (defense + terrain defense bonus of the defender's tile))).
+## Attack on an enemy within range. Per-element rolls (TASK-089a, GDD "Combat"): each strength
+## point (HP) of the striker rolls a die with max_hp faces on GameState.rng and hits on a roll
+## <= hit_on() = min(compute_damage(), max_hp); damage = the number of hits (0 is possible).
+## A full-strength company therefore deals compute_damage() on average.
 ## Attacking is allowed once per turn and ends the attacker's movement.
-## A surviving target within its own attack range counters once (see apply()) – unless the
-## strike already ended the battle. Each strike is followed by BattleRules.after_strike.
+## A surviving target within its own attack range counters once with the HP it has left (see
+## apply()) – unless the strike already ended the battle. Each strike is followed by
+## BattleRules.after_strike. forecast() gives the exact odds without touching the rng.
 
 var attacker_id: int
 var target_id: int
@@ -37,10 +40,35 @@ static func tiles_in_range(state: GameState, unit: Unit) -> Array[Vector2i]:
 	return result
 
 
-## Damage the attacker would deal to the defender now. The attacker's own tile is ignored.
+## Attack margin max(1, attack - (defense + terrain defense bonus of the defender's tile)): the
+## average damage of a full-strength attacker. The attacker's own tile is ignored.
 static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
 	var defense := defender.definition.defense + state.grid.defense_bonus(defender.coord)
 	return maxi(1, attacker.definition.attack - defense)
+
+
+## A roll of the striker's d(max_hp) at or below this value hits the victim:
+## min(compute_damage(), striker max_hp).
+static func hit_on(state: GameState, striker: Unit, victim: Unit) -> int:
+	return mini(AttackCommand.compute_damage(state, striker, victim), striker.definition.max_hp)
+
+
+## Rolls one strike: exactly striker.hp calls of state.rng.randi_range(1, striker max_hp), all of
+## them whatever the results; returns the number of hits (before clamping the victim's HP).
+static func roll_hits(state: GameState, striker: Unit, victim: Unit) -> int:
+	var die := striker.definition.max_hp
+	var target := AttackCommand.hit_on(state, striker, victim)
+	var hits := 0
+	for i in striker.hp:
+		if state.rng.randi_range(1, die) <= target:
+			hits += 1
+	return hits
+
+
+## Exact odds of the attacker's strike on the defender and of the counter (CombatForecast).
+## Pure: never touches the rng or the units.
+static func forecast(state: GameState, attacker: Unit, defender: Unit) -> CombatForecast:
+	return CombatForecast.compute(state, attacker, defender)
 
 
 func to_dict() -> Dictionary:
@@ -82,8 +110,9 @@ func apply(state: GameState) -> Array[Dictionary]:
 	# command_points_changed (first activation of a limited player) follows the first unit_attacked.
 	for i in activation.size():
 		events.insert(1 + i, activation[i])
-	# A surviving target in range hits back once. It is not an action: the target's
-	# has_attacked / moves_left are untouched and a counter never provokes another counter.
+	# A surviving target in range hits back once, rolling the HP it has left. It is not an
+	# action: the target's has_attacked / moves_left are untouched and a counter never provokes
+	# another counter.
 	if (
 		target.is_alive()
 		and not state.is_over()
@@ -93,16 +122,18 @@ func apply(state: GameState) -> Array[Dictionary]:
 	return events
 
 
-## One hit: applies damage and returns unit_attacked (+ unit_died, + game_over when BattleRules
-## ends the battle).
+## One strike: rolls (roll_hits), applies the damage and returns unit_attacked (+ unit_died,
+## + game_over when BattleRules ends the battle).
 func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) -> Array[Dictionary]:
-	var damage := AttackCommand.compute_damage(state, striker, victim)
+	var shots := striker.hp
+	var damage := AttackCommand.roll_hits(state, striker, victim)
 	victim.hp = maxi(0, victim.hp - damage)
 	var events: Array[Dictionary] = [
 		{
 			"type": &"unit_attacked",
 			"attacker_id": striker.id,
 			"target_id": victim.id,
+			"shots": shots,
 			"damage": damage,
 			"target_hp": victim.hp,
 			"counter": is_counter,

@@ -1,6 +1,6 @@
 # TASK-089a: Company combat with per-element rolls – core, forecast API, AI, simulation
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (gameplay-engineer), AI; HUD forecast is [TASK-089b](TASK-089b-combat-forecast-hud.md)
 - **Depends on**: – (soft: TASK-088). Step 1 approved by the human 2026-10-30.
 - **Model**: opus (balance, determinism, AI expected values)
@@ -164,38 +164,38 @@ Targets (same as GDD "Balance of the default battle"): Poland 40–60 % of decid
 
 Damage rule (`tests/unit/test_attack.gd`, `test_counterattack.gd`, new `test_combat_rolls.gd`):
 
-- [ ] `hit_on`: Abrams (A7, 10 HP) vs. a squad (D3) on plains = 4, in forest = 3, on hills = 2; squad (A4) vs. Abrams (D4) on hills = 1 (never below 1); Homar-K (A6, 6 HP) vs. Uragan (D1) on plains = 5; a test unit with A20 vs. D1 and 6 HP gives 6 (capped at `max_hp`) and its strike always deals exactly `shots` damage.
-- [ ] A strike consumes exactly `striker.hp` calls of `GameState.rng.randi_range(1, striker.max_hp)` and its damage equals the number of results `<= hit_on`: checked against a second `RandomNumberGenerator` with the same seed/state replaying the same calls (full strength 10 and battered 3 HP).
-- [ ] Damage can be 0: with a seed found by the test, a squad's strike on an Abrams deals 0; the `unit_attacked` event has `damage` 0 and the target's HP is unchanged. The event carries `"shots"`.
-- [ ] The victim's HP never goes below 0; a dead victim emits `unit_died` as today.
-- [ ] Counter: rolls exactly `defender.hp` (after the hit) times with the defender's `max_hp` die and `hit_on` against the attacker's defence + the attacker's tile bonus; no counter rolls when the defender died, is out of range or the battle ended (rng state after the attack equals the state after only the attacker's rolls).
-- [ ] Determinism: two simulations with the same seed and the same commands give identical events and identical `GameState.to_dict()`; a different seed gives a different result for a fixed 10-attack sequence.
-- [ ] Statistical calibration (fixed seed, 2000 strikes, deterministic): mean damage of a full Abrams on a full squad on plains is within 4.0 ± 0.15; of a squad at 5/10 HP on an Abrams within 0.5 ± 0.05.
+- [x] `hit_on`: Abrams (A7, 10 HP) vs. a squad (D3) on plains = 4, in forest = 3, on hills = 2; squad (A4) vs. Abrams (D4) on hills = 1 (never below 1); Homar-K (A6, 6 HP) vs. Uragan (D1) on plains = 5; a test unit with A20 vs. D1 and 6 HP gives 6 (capped at `max_hp`) and its strike always deals exactly `shots` damage.
+- [x] A strike consumes exactly `striker.hp` calls of `GameState.rng.randi_range(1, striker.max_hp)` and its damage equals the number of results `<= hit_on`: checked against a second `RandomNumberGenerator` with the same seed/state replaying the same calls (full strength 10 and battered 3 HP).
+- [x] Damage can be 0: with a seed found by the test, a squad's strike on an Abrams deals 0; the `unit_attacked` event has `damage` 0 and the target's HP is unchanged. The event carries `"shots"`.
+- [x] The victim's HP never goes below 0; a dead victim emits `unit_died` as today.
+- [x] Counter: rolls exactly `defender.hp` (after the hit) times with the defender's `max_hp` die and `hit_on` against the attacker's defence + the attacker's tile bonus; no counter rolls when the defender died, is out of range or the battle ended (rng state after the attack equals the state after only the attacker's rolls).
+- [x] Determinism: two simulations with the same seed and the same commands give identical events and identical `GameState.to_dict()`; a different seed gives a different result for a fixed 10-attack sequence.
+- [x] Statistical calibration (fixed seed, 2000 strikes, deterministic): mean damage of a full Abrams on a full squad on plains is within 4.0 ± 0.15; of a squad at 5/10 HP on an Abrams within 0.5 ± 0.05.
 
 Forecast (`tests/unit/test_combat_forecast.gd`):
 
-- [ ] Full Abrams → full squad on plains: `expected_damage` 4.0 (± 1e-6), range 2–6, `kill_chance` 0, `counter_possible` true, `counter_expected` 0.6 (± 1e-3; 0.1 × E[10 − hits]).
-- [ ] Full squad → full Abrams on plains: expected 1.0, range 0–2, kill 0, `counter_expected` 3.6 (± 1e-3).
-- [ ] Full Abrams → full Homar-K/Uragan on plains: `expected_damage` 5.398 (± 1e-3), range 4–6 (capped at 6 HP), `kill_chance` 0.6331 (± 1e-4), `counter_expected` 0.2007 (± 1e-3).
-- [ ] Full Abrams → full T-72B3 on plains: expected 3.0 (± 1e-3), range 1–5, `kill_chance` 0.0016 (± 1e-4), `counter_expected` 1.250 (± 1e-3).
-- [ ] Homar-K → Uragan on plains at distance 6: `counter_possible` false, `counter_expected` 0, `kill_chance` 0.3349 (± 1e-4).
-- [ ] An attacker at 0 … `max_hp` HP: `expected_damage` = min-capped binomial mean (e.g. Abrams at 5 HP → squad on plains: 2.0).
-- [ ] `forecast()` does not change `GameState.rng.state` nor any unit.
+- [x] Full Abrams → full squad on plains: `expected_damage` 4.0 (± 1e-6), range 2–6, `kill_chance` 0, `counter_possible` true, `counter_expected` 0.6 (± 1e-3; 0.1 × E[10 − hits]).
+- [x] Full squad → full Abrams on plains: expected 1.0, range 0–2, kill 0, `counter_expected` 3.6 (± 1e-3).
+- [x] Full Abrams → full Homar-K/Uragan on plains: `expected_damage` 5.398 (± 1e-3), range 4–6 (capped at 6 HP), `kill_chance` 0.6331 (± 1e-4), `counter_expected` 0.2007 (± 1e-3).
+- [x] Full Abrams → full T-72B3 on plains: expected 3.0 (± 1e-3), range 1–5, `kill_chance` 0.0016 (± 1e-4), `counter_expected` 1.250 (± 1e-3).
+- [x] Homar-K → Uragan on plains at distance 6: `counter_possible` false, `counter_expected` 0, `kill_chance` 0.3349 (± 1e-4).
+- [x] An attacker at 0 … `max_hp` HP: `expected_damage` = min-capped binomial mean (e.g. Abrams at 5 HP → squad on plains: 2.0).
+- [x] `forecast()` does not change `GameState.rng.state` nor any unit.
 
 AI (`tests/unit/test_ai_player.gd`):
 
-- [ ] With two targets in range, the AI attacks the one with the higher `expected_damage + 2 × kill_chance − counter_expected` (case: a full Abrams next to a full T-72B3 with 8 HP and a full Uragan with 6 HP – today it would pick the Uragan by lowest HP too; add a case where the lowest-HP target scores lower, e.g. a 6-HP Abrams on hills vs. a 7-HP squad on plains for a T-72B3).
-- [ ] Ties fall back to lowest HP, then lowest id.
+- [x] With two targets in range, the AI attacks the one with the higher `expected_damage + 2 × kill_chance − counter_expected` (case: a full Abrams next to a full T-72B3 with 8 HP and a full Uragan with 6 HP – today it would pick the Uragan by lowest HP too; add a case where the lowest-HP target scores lower, e.g. a 6-HP Abrams on hills vs. a 7-HP squad on plains for a T-72B3).
+- [x] Ties fall back to lowest HP, then lowest id.
 
 Replay and records:
 
-- [ ] `tests/fixtures/replays/default_battle_12345.json` regenerated (`tools/make_replay_fixture.sh`); `test_replay` passes; a recorded match replays to the same final state including `rng_state`.
+- [x] `tests/fixtures/replays/default_battle_12345.json` regenerated (`tools/make_replay_fixture.sh`); `test_replay` passes; a recorded match replays to the same final state including `rng_state`.
 
 Simulation (no test; numbers in "Implementation notes"):
 
-- [ ] The before/after report of section 7 (runs 1–3, "after" with and without the new AI scoring) is in "Implementation notes"; the GDD "Balance of the default battle" gets the measured numbers.
-- [ ] docs/ARCHITECTURE.md event table: `unit_attacked` gains `shots`; `damage` may be 0.
-- [ ] `tools/check.sh` passes.
+- [x] The before/after report of section 7 (runs 1–3, "after" with and without the new AI scoring) is in "Implementation notes"; the GDD "Balance of the default battle" gets the measured numbers.
+- [x] docs/ARCHITECTURE.md event table: `unit_attacked` gains `shots`; `damage` may be 0.
+- [x] `tools/check.sh` passes.
 
 ### 2b HUD forecast
 
@@ -219,4 +219,26 @@ Suppression / morale (TASK-090), indirect-fire accuracy from spotting (after TAS
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Done 2026-10-30 (gameplay-engineer, opus; review fixes in the main session).
+
+- **Core**: `AttackCommand.hit_on()` (= `min(compute_damage, striker.max_hp)`), `roll_hits()` (exactly `striker.hp` calls of `rng.randi_range(1, max_hp)`), `forecast()`; `apply()` rolls the attacker's shots, applies damage, runs `after_strike`, then the counter rolls the defender's HP left. `unit_attacked` gains `shots`; `damage` = hits, may be 0 or exceed `target_hp`.
+- **CombatForecast** (`src/core/combat_forecast.gd`): exact binomial, counter as the mixture over the first strike's outcomes, percentiles = smallest k with CDF ≥ q. Deviation from the spec text: `kill_chance` is exactly 0 only when `shots < defender.hp`; Abrams → full squad is 0.4^10 ≈ 1e-4, so TASK-089b will show `DESTROY <1 %` there.
+- **AI**: `_best_target` scores `expected_damage + KILL_BONUS (2.0) × kill_chance − counter_expected` (`AiPlayer.target_score`), scores within 1e-9 tie → lowest HP → lowest id. The command-point ordering (`_action_score`) still uses the deterministic `compute_damage`.
+- **Tests**: `Fixtures.sure_fighter()` (attack 100 → every shot hits) gives certain results; other exact checks replay the same calls on a copied `RandomNumberGenerator`. Two tests pin fixture-seed rolls with a comment (`test_rocket_artillery` `SURVIVING_SEED`, `test_a_counter_can_win_by_destroy_share`). Replay fixture regenerated.
+- **Presentation**: unchanged – playback reads only `target_hp`, so a 0-damage strike plays as a hit with no HP loss (no "-0" text). A distinct miss cue could come with TASK-089b.
+- **Docs**: ARCHITECTURE event table + roll order; MANUAL §4/§7/§9/§13 (§13 lists the forecast as not yet in the game – TASK-089b removes it); GDD Combat, Balance, Open questions.
+
+### Simulation (seeds 1..200, 50-turn harness; P0 wins / P1 wins / draws by rules / harness cut / avg length of decided; 0 errors everywhere)
+
+| Run | Before (master) | Rolls + old AI | Rolls + new AI (shipped) |
+|---|---|---|---|
+| default poland,russia | 94 / 98 / 0 / 8 / 10.5 | 76 / 117 / 0 / 7 / 11.5 | 88 / 105 / 0 / 7 / 11.2 |
+| default russia,poland | 34 / 158 / 0 / 8 / 10.7 | 91 / 101 / 0 / 8 / 11.6 | 75 / 116 / 0 / 9 / 11.5 |
+| default poland,poland | 88 / 106 / 0 / 6 / 10.2 | 84 / 107 / 0 / 9 / 11.1 | 78 / 113 / 0 / 9 / 10.5 |
+| default russia,russia | 83 / 103 / 0 / 14 / 10.4 | 85 / 98 / 0 / 17 / 11.6 | 79 / 105 / 0 / 16 / 11.2 |
+| objective poland,russia | 32 / 77 / 91 / 0 / 6.8 | 29 / 96 / 75 / 0 / 7.3 | 32 / 84 / 84 / 0 / 7.4 |
+| objective russia,poland | 73 / 53 / 74 / 0 / 6.8 | 48 / 62 / 90 / 0 / 7.0 | 42 / 61 / 97 / 0 / 6.9 |
+| Poland share of decided, runs 1+2 (target 40–60 %) | 65.6 % | 46.0 % | **53.1 %** |
+| P0 share in mirrors (poland / russia) | 45.4 % / 44.6 % | 44.0 % / 46.4 % | 40.8 % / 42.9 % |
+
+Default battle: inside every target (draws incl. cuts 3.5–8 % per run). The mild player-1 seat bias persists and grows slightly with the new AI. `objective_battle` draws are 42–49 % – above 15 %, but they were 37–46 % before this change (TASK-088 balance, not caused by the rolls).

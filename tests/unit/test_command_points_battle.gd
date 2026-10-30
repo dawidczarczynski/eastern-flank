@@ -62,7 +62,7 @@ func test_ai_prefers_a_kill_and_spends_no_more_than_it_has() -> void:
 	wounded.hp = 2
 	var healthy := game.add_unit(0, Fixtures.infantry(), Vector2i(0, 2))
 	var first := game.add_unit(1, Fixtures.infantry(), Vector2i(0, 3))  # hits the healthy unit
-	var killer := game.add_unit(1, Fixtures.infantry(), Vector2i(1, 0))  # kills the wounded one
+	var killer := game.add_unit(1, Fixtures.sure_fighter(10), Vector2i(1, 0))  # kills the wounded one
 	game.set_command_points_per_turn([0, 1] as Array[int])
 	var play := GameSimulation.new(game)
 	play.execute(EndTurnCommand.new())

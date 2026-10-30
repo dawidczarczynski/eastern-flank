@@ -59,7 +59,7 @@ Some battles limit how many units each side can command per turn. The normal bat
 | Homar-K (Poland) | 6 | 3 | 6 | 1 | 6 | a Homar-K truck with a turning rocket launcher |
 | 9K57 Uragan (Russia) | 6 | 3 | 6 | 1 | 5 | a BM-27 truck with sixteen rocket tubes over the cab |
 
-- **HP**: how much damage the unit can take. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
+- **HP**: the unit's strength – how much damage it can take, and how many shots it fires (see Combat). Every unit is a company: a unit that has lost HP also fights worse, because it fires fewer shots. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
 - **Movement**: movement points per turn (see Movement).
 - **Attack** / **Defense**: used in the damage calculation (see Combat).
 - **Range**: how far away, in hexes, the unit can attack. Range 1 means adjacent tiles only.
@@ -104,15 +104,24 @@ When a unit is selected, the area it can reach is outlined in your side's colour
 
 ### Damage
 
-There are no dice: the result of an attack is always the same and can be worked out in advance.
+An attack is a roll of dice: you know the odds, never the exact result.
 
-**Damage = attacker's Attack − (defender's Defense + defense bonus of the defender's tile), but at least 1.**
+1. **Hit number** = attacker's Attack − (defender's Defense + defense bonus of the defender's tile), but at least 1. The attacker's own tile doesn't matter.
+2. The attacker fires **one shot per HP it has right now**. Each shot rolls a die with as many faces as the attacker's **full** HP (a d10 for the squads and the Abrams, a d8 for the T-72B3, a d6 for the rocket launchers).
+3. A roll **at or below the hit number** is a hit. **Damage = number of hits.** The defender loses that many HP (it can't go below 0).
 
-The attacker's own tile doesn't matter.
+So the hit chance of each shot is the hit number out of the attacker's full HP – for example an Abrams with hit number 3 hits on 1–3 of a d10, 30 % per shot.
+
+What this means:
+
+- A unit at **full strength deals on average exactly the hit number** (the damage table below). A unit at half its HP fires half the shots and deals half as much on average.
+- **An attack can deal 0 damage.** With a hit number of 1, about one attack in three misses completely (e.g. a squad attacking a tank).
+- An attack can never deal more damage than the attacker has HP (one hit per shot at most).
+- A unit can only be destroyed in one attack if the attacker fires at least as many shots as the target has HP left, and the more the attacker has to spare, the likelier it is. Against a full squad even a full Abrams has only a tiny chance (all ten shots must hit: about 1 in 10,000); against a full rocket launcher (6 HP) on plains it succeeds 63 % of the time.
 
 ### Counterattack
 
-If the defender **survives** and the attacker is **within the defender's own range**, the defender immediately hits back once, with the same formula (now the original attacker's tile gives the defense bonus).
+If the defender **survives** and the attacker is **within the defender's own range**, the defender immediately hits back once, with the same roll (now the original attacker's tile gives the defense bonus). It fires **only with the HP it has left after your attack**, so a defender you have hurt hits back weaker – striking first pays off.
 
 - A counterattack doesn't use up the defender's attack or movement. A unit counterattacks **every** attack it survives, any number of times per turn.
 - A counterattack never triggers another counterattack.
@@ -124,21 +133,21 @@ If the defender **survives** and the attacker is **within the defender's own ran
 
 Your Abrams (Attack 7, Defense 4, on plains) attacks an enemy T-72B3 (Attack 6, Defense 4) on **plains** (+0).
 
-1. Your hit: 7 − (4 + 0) = **3** damage. The T-72B3 goes from 8 to 5 HP.
-2. The T-72B3 survived and your Abrams is adjacent (within range 1), so it hits back: 6 − (4 + 0) = **2** damage. Your Abrams goes from 10 to 8 HP.
+1. Your hit number: 7 − (4 + 0) = **3**. Your Abrams fires 10 shots with a d10, each hitting on 1–3 (30 %). On average **3** damage, usually 1 to 5 (only about 3 % of attacks miss completely); the T-72B3 goes from 8 HP to about 5.
+2. If the T-72B3 survives (it almost always does), it hits back, because your Abrams is adjacent (within range 1): hit number 6 − (4 + 0) = **2** on a d8 (25 % per shot), one shot per HP it has left. With about 5 HP left that is **1.25** damage on average; about a quarter of the time it doesn't hit at all.
 
 Your Abrams attacks an enemy Motor Rifle Squad (Attack 4, Defense 3) standing in a **forest** (+1).
 
-1. Your hit: 7 − (3 + 1) = **3** damage. The squad goes from 10 to 7 HP.
-2. The squad hits back: 4 − (4 + 0) = 0, raised to the minimum of **1** damage. Your Abrams goes from 10 to 9 HP.
+1. Your hit number: 7 − (3 + 1) = **3**: on average **3** damage, usually 1 to 5. The squad goes from 10 HP to about 7.
+2. The squad hits back: 4 − (4 + 0) = 0, raised to the minimum hit number of **1**, so each of its remaining shots hits on a 1 of a d10. On average **0.7** damage to your Abrams; about half the time nothing.
 
-The same attack on a squad standing on plains would deal 4 damage, on hills only 2. Attacking units in good terrain is costly.
+The same attack on a squad standing on plains would deal 4 damage on average, on hills only 2. Attacking units in good terrain is costly.
 
-Your Homar-K (Attack 6) fires at the Uragan (Defense 1) on plains from 6 hexes away: 6 − (1 + 0) = **5** damage (6 to 1 HP), and the Uragan can't hit back because it has range 5.
+Your Homar-K (Attack 6) fires at the Uragan (Defense 1) on plains from 6 hexes away: hit number 6 − (1 + 0) = **5**, six shots with a d6, each hitting on 1–5. On average **5** damage, usually 4 to 6, and a 33 % chance that all six hit and the Uragan is destroyed. The Uragan can't hit back because it has range 5.
 
 ### Damage table
 
-Damage dealt by the attacker to the defender, depending on the defender's tile (plains / forest / hills). The two squads have the same stats, and so do the two tanks' Defense and the two rocket launchers' Attack and Defense, so they share a row or column:
+The hit number of the attacker against the defender, depending on the defender's tile (plains / forest / hills). It is also the **average damage of a full-strength attacker**; a weakened attacker deals the same share of it as the share of HP it has left (an Abrams at 5 of 10 HP: half). The two squads have the same stats, and so do the two tanks' Defense and the two rocket launchers' Attack and Defense, so they share a row or column:
 
 | Attacker → Defender | Infantry squad (Def 3) | Abrams / T-72B3 (Def 4) | Homar-K / Uragan (Def 1) |
 |---|---|---|---|
@@ -147,7 +156,12 @@ Damage dealt by the attacker to the defender, depending on the defender's tile (
 | T-72B3 (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
 | Homar-K / Uragan (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
 
-Remember that a unit's HP differ too: the Abrams and the squads have 10 HP, the T-72B3 8 and the rocket launchers 6. An Abrams destroys a rocket launcher on plains in one hit.
+The spread around the average, for a full-strength attacker:
+
+- Most attacks (8 in 10) land within about 2 of the average: an average of 4 means usually 2–6, an average of 1 usually 0–2.
+- An entry of **1** deals nothing in about one attack in three; an entry of **2** in about one in ten; an entry of 3 or more only rarely (3 % or less).
+
+Remember that a unit's HP differ too: the Abrams and the squads have 10 HP, the T-72B3 8 and the rocket launchers 6. A full Abrams destroys a full rocket launcher on plains in one attack 63 % of the time (in forest about 38 %, on hills about 17 %).
 
 ## 8. Victory and defeat
 
@@ -198,11 +212,11 @@ Each battle sets its own victory conditions and, optionally, a turn limit. The g
 
 ## 9. The opponent
 
-Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay at its full range from your nearest unit (5 hexes for the Uragan), so it can fire without being hit back.
+Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and then attacks, if any of your units is in its range. It picks the attack with the best expected result: the average damage it deals, plus a bonus for the chance to destroy the target, minus the average damage it expects to take back in the counterattack. If two attacks are equally good, it attacks the unit with fewer HP. It always attacks when it can, even when the counterattack is expected to hurt more. Its rocket artillery tries to stay at its full range from your nearest unit (5 hexes for the Uragan), so it can fire without being hit back.
 
 In the objective battle it also minds the objective hexes: a unit standing on one stays there (it still attacks whatever it can reach), and a unit whose nearest objective hex without a Russian unit on it is no farther away than your nearest unit heads for that hex instead of for you.
 
-In a battle with command points it spends its points on its most valuable actions first: attacks (above all ones that destroy a unit) before moves.
+In a battle with command points it spends its points on its most valuable actions first: attacks (above all ones whose average damage would destroy a unit) before moves.
 
 ## 10. Screen
 
@@ -286,4 +300,4 @@ While Deploy, Raise launcher, Traverse or Fire is running, the other pose button
 
 ## 13. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, an on-screen attack forecast (the odds in Combat have to be worked out by hand for now), vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.

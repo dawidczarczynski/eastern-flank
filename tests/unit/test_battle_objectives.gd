@@ -128,9 +128,17 @@ func test_owner_stays_after_the_unit_leaves() -> void:
 # --- eliminate ----------------------------------------------------------------------------------
 
 
+## Makes `unit` a striker whose every shot hits (Fixtures.sure_fighter) with `hp` HP left: its
+## strike deals exactly `hp`. Call after _use (starting HP is recorded at full strength).
+func _sure_unit(hp: int) -> void:
+	unit.definition = Fixtures.sure_fighter(10)
+	unit.hp = hp
+
+
 func test_eliminate_ends_with_reason_eliminated() -> void:
 	enemy.coord = Vector2i(1, 0)
 	enemy.hp = 2
+	_sure_unit(2)
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
 	assert_true(state.is_over())
 	assert_eq(state.end_reason, &"eliminated")
@@ -141,6 +149,7 @@ func test_wiping_out_a_side_without_an_eliminate_condition_does_not_end_the_batt
 	_use(Fixtures.objectives(3, [], [], [Fixtures.condition(VictoryCondition.Kind.ELIMINATE, 1)]))
 	enemy.coord = Vector2i(1, 0)
 	enemy.hp = 2
+	_sure_unit(2)
 	assert_true(sim.execute(AttackCommand.new(unit.id, enemy.id)))
 	assert_false(enemy.is_alive())
 	assert_false(state.is_over())
@@ -161,6 +170,9 @@ func test_destroy_share_wins_once_the_enemy_lost_the_share() -> void:
 		)
 	)
 	assert_eq(state.starting_hp, [20, 20] as Array[int])
+	_sure_unit(2)
+	other.definition = Fixtures.sure_fighter(10)
+	other.hp = 2
 	sim.execute(AttackCommand.new(unit.id, enemy.id))  # 2 of 20 = 10 %
 	assert_false(state.is_over())
 	sim.execute(AttackCommand.new(other.id, second.id))  # 4 of 20 = 20 %
@@ -177,9 +189,11 @@ func test_destroy_share_win_skips_the_counter() -> void:
 			0, [], [], [Fixtures.condition(VictoryCondition.Kind.DESTROY_SHARE, -1, [], 10)]
 		)
 	)
+	_sure_unit(1)  # 1 of 10 = 10 %, the enemy survives
 	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	assert_true(enemy.is_alive())
 	assert_eq(state.winner, 0, "the striker's side is checked first")
-	assert_eq(unit.hp, 10, "no counter after the battle ended")
+	assert_eq(unit.hp, 1, "no counter after the battle ended")
 	assert_eq(_events_of(&"unit_attacked").size(), 1)
 
 
@@ -191,6 +205,7 @@ func test_a_counter_can_win_by_destroy_share() -> void:
 		)
 	)
 	sim.execute(AttackCommand.new(unit.id, enemy.id))
+	# Rolls on the fixture seed: the attack leaves the enemy alive and its counter takes 2 HP (20 %).
 	assert_eq(unit.hp, 8)
 	assert_eq(state.winner, 1)
 	assert_eq(state.end_reason, &"enemy_destroyed")

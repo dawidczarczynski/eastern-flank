@@ -195,7 +195,7 @@ The carrier (Rosomak / BMP / BTR) is not modelled: both squads are class `infant
 | Abrams (A7) | 4 | 3 | 3 | 6 (kills) |
 | T-72B3, Homar-K, Uragan (A6) | 3 | 2 | 2 | 5 |
 
-Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to every tank); an Abrams reaching an MLRS destroys it in one attack; Homar-K out-ranges the Uragan (6 vs 5) and can hit it without a counter; 1 Abrams ≈ 2 T-72B3 by HP × damage (10 × 3 vs 8 × 2).
+Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to every tank); an Abrams reaching an MLRS destroys it in one attack (since TASK-089a only 63 % of the time on plains); Homar-K out-ranges the Uragan (6 vs 5) and can hit it without a counter; 1 Abrams ≈ 2 T-72B3 by HP × damage (10 × 3 vs 8 × 2).
 
 ### Balance of the default battle
 
@@ -203,6 +203,19 @@ Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to 
 - The composition is balance data: an ordered `default_force` list in each faction's `.tres`, not code. Spawn slots: units with range 1 fill the front column, others the back column, in list order (exact slots in TASK-039a).
 - **Verification**: the AI-vs-AI simulation already shows a side bias with mirrored armies (TASK-012: player 1 won 59 % vs 34 %), so balance is measured with **both side assignments**: `tools/simulate.sh 200` (Poland = player 0) and `tools/simulate.sh 200 --factions=russia,poland`. Target: Poland's share of the decided matches over both runs together is 40–60 %, no errors, draws ≤ 15 % per run.
 - **Measured** (TASK-039a, 2026-10-20, seeds 1..200, 50 turns, compositions above, no ladder step needed): Poland as player 0 won 90, Russia 104, 6 draws; Russia as player 0 won 80, Poland 115, 5 draws → Poland 205 of 389 decided matches = **52.7 %**, errors 0, draws 3.0 % / 2.5 %. The player-1 side bias persists in both assignments.
+- **Measured with per-element rolls** (TASK-089a, 2026-10-30, seeds 1..200, 50-turn harness limit). Columns: P0 wins / P1 wins / draws by the rules / matches cut by the harness / average length of decided matches (turns).
+
+  | Run | Before (deterministic damage, lowest-HP AI) | Rolls + old AI | Rolls + expected-value AI (shipped) |
+  |---|---|---|---|
+  | default poland,russia | 94 / 98 / 0 / 8 / 10.5 | 76 / 117 / 0 / 7 / 11.5 | 88 / 105 / 0 / 7 / 11.2 |
+  | default russia,poland | 34 / 158 / 0 / 8 / 10.7 | 91 / 101 / 0 / 8 / 11.6 | 75 / 116 / 0 / 9 / 11.5 |
+  | **Poland's share of decided (both default runs)** | 252/384 = **65.6 %** (outside 40–60 %) | **46.0 %** | 204/384 = **53.1 %** |
+  | default poland,poland (P0 share) | 88 / 106 / 0 / 6 / 10.2 (45.4 %) | 84 / 107 / 0 / 9 / 11.1 (44.0 %) | 78 / 113 / 0 / 9 / 10.5 (40.8 %) |
+  | default russia,russia (P0 share) | 83 / 103 / 0 / 14 / 10.4 (44.6 %) | 85 / 98 / 0 / 17 / 11.6 (46.4 %) | 79 / 105 / 0 / 16 / 11.2 (42.9 %) |
+  | objective poland,russia | 32 / 77 / 91 / 0 / 6.8 | 29 / 96 / 75 / 0 / 7.3 | 32 / 84 / 84 / 0 / 7.4 |
+  | objective russia,poland | 73 / 53 / 74 / 0 / 6.8 | 48 / 62 / 90 / 0 / 7.0 | 42 / 61 / 97 / 0 / 6.9 |
+
+  Default battle with the shipped rules: Poland **53.1 %**, inside the 40–60 % target (master before the change was at 65.6 %, outside it); draws (all harness cuts) 3.5–8 % per run, within ≤ 15 %. Matches got about one turn longer, as expected (battered companies deal less). The player-1 side bias persists in the mirrors (P0 41–43 % of decided matches). **objective_battle draws are far above 15 %** (42 % and 49 % with the shipped AI, all by the turn limit) – they already were before this change (46 % and 37 %); not caused by the rolls, open in the objective battle balance question (Open questions → Victory condition).
 - **Tuning ladder** if the target is missed (stats stay untouched; one step at a time, re-run both): Poland > 60 % → add a third Motor Rifle Squad; still > 60 % → add a third T-72B3. Russia > 60 % → replace the second T-72B3 with a Motor Rifle Squad; still > 60 % → mirrored counts (2 squads, 1 tank, 1 MLRS each). If no step lands in the band, record the results and ask the human (a rule change is needed, not a count change).
 
 ### Option, not adopted: hard/soft attack
@@ -215,20 +228,20 @@ Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 
 - **Attack**: a unit may attack one living enemy unit within its `attack_range` (hex distance; 1 = adjacent). Rejection codes: `game_over`, `unit_not_found`, `not_your_unit`, `not_an_enemy`, `already_attacked`, `out_of_range`.
 - **Once per turn**: each unit attacks at most once per turn. Attacking sets the attacker's remaining movement to 0 – a unit can move then attack, but not attack then move. Both are reset at the start of the owner's turn.
-- **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter), **deterministic**, no RNG **[ASSUMPTION]** (see Open questions: randomness). Matchups on plains: see "Resulting matchups on plains" under "Stat derivation rules".
+- **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter) – since TASK-089a this is the **average** damage of a full-strength attacker, rolled per element (see "Per-element rolls" below). Matchups on plains: see "Resulting matchups on plains" under "Stat derivation rules".
 - **Death**: a unit whose HP drops to 0 dies (`unit_died`), is removed from the map and no longer blocks its tile.
 - **Victory**: when exactly one player has living units left, that player wins (`game_over`, `GameState.winner`); after that every command is rejected with `game_over` **[ASSUMPTION]**.
 
 Implemented in TASK-010 and TASK-011:
 
-- **Counterattack** (TASK-010): a defender that survives and has the attacker within its own `attack_range` hits back once with the same formula; deterministic **[ASSUMPTION]**; doesn't use the defender's attack for the turn; a unit counters every attack it survives; a counter never triggers another counter and can kill the attacker (and end the game).
+- **Counterattack** (TASK-010): a defender that survives and has the attacker within its own `attack_range` hits back once with the same formula (since TASK-089a: the same roll, with the HP left after the hit); doesn't use the defender's attack for the turn; a unit counters every attack it survives; a counter never triggers another counter and can kill the attacker (and end the game).
 - **Ranged units** (TASK-011): self-propelled rocket artillery with range 5 can attack melee units (range 1) from distance 2 to 5 without being countered. There is **no minimum range**: artillery can also attack at distance 1 (and is then countered), and it counters any attacker within 5 hexes. Range ignores terrain and units (no line of sight).
 
 Player-facing description of these rules: docs/MANUAL.md.
 
 ### Per-element rolls (approved 2026-10-30)
 
-Approved by the human, not implemented yet: the rules above stay valid until [TASK-089a](tasks/TASK-089a-company-combat-rolls.md) (core, AI) is done; the HUD forecast is [TASK-089b](tasks/TASK-089b-combat-forecast-hud.md). Full design, worked table and decisions: TASK-089a.
+Implemented in [TASK-089a](tasks/TASK-089a-company-combat-rolls.md) (core, forecast API, AI): replaces the deterministic damage and counter above; the HUD forecast is [TASK-089b](tasks/TASK-089b-combat-forecast-hud.md) (not implemented yet). Measured balance: "Balance of the default battle". Full design, worked table and decisions: TASK-089a.
 
 - **Roll**: `base = max(1, attack − (defense + tile bonus))` (today's damage). The striker rolls one die with `max_hp` faces per current HP (`shots = hp`); a roll `<= min(base, max_hp)` hits; **damage = hits**. Hit chance `p = min(base, max_hp) / max_hp`, so a full-strength company deals today's damage on average and a company at x % strength x % of it. Integer rolls only, through `GameState.rng.randi_range(1, max_hp)`; no new balance data.
 - **No minimum damage**: a strike may deal 0 (infantry vs. a tank: 35 % of strikes); the old minimum of 1 survives as the mean.
@@ -248,7 +261,7 @@ Each question lists the tasks that depend on the answer.
   - a strike that ends the battle gets no counterattack (matters for `destroy_share`);
   - objective battle balance (Poland must take both hexes past the fords by turn 8, Russia holds them at start): AI simulation of 50 matches gave Poland 6 wins, Russia 21, 23 draws – the attacker is weak. Tuning (turn limit, hex placement, a `destroy_share` alternative for the attacker) is open. → TASK-094 (derived objectives), a follow-up balance task.
 - **Turn limit as a game rule?** (decided 2026-10-30: yes, per battle, implemented in TASK-088) The battle ends after the last player's turn of turn `turn_limit`. The simulation (TASK-012) reports such rule draws separately from matches cut by its harness `--max-turns`. → TASK-012.
-- **Randomness in combat** (decided 2026-10-30: per-element rolls, exact calibration, no minimum damage, TASK-089a; numbers in "Combat" → "Per-element rolls"): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
+- **Randomness in combat** (decided 2026-10-30: per-element rolls, exact calibration, no minimum damage, TASK-089a; numbers in "Combat" → "Per-element rolls"): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Implemented with rolls in TASK-089a. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
 - **Scale** (decided 2026-10-30: two layers – operational formations, tactical companies; see "Vision decisions"): tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
@@ -262,7 +275,7 @@ Each question lists the tasks that depend on the answer.
 - **T-72B3 variant** (decided 2026-10-18): obr. 2016 (V-92S2F 1130 hp → move 5). The 2011 batch could become a separate unit later.
 - **Squad facts to confirm**: Polish mechanised squad size and whether Carl Gustaf M4 is a squad weapon; whether either side has a squad-level guided ATGM (it would give +1 attack). → TASK-039a (catalog).
 - **Infantry vs. tanks** (accepted 2026-10-18, revisit after simulations): with the derived stats infantry deals the minimum 1 damage to every tank and takes 3–4. Acceptable for now (tanks *should* beat infantry in the open), but if simulations show infantry is pointless, look at the "Damage scale" question or hard/soft attack. → TASK-039a follow-up.
-- **One-shot kills** (accepted 2026-10-18, revisit after simulations): an Abrams destroys a full-HP MLRS in one attack on plains (7 − 1 = 6 HP). Kept as the reward for reaching the artillery; revisit if it dominates the AI matches. → TASK-039a.
+- ~~**One-shot kills**~~ – answered 2026-10-30 (approved by the human with TASK-089a): kills are no longer certain. With per-element rolls a full Abrams destroys a full MLRS on plains 63 % of the time instead of always (Homar-K → Uragan from 6 hexes: 33 %). Originally (2026-10-18): an Abrams destroyed a full-HP MLRS in one attack on plains (7 − 1 = 6 HP). → TASK-039a, TASK-089a.
 - **Side bias in the simulation**: mirrored armies gave player 1 a 59 % vs 34 % win rate (TASK-012), cause unknown. TASK-039a measures balance over both side assignments; the bias itself is a separate follow-up. → TASK-012, TASK-039a.
 - **UI scaling**: HUD sizes are the mock-up's CSS pixels 1:1 (matches 1280×720 screenshots). Stretch mode / scaling for larger or smaller windows is undecided. → TASK-014, TASK-020.
 - **Does elevation matter for rules?** TASK-016a generates an elevation per hex (shown in metres in the terrain panel, TASK-024). Possible uses: defense bonus for the higher unit, vision/line of sight, ranged bonus. → future tasks; TASK-011 (rocket artillery) could use it.
