@@ -5,6 +5,14 @@
 
 Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with the help of AI agents (Claude Code).
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=7AtP7r6CWlg">
+    <img src="https://img.youtube.com/vi/7AtP7r6CWlg/maxresdefault.jpg" alt="Eastern Flank teaser – a Homar-K salvo destroys a T-72B3 (YouTube)" width="720">
+  </a>
+  <br>
+  <a href="https://www.youtube.com/watch?v=7AtP7r6CWlg">▶ Watch the teaser on YouTube</a> – a Homar-K salvo, recorded in the game with <code>tools/teaser.sh</code>
+</p>
+
 ![Gameplay: the Polish force with the tank selected – reach and move path on the hex map](docs/images/gameplay.png)
 
 ## Getting started
