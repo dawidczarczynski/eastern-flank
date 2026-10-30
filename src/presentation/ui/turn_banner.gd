@@ -10,11 +10,13 @@ const TOP_ANCHOR := 0.36
 const BAR_SIZE := Vector2(420, 4)
 const NAME_SIZE := 40
 const CAPTION_SIZE := 12
+const SUBTITLE_SIZE := 13
 
 var held := false
 var _remaining := 0.0
 var _caption: Label
 var _name: Label
+var _subtitle: Label  # the result's reason (TASK-088); hidden when empty
 
 
 func _init() -> void:
@@ -51,6 +53,10 @@ func _init() -> void:
 	_name = _label(HudTheme.display(700, 4), NAME_SIZE, UiPalette.HUD_TEXT)
 	_name.name = "FactionName"
 	texts.add_child(_name)
+	_subtitle = _label(HudTheme.mono(600, 3), SUBTITLE_SIZE, UiPalette.HUD_DESC)
+	_subtitle.name = "Subtitle"
+	_subtitle.hide()
+	texts.add_child(_subtitle)
 	column.add_child(_bar("BottomBar"))
 	set_process(false)
 	hide()
@@ -59,15 +65,16 @@ func _init() -> void:
 ## Shows the banner for SECONDS (a running countdown restarts). Texts are already translated.
 func show_timed(caption: String, title: String, color: Color) -> void:
 	held = false
-	_set_texts(caption, title, color)
+	_set_texts(caption, title, color, "")
 	_remaining = SECONDS
 	show()
 	set_process(true)
 
 
-## Shows the banner until release() (the victory / defeat banner).
-func show_held(caption: String, title: String, color: Color) -> void:
-	_set_texts(caption, title, color)
+## Shows the banner until release() (the victory / defeat / draw banner); `subtitle` (already
+## translated, "" = none) is a line under the title.
+func show_held(caption: String, title: String, color: Color, subtitle := "") -> void:
+	_set_texts(caption, title, color, subtitle)
 	held = true
 	_remaining = 0.0
 	show()
@@ -94,6 +101,10 @@ func title_text() -> String:
 	return _name.text
 
 
+func subtitle_text() -> String:
+	return _subtitle.text if _subtitle.visible else ""
+
+
 func advance(delta: float) -> void:
 	if held or _remaining <= 0.0:
 		return
@@ -108,10 +119,12 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-func _set_texts(caption: String, title: String, color: Color) -> void:
+func _set_texts(caption: String, title: String, color: Color, subtitle: String) -> void:
 	_caption.text = caption
 	_name.text = title
 	_name.add_theme_color_override(&"font_color", color)
+	_subtitle.text = subtitle
+	_subtitle.visible = subtitle != ""
 
 
 func _bar(bar_name: String) -> Control:

@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 
 
@@ -204,3 +205,54 @@ func test_replayed_match_keeps_the_operation_name() -> void:
 	record.seed = 99
 	var result := Replay.run(record)
 	assert_eq(result["simulation"].state.operation_name, "Iron Shore")
+
+
+func test_default_battle_keeps_eliminate_and_no_turn_limit() -> void:
+	var state := Scenario.default_battle(12345)
+	assert_eq(state.objectives.to_dict(), BattleObjectives.default_objectives().to_dict())
+	assert_eq(state.objective_owners, {})
+	assert_eq(state.snapshot()["objectives"], [])
+
+
+func test_objective_battle_has_two_held_east_bank_objectives_and_a_limit_of_8() -> void:
+	var state := Scenario.objective_battle(12345)
+	var o := state.objectives
+	assert_eq(o.turn_limit, 8)
+	assert_eq(o.hexes.size(), 2)
+	for i in o.hexes.size():
+		var c := o.hexes[i]
+		var offset := MapGenerator.axial_to_offset(c)
+		assert_true(offset.y in Scenario.RIVER_FORDS, "behind a ford")
+		assert_true(offset.x > Scenario.RIVER_COLUMNS[offset.y], "east bank")
+		assert_true(offset.x < Scenario.FRONT_SLOTS[1][0], "in front of player 1's spawn")
+		assert_eq(state.objective_owners[c], 1)
+		assert_true(state.grid.move_cost(c) != Terrain.IMPASSABLE)
+	var kinds := {}
+	for condition in o.conditions:
+		kinds[[condition.kind, condition.player]] = condition.hexes
+	assert_eq(kinds[[VictoryCondition.Kind.TAKE_HEXES, 0]], o.hexes)
+	assert_eq(kinds[[VictoryCondition.Kind.HOLD_HEXES, 1]], o.hexes)
+	assert_true(kinds.has([VictoryCondition.Kind.ELIMINATE, -1]))
+
+
+func test_objective_battle_is_the_default_battle_with_objectives() -> void:
+	var setup := Scenario.objective_battle_setup(7)
+	var default_setup := Scenario.default_battle_setup(7)
+	var a := setup.to_dict()
+	var b := default_setup.to_dict()
+	a.erase("objectives")
+	b.erase("objectives")
+	assert_eq(a, b)
+	setup.objectives.turn_limit = 3
+	assert_eq(Scenario.objective_battle_setup(7).objectives.turn_limit, 8, "a fresh copy")
+
+
+func test_build_by_name() -> void:
+	assert_eq(Scenario.NAMES, ["default_battle", "objective_battle"] as Array[String])
+	assert_eq(
+		Scenario.build("default_battle", 3, FactionRegistry.DEFAULT_IDS).snapshot(),
+		Scenario.default_battle(3).snapshot()
+	)
+	var objective := Scenario.build("objective_battle", 3, FactionRegistry.DEFAULT_IDS)
+	assert_eq(objective.objectives.turn_limit, 8)
+	assert_true(Scenario.build("atlantis", 3, FactionRegistry.DEFAULT_IDS) == null)

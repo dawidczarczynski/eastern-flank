@@ -19,9 +19,13 @@ var factions: Array[StringName] = FactionRegistry.DEFAULT_IDS.duplicate()
 var commands: Array[Dictionary] = []
 
 
-## Record of every command the simulation has executed so far (`sim.history`).
-static func from_simulation(sim: GameSimulation, seed_value: int) -> MatchRecord:
+## Record of every command the simulation has executed so far (`sim.history`); `scenario` is the
+## name the state was built from (Scenario.NAMES).
+static func from_simulation(
+	sim: GameSimulation, seed_value: int, scenario_name: String = "default_battle"
+) -> MatchRecord:
 	var record := MatchRecord.new()
+	record.scenario = scenario_name
 	record.seed = seed_value
 	record.factions = sim.state.player_factions.duplicate()
 	for command in sim.history:

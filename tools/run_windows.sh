@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Runs the game with the Windows build of Godot (from WSL), so it renders on the GPU –
 # under WSLg with an old Mesa the Linux build falls back to software rendering (llvmpipe).
-# Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high]
-#   --quality force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
+# Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>]
+#   --quality  force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
+#   --scenario start the battle with that scenario (default_battle, objective_battle); a user argument
 #   --editor  open the editor instead of the game
 #   --import  refresh the class cache with the Linux Godot first (only needed after adding a
 #             class_name without running tools/check.sh)
@@ -20,17 +21,17 @@ if [[ -z "$GODOT_WIN" ]]; then
 fi
 
 editor=()
-quality=()
+user_args=()
 for arg in "$@"; do
 	case "$arg" in
 	--editor) editor=(--editor) ;;
-	--quality=*) quality=(-- "$arg") ;;
+	--quality=* | --scenario=*) user_args+=("$arg") ;;
 	--import)
 		linux_godot="$(command -v "${GODOT:-godot}" || echo "$HOME/.local/bin/godot")"
 		"$linux_godot" --headless --path . --import >/dev/null 2>&1 || true
 		;;
 	*)
-		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high]" >&2
+		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>]" >&2
 		exit 2
 		;;
 	esac
@@ -44,8 +45,11 @@ args="'--path','$(wslpath -w "$PWD")'"
 for arg in "${editor[@]}"; do
 	args+=",'$arg'"
 done
-if [[ ${#quality[@]} -gt 0 ]]; then
-	args+=",'--','${quality[1]}'"
+if [[ ${#user_args[@]} -gt 0 ]]; then
+	args+=",'--'"
+	for arg in "${user_args[@]}"; do
+		args+=",'$arg'"
+	done
 fi
 pid="$(cd /mnt/c && powershell.exe -NoProfile -NonInteractive -Command \
 	"(Start-Process -FilePath '$(wslpath -w "$GODOT_WIN")' -ArgumentList $args -PassThru).Id" \

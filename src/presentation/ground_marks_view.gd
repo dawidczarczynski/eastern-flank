@@ -163,3 +163,27 @@ static func _texture(kind: StringName) -> ImageTexture:
 				image = DecalTextures.scorch(TEXTURE_SIZE)
 		_textures[kind] = ImageTexture.create_from_image(image)
 	return _textures[kind]
+
+
+## Screenshot debug demo (tools/screenshot.gd, SCREENSHOT_MARKS): a scripted move and rocket
+## strike around `unit` without animation – tracks leading up to its tile, craters and a scorch
+## patch three tiles to its right. `tile_top` = MapView.tile_top_position.
+func debug_demo(unit: Unit, tile_top: Callable) -> void:
+	var points := PackedVector3Array()
+	for i in range(-2, 3):
+		points.append(tile_top.call(unit.coord + Vector2i(i - 1, 1)))
+	var marks := GroundMarks.track_segments(
+		points, unit.definition.unit_class, VisualScale.unit_model_scale()
+	)
+	if marks.is_empty():  # not a vehicle: show the tank marks anyway
+		marks = GroundMarks.track_segments(points, &"tank", VisualScale.unit_model_scale())
+	# The last segment is only 60 % revealed, as in the middle of a move.
+	var growing := add_growing_tracks(marks)
+	for i in growing.size():
+		set_reveal(growing[i], 0.6 if i == growing.size() - 1 else 1.0)
+	marks.clear()
+	var strike: Vector3 = tile_top.call(unit.coord + Vector2i(3, -1))
+	marks.append_array(GroundMarks.craters(1, strike, 5, 3, false))
+	marks.append_array(GroundMarks.impact_scorch(1, strike, 5, 3, false))
+	marks.append(GroundMarks.death_scorch(2, tile_top.call(unit.coord + Vector2i(2, -2))))
+	add_marks(marks, false)

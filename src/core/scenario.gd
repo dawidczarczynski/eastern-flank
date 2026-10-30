@@ -13,6 +13,20 @@ const BACK_SLOTS := [[0, [5, 3, 7]], [MAP_WIDTH - 1, [4, 2, 6]]]
 const RIVER_COLUMNS := [6, 5, 5, 5, 6, 6, 6, 5, 5, 5]
 const RIVER_FORDS := [2, 7]
 const OPERATION_NAME := "Iron Shore"
+## Scenario names a MatchRecord can name (Scenario.build).
+const NAMES: Array[String] = ["default_battle", "objective_battle"]
+## Objectives of the objective test battle (TASK-088).
+const OBJECTIVE_BATTLE_OBJECTIVES := preload("res://data/scenarios/objective_battle.tres")
+
+
+## Starting state of the scenario `scenario_name` (NAMES); null for an unknown name.
+static func build(scenario_name: String, seed_value: int, factions: Array[StringName]) -> GameState:
+	match scenario_name:
+		"default_battle":
+			return default_battle(seed_value, factions)
+		"objective_battle":
+			return objective_battle(seed_value, factions)
+	return null
 
 
 ## Default 2-player battle on a generated 12x10 map with a river (RIVER_COLUMNS) between the
@@ -23,7 +37,25 @@ static func default_battle(
 	return from_setup(default_battle_setup(seed_value, factions))
 
 
-## The default battle as a BattleSetup (ADR 0015).
+## Objective test battle: the default battle with the objectives of
+## data/scenarios/objective_battle.tres (two east-bank hexes behind the fords held by player 1,
+## player 0 must take both, player 1 holds them at the turn limit of 8, eliminate for both).
+static func objective_battle(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> GameState:
+	return from_setup(objective_battle_setup(seed_value, factions))
+
+
+## objective_battle as a BattleSetup; its objectives are a fresh copy of the resource.
+static func objective_battle_setup(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> BattleSetup:
+	var setup := default_battle_setup(seed_value, factions)
+	setup.objectives = BattleObjectives.from_dict(OBJECTIVE_BATTLE_OBJECTIVES.to_dict())
+	return setup
+
+
+## The default battle as a BattleSetup (ADR 0015); objectives = default_objectives().
 ## `factions` = faction id of player 0 and player 1 (FactionRegistry). Each player gets their
 ## faction's `default_force` in list order (unit ids follow it); factions don't change the map.
 ## Range-1 units take FRONT_SLOTS, the others BACK_SLOTS. A unit not in its owner's roster, or
@@ -74,8 +106,10 @@ static func default_battle_setup(
 ## company i as unit id i + 1 with HP = its strength, `GameState.rng` seeded with `seed`.
 ## null (with push_error) for an unknown map id or a company that cannot be placed: unknown
 ## player or faction, unit type not in the roster, strength outside 1 … max_hp, a taken or
-## missing tile. `map_region`, conditions and objectives are not read yet (TASK-087 / TASK-094,
-## TASK-088, TASK-091, TASK-099).
+## missing tile, objectives that are inconsistent (BattleObjectives.problem) or have a hex off
+## the map. Objective hexes that are water become plains; owners start at the data's initial
+## owners (a unit spawning on one does not capture it); `starting_hp` is recorded after spawning.
+## `map_region` and conditions are not read yet (TASK-087 / TASK-094, TASK-091, TASK-099).
 static func from_setup(setup: BattleSetup) -> GameState:
 	var grid := _build_map(setup.map_id, setup.seed)
 	if grid == null:
@@ -102,6 +136,18 @@ static func from_setup(setup: BattleSetup) -> GameState:
 			return null
 		MapGenerator.force_terrain(grid, company.coord, Terrain.Type.PLAINS)
 		state.add_unit(company.player, definition, company.coord).hp = company.strength
+	var problem := setup.objectives.problem(state.player_count)
+	if problem != "":
+		push_error("Scenario: objectives – %s" % problem)
+		return null
+	for c in setup.objectives.hexes:
+		if not grid.has_tile(c):
+			push_error("Scenario: objective hex %s is off the map" % c)
+			return null
+		if grid.get_terrain(c) == Terrain.Type.WATER:
+			MapGenerator.force_terrain(grid, c, Terrain.Type.PLAINS)
+	state.set_objectives(setup.objectives)
+	state.record_starting_hp()
 	return state
 
 

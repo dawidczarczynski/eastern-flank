@@ -12,7 +12,7 @@ extends RefCounted
 static func run(record: MatchRecord) -> Dictionary:
 	if not _valid_factions(record.factions):
 		return _failure("invalid_factions", -1, "")
-	var state := _build_state(record.scenario, record.seed, record.factions)
+	var state := Scenario.build(record.scenario, record.seed, record.factions)
 	if state == null:
 		return _failure("unknown_scenario", -1, "")
 	var sim := GameSimulation.new(state)
@@ -35,16 +35,6 @@ static func _valid_factions(factions: Array[StringName]) -> bool:
 		if not FactionRegistry.has_faction(faction_id):
 			return false
 	return true
-
-
-## Starting state of a named scenario; null for an unknown name.
-static func _build_state(
-	scenario: String, seed_value: int, factions: Array[StringName]
-) -> GameState:
-	match scenario:
-		"default_battle":
-			return Scenario.default_battle(seed_value, factions)
-	return null
 
 
 static func _failure(error: String, index: int, reason: String) -> Dictionary:

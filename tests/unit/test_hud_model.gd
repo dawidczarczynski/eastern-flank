@@ -22,6 +22,7 @@ func before_each() -> void:
 func test_start_of_game() -> void:
 	var bar := HudModel.top_bar(state, 0)
 	assert_eq(bar["turn_text"], "01")
+	assert_eq(bar["turn_limit_text"], "")
 	assert_eq(bar["active_player"], 0)
 	var p0: Dictionary = bar["players"][0]
 	var p1: Dictionary = bar["players"][1]
@@ -65,10 +66,15 @@ func test_banner_for() -> void:
 
 func test_result_banner() -> void:
 	assert_eq(HudModel.result_banner(state, 0), "")
-	state.winner = 0
+	state.finish(0, &"eliminated")
 	assert_eq(HudModel.result_banner(state, 0), "VICTORY")
-	state.winner = 1
+	state.finish(1, &"eliminated")
 	assert_eq(HudModel.result_banner(state, 0), "DEFEAT")
+
+
+func test_result_banner_for_a_draw() -> void:
+	state.finish(-1, &"turn_limit")
+	assert_eq(HudModel.result_banner(state, 0), "DRAW")
 
 
 func test_top_bar_at_uses_playback_turn_and_player() -> void:
@@ -91,3 +97,34 @@ func test_sides_use_faction_data() -> void:
 	assert_eq(p1["name"], "Russia")
 	assert_eq(p1["short"], "RU")
 	assert_eq(p1["color"], state.faction_of(1).color)
+
+
+func test_turn_text_shows_the_turn_limit() -> void:
+	assert_eq(HudModel.turn_text(3, 0), "03")
+	assert_eq(HudModel.turn_text(3, 8), "03 / 08")
+	assert_eq(HudModel.turn_text(12, 15), "12 / 15")
+
+
+func test_top_bar_shows_the_battle_turn_limit() -> void:
+	var no_conditions: Array[VictoryCondition] = []
+	state.set_objectives(Fixtures.objectives(8, [], [], no_conditions))
+	state.turn = 3
+	assert_eq(HudModel.top_bar(state, 0)["turn_text"], "03")
+	assert_eq(HudModel.top_bar(state, 0)["turn_limit_text"], "/08")
+	assert_eq(HudModel.top_bar_at(state, 0, 5, 1)["turn_text"], "05")
+
+
+func test_result_reason_follows_the_end_reason_and_the_side() -> void:
+	assert_eq(HudModel.result_reason(state, 0), "")
+	state.finish(0, &"objective_taken")
+	assert_eq(HudModel.result_reason(state, 0), "OBJECTIVES TAKEN")
+	assert_eq(HudModel.result_reason(state, 1), "OBJECTIVES LOST")
+	state.finish(1, &"eliminated")
+	assert_eq(HudModel.result_reason(state, 0), "OUR FORCES ELIMINATED")
+	assert_eq(HudModel.result_reason(state, 1), "ENEMY ELIMINATED")
+	state.finish(0, &"enemy_destroyed")
+	assert_eq(HudModel.result_reason(state, 0), "ENEMY DESTROYED")
+	state.finish(-1, &"turn_limit")
+	assert_eq(HudModel.result_reason(state, 0), "TURN LIMIT REACHED")
+	state.finish(-1, &"no_such_reason")
+	assert_eq(HudModel.result_reason(state, 0), "")

@@ -3,7 +3,8 @@ extends Command
 ## Attack: the attacker deals compute_damage() damage to an enemy within range
 ## (max(1, attack - (defense + terrain defense bonus of the defender's tile))).
 ## Attacking is allowed once per turn and ends the attacker's movement.
-## A surviving target within its own attack range counters once (see apply()).
+## A surviving target within its own attack range counters once (see apply()) – unless the
+## strike already ended the battle. Each strike is followed by BattleRules.after_strike.
 
 var attacker_id: int
 var target_id: int
@@ -47,7 +48,7 @@ func to_dict() -> Dictionary:
 
 
 func validate(state: GameState) -> String:
-	if state.winner != -1:
+	if state.is_over():
 		return "game_over"
 	var attacker := state.get_unit(attacker_id)
 	var target := state.get_unit(target_id)
@@ -79,13 +80,15 @@ func apply(state: GameState) -> Array[Dictionary]:
 	# has_attacked / moves_left are untouched and a counter never provokes another counter.
 	if (
 		target.is_alive()
+		and not state.is_over()
 		and Hex.distance(target.coord, attacker.coord) <= target.definition.attack_range
 	):
 		events.append_array(_strike(state, target, attacker, true))
 	return events
 
 
-## One hit: applies damage and returns unit_attacked (+ unit_died, game_over when it ends the game).
+## One hit: applies damage and returns unit_attacked (+ unit_died, + game_over when BattleRules
+## ends the battle).
 func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) -> Array[Dictionary]:
 	var damage := AttackCommand.compute_damage(state, striker, victim)
 	victim.hp = maxi(0, victim.hp - damage)
@@ -99,17 +102,8 @@ func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) ->
 			"counter": is_counter,
 		},
 	]
-	if not victim.is_alive():
+	var died := not victim.is_alive()
+	if died:
 		events.append({"type": &"unit_died", "unit_id": victim.id})
-		if _players_with_units(state) == [striker.owner_id]:
-			state.winner = striker.owner_id
-			events.append({"type": &"game_over", "winner": state.winner})
+	events.append_array(BattleRules.after_strike(state, striker.owner_id, died))
 	return events
-
-
-func _players_with_units(state: GameState) -> Array[int]:
-	var result: Array[int] = []
-	for player in state.player_count:
-		if not state.units_of(player).is_empty():
-			result.append(player)
-	return result

@@ -57,3 +57,17 @@ func test_bad_factions_are_usage_errors() -> void:
 		assert_eq(
 			SimulateOptions.parse(PackedStringArray(["10", bad]))["error"], "invalid_factions", bad
 		)
+
+
+func test_scenario_defaults_to_the_default_battle() -> void:
+	assert_eq(SimulateOptions.parse(PackedStringArray(["10"]))["scenario"], "default_battle")
+
+
+func test_scenario_option() -> void:
+	var o := SimulateOptions.parse(PackedStringArray(["10", "--scenario=objective_battle"]))
+	assert_eq(o["error"], "")
+	assert_eq(o["scenario"], "objective_battle")
+	for bad in ["--scenario=atlantis", "--scenario="]:
+		assert_eq(
+			SimulateOptions.parse(PackedStringArray(["10", bad]))["error"], "invalid_scenario", bad
+		)

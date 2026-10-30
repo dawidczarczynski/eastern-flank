@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="BattleObjectives" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/victory_condition.gd" id="1_cond"]
+[ext_resource type="Script" path="res://src/core/data/battle_objectives.gd" id="2_obj"]
+
+[sub_resource type="Resource" id="Resource_take"]
+script = ExtResource("1_cond")
+kind = 1
+player = 0
+hexes = Array[Vector2i]([Vector2i(6, 2), Vector2i(4, 7)])
+share_percent = 0
+
+[sub_resource type="Resource" id="Resource_hold"]
+script = ExtResource("1_cond")
+kind = 2
+player = 1
+hexes = Array[Vector2i]([Vector2i(6, 2), Vector2i(4, 7)])
+share_percent = 0
+
+[sub_resource type="Resource" id="Resource_eliminate"]
+script = ExtResource("1_cond")
+kind = 0
+player = -1
+hexes = Array[Vector2i]([])
+share_percent = 0
+
+[resource]
+script = ExtResource("2_obj")
+turn_limit = 8
+hexes = Array[Vector2i]([Vector2i(6, 2), Vector2i(4, 7)])
+initial_owners = Array[int]([1, 1])
+conditions = Array[ExtResource("1_cond")]([SubResource("Resource_take"), SubResource("Resource_hold"), SubResource("Resource_eliminate")])

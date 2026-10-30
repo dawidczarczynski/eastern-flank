@@ -49,7 +49,7 @@ func test_empty_for_unknown_attacker() -> void:
 
 
 func test_empty_when_game_over() -> void:
-	state.winner = 0
+	state.finish(0, &"eliminated")
 	assert_eq(AttackCommand.valid_targets(state, a.id), [] as Array[int])
 
 

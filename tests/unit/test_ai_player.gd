@@ -136,3 +136,68 @@ func test_ai_rocket_artillery_moves_away_from_adjacent_enemy_and_fires_uncounter
 	assert_true(Hex.distance(artillery.coord, enemy.coord) > 1)
 	assert_true(enemy.hp < enemy.definition.max_hp)
 	assert_eq(artillery.hp, 6)
+
+
+## AI (player 1) unit at (0, 0) with move 3, an enemy at (-3, 0) and objectives from `conditions`.
+func _objective_game(
+	hexes: Array[Vector2i], owners: Array[int], conditions: Array[VictoryCondition]
+) -> GameSimulation:
+	var state := GameState.new(Fixtures.plains_grid(5), 2, 1)
+	human = state.add_unit(0, Fixtures.infantry(), Vector2i(-3, 0))
+	ai_unit = state.add_unit(1, Fixtures.infantry(), Vector2i(0, 0))
+	state.set_objectives(Fixtures.objectives(0, hexes, owners, conditions))
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	return game
+
+
+func test_ai_moves_to_an_objective_it_must_take() -> void:
+	var hexes: Array[Vector2i] = [Vector2i(3, 0)]
+	var game := _objective_game(
+		hexes, [0], [Fixtures.condition(VictoryCondition.Kind.TAKE_HEXES, 1, hexes)]
+	)
+	AiPlayer.new().take_turn(game)
+	assert_eq(ai_unit.coord, Vector2i(3, 0))
+	assert_eq(game.state.objective_owners[Vector2i(3, 0)], 1)
+
+
+func test_ai_retakes_a_lost_hold_objective() -> void:
+	var hexes: Array[Vector2i] = [Vector2i(0, 3)]
+	var game := _objective_game(
+		hexes, [0], [Fixtures.condition(VictoryCondition.Kind.HOLD_HEXES, 1, hexes)]
+	)
+	AiPlayer.new().take_turn(game)
+	assert_eq(ai_unit.coord, Vector2i(0, 3))
+	assert_eq(game.state.objective_owners[Vector2i(0, 3)], 1)
+
+
+func test_ai_prefers_the_enemy_when_it_is_nearer_than_the_objective() -> void:
+	var hexes: Array[Vector2i] = [Vector2i(0, 4)]
+	var game := _objective_game(
+		hexes, [0], [Fixtures.condition(VictoryCondition.Kind.TAKE_HEXES, 1, hexes)]
+	)
+	AiPlayer.new().take_turn(game)
+	assert_eq(Hex.distance(ai_unit.coord, human.coord), 1)
+
+
+func test_ai_keeps_a_unit_on_its_objective_and_still_attacks() -> void:
+	var hexes: Array[Vector2i] = [Vector2i(0, 0)]
+	var game := _objective_game(
+		hexes, [1], [Fixtures.condition(VictoryCondition.Kind.HOLD_HEXES, 1, hexes)]
+	)
+	AiPlayer.new().take_turn(game)
+	assert_eq(ai_unit.coord, Vector2i(0, 0), "stays instead of closing in")
+	game.execute(EndTurnCommand.new())
+	human.coord = Vector2i(-1, 0)
+	AiPlayer.new().take_turn(game)
+	assert_eq(ai_unit.coord, Vector2i(0, 0))
+	assert_true(human.hp < 10, "attacks from the objective")
+
+
+func test_ai_ignores_objectives_without_a_take_or_hold_condition() -> void:
+	var hexes: Array[Vector2i] = [Vector2i(3, 0)]
+	var game := _objective_game(
+		hexes, [0], [Fixtures.condition(VictoryCondition.Kind.TAKE_HEXES, 0, hexes)]
+	)
+	AiPlayer.new().take_turn(game)
+	assert_eq(Hex.distance(ai_unit.coord, human.coord), 1)

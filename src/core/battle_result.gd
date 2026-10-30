@@ -52,8 +52,8 @@ class Company:
 
 ## Winning player; -1 = draw (or the battle is not over).
 var winner: int = -1
-## Why the battle ended: &"eliminated" today; TASK-088 adds &"objective_taken",
-## &"enemy_destroyed", &"turn_limit". &"" while the battle runs.
+## Why the battle ended (GameState.end_reason): &"eliminated", &"objective_taken",
+## &"enemy_destroyed" or &"turn_limit"; &"" while the battle runs.
 var reason: StringName = &""
 ## Turns played (GameState.turn when the battle ended).
 var turns: int = 0
@@ -66,7 +66,7 @@ var companies: Array[Company] = []
 static func from_battle(setup: BattleSetup, state: GameState) -> BattleResult:
 	var result := BattleResult.new()
 	result.winner = state.winner
-	result.reason = &"eliminated" if state.winner != -1 else &""
+	result.reason = state.end_reason
 	result.turns = state.turn
 	for i in setup.companies.size():
 		var planned := setup.companies[i]

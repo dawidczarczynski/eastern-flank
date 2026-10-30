@@ -31,10 +31,15 @@ const KEY_HINTS: Array[Array] = [
 const HINT_WIDTH := 400
 const END_MODULE_MARGIN := 24
 const HINT_BOTTOM := 92
+const TURN_SIZE := 32
+const TURN_LIMIT_SIZE := 16
 
 var _human_player := 0
 var _sides: Array[Dictionary] = []  # per player: {block, badge, name, meta, bar, tween}
 var _turn_label: Label
+var _turn_limit_label: Label  # "/08" after the turn number; hidden without a turn limit
+var _turn_row: HBoxContainer
+var _turn_box: Control
 var _active_label: Label
 var _active_arrow: Label
 var _ready_value: Label
@@ -102,6 +107,9 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	var active: Dictionary = players[active_player]
 	var color: Color = active["color"]
 	_turn_label.text = bar["turn_text"]
+	_turn_limit_label.text = bar["turn_limit_text"]
+	_turn_limit_label.get_parent().visible = _turn_limit_label.text != ""
+	_turn_box.custom_minimum_size.x = _turn_row.get_combined_minimum_size().x
 	_active_label.text = tr(active["name"] as String).to_upper()
 	_active_label.add_theme_color_override(&"font_color", color)
 	_active_arrow.add_theme_color_override(&"font_color", color)
@@ -157,9 +165,16 @@ func _show_turn_banner(state: GameState, turn: int, player: int) -> void:
 
 func _show_result(result: String, state: GameState) -> void:
 	_result_shown = true
-	var caption := "%s %02d" % [tr("TURN"), state.turn]
+	var turn := HudModel.turn_text(state.turn, HudModel.turn_limit_of(state))
+	var caption := "%s %s" % [tr("TURN"), turn]
+	# A draw has no winner: faction_color(-1) is the neutral colour.
+	var color := UiPalette.faction_color(state, state.winner)
+	var reason := HudModel.result_reason(state, _human_player)
 	_banner.show_held(
-		caption.to_upper(), tr(result).to_upper(), UiPalette.faction_color(state, state.winner)
+		caption.to_upper(),
+		tr(result).to_upper(),
+		color,
+		tr(reason).to_upper() if reason != "" else ""
 	)
 
 
@@ -313,10 +328,7 @@ func _build_centre() -> Control:
 	caption.text = tr("TURN")
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(caption)
-	_turn_label = _label_font(HudTheme.mono(700), 32, UiPalette.HUD_TEXT)
-	_turn_label.name = "TurnNumber"
-	_turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_pin_line(_turn_label, 32))
+	column.add_child(_build_turn_number())
 	_active_label = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
 	_active_label.name = "ActiveSide"
 	_active_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -333,6 +345,39 @@ func _build_centre() -> Control:
 	_active_label.add_child(_active_arrow)
 	group.add_child(_divider())
 	return group
+
+
+## The big turn number and, with a turn limit, a smaller "/08" on its baseline (TASK-088). The
+## row is pinned to a TURN_SIZE line like _pin_line; _apply sizes the box to the row.
+func _build_turn_number() -> Control:
+	var number_font := HudTheme.mono(700)
+	_turn_label = _label_font(number_font, TURN_SIZE, UiPalette.HUD_TEXT)
+	_turn_label.name = "TurnNumber"
+	var limit_font := HudTheme.mono(600)
+	_turn_limit_label = _label_font(limit_font, TURN_LIMIT_SIZE, UiPalette.HUD_MUTED)
+	_turn_limit_label.name = "TurnLimit"
+	var lift := MarginContainer.new()  # puts the small text on the number's baseline
+	lift.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lift.size_flags_vertical = Control.SIZE_SHRINK_END
+	var descent_gap := number_font.get_descent(TURN_SIZE) - limit_font.get_descent(TURN_LIMIT_SIZE)
+	lift.add_theme_constant_override(&"margin_bottom", roundi(descent_gap))
+	lift.add_child(_turn_limit_label)
+	lift.hide()
+	_turn_row = HBoxContainer.new()
+	_turn_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_turn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_turn_row.add_theme_constant_override(&"separation", 2)
+	_turn_row.add_child(_turn_label)
+	_turn_row.add_child(lift)
+	_turn_box = Control.new()
+	_turn_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_turn_box.custom_minimum_size.y = TURN_SIZE
+	var natural := number_font.get_height(TURN_SIZE)
+	_turn_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_turn_row.offset_top = (TURN_SIZE - natural) / 2.0
+	_turn_row.offset_bottom = _turn_row.offset_top + natural
+	_turn_box.add_child(_turn_row)
+	return _turn_box
 
 
 func _divider() -> ColorRect:

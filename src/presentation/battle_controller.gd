@@ -32,6 +32,9 @@ const REJECT_TOASTS := {
 var quality: Dictionary = {}
 ## True once _ready has built the whole scene (it waits one frame so the loading screen shows).
 var is_built := false
+## Scenario to start (Scenario.NAMES); "" = the `--scenario=` user argument, else the default
+## battle (BattleOptions). The screenshot tool sets it before adding the scene to the tree.
+var scenario_name := ""
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _ai := AiPlayer.new()
@@ -54,6 +57,7 @@ var _burst_speed := 1.0  # fixed from _start_burst() until the queue drains
 var _event_speed := 1.0  # speed of the event playing now (EventQueue.playback_speed)
 
 var _wrecks := WreckField.new()  # burnt-out hulks of destroyed vehicles (TASK-065)
+var _objective_markers := ObjectiveMarkers.new()  # TASK-088 placeholder hex markers
 var _marks := GroundMarksView.new()  # ground decals (TASK-058), fed while animations play
 var _event_serial := 0  # played events so far: the view-local seed of the marks
 
@@ -65,7 +69,9 @@ var _event_serial := 0  # played events so far: the view-local seed of the marks
 func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
-	var state := Scenario.default_battle(MAP_SEED)
+	if scenario_name not in Scenario.NAMES:
+		scenario_name = BattleOptions.scenario_name(OS.get_cmdline_user_args())
+	var state := Scenario.build(scenario_name, MAP_SEED, FactionRegistry.DEFAULT_IDS)
 	# The loading screen must actually be presented before the heavy build below blocks the loop:
 	# process_frame fires before the first draw, so wait for a frame to finish drawing.
 	var loading := LoadingScreen.new()
@@ -83,6 +89,9 @@ func _ready() -> void:
 	await _next_frame()
 	_map_view.build(state.grid)
 	await _next_frame()
+	_objective_markers.name = "ObjectiveMarkers"
+	add_child(_objective_markers)
+	_objective_markers.build(state, _map_view.hex_size, _map_view.mesh_height_at, _hud_root)
 	_marks.name = "GroundMarks"
 	_marks.setup(quality.get("decals_max", 0))
 	add_child(_marks)
@@ -274,6 +283,14 @@ func debug_notice(kind: String) -> void:
 			push_error("debug_notice: unknown kind '%s'" % kind)
 
 
+## Screenshot tool (SCREENSHOT_SHOTS=result:<kind>): the result banner of a battle that ended
+## as `kind` (DebugResult, a throwaway state; the simulation is not touched).
+func debug_result(kind: String) -> void:
+	var ended := DebugResult.ended_state(scenario_name, MAP_SEED, kind)
+	if ended != null:
+		_hud.refresh(ended)
+
+
 ## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
 func debug_build_grass() -> void:
 	_map_view.set_camera_target(_camera_rig.target())
@@ -282,7 +299,7 @@ func debug_build_grass() -> void:
 
 ## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.
 func _save_match() -> void:
-	var record := MatchRecord.from_simulation(_sim, MAP_SEED)
+	var record := MatchRecord.from_simulation(_sim, MAP_SEED, scenario_name)
 	if MatchSaver.save(record) == OK:
 		var path := ProjectSettings.globalize_path(MatchSaver.LAST_MATCH_PATH)
 		print("Match saved (%d commands): %s" % [record.commands.size(), path])
@@ -304,7 +321,7 @@ func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 func _input_allowed() -> bool:
 	if _is_playing_events():
 		return false
-	return _sim.state.winner == -1 and _sim.state.current_player == HUMAN_PLAYER
+	return not _sim.state.is_over() and _sim.state.current_player == HUMAN_PLAYER
 
 
 func _map_bounds() -> Rect2:
@@ -384,7 +401,7 @@ func _draw_path_preview() -> int:
 		or unit.owner_id != HUMAN_PLAYER
 		or _is_playing_events()
 		or state.current_player != HUMAN_PLAYER
-		or state.winner != -1
+		or state.is_over()
 	):
 		_map_view.clear_path()
 		return -1
@@ -414,7 +431,7 @@ func _on_hex_clicked(coord: Vector2i) -> void:
 ## _on_event and replayed afterwards as one burst.
 func _end_human_turn() -> void:
 	_sim.execute(EndTurnCommand.new())
-	while _sim.state.winner == -1 and _sim.state.current_player != HUMAN_PLAYER:
+	while not _sim.state.is_over() and _sim.state.current_player != HUMAN_PLAYER:
 		_ai.take_turn(_sim)
 
 
@@ -464,7 +481,7 @@ func _refresh_range_overlay() -> void:
 		or not unit.is_alive()
 		or unit.definition.attack_range < 2
 		or _is_playing_events()
-		or _sim.state.winner != -1
+		or _sim.state.is_over()
 	):
 		_map_view.clear_attack_range()
 		return
@@ -559,7 +576,7 @@ func _update_unit_popup() -> void:
 	var unit: Unit = null
 	if (
 		_hovered_hex != null
-		and state.winner == -1
+		and not state.is_over()
 		and not _camera_rig.is_dragging()
 		and not _is_playing_events()
 	):
@@ -744,6 +761,8 @@ func _play_event(event: Dictionary) -> Tween:
 		&"turn_started":
 			_wrecks.on_turn_started()
 			_hud.on_turn_started(_sim.state, event["turn"], event["player"])
+		&"objective_captured":
+			_objective_markers.on_captured(_sim.state, event)
 		&"game_over":
 			_select(-1)
 	return null
@@ -925,34 +944,13 @@ func debug_move(unit_id: int, direction: int, tiles: int) -> void:
 	_play_event(event).set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 
 
-## Screenshot debug hook (tools/screenshot.gd): draws a scripted move and rocket strike
-## around a unit without animation – tracks leading up to its tile, craters and a scorch patch
-## three tiles to its right.
+## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_MARKS): GroundMarksView.debug_demo.
 func debug_marks_demo(unit_id: int) -> void:
 	var unit := _sim.state.get_unit(unit_id)
 	if unit == null:
 		push_error("debug_marks_demo: no unit %d" % unit_id)
 		return
-	var points := PackedVector3Array()
-	for i in range(-2, 3):
-		points.append(_map_view.tile_top_position(unit.coord + Vector2i(i - 1, 1)))
-	var marks := GroundMarks.track_segments(
-		points, unit.definition.unit_class, VisualScale.unit_model_scale()
-	)
-	if marks.is_empty():  # not a vehicle: show the tank marks anyway
-		marks = GroundMarks.track_segments(points, &"tank", VisualScale.unit_model_scale())
-	# The last segment is only 60 % revealed, as in the middle of a move.
-	var growing := _marks.add_growing_tracks(marks)
-	for i in growing.size():
-		_marks.set_reveal(growing[i], 0.6 if i == growing.size() - 1 else 1.0)
-	marks.clear()
-	var strike := _map_view.tile_top_position(unit.coord + Vector2i(3, -1))
-	marks.append_array(GroundMarks.craters(1, strike, 5, 3, false))
-	marks.append_array(GroundMarks.impact_scorch(1, strike, 5, 3, false))
-	marks.append(
-		GroundMarks.death_scorch(2, _map_view.tile_top_position(unit.coord + Vector2i(2, -2)))
-	)
-	_marks.add_marks(marks, false)
+	_marks.debug_demo(unit, _map_view.tile_top_position)
 
 
 ## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_WRECK): the unit's view dies at once

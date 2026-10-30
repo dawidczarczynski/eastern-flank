@@ -76,6 +76,14 @@ func _initialize() -> void:
 		return
 	var locale := OS.get_environment("SCREENSHOT_LOCALE")
 	_battle = scene.instantiate()
+	var scenario := OS.get_environment("SCREENSHOT_SCENARIO")
+	if scenario != "":
+		if not _is_battle or scenario not in Scenario.NAMES:
+			_fail(
+				"unknown SCREENSHOT_SCENARIO '%s' (%s)" % [scenario, ", ".join(Scenario.NAMES)], 2
+			)
+			return
+		_battle.set("scenario_name", scenario)
 	root.add_child(_battle)
 	if locale != "":
 		TranslationServer.set_locale(locale)
@@ -204,6 +212,8 @@ func _apply_gallery_state(state: String, argument: String) -> bool:
 			_battle.call("debug_select_and_hover", argument.to_int())
 		"toast", "targeting", "banner":
 			_battle.call("debug_notice", state)
+		"result":
+			_battle.call("debug_result", argument if argument != "" else "victory")
 		_:
 			return false
 	return true
@@ -263,8 +273,12 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_HOVER_UNIT=<unit id> hovers that unit's tile (hover card with portrait).
 ## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
 ## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
-## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner – e.g.
+## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner,
+## result:<victory|defeat|draw> (the held result banner with its reason line) – e.g.
 ## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
+## SCREENSHOT_SCENARIO=<default_battle|objective_battle> starts that scenario (Scenario.NAMES;
+## like the game's `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
+## limit: SCREENSHOT_SCENARIO=objective_battle tools/screenshot.sh .screenshots/objectives.png
 ## SCREENSHOT_SCENE=<battle|menu|catalog> renders another scene (default battle);
 ## SCREENSHOT_LOCALE=<pl|en> switches the language first.
 ## SCREENSHOT_CATALOG=<unit id>[:<animation>[+<animation>...][:<yaw>,<pitch>,<distance>]] picks

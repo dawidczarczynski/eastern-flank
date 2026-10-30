@@ -5,8 +5,9 @@ extends RefCounted
 ## `Scenario.from_setup` builds the battle's GameState from it.
 ## JSON form (`to_dict`): {"seed", "map_id", "map_region": [x, y, w, h], "operation_name",
 ## "factions": [ids], "companies": [Company], "conditions": [Conditions per player],
-## "objectives": {}}. `from_dict` returns null on anything malformed (incl. a negative region
-## size or not one `conditions` entry per faction).
+## "objectives": BattleObjectives}. `from_dict` returns null on anything malformed (incl. a
+## negative region size, not one `conditions` entry per faction or inconsistent objectives);
+## "objectives": {} reads as BattleObjectives.default_objectives().
 
 ## Map built by MapGenerator from `seed` with the default battle's river (Scenario).
 const MAP_GENERATED_RIVER := &"generated_river"
@@ -106,9 +107,8 @@ var factions: Array[StringName] = []
 var companies: Array[Company] = []
 ## One entry per player.
 var conditions: Array[Conditions] = []
-## Victory conditions and turn limit; replaced by `BattleObjectives` (TASK-088).
-## {} = eliminate all enemy units, no turn limit.
-var objectives: Dictionary = {}
+## Victory conditions, objective hexes and turn limit (TASK-088).
+var objectives: BattleObjectives = BattleObjectives.default_objectives()
 
 
 func to_dict() -> Dictionary:
@@ -130,7 +130,7 @@ func to_dict() -> Dictionary:
 		"factions": faction_ids,
 		"companies": company_list,
 		"conditions": condition_list,
-		"objectives": objectives.duplicate(true),
+		"objectives": objectives.to_dict(),
 	}
 
 
@@ -154,7 +154,10 @@ static func from_dict(d: Dictionary) -> BattleSetup:
 	setup.seed = seed_value
 	setup.map_id = StringName(map_value)
 	setup.operation_name = name_value
-	setup.objectives = MatchRecord.normalize(objective_value)
+	var objectives := BattleObjectives.from_dict(objective_value)
+	if objectives == null:
+		return null
+	setup.objectives = objectives
 	var position: Variant = vector_or_null(region_value.slice(0, 2))
 	var size: Variant = vector_or_null(region_value.slice(2, 4))
 	if position == null or size == null:

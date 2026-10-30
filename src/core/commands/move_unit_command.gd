@@ -15,7 +15,7 @@ func to_dict() -> Dictionary:
 
 
 func validate(state: GameState) -> String:
-	if state.winner != -1:
+	if state.is_over():
 		return "game_over"
 	var unit := state.get_unit(unit_id)
 	if unit == null or not unit.is_alive():
@@ -38,6 +38,7 @@ func apply(state: GameState) -> Array[Dictionary]:
 	var events: Array[Dictionary] = [
 		{"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": target, "path": path},
 	]
+	events.append_array(BattleRules.capture(state, unit))
 	return events
 
 

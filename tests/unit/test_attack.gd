@@ -157,7 +157,7 @@ func test_killing_last_enemy_ends_game() -> void:
 	assert_eq(state.winner, 0)
 	assert_eq(events.size(), 3)
 	assert_eq(events[1]["type"], &"unit_died")
-	assert_eq(events[2], {"type": &"game_over", "winner": 0})
+	assert_eq(events[2], {"type": &"game_over", "winner": 0, "reason": &"eliminated"})
 
 
 func test_killing_non_last_enemy_does_not_end_game() -> void:

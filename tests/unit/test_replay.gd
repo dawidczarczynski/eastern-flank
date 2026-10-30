@@ -250,3 +250,37 @@ func _array_difference(expected: Array, actual: Array, path: String) -> String:
 	if expected.size() != actual.size():
 		return "%s: %d items expected, got %d" % [path, expected.size(), actual.size()]
 	return ""
+
+
+func test_from_simulation_stores_the_scenario_name() -> void:
+	var sim := GameSimulation.new(Scenario.objective_battle(SEED))
+	sim.execute(EndTurnCommand.new())
+	assert_eq(MatchRecord.from_simulation(sim, SEED).scenario, "default_battle")
+	var record := MatchRecord.from_simulation(sim, SEED, "objective_battle")
+	assert_eq(MatchRecord.from_json(record.to_json()).scenario, "objective_battle")
+
+
+## A played AI-vs-AI objective match replays to the same state: objective owners and end state
+## included.
+func test_objective_match_survives_a_replay() -> void:
+	var sim := GameSimulation.new(Scenario.objective_battle(SEED))
+	var ai := AiPlayer.new()
+	var captured := [0]
+	sim.event_emitted.connect(
+		func(e: Dictionary) -> void:
+			if e["type"] == &"objective_captured":
+				captured[0] += 1
+	)
+	while not sim.state.is_over() and sim.state.turn <= 30:
+		ai.take_turn(sim)
+	assert_true(sim.state.is_over(), "the turn limit ends it")
+	var record := MatchRecord.from_json(
+		MatchRecord.from_simulation(sim, SEED, "objective_battle").to_json()
+	)
+	var replay := Replay.run(record)
+	assert_true(replay["ok"], str(replay))
+	var replayed := (replay["simulation"] as GameSimulation).state
+	assert_eq(replayed.snapshot(), sim.state.snapshot())
+	assert_eq(replayed.end_reason, sim.state.end_reason)
+	assert_eq((replayed.snapshot()["objectives"] as Array).size(), 2)
+	assert_true(captured[0] > 0, "the AI captured an objective during the match")

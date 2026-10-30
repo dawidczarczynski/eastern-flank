@@ -66,7 +66,7 @@ func test_counter_kills_attacker_and_ends_game() -> void:
 	assert_eq(events[0], _attacked(a, b, 3, 7, false))
 	assert_eq(events[1], _attacked(b, a, 3, 0, true))
 	assert_eq(events[2], {"type": &"unit_died", "unit_id": a.id})
-	assert_eq(events[3], {"type": &"game_over", "winner": 1})
+	assert_eq(events[3], {"type": &"game_over", "winner": 1, "reason": &"eliminated"})
 	assert_eq(state.winner, 1)
 	rejections.clear()
 	assert_false(sim.execute(EndTurnCommand.new()))

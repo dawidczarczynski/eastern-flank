@@ -16,7 +16,8 @@ func _sample_setup() -> BattleSetup:
 	setup.conditions[1].ammunition = 40
 	setup.conditions[0].morale = 80
 	setup.conditions[0].fire_support = 1
-	setup.objectives = {"turn_limit": 8}
+	setup.objectives = BattleObjectives.default_objectives()
+	setup.objectives.turn_limit = 8
 	return setup
 
 
@@ -70,7 +71,7 @@ func test_default_setup_has_full_strength_scenario_companies() -> void:
 	var setup := Scenario.default_battle_setup(12345)
 	assert_eq(setup.companies.size(), 9)
 	assert_eq(setup.conditions.size(), 2)
-	assert_eq(setup.objectives, {})
+	assert_eq(setup.objectives.to_dict(), BattleObjectives.default_objectives().to_dict())
 	var state := Scenario.from_setup(setup)
 	for i in setup.companies.size():
 		assert_eq(setup.companies[i].ref, "")
@@ -106,7 +107,7 @@ func test_result_reports_losses_per_company() -> void:
 	var state := Scenario.from_setup(setup)
 	state.get_unit(2).hp -= 1
 	state.get_unit(5).hp = 0
-	state.winner = 0
+	state.finish(0, &"eliminated")
 	state.turn = 6
 	var result := BattleResult.from_battle(setup, state)
 	assert_eq(result.winner, 0)
@@ -132,7 +133,7 @@ func test_result_survives_a_json_round_trip() -> void:
 	var setup := _sample_setup()
 	var state := Scenario.from_setup(setup)
 	state.get_unit(4).hp = 1
-	state.winner = 1
+	state.finish(1, &"eliminated")
 	var result := BattleResult.from_battle(setup, state)
 	var loaded := BattleResult.from_dict(_json_round_trip(result.to_dict()))
 	assert_true(loaded != null)

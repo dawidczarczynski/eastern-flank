@@ -13,7 +13,7 @@ const OUTPUT := "res://tests/fixtures/replays/default_battle_12345.json"
 func _initialize() -> void:
 	var sim := GameSimulation.new(Scenario.default_battle(SEED))
 	var players: Array[AiPlayer] = [AiPlayer.new(), AiPlayer.new()]
-	while sim.state.winner == -1 and sim.state.turn <= MAX_TURN:
+	while not sim.state.is_over() and sim.state.turn <= MAX_TURN:
 		var before := sim.history.size()
 		players[sim.state.current_player].take_turn(sim)
 		if sim.history.size() == before:

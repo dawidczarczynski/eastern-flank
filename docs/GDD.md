@@ -29,7 +29,7 @@ Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-
 
 1. On their turn, the player gives orders to units (move, attack).
 2. They end the turn; the opponent (AI) takes theirs.
-3. The last side with living units wins – eliminate all enemy units **[ASSUMPTION]** (see Open questions).
+3. The battle ends by its own objectives (`BattleObjectives`, TASK-088, ADR 0016): an optional turn limit and a list of victory conditions per player – `eliminate` (no enemy units left → immediate win), `take_hexes` (own units on all listed hexes at the end of an own turn → immediate win), `hold_hexes` (owns all listed hexes when the turn limit ends the battle; exactly one qualifying player wins, otherwise a **draw**), `destroy_share` (the enemy lost ≥ X % of its starting total HP → immediate win). An objective hex is owned by the last side that **ended a move** on it (passing through does not capture; initial owner from the data). The turn limit ends the battle after the last player's turn of turn `turn_limit`. The default battle keeps "eliminate for both, no turn limit"; the objective test battle is `data/scenarios/objective_battle.tres` (see Open questions: Victory condition).
 
 ## Map
 
@@ -243,8 +243,11 @@ Approved by the human, not implemented yet: the rules above stay valid until [TA
 
 Each question lists the tasks that depend on the answer.
 
-- **Victory condition** (decided 2026-10-30: per-battle `BattleObjectives`, TASK-088 – see "Vision decisions"): elimination of all enemy units is the current **[ASSUMPTION]**. Alternatives: hold objectives, kill the leader, turn limit with points. → TASK-012 uses a harness-only turn limit (draw) and would change if a turn limit becomes a real rule; future scenario tasks.
-- **Turn limit as a game rule?** (decided 2026-10-30: yes, per battle, TASK-088) Not in the game yet; only the AI-vs-AI simulation (TASK-012) stops matches after N turns. → TASK-012.
+- **Victory condition** (decided 2026-10-30: per-battle `BattleObjectives`, implemented in TASK-088 – see "Vision decisions" and "Gameplay loop"): eliminate / take hexes / hold hexes / destroy a share, plus a turn limit with draws. Still open: kill the leader, survive N turns, exit through a map edge, victory points per unit type. Assumptions taken in TASK-088 (ADR 0016) **[ASSUMPTION]**:
+  - elimination is not implicit: a side wiped out while the opponent has no `eliminate` condition does not end the battle; it runs to the turn limit (both shipped battles list `eliminate` for both players, so this is not reachable today);
+  - a strike that ends the battle gets no counterattack (matters for `destroy_share`);
+  - objective battle balance (Poland must take both hexes past the fords by turn 8, Russia holds them at start): AI simulation of 50 matches gave Poland 6 wins, Russia 21, 23 draws – the attacker is weak. Tuning (turn limit, hex placement, a `destroy_share` alternative for the attacker) is open. → TASK-094 (derived objectives), a follow-up balance task.
+- **Turn limit as a game rule?** (decided 2026-10-30: yes, per battle, implemented in TASK-088) The battle ends after the last player's turn of turn `turn_limit`. The simulation (TASK-012) reports such rule draws separately from matches cut by its harness `--max-turns`. → TASK-012.
 - **Randomness in combat** (decided 2026-10-30: per-element rolls, exact calibration, no minimum damage, TASK-089a; numbers in "Combat" → "Per-element rolls"): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.

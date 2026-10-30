@@ -8,7 +8,7 @@ Eastern Flank is a turn-based tactical battle on a hex map. You command **Poland
 
 The two sides field different, real-world equipment with its own stats: Poland has fewer but stronger units, Russia has more of them. Both sides follow exactly the same rules. You and the opponent take turns moving and attacking.
 
-**Goal:** destroy every enemy unit. The last side with units left on the map wins.
+**Goal:** every battle has its own victory conditions and may have a turn limit (see section 8). In the normal battle the goal is to destroy every enemy unit: the last side with units left on the map wins, and there is no turn limit. A second, objective battle (a debug option for now) is about taking and holding two marked hexes within 8 turns.
 
 The game opens in a main menu, where you start the battle, pick the language or browse the units in the unit catalog (see section 12).
 
@@ -35,7 +35,7 @@ The game opens in a main menu, where you start the battle, pick the language or 
 
 At the start of a side's turn, all of its units get their full movement points back and may attack again. Points you don't use are not saved for later.
 
-There is no turn limit.
+The normal battle has no turn limit. A battle with a turn limit (such as the objective battle, limit 8) ends after the last side – Russia – finishes its turn of the final turn; see section 8.
 
 ## 4. Units
 
@@ -140,17 +140,60 @@ Remember that a unit's HP differ too: the Abrams and the squads have 10 HP, the 
 
 ## 8. Victory and defeat
 
-- As soon as one side has no units left, the other side wins. This can also happen through a counterattack.
-- A banner shows **VICTORY** or **DEFEAT**. After that no more orders are accepted. To play again, restart the game.
-- There are no draws and no other victory conditions.
+Each battle sets its own victory conditions and, optionally, a turn limit. The game has two battles: the **normal battle** (what **Start operation** starts) and the **objective battle**.
+
+### Ways to win
+
+- **Eliminate the enemy**: as soon as one side has no units left, the other side wins at once. This can also happen through a counterattack. Both battles have this condition for both sides.
+- **Take the objectives**: if, when you **end your own turn**, one of your units stands on **every** objective hex of the condition, you win at once. It has to be all of them at the same moment, and it is checked only at the end of your own turn – not during it and not during the enemy's turn.
+- **Hold the objectives**: when the turn limit is reached, a side whose condition is to hold the objective hexes wins if it **holds** all of them at that moment (see "Holding a hex" below). Nobody needs to be standing on them.
+- **Destroy a share of the enemy**: a battle can also be won at once by destroying a set share of the enemy's starting total HP (e.g. half). Neither of the current battles uses this condition.
+
+### Holding a hex
+
+- Each objective hex is **held** by one side. At the start the battle decides who holds it.
+- A hex changes hands when a unit **ends a move** on it. Passing through a hex on the way somewhere else does not capture it, and neither does attacking a unit standing on it.
+- The hex stays with the last side that ended a move on it, even after that unit moves away or is destroyed, until an enemy unit ends a move there.
+- Holding and standing on are different: "take" needs your units standing on the hexes at the end of your turn; "hold" only needs the hexes to be yours when the turn limit runs out.
+
+### Turn limit and draws
+
+- With a turn limit, the battle ends when the last side (Russia) finishes its turn of the final turn. Poland therefore gets its last turn first, then Russia gets its last turn.
+- At that moment, if exactly one side meets its hold condition, it wins. Otherwise the battle is a **draw**.
+- The normal battle has no turn limit, so it can't end in a draw.
+
+### The objective battle
+
+- Same map, armies and starting positions as the normal battle, with a **turn limit of 8**.
+- Two **objective hexes** lie on Russia's side of the river, just past its two fords. **Russia holds both** at the start.
+- **Poland (you)** wins by having units standing on **both** objective hexes at the end of one of your turns, or by eliminating every Russian unit.
+- **Russia** wins by still holding **both** hexes when turn 8 ends, or by eliminating every Polish unit.
+- Anything else when turn 8 ends – for example Poland has taken one hex, or holds both but no longer stands on both – is a **draw**.
+- To play it, start the game with `--scenario=objective_battle` (for example `tools/run_windows.sh --scenario=objective_battle` or `tools/run.sh --scenario=objective_battle`), then pick **Start operation**. Without the option you get the normal battle.
+
+### The end of the battle
+
+- A banner shows **VICTORY**, **DEFEAT** or **DRAW**, the turn it ended on (e.g. "TURN 05", or "TURN 05 / 08" in a battle with a turn limit) and why it ended:
+
+  | Why | Your victory | Your defeat or a draw |
+  |---|---|---|
+  | All enemy units destroyed | ENEMY ELIMINATED | OUR FORCES ELIMINATED |
+  | A share of the enemy destroyed | ENEMY DESTROYED | OUR FORCES DESTROYED |
+  | Objectives taken | OBJECTIVES TAKEN | OBJECTIVES LOST |
+  | Turn limit | TURN LIMIT REACHED | TURN LIMIT REACHED |
+
+- An attack that ends the battle is not answered by a counterattack.
+- After the banner no more orders are accepted. To play again, restart the game.
 
 ## 9. The opponent
 
 Russia is played by a simple computer opponent that follows the same rules as you. Each turn, every one of its units moves towards the nearest of your units and attacks the weakest unit it can reach (the one with the fewest HP). Its rocket artillery tries to stay at its full range from your nearest unit (5 hexes for the Uragan), so it can fire without being hit back.
 
+In the objective battle it also minds the objective hexes: a unit standing on one stays there (it still attacks whatever it can reach), and a unit whose nearest objective hex without a Russian unit on it is no farther away than your nearest unit heads for that hex instead of for you.
+
 ## 10. Screen
 
-- **Top bar**: a bar hanging from the top edge, with a tick ruler under it. The turn number is in the centre, with the side whose turn it is ("▸ POLAND"). On each side: a hexagonal badge with the side's short code (PL for Poland, RU for Russia), its name, its status (ACTIVE / WAITING) and how many units it has. The active side is lit and has a hatched bar under it in its colour; the waiting side is dimmed.
+- **Top bar**: a bar hanging from the top edge, with a tick ruler under it. The turn number is in the centre (e.g. "01"; in a battle with a turn limit followed by the limit in smaller type, e.g. "01/08"), with the side whose turn it is ("▸ POLAND"). On each side: a hexagonal badge with the side's short code (PL for Poland, RU for Russia), its name, its status (ACTIVE / WAITING) and how many units it has. The active side is lit and has a hatched bar under it in its colour; the waiting side is dimmed.
 - **Bottom right**: a row of key hints (only keys the game has, see Controls), the **READY** counter (your units that can still do something / all your units, one block per unit: filled = can still act) and the **End turn** button in your side's colour. The button is greyed out while animations play and during the enemy turn.
 - **Unit card**: hover any unit (yours or the enemy's) to open its card next to the cursor (it moves to the left of the cursor near the right screen edge, and always stays below the top bar). The card is framed in the unit's side colour. From top to bottom:
   - **Tab**: the unit's class (INFANTRY, TANK or ROCKET ARTILLERY) on the left and its side (POLAND / RUSSIA) on the right.
@@ -164,6 +207,7 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 - **Selection**: selecting a unit outlines the area it can reach in your colour and slightly darkens the rest of the map; the tile under the cursor is tinted when the unit can move there. Water is never darkened, and unreachable tiles inside the area (such as a lake) get their own outline.
 - **Beyond the map edge**: the land around the map (a little greyer and paler, with trees on HIGH graphics) is scenery only. You can't hover or click tiles there, units can't go there, and the camera can't be panned off the map.
 - **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
+- **Objective hexes** (only in a battle that has them): each is outlined by a coloured ring along its edge, with a small flag on a pole near one corner and an **OBJECTIVE** tag above the flag (visible even over forest). Ring, flag and the tag's tab are in the colour of the side that holds the hex (red for Russia, blue for Poland) and change colour when the hex is captured.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
 - **Ground marks**: tanks leave dark tread marks and rocket artillery trucks thinner tyre marks behind them as they move, rocket strikes leave small craters and a scorched patch around the target, and a destroyed unit leaves a scorched patch on its tile. They are only decoration – they don't change movement or defense. Old marks fade away to make room for new ones (fewer are kept on LOW graphics).
@@ -227,4 +271,4 @@ While Deploy, Raise launcher, Traverse or Fire is running, the other pose button
 
 ## 13. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, an options or graphics settings menu, and saving/loading a match to continue later.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.

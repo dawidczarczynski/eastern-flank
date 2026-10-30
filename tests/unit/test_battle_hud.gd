@@ -120,3 +120,22 @@ func _collect_mouse_takers(node: Node, out: Array[String]) -> void:
 
 func _t(key: String) -> String:
 	return String(TranslationServer.translate(key))
+
+
+func test_turn_limit_stays_a_small_suffix_on_the_result_screen() -> void:
+	var no_conditions: Array[VictoryCondition] = []
+	_state.set_objectives(Fixtures.objectives(8, [], [], no_conditions))
+	_state.turn = 8
+	_state.finish(-1, &"turn_limit")
+	_hud.refresh(_state)
+	assert_eq((_find("TurnNumber") as Label).text, "08")
+	assert_eq((_find("TurnLimit") as Label).text, "/08")
+	var banner := _find("TurnBanner") as TurnBanner
+	assert_eq(banner.caption_text(), ("%s 08 / 08" % _t("TURN")).to_upper())
+	assert_eq(banner.subtitle_text(), _t("TURN LIMIT REACHED").to_upper())
+
+
+func test_no_turn_limit_hides_the_suffix() -> void:
+	_hud.refresh(_state)
+	assert_eq((_find("TurnLimit") as Label).text, "")
+	assert_false((_find("TurnLimit") as Control).get_parent().visible)

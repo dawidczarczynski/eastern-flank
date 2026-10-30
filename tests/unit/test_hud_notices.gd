@@ -41,14 +41,14 @@ func test_turn_banner_shows_names_the_side_and_hides_after_the_timer() -> void:
 
 func test_result_banner_replaces_the_turn_banner_and_stays() -> void:
 	_hud.on_turn_started(_state, 1, 1)
-	_state.winner = 0
+	_state.finish(0, &"eliminated")
 	_hud.refresh(_state)
 	assert_true(_banner().visible)
 	assert_true(_banner().held)
 	assert_eq(_banner().title_text(), _t("VICTORY").to_upper())
 	_banner().advance(5.0)
 	assert_true(_banner().visible)
-	_state.winner = -1
+	_state.finish(-1, &"")
 	_hud.refresh(_state)
 	assert_false(_banner().visible)
 

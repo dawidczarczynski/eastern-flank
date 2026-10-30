@@ -1,9 +1,10 @@
 extends RefCounted
 ## Pure argument parsing for tools/simulate.gd (no engine state, tested headless).
 ## Usage: SimulateOptions.parse(["100", "--seed=5", "--max-turns=30", "--factions=russia,poland",
-##                               "--verbose"])
-## -> {"count", "seed", "max_turns", "factions", "verbose", "error"}; "error" is "" on success.
-## "--factions=<p0>,<p1>" takes exactly two known faction ids (FactionRegistry).
+##                               "--scenario=objective_battle", "--verbose"])
+## -> {"count", "seed", "max_turns", "factions", "scenario", "verbose", "error"}; "error" is "" on
+## success. "--factions=<p0>,<p1>" takes exactly two known faction ids (FactionRegistry);
+## "--scenario=<name>" one of Scenario.NAMES (default "default_battle").
 
 const DEFAULT_SEED := 1
 const DEFAULT_MAX_TURNS := 50
@@ -15,6 +16,7 @@ static func parse(args: PackedStringArray) -> Dictionary:
 		"seed": DEFAULT_SEED,
 		"max_turns": DEFAULT_MAX_TURNS,
 		"factions": FactionRegistry.DEFAULT_IDS.duplicate(),
+		"scenario": "default_battle",
 		"verbose": false,
 		"error": "",
 	}
@@ -37,6 +39,11 @@ static func parse(args: PackedStringArray) -> Dictionary:
 			if factions.is_empty():
 				return _with_error(result, "invalid_factions")
 			result["factions"] = factions
+		elif arg.begins_with("--scenario="):
+			var scenario := arg.substr("--scenario=".length())
+			if not Scenario.NAMES.has(scenario):
+				return _with_error(result, "invalid_scenario")
+			result["scenario"] = scenario
 		elif arg.begins_with("-") and not arg.is_valid_int():
 			return _with_error(result, "unknown_option")
 		elif have_count or not arg.is_valid_int() or arg.to_int() < 1:

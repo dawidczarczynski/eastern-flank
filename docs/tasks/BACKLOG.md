@@ -56,7 +56,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-033](TASK-033-mlrs-model-v2.md) | First detailed rocket artillery + reusable truck/launcher parts – `unit-modeler` | 🔵 done (superseded by `/model-unit homar_k`, `bm27_uragan`) | – |
 | [TASK-034](TASK-034-unit-portraits.md) | Unit portraits in the hover popup (`SubViewport`) | 🔵 done | **TASK-021** (soft: TASK-062, TASK-067, TASK-054) |
 | [TASK-086](TASK-086-two-layer-architecture.md) | Two-layer architecture (ADR): operational simulation next to the tactical one, `BattleSetup` / `BattleResult` hand-off, campaign save, scene flow | 🔵 done | – (soft: TASK-088) |
-| [TASK-088](TASK-088-battle-objectives.md) | Per-battle victory conditions and turn limit (`BattleObjectives`: hold / take hexes, destroy share, eliminate; draws) | 🟢 ready | – (soft: TASK-086) |
+| [TASK-088](TASK-088-battle-objectives.md) | Per-battle victory conditions and turn limit (`BattleObjectives`: hold / take hexes, destroy share, eliminate; draws) | 🔵 done | – (soft: TASK-086) |
 | [TASK-091](TASK-091-command-points.md) | Command points – tactical C2 delay (N activations per turn, `no_command_points`) | 🟢 ready | – (soft: TASK-086) |
 | [TASK-087](TASK-087-real-map-import.md) | Maps from real geography: sources + licences, hex scales, offline import tool (OSM + DEM → `data/maps/`), sample real battle (study first) | 🟢 ready | – (soft: TASK-086) |
 | [TASK-089a](TASK-089a-company-combat-rolls.md) | Company combat: per-element rolls, weaker when battered, `forecast()` API, AI by expected value, simulation before/after | 🟢 ready | – (soft: TASK-088) |

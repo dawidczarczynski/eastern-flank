@@ -71,3 +71,23 @@ static func generic_tank() -> UnitDefinition:
 	definition.defense = 2
 	definition.attack_range = 1
 	return definition
+
+
+## Victory condition of `kind` (VictoryCondition.Kind) for `player` (-1 = both).
+static func condition(
+	kind: VictoryCondition.Kind, player: int, hexes: Array[Vector2i] = [], share_percent: int = 0
+) -> VictoryCondition:
+	return VictoryCondition.make(kind, player, hexes, share_percent)
+
+
+## BattleObjectives with `turn_limit`, objective `hexes` (initial owners parallel to them,
+## -1 = neutral) and `conditions`.
+static func objectives(
+	turn_limit: int, hexes: Array[Vector2i], owners: Array[int], conditions: Array[VictoryCondition]
+) -> BattleObjectives:
+	var result := BattleObjectives.new()
+	result.turn_limit = turn_limit
+	result.hexes = hexes
+	result.initial_owners = owners
+	result.conditions = conditions
+	return result

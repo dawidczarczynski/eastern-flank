@@ -99,7 +99,9 @@
 		"turn": 10,
 		"current_player": 1,
 		"winner": 1,
+		"end_reason": "eliminated",
 		"rng_state": "-7751912382566491497",
+		"objectives": [],
 		"units": [
 			{"id":1,"owner":0,"definition":"pl_mech_infantry","coord":[6,1],"hp":0,"moves_left":0,"has_attacked":true},
 			{"id":2,"owner":0,"definition":"m1a2_sepv3","coord":[4,6],"hp":0,"moves_left":0,"has_attacked":true},
