@@ -39,6 +39,8 @@ MAX_SESSIONS = 40
 MAX_IDLE_PROCESSES = 4  # idle Claude processes kept alive; older ones stop and resume on their next message
 SAVE_EVERY = 2.0  # seconds between state file writes while a session streams
 INTERRUPT_GRACE = 8.0  # seconds a Stop waits for the turn to end before the process is killed
+TASK_SHOWN_FOR = 30.0  # seconds a finished subagent / background task stays in the panel
+TASK_DONE = ("completed", "failed", "killed", "stopped", "cancelled", "error")
 CLOSED_STATUSES = ("done", "merged", "idea")  # tasks the backlog button does not implement
 PERMISSION_MODE = "auto"  # what the human uses in the IDE
 
@@ -142,6 +144,7 @@ class Session:
         self.proc: Optional[Any] = None
         self.busy = False  # a turn is running
         self.pending: Dict[str, Dict[str, Any]] = {}  # request id → permission prompt / question waiting for the human
+        self.tasks: Dict[str, Dict[str, Any]] = {}  # task id → subagent / background task (running or just finished)
         self.stop_requested = False
         self.used = self.created  # last time a message was sent (which idle process stops first)
 
@@ -167,15 +170,49 @@ class Session:
                 "session_id": self.session_id, "cost_usd": self.cost_usd, "created": self.created,
                 "updated": self.updated, "error": self.error, "log_size": self.log_offset + len(self.log),
                 "changed": len(self.changed_files), "context_tokens": self.context_tokens,
-                "context_window": self.context_window, "pending": len(self.pending)}  # fmt: skip
+                "context_window": self.context_window, "pending": len(self.pending),
+                "agents": sum(1 for t in self.tasks.values() if t["status"] == "running")}  # fmt: skip
 
     def detail(self, since: int = 0) -> Dict[str, Any]:
         start = max(0, since - self.log_offset)
         out = self.summary()
         out.update(log=self.log[start:], log_from=self.log_offset + start, changed_files=self.changed_files,
-                   pending_requests=list(self.pending.values()),
+                   pending_requests=list(self.pending.values()), tasks=self.visible_tasks(),
                    resume_command="claude --resume %s" % self.session_id if self.session_id else "")  # fmt: skip
         return out
+
+    def track_task(self, event: str, msg: Dict[str, Any]) -> None:
+        """Follow the CLI's task events. Shown: subagents, and background tasks the main agent started."""
+        task_id = str(msg.get("task_id") or "")
+        if not task_id:
+            return
+        if event == "task_started":
+            agent = msg.get("task_type") == "local_agent"
+            if not agent and (not msg.get("is_backgrounded") or msg.get("owned_by_subagent")):
+                return  # a foreground command, or one a subagent runs: its tool line says enough
+            self.tasks[task_id] = {
+                "id": task_id, "agent": agent, "type": str(msg.get("subagent_type") or msg.get("task_type") or "task"),
+                "description": str(msg.get("description") or ""), "background": bool(msg.get("is_backgrounded")),
+                "depth": int(msg.get("spawn_depth") or 1), "started": time.time(), "activity": "", "tokens": None,
+                "tool_uses": None, "status": "running", "finished": None,
+            }  # fmt: skip
+            return
+        task = self.tasks.get(task_id)
+        if task is None:
+            return
+        if event == "task_progress":
+            usage = msg.get("usage") if isinstance(msg.get("usage"), dict) else {}
+            task.update(activity=str(msg.get("description") or ""), tokens=usage.get("total_tokens"), tool_uses=usage.get("tool_uses"))
+        status = (msg.get("patch") or {}).get("status") if event == "task_updated" else msg.get("status") if event == "task_notification" else None
+        if status in TASK_DONE and task["status"] == "running":
+            task.update(status=status, finished=time.time())
+
+    def visible_tasks(self) -> List[Dict[str, Any]]:
+        """Running tasks, plus the ones that finished in the last few seconds (dropped after that)."""
+        now = time.time()
+        for task_id in [k for k, t in self.tasks.items() if t["finished"] and now - t["finished"] > TASK_SHOWN_FOR]:
+            del self.tasks[task_id]
+        return sorted(self.tasks.values(), key=lambda t: t["started"])
 
     def to_dict(self) -> Dict[str, Any]:
         out = {key: getattr(self, key) for key in self.STORED}
@@ -453,6 +490,9 @@ class ChatManager:
                         if kind == "usage":
                             s.context_tokens = entry["context_tokens"]
                             continue
+                        if kind == "task":
+                            s.track_task(entry["event"], entry["msg"])
+                            continue
                         if entry.get("session_id"):
                             s.session_id = entry["session_id"]
                         if entry.get("init"):  # every turn starts with one - also turns the agent starts itself
@@ -469,8 +509,10 @@ class ChatManager:
                             s.pending.clear()
                             turn_ended = True
                             s.context_window = entry.get("context_window") or s.context_window
-                            s.add({"kind": "turn", "is_error": entry["is_error"], "cost_usd": s.cost_usd,
-                                   "text": entry["text"] if entry["is_error"] else ""})  # fmt: skip
+                            # a background task's notice may open an empty turn: no second marker for it
+                            if entry["is_error"] or not s.log or s.log[-1]["kind"] != "turn":
+                                s.add({"kind": "turn", "is_error": entry["is_error"], "cost_usd": s.cost_usd,
+                                       "text": entry["text"] if entry["is_error"] else ""})  # fmt: skip
                         else:
                             entry.pop("session_id", None)
                             s.add(entry)
@@ -490,6 +532,7 @@ class ChatManager:
             if s.proc is proc:
                 s.busy = False
                 s.pending.clear()
+                s.tasks.clear()  # the process took its subagents with it
                 if s.stop_requested:
                     s.add({"kind": "info", "text": "process stopped - send a message to continue (resumes the session)"})
                 elif code != 0:

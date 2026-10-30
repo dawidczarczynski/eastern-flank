@@ -72,6 +72,23 @@ for line in sys.stdin:
         time.sleep(60)
     if text == "crash":
         sys.exit(3)
+    if text == "agents":
+        def sysev(sub, **kw):
+            out(dict({"type": "system", "subtype": sub, "session_id": sid, "uuid": "u"}, **kw))
+        sysev("task_started", task_id="fg", tool_use_id="t1", task_type="local_agent", subagent_type="gameplay-engineer",
+              description="core rules", is_backgrounded=False, spawn_depth=1, prompt="long prompt")
+        sysev("task_started", task_id="bg", tool_use_id="t2", task_type="local_agent", subagent_type="reviewer",
+              description="review", is_backgrounded=True, spawn_depth=1)
+        sysev("task_started", task_id="sh", task_type="local_bash", description="tools/check.sh", is_backgrounded=False,
+              owned_by_subagent=True, parent_task_id="fg")
+        sysev("task_progress", task_id="fg", description="Running tools/test.sh", last_tool_name="Bash",
+              usage={"total_tokens": 1234, "tool_uses": 3, "duration_ms": 900})
+        sysev("task_updated", task_id="fg", patch={"status": "completed", "end_time": 1})
+    if text == "empty-turn":  # a background task's notice opens a turn with nothing in it
+        finish("echo: " + text)
+        out({"type": "system", "subtype": "init", "session_id": sid, "model": "fake"})
+        out({"type": "result", "result": "", "is_error": False, "total_cost_usd": cost, "session_id": sid})
+        continue
     if text == "/compact":
         out({"type": "user", "message": {"content": "<local-command-stdout>Compacted </local-command-stdout>"}})
         out({"type": "result", "result": "", "is_error": False, "total_cost_usd": cost, "session_id": sid})
@@ -208,6 +225,13 @@ class ChatManagerTest(ChatTestBase):
         self.assertEqual(len(self.launches()), 1)
         self.assertEqual(sum(1 for e in m.get(s["id"])["log"] if e["kind"] == "info"), 1, "init shown once per process")
 
+    def test_an_empty_turn_adds_no_second_marker(self) -> None:
+        m = self.manager()
+        s = m.create(text="empty-turn")
+        self.assertTrue(_wait(lambda: m.get(s["id"])["log"][-1]["kind"] == "turn" and self.state(m, s["id"]) == "idle"))
+        time.sleep(0.2)
+        self.assertEqual([e["kind"] for e in m.get(s["id"])["log"]].count("turn"), 1)
+
     def test_slash_commands_come_from_initialize_and_run_as_messages(self) -> None:
         m = self.manager()
         s = m.create(text="/compact")
@@ -318,6 +342,24 @@ class ChatManagerTest(ChatTestBase):
         s = m.create(text="crash")
         self.assertTrue(m.wait_state(s["id"], ("failed",)))
         self.assertIn("code 3", m.get(s["id"])["error"])
+
+    def test_subagents_and_background_tasks_are_followed(self) -> None:
+        m = self.manager()
+        s = m.create(text="agents")
+        self.assertTrue(_wait(lambda: m.get(s["id"])["log"][-1]["kind"] == "turn"))
+        d = m.get(s["id"])
+        tasks = {t["id"]: t for t in d["tasks"]}
+        self.assertEqual(sorted(tasks), ["bg", "fg"], "a subagent's own foreground command is not listed")
+        self.assertEqual((tasks["fg"]["type"], tasks["fg"]["description"], tasks["fg"]["status"]), ("gameplay-engineer", "core rules", "completed"))
+        self.assertEqual((tasks["fg"]["activity"], tasks["fg"]["tokens"], tasks["fg"]["tool_uses"]), ("Running tools/test.sh", 1234, 3))
+        self.assertEqual((tasks["bg"]["status"], tasks["bg"]["background"]), ("running", True), "outlives the turn")
+        self.assertEqual((d["state"], d["agents"]), ("idle", 1))
+        self.assertFalse([e for e in d["log"] if e["kind"] == "task"])
+        with mock.patch.object(chat, "TASK_SHOWN_FOR", 0.0):
+            time.sleep(0.01)
+            self.assertEqual([t["id"] for t in m.get(s["id"])["tasks"]], ["bg"], "finished ones drop out")
+        m.shutdown()
+        self.assertTrue(_wait(lambda: m.get(s["id"])["tasks"] == []), "the process took its subagents with it")
 
     def test_usage_limits_and_context_are_tracked_not_logged(self) -> None:
         state = self.root / ".devtools" / "chats.json"

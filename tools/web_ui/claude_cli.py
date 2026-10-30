@@ -16,6 +16,10 @@ SESSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,63}$")  # no leading dash: 
 # the CLI's long permission refusals: a permission rule / dontAsk mode, and the auto mode classifier
 DENIED_RE = re.compile(r"^Permission to use (\S+)(?: with command (.+?))? has been denied(.*)", re.S)
 CLASSIFIER_RE = re.compile(r"^Permission for this action was denied by the Claude Code auto mode classifier\. Reason: \[?([^\]\n]+?)\]?\.")
+# subagents and background tasks: the CLI's system events about them, and the fields the chat keeps
+TASK_EVENTS = ("task_started", "task_progress", "task_updated", "task_notification")
+TASK_FIELDS = ("task_id", "tool_use_id", "task_type", "subagent_type", "description", "is_backgrounded", "spawn_depth",
+               "owned_by_subagent", "parent_task_id", "usage", "last_tool_name", "patch", "status")  # fmt: skip
 VSCODE_GLOB = "~/.vscode-server/extensions/anthropic.claude-code-*/resources/native-binary/claude"
 
 
@@ -96,8 +100,9 @@ def parse_stream_line(line: str, detail: bool = False) -> List[Dict[str, Any]]:
     (the subscription's usage windows: `{"status", "windows": {"five_hour": {"utilization", "resets_at"}, ...}}`).
 
     With `detail` (the devtools chat): tool entries carry their `id` and (clipped) `input`, every tool result is a
-    `tool_result` entry, CLI notices (slash command output, compaction, interrupts) become `info`, `system` turn
-    starts are marked `turn_start`, and the control protocol comes through as `control` entries (`msg`)."""
+    `tool_result` entry, CLI notices (slash command output, compaction, interrupts) become `info`, subagent and
+    background task events are `task` entries (`event`, `msg`), and the control protocol comes through as `control`
+    entries (`msg`)."""
     line = line.strip()
     if not line:
         return []
@@ -114,6 +119,8 @@ def parse_stream_line(line: str, detail: bool = False) -> List[Dict[str, Any]]:
     if mtype == "system" and msg.get("subtype") == "init":
         return [{"kind": "info", "text": "session %s started (%s)" % (msg.get("session_id", "?"), msg.get("model", "?")),
                  "session_id": msg.get("session_id"), "init": True}]  # fmt: skip
+    if mtype == "system" and detail and msg.get("subtype") in TASK_EVENTS:
+        return [{"kind": "task", "event": msg["subtype"], "msg": {k: msg[k] for k in TASK_FIELDS if k in msg}}]
     if mtype == "system" and detail and msg.get("subtype") == "status" and msg.get("status") == "compacting":
         return [{"kind": "info", "text": "compacting the conversation…"}]
     if mtype == "rate_limit_event":

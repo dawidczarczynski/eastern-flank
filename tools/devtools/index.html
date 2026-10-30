@@ -78,7 +78,11 @@
     </div>
     <div class="chat-main">
       <div id="chat-head" class="chat-head"></div>
-      <div id="chat-log" class="chat-log"></div>
+      <div id="chat-agents" class="chat-agents" hidden></div>
+      <div class="chat-log-wrap">
+        <div id="chat-log" class="chat-log"></div>
+        <button id="chat-latest" type="button" class="btn sm chat-latest" hidden title="Jump to the latest message (End)">↓ Latest</button>
+      </div>
       <details id="chat-files" class="chat-files" hidden><summary></summary><pre></pre></details>
       <ul id="chat-commands" class="chat-commands" hidden></ul>
       <form id="chat-form" class="composer">

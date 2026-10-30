@@ -387,7 +387,8 @@ function renderChatList() {
   $("#chat-sessions").innerHTML = chats.map((c) =>
     '<li data-chat="' + esc(c.id) + '" class="' + (selectedChat && selectedChat.id === c.id ? "selected" : "") + '">' +
     '<span class="chat-dot ' + c.state + '"></span><span class="name">' + esc(c.title) + '</span><span class="time">' +
-    (c.state === "working" || c.state === "asking" ? CHAT_STATE[c.state] : ago(c.updated)) + (c.cost_usd ? " · " + money(c.cost_usd) : "") + "</span></li>").join("") ||
+    (c.state === "working" || c.state === "asking" ? CHAT_STATE[c.state] : ago(c.updated)) + (c.agents ? " · " + c.agents + " agent" + (c.agents === 1 ? "" : "s") : "") +
+    (c.cost_usd ? " · " + money(c.cost_usd) : "") + "</span></li>").join("") ||
     '<li class="muted empty-li">No chats yet.</li>';
   if (!selectedChat) renderChatHead(null);
 }
@@ -491,9 +492,51 @@ function renderChatHead(c) {
     (c.state === "working" || c.state === "asking" ? '<button type="button" class="btn danger sm" id="chat-stop" title="Interrupt the turn (like Esc) – the session stays">■ Stop</button>' : "") + "</div>";
 }
 
+function renderAgents(c) {
+  // subagents and background tasks: shown while they run (and a few seconds after), outside the scrolling log
+  const box = $("#chat-agents");
+  const tasks = c.tasks || [];
+  box.hidden = !tasks.length;
+  if (!tasks.length) { box.innerHTML = ""; return; }
+  const running = tasks.filter((t) => t.status === "running").length;
+  box.innerHTML = '<div class="agents-head eyebrow">' + (running ? running + " running" : "finished") + "</div>" + tasks.map((t) => {
+    const done = t.status !== "running";
+    const stats = [t.tool_uses ? t.tool_uses + " tool use" + (t.tool_uses === 1 ? "" : "s") : "", t.tokens ? tokens(t.tokens) + " tokens" : "",
+      seconds((t.finished || now()) - t.started)].filter(Boolean).join(" · ");
+    return '<div class="agent ' + (done ? "done " + t.status : "running") + '" style="--depth: ' + Math.max(0, t.depth - 1) + '">' +
+      (done ? '<span class="st ' + (t.status === "completed" ? "ok" : "failed") + '">' + (t.status === "completed" ? "✓" : "✕") + "</span>" : '<span class="spinner"></span>') +
+      '<span class="agent-type">' + esc(t.agent ? t.type : "background " + t.type.replace(/^local_/, "")) + "</span>" +
+      (t.background ? '<span class="tag">background</span>' : "") +
+      '<span class="agent-desc">' + esc(t.description) + "</span>" +
+      '<span class="agent-stats">' + esc(stats) + "</span>" +
+      '<span class="agent-activity">' + esc(done ? t.status : t.activity || "starting…") + "</span></div>";
+  }).join("");
+}
+
+const logAtBottom = () => { const log = $("#chat-log"); return log.scrollTop + log.clientHeight >= log.scrollHeight - 60; };
+let unseen = 0; // entries that arrived while the log was scrolled up
+
+function updateLatest() {
+  const button = $("#chat-latest");
+  if (logAtBottom()) unseen = 0;
+  button.hidden = logAtBottom();
+  button.textContent = unseen ? "↓ " + unseen + " new" : "↓ Latest";
+  button.classList.toggle("fresh", unseen > 0);
+}
+
+function scrollToLatest() {
+  const log = $("#chat-log");
+  log.scrollTo({ top: log.scrollHeight, behavior: "smooth" });
+  unseen = 0;
+  updateLatest();
+}
+
 function renderChatBody(c, fresh) {
   const log = $("#chat-log");
-  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 60;
+  const atBottom = logAtBottom();
+  renderAgents(c);
+  if (fresh) unseen = 0;
+  else if (!atBottom) unseen += c.log.filter((e) => ["text", "user", "ask", "turn"].includes(e.kind)).length;
   if (fresh) log.innerHTML = "";
   log.querySelectorAll(".thinking").forEach((t) => t.remove());
   c.log.forEach((e) => { const el = chatEntry(e, c); if (el) log.appendChild(el); });
@@ -512,6 +555,7 @@ function renderChatBody(c, fresh) {
     log.appendChild(thinking);
   }
   if (atBottom || fresh || (c.state === "asking" && c.log.length)) log.scrollTop = log.scrollHeight;
+  updateLatest();
   const files = $("#chat-files");
   files.hidden = !c.changed_files.length;
   files.querySelector("summary").textContent = c.changed_files.length + " changed file" + (c.changed_files.length === 1 ? "" : "s") + " in the working tree (git status)";
@@ -525,6 +569,8 @@ function selectChat(id) {
   selectedChat = id ? { id, next: 0, timer: null } : null;
   renderChatList();
   if (!id) {
+    renderAgents({});
+    $("#chat-latest").hidden = true;
     $("#chat-log").innerHTML = '<div class="empty">' + (chatInfo.available ? "Ask anything – Claude works in this repository, with the same settings as in your editor." : esc(chatInfo.hint)) + "</div>";
     $("#chat-files").hidden = true;
     $("#chat-send").disabled = !chatInfo.available;
@@ -543,7 +589,7 @@ async function pollChat(fresh) {
   sel.next = c.log_from + c.log.length;
   renderChatHead(c);
   renderChatBody(c, fresh);
-  sel.timer = setTimeout(() => pollChat(false), c.state === "working" ? 700 : 2000);
+  sel.timer = setTimeout(() => pollChat(false), c.state === "working" ? 700 : c.agents ? 1000 : 2000);
 }
 
 function refreshChat() {
@@ -676,6 +722,11 @@ $("#chat-commands").addEventListener("mousedown", (ev) => {
   if (li) { ev.preventDefault(); pickCommand(li.dataset.commandName); }
 });
 $("#chat-new").addEventListener("click", () => selectChat(null));
+$("#chat-log").addEventListener("scroll", updateLatest);
+$("#chat-latest").addEventListener("click", scrollToLatest);
+document.addEventListener("keydown", (ev) => {
+  if (tab === "chat" && ev.key === "End" && !ev.target.closest("input, textarea, select")) { ev.preventDefault(); scrollToLatest(); }
+});
 $("#chat-steps").addEventListener("change", (ev) => $("#chat-log").classList.toggle("no-steps", !ev.target.checked));
 $("#chat-sessions").addEventListener("click", (ev) => {
   const li = ev.target.closest("[data-chat]");
