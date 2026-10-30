@@ -145,6 +145,15 @@ COMMANDS: List[Dict[str, Any]] = [
         "images": lambda p: [".screenshots/units/%s_*_sheet.png" % p["unit"]],
     },
     {
+        "id": "teaser", "group": "Visual", "label": "Homar teaser video",
+        "script": "tools/teaser.sh",
+        "description": "One-off promo clip (~16 s): the Homar-K's salvo destroys the T-72B3, cinematic camera, logo at the end – "
+                       "writes .screenshots/teaser/homar_teaser.avi (MJPEG, play in VLC), ~2 min at 1080p60",
+        "params": [_param("resolution", "choice", "resolution", "1920x1080", choices=lambda: ["1920x1080", "2560x1440", "1280x720"]),
+                   _param("fps", "choice", "fps", "60", choices=lambda: ["60", "30"])],
+        "argv": lambda p: ["tools/teaser.sh", "--resolution=" + p["resolution"], "--fps=" + p["fps"]],
+    },
+    {
         "id": "play", "group": "Game", "label": "Play", "script": "tools/run_windows.sh / tools/run.sh", "description": "Start the game window",
         "exclusive": False,
         "params": [BUILD,
