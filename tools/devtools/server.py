@@ -3,7 +3,8 @@
 
 Starts the web tools (backlog viewer, unit catalog) as child processes – or reuses ones already running –
 and shows them as tabs; runs the command-line tools (check, tests, simulation, screenshots, render, game)
-as jobs with live output and the images they wrote. Binds to 127.0.0.1 only.
+as jobs with live output and the images they wrote; hosts the Claude chat (chat.py, ADR 0017). Binds to
+127.0.0.1 only; foreign Host headers are refused, and POSTs need a JSON content type and a same-origin Origin.
 """
 from __future__ import annotations
 
@@ -15,9 +16,11 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlsplit
+from urllib.request import urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
+import chat  # noqa: E402
 import registry  # noqa: E402
 import runner  # noqa: E402
 import static  # noqa: E402
@@ -39,6 +42,7 @@ class Handler(BaseHTTPRequestHandler):
     repo_root: Path = registry.REPO_ROOT
     services: Dict[str, runner.Service] = {}
     jobs: Any = None  # runner.JobRunner
+    chat: Any = None  # chat.ChatManager
 
     def log_message(self, fmt: str, *args: Any) -> None:  # keep the console quiet
         pass
@@ -62,7 +66,24 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send(200, path.read_bytes(), "image/png")
 
+    def _host_ok(self) -> bool:
+        """Reject foreign Host headers (DNS rebinding protection)."""
+        host = (self.headers.get("Host") or "").rsplit(":", 1)[0].strip("[]")
+        return host in ("localhost", "127.0.0.1", "")
+
+    def _csrf_ok(self) -> bool:
+        """POSTs need a JSON content type and, if sent, this page's Origin (another site can't start a job or a chat)."""
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            return False
+        origin = self.headers.get("Origin")
+        port = self.server.server_address[1]
+        return origin is None or origin in ("http://localhost:%d" % port, "http://127.0.0.1:%d" % port)
+
     def do_GET(self) -> None:  # noqa: N802 (http.server API)
+        if not self._host_ok():
+            self._json({"error": "forbidden host"}, 403)
+            return
         url = urlsplit(self.path)
         path = unquote(url.path)
         query = parse_qs(url.query)
@@ -82,6 +103,17 @@ class Handler(BaseHTTPRequestHandler):
             since = int(query.get("since", ["0"])[0] or 0)
             job = self.jobs.get(path[len("/api/jobs/") :], since)
             self._json(job if job else {"error": "unknown job"}, 200 if job else 404)
+        elif path == "/api/chat":
+            self._json(dict(self.chat.status(), sessions=self.chat.list()))
+        elif path == "/api/chat/busy":
+            what = self.chat.busy()
+            self._json({"busy": what is not None, "what": what or ""})
+        elif path.startswith("/api/chat/"):
+            since = query.get("since", ["0"])[0]
+            try:
+                self._json(self.chat.get(path[len("/api/chat/") :], int(since) if since.isdigit() else 0))
+            except chat.ChatError as exc:
+                self._json({"error": exc.message}, exc.status)
         elif path.startswith("/files/"):
             self._image(path[len("/files/") :])
         elif path == "/theme.css":
@@ -92,6 +124,9 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "not found"}, 404)
 
     def do_POST(self) -> None:  # noqa: N802 (http.server API)
+        if not self._host_ok() or not self._csrf_ok():
+            self._json({"error": "POST needs Content-Type: application/json and a localhost Origin"}, 403)
+            return
         path = unquote(urlsplit(self.path).path)
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_BODY:
@@ -102,8 +137,13 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             self._json({"error": "invalid JSON"}, 400)
             return
+        if not isinstance(body, dict):
+            self._json({"error": "body must be a JSON object"}, 400)
+            return
         parts = path.strip("/").split("/")  # api, <kind>, <id>, [action]
-        if parts[:2] == ["api", "jobs"] and len(parts) == 2:
+        if parts[:2] == ["api", "chat"]:
+            self._chat_post(parts[2:], body)
+        elif parts[:2] == ["api", "jobs"] and len(parts) == 2:
             command = registry.find(str(body.get("command", "")))
             if command is None:
                 self._json({"error": "unknown command"}, 404)
@@ -131,8 +171,43 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "not found"}, 404)
 
 
-def make_handler(repo_root: Path, services: Dict[str, runner.Service], jobs: runner.JobRunner) -> type:
-    return type("DevtoolsHandler", (Handler,), {"repo_root": repo_root, "services": services, "jobs": jobs})
+    def _chat_post(self, parts: List[str], body: Dict[str, Any]) -> None:
+        try:
+            if not parts:
+                if body.get("task") is not None:
+                    out = self.chat.create(task=body.get("task"))
+                else:
+                    out = self.chat.create(text=body.get("text"))
+                self._json(out, 200 if out.get("existing") else 201)
+            elif len(parts) == 2 and parts[1] == "send":
+                self._json(self.chat.send(parts[0], body.get("text")))
+            elif len(parts) == 2 and parts[1] == "stop":
+                self._json(self.chat.stop(parts[0]))
+            else:
+                self._json({"error": "not found"}, 404)
+        except chat.ChatError as exc:
+            self._json({"error": exc.message}, exc.status)
+        except Exception as exc:  # pragma: no cover - answer instead of dropping the connection
+            self._json({"error": "internal error: %s" % exc}, 500)
+
+
+def make_handler(repo_root: Path, services: Dict[str, runner.Service], jobs: runner.JobRunner,
+                 chats: Optional[chat.ChatManager] = None) -> type:
+    chats = chats or chat.ChatManager(repo_root, None)
+    return type("DevtoolsHandler", (Handler,), {"repo_root": repo_root, "services": services, "jobs": jobs, "chat": chats})
+
+
+def catalog_busy(port: int) -> Optional[str]:
+    """A queued or running unit catalog agent job (it edits the same working tree), as a message, or None."""
+    try:
+        with urlopen("http://127.0.0.1:%d/api/jobs" % port, timeout=1) as res:
+            jobs = json.loads(res.read().decode("utf-8")).get("jobs") or []
+    except (OSError, ValueError, AttributeError):
+        return None
+    for job in jobs:
+        if isinstance(job, dict) and job.get("state") in ("queued", "running"):
+            return "a unit catalog %s job for %s is %s" % (job.get("kind"), job.get("unit_id"), job.get("state"))
+    return None
 
 
 def _raise_interrupt(*_: Any) -> None:
@@ -145,7 +220,14 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parser.parse_args(argv)
     services = {spec["id"]: runner.Service(spec, registry.REPO_ROOT, LOG_DIR) for spec in registry.SERVICES}
     jobs = runner.JobRunner(registry.REPO_ROOT)
-    server = ThreadingHTTPServer((HOST, args.port), make_handler(registry.REPO_ROOT, services, jobs))
+    catalog_port = next(s["port"] for s in registry.SERVICES if s["id"] == "unit_catalog")
+    history = LOG_DIR / "chats.json"
+    history_lock = chat.lock_history(history)  # noqa: F841 (held until the process exits)
+    chats = chat.ChatManager(registry.REPO_ROOT, chat.find_claude(), state_file=history if history_lock else None,
+                             busy_probe=lambda: catalog_busy(catalog_port),
+                             unavailable="" if history_lock else "another devtools instance runs the Claude chat "
+                             "(it holds .devtools/chats.json.lock) - use that one")  # fmt: skip
+    server = ThreadingHTTPServer((HOST, args.port), make_handler(registry.REPO_ROOT, services, jobs, chats))
     for service in services.values():
         service.start()
     for sig in (signal.SIGTERM, signal.SIGHUP):
@@ -154,6 +236,8 @@ def main(argv: Optional[List[str]] = None) -> None:
     for service in services.values():
         state = "running" if service.wait_up() else "NOT RUNNING – see %s" % service.log_path
         print("  %-13s http://localhost:%d  %s" % (service.spec["label"], service.spec["port"], state), flush=True)
+    status = chats.status()
+    print("  %-13s %s" % ("Claude chat", status["claude"] or "unavailable – " + status["hint"]), flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -161,6 +245,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     finally:
         server.server_close()
         jobs.shutdown()
+        chats.shutdown()
         for service in services.values():
             service.stop()
 

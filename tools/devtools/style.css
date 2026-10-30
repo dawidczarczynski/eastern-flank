@@ -118,3 +118,70 @@ main { flex: 1; min-width: 0; position: relative; }
 .down h1 { font: 600 22px var(--display); margin: 0 0 6px; }
 .down p { color: var(--text-2); }
 .down pre { font: 12px/1.5 var(--mono); background: var(--surface); border: 1px solid var(--line); padding: 12px; border-radius: 6px; white-space: pre-wrap; color: var(--text-2); max-height: 50vh; overflow: auto; }
+
+/* ---- Claude chat */
+.chat { display: flex; height: 100%; }
+.chat-side { width: 300px; flex: none; display: flex; flex-direction: column; background: var(--surface); border-right: 1px solid var(--line); overflow: hidden; }
+.chat-side .activity-head { align-items: center; }
+.chat-sessions { max-height: none; flex: 1; overflow: auto; margin-bottom: 8px; }
+.chat-sessions li { align-items: flex-start; flex-wrap: wrap; gap: 4px 10px; }
+.chat-sessions .name { white-space: normal; flex: 1; min-width: 0; font-weight: 500; line-height: 1.35; }
+.chat-sessions .time { width: 100%; padding-left: 20px; }
+.chat-sessions .empty-li { cursor: default; }
+.chat-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--grey); }
+.chat-dot.working { background: var(--run); box-shadow: 0 0 0 3px color-mix(in srgb, var(--run) 25%, transparent); }
+.chat-dot.idle { background: var(--accent); }
+.chat-dot.failed { background: var(--bad); }
+.chat-perms { flex: none; margin: 0 14px 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; color: var(--text-3); max-height: 45%; overflow: auto; }
+.chat-perms summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
+.chat-perms p { margin: 8px 0; }
+.chat-perms ul { margin: 0; padding-left: 16px; }
+.chat-perms code { font-size: 11px; word-break: break-all; }
+.chat-perms .deny { color: var(--bad); }
+
+.chat-main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 20px 28px 18px; gap: 12px; }
+.chat-head { flex: none; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.chat-title-box { min-width: 0; }
+.chat-head .job-title { flex-wrap: wrap; }
+.pill.chat-working { --c: var(--run); } .pill.chat-idle { --c: var(--accent); } .pill.chat-stopped { --c: var(--grey); } .pill.chat-failed { --c: var(--bad); }
+.chat-log { flex: 1; min-height: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 18px;
+  display: flex; flex-direction: column; gap: 8px; }
+.chat-log .empty { margin: auto; color: var(--text-3); text-align: center; }
+.chat-log .m { white-space: pre-wrap; word-break: break-word; line-height: 1.55; }
+.chat-log .m pre { white-space: pre; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font: 12px/1.5 var(--mono); margin: 4px 0; }
+.chat-log .m code { font: 12px var(--mono); background: var(--surface-2); padding: 1px 4px; border-radius: 4px; }
+.chat-log .m .h { display: inline-block; margin-top: 4px; }
+.chat-log .user { display: flex; justify-content: flex-end; margin-top: 10px; }
+.chat-log .user .bubble { max-width: 78%; background: color-mix(in srgb, var(--accent) 13%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 10px 10px 2px 10px; padding: 8px 12px; }
+.chat-log .text { color: var(--text); }
+.chat-log .tool { font: 12px/1.4 var(--mono); color: var(--text-3); }
+.chat-log .error { font: 12px/1.4 var(--mono); color: var(--bad); }
+.chat-log .info { font-size: 12px; color: var(--text-3); font-style: italic; }
+.chat-log .sub { margin-left: 22px; padding-left: 10px; border-left: 2px solid var(--line-strong); opacity: .8; font-size: 13px; }
+.chat-log .who { display: block; font: 600 10.5px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); }
+.chat-log .turn { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--text-3); }
+.chat-log .turn::before, .chat-log .turn::after { content: ""; flex: 1; border-top: 1px dashed var(--line-strong); }
+.chat-log .turn.error { color: var(--bad); font-family: var(--sans); }
+.chat-log .thinking { display: flex; align-items: center; gap: 8px; color: var(--run); font-size: 13px; }
+.chat-log.no-steps .tool, .chat-log.no-steps .sub, .chat-log.no-steps .info { display: none; }
+.chat-files { flex: none; font-size: 12.5px; color: var(--text-2); }
+.chat-files summary { cursor: pointer; }
+.chat-files pre { margin: 6px 0 0; max-height: 160px; overflow: auto; font: 12px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+.composer { flex: none; display: flex; gap: 10px; align-items: stretch; }
+.composer textarea { flex: 1; resize: vertical; min-height: 64px; max-height: 40vh; font: 14px/1.45 var(--sans); }
+.composer-side { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 8px; }
+.composer-side .toggle { margin-left: 0; }
+
+/* ---- Claude usage (sidebar) */
+.usage { margin: auto 14px 0; padding: 12px 12px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg);
+  display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-3); }
+.usage + .side-foot { margin-top: 14px; }
+.u-row { display: flex; flex-direction: column; gap: 4px; }
+.u-label { display: flex; justify-content: space-between; color: var(--text-2); }
+.u-label b { font: 600 12px var(--mono); color: var(--text); }
+.u-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.u-bar i { display: block; height: 100%; border-radius: 3px; transition: width .4s; }
+.u-bar .ok { background: var(--ok); } .u-bar .warn { background: var(--warn); } .u-bar .bad { background: var(--bad); }
+.u-reset { font-size: 11px; color: var(--text-3); }
+.u-alert { color: var(--bad); font-weight: 600; }

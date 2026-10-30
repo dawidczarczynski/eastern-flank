@@ -1,5 +1,5 @@
 "use strict";
-// Devtools hub: command-line tools as tiles + an activity panel with live output; web tools as embedded pages.
+// Devtools hub: command-line tools as tiles + an activity panel with live output; a Claude Code chat; web tools as embedded pages.
 
 const PARAMS_STORE = "devtools.params";
 const GROUPS = {
@@ -24,6 +24,9 @@ let jobs = [];
 let tab = "home";
 let selectedJob = null; // { id, next, state, command, params }
 let lastStates = null; // job id → state, for "finished" toasts
+let chatInfo = { available: true, hint: "", permissions: { allow: [], deny: [] } };
+let chats = [];
+let selectedChat = null; // { id, next, timer } – null: a new chat is being drafted
 const savedParams = JSON.parse(localStorage.getItem(PARAMS_STORE) || "{}");
 
 const toolUrl = (s) => location.protocol + "//" + location.hostname + ":" + s.port + "/";
@@ -52,7 +55,7 @@ function renderNav() {
   const svc = services.map((s, i) => {
     const activeTab = s.id === tab;
     const state = s.up ? (s.managed ? "started by the hub" : "already running – not managed here") : (s.exit_code !== undefined ? "stopped (exit " + s.exit_code + ")" : "not running");
-    let html = '<a class="nav-item' + (activeTab ? " active" : "") + '" data-tab="' + s.id + '" title="' + esc(s.description) + " (" + (i + 2) + ')">' +
+    let html = '<a class="nav-item' + (activeTab ? " active" : "") + '" data-tab="' + s.id + '" title="' + esc(s.description) + " (" + (i + 3) + ')">' +
       '<span class="icon"><span class="dot' + (s.up ? " up" : "") + '"></span></span>' + esc(s.label) + '<span class="sub">:' + s.port + "</span></a>";
     if (activeTab || !s.up) {
       html += '<div class="svc-state">' + state + "</div>";
@@ -64,9 +67,12 @@ function renderNav() {
     }
     return html;
   }).join("");
+  const working = chats.filter((c) => c.state === "working").length;
   $("#nav").innerHTML =
     '<a class="nav-item' + (tab === "home" ? " active" : "") + '" data-tab="home" title="Commands (1)"><span class="icon">⌘</span>Commands' +
     (running ? '<span class="badge"><span class="spinner"></span>' + running + "</span>" : "") + "</a>" +
+    '<a class="nav-item' + (tab === "chat" ? " active" : "") + '" data-tab="chat" title="Claude Code chat (2)"><span class="icon">✦</span>Claude' +
+    (working ? '<span class="badge"><span class="spinner"></span>working</span>' : "") + "</a>" +
     '<div class="nav-label eyebrow">Web tools</div>' + svc;
 }
 
@@ -95,9 +101,11 @@ function frameFor(service) {
 }
 
 function showTab(name) {
-  tab = services.some((s) => s.id === name) ? name : "home";
+  tab = name === "chat" || services.some((s) => s.id === name) ? name : "home";
   history.replaceState(null, "", tab === "home" ? location.pathname : "#" + tab);
   $("#home").hidden = tab !== "home";
+  $("#chat").hidden = tab !== "chat";
+  if (tab === "chat") setTimeout(() => $("#chat-input").focus(), 0);
   services.forEach((s) => { frameFor(s).hidden = s.id !== tab; });
   renderNav();
 }
@@ -300,6 +308,237 @@ async function pollJob() {
   if (active(job)) setTimeout(pollJob, 600);
 }
 
+// ---- Claude chat (tools/devtools/chat.py)
+
+const CHAT_STATE = { working: "working", idle: "waiting for you", stopped: "stopped", failed: "failed" };
+const chatPill = (state) => '<span class="pill chat-' + state + '">' + (state === "working" ? '<span class="spinner"></span>' : "") + CHAT_STATE[state] + "</span>";
+const money = (usd) => (typeof usd === "number" ? "$" + usd.toFixed(2) : "");
+
+function backlogFrame() {
+  const box = document.getElementById("frame-backlog");
+  const frame = box && box.querySelector("iframe");
+  const svc = services.find((s) => s.id === "backlog");
+  return frame && svc ? { win: frame.contentWindow, origin: new URL(toolUrl(svc)).origin } : null;
+}
+
+function tellBacklog() {
+  const target = backlogFrame();
+  if (!target) return;
+  const tasks = {};
+  chats.slice().reverse().forEach((c) => { if (c.task) tasks[c.task] = c.state; });
+  target.win.postMessage({ type: "devtools:chats", available: chatInfo.available, tasks }, target.origin);
+}
+
+async function loadChats() {
+  let data;
+  try { data = await api("/api/chat"); } catch (err) { return; }
+  chats = data.sessions;
+  const perms = JSON.stringify(data.permissions);
+  if (perms !== JSON.stringify(chatInfo.permissions)) {
+    $("#chat-perms").innerHTML = data.permissions.allow.map((t) => "<li><code>" + esc(t) + "</code></li>").join("") +
+      data.permissions.deny.map((t) => '<li class="deny"><code>' + esc(t) + "</code> denied</li>").join("");
+  }
+  chatInfo = data;
+  renderUsage();
+  renderChatList();
+  renderNav();
+  tellBacklog();
+}
+
+const WINDOW_LABELS = { five_hour: "5-hour limit", seven_day: "Weekly limit", seven_day_opus: "Weekly · Opus", seven_day_sonnet: "Weekly · Sonnet" };
+const tokens = (n) => (n >= 1e6 ? (n / 1e6).toFixed(n % 1e6 ? 1 : 0) + "M" : n >= 1000 ? Math.round(n / 1000) + "k" : String(n));
+
+function resetText(t) {
+  if (!t) return "";
+  const d = new Date(t * 1000);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return "resets " + (sameDay ? "" : d.toLocaleDateString(undefined, { weekday: "short" }) + " ") + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function renderUsage() {
+  const limits = chatInfo.limits;
+  const box = $("#usage");
+  if (!limits || !Object.keys(limits.windows || {}).length) {
+    box.innerHTML = '<span class="eyebrow">Claude usage</span><span class="muted">Shows up once a Claude chat talks to the API.</span>';
+    return;
+  }
+  const working = chats.some((c) => c.state === "working");
+  const bars = Object.entries(limits.windows).map(([name, w]) => {
+    const pct = Math.round(w.utilization * 100);
+    const level = pct >= 90 ? "bad" : pct >= 70 ? "warn" : "ok";
+    return '<div class="u-row"><div class="u-label"><span>' + esc(WINDOW_LABELS[name] || name.replace(/_/g, " ")) + "</span><b>" + pct + "%</b></div>" +
+      '<div class="u-bar"><i class="' + level + '" style="width: ' + Math.min(100, pct) + '%"></i></div><div class="u-reset">' + esc(resetText(w.resets_at)) + "</div></div>";
+  }).join("");
+  const limited = limits.status && limits.status !== "allowed" && limits.status !== "allowed_warning";
+  box.innerHTML = '<span class="eyebrow">Claude usage</span>' + bars +
+    (limited ? '<div class="u-alert">Limit reached (' + esc(limits.status) + ")</div>" : "") +
+    '<div class="u-reset">' + (working ? "live" : "as of " + ago(limits.updated)) + "</div>";
+}
+
+function renderChatList() {
+  $("#chat-sessions").innerHTML = chats.map((c) =>
+    '<li data-chat="' + esc(c.id) + '" class="' + (selectedChat && selectedChat.id === c.id ? "selected" : "") + '">' +
+    '<span class="chat-dot ' + c.state + '"></span><span class="name">' + esc(c.title) + '</span><span class="time">' +
+    (c.state === "working" ? "working" : ago(c.updated)) + (c.cost_usd ? " · " + money(c.cost_usd) : "") + "</span></li>").join("") ||
+    '<li class="muted empty-li">No chats yet.</li>';
+  if (!selectedChat) renderChatHead(null);
+}
+
+function mdLite(text) {
+  // fenced code blocks, inline code, bold, headings – the rest stays plain (pre-wrap)
+  return text.split(/```[^\n]*\n?/).map((part, i) => {
+    if (i % 2) return "<pre>" + esc(part.replace(/\n$/, "")) + "</pre>";
+    return esc(part).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+      .replace(/^#{1,4} (.*)$/gm, "<b class=\"h\">$1</b>");
+  }).join("");
+}
+
+function chatEntry(e) {
+  const div = document.createElement("div");
+  div.className = "m " + e.kind + (e.sub ? " sub" : "");
+  if (e.kind === "user") div.innerHTML = '<div class="bubble">' + mdLite(e.text) + "</div>";
+  else if (e.kind === "text") div.innerHTML = (e.sub ? '<span class="who">subagent</span>' : "") + mdLite(e.text);
+  else if (e.kind === "tool") div.textContent = "› " + e.text;
+  else if (e.kind === "turn") {
+    div.className += e.is_error ? " error" : "";
+    div.innerHTML = "<span>" + (e.is_error ? "turn failed" + (e.text ? ": " + esc(e.text) : "") : "turn finished") + (e.cost_usd ? " · " + money(e.cost_usd) + " so far" : "") + "</span>";
+  } else div.textContent = e.text;
+  return div;
+}
+
+function renderChatHead(c) {
+  if (!c) {
+    $("#chat-head").innerHTML = '<div><div class="job-title">New chat</div><div class="job-meta">' +
+      (chatInfo.available ? "Starts a Claude Code session in the repository. To implement a task, open it in the Backlog and press ▶ Implement." : esc(chatInfo.hint)) + "</div></div>";
+    return;
+  }
+  const context = c.context_tokens ? "context " + tokens(c.context_tokens) + (c.context_window ? " / " + tokens(c.context_window) + " (" + Math.round(100 * c.context_tokens / c.context_window) + "%)" : "") : "";
+  const meta = [c.task ? "/implement-task " + c.task : "free chat", c.cost_usd ? money(c.cost_usd) : "", context, c.error].filter(Boolean).map(esc).join(" · ");
+  $("#chat-head").innerHTML = '<div class="chat-title-box"><div class="job-title">' + esc(c.title) + " " + chatPill(c.state) + '</div><div class="job-meta">' + meta + "</div></div>" +
+    '<div class="job-actions">' +
+    (c.session_id ? '<button type="button" class="btn ghost sm" id="chat-copy" title="Continue this session in a terminal (run it in the repository folder)">⧉ claude --resume</button>' : "") +
+    (c.state === "working" || c.state === "idle" ? '<button type="button" class="btn danger sm" id="chat-stop" title="Stops the Claude process; the next message resumes the session">■ Stop</button>' : "") + "</div>";
+}
+
+function renderChatBody(c, fresh) {
+  const log = $("#chat-log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 60;
+  if (fresh) log.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  c.log.forEach((e) => frag.appendChild(chatEntry(e)));
+  log.appendChild(frag);
+  let thinking = log.querySelector(".thinking");
+  if (c.state === "working" && !thinking) {
+    thinking = document.createElement("div");
+    thinking.className = "m thinking";
+    thinking.innerHTML = '<span class="spinner"></span> Claude is working…';
+  }
+  if (thinking) {
+    if (c.state === "working") log.appendChild(thinking); else thinking.remove();
+  }
+  if (atBottom || fresh) log.scrollTop = log.scrollHeight;
+  const files = $("#chat-files");
+  files.hidden = !c.changed_files.length;
+  files.querySelector("summary").textContent = c.changed_files.length + " changed file" + (c.changed_files.length === 1 ? "" : "s") + " in the working tree (git status)";
+  files.querySelector("pre").textContent = c.changed_files.join("\n");
+  const busy = c.state === "working";
+  $("#chat-send").disabled = busy || !chatInfo.available;
+  $("#chat-input").placeholder = busy ? "Claude is working – you can type now and send when the turn ends…" : "Message Claude…  (Enter sends, Shift+Enter new line)";
+}
+
+function selectChat(id) {
+  if (selectedChat && selectedChat.timer) clearTimeout(selectedChat.timer);
+  selectedChat = id ? { id, next: 0, timer: null } : null;
+  renderChatList();
+  if (!id) {
+    $("#chat-log").innerHTML = '<div class="empty">' + (chatInfo.available ? "Ask anything about the project – Claude works in this repository." : esc(chatInfo.hint)) + "</div>";
+    $("#chat-files").hidden = true;
+    $("#chat-send").disabled = !chatInfo.available;
+    $("#chat-input").focus();
+    return;
+  }
+  pollChat(true);
+}
+
+async function pollChat(fresh) {
+  const sel = selectedChat;
+  if (!sel) return;
+  let c;
+  try { c = await api("/api/chat/" + encodeURIComponent(sel.id) + "?since=" + (fresh ? 0 : sel.next)); } catch (err) { return; }
+  if (selectedChat !== sel) return;
+  sel.next = c.log_from + c.log.length;
+  renderChatHead(c);
+  renderChatBody(c, fresh);
+  sel.timer = setTimeout(() => pollChat(false), c.state === "working" ? 800 : 2500);
+}
+
+async function sendChat() {
+  const input = $("#chat-input");
+  const text = input.value.trim();
+  if (!text || $("#chat-send").disabled) return;
+  $("#chat-send").disabled = true;
+  try {
+    if (selectedChat) {
+      await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/send", { text });
+    } else {
+      const c = await api("/api/chat", { text });
+      selectedChat = { id: c.id, next: 0, timer: null };
+    }
+    input.value = "";
+    await loadChats();
+    selectChat(selectedChat.id);
+  } catch (err) {
+    toast("Cannot send: " + err.message, "var(--bad)");
+    $("#chat-send").disabled = false;
+  }
+}
+
+async function implementTask(task) {
+  showTab("chat");
+  const existing = chats.find((c) => c.task === task);
+  if (existing) { selectChat(existing.id); return; }
+  if (!confirm("Start /implement-task " + task + " in a Claude Code session?\n\nIt runs headless with your subscription, edits the working tree " +
+    "and may take a long time. It never commits.")) return;
+  try {
+    const c = await api("/api/chat", { task });
+    await loadChats();
+    selectChat(c.id);
+  } catch (err) {
+    toast("Cannot start " + task + ": " + err.message, "var(--bad)");
+  }
+}
+
+window.addEventListener("message", (ev) => {
+  const target = backlogFrame();
+  if (!target || ev.origin !== target.origin || ev.source !== target.win || !ev.data) return;
+  if (ev.data.type === "devtools:hello") tellBacklog();
+  else if ((ev.data.type === "devtools:implement" || ev.data.type === "devtools:open-chat") && /^TASK-\d+[a-z]?$/.test(ev.data.task)) {
+    if (ev.data.type === "devtools:implement") implementTask(ev.data.task);
+    else { const c = chats.find((x) => x.task === ev.data.task); showTab("chat"); if (c) selectChat(c.id); }
+  }
+});
+
+$("#chat-form").addEventListener("submit", (ev) => { ev.preventDefault(); sendChat(); });
+$("#chat-input").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); sendChat(); }
+});
+$("#chat-new").addEventListener("click", () => selectChat(null));
+$("#chat-steps").addEventListener("change", (ev) => $("#chat-log").classList.toggle("no-steps", !ev.target.checked));
+$("#chat-sessions").addEventListener("click", (ev) => {
+  const li = ev.target.closest("[data-chat]");
+  if (li) selectChat(li.dataset.chat);
+});
+$("#chat-head").addEventListener("click", async (ev) => {
+  if (!selectedChat) return;
+  if (ev.target.closest("#chat-stop")) {
+    try { await api("/api/chat/" + encodeURIComponent(selectedChat.id) + "/stop", {}); } catch (err) { toast(err.message, "var(--bad)"); }
+    await loadChats();
+  } else if (ev.target.closest("#chat-copy")) {
+    const c = chats.find((x) => x.id === selectedChat.id);
+    if (c) navigator.clipboard.writeText("claude --resume " + c.session_id).then(() => toast("Copied – run it in the repository folder", "var(--ok)"));
+  }
+});
+
 // ---- toasts
 
 function toast(text, color, jobId) {
@@ -331,7 +570,7 @@ document.addEventListener("click", async (ev) => {
     return;
   }
   const item = ev.target.closest("[data-job]");
-  if (item && item.dataset.job) selectJob(item.dataset.job);
+  if (item && item.dataset.job && !ev.target.closest("#chat")) selectJob(item.dataset.job);
 });
 
 document.addEventListener("submit", (ev) => {
@@ -344,7 +583,7 @@ document.addEventListener("submit", (ev) => {
 
 document.addEventListener("keydown", (ev) => {
   if (ev.target.closest("input, select, textarea") || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-  const pages = ["home"].concat(services.map((s) => s.id));
+  const pages = ["home", "chat"].concat(services.map((s) => s.id));
   const index = Number(ev.key) - 1;
   if (index >= 0 && index < pages.length) showTab(pages[index]);
 });
@@ -363,11 +602,13 @@ $("#log-copy").addEventListener("click", () => {
 });
 
 (async () => {
-  [commands] = await Promise.all([api("/api/commands"), loadServices()]);
+  [commands] = await Promise.all([api("/api/commands"), loadServices(), loadChats()]);
   renderCommands();
   await loadJobs();
   showTab(location.hash.slice(1) || "home");
   if (jobs.length) selectJob(jobs[0].id);
+  selectChat(chats.length ? chats[0].id : null);
   setInterval(loadServices, 3000);
   setInterval(loadJobs, 1500);
+  setInterval(loadChats, 2000);
 })();

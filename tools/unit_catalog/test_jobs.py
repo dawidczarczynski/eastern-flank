@@ -226,7 +226,7 @@ class TestHistoryAndResume(JobsCase):
         old = second.get(slow["id"])
         self.assertEqual((old["state"], old["resumable"]), ("interrupted", True))
         self.assertEqual(second.last_for_unit("slow_unit")["id"], slow["id"])
-        with mock.patch.object(jobs, "_agent_alive", return_value=False):
+        with mock.patch.object(jobs.claude_cli, "agent_alive", return_value=False):
             new = second.resume(slow["id"])
         self.assertEqual((new["kind"], new["unit_id"], new["faction"], new["resume_of"]), ("model", "slow_unit", "poland", slow["id"]))
         self.assertTrue(second.wait_idle(20))
@@ -257,7 +257,7 @@ class TestHistoryAndResume(JobsCase):
         with self.assertRaises(catalog.CatalogError) as ctx:
             self.manager.resume("nope")
         self.assertEqual(ctx.exception.status, 404)
-        with mock.patch.object(jobs, "_agent_alive", return_value=True), self.assertRaises(catalog.CatalogError) as ctx:
+        with mock.patch.object(jobs.claude_cli, "agent_alive", return_value=True), self.assertRaises(catalog.CatalogError) as ctx:
             self.manager.resume(job["id"])
         self.assertEqual(ctx.exception.status, 409)
         slow = self.manager.submit("research", "slow_unit")

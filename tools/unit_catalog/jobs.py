@@ -16,19 +16,20 @@ runs `claude -p <fixed continue prompt> --resume <session id>` with the same all
 """
 from __future__ import annotations
 
-import glob
 import json
 import os
-import re
-import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-import catalog
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
+import catalog  # noqa: E402
+import claude_cli  # noqa: E402
+from claude_cli import SESSION_RE, parse_stream_line  # noqa: E402,F401  (re-exported for the server and tests)
 
 KINDS = ("research", "model")
 ACTIVE = ("queued", "running")
@@ -36,22 +37,13 @@ MAX_LOG = 2000  # log entries kept per job
 MAX_JOBS = 50  # finished jobs kept in memory
 PERSIST_LOG = 300  # log entries per job written to the state file
 SAVE_EVERY = 2.0  # seconds between state file writes while a job streams its log
-SESSION_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,63}$")  # no leading dash: it follows --resume in argv
 INTERRUPTED = "the catalog tool stopped while this job was running - continue it to pick up where it stopped"
 CLAUDE_ENV = "UNIT_CATALOG_CLAUDE"
-VSCODE_GLOB = "~/.vscode-server/extensions/anthropic.claude-code-*/resources/native-binary/claude"
 
 
 def find_claude() -> Optional[str]:
     """Path of the `claude` CLI: $UNIT_CATALOG_CLAUDE, then PATH, then the binary bundled with the VS Code extension."""
-    override = os.environ.get(CLAUDE_ENV)
-    if override:
-        return override if os.access(override, os.X_OK) else None
-    found = shutil.which("claude")
-    if found:
-        return found
-    bundled = [p for p in glob.glob(os.path.expanduser(VSCODE_GLOB)) if os.access(p, os.X_OK)]
-    return max(bundled, key=os.path.getmtime) if bundled else None
+    return claude_cli.find_claude(CLAUDE_ENV)
 
 
 def allowed_tools(kind: str, unit_id: str, repo_root: Path) -> List[str]:
@@ -99,72 +91,6 @@ def build_command(claude: str, kind: str, unit_id: str, repo_root: Path, faction
     if resume:
         cmd += ["--resume", check_session(resume)]
     return cmd + ["--allowedTools", ",".join(tools)]
-
-
-def _agent_alive(pid: Any) -> bool:
-    """Is a `claude` process with this pid still running (e.g. left behind when the tool was killed)?"""
-    if not isinstance(pid, int) or pid <= 0:
-        return False
-    try:
-        with open("/proc/%d/cmdline" % pid, "rb") as f:
-            return b"claude" in f.read()
-    except OSError:
-        return False
-
-
-def _short(value: Any, limit: int = 160) -> str:
-    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
-    text = " ".join(text.split())
-    return text if len(text) <= limit else text[: limit - 1] + "…"
-
-
-def _tool_summary(name: str, args: Any) -> str:
-    if not isinstance(args, dict):
-        return name
-    for key in ("file_path", "command", "pattern", "query", "url", "description", "skill", "path"):
-        if isinstance(args.get(key), str):
-            return "%s: %s" % (name, _short(args[key], 140))
-    return name
-
-
-def parse_stream_line(line: str) -> List[Dict[str, Any]]:
-    """Turn one stream-json line into log entries `{"kind": text|tool|info|error|result, "text", ...}`."""
-    line = line.strip()
-    if not line:
-        return []
-    try:
-        msg = json.loads(line)
-    except ValueError:
-        return [{"kind": "info", "text": _short(line, 400)}]
-    if not isinstance(msg, dict):
-        return []
-    mtype = msg.get("type")
-    sub = msg.get("parent_tool_use_id") is not None
-    if mtype == "system" and msg.get("subtype") == "init":
-        return [{"kind": "info", "text": "session %s started (%s)" % (msg.get("session_id", "?"), msg.get("model", "?")),
-                 "session_id": msg.get("session_id")}]  # fmt: skip
-    if mtype == "assistant":
-        out = []
-        for block in (msg.get("message") or {}).get("content") or []:
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") == "text" and str(block.get("text", "")).strip():
-                out.append({"kind": "text", "text": block["text"].strip(), "sub": sub})
-            elif block.get("type") == "tool_use":
-                out.append({"kind": "tool", "text": _tool_summary(str(block.get("name")), block.get("input")), "sub": sub})
-        return out
-    if mtype == "user":
-        out = []
-        for block in (msg.get("message") or {}).get("content") or []:
-            if isinstance(block, dict) and block.get("type") == "tool_result" and block.get("is_error"):
-                content = block.get("content")
-                text = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
-                out.append({"kind": "error", "text": _short(text, 300), "sub": sub})
-        return out
-    if mtype == "result":
-        return [{"kind": "result", "text": str(msg.get("result") or ""), "is_error": bool(msg.get("is_error")),
-                 "cost_usd": msg.get("total_cost_usd"), "session_id": msg.get("session_id")}]  # fmt: skip
-    return []
 
 
 class Job:
@@ -249,8 +175,10 @@ class JobManager:
     """FIFO queue with a single worker thread. `popen` is injectable for tests."""
 
     def __init__(self, repo_root: Path, catalog_root: Path, claude: Optional[str],
-                 popen: Popen = subprocess.Popen, state_file: Optional[Path] = None) -> None:  # fmt: skip
+                 popen: Popen = subprocess.Popen, state_file: Optional[Path] = None,
+                 busy_probe: Optional[Callable[[], Optional[str]]] = None) -> None:  # fmt: skip
         self.repo_root = Path(repo_root)
+        self._busy_probe = busy_probe  # another tool's agent working on the tree (devtools chat), as a message
         self.state_file = Path(state_file) if state_file else None
         self.catalog_root = Path(catalog_root)
         self.claude = claude
@@ -294,6 +222,7 @@ class JobManager:
         catalog.load_unit(self.catalog_root, unit_id)  # 404 for unknown units
         if faction and not catalog.faction_path(self.catalog_root, faction).is_file():
             raise catalog._err("faction", "unknown faction %r" % faction)
+        self._check_tree_free()
         with self._lock:
             busy = [j for j in self._jobs.values() if j.unit_id == unit_id and j.state in ACTIVE]
             if busy:
@@ -309,6 +238,7 @@ class JobManager:
         """Queue a job that continues `job_id`'s Claude Code session (same kind, unit, faction and allow-list)."""
         if self.claude is None:
             raise catalog._err("ai", self.status()["hint"], 503)
+        self._check_tree_free()
         with self._lock:
             old = self._jobs.get(job_id)
             if old is None:
@@ -319,7 +249,7 @@ class JobManager:
             busy = [j for j in self._jobs.values() if j.unit_id == old.unit_id and j.state in ACTIVE]
             if busy:
                 raise catalog._err("unit_id", "a %s job for this unit is already %s" % (busy[0].kind, busy[0].state), 409)
-            if _agent_alive(old.pid):
+            if claude_cli.agent_alive(old.pid):
                 raise catalog._err("job", "the agent process of this job (pid %d) is still running - stop it first" % old.pid, 409)
             self._counter += 1
             job = Job(self._new_id(), old.kind, old.unit_id, old.faction, old.id, session)
@@ -385,6 +315,11 @@ class JobManager:
                     return True
             time.sleep(0.02)
         return False
+
+    def _check_tree_free(self) -> None:
+        message = self._busy_probe() if self._busy_probe else None
+        if message:
+            raise catalog._err("job", message + " - wait until it ends (shared working tree)", 409)
 
     # ---- state file
     def _new_id(self) -> str:
@@ -494,6 +429,8 @@ class JobManager:
         result: Optional[Dict[str, Any]] = None
         for line in proc.stdout:
             for entry in parse_stream_line(line):
+                if entry["kind"] in ("usage", "limits"):  # state for the devtools chat, not log lines
+                    continue
                 with self._lock:
                     if entry.get("session_id"):
                         job.session_id = entry["session_id"]

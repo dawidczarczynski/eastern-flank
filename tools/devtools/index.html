@@ -13,9 +13,10 @@
     <span><b>Eastern Flank</b><small>devtools</small></span>
   </div>
   <nav id="nav"></nav>
+  <div id="usage" class="usage" title="Your Claude subscription's usage windows, as reported by the CLI during the last chat request"></div>
   <div class="side-foot">
     <span class="eyebrow">Shortcuts</span>
-    <span><kbd>1</kbd>–<kbd>3</kbd> switch page</span>
+    <span><kbd>1</kbd>–<kbd>4</kbd> switch page</span>
     <span><kbd>Enter</kbd> in a field runs it</span>
   </div>
 </aside>
@@ -61,6 +62,34 @@
         <div id="job-log" class="log"></div>
       </div>
       <div id="job-empty" class="empty">Nothing has run yet.<br>Pick a command on the left and press <b>Run</b>.</div>
+    </div>
+  </section>
+  <section id="chat" class="chat" hidden>
+    <div class="chat-side">
+      <header class="activity-head">
+        <h2>Claude</h2>
+        <button id="chat-new" type="button" class="btn sm">+ New chat</button>
+      </header>
+      <ul id="chat-sessions" class="jobs chat-sessions"></ul>
+      <details class="chat-perms">
+        <summary>What Claude may do here</summary>
+        <p>Claude Code runs headless with your login and subscription, in <b>auto</b> permission mode: a classifier approves safe actions and blocks risky ones
+          (nobody gets a prompt – Claude tells you what it needed). The allow-list below skips the classifier; the deny-list always wins, so it never commits or pushes.
+          One chat works at a time, and none while a unit catalog job runs.</p>
+        <ul id="chat-perms"></ul>
+      </details>
+    </div>
+    <div class="chat-main">
+      <div id="chat-head" class="chat-head"></div>
+      <div id="chat-log" class="chat-log"></div>
+      <details id="chat-files" class="chat-files" hidden><summary></summary><pre></pre></details>
+      <form id="chat-form" class="composer">
+        <textarea id="chat-input" rows="3" placeholder="Message Claude…  (Enter sends, Shift+Enter new line)"></textarea>
+        <div class="composer-side">
+          <label class="toggle"><input id="chat-steps" type="checkbox" checked> steps</label>
+          <button id="chat-send" type="submit" class="btn primary">Send</button>
+        </div>
+      </form>
     </div>
   </section>
   <div id="frames"></div>

@@ -15,6 +15,9 @@ if (VIEWS.includes(urlView)) state.view = urlView;
 let data = null;
 let version = null;
 let selected = null; // { id, file }
+// Inside the devtools hub (tools/devtools): its Claude chat state, sent by the parent page with postMessage
+let hub = null; // { available, tasks: { TASK-ID: chat state } }
+const IMPLEMENTABLE = ["ready", "in progress", "to playtest"];
 
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -404,6 +407,7 @@ async function openTask(id, file) {
   document.body.classList.add("detail-open");
   $("#detail-id").textContent = id;
   $("#detail-status").innerHTML = row ? pill(row.status) : "";
+  renderClaude();
   $("#detail-facts").innerHTML = renderFacts(row);
   if (!file) {
     $("#detail-body").innerHTML = row ? markdown("# " + row.title + "\n\n*No task file yet – this is an idea in BACKLOG.md.*") : "<p>Unknown task.</p>";
@@ -418,6 +422,30 @@ async function openTask(id, file) {
   // the facts above replace the file's header list (Status / Layers / Depends on / Model)
   const text = (await res.text()).replace(/^(# .*\n)\n?(?:- \*\*[^*]+\*\*:.*\n)+/, "$1").replace(/^# TASK-\w+:\s*/, "# ");
   $("#detail-body").innerHTML = markdown(text);
+}
+
+function renderClaude() {
+  const box = $("#detail-claude");
+  const row = selected && byId(selected.id);
+  if (!hub || !hub.available || !row) { box.innerHTML = ""; return; }
+  const chat = hub.tasks[row.id];
+  if (chat) {
+    box.innerHTML = '<button type="button" class="btn sm claude-btn" data-claude="open-chat" title="Open this task\'s Claude chat in devtools">' +
+      (chat === "working" ? '<span class="spinner"></span> Claude working' : "✦ Open chat") + "</button>";
+  } else if (IMPLEMENTABLE.includes(row.status) && row.file) {
+    box.innerHTML = '<button type="button" class="btn sm primary" data-claude="implement" title="Run /implement-task ' + row.id + ' in a Claude Code chat (devtools)">▶ Implement with Claude</button>';
+  } else {
+    box.innerHTML = "";
+  }
+}
+
+if (window.parent !== window) {
+  window.addEventListener("message", (ev) => {
+    if (ev.source !== window.parent || !ev.data || ev.data.type !== "devtools:chats") return;
+    hub = ev.data;
+    renderClaude();
+  });
+  window.parent.postMessage({ type: "devtools:hello" }, "*");
 }
 
 function openId(id) {
@@ -473,6 +501,12 @@ async function poll() {
 // ---- events
 
 document.addEventListener("click", (ev) => {
+  const claude = ev.target.closest("[data-claude]");
+  if (claude && selected) {
+    // the hub checks the sender's origin; the message carries only the task id
+    window.parent.postMessage({ type: "devtools:" + claude.dataset.claude, task: selected.id }, "*");
+    return;
+  }
   const link = ev.target.closest("a[data-id], a[data-file]");
   if (link) {
     ev.preventDefault();

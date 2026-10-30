@@ -67,9 +67,9 @@ code { background: var(--surface-3); padding: 1px 5px; border-radius: 4px; }
 .btn.sm { padding: 4px 9px; font-size: 12px; }
 
 /* form fields */
-input, select { font: 13px var(--sans); color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px; }
-input:focus, select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 196, 106, .18); }
-input::placeholder { color: var(--text-3); }
+input, select, textarea { font: 13px var(--sans); color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(232, 196, 106, .18); }
+input::placeholder, textarea::placeholder { color: var(--text-3); }
 input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
 
 /* pills, chips, dots */
