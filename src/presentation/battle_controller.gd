@@ -15,17 +15,17 @@ const LAUNCHER_TRAVERSE_DURATION := VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
 const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
 const TURRET_AIM_DURATION := VolleyPlayback.TURRET_AIM_DURATION
 
-## Command.validate() reasons the player can hit with a click, and the toast (translation key)
-## that explains them. Other reasons (game_over, not_your_unit, ...) are not reachable by the UI.
 const PREBUILD_GRASS_CHUNKS_PER_FRAME := 4
 const WARM_UP_FRAME_S := 1.0 / 40.0  ## a frame faster than this counts as calm
 const WARM_UP_CALM_FRAMES := 8
 const WARM_UP_MAX_MS := 4000
+## Command.validate() reasons a click can hit -> toast (translation key).
 const REJECT_TOASTS := {
 	"unreachable": "CANNOT REACH THAT TILE",
 	"out_of_range": "TARGET OUT OF RANGE",
 	"already_attacked": "ALREADY ATTACKED THIS TURN",
 	"not_an_enemy": "NOT AN ENEMY",
+	"no_command_points": "NO COMMAND POINTS LEFT THIS TURN",
 }
 
 ## Active graphics quality switches (GraphicsQuality.features); views read them before use.

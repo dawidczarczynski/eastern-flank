@@ -37,6 +37,17 @@ At the start of a side's turn, all of its units get their full movement points b
 
 The normal battle has no turn limit. A battle with a turn limit (such as the objective battle, limit 8) ends after the last side – Russia – finishes its turn of the final turn; see section 8.
 
+### Command points
+
+Some battles limit how many units each side can command per turn. The normal battle and the objective battle have **no limit**: every unit can act every turn.
+
+- In a limited battle a side gets **N command points** at the start of each of its turns (unused points are not saved).
+- A unit's **first move or attack of the turn costs 1 point** – it "activates" the unit. Everything else that unit does this turn (further moves, its attack) is free.
+- **Counterattacks never cost points.**
+- With 0 points left, a unit that has not acted yet this turn can't move or attack; trying it shows "NO COMMAND POINTS LEFT THIS TURN". Units already activated keep acting normally.
+- The turn bar shows the points left, e.g. `C2 1/2` (see Screen).
+- To try it, start the game with `--scenario=command_points_battle` (for example `tools/run.sh --scenario=command_points_battle`), then pick **Start operation**: the normal battle with **N = 2** for both sides. It is a test battle; later, an operation's battle conditions will set N.
+
 ## 4. Units
 
 | Unit | HP | Movement | Attack | Defense | Range | Look on the map |
@@ -191,10 +202,12 @@ Russia is played by a simple computer opponent that follows the same rules as yo
 
 In the objective battle it also minds the objective hexes: a unit standing on one stays there (it still attacks whatever it can reach), and a unit whose nearest objective hex without a Russian unit on it is no farther away than your nearest unit heads for that hex instead of for you.
 
+In a battle with command points it spends its points on its most valuable actions first: attacks (above all ones that destroy a unit) before moves.
+
 ## 10. Screen
 
-- **Top bar**: a bar hanging from the top edge, with a tick ruler under it. The turn number is in the centre (e.g. "01"; in a battle with a turn limit followed by the limit in smaller type, e.g. "01/08"), with the side whose turn it is ("▸ POLAND"). On each side: a hexagonal badge with the side's short code (PL for Poland, RU for Russia), its name, its status (ACTIVE / WAITING) and how many units it has. The active side is lit and has a hatched bar under it in its colour; the waiting side is dimmed.
-- **Bottom right**: a row of key hints (only keys the game has, see Controls), the **READY** counter (your units that can still do something / all your units, one block per unit: filled = can still act) and the **End turn** button in your side's colour. The button is greyed out while animations play and during the enemy turn.
+- **Top bar**: a bar hanging from the top edge, with a tick ruler under it. The turn number is in the centre (e.g. "01"; in a battle with a turn limit followed by the limit in smaller type, e.g. "01/08"), with the side whose turn it is ("▸ POLAND"). On each side: a hexagonal badge with the side's short code (PL for Poland, RU for Russia), its name, its status (ACTIVE / WAITING) and how many units it has. The active side is lit and has a hatched bar under it in its colour; the waiting side is dimmed. In a battle with command points, the active side's name has a `C2 remaining/N` line under it (e.g. `C2 1/2`); without a limit it is not shown.
+- **Bottom right**: a row of key hints (only keys the game has, see Controls), the **READY** counter (your units that can still do something / all your units, one block per unit: filled = can still act; once your command points run out, units that have not acted no longer count as ready) and the **End turn** button in your side's colour. The button is greyed out while animations play and during the enemy turn.
 - **Unit card**: hover any unit (yours or the enemy's) to open its card next to the cursor (it moves to the left of the cursor near the right screen edge, and always stays below the top bar). The card is framed in the unit's side colour. From top to bottom:
   - **Tab**: the unit's class (INFANTRY, TANK or ROCKET ARTILLERY) on the left and its side (POLAND / RUSSIA) on the right.
   - **Name**: the unit's real name in capitals (e.g. M1A2 SEPv3 ABRAMS), with its short designation in small grey type below it (M1A2, HOMAR, BM-27). Squads and the T-72B3 have no designation line, because it would only repeat the class or the name. In the Polish version the class and the squad names are translated (Drużyna piechoty zmechanizowanej, Drużyna zmotoryzowana); vehicle names stay as they are.
@@ -208,7 +221,7 @@ In the objective battle it also minds the objective hexes: a unit standing on on
 - **Beyond the map edge**: the land around the map (a little greyer and paler, with trees on HIGH graphics) is scenery only. You can't hover or click tiles there, units can't go there, and the camera can't be panned off the map.
 - **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
 - **Objective hexes** (only in a battle that has them): each is outlined by a coloured ring along its edge, with a small flag on a pole near one corner and an **OBJECTIVE** tag above the flag (visible even over forest). Ring, flag and the tag's tab are in the colour of the side that holds the hex (red for Russia, blue for Poland) and change colour when the hex is captured.
-- **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag.
+- **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag. This includes units that have not acted once your command points run out.
 - **Rocket artillery range**: selecting your rocket artillery outlines all tiles within its range in amber. With nothing selected, hovering any rocket artillery (yours or the enemy's) shows its range, so you can see where it can hit.
 - **Ground marks**: tanks leave dark tread marks and rocket artillery trucks thinner tyre marks behind them as they move, rocket strikes leave small craters and a scorched patch around the target, and a destroyed unit leaves a scorched patch on its tile. They are only decoration – they don't change movement or defense. Old marks fade away to make room for new ones (fewer are kept on LOW graphics).
 - **Rocket salvos**: rocket artillery fires its full salvo, one rocket after another: 12 rockets for the Homar-K, 16 for the Uragan. The target's HP bar drops as the rockets land. Smoke hangs over the target for a few seconds (on HIGH graphics only). The salvo is only for show: the damage is the same as for any other attack (see Combat). Its counterattacks are full salvos too. In the enemy turn most animations play much faster, but salvos are sped up to only 1.5× normal speed.

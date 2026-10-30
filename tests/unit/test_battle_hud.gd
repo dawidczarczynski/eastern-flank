@@ -139,3 +139,25 @@ func test_no_turn_limit_hides_the_suffix() -> void:
 	_hud.refresh(_state)
 	assert_eq((_find("TurnLimit") as Label).text, "")
 	assert_false((_find("TurnLimit") as Control).get_parent().visible)
+
+
+func test_command_points_counter_only_when_limited() -> void:
+	_hud.refresh(_state)
+	assert_false((_find("CommandPoints") as Label).visible)
+	_state.set_command_points_per_turn([3, 3] as Array[int])
+	_hud.refresh(_state)
+	assert_true((_find("CommandPoints") as Label).visible)
+	assert_eq((_find("CommandPoints") as Label).text, "C2 3/3")
+	_state.activate(_state.units_of(0)[0])
+	_hud.refresh(_state)
+	assert_eq((_find("CommandPoints") as Label).text, "C2 2/3")
+
+
+func test_units_without_points_left_count_as_done() -> void:
+	_state.set_command_points_per_turn([1, 0] as Array[int])
+	var first := _state.units_of(0)[0]
+	var second := _state.units_of(0)[1]
+	_state.activate(first)
+	assert_false(UnitStatus.is_done(_state, first))
+	assert_true(UnitStatus.is_done(_state, second))
+	assert_false(UnitStatus.is_done(_state, _state.units_of(1)[0]))

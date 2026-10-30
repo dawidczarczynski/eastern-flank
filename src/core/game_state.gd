@@ -32,6 +32,12 @@ var objective_owners: Dictionary = {}
 ## Total HP of each player's living units when the battle started (record_starting_hp; index =
 ## player id), for DESTROY_SHARE. Static per match, so not part of snapshot().
 var starting_hp: Array[int] = []
+## Command points N each player gets at the start of their turn (index = player id); 0 =
+## unlimited (TASK-091). Static per match (Scenario.from_setup), so not part of snapshot().
+var command_points_per_turn: Array[int] = []
+## Command points the current player has left this turn (meaningless while they are unlimited).
+## Part of snapshot().
+var command_points: int = 0
 
 var _next_unit_id: int = 1
 
@@ -43,6 +49,7 @@ func _init(p_grid: HexGrid, p_player_count: int = 2, seed_value: int = 0) -> voi
 	for player in player_count:
 		var defaults := FactionRegistry.DEFAULT_IDS
 		player_factions.append(defaults[player % defaults.size()])
+		command_points_per_turn.append(0)
 
 
 ## Whether the battle has ended (winner or draw).
@@ -55,6 +62,49 @@ func is_over() -> bool:
 func finish(p_winner: int, reason: StringName) -> void:
 	winner = p_winner
 	end_reason = reason
+
+
+## Sets N per player (0 = unlimited; missing entries = 0) and gives the current player their
+## points. Called by the scenario before the first command.
+func set_command_points_per_turn(values: Array[int]) -> void:
+	command_points_per_turn = values.duplicate()
+	while command_points_per_turn.size() < player_count:
+		command_points_per_turn.append(0)
+	command_points = command_points_per_turn[current_player]
+
+
+## Whether `player` has a command point limit.
+func is_command_limited(player: int) -> bool:
+	return (
+		player >= 0
+		and player < command_points_per_turn.size()
+		and command_points_per_turn[player] > 0
+	)
+
+
+## Whether `unit` may move or attack as far as command points go: already activated this turn,
+## its owner unlimited, or a point left. (Other rules are checked by the commands.)
+func can_activate(unit: Unit) -> bool:
+	return unit.activated or not is_command_limited(unit.owner_id) or command_points > 0
+
+
+## Marks `unit` activated. For a limited player the first activation of a turn costs a point:
+## returns the `command_points_changed` event then, otherwise (already activated, unlimited) [].
+func activate(unit: Unit) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	if unit.activated:
+		return events
+	unit.activated = true
+	if is_command_limited(unit.owner_id):
+		command_points -= 1
+		events.append(
+			{
+				"type": &"command_points_changed",
+				"player": unit.owner_id,
+				"remaining": command_points
+			}
+		)
+	return events
 
 
 ## Uses `p_objectives` for this battle; objective owners start at their initial owners.
@@ -134,6 +184,7 @@ func snapshot() -> Dictionary:
 		"end_reason": String(end_reason),
 		"rng_state": str(rng.state),
 		"objectives": _objectives_snapshot(),
+		"command_points": command_points,
 		"units": unit_list,
 	}
 
@@ -156,4 +207,5 @@ func _unit_snapshot(u: Unit) -> Dictionary:
 		"hp": u.hp,
 		"moves_left": u.moves_left,
 		"has_attacked": u.has_attacked,
+		"activated": u.activated,
 	}

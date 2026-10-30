@@ -276,8 +276,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner,
 ## result:<victory|defeat|draw> (the held result banner with its reason line) – e.g.
 ## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
-## SCREENSHOT_SCENARIO=<default_battle|objective_battle> starts that scenario (Scenario.NAMES;
-## like the game's `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
+## SCREENSHOT_SCENARIO=<one of Scenario.NAMES> starts that scenario (like the game's
+## `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
 ## limit: SCREENSHOT_SCENARIO=objective_battle tools/screenshot.sh .screenshots/objectives.png
 ## SCREENSHOT_SCENE=<battle|menu|catalog> renders another scene (default battle);
 ## SCREENSHOT_LOCALE=<pl|en> switches the language first.

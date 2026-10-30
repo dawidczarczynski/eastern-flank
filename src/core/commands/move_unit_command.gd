@@ -22,6 +22,8 @@ func validate(state: GameState) -> String:
 		return "unit_not_found"
 	if unit.owner_id != state.current_player:
 		return "not_your_unit"
+	if not state.can_activate(unit):
+		return "no_command_points"
 	if target == unit.coord or not _reach(state, unit).has(target):
 		return "unreachable"
 	return ""
@@ -38,6 +40,8 @@ func apply(state: GameState) -> Array[Dictionary]:
 	var events: Array[Dictionary] = [
 		{"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": target, "path": path},
 	]
+	# command_points_changed (first activation of a limited player) follows unit_moved directly.
+	events.append_array(state.activate(unit))
 	events.append_array(BattleRules.capture(state, unit))
 	return events
 

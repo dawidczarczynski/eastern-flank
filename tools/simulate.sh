@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Plays N headless AI-vs-AI matches and prints win rates and average match length (TASK-012).
 # Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--factions=P0,P1]
-#                          [--scenario=default_battle|objective_battle] [--verbose]
+#                          [--scenario=default_battle|objective_battle|command_points_battle] [--verbose]
 #   seeds S..S+N-1 (default S=1), harness turn limit T (default 50; a match still running then
 #   counts as "Harness limit reached"), faction ids of player 0 and 1 (default poland,russia),
 #   scenario (default default_battle); --verbose prints one line per match.

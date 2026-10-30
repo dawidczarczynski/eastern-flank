@@ -9,6 +9,9 @@ var coord: Vector2i
 var hp: int
 var moves_left: int
 var has_attacked: bool = false
+## Whether the unit has moved or attacked this turn (its owner's command point is spent, TASK-091).
+## Reset at the start of the owner's turn; counterattacks do not set it.
+var activated: bool = false
 
 
 func _init(p_id: int, p_owner_id: int, p_definition: UnitDefinition, p_coord: Vector2i) -> void:

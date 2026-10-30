@@ -46,7 +46,11 @@ def factions(root: Path = REPO_ROOT) -> List[str]:
 
 
 def scenarios(root: Path = REPO_ROOT) -> List[str]:
-    return ["default_battle"] + sorted(p.stem for p in (root / "data" / "scenarios").glob("*.tres"))
+    """Scenario.NAMES from src/core/scenario.gd – the names Scenario.build accepts (not every scenario has
+    a data/scenarios/ resource, e.g. command_points_battle)."""
+    source = (root / "src" / "core" / "scenario.gd").read_text(encoding="utf-8")
+    match = re.search(r"^const NAMES: Array\[String\] = \[(.*?)\]", source, re.M | re.S)
+    return re.findall(r'"([^"]+)"', match.group(1)) if match else ["default_battle"]
 
 
 def units(root: Path = REPO_ROOT) -> List[str]:

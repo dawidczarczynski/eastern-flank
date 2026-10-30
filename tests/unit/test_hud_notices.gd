@@ -94,7 +94,13 @@ func test_targeting_bar_shows_hides_and_ignores_the_mouse() -> void:
 
 func test_notice_strings_have_polish_translations() -> void:
 	TranslationServer.set_locale("pl")
-	for key in ["TARGET OUT OF RANGE", "CANNOT REACH THAT TILE", "CONFIRM", "CANCEL"]:
+	for key in [
+		"TARGET OUT OF RANGE",
+		"CANNOT REACH THAT TILE",
+		"NO COMMAND POINTS LEFT THIS TURN",
+		"CONFIRM",
+		"CANCEL",
+	]:
 		assert_true(_t(key) != key, key)
 	TranslationServer.set_locale("en")
 

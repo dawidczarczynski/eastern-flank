@@ -51,8 +51,20 @@ static func top_bar_at(
 		"turn_text": "%02d" % turn,
 		"turn_limit_text": turn_limit_text(turn_limit_of(state)),
 		"active_player": current_player,
+		"command_points_text": command_points_text(state, current_player),
 		"players": players,
 	}
+
+
+## "C2 2/3" (remaining / per turn) for `player`, "" when they are unlimited. A player other than
+## the state's current one (a turn being played back that the state already moved past) shows
+## their full allowance.
+static func command_points_text(state: GameState, player: int) -> String:
+	if not state.is_command_limited(player):
+		return ""
+	var per_turn := state.command_points_per_turn[player]
+	var remaining := state.command_points if player == state.current_player else per_turn
+	return "C2 %d/%d" % [remaining, per_turn]
 
 
 ## Whether a `turn_started` moving from (prev_turn, prev_player) to (turn, player) shows the

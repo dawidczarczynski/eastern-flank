@@ -14,7 +14,9 @@ const RIVER_COLUMNS := [6, 5, 5, 5, 6, 6, 6, 5, 5, 5]
 const RIVER_FORDS := [2, 7]
 const OPERATION_NAME := "Iron Shore"
 ## Scenario names a MatchRecord can name (Scenario.build).
-const NAMES: Array[String] = ["default_battle", "objective_battle"]
+const NAMES: Array[String] = ["default_battle", "objective_battle", "command_points_battle"]
+## Command points per turn of both players in the command points test battle (TASK-091).
+const COMMAND_POINTS_BATTLE_POINTS := 2
 ## Objectives of the objective test battle (TASK-088).
 const OBJECTIVE_BATTLE_OBJECTIVES := preload("res://data/scenarios/objective_battle.tres")
 
@@ -26,6 +28,8 @@ static func build(scenario_name: String, seed_value: int, factions: Array[String
 			return default_battle(seed_value, factions)
 		"objective_battle":
 			return objective_battle(seed_value, factions)
+		"command_points_battle":
+			return command_points_battle(seed_value, factions)
 	return null
 
 
@@ -44,6 +48,24 @@ static func objective_battle(
 	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
 ) -> GameState:
 	return from_setup(objective_battle_setup(seed_value, factions))
+
+
+## Command points test battle: the default battle where each player has
+## COMMAND_POINTS_BATTLE_POINTS command points per turn (only that many companies can act).
+static func command_points_battle(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> GameState:
+	return from_setup(command_points_battle_setup(seed_value, factions))
+
+
+## command_points_battle as a BattleSetup.
+static func command_points_battle_setup(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> BattleSetup:
+	var setup := default_battle_setup(seed_value, factions)
+	for side in setup.conditions:
+		side.command_points = COMMAND_POINTS_BATTLE_POINTS
+	return setup
 
 
 ## objective_battle as a BattleSetup; its objectives are a fresh copy of the resource.
@@ -109,7 +131,9 @@ static func default_battle_setup(
 ## missing tile, objectives that are inconsistent (BattleObjectives.problem) or have a hex off
 ## the map. Objective hexes that are water become plains; owners start at the data's initial
 ## owners (a unit spawning on one does not capture it); `starting_hp` is recorded after spawning.
-## `map_region` and conditions are not read yet (TASK-087 / TASK-094, TASK-091, TASK-099).
+## `conditions[i].command_points` becomes `GameState.command_points_per_turn[i]` (a negative value
+## is an error → null; the first player starts with their points); the other conditions and
+## `map_region` are not read yet (TASK-087 / TASK-094, TASK-099).
 static func from_setup(setup: BattleSetup) -> GameState:
 	var grid := _build_map(setup.map_id, setup.seed)
 	if grid == null:
@@ -147,6 +171,13 @@ static func from_setup(setup: BattleSetup) -> GameState:
 		if grid.get_terrain(c) == Terrain.Type.WATER:
 			MapGenerator.force_terrain(grid, c, Terrain.Type.PLAINS)
 	state.set_objectives(setup.objectives)
+	var points: Array[int] = []
+	for side in setup.conditions:
+		if side.command_points < 0:
+			push_error("Scenario: negative command points")
+			return null
+		points.append(side.command_points)
+	state.set_command_points_per_turn(points)
 	state.record_starting_hp()
 	return state
 

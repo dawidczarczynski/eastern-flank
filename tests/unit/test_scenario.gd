@@ -248,7 +248,10 @@ func test_objective_battle_is_the_default_battle_with_objectives() -> void:
 
 
 func test_build_by_name() -> void:
-	assert_eq(Scenario.NAMES, ["default_battle", "objective_battle"] as Array[String])
+	assert_eq(
+		Scenario.NAMES,
+		["default_battle", "objective_battle", "command_points_battle"] as Array[String]
+	)
 	assert_eq(
 		Scenario.build("default_battle", 3, FactionRegistry.DEFAULT_IDS).snapshot(),
 		Scenario.default_battle(3).snapshot()

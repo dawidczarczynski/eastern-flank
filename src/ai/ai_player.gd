@@ -6,18 +6,24 @@ extends RefCounted
 ## goals. A unit standing on one stays there (it still attacks); otherwise, when the nearest goal
 ## not occupied by an own unit is not farther than the nearest enemy, the unit moves as close to
 ## that goal as it can. Without such conditions the behaviour is the plain one above.
+## With limited command points (TASK-091) the units act best action first (_units_in_order) and
+## units that can no longer be activated are skipped; unlimited, the order is by unit id.
 ## Acts only through commands – the same rules as for the player.
 
 const _INF := 1 << 30
+## Action scores used to spend limited command points (_action_score).
+const _ATTACK_SCORE := 100
+const _KILL_SCORE := 100
+const _MOVE_SCORE := 10
 
 
 func take_turn(sim: GameSimulation) -> void:
 	var state := sim.state
 	var goals := _objective_hexes(state, state.current_player)
-	for unit in state.units_of(state.current_player):
+	for unit in _units_in_order(state, goals):
 		if state.is_over():
 			return
-		if not unit.is_alive():
+		if not unit.is_alive() or not state.can_activate(unit):
 			continue
 		var best: Variant = _destination(state, unit, goals)
 		if best == null:
@@ -30,6 +36,46 @@ func take_turn(sim: GameSimulation) -> void:
 	if state.is_over():
 		return
 	sim.execute(EndTurnCommand.new())
+
+
+## The current player's units in the order they act: by id; when the player has limited command
+## points (TASK-091) by descending action score so the points go to the best actions (ties: id).
+func _units_in_order(state: GameState, goals: Array[Vector2i]) -> Array[Unit]:
+	var units := state.units_of(state.current_player)
+	if not state.is_command_limited(state.current_player):
+		return units
+	var scores := {}
+	for unit in units:
+		scores[unit.id] = _action_score(state, unit, goals)
+	units.sort_custom(
+		func(a: Unit, b: Unit) -> bool:
+			if scores[a.id] != scores[b.id]:
+				return scores[a.id] > scores[b.id]
+			return a.id < b.id
+	)
+	return units
+
+
+## How much `unit`'s action this turn is worth: an attack it can make (from where it would stand
+## after moving) scores ATTACK_SCORE + the damage it deals + KILL_SCORE for a kill; a move
+## MOVE_SCORE; nothing to do 0.
+func _action_score(state: GameState, unit: Unit, goals: Array[Vector2i]) -> int:
+	var dest: Variant = _destination(state, unit, goals)
+	if dest == null:
+		return 0
+	var from: Vector2i = dest
+	var best := 0
+	for other: Unit in state.units.values():
+		if other.owner_id == unit.owner_id or not other.is_alive():
+			continue
+		if Hex.distance(from, other.coord) > unit.definition.attack_range:
+			continue
+		var damage := mini(AttackCommand.compute_damage(state, unit, other), other.hp)
+		var score := _ATTACK_SCORE + damage + (_KILL_SCORE if damage >= other.hp else 0)
+		best = maxi(best, score)
+	if best > 0:
+		return best
+	return _MOVE_SCORE if from != unit.coord else 0
 
 
 ## Where `unit` moves (its own tile = stay); null when it has nothing to do (no enemy, no goal).

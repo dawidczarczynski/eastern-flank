@@ -42,6 +42,7 @@ var _turn_row: HBoxContainer
 var _turn_box: Control
 var _active_label: Label
 var _active_arrow: Label
+var _points_label: Label  # "C2 2/3" under the active side; hidden without command points
 var _ready_value: Label
 var _ready_blocks: ReadyBlocks
 var _end_button: EndTurnButton
@@ -112,6 +113,9 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	_turn_box.custom_minimum_size.x = _turn_row.get_combined_minimum_size().x
 	_active_label.text = tr(active["name"] as String).to_upper()
 	_active_label.add_theme_color_override(&"font_color", color)
+	_points_label.text = bar["command_points_text"]
+	_points_label.visible = _points_label.text != ""
+	_points_label.add_theme_color_override(&"font_color", color)
 	_active_arrow.add_theme_color_override(&"font_color", color)
 	_ready_value.text = "%d / %d" % [active["ready"], active["units"]]
 	_ready_blocks.set_counts(active["ready"], active["units"], color)
@@ -343,6 +347,11 @@ func _build_centre() -> Control:
 	_active_arrow.offset_right = -5.0
 	_active_arrow.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_active_label.add_child(_active_arrow)
+	_points_label = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
+	_points_label.name = "CommandPoints"
+	_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_points_label.visible = false
+	column.add_child(_points_label)
 	group.add_child(_divider())
 	return group
 

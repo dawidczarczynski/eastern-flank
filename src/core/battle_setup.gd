@@ -57,8 +57,8 @@ class Company:
 		return company
 
 
-## Battle conditions of one side, shaped by the operation (VISION 2.2). Read by no rule yet:
-## command points by TASK-091, the rest by TASK-099.
+## Battle conditions of one side, shaped by the operation (VISION 2.2). `command_points` is read
+## by Scenario.from_setup (TASK-091); the rest by no rule yet (TASK-099).
 class Conditions:
 	extends RefCounted
 	## Activations per turn; 0 = unlimited.

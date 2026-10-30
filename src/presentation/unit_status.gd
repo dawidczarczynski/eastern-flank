@@ -4,7 +4,11 @@ extends RefCounted
 
 
 ## A unit is "done" when it cannot move and has nothing left to attack.
+## With command points (TASK-091) a not yet activated unit of the player to move is done too
+## once no point is left: it cannot act, while activated units keep their normal look.
 static func is_done(state: GameState, unit: Unit) -> bool:
+	if unit.owner_id == state.current_player and not state.can_activate(unit):
+		return true
 	if unit.moves_left != 0:
 		return false
 	return unit.has_attacked or AttackCommand.valid_targets(state, unit.id).is_empty()

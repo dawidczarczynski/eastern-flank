@@ -177,8 +177,10 @@ func test_snapshot_contents() -> void:
 		"hp": first.hp,
 		"moves_left": first.moves_left,
 		"has_attacked": false,
+		"activated": false,
 	}
 	assert_eq(units[0], expected)
+	assert_eq(snap["command_points"], 0)
 	assert_eq(units[4]["hp"], 0, "dead units stay in the snapshot")
 
 

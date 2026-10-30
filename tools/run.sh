@@ -2,7 +2,7 @@
 # Runs the game (needs a graphical environment – in WSL2 it works through WSLg).
 # Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>]
 #   --quality  force the graphics quality (default: auto-detected; LOW on software rendering)
-#   --scenario start the battle with that scenario (default_battle, objective_battle)
+#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle)
 # The Godot path can be overridden with the GODOT variable.
 set -euo pipefail
 cd "$(dirname "$0")/.."

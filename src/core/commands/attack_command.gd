@@ -56,6 +56,8 @@ func validate(state: GameState) -> String:
 		return "unit_not_found"
 	if attacker.owner_id != state.current_player:
 		return "not_your_unit"
+	if not state.can_activate(attacker):
+		return "no_command_points"
 	return _combat_rule_violation(attacker, target)
 
 
@@ -75,7 +77,11 @@ func apply(state: GameState) -> Array[Dictionary]:
 	var target := state.get_unit(target_id)
 	attacker.has_attacked = true
 	attacker.moves_left = 0
+	var activation := state.activate(attacker)
 	var events := _strike(state, attacker, target, false)
+	# command_points_changed (first activation of a limited player) follows the first unit_attacked.
+	for i in activation.size():
+		events.insert(1 + i, activation[i])
 	# A surviving target in range hits back once. It is not an action: the target's
 	# has_attacked / moves_left are untouched and a counter never provokes another counter.
 	if (
