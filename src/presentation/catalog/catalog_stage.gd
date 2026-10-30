@@ -58,6 +58,7 @@ var _traverse_angle := 0.0
 var _pose_tween: Tween
 var _volley: RocketVolley
 var _salvo_fx: SalvoFxPool  # created at the first Fire; null without particles
+var _muzzle_flash: MuzzleFlash  # created at the first tank Fire; its light follows `quality` then
 var _drive_time := 0.0
 
 
@@ -200,6 +201,7 @@ func clear() -> void:
 		_pose_tween.kill()
 	_pose_tween = null
 	_free_volley()
+	_hide_muzzle_flash()
 	if _view != null and is_instance_valid(_view):
 		remove_child(_view)
 		_view.queue_free()
@@ -342,6 +344,9 @@ func _traverse_turret() -> void:
 ## direction the launcher is traversed to, so the body never has to turn. Launch fire, smoke,
 ## trails and lights are the battle's (SalvoFxPool on particle quality); impacts are not shown.
 func _fire() -> void:
+	if UnitModels.has_turret(_view.model()):
+		_fire_turret()
+		return
 	var elevation := UnitModels.launcher_elevation(_view.model())
 	var aim_point := fire_point()
 	_firing = true
@@ -354,6 +359,24 @@ func _fire() -> void:
 	if pool != null:
 		_volley.effects = pool.effects_for_volley(quality.get("fx_lights", false), false)
 	VolleyPlayback.append_stow(_pose_tween, _view, _traverse_angle, elevation)
+	_pose_tween.finished.connect(_on_pose_finished)
+
+
+## Tank shot: the turret turns to the demo angle with the gun slightly raised, one shot (recoil
+## and muzzle flash, light per the viewer's quality), back to the front.
+func _fire_turret() -> void:
+	if _muzzle_flash == null:
+		_muzzle_flash = MuzzleFlash.create(self, quality)
+	var pose := Vector2(_traverse_angle, TURRET_DEMO_ELEVATION)
+	_firing = true
+	_pose_tween = create_tween()
+	VolleyPlayback.tween_turret(
+		_pose_tween, _view, Vector2.ZERO, pose, VolleyPlayback.TURRET_AIM_DURATION
+	)
+	VolleyPlayback.append_shot(_pose_tween, _view, _muzzle_flash, EventQueue.ATTACK_DURATION)
+	VolleyPlayback.tween_turret(
+		_pose_tween, _view, pose, Vector2.ZERO, VolleyPlayback.TURRET_AIM_DURATION
+	)
 	_pose_tween.finished.connect(_on_pose_finished)
 
 
@@ -394,11 +417,19 @@ func _on_pose_finished() -> void:
 		unit_view.set_turret_pose(
 			_traverse_angle if _traverse_on else 0.0, TURRET_DEMO_ELEVATION if _traverse_on else 0.0
 		)
+		unit_view.set_gun_recoil(0.0)
+		_hide_muzzle_flash()
 		unit_view.set_launcher_pose(
 			_traverse_angle if _traverse_on else 0.0,
 			UnitModels.launcher_elevation(unit_view.model()) if _raise_on else 0.0
 		)
 	state_changed.emit()
+
+
+## A shot cut off mid-flash (Reset, Death, another unit) must not leave the flash or its light on.
+func _hide_muzzle_flash() -> void:
+	if _muzzle_flash != null:
+		_muzzle_flash.pose(-1.0)
 
 
 func _free_volley() -> void:
@@ -412,6 +443,7 @@ func _die() -> void:
 		_pose_tween.kill()
 	_pose_tween = null
 	_free_volley()
+	_hide_muzzle_flash()
 	_firing = false
 	_driving = false
 	_marching = false

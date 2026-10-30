@@ -1,6 +1,6 @@
 # TASK-048: `gun_recoil` mechanism – barrel recoil and muzzle flash on direct fire
 
-- **Status**: ready (specified 2026-10-30; TASK-047 is done. Priority: like the other visual polish (063, 066, model reworks) it waits behind the two-layer vision track – BACKLOG.md, GDD "Vision decisions" → Priorities – so it is not the next task even though it is `ready`.)
+- **Status**: done (playtested 2026-10-30; implemented 2026-10-30; specified 2026-10-30; TASK-047 is done. Priority: like the other visual polish (063, 066, model reworks) it waits behind the two-layer vision track – BACKLOG.md, GDD "Vision decisions" → Priorities – so it is not the next task even though it is `ready`.)
 - **Layers**: presentation (`UnitModels.pose_recoil` / `has_gun_recoil` / `recoil_params`, `UnitView.set_gun_recoil` / `muzzle_point` / `bore_direction`, `VolleyPlayback` recoil profile and shot step, new `MuzzleFlash` built on `FlashFx`, `BattleController._play_direct_fire`, `CatalogAnimations` / `CatalogStage` Fire for tanks), `docs/design/units/mechanisms.json`, the tank models' `MECHANISMS` + their catalog `unit.json`, tests
 - **Depends on**: **TASK-047** (done: `Turret`, `Turret/Gun`, `Turret/Gun/Muzzle`, `FX_DIRECT_FIRE` playback). Soft: TASK-069 (done – both tanks already have the `Turret/Gun/Barrel` pivot with the barrel meshes), TASK-074 (done – `FlashFx` was built for this task), TASK-084 (done – the catalog's mechanism → animation table).
 - **Model**: sonnet
@@ -73,4 +73,11 @@ A tank's shot reads at game zoom: as the target is hit, the barrel kicks back an
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Implemented 2026-10-30 as specified (presentation only, no event or duration change).
+
+- `UnitModels.RECOIL_DEFAULTS` / `recoil_params` / `has_gun_recoil` / `pose_recoil`; `UnitView.has_gun_recoil` / `set_gun_recoil` / `muzzle_point` / `bore_direction`; `VolleyPlayback.RECOIL_KICK` / `RECOIL_RETURN` / `recoil_at` / `append_shot`; new `src/presentation/muzzle_flash.gd`.
+- Beyond the spec: `MuzzleFlash.create(parent, quality)` builds, adds and warms up the flash (used by the battle and the catalog, mirrors `SalvoFxPool.create`); `warm_up()` does nothing outside the scene tree. `append_shot` with a recoiling shooter but a null flash still recoils (tested). `MuzzleFlash.fire` sets `position` instead of `global_position` when not in the tree (headless tests).
+- Catalog: `CatalogStage._fire_turret` (turret out → shot → back) with its own `MuzzleFlash`, created at the first tank Fire (its light follows `quality` at that moment); `clear()` / `_die()` / `_on_pose_finished` hide the flash so a cut-off shot leaves no flash or light behind (review finding).
+- Registry `gun_recoil` → `implemented`, `recoil_m` 0 … 1 m, `owns` `Turret/Gun/Barrel`; tank `MECHANISMS` + catalog `unit.json` (0.5 / 0.4, `verified: false`).
+- Tests: `tests/unit/test_gun_recoil.gd`, `test_catalog_animations.gd` (tanks `[drive, traverse, fire]`, turret without `gun_recoil` → no fire), `test_unit_catalog.gd` (tank Fire returns to the built pose, flash hidden after a cut-off shot). Headless tweens can't run in the test runner, so `append_shot` is stepped with `custom_step`; `muzzle_point()` logs a harmless `!is_inside_tree()` engine error there.
+- README screenshot not re-rendered: the battle at rest doesn't change.

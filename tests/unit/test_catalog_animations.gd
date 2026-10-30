@@ -34,9 +34,9 @@ func test_squads_march_and_kneel() -> void:
 	assert_eq(_animations(&"ru_motor_rifle"), [IDS.MARCH, IDS.KNEEL])
 
 
-func test_tanks_drive_and_traverse_the_turret() -> void:
-	assert_eq(_animations(&"m1a2_sepv3"), [IDS.DRIVE, IDS.TRAVERSE])
-	assert_eq(_animations(&"t72b3"), [IDS.DRIVE, IDS.TRAVERSE])
+func test_tanks_drive_traverse_and_fire() -> void:
+	assert_eq(_animations(&"m1a2_sepv3"), [IDS.DRIVE, IDS.TRAVERSE, IDS.FIRE])
+	assert_eq(_animations(&"t72b3"), [IDS.DRIVE, IDS.TRAVERSE, IDS.FIRE])
 
 
 func test_a_model_without_metadata_offers_nothing() -> void:
@@ -76,3 +76,16 @@ func test_traverse_angle_stays_inside_the_range() -> void:
 	var homar := UnitModels.build(&"homar_k", 0, null)
 	assert_true(absf(IDS.traverse_angle(homar)) > 0.1)
 	homar.free()
+
+
+func test_a_turret_without_gun_recoil_offers_no_fire() -> void:
+	var model := Node3D.new()
+	model.set_meta(&"mechanisms", {"turret_traverse": {}})
+	var turret := Node3D.new()
+	turret.name = "Turret"
+	model.add_child(turret)
+	var gun := Node3D.new()
+	gun.name = "Gun"
+	turret.add_child(gun)
+	assert_eq(IDS.for_model(model), [IDS.TRAVERSE] as Array[StringName])
+	model.free()

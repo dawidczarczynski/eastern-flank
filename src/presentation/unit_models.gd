@@ -23,6 +23,9 @@ const LAUNCHER_DEFAULTS := {"traverse_deg": "full", "max_elevation_deg": 40, "st
 ## Params of the `turret_traverse` mechanism a model doesn't declare (= the defaults in
 ## docs/design/units/mechanisms.json; a test keeps them equal).
 const TURRET_DEFAULTS := {"traverse_deg": "full", "elevation_deg": [-8, 20]}
+## Params of the `gun_recoil` mechanism a model doesn't declare (= the defaults in
+## docs/design/units/mechanisms.json; a test keeps them equal).
+const RECOIL_DEFAULTS := {"recoil_m": 0.5}
 ## Two traverse limits whose body turns differ by less than this (rad) count as a tie.
 const TRAVERSE_TIE := 0.000001
 ## Hydraulic actuators a launcher may have (Actuator0.., see pose_launcher).
@@ -311,6 +314,35 @@ static func pose_turret(model: Node3D, traverse: float, elevation: float) -> voi
 	var gun_rest: Transform3D = gun.get_meta(&"rest")
 	turret.transform = turret_rest * Transform3D(Basis(Vector3.UP, traverse), Vector3.ZERO)
 	gun.transform = gun_rest * Transform3D(Basis(Vector3.BACK, elevation), Vector3.ZERO)
+
+
+## Whether the model declares `gun_recoil` and has a `Turret/Gun/Barrel` pivot.
+static func has_gun_recoil(model: Node3D) -> bool:
+	return (
+		has_mechanism(model, "gun_recoil")
+		and _model_of(model).get_node_or_null("Turret/Gun/Barrel") is Node3D
+	)
+
+
+## The model's `gun_recoil` params over RECOIL_DEFAULTS.
+static func recoil_params(model: Node3D) -> Dictionary:
+	var params := RECOIL_DEFAULTS.duplicate()
+	params.merge(mechanism(model, "gun_recoil"), true)
+	return params
+
+
+## Gun recoil: the "Barrel" slides back along the bore (the Gun's local -X) by `t` (0..1,
+## clamped) of the unit's recoil_m, from its built pose (kept in the "rest" meta on first use).
+## No-op without the pivot or the declaration; t = 0 is the built pose.
+static func pose_recoil(model: Node3D, t: float) -> void:
+	if not has_gun_recoil(model):
+		return
+	var barrel := _model_of(model).get_node("Turret/Gun/Barrel") as Node3D
+	if not barrel.has_meta(&"rest"):
+		barrel.set_meta(&"rest", barrel.transform)
+	var rest: Transform3D = barrel.get_meta(&"rest")
+	var slide := clampf(t, 0.0, 1.0) * float(recoil_params(model)["recoil_m"]) / METERS_PER_UNIT
+	barrel.transform = rest * Transform3D(Basis(), Vector3(-slide, 0.0, 0.0))
 
 
 ## The model's deployable pivots (see DEPLOYABLE_PREFIXES), in order.

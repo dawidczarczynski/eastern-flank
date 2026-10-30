@@ -164,6 +164,50 @@ func test_tank_traverse_turns_the_turret_and_back() -> void:
 	_assert_same_pose(_snapshot(stage.view().model()), built)
 
 
+func _muzzle_flash(stage: CatalogStage) -> MuzzleFlash:
+	for child in stage.get_children():
+		if child is MuzzleFlash:
+			return child
+	return null
+
+
+func test_tank_fire_shoots_and_returns_to_the_built_pose() -> void:
+	for unit_id in [&"t72b3", &"m1a2_sepv3"]:
+		var stage := _make_stage()
+		stage.show_unit(_definition(unit_id), _faction(unit_id))
+		var view := stage.view()
+		var built := _snapshot(view.model())
+		assert_true(stage.can_play(IDS.FIRE), "%s can fire" % unit_id)
+		stage.play(IDS.FIRE)
+		assert_true(stage.is_busy())
+		assert_false(stage.can_play(IDS.FIRE), "no second Fire while firing")
+		assert_false(stage.can_play(IDS.TRAVERSE))
+		var flash := _muzzle_flash(stage)
+		assert_true(flash != null, "the stage has a muzzle flash")
+		# Poses mid-shot, as the tween sets them.
+		view.set_turret_pose(0.6, 0.1)
+		view.set_gun_recoil(1.0)
+		flash.pose(0.05)
+		assert_false(_snapshot(view.model())["/Turret"].is_equal_approx(built["/Turret"]))
+		stage.finish_pose()
+		assert_false(stage.is_busy())
+		_assert_same_pose(_snapshot(view.model()), built)
+		assert_false((flash.get_child(0) as FlashFx).visible, "flash hidden after the shot")
+		stage.free()
+		_stage = null
+
+
+func test_clear_mid_shot_hides_the_flash() -> void:
+	var stage := _make_stage()
+	stage.show_unit(_definition(&"t72b3"), _faction(&"t72b3"))
+	stage.play(IDS.FIRE)
+	var flash := _muzzle_flash(stage)
+	flash.pose(0.05)
+	assert_true((flash.get_child(0) as FlashFx).visible)
+	stage.show_unit(_definition(&"m1a2_sepv3"), _faction(&"m1a2_sepv3"))
+	assert_false((flash.get_child(0) as FlashFx).visible, "no flash left over from the cut shot")
+
+
 func test_a_busy_stage_ignores_pose_buttons() -> void:
 	var stage := _make_stage()
 	stage.show_unit(_definition(&"homar_k"), _faction(&"homar_k"))

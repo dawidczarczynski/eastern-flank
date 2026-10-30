@@ -81,7 +81,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | TASK-106 | Political events v1: escalation, ROE limits on strike targets, allied support | 💡 idea | TASK-097 |
 | TASK-107 | MVP scenario: one operation (Suwałki Gap **[ASSUMPTION]**), side objectives, campaign victory, balance via TASK-103 | 💡 idea | TASK-103 (soft: TASK-104, TASK-105, TASK-106) |
 | [TASK-046](TASK-046-blast-shields.md) | `blast_shields`: cab window shields lowered before a volley (Uragan) | ⚪ merged into TASK-045 | – |
-| [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil (per-unit `recoil_m`, Abrams 0.5 / T-72B3 0.4) + muzzle flash (`FlashFx` + one light on HIGH) in the direct-fire hit step, counters too, catalog Fire for tanks; event duration unchanged | 🟢 ready | **TASK-047** (soft: TASK-069, TASK-074, TASK-084); visual polish – waits behind the two-layer track |
+| [TASK-048](TASK-048-gun-recoil.md) | `gun_recoil`: barrel recoil (per-unit `recoil_m`, Abrams 0.5 / T-72B3 0.4) + muzzle flash (`FlashFx` + one light on HIGH) in the direct-fire hit step, counters too, catalog Fire for tanks; event duration unchanged | 🔵 done | **TASK-047** (soft: TASK-069, TASK-074, TASK-084); visual polish – waits behind the two-layer track |
 | [TASK-049](TASK-049-overlay-readability.md) | Overlay readability: reach outline, dim outside, hover-only fill, faint fading grid (G toggle) | 🔵 done | – |
 | [TASK-050](TASK-050-graphics-quality.md) | Graphics quality presets LOW/HIGH, auto-detected, `--quality=` override | 🔵 done | – |
 | [TASK-051](TASK-051-lighting-atmosphere-v3.md) | Lighting & atmosphere v3: AgX, lower sun, aerial perspective, SSIL, subtle glow, colour-grading LUT | 🔵 done | soft: TASK-050 |

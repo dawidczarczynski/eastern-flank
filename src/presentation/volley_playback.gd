@@ -15,6 +15,10 @@ const DEPLOY_DURATION := 0.6
 ## A tank turns its turret and elevates its gun this long before / after the hit (seconds at
 ## speed 1, each way; global pacing).
 const TURRET_AIM_DURATION := 0.5
+## Gun recoil profile (TASK-048): the barrel kicks back for RECOIL_KICK, then runs out over
+## RECOIL_RETURN (seconds at speed 1); together within EventQueue.ATTACK_DURATION.
+const RECOIL_KICK := 0.05
+const RECOIL_RETURN := 0.3
 
 
 ## Appends the deploy (0 -> 1) or stow (1 -> 0) step of jacks and shields, eased in and out.
@@ -62,6 +66,44 @@ static func tween_turret(
 		duration
 	)
 	step.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## Recoil stroke (0..1) `age` seconds after the shot: 0 before it, a linear kick to 1 over
+## RECOIL_KICK, then a quadratic ease-out back to 0 over RECOIL_RETURN, 0 afterwards.
+static func recoil_at(age: float) -> float:
+	if age <= 0.0 or age >= RECOIL_KICK + RECOIL_RETURN:
+		return 0.0
+	if age < RECOIL_KICK:
+		return age / RECOIL_KICK
+	var u := (age - RECOIL_KICK) / RECOIL_RETURN
+	return (1.0 - u) * (1.0 - u)
+
+
+## Appends the shot of a direct-fire attack, lasting exactly `duration`: the barrel recoils
+## (recoil_at) and `flash` bursts at the muzzle, both driven by the step's own time. A shooter
+## without `gun_recoil` (or a null flash) just waits.
+static func append_shot(
+	tween: Tween, shooter: UnitView, flash: MuzzleFlash, duration: float
+) -> void:
+	if not shooter.has_gun_recoil():
+		tween.tween_interval(duration)
+		return
+	if flash != null:
+		tween.tween_callback(
+			func() -> void:
+				if is_instance_valid(flash) and is_instance_valid(shooter):
+					flash.fire(shooter.muzzle_point(), shooter.bore_direction())
+		)
+	tween.tween_method(
+		func(age: float) -> void:
+			if is_instance_valid(shooter):
+				shooter.set_gun_recoil(recoil_at(age))
+			if flash != null and is_instance_valid(flash):
+				flash.pose(age),
+		0.0,
+		duration,
+		duration
+	)
 
 
 ## Appends a turn of the whole vehicle by `turn` radians from its heading at the time of the call.

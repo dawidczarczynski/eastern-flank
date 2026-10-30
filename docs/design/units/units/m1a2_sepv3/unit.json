@@ -45,6 +45,9 @@
         -10,
         20
       ]
+    },
+    "gun_recoil": {
+      "recoil_m": 0.5
     }
   },
   "images": [
@@ -180,6 +183,14 @@
     },
     "mechanisms.turret_traverse.elevation_deg": {
       "source": "M256 120 mm gun: about -10 / +20 deg (commonly quoted for the M1 series); best-known value, needs human verification (?)",
+      "verified": false
+    },
+    "mechanisms.gun_recoil": {
+      "source": "TASK-048: barrel recoil and muzzle flash on direct fire; added by the presentation engineer, not yet reviewed in the catalog tool",
+      "verified": false
+    },
+    "mechanisms.gun_recoil.recoil_m": {
+      "source": "M256 120 mm gun: recoil stroke about 0.33 m (?); exaggerated for the miniature (about 1.3-1.6 x), TASK-048; needs human verification",
       "verified": false
     }
   },

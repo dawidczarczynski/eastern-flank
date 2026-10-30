@@ -24,6 +24,7 @@ const TABLE := {
 	"blast_shields": [DEPLOY],
 	"launcher": [RAISE, TRAVERSE, FIRE],
 	"turret_traverse": [TRAVERSE],
+	"gun_recoil": [FIRE],
 }
 ## Button order.
 const ORDER: Array[StringName] = [DRIVE, MARCH, KNEEL, DEPLOY, RAISE, TRAVERSE, FIRE]
@@ -54,10 +55,12 @@ static func for_model(model: Node3D) -> Array[StringName]:
 		if declared.has(mechanism):
 			for id: StringName in TABLE[mechanism]:
 				found[id] = true
-	if found.has(FIRE) and not UnitModels.has_launcher(model):
+	if not UnitModels.has_launcher(model):
 		found.erase(RAISE)
-		found.erase(TRAVERSE)
-		found.erase(FIRE)
+		if not UnitModels.has_gun_recoil(model):
+			found.erase(FIRE)
+		if not UnitModels.has_turret(model):
+			found.erase(TRAVERSE)
 	var result: Array[StringName] = []
 	for id in ORDER:
 		if found.has(id):

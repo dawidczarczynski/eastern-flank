@@ -37,6 +37,7 @@ var is_built := false
 var scenario_name := ""
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
+var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
@@ -100,6 +101,7 @@ func _ready() -> void:
 	_units_root.add_child(_wrecks)
 	_camera_rig.set_bounds(_map_bounds())
 	_salvo_fx_pool = SalvoFxPool.create(self, quality, _map_bounds(), _camera_rig)
+	_muzzle_flash = MuzzleFlash.create(self, quality)
 	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
@@ -807,7 +809,7 @@ func _play_direct_fire(
 		VolleyPlayback.tween_body_turn(tween, shooter, aim.x, AIM_DURATION)
 	VolleyPlayback.tween_turret(tween, shooter, Vector2.ZERO, pose, TURRET_AIM_DURATION)
 	tween.tween_callback(_play_direct_hit.bind(target, target_hp, event, shooter))
-	tween.tween_interval(EventQueue.ATTACK_DURATION)
+	VolleyPlayback.append_shot(tween, shooter, _muzzle_flash, EventQueue.ATTACK_DURATION)
 	VolleyPlayback.tween_turret(tween, shooter, pose, Vector2.ZERO, TURRET_AIM_DURATION)
 	return tween
 

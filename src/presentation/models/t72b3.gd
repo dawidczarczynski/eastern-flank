@@ -15,6 +15,7 @@ const LABEL_HEIGHT := 0.62
 const MECHANISMS := {
 	"wheels": {},
 	"turret_traverse": {"traverse_deg": "full", "elevation_deg": [-6, 14]},
+	"gun_recoil": {"recoil_m": 0.4},
 }
 const Frame := preload("res://src/presentation/models/parts/vehicle_frame.gd")
 const Gear := preload("res://src/presentation/models/parts/tracked_running_gear.gd")

@@ -371,6 +371,33 @@ func has_turret() -> bool:
 	return UnitModels.has_turret(_model)
 
 
+## Whether the gun recoils and flashes when it fires (TASK-048).
+func has_gun_recoil() -> bool:
+	return UnitModels.has_gun_recoil(_model)
+
+
+## Slides the barrel back by `t` (0..1) of its recoil stroke; 0 is the built pose.
+func set_gun_recoil(t: float) -> void:
+	if not _dying:
+		UnitModels.pose_recoil(_model, t)
+
+
+## World position of the muzzle (`Turret/Gun/Muzzle`); without one, 0.15 above the view origin.
+func muzzle_point() -> Vector3:
+	var muzzle := _model.get_node_or_null("Turret/Gun/Muzzle") as Node3D
+	if muzzle == null:
+		return global_position + Vector3(0.0, 0.15, 0.0)
+	return muzzle.global_position
+
+
+## World direction the gun points along (the Gun's +X, normalised); the view's facing without a gun.
+func bore_direction() -> Vector3:
+	var gun := _model.get_node_or_null("Turret/Gun") as Node3D
+	if gun == null:
+		return global_transform.basis.x.normalized()
+	return gun.global_transform.basis.x.normalized()
+
+
 ## How the turret points at the world point `target` from the current facing: x = body yaw change
 ## (non-zero only for a limited traverse), y = turret angle (see UnitModels.turret_aim).
 func turret_aim_towards(target: Vector3) -> Vector2:

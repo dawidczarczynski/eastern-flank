@@ -175,13 +175,13 @@
   {
     "id": "gun_recoil",
     "label": "Gun recoil and muzzle flash",
-    "status": "planned",
-    "description": "Planned (TASK-048). The barrel slides back when the gun fires and the muzzle flashes.",
+    "status": "implemented",
+    "description": "The barrel slides back along the bore when the gun fires (TASK-048) and a short flash bursts at the muzzle; the muzzle marker Turret/Gun/Muzzle comes from turret_traverse.",
     "params": {
       "recoil_m": {
         "type": "number",
         "min": 0,
-        "max": 2,
+        "max": 1,
         "default": 0.5,
         "unit": "m",
         "help": "Distance the barrel slides back"
@@ -192,6 +192,8 @@
         "path": "Turret/Gun/Barrel"
       }
     ],
-    "owns": []
+    "owns": [
+      "Turret/Gun/Barrel"
+    ]
   }
 ]
