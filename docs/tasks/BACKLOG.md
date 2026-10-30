@@ -59,7 +59,8 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | [TASK-088](TASK-088-battle-objectives.md) | Per-battle victory conditions and turn limit (`BattleObjectives`: hold / take hexes, destroy share, eliminate; draws) | 🟢 ready | – (soft: TASK-086) |
 | [TASK-091](TASK-091-command-points.md) | Command points – tactical C2 delay (N activations per turn, `no_command_points`) | 🟢 ready | – (soft: TASK-086) |
 | [TASK-087](TASK-087-real-map-import.md) | Maps from real geography: sources + licences, hex scales, offline import tool (OSM + DEM → `data/maps/`), sample real battle (study first) | 🟢 ready | – (soft: TASK-086) |
-| [TASK-089](TASK-089-company-combat-rolls.md) | Company combat: per-element rolls, weaker when battered, damage forecast (design first) | 💡 idea | human approval of Step 1 (soft: TASK-088) |
+| [TASK-089a](TASK-089a-company-combat-rolls.md) | Company combat: per-element rolls, weaker when battered, `forecast()` API, AI by expected value, simulation before/after | 🟢 ready | – (soft: TASK-088) |
+| [TASK-089b](TASK-089b-combat-forecast-hud.md) | Combat forecast in the HUD hover card: damage + 10–90 % range, destroy chance, counter | 🔴 blocked | **TASK-089a** |
 | TASK-092 | Operational state: operational map from real data, formations (battalion / brigade = companies) as data, `MoveFormationCommand`, operational turns | 💡 idea | TASK-086, TASK-087 |
 | TASK-094 | Contact → battle: contact rule, `BattleSetup` from formations, tactical map cut at the contact point, objectives derived from the situation, scene transition | 💡 idea | TASK-092, TASK-088, TASK-087 |
 | TASK-095 | Battle result → operation: losses into formations, fatigue / readiness, retreat, initiative | 💡 idea | TASK-094 |
@@ -74,7 +75,7 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | TASK-101 | Deep strike view: pick means and target, effectiveness forecast, strike report on the map | 💡 idea | TASK-097, TASK-093 |
 | TASK-102 | Operational AI: moves, strikes, air defence placement; tactical AI plays for objectives | 💡 idea | TASK-095, TASK-097 |
 | TASK-103 | Full-loop simulation: operational AI-vs-AI matches with headless battles (`tools/simulate.sh` extension) | 💡 idea | TASK-102 |
-| TASK-090 | Suppression / morale checks from fire (pinned companies act worse next turn) | 💡 idea | TASK-089 |
+| TASK-090 | Suppression / morale checks from fire (pinned companies act worse next turn) | 💡 idea | TASK-089a |
 | TASK-104 | Minimal technology tree (3–4 paths) unlocking strike means and defences | 💡 idea | TASK-097 |
 | TASK-105 | Replacements and mobilisation: rebuilding formation strength over time | 💡 idea | TASK-095 |
 | TASK-106 | Political events v1: escalation, ROE limits on strike targets, allied support | 💡 idea | TASK-097 |

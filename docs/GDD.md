@@ -22,7 +22,7 @@ Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-
 - **Battles are always played** – no auto-resolve for now.
 - **Fog of war** is in the MVP (both layers); reconnaissance drives deep strike accuracy.
 - **Priorities**: the core loop "operation → deep strikes → battle → consequences" comes first; new visual polish waits (TASK-048, TASK-063, TASK-066 and further model reworks move down the backlog).
-- **Tactical randomness** – proposed **[ASSUMPTION]**, to be confirmed in TASK-089: per-element rolls (each strength point of the attacking company rolls to inflict a loss, so a full company has a small spread and a battered one a large spread; a damaged company deals less), with the expected range shown before the attack; later suppression / morale checks from fire (TASK-090) and indirect-fire accuracy from spotting. All through `GameState.rng`.
+- **Tactical randomness** – decided 2026-10-30 (TASK-089a, numbers in "Combat" → "Per-element rolls"): per-element rolls (each strength point of the attacking company rolls to inflict a loss, so a full company has a small spread and a battered one a large spread; a damaged company deals less), with the expected range shown before the attack; later suppression / morale checks from fire (TASK-090) and indirect-fire accuracy from spotting. All through `GameState.rng`.
 - **First theatre** – proposed **[ASSUMPTION]**: the Suwałki Gap (Poland / Lithuania / Kaliningrad / Belarus).
 
 ## Gameplay loop
@@ -226,13 +226,26 @@ Implemented in TASK-010 and TASK-011:
 
 Player-facing description of these rules: docs/MANUAL.md.
 
+### Per-element rolls (approved 2026-10-30)
+
+Approved by the human, not implemented yet: the rules above stay valid until [TASK-089a](tasks/TASK-089a-company-combat-rolls.md) (core, AI) is done; the HUD forecast is [TASK-089b](tasks/TASK-089b-combat-forecast-hud.md). Full design, worked table and decisions: TASK-089a.
+
+- **Roll**: `base = max(1, attack − (defense + tile bonus))` (today's damage). The striker rolls one die with `max_hp` faces per current HP (`shots = hp`); a roll `<= min(base, max_hp)` hits; **damage = hits**. Hit chance `p = min(base, max_hp) / max_hp`, so a full-strength company deals today's damage on average and a company at x % strength x % of it. Integer rolls only, through `GameState.rng.randi_range(1, max_hp)`; no new balance data.
+- **No minimum damage**: a strike may deal 0 (infantry vs. a tank: 35 % of strikes); the old minimum of 1 survives as the mean.
+- **Counter**: the same roll, with the defender's HP left after the hit as `shots`.
+- **Spread at full strength** (examples, plains): Abrams → squad 4.0, 10–90 % range 2–6; Abrams → T-72B3 3.0 (1–5), counter 1.25 instead of 2; T-72B3 → squad 3.0 (1–5); squad → tank 1.0 (0–2); Abrams → full MLRS destroys it 63 % of the time (today always); Homar-K → Uragan 5.0 (4–6), destroys it 33 %.
+- **Forecast** (pure, no rng): expected damage, 10–90 % range, destroy chance, expected counter and its range; shown in the hover card over an attackable enemy; used by the AI.
+- **AI**: picks the target with the highest `expected damage + 2 × destroy chance − expected counter` (ties: lowest HP, lowest id).
+- **Determinism**: per attack the attacker rolls exactly `hp` times (even after the target is dead), then – only if the counter happens – the defender rolls exactly its remaining `hp` times; `validate()` and the forecast never use the rng. The replay fixture is regenerated.
+- **Check**: `tools/simulate.sh 200` before/after with `--factions=poland,russia`, `russia,poland` and the mirrors `poland,poland` / `russia,russia` (side bias); target Poland 40–60 % of decided matches, draws ≤ 15 %.
+
 ## Open questions
 
 Each question lists the tasks that depend on the answer.
 
 - **Victory condition** (decided 2026-10-30: per-battle `BattleObjectives`, TASK-088 – see "Vision decisions"): elimination of all enemy units is the current **[ASSUMPTION]**. Alternatives: hold objectives, kill the leader, turn limit with points. → TASK-012 uses a harness-only turn limit (draw) and would change if a turn limit becomes a real rule; future scenario tasks.
 - **Turn limit as a game rule?** (decided 2026-10-30: yes, per battle, TASK-088) Not in the game yet; only the AI-vs-AI simulation (TASK-012) stops matches after N turns. → TASK-012.
-- **Randomness in combat** (2026-10-30: per-element rolls proposed, TASK-089): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
+- **Randomness in combat** (decided 2026-10-30: per-element rolls, exact calibration, no minimum damage, TASK-089a; numbers in "Combat" → "Per-element rolls"): deterministic (like Into the Breach) or with rolls (like Wesnoth)? Currently deterministic **[ASSUMPTION]**. → TASK-002 (flat defense bonus vs. hit-chance modifier), TASK-010 (deterministic counter), TASK-011 (rocket artillery balance). Replays (TASK-005) work either way, because all randomness goes through `GameState.rng`.
 - **Damage scale**: with the subtractive formula and current stats, most matchups deal 1–3 damage, and terrain bonuses (TASK-002) push many of them to the minimum of 1, which makes terrain differences between units disappear. Should HP/attack be scaled up (e.g. ×2) or the formula changed? → revisit with TASK-012 statistics after TASK-002/-010/-011.
 - **Forest vs. hills**: with the proposed numbers hills (+2) strictly dominate forest (+1) at the same move cost. Should they differ in another way (e.g. forest blocks rocket fire, hills give +1 range)? → TASK-002, TASK-011 follow-ups.
 - **Scale** (decided 2026-10-30: two layers – operational formations, tactical companies; see "Vision decisions"): tactical skirmishes (a few units) or strategy with an economy and cities? → TASK-007 (fog of war), map size, AI scope.
