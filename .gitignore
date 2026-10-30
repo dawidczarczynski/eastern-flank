@@ -29,3 +29,6 @@ docs/design/units/units/*/*.webp
 
 # Full headless test log (tools/test.sh)
 .test.log
+
+# Devtools hub service logs (tools/devtools.sh)
+.devtools/

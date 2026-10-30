@@ -11,4 +11,8 @@ echo "== backlog statuses =="
 python3 tools/backlog.py
 echo "== catalog tests =="
 python3 -m unittest discover -s tools/unit_catalog -p 'test_*.py'
+echo "== backlog viewer tests =="
+python3 -m unittest discover -s tools/backlog_view -p 'test_*.py'
+echo "== devtools hub tests =="
+python3 -m unittest discover -s tools/devtools -p 'test_*.py'
 echo "== OK =="

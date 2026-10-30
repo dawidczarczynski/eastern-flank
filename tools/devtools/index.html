@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Devtools – Eastern Flank</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Eastern Flank <span class="muted">devtools</span></span>
+  <nav id="tabs"><a data-tab="home" class="active">Home</a></nav>
+  <a id="newtab" target="_blank" rel="noopener" hidden>open in a new tab ↗</a>
+</header>
+<section id="home" class="page">
+  <div class="col">
+    <h2>Web tools</h2>
+    <div id="services" class="cards"></div>
+    <h2>Commands</h2>
+    <div id="commands"></div>
+  </div>
+  <div class="col jobs-col">
+    <h2>Jobs</h2>
+    <ul id="jobs" class="jobs"><li class="muted">No jobs yet – run a command.</li></ul>
+    <div id="job" class="job" hidden>
+      <div class="job-bar">
+        <span id="job-title"></span>
+        <span>
+          <button id="job-rerun" type="button">Run again</button>
+          <button id="job-cancel" type="button">Cancel</button>
+        </span>
+      </div>
+      <code id="job-argv" class="argv"></code>
+      <pre id="job-log"></pre>
+      <div id="job-images" class="images"></div>
+    </div>
+  </div>
+</section>
+<div id="frames"></div>
+<script src="/app.js"></script>
+</body>
+</html>

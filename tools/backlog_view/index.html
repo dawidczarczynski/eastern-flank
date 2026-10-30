@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Backlog – Eastern Flank</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">Backlog</span>
+  <input id="search" type="search" placeholder="Search id, title, dependencies, layers…  ( / )" autocomplete="off">
+  <select id="model" title="Model"><option value="">any model</option></select>
+  <button id="notes-toggle" type="button">Notes</button>
+  <span id="live" class="live" title="The page reloads the data when BACKLOG.md or a task file changes">●</span>
+</header>
+<div class="filters">
+  <div id="chips" class="chips"></div>
+  <span id="count" class="muted"></span>
+  <button id="reset" type="button" class="link">reset filters</button>
+</div>
+<div class="layout">
+  <main>
+    <section id="notes" class="panel md" hidden></section>
+    <table id="table">
+      <thead>
+        <tr>
+          <th data-sort="order" title="Priority (row order in BACKLOG.md)">#</th>
+          <th data-sort="id">ID</th>
+          <th data-sort="title">Title</th>
+          <th data-sort="status">Status</th>
+          <th data-sort="hard" title="Hard dependencies; soft ones dimmed">Depends on</th>
+          <th data-sort="dependents" title="Tasks that hard-depend on this one">Unblocks</th>
+          <th data-sort="layers">Layers</th>
+          <th data-sort="model">Model</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+  <aside id="detail" hidden>
+    <div class="detail-bar">
+      <span id="detail-title" class="mono"></span>
+      <button id="detail-close" type="button" title="Close (Esc)">×</button>
+    </div>
+    <article id="detail-body" class="md"></article>
+  </aside>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
