@@ -45,3 +45,7 @@ The one-working-chat lock and the chat ↔ catalog lock were dropped along the w
 - (−) Auto mode limits mistakes; it is not a sandbox. The classifier can misjudge an action, and the agent can run code it writes, exactly as in the IDE. The hub binds to 127.0.0.1, checks Host and Origin, and accepts nothing but fixed templates, message text and prompt answers.
 - (−) Sessions use the human's Claude subscription. `/implement-task` on a large task is long and costly, which is why the button asks for confirmation. A resumed process pays again to re-read its cached context.
 - (−) Parallel sessions edit one working tree. A commit must stage only the session's own files; the agents know this from the project memory, not from the hub.
+
+## Amendment (2026-10-31): the task orchestrator runs on Sonnet
+
+A task session is started with `--model sonnet` (also when resumed), and the `/implement-task` skill declares `model: sonnet`, so the IDE runs it on Sonnet too. The orchestrator plans, delegates, verifies and wraps up; it does not need Opus, yet with the human's default (`opus`) it ran on Opus in 52 of the 76 past task sessions. A task whose **Model** line is `opus` is therefore never implemented by the orchestrator itself: its implementation always goes to agents started with `model: opus` (skill step 4). Free chats keep the human's default model. This also makes task costs comparable for the usage forecast (TASK-109).

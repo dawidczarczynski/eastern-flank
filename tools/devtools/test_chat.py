@@ -172,6 +172,8 @@ class CommandTest(unittest.TestCase):
         for extra in ("--allowedTools", "--disallowedTools", "--append-system-prompt", "--dangerously-skip-permissions"):
             self.assertNotIn(extra, cmd)
         self.assertEqual(chat.build_command("claude", "abc-1")[-2:], ["--resume", "abc-1"])
+        self.assertNotIn("--model", cmd, "free chats keep the human's default model")
+        self.assertEqual(chat.build_command("claude", "", "sonnet")[-2:], ["--model", "sonnet"])
         with self.assertRaises(chat.ChatError):
             chat.build_command("claude", "--dangerously-skip-permissions")
 
@@ -321,6 +323,8 @@ class ChatManagerTest(ChatTestBase):
         self.assertEqual(s["title"], "TASK-002 · Second thing")
         self.assertTrue(_wait(lambda: m.get(s["id"])["log"][-1]["kind"] == "turn"))
         self.assertEqual(m.get(s["id"])["log"][0]["text"], "/implement-task TASK-002")
+        argv = self.launches()[-1]
+        self.assertEqual(argv[argv.index("--model") + 1], "sonnet", "the orchestrator always runs on sonnet")
         again = m.create(task="TASK-002")
         self.assertTrue(again["existing"])
         self.assertEqual(again["id"], s["id"])
@@ -385,6 +389,53 @@ class ChatManagerTest(ChatTestBase):
         again.send(s["id"], "back")
         self.assertTrue(_wait(lambda: "echo: back" in [e.get("text") for e in again.get(s["id"])["log"]]))
         self.assertEqual(self.launches()[-1][-2:], ["--resume", "sess-1"])
+
+    def calibrated(self) -> chat.ChatManager:
+        projects = self.root / "projects"
+        projects.mkdir()
+        reply = {"type": "assistant", "message": {"id": "m1", "model": "claude-opus-5-5", "usage": {"output_tokens": 1000000}}}
+        (projects / "sess-1.jsonl").write_text(json.dumps(reply) + "\n", encoding="utf-8")
+        self.calibration = self.root / "docs" / "tasks" / "usage_calibration.jsonl"
+        self.limits_file = self.root / ".devtools" / "limits.json"
+        return self.manager(calibration_file=self.calibration, limits_file=self.limits_file, projects_dir=projects)
+
+    def samples(self) -> list:
+        return chat.usage_forecast.load_samples(self.calibration)
+
+    def test_task_turns_record_calibration_samples(self) -> None:
+        m = self.calibrated()
+        s = m.create(task="TASK-002")
+        self.assertTrue(_wait(lambda: len(self.samples()) == 1))
+        first = self.samples()[0]
+        self.assertEqual((first["task"], first["chat"], first["cost_start"], first["cost_end"]), ("TASK-002", s["id"], 0.0, 25.0))
+        self.assertEqual((first["windows"], first["parallel"], first["stale"]), ({}, False, False), "no limits known at the start")
+        self.assertEqual(json.loads(self.limits_file.read_text())["windows"]["five_hour"]["utilization"], 0.3)
+        m.send(s["id"], "again")
+        self.assertTrue(_wait(lambda: len(self.samples()) == 2))
+        second = self.samples()[1]
+        self.assertEqual((second["cost_start"], second["cost_end"]), (25.0, 25.0), "read from the transcript")
+        self.assertEqual(second["windows"]["five_hour"], {"start": 0.3, "end": 0.35, "resets_start": 1700000000, "resets_end": 1700000000})
+        free = m.create(text="hello")
+        self.assertTrue(_wait(lambda: m.get(free["id"])["log"][-1]["kind"] == "turn"))
+        self.assertEqual(len(self.samples()), 2, "free chats record nothing")
+
+    def test_a_session_working_in_parallel_taints_the_sample(self) -> None:
+        m = self.calibrated()
+        s = m.create(task="TASK-002")
+        self.assertTrue(_wait(lambda: len(self.samples()) == 1))
+        m.send(s["id"], "hang")
+        self.assertTrue(_wait(lambda: self.state(m, s["id"]) == "working"))
+        free = m.create(text="hello")  # starts while the task's turn runs
+        self.assertTrue(_wait(lambda: m.get(free["id"])["log"][-1]["kind"] == "turn"))
+        m.stop(s["id"])
+        self.assertTrue(_wait(lambda: len(self.samples()) == 2))
+        self.assertEqual([x["parallel"] for x in self.samples()], [False, True])
+        busy = m.create(text="hang")
+        self.assertTrue(_wait(lambda: self.state(m, busy["id"]) == "working"))
+        m.send(s["id"], "late")  # starts while another session works
+        self.assertTrue(_wait(lambda: len(self.samples()) == 3))
+        self.assertTrue(self.samples()[2]["parallel"])
+        m.stop(busy["id"])
 
     def test_only_one_devtools_instance_owns_the_history(self) -> None:
         state = self.root / ".devtools" / "chats.json"

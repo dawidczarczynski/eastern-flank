@@ -12,8 +12,13 @@ from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import backlog  # noqa: E402
+import task_cost  # noqa: E402
+import usage_forecast  # noqa: E402
 
 TASKS_DIR = backlog.TASKS_DIR
+COSTS_FILE = "task_costs.json"  # in the tasks dir, written by tools/task_cost.py
+CALIBRATION_FILE = "usage_calibration.jsonl"  # in the tasks dir, appended by the devtools chat
+LIMITS_FILE = backlog.TASKS_DIR.parent.parent / ".devtools" / "limits.json"  # the live windows, written by devtools
 TASK_FILE = re.compile(r"^TASK-[\w.-]+\.md$")
 META_LINE = re.compile(r"^- \*\*([^*]+)\*\*: (.+)$", re.MULTILINE)
 MODEL_NAME = re.compile(r"^`?(opus|sonnet|haiku)\b", re.IGNORECASE)
@@ -163,11 +168,26 @@ def _split_table(text: str) -> tuple:
     return "\n".join(lines[: table[0]]).strip(), "\n".join(lines[table[-1] + 1 :]).strip()
 
 
-def load(tasks_dir: Optional[Path] = None) -> Dict[str, Any]:
+def usage(rows: List[Dict[str, Any]], texts: Dict[str, str], tasks_dir: Path, limits_file: Optional[Path]) -> Dict[str, Any]:
+    """The Usage column (tools/usage_forecast.py): sets `row["usage"]`, returns what the page needs about it."""
+    costs = task_cost.load(tasks_dir / COSTS_FILE)
+    fits = usage_forecast.calibration(tasks_dir / CALIBRATION_FILE)
+    ratios = {window: fit["percent_per_cost"] for window, fit in fits.items()}
+    limits = usage_forecast.current_limits(limits_file) if limits_file else {}
+    per_task = usage_forecast.usage_rows(rows, texts, costs, ratios, limits)
+    for row in rows:
+        row["usage"] = per_task.get(row["id"])
+    costs_path = tasks_dir / COSTS_FILE
+    return {"calibration": fits, "limits": limits, "costs_scanned": costs_path.stat().st_mtime if costs_path.is_file() else None,
+            "min_samples": usage_forecast.MIN_SAMPLES}  # fmt: skip
+
+
+def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -> Dict[str, Any]:
     tasks_dir = tasks_dir or TASKS_DIR
     text = (tasks_dir / "BACKLOG.md").read_text(encoding="utf-8")
     lines = text.splitlines()
     rows: List[Dict[str, Any]] = []
+    texts: Dict[str, str] = {}
     explicit_topics: Dict[str, str] = {}
     for order, row in enumerate(backlog.parse_rows(text)):
         cells = [cell.strip() for cell in lines[row["line"]].strip().strip("|").split("|")]
@@ -176,7 +196,8 @@ def load(tasks_dir: Optional[Path] = None) -> Dict[str, Any]:
         soft = [dep for dep in dict.fromkeys(backlog.TASK_ID.findall(deps_cell)) if dep not in hard and dep != row["id"]]
         meta: Dict[str, str] = {}
         if row["file"] and (tasks_dir / row["file"]).is_file():
-            meta = task_meta((tasks_dir / row["file"]).read_text(encoding="utf-8"))
+            texts[row["id"]] = (tasks_dir / row["file"]).read_text(encoding="utf-8")
+            meta = task_meta(texts[row["id"]])
             if meta.get("topic"):
                 explicit_topics[row["id"]] = meta["topic"]
         rows.append(
@@ -214,14 +235,18 @@ def load(tasks_dir: Optional[Path] = None) -> Dict[str, Any]:
         "statuses": STATUS_ORDER,
         "icons": backlog.STATUS_ICONS,
         "tree": build_tree(rows, topic_of, topic_order),
+        "usage": usage(rows, texts, tasks_dir, limits_file),
     }
 
 
-def version(tasks_dir: Optional[Path] = None) -> str:
-    """Changes whenever BACKLOG.md or a task file is added, removed or modified."""
+def version(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -> str:
+    """Changes whenever BACKLOG.md, a task file, the task costs or the calibration is added, removed or modified,
+    or the live limits change."""
     tasks_dir = tasks_dir or TASKS_DIR
-    stats = sorted((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in tasks_dir.glob("*.md"))
-    return hashlib.sha1(repr(stats).encode()).hexdigest()[:12]
+    files = list(tasks_dir.glob("*.md")) + [p for p in (tasks_dir / COSTS_FILE, tasks_dir / CALIBRATION_FILE) if p.is_file()]
+    stats = sorted((p.name, p.stat().st_mtime_ns, p.stat().st_size) for p in files)
+    limits = usage_forecast.current_limits(limits_file) if limits_file else {}
+    return hashlib.sha1(repr((stats, sorted(limits.items()))).encode()).hexdigest()[:12]
 
 
 def read_task(name: str, tasks_dir: Optional[Path] = None) -> Optional[str]:

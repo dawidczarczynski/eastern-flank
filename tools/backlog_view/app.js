@@ -129,6 +129,7 @@ function sortValue(row, key) {
     case "status": return data.statuses.indexOf(row.status);
     case "hard": return row.hard.length * 1000 + row.soft.length;
     case "dependents": return row.dependents.length;
+    case "usage": return row.usage ? row.usage.cost : -1;
     case "title": case "layers": case "model": return row[key].toLowerCase();
     default: return row.order;
   }
@@ -170,6 +171,65 @@ function unblockChips(row) {
   return row.dependents.map((id) => '<a class="chip unblock" data-id="' + id + '" title="' + esc(titleOf(id)) + '">' + id + "</a>").join("");
 }
 
+// ---- usage (tools/usage_forecast.py): weighted cost of a task, as % of the subscription windows once calibrated
+
+const UNCALIBRATED = "uncalibrated – run tasks from devtools (▶ Implement with Claude) to calibrate";
+const money = (v) => "$" + (v >= 10 ? v.toFixed(0) : v.toFixed(1));
+const pctOf = (v) => (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + " %";
+const clock = (epoch) => new Date(epoch * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+// "~15–30 % · ~3–6 % wk" (forecast) / "12 % · 2 % wk" (actual); "" while the 5-hour window is uncalibrated
+function usagePct(u) {
+  const part = (w, suffix) => {
+    const v = u.pct[w];
+    if (v == null) return "";
+    return (Array.isArray(v) ? "~" + pctOf(v[0]).replace(" %", "") + "–" + pctOf(v[1]) : pctOf(v)) + suffix;
+  };
+  return u.pct.five_hour == null ? "" : [part("five_hour", ""), part("seven_day", " wk")].filter(Boolean).join(" · ");
+}
+
+function usageTitle(u) {
+  if (u.kind === "actual") {
+    return "Actual: " + money(u.cost) + " API-equivalent (weighted tokens), " + u.sessions + " session(s), " + u.active_hours + " h" +
+      (u.orchestrator ? ", orchestrator on " + u.orchestrator : "");
+  }
+  const lines = ["Forecast: " + money(u.low) + "–" + money(u.high) + " API-equivalent (median " + money(u.mid) + ")",
+    "Compared with " + u.basis.length + " finished task(s) – " + (u.low_confidence ? "low confidence, too few in " + u.group : u.group),
+    historyNote(u)];
+  if (u.spent) lines.push("Already spent " + money(u.spent) + " (subtracted)");
+  if (!usagePct(u)) lines.push("Percentages " + UNCALIBRATED);
+  return lines.join("\n");
+}
+
+const historyNote = (u) => u.history === "all" ? "History: all finished tasks (too few with a sonnet orchestrator yet)" : "History: tasks whose orchestrator ran on " + u.history;
+
+const fitWarning = (u) => u.wont_fit ? '<span class="wont-fit" title="May not fit before the 5-hour reset at ' + clock(u.wont_fit) + '">⚠</span>' : "";
+
+function usageCell(row) {
+  const u = row.usage;
+  if (!u) return "";
+  const pct = usagePct(u);
+  const badge = '<span class="size size-' + u.class + (u.kind === "actual" ? " actual" : "") + '">' + u.class + "</span>";
+  const body = u.kind === "actual" ? badge + '<span class="usage-actual">' + (pct || money(u.cost)) + "</span>"
+    : pct ? '<span class="usage-pct">' + pct + "</span>" : badge;
+  return '<span class="usage' + (u.kind === "forecast" && u.low_confidence ? " low-conf" : "") + '" title="' + esc(usageTitle(u)) + '">' + body +
+    (u.kind === "forecast" && u.low_confidence ? '<span class="conf">?</span>' : "") + "</span>" + fitWarning(u);
+}
+
+function usageFacts(row) {
+  const u = row.usage;
+  if (!u) return "";
+  if (u.kind === "actual") {
+    return "<dt>Usage</dt><dd>" + usageCell(row) + ' <span class="muted">actual · ' + money(u.cost) + " API-equivalent · " + u.sessions + " session(s) · " + u.active_hours + " h</span></dd>";
+  }
+  const basis = u.basis.map((b) => '<a class="chip" data-id="' + b.id + '" title="' + esc(titleOf(b.id)) + '">' + b.id + " · " + money(b.cost) + "</a>").join("");
+  return "<dt>Usage</dt><dd>" + usageCell(row) + ' <span class="muted">' + (usagePct(u) ? "" : UNCALIBRATED + "<br>") +
+    "forecast " + money(u.low) + "–" + money(u.high) + " API-equivalent" + (u.spent ? " left (" + money(u.spent) + " spent)" : "") +
+    " · " + (u.low_confidence ? "low confidence (fewer than 3 finished " + esc(u.group) + " tasks: all used)" : esc(u.group)) +
+    (u.scale !== 1 ? " · size × " + u.scale : "") + " · " + esc(historyNote(u)) + (u.wont_fit ? " · may not fit before the reset at " + clock(u.wont_fit) : "") +
+    '</span><div class="chips-cell basis">' + basis + "</div></dd>";
+}
+
 const modelBadge = (row) => row.model ? '<span class="model ' + esc(row.model) + '" title="' + esc(row.model_note) + '">' + esc(row.model) + "</span>" : "";
 
 function relation(id) {
@@ -196,7 +256,8 @@ function renderTable(rows) {
       '<td class="deps" title="' + esc(row.depends) + '">' + (deps ? '<div class="chips-cell">' + deps + "</div>" : '<span class="none">' + inline(row.depends) + "</span>") + "</td>" +
       '<td class="dependents">' + (unblocks ? '<div class="chips-cell">' + unblocks + "</div>" : "") + "</td>" +
       '<td class="layers">' + inline(row.layers) + "</td>" +
-      '<td class="model-cell">' + modelBadge(row) + "</td></tr>";
+      '<td class="model-cell">' + modelBadge(row) + "</td>" +
+      '<td class="usage-cell">' + usageCell(row) + "</td></tr>";
   }).join("");
   document.querySelectorAll("th[data-sort]").forEach((th) => {
     th.classList.toggle("sorted", th.dataset.sort === state.sort);
@@ -378,8 +439,20 @@ function renderBody() {
   $("#count").textContent = rows.length + " shown" + (filtered !== data.rows.length ? " · " + filtered + " match the search" : "");
 }
 
+function renderUsageHeader() {
+  const u = data.usage;
+  const calibrated = u.calibration.five_hour.percent_per_cost != null;
+  const scanned = u.costs_scanned ? "costs scanned " + new Date(u.costs_scanned * 1000).toLocaleString() : "no task_costs.json yet";
+  const cal = Object.entries(u.calibration).map(([w, f]) => w + ": " + (f.percent_per_cost == null ? f.sessions + "/" + u.min_samples + " sessions" : f.percent_per_cost.toFixed(2) + " % per $")).join(", ");
+  $("#th-usage").title = "Expected (open tasks) or actual (finished) Claude usage of /implement-task.\n" +
+    (calibrated ? "% of the 5-hour window · % of the week" : "Size S–XL by quartiles of finished tasks – percentages " + UNCALIBRATED) +
+    "\nCalibration " + cal + "\n" + scanned;
+  $("#costs-refresh").title = "Re-scan the Claude Code transcripts into docs/tasks/task_costs.json (" + scanned + ")";
+}
+
 function render() {
   renderHeader();
+  renderUsageHeader();
   renderBody();
   $("#notes").innerHTML = markdown(data.intro + "\n\n" + data.notes);
 }
@@ -395,6 +468,7 @@ function renderFacts(row) {
     "<dt>Unblocks</dt><dd>" + (unblocks ? '<div class="chips-cell">' + unblocks + '<span class="legend"><i style="background: var(--ok)"></i>marked green in the list</span></div>' : '<span class="muted">nothing</span>') + "</dd>" +
     (row.layers ? "<dt>Layers</dt><dd>" + inline(row.layers) + "</dd>" : "") +
     (row.model_note ? "<dt>Model</dt><dd>" + inline(row.model_note) + "</dd>" : "") +
+    usageFacts(row) +
     "<dt>Priority</dt><dd>#" + (row.order + 1) + " in BACKLOG.md</dd></dl>";
 }
 
@@ -433,7 +507,9 @@ function renderClaude() {
     box.innerHTML = '<button type="button" class="btn sm claude-btn" data-claude="open-chat" title="Open this task\'s Claude chat in devtools">' +
       (chat === "working" ? '<span class="spinner"></span> Claude working' : "✦ Open chat") + "</button>";
   } else if (IMPLEMENTABLE.includes(row.status) && row.file) {
-    box.innerHTML = '<button type="button" class="btn sm primary" data-claude="implement" title="Run /implement-task ' + row.id + ' in a Claude Code chat (devtools)">▶ Implement with Claude</button>';
+    const u = row.usage && row.usage.kind === "forecast" ? row.usage : null;
+    const estimate = u ? '<span class="usage-estimate" title="' + esc(usageTitle(u)) + '">' + (usagePct(u) || "size " + u.class + " · " + money(u.low) + "–" + money(u.high)) + fitWarning(u) + "</span>" : "";
+    box.innerHTML = estimate + '<button type="button" class="btn sm primary" data-claude="implement" title="Run /implement-task ' + row.id + ' in a Claude Code chat (devtools)">▶ Implement with Claude</button>';
   } else {
     box.innerHTML = "";
   }
@@ -564,6 +640,18 @@ $("#notes-toggle").addEventListener("click", (ev) => {
   ev.target.classList.toggle("on", !$("#notes").hidden);
 });
 $("#detail-close").addEventListener("click", closeTask);
+$("#costs-refresh").addEventListener("click", async (ev) => {
+  const btn = ev.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Scanning…";
+  try {
+    const res = await fetch("/api/costs/refresh", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (!res.ok) alert("Cost scan failed: " + ((await res.json()).error || res.status));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↻ Costs";
+  }
+});
 document.addEventListener("keydown", (ev) => {
   const typing = ev.target.closest("input, select, textarea");
   if (ev.key === "/" && !typing) { ev.preventDefault(); $("#search").focus(); }

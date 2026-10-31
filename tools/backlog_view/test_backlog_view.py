@@ -163,7 +163,8 @@ class ServerTest(unittest.TestCase):
         self.dir = Path(tempfile.mkdtemp())
         (self.dir / "BACKLOG.md").write_text(BACKLOG, encoding="utf-8")
         (self.dir / "TASK-002-b.md").write_text(TASK_002, encoding="utf-8")
-        handler = type("TestHandler", (server.Handler,), {"tasks_dir": self.dir})
+        handler = type("TestHandler", (server.Handler,), {"tasks_dir": self.dir, "limits_file": self.dir / "limits.json",
+                                                          "projects_dir": self.dir / "no-projects"})  # fmt: skip
         self.httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
 
@@ -192,6 +193,34 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(self.get("/api/task/TASK-002-b.md"), (200, TASK_002.encode()))
         self.assertEqual(self.get("/api/task/..%2FBACKLOG.md")[0], 404)
         self.assertEqual(self.get("/fonts/..%2F..%2FREADME.md")[0], 404)
+
+    def test_usage_column_data_and_cost_refresh(self) -> None:
+        data = json.loads(self.get("/api/backlog")[1])
+        self.assertEqual(data["usage"]["calibration"]["five_hour"], {"percent_per_cost": None, "sessions": 0})
+        self.assertIsNone(data["usage"]["costs_scanned"])
+        self.assertTrue(all(r["usage"] is None for r in data["rows"]), "no costs yet")
+        projects = self.dir / "projects"
+        projects.mkdir()
+        lines = [{"type": "user", "timestamp": "2026-10-01T10:00:00Z", "message": {"content": "<command-name>/implement-task</command-name>\n<command-args>1</command-args>"}},
+                 {"type": "assistant", "timestamp": "2026-10-01T10:01:00Z", "message": {"id": "a", "model": "claude-sonnet-5-5", "usage": {"output_tokens": 100000}}}]
+        (projects / "s.jsonl").write_text("\n".join(json.dumps(x) for x in lines), encoding="utf-8")
+        self.httpd.RequestHandlerClass.projects_dir = projects
+        before = self.get("/api/version")[1]
+        self.assertEqual(self.post("/api/costs/refresh", "text/plain")[0], 415)
+        self.assertEqual(self.post("/api/costs/refresh"), (200, {"tasks": 1}))
+        self.assertNotEqual(self.get("/api/version")[1], before, "the costs file is followed")
+        rows = {r["id"]: r for r in json.loads(self.get("/api/backlog")[1])["rows"]}
+        self.assertEqual((rows["TASK-001"]["usage"]["kind"], rows["TASK-001"]["usage"]["cost"]), ("actual", 1.5))
+        self.assertEqual(rows["TASK-002"]["usage"]["kind"], "forecast")
+        self.assertTrue(rows["TASK-002"]["usage"]["low_confidence"])
+
+    def post(self, path: str, ctype: str = "application/json"):
+        conn = http.client.HTTPConnection("127.0.0.1", self.httpd.server_address[1], timeout=10)
+        conn.request("POST", path, body="{}", headers={"Content-Type": ctype})
+        res = conn.getresponse()
+        body = json.loads(res.read())
+        conn.close()
+        return res.status, body
 
     def test_static_files(self) -> None:
         for path in ("/", "/app.js", "/style.css", "/theme.css", "/fonts/JetBrainsMono.ttf"):

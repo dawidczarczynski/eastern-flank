@@ -15,4 +15,7 @@ echo "== backlog viewer tests =="
 python3 -m unittest discover -s tools/backlog_view -p 'test_*.py'
 echo "== devtools hub tests =="
 python3 -m unittest discover -s tools/devtools -p 'test_*.py'
+echo "== task usage tests =="
+python3 -m unittest discover -s tools -p 'test_task_cost.py'
+python3 -m unittest discover -s tools -p 'test_usage_forecast.py'
 echo "== OK =="

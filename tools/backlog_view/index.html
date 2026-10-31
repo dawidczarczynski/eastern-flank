@@ -23,6 +23,7 @@
       <button type="button" data-view="tree" title="Topics as branches, each task under the dependency it builds on (R)">⑂ Tree</button>
     </div>
     <select id="model" title="Model"></select>
+    <button id="costs-refresh" type="button" class="btn ghost">↻ Costs</button>
     <button id="notes-toggle" type="button" class="btn ghost">Notes</button>
     <span id="live" class="live" title="Follows BACKLOG.md and the task files">Live</span>
   </div>
@@ -51,6 +52,7 @@
           <th data-sort="dependents" title="Tasks that hard-depend on this one">Unblocks</th>
           <th data-sort="layers">Layers</th>
           <th data-sort="model">Model</th>
+          <th data-sort="usage" id="th-usage">Usage</th>
         </tr>
       </thead>
       <tbody></tbody>

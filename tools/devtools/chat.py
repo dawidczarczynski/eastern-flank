@@ -7,10 +7,16 @@ pipes carries what the IDE would show: permission prompts and `AskUserQuestion` 
 from the browser), the session's slash commands (`initialize`) and Stop (`interrupt`, the process stays alive).
 
 The session behaves like Claude Code in the IDE: `auto` permission mode plus the human's own settings, no extra
-rules and no extra system prompt. A session started from the backlog opens with `/implement-task <TASK-ID>`; a
+rules and no extra system prompt - except that a task session runs on TASK_MODEL (`--model sonnet`, also when
+resumed): the orchestrator is always Sonnet, opus tasks are implemented by opus agents. A session started from the backlog opens with `/implement-task <TASK-ID>`; a
 free chat opens with the human's text. When the process is gone (a devtools restart, a crash, too many idle
 processes) the next message starts a new one with `--resume <session id>`. History is saved to
 `.devtools/chats.json` (git-ignored); one devtools instance owns it (`lock_history`).
+
+Usage calibration (TASK-109, tools/usage_forecast.py): the latest limit windows go to `.devtools/limits.json` (the
+backlog view reads them), and every turn of a task session appends one sample - utilization and the session's
+weighted cost from its transcript (tools/task_cost.py) at the turn's start and end, flagged `parallel` when another
+devtools session worked meanwhile and `stale` when the CLI reported no limits during the turn.
 """
 from __future__ import annotations
 
@@ -29,6 +35,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "web_ui"))
 import backlog  # noqa: E402  (tools/backlog.py)
 import claude_cli  # noqa: E402
+import task_cost  # noqa: E402  (tools/task_cost.py)
+import usage_forecast  # noqa: E402  (tools/usage_forecast.py)
 
 CLAUDE_ENV = "DEVTOOLS_CLAUDE"
 TASK_RE = re.compile(r"^TASK-\d+[a-z]?$")
@@ -43,6 +51,7 @@ TASK_SHOWN_FOR = 30.0  # seconds a finished subagent / background task stays in 
 TASK_DONE = ("completed", "failed", "killed", "stopped", "cancelled", "error")
 CLOSED_STATUSES = ("done", "merged", "idea")  # tasks the backlog button does not implement
 PERMISSION_MODE = "auto"  # what the human uses in the IDE
+TASK_MODEL = "sonnet"  # the /implement-task orchestrator; opus tasks get opus agents (the skill's step 4)
 
 
 class ChatError(Exception):
@@ -78,11 +87,14 @@ def check_task(task_id: Any) -> str:
     return task_id
 
 
-def build_command(claude: str, resume: str = "") -> List[str]:
+def build_command(claude: str, resume: str = "", model: str = "") -> List[str]:
     """argv of one chat process (no shell). Messages, the first prompt too, and control responses arrive on stdin;
-    permission prompts come back as `can_use_tool` control requests (`--permission-prompt-tool stdio`)."""
+    permission prompts come back as `can_use_tool` control requests (`--permission-prompt-tool stdio`). `model`
+    overrides the human's default (task sessions: TASK_MODEL)."""
     cmd = [claude, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
            "--permission-mode", PERMISSION_MODE, "--permission-prompt-tool", "stdio"]  # fmt: skip
+    if model:
+        cmd += ["--model", model]
     if resume:
         if not claude_cli.SESSION_RE.match(resume):
             raise ChatError("not a Claude Code session id")
@@ -147,6 +159,12 @@ class Session:
         self.tasks: Dict[str, Dict[str, Any]] = {}  # task id → subagent / background task (running or just finished)
         self.stop_requested = False
         self.used = self.created  # last time a message was sent (which idle process stops first)
+        self.sample: Optional[Dict[str, Any]] = None  # the running turn's calibration sample (task sessions)
+        self.weighted_cost: Optional[float] = None  # the transcript's weighted cost at the end of the last turn
+
+    def active(self) -> bool:
+        """Spending tokens now: a turn runs or a subagent / background task does."""
+        return self.alive() and (self.busy or any(t["status"] == "running" for t in self.tasks.values()))
 
     def alive(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
@@ -240,8 +258,13 @@ class ChatManager:
 
     def __init__(self, repo_root: Path, claude: Optional[str], popen: Popen = subprocess.Popen,
                  state_file: Optional[Path] = None, changed: Optional[Callable[[], List[str]]] = None,
-                 unavailable: str = "") -> None:  # fmt: skip
+                 unavailable: str = "", calibration_file: Optional[Path] = None, limits_file: Optional[Path] = None,
+                 projects_dir: Optional[Path] = None) -> None:  # fmt: skip
         self.repo_root = Path(repo_root)
+        self.calibration_file = Path(calibration_file) if calibration_file else None  # None: no samples recorded
+        self.limits_file = Path(limits_file) if limits_file else None
+        self.projects_dir = Path(projects_dir) if projects_dir else task_cost.project_dir(self.repo_root)
+        self._limits_written = 0.0
         self.claude = None if unavailable else claude
         self._unavailable = unavailable  # why the chat is off although the CLI may exist
         self.state_file = Path(state_file) if state_file else None
@@ -420,6 +443,8 @@ class ChatManager:
         if not s.alive():
             self._spawn(s)
         s.add({"kind": "user", "text": text})
+        if not s.busy:
+            self._turn_started(s)
         s.busy = True
         s.error = ""
         s.used = time.time()
@@ -431,7 +456,7 @@ class ChatManager:
         for other in idle[: max(0, len(idle) - MAX_IDLE_PROCESSES + 1)]:
             other.stop_requested = True
             self._terminate(other)
-        cmd = build_command(str(self.claude), s.session_id)
+        cmd = build_command(str(self.claude), s.session_id, TASK_MODEL if s.task else "")
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)  # devtools may itself be started from a Claude Code session
         if s.session_id:
@@ -478,6 +503,7 @@ class ChatManager:
         with proc.stdout:
             for line in proc.stdout:
                 turn_ended = False
+                closed: Optional[Dict[str, Any]] = None  # the calibration sample of the turn that just ended
                 for entry in claude_cli.parse_stream_line(line, detail=True):
                     with self._lock:
                         kind = entry["kind"]
@@ -485,7 +511,10 @@ class ChatManager:
                             self._control(s, entry["msg"])
                             continue
                         if kind == "limits":
+                            changed = self.limits is None or self.limits.get("windows") != entry["windows"]
                             self.limits = {"status": entry["status"], "windows": entry["windows"], "updated": time.time()}
+                            if changed or time.time() - self._limits_written > 60:  # keeps `updated` fresh
+                                self._write_limits()
                             continue
                         if kind == "usage":
                             s.context_tokens = entry["context_tokens"]
@@ -496,6 +525,8 @@ class ChatManager:
                         if entry.get("session_id"):
                             s.session_id = entry["session_id"]
                         if entry.get("init"):  # every turn starts with one - also turns the agent starts itself
+                            if not s.busy:
+                                self._turn_started(s)
                             s.busy = True
                             if seen_init:
                                 continue
@@ -508,6 +539,7 @@ class ChatManager:
                             s.busy = False
                             s.pending.clear()
                             turn_ended = True
+                            closed, s.sample = closed or s.sample, None  # a message sent next opens a new one
                             s.context_window = entry.get("context_window") or s.context_window
                             # a background task's notice may open an empty turn: no second marker for it
                             if entry["is_error"] or not s.log or s.log[-1]["kind"] != "turn":
@@ -517,6 +549,7 @@ class ChatManager:
                             entry.pop("session_id", None)
                             s.add(entry)
                 if turn_ended:
+                    self._turn_ended(s, closed)
                     files = self._changed()
                     with self._lock:
                         s.changed_files = files
@@ -533,12 +566,75 @@ class ChatManager:
                 s.busy = False
                 s.pending.clear()
                 s.tasks.clear()  # the process took its subagents with it
+                s.sample = None
                 if s.stop_requested:
                     s.add({"kind": "info", "text": "process stopped - send a message to continue (resumes the session)"})
                 elif code != 0:
                     s.error = "claude exited with code %s" % code
                     s.add({"kind": "error", "text": s.error})
         self._save()
+
+    def _windows(self) -> Dict[str, Dict[str, Any]]:
+        return dict((self.limits or {}).get("windows") or {})
+
+    def _turn_started(self, s: Session) -> None:
+        """Open the calibration sample of a task session's turn; a turn of any session taints the others' samples
+        (called with `_lock` held)."""
+        if self.calibration_file is None:
+            return
+        for other in self._sessions.values():
+            if other is not s and other.sample is not None:
+                other.sample["parallel"] = True
+        if not s.task:
+            return
+        s.sample = {"task": s.task, "chat": s.id, "start": time.time(), "windows": self._windows(),
+                    "cost_start": self._cost_so_far(s),
+                    "parallel": any(o is not s and o.active() for o in self._sessions.values())}  # fmt: skip
+
+    def _cost_so_far(self, s: Session) -> float:
+        """The session's weighted cost at the start of a turn: what the last turn's end read from the transcript, so
+        consecutive samples chain; 0 for a new session. Only a session resumed from older history reads its
+        transcript here (with `_lock` held - once per session)."""
+        if s.weighted_cost is None:
+            s.weighted_cost = task_cost.session_cost(self.projects_dir, s.session_id) if s.session_id else 0.0
+        return s.weighted_cost
+
+    def _turn_ended(self, s: Session, sample: Optional[Dict[str, Any]]) -> None:
+        """Close the turn's sample (taken from the session when its result arrived) and append it to the calibration
+        file; the transcript is read without `_lock`."""
+        if sample is None or self.calibration_file is None:
+            return
+        with self._lock:
+            session_id = s.session_id
+        cost_end = task_cost.session_cost(self.projects_dir, session_id) if session_id else 0.0
+        with self._lock:
+            now = time.time()
+            start, end = sample.pop("windows"), self._windows()
+            stale = float((self.limits or {}).get("updated") or 0) < sample["start"]  # no limits during the turn
+            windows = {name: {"start": start[name].get("utilization"), "end": end[name].get("utilization"),
+                              "resets_start": start[name].get("resets_at"), "resets_end": end[name].get("resets_at")}
+                       for name in usage_forecast.WINDOWS if name in start and name in end}  # fmt: skip
+            sample.update(start=round(sample["start"], 1), end=round(now, 1), cost_start=round(sample["cost_start"], 4),
+                          cost_end=round(cost_end, 4), stale=stale, windows=windows)  # fmt: skip
+            s.weighted_cost = cost_end
+            sample["parallel"] = sample["parallel"] or any(o is not s and o.active() for o in self._sessions.values())
+        try:
+            usage_forecast.append_sample(self.calibration_file, sample)
+        except OSError as exc:
+            print("Cannot write usage calibration %s: %s" % (self.calibration_file, exc), flush=True)
+
+    def _write_limits(self) -> None:
+        """The latest windows for the backlog view (called with `_lock` held; a small file)."""
+        if self.limits_file is None:
+            return
+        self._limits_written = time.time()
+        try:
+            self.limits_file.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.limits_file.with_name(self.limits_file.name + ".tmp")
+            tmp.write_text(json.dumps(self.limits), encoding="utf-8")
+            os.replace(str(tmp), str(self.limits_file))
+        except OSError as exc:
+            print("Cannot write %s: %s" % (self.limits_file, exc), flush=True)
 
     def _kill_if_stuck(self, s: Session, proc: Any) -> None:
         end = time.time() + INTERRUPT_GRACE

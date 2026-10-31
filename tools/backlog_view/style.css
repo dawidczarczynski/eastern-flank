@@ -172,3 +172,21 @@ aside { width: min(48vw, 800px); flex: none; overflow: auto; border-left: 1px so
 
 /* with the task panel open the table keeps the columns that matter */
 body.detail-open #table th:nth-child(n+7), body.detail-open #table td:nth-child(n+7) { display: none; }
+
+/* Usage column (TASK-109): size class badge, % of the windows, low-confidence mark, "may not fit" warning */
+.usage-cell { white-space: nowrap; }
+.usage { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--mono); color: var(--text-2); cursor: help; }
+.size { --c: var(--text-2); font: 600 11px/1 var(--sans); min-width: 22px; text-align: center; padding: 4px 5px; border-radius: 4px;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.size-S { --c: var(--ok); }
+.size-M { --c: var(--teal); }
+.size-L { --c: var(--warn); }
+.size-XL { --c: var(--bad); }
+.size.actual { background: transparent; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent); }
+.usage-actual { color: var(--text-3); }
+.usage.low-conf .size, .usage.low-conf .usage-pct { opacity: .6; }
+.usage .conf { color: var(--text-3); font-size: 11px; }
+.wont-fit { color: var(--warn); margin-left: 6px; cursor: help; }
+.usage-estimate { font: 500 12px/1 var(--mono); color: var(--text-2); margin-right: 10px; cursor: help; }
+.chips-cell.basis { margin-top: 6px; }
+.facts .muted { color: var(--text-3); font-size: 12.5px; }

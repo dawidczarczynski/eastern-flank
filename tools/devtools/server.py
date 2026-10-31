@@ -12,6 +12,7 @@ import argparse
 import json
 import signal
 import sys
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -23,10 +24,12 @@ import chat  # noqa: E402
 import registry  # noqa: E402
 import runner  # noqa: E402
 import static  # noqa: E402
+import task_cost  # noqa: E402  (tools/task_cost.py, on the path via chat)
 
 HOST = "127.0.0.1"
 HERE = Path(__file__).resolve().parent
 LOG_DIR = registry.REPO_ROOT / ".devtools"  # service logs, git-ignored
+CALIBRATION_FILE = registry.REPO_ROOT / "docs" / "tasks" / "usage_calibration.jsonl"  # TASK-109 usage samples
 IMAGE_DIRS = (".screenshots/", "docs/images/")  # the only places /files/ serves images from
 STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
@@ -196,6 +199,17 @@ def make_handler(repo_root: Path, services: Dict[str, runner.Service], jobs: run
     return type("DevtoolsHandler", (Handler,), {"repo_root": repo_root, "services": services, "jobs": jobs, "chat": chats})
 
 
+def _scan_task_costs() -> None:
+    """Refresh docs/tasks/task_costs.json for the backlog view's Usage column (a few seconds of transcript reading)."""
+    projects = task_cost.project_dir(registry.REPO_ROOT)
+    if not projects.is_dir():
+        return
+    try:
+        task_cost.refresh(projects)
+    except Exception as exc:  # noqa: BLE001 (a background convenience: report, never kill devtools)
+        print("Cannot refresh task costs: %s" % exc, flush=True)
+
+
 def _raise_interrupt(*_: Any) -> None:
     raise KeyboardInterrupt
 
@@ -210,7 +224,10 @@ def main(argv: Optional[List[str]] = None) -> None:
     history_lock = chat.lock_history(history)  # noqa: F841 (held until the process exits)
     chats = chat.ChatManager(registry.REPO_ROOT, chat.find_claude(), state_file=history if history_lock else None,
                              unavailable="" if history_lock else "another devtools instance runs the Claude chat "
-                             "(it holds .devtools/chats.json.lock) - use that one")  # fmt: skip
+                             "(it holds .devtools/chats.json.lock) - use that one",
+                             calibration_file=CALIBRATION_FILE if history_lock else None,
+                             limits_file=LOG_DIR / "limits.json" if history_lock else None)  # fmt: skip
+    threading.Thread(target=_scan_task_costs, name="task-costs", daemon=True).start()
     server = ThreadingHTTPServer((HOST, args.port), make_handler(registry.REPO_ROOT, services, jobs, chats))
     for service in services.values():
         service.start()
