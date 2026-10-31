@@ -3,7 +3,7 @@
 # under WSLg with an old Mesa the Linux build falls back to software rendering (llvmpipe).
 # Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>]
 #   --quality  force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
-#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle); a user argument
+#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle); a user argument
 #   --editor  open the editor instead of the game
 #   --import  refresh the class cache with the Linux Godot first (only needed after adding a
 #             class_name without running tools/check.sh)

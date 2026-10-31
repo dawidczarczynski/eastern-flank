@@ -58,3 +58,18 @@ func test_scene_targets_exist() -> void:
 	assert_eq(
 		ProjectSettings.get_setting("application/run/main_scene"), "res://scenes/ui/main_menu.tscn"
 	)
+
+
+func test_scenario_button_cycles_and_start_stores_the_choice() -> void:
+	BattleOptions.menu_choice = ""
+	assert_eq(_menu.scenario_button().text, "SCENARIO: IRON SHORE")
+	_menu.scenario_button().pressed.emit()
+	assert_eq(_menu.scenario_button().text, "SCENARIO: OBJECTIVE BATTLE")
+	for i in Scenario.NAMES.size() - 1:
+		_menu.scenario_button().pressed.emit()
+	assert_eq(_menu.scenario_button().text, "SCENARIO: IRON SHORE")
+	assert_eq(BattleOptions.next_scenario("suwalki_battle"), "default_battle")
+	assert_eq(BattleOptions.chosen(PackedStringArray()), "default_battle")
+	BattleOptions.menu_choice = "suwalki_battle"
+	assert_eq(BattleOptions.chosen(PackedStringArray()), "suwalki_battle")
+	BattleOptions.menu_choice = ""

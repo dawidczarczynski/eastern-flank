@@ -10,7 +10,7 @@ The two sides field different, real-world equipment with its own stats: Poland h
 
 **Goal:** every battle has its own victory conditions and may have a turn limit (see section 8). In the normal battle the goal is to destroy every enemy unit: the last side with units left on the map wins, and there is no turn limit. A second, objective battle (a debug option for now) is about taking and holding two marked hexes within 8 turns.
 
-The game opens in a main menu, where you start the battle, pick the language or browse the units in the unit catalog (see section 12).
+The game opens in a main menu, where you start the battle, pick the scenario, pick the language or browse the units in the unit catalog (see section 12).
 
 ## 2. The battle
 
@@ -82,6 +82,15 @@ The units themselves wear their army's camouflage: Polish vehicles and soldiers 
 - The **movement cost** is paid when a unit enters the tile.
 - The **defense bonus** is added to the defense of a unit standing on that tile when it is hit.
 - Every tile also has an **elevation**, shown in metres in the terrain panel. Elevation has **no effect on the rules** yet; only the terrain type matters.
+
+### Maps from real terrain
+
+Battles are meant to be fought on the real ground of the eastern flank. A real-terrain map is built from open map data: forests, lakes and open ground come from OpenStreetMap, heights from the Copernicus elevation model. Each hex is about **250 m** across; a battle map of 30 × 24 hexes covers roughly 7.5 × 5 km.
+
+- A hex takes the terrain that covers most of it: mostly lake → **water**, mostly forest → **forest**, otherwise open ground; open ground that rises or falls steeply within the hex (15 m or more) is **hills**. Villages, fields and marshes count as plains for now.
+- On a real-terrain map the terrain panel shows the hex's **real height above sea level**. The 3D relief is drawn 1.5 × taller than reality so that hills read on screen, and every lake sits at the same water level.
+- To try it, start the game with `--scenario=suwalki_battle` (for example `tools/run.sh --scenario=suwalki_battle`), then pick **Start operation**: the usual forces on the lakes and moraine hills around **Szurpiły** in the Suwałki Landscape Park (north-east Poland). Poland deploys in the west, Russia in the east; the usual objectives and win conditions apply (see the battle rules).
+- Map data © OpenStreetMap contributors (ODbL), elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
 ## 6. Movement
 
@@ -286,6 +295,7 @@ In a battle with command points it spends its points on its most valuable action
 
 The game opens in the main menu:
 
+- **Scenario: …** cycles through the available battles (Iron Shore, Objective battle, Command points battle, Szurpiły Lakes); the chosen one is started by Start operation.
 - **Start operation** starts the battle. There is no way back to the menu from a battle; restart the game for that.
 - **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
 - **Unit catalog** opens a viewer where you can look at every unit in the game.

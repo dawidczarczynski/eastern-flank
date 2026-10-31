@@ -44,6 +44,8 @@ static func classify(
 
 ## Sets the tile's terrain and clamps its elevation into the type's band, so the 3D
 ## surface never shows water under a land tile (e.g. spawn tiles forced to plains).
+## On a grid with authored elevation (real terrain) a land tile that stays land keeps its
+## elevation; only changes between land and water are clamped.
 static func force_terrain(
 	grid: HexGrid,
 	c: Vector2i,
@@ -51,7 +53,10 @@ static func force_terrain(
 	settings: TerrainGenerationSettings = DEFAULT_SETTINGS
 ) -> void:
 	var e := grid.elevation(c)
+	var was_water := grid.get_terrain(c) == Terrain.Type.WATER
 	grid.set_terrain(c, t)
+	if grid.authored_elevation and not was_water and t != Terrain.Type.WATER:
+		return
 	match t:
 		Terrain.Type.HILLS:
 			e = clampf(e, settings.hills_min, settings.hills_max)

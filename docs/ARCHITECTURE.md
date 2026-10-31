@@ -109,7 +109,7 @@ A match is fully described by `scenario + seed + executed commands` (state is ne
 
 - `Command.to_dict()` gives a JSON-compatible form (`{"type": "move", "unit_id", "target": [q, r]}`, `{"type": "attack", "attacker_id", "target_id"}`, `{"type": "end_turn"}`); `CommandCodec.from_dict(d)` (`src/core/commands/command_codec.gd`) rebuilds it and returns `null` on anything unknown or malformed. JSON parses every number as a float: integral floats become `int`, non-integral / non-finite / beyond ±2^53 values, bools and strings are rejected. A new command type = `to_dict()` + a branch in `CommandCodec` + a codec test.
 - `MatchRecord` (`src/core/match_record.gd`): `version` (2), `scenario`, `seed`, `factions: Array[StringName]` (required), `commands: Array[Dictionary]`; `from_simulation(sim, seed, scenario = "default_battle")` copies `sim.history` and `sim.state.player_factions`, `to_json()` / `from_json(text)` (`null` on invalid JSON, version ≠ 2 or malformed fields; extra keys ignored). `parse_json(text)` returns `{"record", "error"}` with a readable message instead – e.g. version 1 records (before TASK-039a's real units) are reported as unsupported (ADR 0009). `MatchRecord.normalize(value)` turns integral floats of parsed JSON back into ints for comparisons.
-- `Replay.run(record)` (`src/core/replay.gd`) builds the scenario's state from the seed (`Scenario.build(name, seed, record.factions)`; `Scenario.NAMES` = `"default_battle"`, `"objective_battle"`, `"command_points_battle"`) and executes each decoded command through `GameSimulation.execute`. Errors: `unknown_scenario` (index -1), `invalid_factions` (unknown id or not two ids; index -1), `invalid_command` (codec returned `null`), `diverged` (rejected; `reason` = the `validate()` code).
+- `Replay.run(record)` (`src/core/replay.gd`) builds the scenario's state from the seed (`Scenario.build(name, seed, record.factions)`; `Scenario.NAMES` = `"default_battle"`, `"objective_battle"`, `"command_points_battle"`, `"suwalki_battle"` – the real-terrain sample on `data/maps/suwalki.tres`) and executes each decoded command through `GameSimulation.execute`. Errors: `unknown_scenario` (index -1), `invalid_factions` (unknown id or not two ids; index -1), `invalid_command` (codec returned `null`), `diverged` (rejected; `reason` = the `validate()` code).
 - `GameState.snapshot()` is the comparable state description (turn, current player, winner, `end_reason`, `rng_state`, `objectives` = `[[q, r, owner], ...]` sorted by (q, r) – `[]` without objective hexes –, `command_points`, units sorted by id incl. dead, each with `activated`). Command points (TASK-091): `GameState.command_points_per_turn` (N per player, 0 = unlimited; from `BattleSetup.conditions[i].command_points` in `Scenario.from_setup`) is static match data; `command_points` (the current player's remaining points) and `Unit.activated` are state. A unit's first move or attack of a turn costs 1 point (`GameState.activate`), later actions are free, counterattacks never activate; without points left a not-yet-activated unit is rejected with `no_command_points` (`GameState.can_activate`, `is_command_limited(player)`). Static match data (`objectives`, `starting_hp`, `command_points_per_turn`, factions) is rebuilt by the scenario and not in the snapshot. `rng_state` is stored as a **String** because the 64-bit RNG state does not survive a JSON double.
 - Combat rolls (TASK-089a) are the only consumer of `GameState.rng` during a battle: `AttackCommand.apply()` calls `rng.randi_range(1, striker max_hp)` exactly `striker.hp` times for the strike (all shots, even once the target is dead), then – only if the counter happens – `defender.hp` (after the hit) times for the counter. `validate()`, `AttackCommand.forecast()` / `CombatForecast` (exact binomial odds for the HUD and the AI) and the AI's decisions never touch the rng, so replays (which store commands only) stay deterministic.
 - Regression fixture `tests/fixtures/replays/default_battle_12345.json` (AI vs AI, seed 12345, until `game_over` or turn 30) = record + `"expected_final"` snapshot; `test_replay.gd` replays it. After an *intended* rule change, regenerate it with `tools/make_replay_fixture.sh` (headless `tools/make_replay_fixture.gd`) and commit the new file.
@@ -117,6 +117,8 @@ A match is fully described by `scenario + seed + executed commands` (state is ne
 ## Coordinates
 
 Hex grid, axial coordinates `(q, r)` as `Vector2i`, "pointy-top" layout. World ↔ tile conversions in `Hex.to_world` / `Hex.from_world`. Rectangular maps are generated in offset layout (`MapGenerator.offset_to_axial`).
+
+Maps from real geography (TASK-087, [ADR 0018](adr/0018-maps-from-real-geography.md)): `tools/import_map.py` (offline, from a download cache outside git) writes `data/maps/<id>.tres` (`ImportedMap`, `src/core/data/imported_map.gd`) – same offset layout, row 0 north, one terrain character per tile, game elevation and the real DEM metres per tile, cover class per tile for TASK-108. Tactical scale: 250 m between neighbouring hex centres, so one world unit = 250 / √3 ≈ 144.3 m. Geo-reference: UTM of the theatre (`crs`, 34N for the Suwałki Gap), tile (0, 0) centre at (`origin_easting`, `origin_northing`), world x east, world z south (`ImportedMap.easting` / `northing` / `projected_to_tile`). `ImportedMap.find(id).to_grid()` gives a `HexGrid` with `authored_elevation` (no `field`); `BattleSetup.map_id` = an imported map id loads it in `Scenario.from_setup`. Sources and attribution: `data/maps/CREDITS`.
 
 ## Events
 
@@ -143,18 +145,18 @@ All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot i
 
 | Directory | Contents |
 |---|---|
-| `src/core/` | Game state and rules (pure GDScript), incl. map generation and terrain elevation (`TerrainNoise`, `TerrainField`, `TerrainSurface` – the 3D surface height query) |
+| `src/core/` | Game state and rules (pure GDScript), incl. map generation and terrain elevation (`TerrainNoise`, `TerrainField`, `TerrainSurface` – the 3D surface height query: the generated field with forced-tile corrections, flat tiles on hand-made grids, smooth blending between tile centres on imported maps with `HexGrid.authored_elevation`) |
 | `src/core/commands/` | Commands – the only way to change state |
 | `src/core/data/` | Resource classes (`Resource`) holding data |
 | `src/ai/` | Computer opponents |
 | `src/presentation/` | Node scripts: views, camera, scene controllers |
 | `src/presentation/catalog/` | Unit catalog: stage, animation table, orbit maths, unit list |
 | `scenes/` | `.tscn` scenes (battle, main menu, unit catalog) |
-| `data/` | `.tres` data instances (units, terrain, map generation settings, factions) |
+| `data/` | `.tres` data instances (units, terrain, map generation settings, factions); `data/maps/` – maps imported from real geography (`ImportedMap`, credits in `data/maps/CREDITS`) |
 | `assets/` | `.glb` models, textures, materials, shaders, audio, fonts; `third_party/` holds downloaded CC0 assets (`hdri/`, `textures/`, `models/`), each file credited in `third_party/credits.json` (ADR 0011, checked by `test_third_party_assets.gd`) |
 | `addons/` | Godot plugins |
 | `tests/` | Runner, `TestCase`, fixtures, `unit/` and `integration/` tests |
-| `tools/` | Scripts: tests, lint, running, Godot installation |
+| `tools/` | Scripts: tests, lint, running, Godot installation; `import_map.py` – real-geography map importer (stdlib Python; synthetic test fixtures in `tools/import_map_fixtures/`) |
 | `docs/` | GDD, architecture, ADRs, tasks |
 
 HUD v3 turn bar and end-turn module (TASK-077, `BattleHud`): `TurnBarFrame` (trapezoid frame), `HexBadge`, `TickRuler`, `ReadyBlocks`, `KeyCap` (the Enter key is drawn with `HudShapes.enter_glyph`), `EndTurnButton` (a `Button` that draws itself). `HudModel` is unchanged; the HUD maps `active` to ACTIVE / WAITING.

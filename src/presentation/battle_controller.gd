@@ -70,7 +70,7 @@ func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
 	if scenario_name not in Scenario.NAMES:
-		scenario_name = BattleOptions.scenario_name(OS.get_cmdline_user_args())
+		scenario_name = BattleOptions.chosen(OS.get_cmdline_user_args())
 	var state := Scenario.build(scenario_name, MAP_SEED, FactionRegistry.DEFAULT_IDS)
 	# The loading screen must actually be presented before the heavy build below blocks the loop:
 	# process_frame fires before the first draw, so wait for a frame to finish drawing.

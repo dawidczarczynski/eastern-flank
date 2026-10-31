@@ -6,9 +6,15 @@ const _INF := 1 << 30
 
 ## Continuous height field the map was generated from; null for hand-made/test grids.
 var field: TerrainField
+## True when tile elevations are authored data – a map imported from real terrain (ImportedMap,
+## ADR 0018) – rather than generated: TerrainSurface (with field == null) then interpolates smoothly
+## between tile centres instead of drawing flat tiles, and MapGenerator.force_terrain keeps a land
+## tile's elevation when it stays land (the generator's elevation bands don't apply).
+var authored_elevation := false
 
 var _terrain: Dictionary = {}  # Vector2i -> Terrain.Type
 var _elevation: Dictionary = {}  # Vector2i -> float
+var _elevation_m: Dictionary = {}  # Vector2i -> float, real height in metres (imported maps)
 
 
 func set_terrain(c: Vector2i, t: Terrain.Type) -> void:
@@ -34,6 +40,21 @@ func elevation(c: Vector2i) -> float:
 	if _elevation.has(c):
 		return _elevation[c]
 	return Terrain.default_elevation(get_terrain(c))
+
+
+## Real height of the tile in metres (DEM mean of an imported map, ImportedMap.elevation_m).
+## Display only – rules and the 3D surface use `elevation`.
+func set_elevation_m(c: Vector2i, metres: float) -> void:
+	_elevation_m[c] = metres
+
+
+func has_elevation_m(c: Vector2i) -> bool:
+	return _elevation_m.has(c)
+
+
+## The tile's real height in metres; 0 when unknown (see has_elevation_m).
+func elevation_m(c: Vector2i) -> float:
+	return _elevation_m.get(c, 0.0)
 
 
 func coords() -> Array[Vector2i]:

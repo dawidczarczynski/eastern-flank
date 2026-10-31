@@ -5,6 +5,27 @@ extends RefCounted
 
 const SCENARIO_PREFIX := "--scenario="
 const DEFAULT_SCENARIO := "default_battle"
+## Menu label (translation key) of each scenario in Scenario.NAMES.
+const LABELS := {
+	"default_battle": "Iron Shore",
+	"objective_battle": "Objective battle",
+	"command_points_battle": "Command points battle",
+	"suwalki_battle": "Szurpily Lakes",
+}
+
+## Scenario picked in the main menu; "" = none (the `--scenario=` argument or the default applies).
+static var menu_choice := ""
+
+
+## The scenario to start: the main menu's choice, else `--scenario=` / the default.
+static func chosen(args: PackedStringArray) -> String:
+	return menu_choice if menu_choice in Scenario.NAMES else scenario_name(args)
+
+
+## The scenario after `current` in Scenario.NAMES (wraps around).
+static func next_scenario(current: String) -> String:
+	var i := Scenario.NAMES.find(current)
+	return Scenario.NAMES[(i + 1) % Scenario.NAMES.size()]
 
 
 ## The scenario named by `--scenario=<name>` (one of Scenario.NAMES); DEFAULT_SCENARIO when the

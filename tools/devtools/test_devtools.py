@@ -59,7 +59,7 @@ class RegistryTest(unittest.TestCase):
                          ["tools/simulate.sh", "50", "--factions=russia,poland", "--scenario=default_battle", "--seed=7"])
 
     def test_scenarios_are_the_names_scenario_build_accepts(self) -> None:
-        self.assertEqual(registry.scenarios(), ["default_battle", "objective_battle", "command_points_battle"])
+        self.assertEqual(registry.scenarios(), ["default_battle", "objective_battle", "command_points_battle", "suwalki_battle"])
 
     def test_validation_rejects_anything_outside_the_template(self) -> None:
         test = registry.find("test")

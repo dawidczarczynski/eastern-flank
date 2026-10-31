@@ -97,8 +97,9 @@ class Conditions:
 ## Seed of the battle: map generation (generated maps) and GameState.rng. In a campaign it is
 ## drawn from the operational RNG at contact (ADR 0015). Within +-2^53 to survive JSON.
 var seed: int
+## MAP_GENERATED_RIVER, or the id of a map imported from real terrain (data/maps/<id>.tres).
 var map_id: StringName = MAP_GENERATED_RIVER
-## Cut of an imported map (TASK-087 / TASK-094); an empty rect = the whole map.
+## Cut of an imported map (TASK-094, not read yet); an empty rect = the whole map.
 var map_region := Rect2i()
 ## Display name of the operation (GameState.operation_name).
 var operation_name := ""

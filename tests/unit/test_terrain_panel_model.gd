@@ -56,6 +56,12 @@ func test_water_is_impassable() -> void:
 	assert_eq(m["tags"], PackedStringArray(["Impassable"]))
 
 
+func test_real_terrain_shows_the_real_metres() -> void:
+	var grid := _grid_with(Terrain.Type.PLAINS, 0.2)
+	grid.set_elevation_m(MapGenerator.offset_to_axial(2, 4), 183.6)
+	assert_eq(_build(grid)["elevation"], "184 m")
+
+
 func test_elevation_formula() -> void:
 	assert_eq(_build(_grid_with(Terrain.Type.PLAINS, 0.2))["elevation"], "96 m")
 	assert_eq(_build(_grid_with(Terrain.Type.PLAINS, -0.3))["elevation"], "12 m")

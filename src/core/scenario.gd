@@ -14,11 +14,19 @@ const RIVER_COLUMNS := [6, 5, 5, 5, 6, 6, 6, 5, 5, 5]
 const RIVER_FORDS := [2, 7]
 const OPERATION_NAME := "Iron Shore"
 ## Scenario names a MatchRecord can name (Scenario.build).
-const NAMES: Array[String] = ["default_battle", "objective_battle", "command_points_battle"]
+const NAMES: Array[String] = [
+	"default_battle", "objective_battle", "command_points_battle", "suwalki_battle"
+]
 ## Command points per turn of both players in the command points test battle (TASK-091).
 const COMMAND_POINTS_BATTLE_POINTS := 2
 ## Objectives of the objective test battle (TASK-088).
 const OBJECTIVE_BATTLE_OBJECTIVES := preload("res://data/scenarios/objective_battle.tres")
+## Real-terrain sample battle (TASK-087): the map imported from the Suwalki Lakeland around
+## Szurpily (data/maps/suwalki.tres), deployment columns counted from the west / east map edge.
+const SUWALKI_MAP_ID := &"suwalki"
+const SUWALKI_OPERATION_NAME := "Szurpily Lakes"
+const SUWALKI_FRONT_COLUMN := 9
+const SUWALKI_BACK_COLUMN := 7
 
 
 ## Starting state of the scenario `scenario_name` (NAMES); null for an unknown name.
@@ -30,6 +38,8 @@ static func build(scenario_name: String, seed_value: int, factions: Array[String
 			return objective_battle(seed_value, factions)
 		"command_points_battle":
 			return command_points_battle(seed_value, factions)
+		"suwalki_battle":
+			return suwalki_battle(seed_value, factions)
 	return null
 
 
@@ -56,6 +66,79 @@ static func command_points_battle(
 	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
 ) -> GameState:
 	return from_setup(command_points_battle_setup(seed_value, factions))
+
+
+## Real-terrain sample battle: `from_setup(suwalki_battle_setup(seed_value, factions))`.
+static func suwalki_battle(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> GameState:
+	return from_setup(suwalki_battle_setup(seed_value, factions))
+
+
+## The default forces on the imported Suwalki map (SUWALKI_MAP_ID): player 0 deploys in the west,
+## player 1 in the east, each company on a real plains tile (`_deployment_tiles`); range-1 units
+## near the front column, the others near the back column. Objectives = default_objectives(); the
+## seed only seeds GameState.rng (the map is fixed). Units that find no tile are skipped with
+## push_error.
+static func suwalki_battle_setup(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> BattleSetup:
+	var setup := BattleSetup.new()
+	setup.seed = seed_value
+	setup.map_id = SUWALKI_MAP_ID
+	setup.operation_name = SUWALKI_OPERATION_NAME
+	setup.factions = factions.duplicate()
+	var map := ImportedMap.find(SUWALKI_MAP_ID)
+	var grid := map.to_grid() if map != null else null
+	if grid == null:
+		push_error("Scenario: map '%s' is missing" % SUWALKI_MAP_ID)
+		return setup
+	var taken := {}
+	for player in factions.size():
+		setup.conditions.append(BattleSetup.Conditions.new())
+		var faction := FactionRegistry.get_faction(factions[player])
+		if faction == null:
+			push_error("Scenario: player %d has an unknown faction" % player)
+			continue
+		for definition: UnitDefinition in faction.default_force:
+			var column := (
+				SUWALKI_FRONT_COLUMN if definition.attack_range == 1 else SUWALKI_BACK_COLUMN
+			)
+			if player == 1:
+				column = map.width - 1 - column
+			var tiles := _deployment_tiles(grid, map.width, map.height, column, taken)
+			if tiles.is_empty():
+				push_error("Scenario: no tile for '%s' of player %d" % [definition.id, player])
+				continue
+			taken[tiles[0]] = true
+			var company := BattleSetup.Company.new()
+			company.player = player
+			company.unit_type = definition.id
+			company.coord = tiles[0]
+			company.strength = definition.max_hp
+			setup.companies.append(company)
+	return setup
+
+
+## Free plains tiles of an imported map nearest to (`column`, middle row), nearest first: by hex
+## distance, then column distance, then row, then column – deterministic.
+static func _deployment_tiles(
+	grid: HexGrid, width: int, height: int, column: int, taken: Dictionary
+) -> Array[Vector2i]:
+	@warning_ignore("integer_division")
+	var anchor := MapGenerator.offset_to_axial(column, height / 2)
+	var keyed: Array = []
+	for row in height:
+		for col in width:
+			var c := MapGenerator.offset_to_axial(col, row)
+			if grid.get_terrain(c) != Terrain.Type.PLAINS or taken.has(c):
+				continue
+			keyed.append([Hex.distance(c, anchor), absi(col - column), row, col, c])
+	keyed.sort()
+	var result: Array[Vector2i] = []
+	for entry: Array in keyed:
+		result.append(entry[4])
+	return result
 
 
 ## command_points_battle as a BattleSetup.
@@ -133,7 +216,7 @@ static func default_battle_setup(
 ## owners (a unit spawning on one does not capture it); `starting_hp` is recorded after spawning.
 ## `conditions[i].command_points` becomes `GameState.command_points_per_turn[i]` (a negative value
 ## is an error → null; the first player starts with their points); the other conditions and
-## `map_region` are not read yet (TASK-087 / TASK-094, TASK-099).
+## `map_region` are not read yet (TASK-094, TASK-099).
 static func from_setup(setup: BattleSetup) -> GameState:
 	var grid := _build_map(setup.map_id, setup.seed)
 	if grid == null:
@@ -182,16 +265,17 @@ static func from_setup(setup: BattleSetup) -> GameState:
 	return state
 
 
-## Map of a BattleSetup; null for an unknown id.
+## Map of a BattleSetup: the generated river map, or an imported map data/maps/<map_id>.tres
+## (ImportedMap); null for an unknown id.
 static func _build_map(map_id: StringName, seed_value: int) -> HexGrid:
-	match map_id:
-		BattleSetup.MAP_GENERATED_RIVER:
-			var rng := RandomNumberGenerator.new()
-			rng.seed = seed_value
-			var grid := MapGenerator.generate(MAP_WIDTH, MAP_HEIGHT, rng)
-			_add_river(grid)
-			return grid
-	return null
+	if map_id == BattleSetup.MAP_GENERATED_RIVER:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed_value
+		var grid := MapGenerator.generate(MAP_WIDTH, MAP_HEIGHT, rng)
+		_add_river(grid)
+		return grid
+	var imported := ImportedMap.find(map_id)
+	return imported.to_grid() if imported != null else null
 
 
 static func _add_river(grid: HexGrid) -> void:

@@ -18,4 +18,6 @@ python3 -m unittest discover -s tools/devtools -p 'test_*.py'
 echo "== task usage tests =="
 python3 -m unittest discover -s tools -p 'test_task_cost.py'
 python3 -m unittest discover -s tools -p 'test_usage_forecast.py'
+echo "== map import tests =="
+python3 -m unittest discover -s tools -p 'test_import_map.py'
 echo "== OK =="

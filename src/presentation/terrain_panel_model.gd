@@ -21,7 +21,10 @@ static func build(
 	var tags := PackedStringArray()
 	if impassable:
 		tags.append("Impassable")
+	# Real terrain shows its DEM metres; generated maps an illustrative height from the elevation.
 	var metres := roundi(maxf(grid.elevation(coord), 0.0) * _ELEVATION_SCALE_M + _ELEVATION_BASE_M)
+	if grid.has_elevation_m(coord):
+		metres = roundi(grid.elevation_m(coord))
 	return {
 		"name": Terrain.definition(terrain).display_name,
 		"hex": "%02d·%02d" % [offset.x + 1, offset.y + 1],

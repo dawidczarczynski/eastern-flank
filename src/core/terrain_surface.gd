@@ -3,7 +3,10 @@ extends RefCounted
 ## Pure "height at any world point" query over a HexGrid (hex size TerrainField.HEX_SIZE).
 ## On generated maps it follows the continuous TerrainField, corrected near the centre of
 ## tiles whose elevation differs from the field (forced tiles), so the surface stays
-## continuous across hex edges. Hand-made grids without a field are flat per tile.
+## continuous across hex edges. Hand-made grids without a field are flat per tile; grids with
+## authored elevation (imported real terrain, HexGrid.authored_elevation) blend the elevations of
+## the three tile centres around the point (smoothstep-weighted barycentric), which passes through
+## every tile centre, flattens out around it and stays continuous across hex edges.
 ## Water tiles dig their correction wider, past their edges (the lower surface wins), so
 ## adjacent forced water tiles join into one channel instead of separate pits.
 
@@ -24,6 +27,9 @@ const _RAY_STEP := 0.25
 const _RAY_MAX_DISTANCE := 120.0
 const _RAY_BISECTION_STEPS := 8
 
+## World offsets (XZ) of the neighbour centres in Hex.DIRECTIONS order (consecutive ones 60° apart).
+static var _neighbour_offsets: Array[Vector2] = []
+
 var _grid: HexGrid
 ## Vector2i -> float (field height at the tile centre). Not invalidated: assumes
 ## grid.field is not replaced after this surface is created.
@@ -38,7 +44,11 @@ func height_at(x: float, z: float) -> float:
 	var c := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	var on_map := _grid.has_tile(c)
 	if _grid.field == null:
-		return _grid.elevation(c) if on_map else 0.0
+		if not on_map:
+			return 0.0
+		if _grid.authored_elevation:
+			return _authored_height(c, x, z)
+		return _grid.elevation(c)
 	var raw := _grid.field.height(x, z)
 	if not on_map:
 		return raw
@@ -102,3 +112,41 @@ func _center_height(c: Vector2i, center: Vector3) -> float:
 	if not _center_heights.has(c):
 		_center_heights[c] = _grid.field.height(center.x, center.z)
 	return _center_heights[c]
+
+
+## Authored elevation at (x, z) inside tile c: the triangle of c's centre and the two neighbour
+## centres around the point, weighted by smoothstep of the barycentric weights. Off-map neighbours
+## count with c's elevation, so the map edge stays level.
+func _authored_height(c: Vector2i, x: float, z: float) -> float:
+	if _neighbour_offsets.is_empty():
+		for d in Hex.DIRECTIONS:
+			var w := Hex.to_world(d, TerrainField.HEX_SIZE)
+			_neighbour_offsets.append(Vector2(w.x, w.z))
+	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+	var p := Vector2(x - center.x, z - center.z)
+	var own := _grid.elevation(c)
+	for k in 6:
+		var a := _neighbour_offsets[k]
+		var b := _neighbour_offsets[(k + 1) % 6]
+		var det := a.x * b.y - a.y * b.x
+		var u := (p.x * b.y - p.y * b.x) / det
+		var v := (a.x * p.y - a.y * p.x) / det
+		if u < -1e-9 or v < -1e-9:
+			continue
+		u = maxf(u, 0.0)
+		v = maxf(v, 0.0)
+		var w0 := _smoothstep(maxf(1.0 - u - v, 0.0))
+		var wa := _smoothstep(u)
+		var wb := _smoothstep(v)
+		var ha := _elevation_or(c + Hex.DIRECTIONS[k], own)
+		var hb := _elevation_or(c + Hex.DIRECTIONS[(k + 1) % 6], own)
+		return (w0 * own + wa * ha + wb * hb) / (w0 + wa + wb)
+	return own
+
+
+func _elevation_or(c: Vector2i, fallback: float) -> float:
+	return _grid.elevation(c) if _grid.has_tile(c) else fallback
+
+
+static func _smoothstep(w: float) -> float:
+	return w * w * (3.0 - 2.0 * w)

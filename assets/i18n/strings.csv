@@ -68,6 +68,7 @@ Done this turn,Done this turn,Wykonała ruch w tej turze
 Ready,Ready,Gotowa do działania
 Ready · already attacked,Ready · already attacked,Gotowa · już atakowała
 Iron Shore,Iron Shore,Żelazny Brzeg
+Szurpily Lakes,Szurpiły Lakes,Jeziora Szurpilskie
 OPERATION,OPERATION,OPERACJA
 PATH,PATH,TRASA
 MOVE COST,MOVE COST,KOSZT RUCHU
@@ -84,6 +85,9 @@ CANCEL,CANCEL,ANULUJ
 BUILDING THE BATTLEFIELD,BUILDING THE BATTLEFIELD,Budowanie pola bitwy
 Start operation,Start operation,Rozpocznij operację
 Language,Language,Język
+Scenario,Scenario,Scenariusz
+Objective battle,Objective battle,Bitwa o cele
+Command points battle,Command points battle,Bitwa z punktami dowodzenia
 Unit catalog,Unit catalog,Katalog jednostek
 Back,Back,Wstecz
 Faction,Faction,Frakcja
