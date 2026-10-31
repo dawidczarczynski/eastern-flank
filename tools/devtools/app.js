@@ -329,7 +329,7 @@ function tellBacklog() {
   const target = backlogFrame();
   if (!target) return;
   const tasks = {};
-  chats.slice().reverse().forEach((c) => { if (c.task) tasks[c.task] = c.state; });
+  chats.slice().reverse().forEach((c) => { if (c.task) tasks[c.task] = c.state; });  // a design chat of an idea shows as its task chat
   target.win.postMessage({ type: "devtools:chats", available: chatInfo.available, tasks }, target.origin);
 }
 
@@ -485,7 +485,7 @@ function renderChatHead(c) {
     return;
   }
   const context = c.context_tokens ? "context " + tokens(c.context_tokens) + (c.context_window ? " / " + tokens(c.context_window) + " (" + Math.round(100 * c.context_tokens / c.context_window) + "%)" : "") : "";
-  const meta = [c.task ? "/implement-task " + c.task : "free chat", c.cost_usd ? money(c.cost_usd) : "", context, c.error].filter(Boolean).map(esc).join(" · ");
+  const meta = [c.task ? (c.kind === "design" ? "game-designer · " + c.task : "/implement-task " + c.task) : "free chat", c.cost_usd ? money(c.cost_usd) : "", context, c.error].filter(Boolean).map(esc).join(" · ");
   $("#chat-head").innerHTML = '<div class="chat-title-box"><div class="job-title">' + esc(c.title) + " " + chatPill(c.state) + '</div><div class="job-meta">' + meta + "</div></div>" +
     '<div class="job-actions">' +
     (c.session_id ? '<button type="button" class="btn ghost sm" id="chat-copy" title="Continue this session in a terminal (run it in the repository folder)">⧉ claude --resume</button>' : "") +
@@ -675,19 +675,21 @@ window.addEventListener("message", (ev) => {
   const target = backlogFrame();
   if (!target || ev.origin !== target.origin || ev.source !== target.win || !ev.data) return;
   if (ev.data.type === "devtools:hello") tellBacklog();
-  else if ((ev.data.type === "devtools:implement" || ev.data.type === "devtools:open-chat") && /^TASK-\d+[a-z]?$/.test(ev.data.task)) {
+  else if ((ev.data.type === "devtools:implement" || ev.data.type === "devtools:design" || ev.data.type === "devtools:open-chat") && /^TASK-\d+[a-z]?$/.test(ev.data.task)) {
     if (ev.data.type === "devtools:implement") implementTask(ev.data.task);
+    else if (ev.data.type === "devtools:design") implementTask(ev.data.task, true);
     else { const c = chats.find((x) => x.task === ev.data.task); showTab("chat"); if (c) selectChat(c.id); }
   }
 });
 
-async function implementTask(task) {
+async function implementTask(task, design = false) {
   showTab("chat");
-  const existing = chats.find((c) => c.task === task);
+  const existing = chats.find((c) => c.task === task && (c.kind === "design") === design);
   if (existing) { selectChat(existing.id); return; }
-  if (!confirm("Start /implement-task " + task + " in a Claude Code session?\n\nIt runs with your subscription and edits the working tree; it commits only when you ask.")) return;
+  const what = design ? "Hand the idea " + task + " to the game-designer agent" : "Start /implement-task " + task + " in a Claude Code session";
+  if (!confirm(what + "?\n\nIt runs with your subscription and edits the working tree" + (design ? " (docs only)" : "") + "; it commits only when you ask.")) return;
   try {
-    const c = await api("/api/chat", { task });
+    const c = await api("/api/chat", design ? { task, design: true } : { task });
     await loadChats();
     selectChat(c.id);
   } catch (err) {

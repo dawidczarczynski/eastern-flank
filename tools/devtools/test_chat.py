@@ -330,6 +330,17 @@ class ChatManagerTest(ChatTestBase):
         self.assertEqual(again["id"], s["id"])
         self.assertEqual(len(m.list()), 1)
 
+    def test_design_an_idea_with_the_game_designer(self) -> None:
+        m = self.manager()
+        s = m.create(task="TASK-003", design=True)
+        self.assertEqual(s["kind"], "design")
+        self.assertTrue(_wait(lambda: m.get(s["id"])["log"][-1]["kind"] == "turn"))
+        self.assertIn("game-designer agent", m.get(s["id"])["log"][0]["text"])
+        self.assertIn("TASK-003", m.get(s["id"])["log"][0]["text"])
+        self.assertTrue(m.create(task="TASK-003", design=True)["existing"])
+        with self.assertRaises(chat.ChatError):
+            m.create(task="TASK-002", design=True)  # not an idea
+
     def test_task_validation(self) -> None:
         m = self.manager()
         for task, status in (("TASK-001", 409), ("TASK-003", 409), ("TASK-999", 404), ("rm -rf", 400), ("-x", 400)):

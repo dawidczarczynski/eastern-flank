@@ -50,6 +50,13 @@ INTERRUPT_GRACE = 8.0  # seconds a Stop waits for the turn to end before the pro
 TASK_SHOWN_FOR = 30.0  # seconds a finished subagent / background task stays in the panel
 TASK_DONE = ("completed", "failed", "killed", "stopped", "cancelled", "error")
 CLOSED_STATUSES = ("done", "merged", "idea")  # tasks the backlog button does not implement
+DESIGN_PROMPT = (
+    "Use the game-designer agent to turn the idea %(id)s (\"%(title)s\") from docs/tasks/BACKLOG.md into a specified task: "
+    "refine the mechanic (docs/GDD.md, open questions), write docs/tasks/%(id)s-<slug>.md from docs/tasks/_TEMPLATE.md with "
+    "testable acceptance criteria, update its BACKLOG.md row (status `ready` or `blocked` by its dependencies; split it "
+    "into several small tasks if it is too big) and run tools/backlog.py --fix. Design only: no code, no commits. "
+    "Ask me if a design decision is mine to make."
+)
 PERMISSION_MODE = "auto"  # what the human uses in the IDE
 TASK_MODEL = "sonnet"  # the /implement-task orchestrator; opus tasks get opus agents (the skill's step 4)
 
@@ -135,11 +142,12 @@ def backlog_task(repo_root: Path, task_id: str) -> Optional[Dict[str, str]]:
 
 class Session:
     STORED = ("id", "task", "title", "session_id", "created", "updated", "cost_usd", "error", "pid", "changed_files",
-              "context_tokens", "context_window")  # fmt: skip
+              "context_tokens", "context_window", "kind")  # fmt: skip
 
-    def __init__(self, sid: str, title: str, task: str = "") -> None:
+    def __init__(self, sid: str, title: str, task: str = "", kind: str = "") -> None:
         self.id = sid
         self.task = task
+        self.kind = kind  # "" = /implement-task (or a free chat), "design" = idea handed to the game-designer agent
         self.title = title
         self.session_id = ""
         self.created = time.time()
@@ -184,7 +192,7 @@ class Session:
             self.log_offset += drop
 
     def summary(self) -> Dict[str, Any]:
-        return {"id": self.id, "task": self.task, "title": self.title, "state": self.state(),
+        return {"id": self.id, "task": self.task, "kind": self.kind, "title": self.title, "state": self.state(),
                 "session_id": self.session_id, "cost_usd": self.cost_usd, "created": self.created,
                 "updated": self.updated, "error": self.error, "log_size": self.log_offset + len(self.log),
                 "changed": len(self.changed_files), "context_tokens": self.context_tokens,
@@ -240,7 +248,7 @@ class Session:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Session":
-        s = cls(str(data["id"]), str(data.get("title") or ""), str(data.get("task") or ""))
+        s = cls(str(data["id"]), str(data.get("title") or ""), str(data.get("task") or ""), str(data.get("kind") or ""))
         for key in cls.STORED[3:]:
             if key in data:
                 setattr(s, key, data[key])
@@ -295,9 +303,9 @@ class ChatManager:
         with self._lock:
             return self._find(sid).detail(since)
 
-    def create(self, task: Any = None, text: Any = None) -> Dict[str, Any]:
+    def create(self, task: Any = None, text: Any = None, design: bool = False) -> Dict[str, Any]:
         """A new session: `task` → `/implement-task <task>` (an existing session of that task is returned instead),
-        otherwise a free chat starting with `text`."""
+        `task` + `design` → the idea `<task>` handed to the game-designer agent, otherwise a free chat starting with `text`."""
         self._require_claude()
         if task is not None:
             task = check_task(task)
@@ -305,20 +313,27 @@ class ChatManager:
             if row is None:
                 raise ChatError("%s is not in docs/tasks/BACKLOG.md" % task, 404)
             with self._lock:
-                existing = [s for s in self._sessions.values() if s.task == task]
+                kind = "design" if design else ""
+                existing = [s for s in self._sessions.values() if s.task == task and s.kind == kind]
                 if existing:
                     out = max(existing, key=lambda s: s.created).summary()
                     out["existing"] = True
                     return out
-            if row["status"] in CLOSED_STATUSES:
+            if design:
+                if row["status"] != "idea":
+                    raise ChatError("%s is %s, not an idea" % (task, row["status"]), 409)
+                title = "%s · design · %s" % (task, row["title"])
+                prompt = DESIGN_PROMPT % {"id": task, "title": row["title"].replace('"', "'")}
+            elif row["status"] in CLOSED_STATUSES:
                 raise ChatError("%s is %s" % (task, row["status"]), 409)
-            title, prompt = "%s · %s" % (task, row["title"]), "/implement-task %s" % task
+            else:
+                title, prompt = "%s · %s" % (task, row["title"]), "/implement-task %s" % task
         else:
             prompt = self._check_text(text)
             title = claude_cli.short(prompt, 70)
         with self._lock:
             self._counter += 1
-            s = Session("%s-%d" % (time.strftime("%m%d%H%M%S"), self._counter), title, task or "")
+            s = Session("%s-%d" % (time.strftime("%m%d%H%M%S"), self._counter), title, task or "", "design" if design and task else "")
             self._sessions[s.id] = s
             self._prune()
             self._send(s, prompt)
@@ -585,7 +600,7 @@ class ChatManager:
         for other in self._sessions.values():
             if other is not s and other.sample is not None:
                 other.sample["parallel"] = True
-        if not s.task:
+        if not s.task or s.kind:
             return
         s.sample = {"task": s.task, "chat": s.id, "start": time.time(), "windows": self._windows(),
                     "cost_start": self._cost_so_far(s),

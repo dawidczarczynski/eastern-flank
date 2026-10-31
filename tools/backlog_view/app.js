@@ -510,6 +510,8 @@ function renderClaude() {
     const u = row.usage && row.usage.kind === "forecast" ? row.usage : null;
     const estimate = u ? '<span class="usage-estimate" title="' + esc(usageTitle(u)) + '">' + (usagePct(u) || "size " + u.class + " · " + money(u.low) + "–" + money(u.high)) + fitWarning(u) + "</span>" : "";
     box.innerHTML = estimate + '<button type="button" class="btn sm primary" data-claude="implement" title="Run /implement-task ' + row.id + ' in a Claude Code chat (devtools)">▶ Implement with Claude</button>';
+  } else if (row.status === "idea") {
+    box.innerHTML = '<button type="button" class="btn sm primary" data-claude="design" title="Hand this idea to the game-designer agent: it writes the task file and updates the backlog row (devtools)">✎ Design with game-designer</button>';
   } else {
     box.innerHTML = "";
   }

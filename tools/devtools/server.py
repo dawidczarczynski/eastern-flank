@@ -174,7 +174,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if not parts:
                 if body.get("task") is not None:
-                    out = self.chat.create(task=body.get("task"))
+                    out = self.chat.create(task=body.get("task"), design=body.get("design") is True)
                 else:
                     out = self.chat.create(text=body.get("text"))
                 self._json(out, 200 if out.get("existing") else 201)
