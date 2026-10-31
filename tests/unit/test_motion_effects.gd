@@ -61,3 +61,11 @@ func test_no_exhaust_for_infantry() -> void:
 func test_wheeled_trucks_raise_smaller_clouds_than_tanks() -> void:
 	assert_true(MotionEffects.cloud_size(&"mlrs") < MotionEffects.cloud_size(&"tank"))
 	assert_true(MotionEffects.exhaust_rate(&"mlrs", 1.0) < MotionEffects.exhaust_rate(&"tank", 1.0))
+
+
+func test_dust_on_real_terrain_types() -> void:
+	assert_eq(MotionEffects.dust_color(Terrain.Type.FIELDS), MotionEffects.DUST_PLAINS)
+	assert_eq(MotionEffects.dust_color(Terrain.Type.URBAN), MotionEffects.DUST_PLAINS)
+	assert_eq(MotionEffects.dust_color(Terrain.Type.MARSH), MotionEffects.DUST_MUD)
+	assert_eq(MotionEffects.dust_rate_factor(Terrain.Type.MARSH), MotionEffects.MUD_RATE_FACTOR)
+	assert_eq(MotionEffects.dust_rate_factor(Terrain.Type.FIELDS), 1.0)

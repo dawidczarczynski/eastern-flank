@@ -236,13 +236,7 @@ func update(max_chunks: int) -> void:
 func _estimate(density: float) -> float:
 	var total := 0.0
 	for c in _grid.coords():
-		match _grid.get_terrain(c):
-			Terrain.Type.PLAINS:
-				total += GrassPlanner.PLAINS_DENSITY
-			Terrain.Type.HILLS:
-				total += GrassPlanner.HILLS_DENSITY
-			Terrain.Type.FOREST:
-				total += GrassPlanner.FOREST_DENSITY
+		total += GrassPlanner.density_of(_grid.get_terrain(c))
 	var area := 1.5 * Hex.SQRT3 * TerrainField.HEX_SIZE * TerrainField.HEX_SIZE
 	var meadow := LookPreset.meadow()
 	for c in _grid.coords():

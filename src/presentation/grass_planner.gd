@@ -13,6 +13,10 @@ const CHUNK_SIZE := 4.0
 const PLAINS_DENSITY := 90.0
 const HILLS_DENSITY := 50.0
 const FOREST_DENSITY := 25.0
+## Real-terrain types (TASK-108): stubble fields and village yards are thinner than meadows.
+const FIELDS_DENSITY := PLAINS_DENSITY * 0.6
+const URBAN_DENSITY := PLAINS_DENSITY * 0.3
+const MARSH_DENSITY := PLAINS_DENSITY
 ## Hills steeper than this (height change per world unit) stay bare.
 const MAX_SLOPE := 0.5
 ## Ground at most this far above the water level is shore: no grass.
@@ -85,15 +89,7 @@ static func plan_chunk(
 		if not grid.has_tile(coord):
 			continue
 		var terrain := grid.get_terrain(coord)
-		var share := 0.0
-		match terrain:
-			Terrain.Type.PLAINS:
-				share = PLAINS_DENSITY
-			Terrain.Type.HILLS:
-				share = HILLS_DENSITY
-			Terrain.Type.FOREST:
-				share = FOREST_DENSITY
-		var keep := share / PLAINS_DENSITY
+		var keep := density_of(terrain) / PLAINS_DENSITY
 		if terrain != Terrain.Type.FOREST and meadow["bare_thinning"] > 0.0:
 			keep *= 1.0 - float(meadow["bare_thinning"]) * bare_k(x, z)
 		if accept >= keep:
@@ -102,6 +98,8 @@ static func plan_chunk(
 		if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
 			continue
 		if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
+			continue
+		if not FeatureRibbonPlanner.is_clear(grid, x, z):
 			continue
 		var kind := _kind_at(x, z, coord, terrain, grid, meadow)
 		var clump := {
@@ -114,6 +112,24 @@ static func plan_chunk(
 		}
 		result.append(clump)
 	return result
+
+
+## Clumps per world unit² of a terrain type at density 1.0 (0 on water).
+static func density_of(terrain: int) -> float:
+	match terrain:
+		Terrain.Type.PLAINS:
+			return PLAINS_DENSITY
+		Terrain.Type.HILLS:
+			return HILLS_DENSITY
+		Terrain.Type.FOREST:
+			return FOREST_DENSITY
+		Terrain.Type.FIELDS:
+			return FIELDS_DENSITY
+		Terrain.Type.URBAN:
+			return URBAN_DENSITY
+		Terrain.Type.MARSH:
+			return MARSH_DENSITY
+	return 0.0
 
 
 ## Share [0, 1] of the bare dirt patches of the ground texture at (x, z).
@@ -265,6 +281,8 @@ static func plan_flowers(
 		if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
 			continue
 		if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
+			continue
+		if not FeatureRibbonPlanner.is_clear(grid, x, z):
 			continue
 		var cell := Vector2(floorf(x / cell_size) + 0.5, floorf(z / cell_size) + 0.5) * cell_size
 		var group_index := _pick_group(groups, hash01(cell.x, cell.y, 3))

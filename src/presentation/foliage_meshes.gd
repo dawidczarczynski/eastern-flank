@@ -15,6 +15,9 @@ const LOBES: Array[Array] = [
 	[-0.01, 0.198, 0.004, 0.05],
 ]
 const LOBE_SUBDIVISIONS := 2
+## The far bush (`bush_far`): the same lobes one subdivision coarser (400 instead of 1600
+## triangles), drawn beyond ScatterChunks.BUSH_LOD_DISTANCE where a bush is a few pixels wide.
+const FAR_LOBE_SUBDIVISIONS := 1
 const LOBE_JITTER := 0.4
 const CONIFER_TIERS := 4
 const CONIFER_SIDES := 10
@@ -49,6 +52,12 @@ static func conifer(variant: int) -> ArrayMesh:
 
 static func bush() -> ArrayMesh:
 	return deciduous(BUSH_VARIANT)
+
+
+static func bush_far() -> ArrayMesh:
+	if not _cache.has("bush_far"):
+		_cache["bush_far"] = build_deciduous(BUSH_VARIANT, FAR_LOBE_SUBDIVISIONS)
+	return _cache["bush_far"]
 
 
 static func trunk() -> ArrayMesh:
@@ -201,9 +210,9 @@ class Tri:
 
 
 ## Uncached builder (the cached accessor is `deciduous`).
-static func build_deciduous(variant: int) -> ArrayMesh:
+static func build_deciduous(variant: int, subdivisions: int = LOBE_SUBDIVISIONS) -> ArrayMesh:
 	var tris: Array[Tri] = []
-	var sphere := _unit_sphere(LOBE_SUBDIVISIONS)
+	var sphere := _unit_sphere(subdivisions)
 	for li in LOBES.size():
 		var lobe: Array = LOBES[li]
 		var center := Vector3(lobe[0], lobe[1], lobe[2])

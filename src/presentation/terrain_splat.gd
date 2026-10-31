@@ -25,6 +25,13 @@ const DIRT_PATCH_TO := 0.95
 const DIRT_PATCH_MAX := 0.4
 ## Forest floor: dirt (needles, leaf litter) with some grass; trees come from the scatter.
 const FOREST_DIRT := 0.6
+## Real-terrain types (TASK-108, basic look): base layers before the slope / shore rules.
+## Fields: stubble (dry grass over dirt); urban: yards and lanes (gravel, dirt); marsh: wet meadow.
+const FIELDS_DRY_GRASS := 0.5
+const FIELDS_DIRT := 0.3
+const URBAN_GRAVEL := 0.5
+const URBAN_DIRT := 0.3
+const MARSH_MUD := 0.45
 ## Rock by slope (1 - normal.y) on all land, and on high ground (as the old rock colouring).
 const ROCK_SLOPE_FROM := 0.22
 const ROCK_SLOPE_TO := 0.45
@@ -56,6 +63,17 @@ static func weights(
 	if terrain == Terrain.Type.FOREST:
 		w[DIRT] = FOREST_DIRT
 		w[GRASS] = 1.0 - FOREST_DIRT
+	elif terrain == Terrain.Type.FIELDS:
+		w[DRY_GRASS] = FIELDS_DRY_GRASS
+		w[DIRT] = FIELDS_DIRT
+		w[GRASS] = 1.0 - FIELDS_DRY_GRASS - FIELDS_DIRT
+	elif terrain == Terrain.Type.URBAN:
+		w[GRAVEL] = URBAN_GRAVEL
+		w[DIRT] = URBAN_DIRT
+		w[GRASS] = 1.0 - URBAN_GRAVEL - URBAN_DIRT
+	elif terrain == Terrain.Type.MARSH:
+		w[MUD] = MARSH_MUD
+		w[GRASS] = 1.0 - MARSH_MUD
 	else:
 		var patch := TerrainNoise.smooth(DIRT_PATCH_FROM, DIRT_PATCH_TO, moisture) * DIRT_PATCH_MAX
 		w[DIRT] = patch

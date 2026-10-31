@@ -13,7 +13,8 @@ https://www.openstreetmap.org/copyright – downloaded through the Overpass API
 (https://overpass-api.de).
 
 The hex maps are a derivative database of OpenStreetMap data (land use / natural areas reduced
-to one terrain and cover class per hex). In line with the ODbL share-alike clause, the terrain
+to one terrain and cover class per hex, roads and waterways reduced to links between
+neighbouring hexes). In line with the ODbL share-alike clause, the terrain
 and cover data of every map listed below is made available under the ODbL 1.0 as well, and
 anyone can rebuild it from OpenStreetMap with tools/import_map.py and the command given below.
 
@@ -34,6 +35,8 @@ of 250 m, UTM 34N. Real data, downloaded 2026-10-31:
   Rebuild: tools/import_map.py --center=54.235,22.88 --size=30x24 --hex=250 --name=suwalki
            --display-name="Suwalki Lakeland (Szurpily)" --out=data/maps/suwalki.tres
   (a re-download gets today's OpenStreetMap, so the result may differ from the committed file)
+  Re-imported 2026-10-31 (TASK-108: fields / urban / marsh, road and river links) offline from
+  the same cached inputs with --offline added to the command above.
 
 The test map tests/fixtures/maps/sample_map.tres is built from SYNTHETIC fixtures
 (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.

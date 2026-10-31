@@ -1,11 +1,43 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## ImportedMap (TASK-087): maps imported from real geography by tools/import_map.py.
 ## tests/fixtures/maps/sample_map.tres is the importer's output on SYNTHETIC fixtures (6x5 hexes:
-## forest NW, hill NE, lake SW, village and fields SE; see tools/test_import_map.py).
+## forest NW, hill NE, lake SW, village, fields and wetland SE, a road east-west and a river
+## north-south; see tools/test_import_map.py).
 
 const SAMPLE_PATH := "res://tests/fixtures/maps/sample_map.tres"
-const SAMPLE_TERRAIN := ["FFFPHH", "FPFPHH", "FFFPPP", "WWPPPP", "WWPPPP"]
+const SAMPLE_TERRAIN := ["FFFPHH", "FPFPHH", "FFFPPA", "WWPUUA", "WWMUUA"]
 const EPSILON := 1e-4
+## terrain_rows of data/maps/suwalki.tres as imported by TASK-087 (P/F/H/W only).
+const SUWALKI_087_TERRAIN := [
+	"FPPHFFPPPPPPPPPPPPPFFFHPPPFPPW",
+	"PHPFFPPPPPHPFHPPPHHFHHPPPPPPWW",
+	"PPPPFPHPPPPFPHHPFWHPHHHPPPPPPP",
+	"PPPHPPPPPPPHHHHHHHPHPFHPPPPPPP",
+	"PPHPPPPPPPPHPHPPPPHFHWFPPPPPPP",
+	"PPHPPPPPPHPPPHPPPPPPPWPPPPPPPP",
+	"PHFPPHPPPHPPFFHHPPPHPFFPPPPPPP",
+	"PFPPHHPPPHPPFHPPHPFHPPHPPPPPPP",
+	"HPHPHHHFPPHPFFHPFFFPFPPHPPPPPP",
+	"FHPPPPFFHHPFFFFFFWHPFPHPPPPPPF",
+	"PHPPPPFFFPPFFFFFFWFPFPHPPPPPPP",
+	"HPPPPPPFPPPFFFFFWPPHHPPPPPPPPP",
+	"HHFFPFFFFFFHPHFFFFPFPWHHPPPPPP",
+	"HFFFFFFFFFFHPPPPWFPWWPHPPPPPPP",
+	"FFPPFFFFFFFHHHPPPPWWWHPPPPPPPP",
+	"FFPFFFFFFFHPHHFWWWWWHPPPPPPPPP",
+	"FPPPPFFFFFPPHPHFWWWFFPHPPPPPPP",
+	"PHHPPPHPFHPHHHFHPPFFHPPPPPPPPH",
+	"HHPHHPHPPPHHPPFHPHHFHPPPPHPFPP",
+	"PPPPPPPPPPHHPPPHHPPPPFPPHPHPPH",
+	"PPPPPPPPPPPPPHPPPHHPPPPPPPPPFP",
+	"HPPPPPPPPFPPPPPHPPHPPPPPHPPHPH",
+	"FHPPPPPPPFPPPPPPPPPHPPPPPPHHHP",
+	"FPHPPPPPPPPPPPPPPPPHPPPPPHFPPP",
+]
+## Checksums of the TASK-087 elevation arrays: [sum, sum of |v| * (i % 7 + 1)].
+const SUWALKI_087_ELEVATION_M := [148024.6, 591194.7]
+const SUWALKI_087_ELEVATION := [499.81, 2071.341]
 
 
 func _sample() -> ImportedMap:
@@ -41,7 +73,10 @@ func test_grid_has_every_tile_with_its_terrain_and_elevation() -> void:
 		"P": Terrain.Type.PLAINS,
 		"F": Terrain.Type.FOREST,
 		"H": Terrain.Type.HILLS,
-		"W": Terrain.Type.WATER
+		"W": Terrain.Type.WATER,
+		"A": Terrain.Type.FIELDS,
+		"U": Terrain.Type.URBAN,
+		"M": Terrain.Type.MARSH,
 	}
 	for row in 5:
 		for col in 6:
@@ -207,3 +242,146 @@ func test_forcing_water_to_land_still_lifts_it_into_the_band() -> void:
 	var lake := MapGenerator.offset_to_axial(0, 4)
 	MapGenerator.force_terrain(grid, lake, Terrain.Type.PLAINS)
 	assert_eq(grid.elevation(lake), MapGenerator.DEFAULT_SETTINGS.land_min)
+
+
+# --- TASK-108: real-terrain types, road and river links ---
+
+
+## 3x2 map: row 0 = P A U, row 1 = M P W (axial (0,0) (1,0) (2,0) / (0,1) (1,1) (2,1)).
+## Roads: (0,0)-(1,0) on both tiles, (0,0) west off the map, (1,1) east into the water.
+## River: (0,1)-(1,1) on both tiles.
+func _linked_map() -> ImportedMap:
+	var map := ImportedMap.new()
+	map.id = &"linked"
+	map.width = 3
+	map.height = 2
+	map.terrain_rows = PackedStringArray(["PAU", "MPW"])
+	map.elevation = PackedFloat32Array([0.2, 0.2, 0.2, 0.2, 0.2, -0.4])
+	var c := ImportedMap.LINK_CHARS
+	map.road_rows = PackedStringArray(
+		[c[(1 << 0) | (1 << 3)] + c[1 << 3] + ".", ".%s." % c[1 << 0]]
+	)
+	map.river_rows = PackedStringArray(["...", c[1 << 0] + c[1 << 3] + "."])
+	return map
+
+
+func test_real_terrain_chars_load_as_the_new_types() -> void:
+	var grid := _linked_map().to_grid()
+	assert_true(grid != null, _linked_map().problem())
+	assert_eq(grid.get_terrain(Vector2i(1, 0)), Terrain.Type.FIELDS)
+	assert_eq(grid.get_terrain(Vector2i(2, 0)), Terrain.Type.URBAN)
+	assert_eq(grid.get_terrain(Vector2i(0, 1)), Terrain.Type.MARSH)
+
+
+func test_link_chars_encode_six_bit_masks() -> void:
+	var chars := ImportedMap.LINK_CHARS
+	assert_eq(chars.length(), 64)
+	var seen := {}
+	for ch in chars:
+		seen[ch] = true
+	assert_eq(seen.size(), 64, "unique")
+	assert_eq(chars[0], ".")
+	assert_eq(chars[63], "@")
+
+
+func test_links_decode_to_the_grid_masks() -> void:
+	var map := _linked_map()
+	assert_eq(map.problem(), "")
+	var grid := map.to_grid()
+	assert_eq(grid.road_links(Vector2i(0, 0)), (1 << 0) | (1 << 3))
+	assert_eq(grid.road_links(Vector2i(1, 0)), 1 << 3)
+	assert_eq(grid.road_links(Vector2i(1, 1)), 1 << 0)
+	assert_eq(grid.road_links(Vector2i(2, 0)), 0)
+	assert_true(grid.has_road(Vector2i(0, 0), Vector2i(1, 0)))
+	assert_true(grid.has_road(Vector2i(1, 0), Vector2i(0, 0)))
+	assert_true(grid.is_river(Vector2i(0, 1)))
+	assert_true(grid.is_river(Vector2i(1, 1)))
+	assert_false(grid.is_river(Vector2i(0, 0)))
+	assert_eq(grid.step_cost(Vector2i(0, 1), Vector2i(1, 1)), 2, "river hex")
+
+
+func test_maps_without_links_are_valid() -> void:
+	var map := _linked_map()
+	map.road_rows = PackedStringArray()
+	map.river_rows = PackedStringArray()
+	assert_eq(map.problem(), "")
+	var grid := map.to_grid()
+	for c in grid.coords():
+		assert_eq(grid.road_links(c), 0)
+		assert_eq(grid.river_links(c), 0)
+	assert_eq(_sample().problem(), "", "the synthetic sample")
+
+
+func test_sample_map_has_its_road_and_river() -> void:
+	var grid := _sample().to_grid()
+	var road := MapGenerator.offset_to_axial(0, 2)
+	assert_true(grid.road_links(road) != 0, "the road crosses row 2")
+	var river := 0
+	for c in grid.coords():
+		if grid.is_river(c):
+			river += 1
+			assert_true(grid.get_terrain(c) != Terrain.Type.WATER)
+	assert_eq(river, 5, "one river hex per row")
+
+
+func test_problem_reports_malformed_links() -> void:
+	var map := _linked_map()
+	map.road_rows = PackedStringArray(["..."])
+	assert_true(map.problem() != "", "row count")
+	map = _linked_map()
+	map.river_rows[0] = ".."
+	assert_true(map.problem() != "", "row width")
+	map = _linked_map()
+	map.road_rows[1] = ".!."
+	assert_true(map.problem().contains("!"), map.problem())
+	map = _linked_map()
+	map.road_rows[0] = ImportedMap.LINK_CHARS[1 << 0] + ".."
+	assert_true(map.problem() != "", "land-land link on one side only")
+	map = _linked_map()
+	map.river_rows[1] = "..%s" % ImportedMap.LINK_CHARS[1 << 0]
+	assert_true(map.problem() != "", "link on a water tile")
+	assert_true(map.to_grid() == null)
+
+
+# --- TASK-108: the regenerated Suwalki map against the TASK-087 import ---
+
+
+func _checksums(values: PackedFloat32Array) -> Array[float]:
+	var total := 0.0
+	var weighted := 0.0
+	for i in values.size():
+		total += values[i]
+		weighted += absf(values[i]) * (i % 7 + 1)
+	return [total, weighted]
+
+
+func test_suwalki_keeps_forest_water_and_elevation_of_task_087() -> void:
+	var map := ImportedMap.find(&"suwalki")
+	assert_eq(map.problem(), "")
+	for row in map.height:
+		for col in map.width:
+			var old: String = SUWALKI_087_TERRAIN[row][col]
+			var now := map.terrain_rows[row][col]
+			if old == "F" or old == "W":
+				assert_eq(now, old, "%d,%d" % [col, row])
+			else:
+				assert_true("PHAUM".contains(now), "%d,%d: %s was %s" % [col, row, now, old])
+	var metres := _checksums(map.elevation_m)
+	_near(metres[0], SUWALKI_087_ELEVATION_M[0], "elevation_m sum", 0.5)
+	_near(metres[1], SUWALKI_087_ELEVATION_M[1], "elevation_m weighted", 2.0)
+	var game := _checksums(map.elevation)
+	_near(game[0], SUWALKI_087_ELEVATION[0], "elevation sum", 0.01)
+	_near(game[1], SUWALKI_087_ELEVATION[1], "elevation weighted", 0.05)
+
+
+func test_suwalki_has_roads_and_rivers() -> void:
+	var grid := ImportedMap.find(&"suwalki").to_grid()
+	var roads := 0
+	var rivers := 0
+	for c in grid.coords():
+		if grid.road_links(c) != 0:
+			roads += 1
+		if grid.is_river(c):
+			rivers += 1
+	assert_true(roads >= 1, "road links")
+	assert_true(rivers >= 1, "river hexes")

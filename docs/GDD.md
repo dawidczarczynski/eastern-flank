@@ -42,6 +42,13 @@ Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-
   | Forest | 2 | +1 | implemented |
   | Hills | 2 | +2 | implemented |
   | Water | impassable | – | implemented |
+  | Fields | 1 | 0 | specified (TASK-108) – real-terrain maps only |
+  | Urban | 1 | +2 | specified (TASK-108) – real-terrain maps only |
+  | Marsh | 2 | 0 | specified (TASK-108) – real-terrain maps only |
+
+  Proposed for fog of war (TASK-007, no rule yet): forest, hills and urban block sight; plains, fields, marsh and water don't.
+
+- **Roads and rivers** (specified, [TASK-108](tasks/TASK-108-terrain-types-from-real-data.md); real-terrain maps only): each tile stores a 6-bit link mask per feature (a line from its centre across a hex side into the neighbour). **Roads apply per link**: a step from A to B costs 1 when A has a road link towards B, whatever B's terrain (water stays impassable). **Rivers apply per hex**: a tile with a river link is a river hex; entering it costs +1 on top of its terrain, unless the step follows a road link (bridge); leaving is free. Numbers in `data/terrain/features.tres`. Invariant: the most expensive passable step (2 + 1 = 3) never exceeds the smallest unit movement (3), so every unit can enter every passable hex from a full move. Importer: urban when ≥ 20 % of the hex is built-up, marsh when ≥ 25 % is wetland (after water/forest dominance, before hills and fields); rule roads = `highway` motorway … residential (not `track`); rivers = `waterway` river, canal, named stream.
 
   Terrain numbers (move cost, impassable, defense bonus) and look (colour, height) live in `data/terrain/*.tres` (`TerrainDefinition`), the source of truth; see ADR 0002.
 
@@ -285,13 +292,19 @@ Each question lists the tasks that depend on the answer.
 - **Wrecks** (2026-10-20): proposed **[ASSUMPTION]** – destroyed vehicles leave a cosmetic wreck that hides when a unit enters its tile, smoke for 3 turns, infantry leaves none. Wrecks never affect rules unless a separate rules task decides otherwise. → TASK-065.
 - **Rocket salvo pacing** (2026-10-23): a full salvo (12 Homar-K / 16 Uragan rockets with visible pauses) makes an MLRS attack ≈ 10 s. Proposed **[ASSUMPTION]**: salvos are left out of the AI-turn animation speed-up and play at most 1.5× faster; counter salvos are full salvos; a very small camera shake near the camera. Alternatives: shorter counter salvos, a "fast animations" key, a shorter rocket interval. Purely visual – the salvo size is not a game quantity (ammunition stays an idea). → [TASK-074](tasks/TASK-074-mlrs-salvo-sequence.md) (pacing), [TASK-075](tasks/TASK-075-mlrs-salvo-effects.md) (camera shake).
 - **Russian vehicle markings** (2026-10-20): proposed **[ASSUMPTION]** – tactical numbers only, no national insignia, never "Z"/"V" symbols; Polish vehicles carry the red-white checkerboard. → TASK-063.
+- **Real-terrain types (TASK-108)** – proposed **[ASSUMPTION]**, revisit after playtests and `tools/simulate.sh --scenario=suwalki_battle`:
+  - *Fields* have the plains rules (look only). Should they matter later – concealment under fog of war (TASK-007), seasonal mud? Unmapped open ground in OSM (mostly fields in rural Poland) stays plains.
+  - *Urban* +2 like hills; +3 would push most attacks to the minimum damage (see "Damage scale").
+  - *Field and forest tracks* (`highway=track`) are not roads – they would erase forest's movement cost on dense networks. A lower-grade "track" link (e.g. cost of the terrain − 1) is possible.
+  - *Bridges over water hexes* (a road across a lake narrows or a wide river mapped as water) are lost: water stays impassable even with a road.
+  - *Streams*: only named streams count as rivers; if real maps get too many river hexes, drop streams.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.
 
 ### Ideas from the visual design
 
 Seen in the mock-up (`docs/design/game_screen.scene.js`), **not** part of the visual tasks. Each needs a decision before it gets a task.
 
-- **More terrain types**: *fields* (cost 1, small defense bonus), *mountains* (cost 3, high defense, impassable for wheeled units), *urban* / named cities (cost 1, high defense, buildings scatter), plains vs. fields split. The terrain colouring already shows "mountain" heights as rock/snow on HILLS tiles.
+- **More terrain types** (fields, urban, roads and rivers adopted with other numbers in TASK-108; mountains still open): *fields* (cost 1, small defense bonus), *mountains* (cost 3, high defense, impassable for wheeled units), *urban* / named cities (cost 1, high defense, buildings scatter), plains vs. fields split. The terrain colouring already shows "mountain" heights as rock/snow on HILLS tiles.
 - **Roads** (cost 1 on any terrain, AI/pathfinding preference) and **rivers** (+1 move cost to enter a river hex without a road, river valley carving in the height field).
 - **Sea coast** on one map edge (the mock-up's land mask) – would need spawn rules that keep both armies on land.
 - **Defense as a percentage** (`+25 %` forest, `+30 %` hills, `+50 %` mountains, `+40 %` urban) instead of the flat bonus of TASK-002 – ties to the "Randomness in combat" question.

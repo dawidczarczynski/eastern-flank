@@ -6,6 +6,7 @@ extends RefCounted
 
 const SOOT_COLOR := Color("#2a2622")
 const HIDDEN_SCALE := 0.0001
+## MapView's rock chunks are "Rocks_<x>_<z>" (under a "Rocks" node).
 const ROCK_NODE_NAME := "Rocks"
 
 
@@ -33,7 +34,7 @@ static func burn(root: Node, center: Vector2, radius: float) -> void:
 		for i in multi.instance_count:
 			transforms.append(multi.get_instance_transform(i))
 		var hit := indices_within(transforms, instance.position, center, radius)
-		var is_rock := instance.name == ROCK_NODE_NAME
+		var is_rock := instance.name.begins_with(ROCK_NODE_NAME)
 		for i in hit:
 			if is_rock:
 				multi.set_instance_color(i, SOOT_COLOR)

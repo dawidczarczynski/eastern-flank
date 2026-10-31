@@ -105,6 +105,17 @@ func test_lod_ranges_fade_and_shadows() -> void:
 		assert_eq(node.visibility_range_begin_margin, TreeField.lod_margin(species))
 		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
 		assert_eq(node.cast_shadow, _expected_shadow(node))
+		var end := TreeField.LOD2_DISTANCE if TreeField.has_lod2(species) else 0.0
+		assert_eq(node.visibility_range_end, end, "LOD1 hands over to LOD2 (trees only)")
+	assert_true(trees.lod2_nodes().size() > 0)
+	for node in trees.lod2_nodes():
+		var species: StringName = node.get_meta(&"species")
+		assert_true(TreeField.has_lod2(species), "no LOD2 for scrub")
+		assert_eq(node.visibility_range_begin, TreeField.LOD2_DISTANCE)
+		assert_eq(node.visibility_range_begin_margin, TreeField.LOD2_MARGIN)
+		assert_eq(node.visibility_range_end, 0.0)
+		assert_eq(node.cast_shadow, _expected_shadow(node))
+		assert_true(node.multimesh.mesh == TreeMeshes.lod2(species))
 	for node in trees.far_nodes():
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_end, 0.0)
@@ -136,6 +147,11 @@ func test_every_planned_tree_once_per_lod() -> void:
 	var lod1 := TreeField.instance_total(trees.lod1_nodes())
 	assert_eq(lod0 + far, trees.planned_count(), "LOD0 (+ far backdrop)")
 	assert_eq(lod1 + far, trees.planned_count(), "LOD1 (+ far backdrop)")
+	var with_lod2 := 0
+	for node in trees.lod1_nodes():
+		if TreeField.has_lod2(node.get_meta(&"species")):
+			with_lod2 += node.multimesh.instance_count
+	assert_eq(TreeField.instance_total(trees.lod2_nodes()), with_lod2, "LOD2 = LOD1 trees")
 
 
 func test_no_tree_nodes_without_foliage() -> void:

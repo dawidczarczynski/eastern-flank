@@ -5,18 +5,23 @@ extends Node3D
 ## MultiMeshInstance3D per species x variant x LOD that has instances, with its origin at the
 ## chunk centre (visibility ranges measure from the node origin, so whole chunks switch).
 ## LOD0 (TreeMeshes.lod0: bark + leaf cards) is drawn up to LOD_DISTANCE from the camera, LOD1
-## (TreeMeshes.lod1: bark + solid crown) from there on; both fade over LOD_MARGIN
+## (TreeMeshes.lod1: bark + solid crown) up to LOD2_DISTANCE, LOD2 (TreeMeshes.lod2, coarser,
+## trees only – scrub keeps LOD1) beyond; all fade over their margin
 ## (VISIBILITY_RANGE_FADE_SELF) and cast shadows (the cards' shadows are alpha-scissored).
 ## Backdrop trees farther than BACKDROP_LOD0_REACH outside the playable tiles get only a
 ## "far" node with the LOD1 mesh and no range, which keeps the LOD0 triangles within the budget
 ## (LOD0_TRIANGLE_BUDGET within BUDGET_RADIUS of any playable tile centre).
 ## Species, variant and per-instance colour / wind phase come from TreeSpecies.pick.
 
-enum Lod { NEAR, FAR_RANGE, FAR_ONLY }
+enum Lod { NEAR, FAR_RANGE, FAR_ONLY, DISTANT }
 
 const CHUNK_SIZE := 8.0
 const LOD_DISTANCE := 30.0
 const LOD_MARGIN := 4.0
+## Trees (not scrub) switch from LOD1 to the coarser LOD2 (TreeMeshes.lod2) here: on a large map
+## thousands of distant LOD1 crowns were tiny triangles that cost ~2 ms on the target GPU.
+const LOD2_DISTANCE := 46.0
+const LOD2_MARGIN := 4.0
 ## LOD_DISTANCE + LOD_MARGIN + CameraMath.MIN_DISTANCE: the worst case at full zoom-in.
 const BUDGET_RADIUS := 41.0
 const LOD0_TRIANGLE_BUDGET := 1100000
@@ -59,7 +64,7 @@ static var _textures: Dictionary = {}
 var _planned := 0
 var _backdrop := 0
 var _materials: Dictionary = {}
-var _nodes: Dictionary = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: []}
+var _nodes: Dictionary = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: [], Lod.DISTANT: []}
 ## Node -> its instance transforms relative to the node (the headless dummy renderer keeps no
 ## MultiMesh instance data, so tests and statistics read them here).
 var _local_transforms: Dictionary = {}
@@ -71,7 +76,7 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 	for child in get_children():
 		remove_child(child)
 		child.free()
-	_nodes = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: []}
+	_nodes = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: [], Lod.DISTANT: []}
 	_local_transforms.clear()
 	_planned = map_trees.size() + backdrop_trees.size()
 	_backdrop = backdrop_trees.size()
@@ -90,6 +95,8 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 			backdrop and _outside_distance(playable, Vector2(p.x, p.z)) > BACKDROP_LOD0_REACH
 		)
 		var lods: Array[Lod] = [Lod.NEAR, Lod.FAR_RANGE]
+		if has_lod2(pick["species"]):
+			lods.append(Lod.DISTANT)
 		if far_only:
 			lods = [Lod.FAR_ONLY]
 		for lod in lods:
@@ -130,6 +137,11 @@ static func lod_distance(species: StringName) -> float:
 	return SCRUB_LOD_DISTANCE.get(species, LOD_DISTANCE)
 
 
+## Whether the species gets a LOD2 node (trees yes, the small scrub keeps LOD1 to the horizon).
+static func has_lod2(species: StringName) -> bool:
+	return not SCRUB_LOD_DISTANCE.has(species)
+
+
 static func lod_margin(species: StringName) -> float:
 	return SCRUB_LOD_MARGIN if SCRUB_LOD_DISTANCE.has(species) else LOD_MARGIN
 
@@ -162,6 +174,11 @@ func lod1_nodes() -> Array[MultiMeshInstance3D]:
 
 func far_nodes() -> Array[MultiMeshInstance3D]:
 	return _typed(_nodes[Lod.FAR_ONLY])
+
+
+## LOD2 nodes (beyond LOD2_DISTANCE, trees only).
+func lod2_nodes() -> Array[MultiMeshInstance3D]:
+	return _typed(_nodes[Lod.DISTANT])
 
 
 ## Instance transforms of one of this field's nodes, relative to the node.
@@ -211,9 +228,13 @@ func _add_group(key: String, group: Dictionary) -> void:
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.use_custom_data = true
-	multi.mesh = (
-		TreeMeshes.lod0(species, group["variant"]) if lod == Lod.NEAR else TreeMeshes.lod1(species)
-	)
+	match lod:
+		Lod.NEAR:
+			multi.mesh = TreeMeshes.lod0(species, group["variant"])
+		Lod.DISTANT:
+			multi.mesh = TreeMeshes.lod2(species)
+		_:
+			multi.mesh = TreeMeshes.lod1(species)
 	multi.instance_count = transforms.size()
 	var local: Array[Transform3D] = []
 	for i in transforms.size():
@@ -243,6 +264,13 @@ func _add_group(key: String, group: Dictionary) -> void:
 		Lod.FAR_RANGE:
 			instance.visibility_range_begin = distance
 			instance.visibility_range_begin_margin = margin
+			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+			if has_lod2(species):
+				instance.visibility_range_end = LOD2_DISTANCE
+				instance.visibility_range_end_margin = LOD2_MARGIN
+		Lod.DISTANT:
+			instance.visibility_range_begin = LOD2_DISTANCE
+			instance.visibility_range_begin_margin = LOD2_MARGIN
 			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	add_child(instance)
 	(_nodes[lod] as Array).append(instance)

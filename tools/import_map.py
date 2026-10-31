@@ -21,8 +21,15 @@ cache (tests use the committed fixtures in tools/import_map_fixtures/).
 
 Method (ADR 0018): a lattice of sample points every `SAMPLE_M` metres covers the map; each point gets the DEM
 height (bilinear) and an OSM cover class (polygons rasterised by scanline, higher `COVER_CLASSES` priority wins).
-Per hex: the dominant group of its points (water / forest / open, ties prefer open, then forest) gives the terrain
-type; an open hex whose relief (90th - 10th percentile of its heights) reaches `--hills-relief` metres is HILLS.
+Per hex (`classify`, TASK-108 / ADR 0019): the dominant group of its points (water / forest / open, ties prefer open,
+then forest) makes WATER or FOREST; an open hex is URBAN when built-up cover reaches `--urban-share` of its points,
+MARSH when wetland reaches `--marsh-share`, HILLS when its relief (90th - 10th percentile of its heights) reaches
+`--hills-relief` metres, FIELDS when farmland is its largest open cover class, else PLAINS.
+Roads and rivers (`line_links`): rule road ways (`ROAD_HIGHWAYS`) and river ways (`RIVER_WATERWAYS`, named streams)
+are densified every `LINE_STEP_M` metres and turned into links between consecutive hexes (a 6-bit mask per hex, bit i
+towards the neighbour in `HEX_DIRECTIONS[i]`); a stretch shorter than `CLIP_M` that only clips a hex corner between
+two neighbouring hexes is skipped. Links are stored on both land hexes, on the land side only towards water or off
+the map, never on water (`store_links`).
 The hex elevation is the mean DEM height of its open points (a DSM: forest canopy and buildings are skipped when
 at least a quarter of the hex is open; a hex that is mostly forest takes the mean minus `--canopy`). Game
 elevation: land = land_min + (metres - lowest land hex) x vertical scale (`--exaggeration` x true scale, reduced
@@ -65,11 +72,23 @@ SOURCES = (
 )
 
 # Cover classes in priority order (a later class wins where polygons overlap) and their map characters.
-# Terrain today: W -> WATER, F -> FOREST, the rest is open (PLAINS, or HILLS by relief). TASK-108 can give
-# fields (A), urban (U) and marsh (M) their own rules from the `cover_rows` the map stores.
+# Terrain (`classify`): W -> WATER, F -> FOREST by dominance; in an open hex U -> URBAN and M -> MARSH by share,
+# then HILLS by relief, A -> FIELDS when it is the largest open class, else PLAINS.
 COVER_CLASSES = ".GAUFMW"  # . unmapped, G grass/meadow/scrub, A fields, U urban, F forest, M marsh, W water
 OPEN, FOREST, WATER = "open", "forest", "water"
-TERRAIN_CHARS = {"plains": "P", "forest": "F", "hills": "H", "water": "W"}
+TERRAIN_CHARS = {"plains": "P", "forest": "F", "hills": "H", "water": "W", "fields": "A", "urban": "U", "marsh": "M"}
+URBAN_SHARE = 0.20  # a village core (~1 ha) of the 5.4 ha hex
+MARSH_SHARE = 0.25
+
+# Roads and rivers (TASK-108). Links per hex side: bit i of a hex's mask = a link towards the neighbour
+# axial + HEX_DIRECTIONS[i] (the order of Hex.DIRECTIONS in the game).
+HEX_DIRECTIONS = ((1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1))
+LINK_CHARS = ".123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ#@"  # LINK_CHARS[mask], ImportedMap
+ROAD_HIGHWAYS = ("motorway", "trunk", "primary", "secondary", "tertiary", "unclassified", "residential")
+RIVER_WATERWAYS = ("river", "canal")  # plus `stream` with a name; ditches, drains and unnamed streams are ignored
+LINE_STEP_M = 10.0  # densification of road / river lines
+CLIP_M = 40.0  # a shorter stretch through a hex between two neighbouring hexes is a clipped corner
+ROAD, RIVER = "road", "river"
 
 _TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
     # (tag key, {value: class}); "*" matches any value. First match in this order wins for one element.
@@ -377,6 +396,38 @@ def osm_areas(osm: dict) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
     return [(a[3], a[4]) for a in areas]
 
 
+def line_kind(tags: Dict[str, str]) -> Optional[str]:
+    """ROAD, RIVER or None for an OSM way's tags (rule roads and rivers only, TASK-108)."""
+    if tags.get("area") == "yes":
+        return None
+    highway = tags.get("highway", "")
+    if highway in ROAD_HIGHWAYS or (highway.endswith("_link") and highway[: -len("_link")] in ROAD_HIGHWAYS):
+        return ROAD
+    waterway = tags.get("waterway", "")
+    if waterway in RIVER_WATERWAYS or (waterway == "stream" and tags.get("name")):
+        return RIVER
+    return None
+
+
+def osm_lines(osm: dict) -> List[Tuple[str, List[Tuple[float, float]]]]:
+    """(ROAD or RIVER, [(lat, lon), ...]) of every road and river way, sorted by (kind, way id)."""
+    nodes: Dict[int, Tuple[float, float]] = {}
+    ways = []
+    for el in osm.get("elements", []):
+        if el.get("type") == "node":
+            nodes[el["id"]] = (el["lat"], el["lon"])
+        elif el.get("type") == "way":
+            ways.append(el)
+    lines = []
+    for way in ways:
+        kind = line_kind(way.get("tags", {}))
+        points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
+        if kind and len(points) >= 2:
+            lines.append((kind, way["id"], points))
+    lines.sort(key=lambda line: line[:2])
+    return [(kind, points) for kind, _, points in lines]
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Hex grid in projected metres.
 
@@ -411,8 +462,12 @@ class HexLayout:
         z = 1.5 * r
         return self.origin_e + x * self.metres_per_unit, self.origin_n - z * self.metres_per_unit
 
-    def tile_at(self, e: float, n: float) -> Optional[Tuple[int, int]]:
-        """(col, row) of the hex containing the point, None off the map (Hex.from_world rounding)."""
+    @staticmethod
+    def offset(q: int, r: int) -> Tuple[int, int]:
+        return q + (r // 2), r
+
+    def axial_at(self, e: float, n: float) -> Tuple[int, int]:
+        """Axial (q, r) of the hex containing the point, also off the map (Hex.from_world rounding)."""
         x = (e - self.origin_e) / self.metres_per_unit
         z = (self.origin_n - n) / self.metres_per_unit
         qf = SQRT3 / 3.0 * x - z / 3.0
@@ -424,10 +479,15 @@ class HexLayout:
             q = -r - s
         elif dr > ds:
             r = -q - s
-        col = q + (r // 2)
-        if 0 <= col < self.width and 0 <= r < self.height:
-            return col, r
-        return None
+        return int(q), int(r)
+
+    def on_map(self, col: int, row: int) -> bool:
+        return 0 <= col < self.width and 0 <= row < self.height
+
+    def tile_at(self, e: float, n: float) -> Optional[Tuple[int, int]]:
+        """(col, row) of the hex containing the point, None off the map."""
+        col, row = self.offset(*self.axial_at(e, n))
+        return (col, row) if self.on_map(col, row) else None
 
     def bounds(self, margin: float = 0.0) -> Tuple[float, float, float, float]:
         """(min_e, min_n, max_e, max_n) of the map's hexes plus `margin` metres."""
@@ -478,8 +538,117 @@ def _percentile(sorted_values: List[float], p: float) -> float:
     return sorted_values[f] + (sorted_values[c] - sorted_values[f]) * (k - f)
 
 
+def classify(counts: Sequence[int], relief: float, hills_relief: float = 15.0, urban_share: float = URBAN_SHARE,
+             marsh_share: float = MARSH_SHARE) -> str:  # fmt: skip
+    """Terrain of a hex from its points per COVER_CLASSES index and its relief in metres (first match
+    wins): water / forest by dominance, then urban share, marsh share, hills by relief, fields when farmland is
+    the largest open class, else plains."""
+    total = sum(counts)
+    group = dominant_group(counts)
+    if group == WATER:
+        return "water"
+    if group == FOREST:
+        return "forest"
+    if counts[COVER_CLASSES.index("U")] >= urban_share * total - 1e-9:
+        return "urban"
+    if counts[COVER_CLASSES.index("M")] >= marsh_share * total - 1e-9:
+        return "marsh"
+    if relief >= hills_relief:
+        return "hills"
+    if dominant_open_class(counts) == "A":
+        return "fields"
+    return "plains"
+
+
+def dominant_group(counts: Sequence[int]) -> str:
+    """WATER, FOREST or OPEN: the group with the most points; ties prefer open, then forest."""
+    forest_i, water_i = COVER_CLASSES.index("F"), COVER_CLASSES.index("W")
+    groups = {WATER: counts[water_i], FOREST: counts[forest_i]}
+    groups[OPEN] = sum(counts) - groups[WATER] - groups[FOREST]
+    return max((OPEN, FOREST, WATER), key=lambda g: groups[g])  # max keeps the first on ties
+
+
+def dominant_open_class(counts: Sequence[int]) -> str:
+    """The open cover class (not forest or water) with the most points; ties prefer the later class."""
+    forest_i, water_i = COVER_CLASSES.index("F"), COVER_CLASSES.index("W")
+    open_classes = [k for k in range(len(COVER_CLASSES)) if k not in (forest_i, water_i)]
+    return COVER_CLASSES[max(reversed(open_classes), key=lambda k: counts[k])]
+
+
+def _densify(points: Sequence[Tuple[float, float]], step: float) -> List[Tuple[float, float, float]]:
+    """(e, n, distance along the line) every `step` metres or less, the vertices included."""
+    out = [(points[0][0], points[0][1], 0.0)]
+    along = 0.0
+    for (e1, n1), (e2, n2) in zip(points, points[1:]):
+        length = math.hypot(e2 - e1, n2 - n1)
+        if length == 0.0:
+            continue
+        parts = max(1, int(math.ceil(length / step - 1e-9)))
+        for k in range(1, parts + 1):
+            t = k / parts
+            out.append((e1 + (e2 - e1) * t, n1 + (n2 - n1) * t, along + length * t))
+        along += length
+    return out
+
+
+def _hex_distance(a: Tuple[int, int], b: Tuple[int, int]) -> int:
+    dq, dr = a[0] - b[0], a[1] - b[1]
+    return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
+
+
+def line_links(layout: HexLayout, points: Sequence[Tuple[float, float]]) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+    """Links (axial a, axial b) between consecutive hexes along a projected polyline (also off the map), after
+    dropping stretches shorter than CLIP_M that clip a hex corner between two neighbouring hexes (or leave and
+    re-enter the same hex)."""
+    samples = _densify(points, LINE_STEP_M)
+    runs: List[list] = []  # [axial, distance where the line enters, distance where it leaves]
+    for e, n, along in samples:
+        tile = layout.axial_at(e, n)
+        if runs and runs[-1][0] == tile:
+            runs[-1][2] = along
+        else:
+            if runs:
+                runs[-1][2] = along
+            runs.append([tile, along, along])
+    changed = True
+    while changed:
+        changed = False
+        for i in range(1, len(runs) - 1):
+            prev, run, nxt = runs[i - 1], runs[i], runs[i + 1]
+            if run[2] - run[1] < CLIP_M and _hex_distance(prev[0], nxt[0]) <= 1:
+                del runs[i]
+                if prev[0] == nxt[0]:
+                    prev[2] = nxt[2]
+                    del runs[i]
+                changed = True
+                break
+    links = []
+    for a, b in zip(runs, runs[1:]):
+        if _hex_distance(a[0], b[0]) == 1:
+            links.append((a[0], b[0]))
+    return links
+
+
+def store_links(layout: HexLayout, links: Sequence[Tuple[Tuple[int, int], Tuple[int, int]]],
+                water: Sequence[Tuple[int, int]]) -> Dict[Tuple[int, int], int]:  # fmt: skip
+    """(col, row) -> link mask of the map's land hexes: each link (axial a, b) sets the bit towards the other
+    hex on both ends; water hexes and hexes off the map keep none (so land -> water / off-map links stay on the
+    land side only)."""
+    water_set = set(water)
+    masks: Dict[Tuple[int, int], int] = {}
+    for a, b in links:
+        for src, dst in ((a, b), (b, a)):
+            tile = layout.offset(*src)
+            if not layout.on_map(*tile) or tile in water_set:
+                continue
+            bit = HEX_DIRECTIONS.index((dst[0] - src[0], dst[1] - src[1]))
+            masks[tile] = masks.get(tile, 0) | (1 << bit)
+    return masks
+
+
 def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: float = 15.0,
-              canopy: float = 15.0, exaggeration: float = 1.5) -> dict:  # fmt: skip
+              canopy: float = 15.0, exaggeration: float = 1.5, urban_share: float = URBAN_SHARE,
+              marsh_share: float = MARSH_SHARE) -> dict:  # fmt: skip
     """Per-hex terrain, cover and elevation of the layout (see the module docstring)."""
     min_e, min_n, max_e, max_n = layout.bounds()
     cols = int(math.floor((max_e - min_e) / SAMPLE_M)) + 1
@@ -498,7 +667,6 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: f
                 continue
             lat, lon = from_utm(e, n, zone)
             samples.setdefault(tile, []).append((dem.sample(lat, lon), cover[j][i]))
-    forest_i, water_i = COVER_CLASSES.index("F"), COVER_CLASSES.index("W")
     tiles = {}
     for row in range(layout.height):
         for col in range(layout.width):
@@ -508,32 +676,27 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: f
             counts = [0] * len(COVER_CLASSES)
             for _, c in points:
                 counts[c] += 1
-            groups = {WATER: counts[water_i], FOREST: counts[forest_i]}
-            groups[OPEN] = len(points) - groups[WATER] - groups[FOREST]
-            group = max((OPEN, FOREST, WATER), key=lambda g: groups[g])  # max keeps the first on ties
-            if group == WATER:
-                cover_char = "W"
-            elif group == FOREST:
-                cover_char = "F"
-            else:
-                open_classes = [k for k in range(len(COVER_CLASSES)) if k not in (forest_i, water_i)]
-                cover_char = COVER_CLASSES[max(reversed(open_classes), key=lambda k: counts[k])]
             open_heights = sorted(h for h, c in points if COVER_CLASSES[c] not in "FUW")
             all_heights = sorted(h for h, _ in points)
+            group = dominant_group(counts)
             if len(open_heights) >= len(points) / 4.0:
                 mean = sum(open_heights) / len(open_heights)
                 relief = _percentile(open_heights, 0.9) - _percentile(open_heights, 0.1)
             else:
                 mean = sum(all_heights) / len(all_heights) - (canopy if group == FOREST else 0.0)
                 relief = _percentile(all_heights, 0.9) - _percentile(all_heights, 0.1)
-            if group == WATER:
-                terrain = "water"
-            elif group == FOREST:
-                terrain = "forest"
-            else:
-                terrain = "hills" if relief >= hills_relief else "plains"
+            terrain = classify(counts, relief, hills_relief, urban_share, marsh_share)
+            cover_char = "W" if group == WATER else "F" if group == FOREST else dominant_open_class(counts)
             tiles[(col, row)] = {"terrain": terrain, "cover": cover_char, "metres": round(mean, 1),
                                  "relief": round(relief, 1)}  # fmt: skip
+    water = [tile for tile, t in tiles.items() if t["terrain"] == "water"]
+    links: Dict[str, list] = {ROAD: [], RIVER: []}
+    for kind, line in osm_lines(osm):
+        links[kind].extend(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line]))
+    masks = {kind: store_links(layout, links[kind], water) for kind in (ROAD, RIVER)}
+    for tile, t in tiles.items():
+        t["road"] = masks[ROAD].get(tile, 0)
+        t["river"] = masks[RIVER].get(tile, 0)
     land = [t["metres"] for t in tiles.values() if t["terrain"] != "water"]
     low = min(land) if land else 0.0
     high = max(land) if land else 0.0
@@ -564,10 +727,12 @@ def _string(text: str) -> str:
 def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone: int, result: dict,
                bbox: Tuple[float, float, float, float]) -> None:  # fmt: skip
     tiles = result["tiles"]
-    terrain_rows, cover_rows, metres, elevation = [], [], [], []
+    terrain_rows, cover_rows, road_rows, river_rows, metres, elevation = [], [], [], [], [], []
     for row in range(layout.height):
         terrain_rows.append("".join(TERRAIN_CHARS[tiles[(c, row)]["terrain"]] for c in range(layout.width)))
         cover_rows.append("".join(tiles[(c, row)]["cover"] for c in range(layout.width)))
+        road_rows.append("".join(LINK_CHARS[tiles[(c, row)].get("road", 0)] for c in range(layout.width)))
+        river_rows.append("".join(LINK_CHARS[tiles[(c, row)].get("river", 0)] for c in range(layout.width)))
         metres.append(", ".join(_f(tiles[(c, row)]["metres"], 1) for c in range(layout.width)))
         elevation.append(", ".join(_f(tiles[(c, row)]["elevation"], 3) for c in range(layout.width)))
     lines = [
@@ -590,6 +755,8 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
         "vertical_scale = %s" % _f(result["vertical_scale"], 6),
         "terrain_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in terrain_rows),
         "cover_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in cover_rows),
+        "road_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in road_rows),
+        "river_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in river_rows),
         "elevation_m = PackedFloat32Array(%s)" % ", ".join(metres),
         "elevation = PackedFloat32Array(%s)" % ", ".join(elevation),
         "sources = %s" % _string(SOURCES),
@@ -665,6 +832,8 @@ def run(argv: Sequence[str]) -> Path:
     parser.add_argument("--hills-relief", type=float, default=15.0, help="metres of in-hex relief that make HILLS")
     parser.add_argument("--canopy", type=float, default=15.0, help="metres a mostly forested hex's DSM is lowered")
     parser.add_argument("--exaggeration", type=float, default=1.5, help="vertical exaggeration of the 3D relief")
+    parser.add_argument("--urban-share", type=float, default=URBAN_SHARE, help="built-up share of a hex for URBAN")
+    parser.add_argument("--marsh-share", type=float, default=MARSH_SHARE, help="wetland share of a hex for MARSH")
     args = parser.parse_args(argv)
     bbox = tuple(float(v) for v in args.bbox.split(",")) if args.bbox else None
     if bbox is not None and len(bbox) != 4:
@@ -704,14 +873,17 @@ def run(argv: Sequence[str]) -> Path:
     osm_file = Path(args.osm) if args.osm else osm_path(cache, south, west, north, east, args.offline)
     with open(osm_file, encoding="utf-8") as f:
         osm = json.load(f)
-    result = build_map(layout, zone, Dem(dem_files), osm, args.hills_relief, args.canopy, args.exaggeration)
+    result = build_map(layout, zone, Dem(dem_files), osm, args.hills_relief, args.canopy, args.exaggeration,
+                       args.urban_share, args.marsh_share)  # fmt: skip
     out = Path(args.out)
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():
         counts[t["terrain"]] = counts.get(t["terrain"], 0) + 1
-    print("Wrote %s: %dx%d hexes of %.0f m, %s" % (out, width, height, args.hex,
-          ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts))))  # fmt: skip
+    roads = sum(1 for t in result["tiles"].values() if t["road"])
+    rivers = sum(1 for t in result["tiles"].values() if t["river"])
+    print("Wrote %s: %dx%d hexes of %.0f m, %s; %d hexes with roads, %d river hexes" % (out, width, height,
+          args.hex, ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)), roads, rivers))  # fmt: skip
     return out
 
 

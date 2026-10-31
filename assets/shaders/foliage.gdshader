@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled, specular_disabled, alpha_to_coverage_and_one;
-// Trees (TASK-060): one material per species and LOD, drawn on the two surfaces of a TreeMeshes
-// mesh. Vertex colour b = 1 marks leaves (alpha-scissor cards on LOD0, a solid crown on LOD1),
-// 0 the bark; r is the baked ambient occlusion, g the per-card flutter phase. The card texture is
+// Trees (TASK-060): one material per species and LOD, drawn on the one surface of a TreeMeshes
+// mesh (bark and leaves merged, TASK-108 performance). Vertex colour b = 1 marks leaves
+// (alpha-scissor cards on LOD0, a solid crown on LOD1 / LOD2), 0 the bark; r is the baked ambient occlusion, g the per-card flutter phase. The card texture is
 // a neutral grey: the hue is the species leaf colour shifted by the per-instance variation
 // (INSTANCE_CUSTOM: r hue shift, g value factor, b saturation factor, a wind phase).
 

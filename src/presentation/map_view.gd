@@ -201,6 +201,10 @@ func build(grid: HexGrid) -> void:
 	_ground_material = null
 	_tiles_root.add_child(_build_terrain(rect))
 	_tiles_root.add_child(_build_backdrop(rect))
+	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
+		var ribbon := FeatureRibbons.build(_grid, kind, _drape)
+		if ribbon != null:
+			_tiles_root.add_child(ribbon)
 	_map_trees = []
 	_backdrop_trees = []
 	if quality.get("foliage", true):
@@ -542,7 +546,8 @@ func _build_scatter(plan: Dictionary, prefix: String) -> void:
 		FoliageMeshes.bush(),
 		crown_material,
 		_tree_transforms(bushes, VisualScale.bush_scale()),
-		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B)
+		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B),
+		FoliageMeshes.bush_far()
 	)
 	var rock_transforms: Array[Transform3D] = []
 	var rock_colors := PackedColorArray()
@@ -597,24 +602,12 @@ func _add_scatter(
 	mesh: Mesh,
 	material: Material,
 	transforms: Array[Transform3D],
-	colors: PackedColorArray
+	colors: PackedColorArray,
+	far_mesh: Mesh = null
 ) -> void:
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.use_colors = not colors.is_empty()
-	multi.mesh = mesh
-	multi.instance_count = transforms.size()
-	for i in transforms.size():
-		multi.set_instance_transform(i, transforms[i])
-		if multi.use_colors:
-			multi.set_instance_color(i, colors[i])
-	var instance := MultiMeshInstance3D.new()
-	instance.name = node_name
-	instance.multimesh = multi
-	instance.material_override = material
-	# One node for the whole map, so every shadow cascade drew all of it (~11M of ~15M triangles).
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_tiles_root.add_child(instance)
+	_tiles_root.add_child(
+		ScatterChunks.build(node_name, mesh, material, transforms, colors, far_mesh)
+	)
 
 
 ## Linear ground colour under a grass clump: the mean albedo of each ground layer

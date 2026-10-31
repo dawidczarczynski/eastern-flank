@@ -47,14 +47,14 @@ static func dust_rate(unit_class: StringName, speed: float) -> float:
 static func dust_color(terrain: int, weights := PackedFloat32Array()) -> Color:
 	if terrain == Terrain.Type.WATER:
 		return NO_DUST
-	if _is_muddy(weights):
+	if terrain == Terrain.Type.MARSH or _is_muddy(weights):
 		return DUST_MUD
 	return DUST_FOREST if terrain == Terrain.Type.FOREST else DUST_PLAINS
 
 
-## Multiplier of the dust rate on mud (spatter, not a cloud).
-static func dust_rate_factor(_terrain: int, weights := PackedFloat32Array()) -> float:
-	return MUD_RATE_FACTOR if _is_muddy(weights) else 1.0
+## Multiplier of the dust rate on mud and marsh (spatter, not a cloud).
+static func dust_rate_factor(terrain: int, weights := PackedFloat32Array()) -> float:
+	return MUD_RATE_FACTOR if terrain == Terrain.Type.MARSH or _is_muddy(weights) else 1.0
 
 
 ## Engine load 0..1: the pull-away puff (`since_start` seconds into the move) or the hull pivoting

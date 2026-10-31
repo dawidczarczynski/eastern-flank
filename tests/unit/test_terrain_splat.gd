@@ -25,7 +25,7 @@ func _assert_valid(w: PackedFloat32Array, label: String) -> void:
 
 
 func test_every_result_is_six_non_negative_weights_summing_to_one() -> void:
-	for terrain: int in [-1, PLAINS, FOREST, HILLS, WATER]:
+	for terrain: int in [-1] + Terrain.Type.values():
 		for slope: float in [0.0, 0.2, 0.45, 0.7, 1.0]:
 			for height: float in [-0.8, -0.05, 0.0, 0.02, 0.1, 0.3, 1.0, 1.6, 2.5]:
 				for k: float in [0.0, 0.5, 0.9, 1.0]:
@@ -120,3 +120,19 @@ func test_smooth_averages_neighbours_and_keeps_the_sum() -> void:
 		_assert_valid(smoothed.slice(v * layers, (v + 1) * layers), "vertex %d" % v)
 	assert_true(smoothed[1 * layers + TerrainSplat.ROCK] > 0.5, "middle picks up rock")
 	assert_true(smoothed[0 * layers + TerrainSplat.GRASS] > 0.0, "edge picks up grass")
+
+
+func test_real_terrain_types_have_their_own_base_layers() -> void:
+	var fields := _weights(Terrain.Type.FIELDS, 0.0, 0.3)
+	assert_true(fields[TerrainSplat.DRY_GRASS] >= 0.4, "fields stubble %s" % fields)
+	var urban := _weights(Terrain.Type.URBAN, 0.0, 0.3)
+	assert_true(urban[TerrainSplat.GRAVEL] >= 0.4, "urban gravel %s" % urban)
+	var marsh := _weights(Terrain.Type.MARSH, 0.0, 0.3)
+	assert_true(marsh[TerrainSplat.MUD] >= 0.35, "marsh mud %s" % marsh)
+	assert_true(marsh[TerrainSplat.GRASS] >= 0.3, "marsh grass %s" % marsh)
+
+
+func test_slope_rock_applies_on_real_terrain_types_too() -> void:
+	for t: int in [Terrain.Type.FIELDS, Terrain.Type.URBAN, Terrain.Type.MARSH]:
+		var w := _weights(t, 0.7, 0.3)
+		assert_true(w[TerrainSplat.ROCK] > 0.9, "type %d: rock %s" % [t, w])

@@ -96,3 +96,26 @@ func test_path_row_only_for_a_valid_move_target() -> void:
 	assert_eq(
 		_build(_grid_with(Terrain.Type.PLAINS, 0.0), Vector2i(2, 4), 0, 5)["path"], "0 / 5 MP"
 	)
+
+
+# --- TASK-108: real-terrain types, roads and rivers ---
+
+
+func test_urban_and_marsh_values() -> void:
+	var urban := _build(_grid_with(Terrain.Type.URBAN, 0.2))
+	assert_eq([urban["name"], urban["move"], urban["defense"]], ["Urban", "1", "+2"])
+	var marsh := _build(_grid_with(Terrain.Type.MARSH, 0.1))
+	assert_eq([marsh["name"], marsh["move"], marsh["defense"]], ["Marsh", "2", "+0"])
+	var fields := _build(_grid_with(Terrain.Type.FIELDS, 0.2))
+	assert_eq([fields["name"], fields["move"], fields["defense"]], ["Fields", "1", "+0"])
+
+
+func test_road_and_river_tags() -> void:
+	var grid := _grid_with(Terrain.Type.FOREST, 0.2)
+	var c := MapGenerator.offset_to_axial(2, 4)
+	assert_eq(_build(grid)["tags"], PackedStringArray())
+	grid.set_road_links(c, 1 << 2)
+	assert_eq(_build(grid)["tags"], PackedStringArray(["Road"]))
+	grid.set_river_links(c, 1 << 5)
+	assert_eq(_build(grid)["tags"], PackedStringArray(["Road", "River +1"]))
+	assert_eq(_build(grid)["move"], "2", "the card shows the terrain cost")

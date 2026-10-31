@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name HexGrid
 extends RefCounted
 ## Map: a set of hex tiles with a terrain type and an elevation.
@@ -15,6 +16,11 @@ var authored_elevation := false
 var _terrain: Dictionary = {}  # Vector2i -> Terrain.Type
 var _elevation: Dictionary = {}  # Vector2i -> float
 var _elevation_m: Dictionary = {}  # Vector2i -> float, real height in metres (imported maps)
+## Road / river link masks (TASK-108): bit i = a link towards c + Hex.DIRECTIONS[i]. Only imported
+## maps have them; a missing entry is 0.
+var _road_links: Dictionary = {}  # Vector2i -> int
+var _river_links: Dictionary = {}  # Vector2i -> int
+var _links_version := 0
 
 
 func set_terrain(c: Vector2i, t: Terrain.Type) -> void:
@@ -76,6 +82,74 @@ func move_cost(c: Vector2i) -> int:
 	return Terrain.move_cost(get_terrain(c))
 
 
+## Whether any tile has a road or river link (only imported maps do).
+func has_links() -> bool:
+	return not (_road_links.is_empty() and _river_links.is_empty())
+
+
+## Grows with every set_road_links / set_river_links call, so views can cache what they derive
+## from the links.
+func links_version() -> int:
+	return _links_version
+
+
+## Road links of the tile (6-bit mask, bit i towards c + Hex.DIRECTIONS[i]); see ImportedMap for
+## the storage rule (land–land links on both tiles, none on water).
+func set_road_links(c: Vector2i, mask: int) -> void:
+	_links_version += 1
+	if mask == 0:
+		_road_links.erase(c)
+	else:
+		_road_links[c] = mask
+
+
+func road_links(c: Vector2i) -> int:
+	return _road_links.get(c, 0)
+
+
+## Whether `a` has a road link towards its neighbour `b` (false when they are not neighbours).
+func has_road(a: Vector2i, b: Vector2i) -> bool:
+	var dir := Hex.DIRECTIONS.find(b - a)
+	return dir >= 0 and (road_links(a) & (1 << dir)) != 0
+
+
+## River links of the tile (same encoding as road links).
+func set_river_links(c: Vector2i, mask: int) -> void:
+	_links_version += 1
+	if mask == 0:
+		_river_links.erase(c)
+	else:
+		_river_links[c] = mask
+
+
+func river_links(c: Vector2i) -> int:
+	return _river_links.get(c, 0)
+
+
+## A river hex: a tile with at least one river link (entering it costs extra, TerrainFeatures).
+func is_river(c: Vector2i) -> bool:
+	return river_links(c) != 0
+
+
+## Movement points of one step from `from` into its neighbour `to` (TASK-108):
+## IMPASSABLE when `to` is off the map or impassable; the road cost when `from` has a road link
+## towards `to`; otherwise the terrain cost of `to`, plus the river cost when `to` is a river hex.
+## Every search (reachable, path_to – and so moves, the AI and the path preview) uses it;
+## move_cost stays the bare terrain cost (terrain panel).
+func step_cost(from: Vector2i, to: Vector2i) -> int:
+	var cost := move_cost(to)
+	if cost == Terrain.IMPASSABLE:
+		return cost
+	# Perf shortcut: same result as below on a grid without road/river links (generated maps).
+	if not has_links():
+		return cost
+	if has_road(from, to):
+		return Terrain.features().road_move_cost
+	if is_river(to):
+		return cost + Terrain.features().river_extra_cost
+	return cost
+
+
 ## Tiles reachable from `origin` with `budget` movement points (Dijkstra).
 ## Returns a Vector2i -> path cost dictionary (also contains `origin` with cost 0).
 ## `blocked` – tiles that can't be entered (e.g. occupied by units).
@@ -120,7 +194,7 @@ func _search(origin: Vector2i, budget: int, blocked: Dictionary) -> Dictionary:
 		var current: Vector2i = frontier[best_i]
 		frontier.remove_at(best_i)
 		for n in Hex.neighbors(current):
-			var step := move_cost(n)
+			var step := step_cost(current, n)
 			if step == Terrain.IMPASSABLE or blocked.has(n):
 				continue
 			var new_cost: int = costs[current] + step

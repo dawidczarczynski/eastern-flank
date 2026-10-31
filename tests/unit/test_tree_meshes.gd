@@ -3,12 +3,12 @@ extends TestCase
 const SPECIES: Array[StringName] = [&"pine", &"spruce", &"birch", &"oak", &"alder"]
 
 
-func _arrays(mesh: ArrayMesh, surface: int) -> Array:
-	return mesh.surface_get_arrays(surface)
+func _arrays(mesh: ArrayMesh, part: int) -> Array:
+	return TreeMeshes.part_arrays(mesh, part)
 
 
 func _cards(mesh: ArrayMesh) -> int:
-	var indices: PackedInt32Array = _arrays(mesh, TreeMeshes.SURFACE_LEAVES)[Mesh.ARRAY_INDEX]
+	var indices: PackedInt32Array = _arrays(mesh, TreeMeshes.PART_LEAVES)[Mesh.ARRAY_INDEX]
 	return indices.size() / 6
 
 
@@ -35,19 +35,17 @@ func test_deterministic_and_variants_differ() -> void:
 		assert_true(verts[0] != verts[2], "%s 0 != 2" % species)
 
 
-func test_two_surfaces_card_counts_and_sizes() -> void:
+func test_one_surface_card_counts_and_sizes() -> void:
 	for species in SPECIES:
 		var conifer := TreeSpecies.is_conifer(species)
 		for variant in 3:
 			var mesh := TreeMeshes.lod0(species, variant)
-			assert_eq(mesh.get_surface_count(), 2)
+			assert_eq(mesh.get_surface_count(), 1, "bark and leaves in one draw")
 			var cards := _cards(mesh)
 			var lo := 40 if conifer else 60
 			var hi := 100 if conifer else 120
 			assert_true(cards >= lo and cards <= hi, "%s %d cards %d" % [species, variant, cards])
-			var verts: PackedVector3Array = _arrays(mesh, TreeMeshes.SURFACE_LEAVES)[
-				Mesh.ARRAY_VERTEX
-			]
+			var verts: PackedVector3Array = _arrays(mesh, TreeMeshes.PART_LEAVES)[Mesh.ARRAY_VERTEX]
 			assert_eq(verts.size(), cards * 4, "4 vertices per card")
 			for c in cards:
 				for edge: Vector3 in [
@@ -64,7 +62,7 @@ func test_leaf_normals_point_out_of_the_crown_and_are_unit() -> void:
 		for variant in 3:
 			var mesh := TreeMeshes.lod0(species, variant)
 			var center: Vector3 = TreeMeshes.shape(species, variant)["crown_center"]
-			var arrays := _arrays(mesh, TreeMeshes.SURFACE_LEAVES)
+			var arrays := _arrays(mesh, TreeMeshes.PART_LEAVES)
 			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 			var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 			var outward := 0
@@ -87,8 +85,8 @@ func test_trunk_is_closed_inside_the_crown_and_base_at_zero() -> void:
 		for variant in 3:
 			var mesh := TreeMeshes.lod0(species, variant)
 			var top: Vector3 = TreeMeshes.shape(species, variant)["trunk_top"]
-			var bark: PackedVector3Array = _arrays(mesh, TreeMeshes.SURFACE_BARK)[Mesh.ARRAY_VERTEX]
-			var leaves: PackedVector3Array = _arrays(mesh, TreeMeshes.SURFACE_LEAVES)[
+			var bark: PackedVector3Array = _arrays(mesh, TreeMeshes.PART_BARK)[Mesh.ARRAY_VERTEX]
+			var leaves: PackedVector3Array = _arrays(mesh, TreeMeshes.PART_LEAVES)[
 				Mesh.ARRAY_VERTEX
 			]
 			var has_cap := false
@@ -123,10 +121,10 @@ func test_vertex_colours() -> void:
 						and c.r <= 1.0
 						and c.g >= 0.0
 						and c.g < 1.0
-						and c.b == (1.0 if s == TreeMeshes.SURFACE_LEAVES else 0.0)
+						and c.b == (1.0 if s == TreeMeshes.PART_LEAVES else 0.0)
 					)
 					if not ok:
-						_fail("%s %d surface %d colour %s" % [species, variant, s, c])
+						_fail("%s %d part %d colour %s" % [species, variant, s, c])
 						return
 
 
@@ -144,13 +142,29 @@ func test_triangle_budgets() -> void:
 		print("  %s: LOD0 avg %.0f, LOD1 %d triangles" % [species, average, lod1])
 
 
-func test_lod1_has_bark_and_crown_surfaces() -> void:
+func test_lod1_has_bark_and_crown_parts_in_one_surface() -> void:
 	for species in SPECIES:
 		var mesh := TreeMeshes.lod1(species)
-		assert_eq(mesh.get_surface_count(), 2)
-		for c: Color in _arrays(mesh, TreeMeshes.SURFACE_LEAVES)[Mesh.ARRAY_COLOR]:
+		assert_eq(mesh.get_surface_count(), 1)
+		for c: Color in _arrays(mesh, TreeMeshes.PART_BARK)[Mesh.ARRAY_COLOR]:
+			assert_eq(c.b, 0.0)
+			break
+		for c: Color in _arrays(mesh, TreeMeshes.PART_LEAVES)[Mesh.ARRAY_COLOR]:
 			assert_eq(c.b, 1.0)
 			break
+
+
+func test_lod2_is_a_coarser_lod1() -> void:
+	for species in SPECIES:
+		var lod1 := TreeMeshes.triangle_count(TreeMeshes.lod1(species))
+		var lod2 := TreeMeshes.triangle_count(TreeMeshes.lod2(species))
+		assert_true(lod2 < lod1, "%s LOD2 %d < LOD1 %d" % [species, lod2, lod1])
+		assert_true(lod2 <= 70, "%s LOD2 %d" % [species, lod2])
+		var a := TreeMeshes.lod1(species).get_aabb()
+		var b := TreeMeshes.lod2(species).get_aabb()
+		assert_true(absf(a.size.y - b.size.y) < 0.2 * a.size.y, "%s same height" % species)
+	var first := TreeMeshes.lod2(&"oak")
+	assert_true(first == TreeMeshes.lod2(&"oak"), "cached")
 
 
 func test_meshes_are_cached() -> void:

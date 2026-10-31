@@ -55,6 +55,11 @@ Plains,Plains,Równina
 Forest,Forest,Las
 Hills,Hills,Wzgórza
 Water,Water,Akwen
+Fields,Fields,Pola
+Urban,Urban,Zabudowa
+Marsh,Marsh,Bagno
+Road,Road,Droga
+River +1,River +1,Rzeka +1
 STRENGTH,STRENGTH,SIŁA
 Attack,Attack,Atak
 Defense,Defense,Obrona

@@ -95,7 +95,8 @@ def write_geotiff(path: Path, rows: list, lat0: float, lon0: float, dlat: float,
 
 
 def fixture_osm() -> dict:
-    """Synthetic Overpass answer: lake, forest multipolygon with a clearing, village, fields, wetland, a road."""
+    """Synthetic Overpass answer: lake, forest multipolygon with a clearing, village, fields, wetland, a road, a
+    river crossing it, plus a track and an unnamed stream that are not rule roads / rivers."""
     elements = []
     next_node = [1000]
 
@@ -123,6 +124,10 @@ def fixture_osm() -> dict:
     elements.append({"type": "way", "id": 7, "nodes": box(54.1945, 22.9070, 54.2000, 22.9140), "tags": {"landuse": "farmland"}})
     elements.append({"type": "way", "id": 8, "nodes": box(54.1950, 22.8960, 54.1975, 22.9000), "tags": {"natural": "wetland"}})
     elements.append({"type": "way", "id": 9, "nodes": ring([(54.1990, 22.8860), (54.1990, 22.9140)]), "tags": {"highway": "secondary"}})
+    elements.append({"type": "way", "id": 10, "nodes": ring([(54.2060, 22.9035), (54.2000, 22.9040), (54.1940, 22.9030)]),
+                     "tags": {"waterway": "river", "name": "Rzeka (synthetic)"}})  # fmt: skip
+    elements.append({"type": "way", "id": 11, "nodes": ring([(54.2050, 22.8870), (54.1960, 22.8870)]), "tags": {"waterway": "stream"}})
+    elements.append({"type": "way", "id": 12, "nodes": ring([(54.2045, 22.9100), (54.1950, 22.9120)]), "tags": {"highway": "track"}})
     return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
 
 
@@ -270,6 +275,150 @@ class OsmTest(unittest.TestCase):
         self.assertEqual(grid[8][8], 1)
 
 
+def _counts(**shares: int) -> list:
+    """Point counts per COVER_CLASSES index; keyword = class char (`unmapped` for '.'), 70 points in total."""
+    counts = [0] * len(import_map.COVER_CLASSES)
+    for key, value in shares.items():
+        counts[import_map.COVER_CLASSES.index("." if key == "unmapped" else key)] = value
+    counts[0] += 70 - sum(counts)
+    return counts
+
+
+class ClassifyTest(unittest.TestCase):
+    def test_urban_from_a_fifth_of_the_hex(self) -> None:
+        self.assertEqual(import_map.classify(_counts(U=14, A=35), 0.0), "urban", "20 % urban + 50 % fields")
+        self.assertEqual(import_map.classify(_counts(U=13, A=35), 0.0), "fields", "19 % urban + 50 % fields")
+
+    def test_forest_and_water_dominance_come_first(self) -> None:
+        self.assertEqual(import_map.classify(_counts(F=42, U=21), 0.0), "forest", "60 % forest + 30 % urban")
+        self.assertEqual(import_map.classify(_counts(W=40, M=30), 0.0), "water")
+
+    def test_marsh_from_a_quarter_of_the_hex(self) -> None:
+        self.assertEqual(import_map.classify(_counts(M=18), 0.0), "marsh", "25 %")
+        self.assertEqual(import_map.classify(_counts(M=17, A=40), 0.0), "fields", "24 %")
+        self.assertEqual(import_map.classify(_counts(M=18), 20.0), "marsh", "marshes are flat; before hills")
+
+    def test_urban_before_hills_and_hills_before_fields(self) -> None:
+        self.assertEqual(import_map.classify(_counts(U=14, A=40), 20.0), "urban")
+        self.assertEqual(import_map.classify(_counts(A=50), 20.0), "hills", "a ploughed hill is a hill")
+        self.assertEqual(import_map.classify(_counts(A=50), 14.9), "fields")
+
+    def test_unmapped_or_grass_flat_is_plains(self) -> None:
+        self.assertEqual(import_map.classify(_counts(), 0.0), "plains")
+        self.assertEqual(import_map.classify(_counts(G=40, A=20), 0.0), "plains")
+
+    def test_shares_are_options(self) -> None:
+        self.assertEqual(import_map.classify(_counts(U=10), 0.0, urban_share=0.1), "urban")
+        self.assertEqual(import_map.classify(_counts(M=10), 0.0, marsh_share=0.1), "marsh")
+
+
+class LineKindTest(unittest.TestCase):
+    def test_rule_roads(self) -> None:
+        for value in import_map.ROAD_HIGHWAYS + ("primary_link", "tertiary_link"):
+            self.assertEqual(import_map.line_kind({"highway": value}), import_map.ROAD, value)
+        for value in ("track", "path", "footway", "service", "cycleway"):
+            self.assertIsNone(import_map.line_kind({"highway": value}), value)
+
+    def test_rivers_canals_and_named_streams(self) -> None:
+        self.assertEqual(import_map.line_kind({"waterway": "river"}), import_map.RIVER)
+        self.assertEqual(import_map.line_kind({"waterway": "canal"}), import_map.RIVER)
+        self.assertEqual(import_map.line_kind({"waterway": "stream", "name": "Szeszupa"}), import_map.RIVER)
+        self.assertIsNone(import_map.line_kind({"waterway": "stream"}))
+        self.assertIsNone(import_map.line_kind({"waterway": "ditch", "name": "Rów"}))
+        self.assertIsNone(import_map.line_kind({"waterway": "drain"}))
+        self.assertIsNone(import_map.line_kind({"waterway": "riverbank"}), "areas are water already")
+
+    def test_lines_are_sorted_by_kind_and_id(self) -> None:
+        lines = import_map.osm_lines(fixture_osm())
+        self.assertEqual([kind for kind, _ in lines], [import_map.RIVER, import_map.ROAD])
+
+
+class LineLinksTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.layout = import_map.HexLayout(6, 6, 250.0, 600000.0, 6000000.0)
+
+    def _masks(self, points: list, water: tuple = ()) -> dict:
+        return import_map.store_links(self.layout, import_map.line_links(self.layout, points), list(water))
+
+    def _neighbour(self, col: int, row: int, direction: int) -> tuple:
+        q, r = self.layout.axial(col, row)
+        dq, dr = import_map.HEX_DIRECTIONS[direction]
+        return self.layout.offset(q + dq, r + dr)
+
+    def test_straight_road_through_three_tiles_links_both_sides(self) -> None:
+        masks = self._masks([self.layout.centre(1, 2), self.layout.centre(3, 2)])
+        self.assertEqual(masks, {(1, 2): 1 << 0, (2, 2): (1 << 0) | (1 << 3), (3, 2): 1 << 3})
+
+    def test_bit_index_follows_the_hex_directions(self) -> None:
+        for direction in range(6):
+            other = self._neighbour(2, 2, direction)
+            masks = self._masks([self.layout.centre(2, 2), self.layout.centre(*other)])
+            self.assertEqual(masks[(2, 2)], 1 << direction, "direction %d" % direction)
+            self.assertEqual(masks[other], 1 << ((direction + 3) % 6), "direction %d, other side" % direction)
+
+    def test_directions_match_the_compass(self) -> None:
+        e0, n0 = self.layout.centre(2, 2)
+        east = self._neighbour(2, 2, 0)
+        north_east = self._neighbour(2, 2, 1)
+        south_east = self._neighbour(2, 2, 5)
+        self.assertGreater(self.layout.centre(*east)[0], e0)
+        self.assertAlmostEqual(self.layout.centre(*east)[1], n0)
+        self.assertGreater(self.layout.centre(*north_east)[1], n0, "direction 1 is north (-r)")
+        self.assertLess(self.layout.centre(*south_east)[1], n0, "direction 5 is south (+r)")
+
+    def _corner_line(self, depth: float) -> tuple:
+        """A line from tile A (2, 2) to its east neighbour B that bends `depth` metres into the north-east
+        neighbour C past the corner the three share."""
+        a, b, c = (2, 2), self._neighbour(2, 2, 0), self._neighbour(2, 2, 1)
+        ea, na = self.layout.centre(*a)
+        m = self.layout.metres_per_unit
+        corner = (ea + m * math.sqrt(3.0) / 2.0, na + m / 2.0)
+        return a, b, c, [self.layout.centre(*a), (corner[0], corner[1] + depth), self.layout.centre(*b)]
+
+    def test_a_clipped_corner_makes_no_link(self) -> None:
+        a, b, c, line = self._corner_line(10.0)
+        masks = self._masks(line)
+        self.assertNotIn(c, masks)
+        self.assertEqual(masks[a], 1 << 0)
+        self.assertEqual(masks[b], 1 << 3)
+
+    def test_a_longer_stretch_through_the_corner_links_it(self) -> None:
+        a, b, c, line = self._corner_line(60.0)
+        masks = self._masks(line)
+        self.assertIn(c, masks)
+        self.assertEqual(masks[a], 1 << 1, "A -> C")
+        self.assertEqual(masks[c], (1 << 4) | (1 << 5), "C -> A and C -> B")
+
+    def test_the_clip_threshold_is_forty_metres(self) -> None:
+        layout = self.layout
+        c = self._neighbour(2, 2, 1)
+        for depth, linked in ((10.0, False), (60.0, True)):
+            runs = []
+            for e, n, along in import_map._densify(self._corner_line(depth)[3], import_map.LINE_STEP_M):
+                tile = layout.offset(*layout.axial_at(e, n))
+                if runs and runs[-1][0] == tile:
+                    runs[-1][2] = along
+                else:
+                    runs.append([tile, along, along])
+            inside = sum(r[2] - r[1] for r in runs if r[0] == c)
+            self.assertEqual(inside >= import_map.CLIP_M, linked, "%s m in the corner" % inside)
+
+    def test_a_line_leaving_the_map_sets_the_bit_on_the_edge_tile_only(self) -> None:
+        e, n = self.layout.centre(5, 2)
+        masks = self._masks([(e, n), (e + 500.0, n)])
+        self.assertEqual(masks, {(5, 2): 1 << 0})
+
+    def test_a_line_into_water_sets_the_bit_on_the_land_side_only(self) -> None:
+        masks = self._masks([self.layout.centre(1, 2), self.layout.centre(3, 2)], water=((3, 2),))
+        self.assertEqual(masks, {(1, 2): 1 << 0, (2, 2): (1 << 0) | (1 << 3)})
+
+    def test_link_chars_are_64_unique(self) -> None:
+        self.assertEqual(len(import_map.LINK_CHARS), 64)
+        self.assertEqual(len(set(import_map.LINK_CHARS)), 64)
+        self.assertEqual(import_map.LINK_CHARS[0], ".")
+        self.assertEqual(import_map.LINK_CHARS[63], "@")
+
+
 class ImportTest(unittest.TestCase):
     def setUp(self) -> None:
         self.dir = Path(tempfile.mkdtemp())
@@ -297,12 +446,20 @@ class ImportTest(unittest.TestCase):
         self.assertEqual(len(terrain), 5)
         self.assertTrue(all(len(r) == 6 for r in terrain + cover))
         flat = "".join(terrain)
-        for t in "PFHW":
+        for t in "PFHWAUM":
             self.assertIn(t, flat, "the sample has every terrain type")
         self.assertEqual(terrain[4][0], "W", "the lake in the south-west")
         self.assertEqual(terrain[0][0], "F", "the forest in the north-west")
         self.assertIn("U", "".join(cover), "the village")
         self.assertIn("A", "".join(cover), "the fields")
+        roads = [r.strip('"') for r in arrays["road_rows"].split(", ")]
+        rivers = [r.strip('"') for r in arrays["river_rows"].split(", ")]
+        self.assertTrue(all(len(r) == 6 for r in roads + rivers) and len(roads) == len(rivers) == 5)
+        self.assertNotEqual("".join(roads).strip("."), "", "the secondary road")
+        self.assertNotEqual("".join(rivers).strip("."), "", "the river")
+        for t, road, river in zip(flat, "".join(roads), "".join(rivers)):
+            if t == "W":
+                self.assertEqual(road + river, "..", "no links on water")
         elevation = [float(v) for v in arrays["elevation"].split(", ")]
         metres = [float(v) for v in arrays["elevation_m"].split(", ")]
         for t, e in zip(flat, elevation):

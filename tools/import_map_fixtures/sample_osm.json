@@ -276,6 +276,83 @@
     "highway": "secondary"
    },
    "type": "way"
+  },
+  {
+   "id": 1027,
+   "lat": 54.206,
+   "lon": 22.9035,
+   "type": "node"
+  },
+  {
+   "id": 1028,
+   "lat": 54.2,
+   "lon": 22.904,
+   "type": "node"
+  },
+  {
+   "id": 1029,
+   "lat": 54.194,
+   "lon": 22.903,
+   "type": "node"
+  },
+  {
+   "id": 10,
+   "nodes": [
+    1027,
+    1028,
+    1029
+   ],
+   "tags": {
+    "name": "Rzeka (synthetic)",
+    "waterway": "river"
+   },
+   "type": "way"
+  },
+  {
+   "id": 1030,
+   "lat": 54.205,
+   "lon": 22.887,
+   "type": "node"
+  },
+  {
+   "id": 1031,
+   "lat": 54.196,
+   "lon": 22.887,
+   "type": "node"
+  },
+  {
+   "id": 11,
+   "nodes": [
+    1030,
+    1031
+   ],
+   "tags": {
+    "waterway": "stream"
+   },
+   "type": "way"
+  },
+  {
+   "id": 1032,
+   "lat": 54.2045,
+   "lon": 22.91,
+   "type": "node"
+  },
+  {
+   "id": 1033,
+   "lat": 54.195,
+   "lon": 22.912,
+   "type": "node"
+  },
+  {
+   "id": 12,
+   "nodes": [
+    1032,
+    1033
+   ],
+   "tags": {
+    "highway": "track"
+   },
+   "type": "way"
   }
  ],
  "generator": "synthetic fixture (tools/test_import_map.py)",

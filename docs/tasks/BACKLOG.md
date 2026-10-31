@@ -66,7 +66,8 @@ Rows after TASK-001 are in priority order (top = next to implement).
 | TASK-094 | Contact → battle: contact rule, `BattleSetup` from formations, tactical map cut at the contact point, objectives derived from the situation, scene transition | 💡 idea | TASK-092, TASK-088, TASK-087 |
 | TASK-095 | Battle result → operation: losses into formations, fatigue / readiness, retreat, initiative | 💡 idea | TASK-094 |
 | TASK-093 | Operational map view v0: flat map, NATO (APP-6) symbols, select and move formations – deliberately simple | 💡 idea | TASK-092 |
-| TASK-108 | Terrain types from real data: fields, urban, marsh, roads (cost 1), rivers (+1 to cross) – rules + look (replaces TASK-035) | 💡 idea | TASK-087 |
+| [TASK-108](TASK-108-terrain-types-from-real-data.md) | Terrain types from real data: fields, urban, marsh, roads (cost 1 per link), rivers (+1 to enter) – rules, importer, re-imported Suwałki map, basic look (replaces TASK-035) | 🔵 done | TASK-087 |
+| TASK-108b | Real-terrain look v2: field / road ground layers (free splat channels), river water ribbon with banks, procedural village houses (MultiMesh, LOW fallback), marsh reeds, bridges; 60 FPS on Suwałki | 💡 idea | TASK-108 |
 | TASK-097 | Deep strike v1: means as data (cruise, ballistic, strike drones), targets (airfield, depot, C2, air defence, formation), resolution from recon / AD / quality via `rng`, lasting effects | 💡 idea | TASK-092 (soft: TASK-100, TASK-098) |
 | TASK-100 | Reconnaissance and operational fog: targets known / unknown / stale, recon means | 💡 idea | TASK-092 |
 | TASK-098 | Air defence and SEAD v1: coverage zones, interceptions, suppression before a strike | 💡 idea | TASK-097 |

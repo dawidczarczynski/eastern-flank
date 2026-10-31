@@ -29,13 +29,17 @@ func test_the_map_is_the_human_s_tactical_scale() -> void:
 	assert_eq(map.problem(), "")
 
 
+func _open_ground(t: Terrain.Type) -> bool:
+	return t == Terrain.Type.PLAINS or t == Terrain.Type.FIELDS
+
+
 func test_default_forces_on_distinct_plains_tiles_in_their_halves() -> void:
 	assert_eq(_state.units_of(0).size(), 4)
 	assert_eq(_state.units_of(1).size(), 5)
 	var map := ImportedMap.find(Scenario.SUWALKI_MAP_ID)
 	var seen := {}
 	for unit: Unit in _state.units.values():
-		assert_eq(_state.grid.get_terrain(unit.coord), Terrain.Type.PLAINS, str(unit.coord))
+		assert_true(_open_ground(_state.grid.get_terrain(unit.coord)), str(unit.coord))
 		assert_false(seen.has(unit.coord))
 		seen[unit.coord] = true
 		var col := MapGenerator.axial_to_offset(unit.coord).x
@@ -48,7 +52,8 @@ func test_default_forces_on_distinct_plains_tiles_in_their_halves() -> void:
 func test_spawn_tiles_keep_their_real_terrain_and_elevation() -> void:
 	var grid := ImportedMap.find(Scenario.SUWALKI_MAP_ID).to_grid()
 	for unit: Unit in _state.units.values():
-		assert_eq(grid.get_terrain(unit.coord), Terrain.Type.PLAINS, "spawned on real plains")
+		assert_eq(grid.get_terrain(unit.coord), _state.grid.get_terrain(unit.coord), "real terrain")
+		assert_true(_open_ground(grid.get_terrain(unit.coord)), "spawned on plains or fields")
 		assert_eq(_state.grid.elevation(unit.coord), grid.elevation(unit.coord))
 
 

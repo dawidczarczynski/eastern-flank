@@ -76,10 +76,10 @@ static func suwalki_battle(
 
 
 ## The default forces on the imported Suwalki map (SUWALKI_MAP_ID): player 0 deploys in the west,
-## player 1 in the east, each company on a real plains tile (`_deployment_tiles`); range-1 units
-## near the front column, the others near the back column. Objectives = default_objectives(); the
-## seed only seeds GameState.rng (the map is fixed). Units that find no tile are skipped with
-## push_error.
+## player 1 in the east, each company on a real plains or fields tile (`_deployment_tiles`);
+## range-1 units near the front column, the others near the back column. Objectives =
+## default_objectives(); the seed only seeds GameState.rng (the map is fixed). Units that find no
+## tile are skipped with push_error.
 static func suwalki_battle_setup(
 	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
 ) -> BattleSetup:
@@ -120,8 +120,9 @@ static func suwalki_battle_setup(
 	return setup
 
 
-## Free plains tiles of an imported map nearest to (`column`, middle row), nearest first: by hex
-## distance, then column distance, then row, then column – deterministic.
+## Free plains or fields tiles (open ground: cost 1, no defense bonus) of an imported map
+## nearest to (`column`, middle row), nearest first: by hex distance, then column distance, then
+## row, then column – deterministic.
 static func _deployment_tiles(
 	grid: HexGrid, width: int, height: int, column: int, taken: Dictionary
 ) -> Array[Vector2i]:
@@ -131,7 +132,8 @@ static func _deployment_tiles(
 	for row in height:
 		for col in width:
 			var c := MapGenerator.offset_to_axial(col, row)
-			if grid.get_terrain(c) != Terrain.Type.PLAINS or taken.has(c):
+			var t := grid.get_terrain(c)
+			if (t != Terrain.Type.PLAINS and t != Terrain.Type.FIELDS) or taken.has(c):
 				continue
 			keyed.append([Hex.distance(c, anchor), absi(col - column), row, col, c])
 	keyed.sort()
@@ -241,7 +243,9 @@ static func from_setup(setup: BattleSetup) -> GameState:
 		if not grid.has_tile(company.coord) or state.unit_at(company.coord) != null:
 			push_error("Scenario: tile %s is missing or taken" % company.coord)
 			return null
-		MapGenerator.force_terrain(grid, company.coord, Terrain.Type.PLAINS)
+		# Fields are open ground with the plains rules (TASK-108): an imported map keeps them.
+		if grid.get_terrain(company.coord) != Terrain.Type.FIELDS:
+			MapGenerator.force_terrain(grid, company.coord, Terrain.Type.PLAINS)
 		state.add_unit(company.player, definition, company.coord).hp = company.strength
 	var problem := setup.objectives.problem(state.player_count)
 	if problem != "":

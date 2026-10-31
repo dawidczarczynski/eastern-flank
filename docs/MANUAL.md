@@ -78,16 +78,24 @@ The units themselves wear their army's camouflage: Polish vehicles and soldiers 
 | Forest | 2 | +1 |
 | Hills | 2 | +2 |
 | Water | impassable | – |
+| Fields | 1 | +0 |
+| Urban (villages) | 1 | +2 |
+| Marsh | 2 | +0 |
 
 - The **movement cost** is paid when a unit enters the tile.
 - The **defense bonus** is added to the defense of a unit standing on that tile when it is hit.
+- **Roads**: moving along a road from one hex into the next costs **1**, whatever the terrain of the next hex – a road through a forest or over a hill is as fast as open ground. It only counts *along* the road: a road in the neighbouring hex does not help, and a road does not let you enter water.
+- **Rivers**: entering a hex with a river costs **1 more** than its terrain (plains 2, forest or marsh 3). There is no extra cost where a road crosses the river – a bridge. Leaving a river hex is free. You can move along a river, but you pay the +1 for every river hex you enter.
+- The most expensive step is 3 (forest or marsh with a river), so every unit can always enter any hex that is not water from a full move.
+- Fields, villages, marshes, roads and rivers appear only on **real-terrain maps** (below); the normal battle has none of them.
 - Every tile also has an **elevation**, shown in metres in the terrain panel. Elevation has **no effect on the rules** yet; only the terrain type matters.
 
 ### Maps from real terrain
 
 Battles are meant to be fought on the real ground of the eastern flank. A real-terrain map is built from open map data: forests, lakes and open ground come from OpenStreetMap, heights from the Copernicus elevation model. Each hex is about **250 m** across; a battle map of 30 × 24 hexes covers roughly 7.5 × 5 km.
 
-- A hex takes the terrain that covers most of it: mostly lake → **water**, mostly forest → **forest**, otherwise open ground; open ground that rises or falls steeply within the hex (15 m or more) is **hills**. Villages, fields and marshes count as plains for now.
+- A hex takes the terrain that covers most of it: mostly lake → **water**, mostly forest → **forest**. Otherwise it is open ground, checked in this order: **urban** when buildings and yards cover at least a fifth of it, **marsh** when wetland covers at least a quarter, **hills** when the ground rises or falls 15 m or more within the hex, **fields** when farmland is the largest open cover, else **plains** (meadows and open ground the map data does not describe).
+- Main roads and village streets count as **roads** (field and forest tracks do not); rivers, canals and named streams count as **rivers**. Wide rivers drawn as water areas are water.
 - On a real-terrain map the terrain panel shows the hex's **real height above sea level**. The 3D relief is drawn 1.5 × taller than reality so that hills read on screen, and every lake sits at the same water level.
 - To try it, start the game with `--scenario=suwalki_battle` (for example `tools/run.sh --scenario=suwalki_battle`), then pick **Start operation**: the usual forces on the lakes and moraine hills around **Szurpiły** in the Suwałki Landscape Park (north-east Poland). Poland deploys in the west, Russia in the east; the usual objectives and win conditions apply (see the battle rules).
 - Map data © OpenStreetMap contributors (ODbL), elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
@@ -100,7 +108,7 @@ Battles are meant to be fought on the real ground of the eastern flank. A real-t
 - Moving next to an enemy does not stop you; there are no zones of control.
 - **After a unit attacks, it can't move any more this turn.** Move first, then attack.
 
-When a unit is selected, the area it can reach is outlined in your side's colour and the rest of the map is slightly darkened. Hovering a reachable tile tints it and shows the path as a line of dots, and the terrain panel shows the path cost, e.g. `2 / 3 MP` (cost / movement points left).
+When a unit is selected, the area it can reach is outlined in your side's colour and the rest of the map is slightly darkened. Hovering a reachable tile tints it and shows the path as a line of dots, and the terrain panel shows the path cost, e.g. `2 / 3 MP` (cost / movement points left). The cost includes roads and rivers: three road hexes through a forest cost `3 / 3 MP`, and the path follows the road when it is cheaper.
 
 ## 7. Combat
 
@@ -252,9 +260,10 @@ In a battle with command points it spends its points on its most valuable action
   - **2 INFO** (any unit): hovering it only shows the action's card (`ACTION [2] INFO` – "Show the unit's card: strength, stats and status."). Click it or press **2** to show the unit's card (see Unit card) beside the ring; click it or press **2** again to hide it.
   - **Closing**: Esc, a click anywhere outside the ring, or another right-click closes it; that click does nothing else (a right-click on another unit opens the ring there instead). It also closes when your turn ends or the unit is destroyed.
   - In the Polish version the labels read ATAK, INFO, ZNISZCZENIE, KONTRATAK, BEZ KONTRATAKU, KOŃCZY RUCH and NIEDOSTĘPNE.
-- **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost, defense bonus and elevation, plus a `PATH · 2 / 5 MP` row (in your faction colour) when you have a unit selected and the tile is reachable. Above the panel, `■ OP. IRON SHORE` names the operation.
+- **Terrain panel** (bottom left): the hovered tile's terrain, hex position (column·row), movement cost (the terrain's own cost), defense bonus and elevation, tags such as `IMPASSABLE`, `ROAD` (a road leaves this hex) and `RIVER +1` (entering this hex costs 1 more), plus a `PATH · 2 / 5 MP` row (in your faction colour) when you have a unit selected and the tile is reachable. Above the panel, `■ OP. IRON SHORE` names the operation.
 - **Selection**: selecting a unit outlines the area it can reach in your colour and slightly darkens the rest of the map; the tile under the cursor is tinted when the unit can move there. Water is never darkened, and unreachable tiles inside the area (such as a lake) get their own outline.
 - **Beyond the map edge**: the land around the map (a little greyer and paler, with trees on HIGH graphics) is scenery only. You can't hover or click tiles there, units can't go there, and the camera can't be panned off the map.
+- **Roads and rivers** (real-terrain maps only): roads are drawn as thin grey-brown lines and rivers as thin blue-grey lines, each running from hex centre to hex centre across the hex sides it links. Trees, rocks and grass don't grow on them. Fields look stubbly and khaki, villages gravelly, marshes wet and muddy. (Houses, bridges and a proper river look come later.)
 - **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
 - **Objective hexes** (only in a battle that has them): each is outlined by a coloured ring along its edge, with a small flag on a pole near one corner and an **OBJECTIVE** tag above the flag (visible even over forest). Ring, flag and the tag's tab are in the colour of the side that holds the hex (red for Russia, blue for Poland) and change colour when the hex is captured.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag. This includes units that have not acted once your command points run out.
@@ -327,4 +336,4 @@ While Deploy, Raise launcher, Traverse or Fire is running, the other pose button
 
 ## 13. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later. On real-terrain maps: bridges over lakes and wide rivers (a road across water does not make it passable), houses in villages, and field or forest tracks as roads.

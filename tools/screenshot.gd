@@ -25,6 +25,9 @@ var _finished := false  # capture started or run failed – quit() only takes ef
 var _measure_left := 0
 var _measure_last_usec := 0
 var _measure_samples: Array[int] = []
+## Viewport render time (RenderingServer measure_render_time) summed over the timed frames, ms.
+var _measure_gpu_ms := 0.0
+var _measure_cpu_ms := 0.0
 
 
 func _initialize() -> void:
@@ -146,9 +149,17 @@ func _process(_delta: float) -> bool:
 ## Times one frame (the wall time since the previous _process call); prints the summary after the
 ## last one: "Frame time: avg X ms, max Y ms over N frames".
 func _measure_frame() -> void:
+	# The battle's FramePacing caps a focused window at 60 FPS (and an unfocused one at 5) from its
+	# _ready and on focus changes; keep the probe uncapped or it only measures the cap.
+	Engine.max_fps = 0
 	var now := Time.get_ticks_usec()
+	if _measure_last_usec == 0:
+		RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	if _measure_last_usec > 0:
 		_measure_samples.append(now - _measure_last_usec)
+		var rid := root.get_viewport_rid()
+		_measure_gpu_ms += RenderingServer.viewport_get_measured_render_time_gpu(rid)
+		_measure_cpu_ms += RenderingServer.viewport_get_measured_render_time_cpu(rid)
 		_measure_left -= 1
 	_measure_last_usec = now
 	if _measure_left > 0:
@@ -166,10 +177,12 @@ func _measure_frame() -> void:
 	)
 	print(
 		(
-			"Render: %d draws, %d k tris"
+			"Render: %d draws, %d k tris, GPU %.2f ms, render CPU %.2f ms (avg)"
 			% [
 				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 				Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000,
+				_measure_gpu_ms / _measure_samples.size(),
+				_measure_cpu_ms / _measure_samples.size(),
 			]
 		)
 	)

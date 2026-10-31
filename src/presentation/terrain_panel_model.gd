@@ -21,6 +21,12 @@ static func build(
 	var tags := PackedStringArray()
 	if impassable:
 		tags.append("Impassable")
+	# Roads and rivers (TASK-108, imported maps only). The "+1" is TerrainFeatures.river_extra_cost
+	# (a fixed UI string so it can be translated).
+	if grid.road_links(coord) != 0:
+		tags.append("Road")
+	if grid.is_river(coord):
+		tags.append("River +1")
 	# Real terrain shows its DEM metres; generated maps an illustrative height from the elevation.
 	var metres := roundi(maxf(grid.elevation(coord), 0.0) * _ELEVATION_SCALE_M + _ELEVATION_BASE_M)
 	if grid.has_elevation_m(coord):

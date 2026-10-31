@@ -97,7 +97,17 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 				var n := ROCKS_MOUNTAIN if grid.elevation(c) > MOUNTAIN_ELEVATION else ROCKS_HILLS
 				_plan_rocks(rocks, surface, rng, center, n)
 				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
-	return {
+			# Real-terrain types (TASK-108, basic look): fields and marsh as open plains, a village
+			# without trees or rocks (houses come with TASK-108b).
+			Terrain.Type.FIELDS, Terrain.Type.MARSH:
+				_plan_bushes(bushes, surface, bush_rng, center, BUSHES_PLAINS)
+				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
+				var n := PLAINS_TREES if rng.randf() < PLAINS_TREE_CHANCE else 0
+				_plan_trees(trees, surface, rng, center, n)
+			Terrain.Type.URBAN:
+				_plan_bushes(bushes, surface, bush_rng, center, BUSHES_PLAINS)
+				plan_tile_edges(grid, surface, edge_rng, c, edge_shrubs, young_trees, ground_cover)
+	var plan := {
 		"trees": trees,
 		"rocks": rocks,
 		"bushes": bushes,
@@ -106,6 +116,13 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 		"ground_cover": ground_cover,
 		"meadow_scrub": meadow_scrub,
 	}
+	# Nothing grows on roads and rivers (filtered afterwards, so the streams above are unchanged).
+	if grid.has_links():
+		for key: String in plan:
+			var kept: Array[Dictionary] = []
+			kept.assign(FeatureRibbonPlanner.without_ribbons(grid, plan[key]))
+			plan[key] = kept
+	return plan
 
 
 ## A thorny thicket (one shrub plus bramble/nettle undergrowth) on the open ground of one land
@@ -137,7 +154,7 @@ static func plan_tile_meadow(
 		var s := scales.x + rng.randf() * (scales.y - scales.x)
 		companions.append([a, o, s, rng.randf()])
 	var threshold := 0.0
-	if terrain == Terrain.Type.PLAINS:
+	if terrain in [Terrain.Type.PLAINS, Terrain.Type.FIELDS, Terrain.Type.MARSH]:
 		threshold = meadow["scrub_chance_plains"]
 	elif terrain == Terrain.Type.HILLS:
 		threshold = meadow["scrub_chance_hills"]

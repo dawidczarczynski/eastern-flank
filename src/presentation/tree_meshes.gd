@@ -6,19 +6,21 @@ extends RefCounted
 ## GameState.rng). Base at y = 0, model space as the old foliage (crown top ~0.25-0.33 before the
 ## instance scale, VisualScale.tree_scale()).
 ##
-## Both LODs are one ArrayMesh with two surfaces, so one MultiMesh draws a whole tree:
-## - surface 0 (SURFACE_BARK): the trunk, a tapered lathe closed by a cap inside the crown, plus
-##   tapered branch rods (deciduous: into the crown lobes, pine: short upper branches). UV: u
-##   around, v along the height.
-## - surface 1 (SURFACE_LEAVES): LOD0 = alpha-scissor leaf / needle cards (4 vertices per card in
-##   corner order, 2 triangles), LOD1 = the lobed crown / cone stack as a closed solid.
+## Both LODs are one ArrayMesh with ONE surface (one draw per MultiMesh and pass; foliage.gdshader
+## tells the parts apart by vertex colour b), bark vertices and triangles first, then the leaves
+## (`part_arrays` slices them apart again):
+## - PART_BARK: the trunk, a tapered lathe closed by a cap inside the crown, plus tapered branch
+##   rods (deciduous: into the crown lobes, pine: short upper branches). UV: u around, v along the
+##   height.
+## - PART_LEAVES: LOD0 = alpha-scissor leaf / needle cards (4 vertices per card in corner order, 2
+##   triangles), LOD1 = the lobed crown / cone stack as a closed solid.
 ## Normals of the crown are bent: from the crown centre outwards, so crowns light as volumes.
 ## Vertex colours: r = ambient occlusion (darker inside and lower), g = per-card flutter phase in
 ## [0, 1), b = 1 on leaves and 0 on bark (foliage.gdshader reads all three).
 
 const VARIANTS := 3
-const SURFACE_BARK := 0
-const SURFACE_LEAVES := 1
+const PART_BARK := 0
+const PART_LEAVES := 1
 ## Reference height for the wind (foliage.gdshader: h = vertex y / TREE_HEIGHT).
 const TREE_HEIGHT := 0.3
 const TRUNK_SIDES := 7
@@ -26,8 +28,16 @@ const TRUNK_SEGMENTS := 3
 const BRANCH_SIDES := 4
 const LOD1_TRUNK_SIDES := 5
 const LOD1_LOBE_SUBDIVISIONS := 1
+## Scrub (shrub, undergrowth) is small: its LOD1 lobes are plain jittered icosahedra (~60
+## triangles instead of 155 – as many as its LOD0); thousands of them stand on a large map.
+const SCRUB_LOD1_LOBE_SUBDIVISIONS := 0
 const LOD1_JITTER := 0.25
 const LOD1_CONE_SIDES := 8
+## LOD2 (`lod2`, the distant trees): the LOD1 shape with coarser lobes, cones and trunk – a tree
+## there is ~10-15 px tall and the bent crown normals keep the shading the same.
+const LOD2_LOBE_SUBDIVISIONS := 0
+const LOD2_CONE_SIDES := 5
+const LOD2_TRUNK_SIDES := 3
 const SEED_BASE := 6007
 
 ## Deciduous species: trunk, branches, crown lobes at the branch tips and leaf cards.
@@ -137,6 +147,14 @@ static func lod1(species_id: StringName) -> ArrayMesh:
 	return _cache[key]
 
 
+## The cached distant mesh of a species (a coarser LOD1).
+static func lod2(species_id: StringName) -> ArrayMesh:
+	var key := "%s_lod2" % species_id
+	if not _cache.has(key):
+		_cache[key] = build_lod1(species_id, true)
+	return _cache[key]
+
+
 ## {crown_center: Vector3, trunk_top: Vector3 (centre of the trunk cap), cards: int} of a LOD0
 ## mesh (the values the builder used).
 static func shape(species_id: StringName, variant: int) -> Dictionary:
@@ -144,6 +162,29 @@ static func shape(species_id: StringName, variant: int) -> Dictionary:
 	if not _shapes.has(key):
 		build(species_id, variant)
 	return _shapes[key]
+
+
+## Vertex / normal / colour / UV / index arrays of one part (PART_BARK or PART_LEAVES) of a tree
+## mesh, indices relative to the part (what the part's own surface would hold).
+static func part_arrays(mesh: ArrayMesh, part: int) -> Array:
+	var arrays := mesh.surface_get_arrays(0)
+	var vertex_split: int = mesh.get_meta(&"leaf_vertex_start")
+	var index_split: int = mesh.get_meta(&"leaf_index_start")
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var v0 := 0 if part == PART_BARK else vertex_split
+	var v1 := vertex_split if part == PART_BARK else vertices.size()
+	var i0 := 0 if part == PART_BARK else index_split
+	var i1 := index_split if part == PART_BARK else indices.size()
+	var result := []
+	result.resize(Mesh.ARRAY_MAX)
+	for key: int in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV]:
+		result[key] = arrays[key].slice(v0, v1)
+	var local := indices.slice(i0, i1)
+	for k in local.size():
+		local[k] -= v0
+	result[Mesh.ARRAY_INDEX] = local
+	return result
 
 
 static func triangle_count(mesh: ArrayMesh) -> int:
@@ -181,8 +222,9 @@ static func build(species_id: StringName, variant: int) -> ArrayMesh:
 	return _commit(bark, leaves)
 
 
-## Uncached LOD1 builder: the crown shape of variant 0 as a lobed solid / cone stack.
-static func build_lod1(species_id: StringName) -> ArrayMesh:
+## Uncached LOD1 builder: the crown shape of variant 0 as a lobed solid / cone stack; `coarse`
+## builds LOD2.
+static func build_lod1(species_id: StringName, coarse := false) -> ArrayMesh:
 	var shape0 := shape(species_id, 0)
 	var bark := Surface.new()
 	var crown := Surface.new()
@@ -193,11 +235,12 @@ static func build_lod1(species_id: StringName) -> ArrayMesh:
 		shape0["trunk_radius"],
 		shape0["trunk_radius"] * 0.5,
 		Vector3.ZERO,
-		LOD1_TRUNK_SIDES,
+		LOD2_TRUNK_SIDES if coarse else LOD1_TRUNK_SIDES,
 		1,
 		false
 	)
 	var center: Vector3 = shape0["crown_center"]
+	var cone_sides := LOD2_CONE_SIDES if coarse else LOD1_CONE_SIDES
 	if species_id == &"spruce":
 		var bottom: float = SPRUCE["skirt_bottom"]
 		var height: float = SPRUCE["height"]
@@ -206,20 +249,23 @@ static func build_lod1(species_id: StringName) -> ArrayMesh:
 			var base := lerpf(bottom, height * 0.62, i / 3.0)
 			var r := radius * (1.0 - 0.21 * i)
 			var apex := base + (height - bottom) * (0.4 - 0.03 * i)
-			_add_cone(crown, Vector3(0, base, 0), r, apex - base, center, i)
+			_add_cone(crown, Vector3(0, base, 0), r, apex - base, center, i, cone_sides)
 	elif species_id == &"pine":
 		var lo: Vector3 = shape0["crown_min"]
 		var hi: Vector3 = shape0["crown_max"]
 		var half := (hi - lo) * 0.5
 		var r := maxf(half.x, half.z) * 0.95
-		_add_cone(crown, Vector3(center.x, lo.y + 0.01, center.z), r, half.y * 1.1, center, 0)
+		_add_cone(
+			crown, Vector3(center.x, lo.y + 0.01, center.z), r, half.y * 1.1, center, 0, cone_sides
+		)
 		_add_cone(
 			crown,
 			Vector3(center.x, lo.y + half.y * 0.9, center.z),
 			r * 0.75,
 			half.y * 1.0,
 			center,
-			1
+			1,
+			cone_sides
 		)
 	else:
 		var lo: Vector3 = shape0["crown_min"]
@@ -230,14 +276,31 @@ static func build_lod1(species_id: StringName) -> ArrayMesh:
 			[center + Vector3(0.28 * e.x, 0.32 * e.y, 0.12 * e.z), e * 0.66],
 			[center + Vector3(-0.26 * e.x, 0.36 * e.y, -0.18 * e.z), e * 0.62],
 		]
-		_add_lobes(crown, lobes, center)
+		var subdivisions := LOD1_LOBE_SUBDIVISIONS
+		if coarse:
+			subdivisions = LOD2_LOBE_SUBDIVISIONS
+		elif SCRUB.has(species_id):
+			subdivisions = SCRUB_LOD1_LOBE_SUBDIVISIONS
+		_add_lobes(crown, lobes, center, subdivisions)
 	return _commit(bark, crown)
 
 
+## One surface: the bark, then the leaves (indices shifted); the split points are kept as meta
+## for `part_arrays`.
 static func _commit(bark: Surface, leaves: Surface) -> ArrayMesh:
+	var merged := Surface.new()
+	merged.vertices = bark.vertices + leaves.vertices
+	merged.normals = bark.normals + leaves.normals
+	merged.colors = bark.colors + leaves.colors
+	merged.uvs = bark.uvs + leaves.uvs
+	merged.indices = bark.indices.duplicate()
+	var offset := bark.vertices.size()
+	for i in leaves.indices:
+		merged.indices.append(i + offset)
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, bark.arrays())
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, leaves.arrays())
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged.arrays())
+	mesh.set_meta(&"leaf_vertex_start", offset)
+	mesh.set_meta(&"leaf_index_start", bark.indices.size())
 	return mesh
 
 
@@ -645,26 +708,34 @@ static func _bounds(points: PackedVector3Array) -> Array[Vector3]:
 
 ## LOD1: closed cone (side triangles only, the base is never seen from the camera).
 static func _add_cone(
-	s: Surface, base: Vector3, radius: float, height: float, crown_center: Vector3, salt: int
+	s: Surface,
+	base: Vector3,
+	radius: float,
+	height: float,
+	crown_center: Vector3,
+	salt: int,
+	sides: int = LOD1_CONE_SIDES
 ) -> void:
 	var apex_p := base + Vector3(0, height, 0)
 	var ring: Array[int] = []
-	for i in LOD1_CONE_SIDES:
-		var a := TAU * (i + 0.5 * salt) / LOD1_CONE_SIDES
+	for i in sides:
+		var a := TAU * (i + 0.5 * salt) / sides
 		var f := 1.0 + (FoliageMeshes.hash3(i, salt, 3.0) - 0.5) * 0.3
 		var p := base + Vector3(cos(a), 0.0, sin(a)) * radius * f
 		ring.append(_crown_vertex(s, p, crown_center, 0.4))
 	var apex := _crown_vertex(s, apex_p, crown_center, 0.4)
-	for i in LOD1_CONE_SIDES:
+	for i in sides:
 		var a := ring[i]
-		var b := ring[(i + 1) % LOD1_CONE_SIDES]
+		var b := ring[(i + 1) % sides]
 		var mid := (s.vertices[a] + s.vertices[b]) * 0.5 - base
 		s.tri(a, b, apex, Vector3(mid.x, radius * 0.5, mid.z))
 
 
 ## LOD1: jittered icosphere lobes; triangles inside another lobe are dropped (never visible).
-static func _add_lobes(s: Surface, lobes: Array[Array], crown_center: Vector3) -> void:
-	var sphere := _unit_sphere(LOD1_LOBE_SUBDIVISIONS)
+static func _add_lobes(
+	s: Surface, lobes: Array[Array], crown_center: Vector3, subdivisions: int
+) -> void:
+	var sphere := _unit_sphere(subdivisions)
 	for li in lobes.size():
 		var c: Vector3 = lobes[li][0]
 		var e: Vector3 = lobes[li][1]
@@ -681,7 +752,16 @@ static func _add_lobes(s: Surface, lobes: Array[Array], crown_center: Vector3) -
 				)
 				pts.append(c + Vector3(u.x * e.x, u.y * e.y, u.z * e.z) * f)
 			var mid := (pts[0] + pts[1] + pts[2]) / 3.0
-			if _inside_other(mid, lobes, li):
+			# Coarse lobes have big triangles: dropping one whose midpoint is hidden would open a
+			# see-through hole, so they only drop triangles hidden at all three corners.
+			if subdivisions >= 1 and _inside_other(mid, lobes, li):
+				continue
+			if (
+				subdivisions < 1
+				and _inside_other(pts[0], lobes, li)
+				and _inside_other(pts[1], lobes, li)
+				and _inside_other(pts[2], lobes, li)
+			):
 				continue
 			var ids: Array[int] = []
 			for p in pts:
