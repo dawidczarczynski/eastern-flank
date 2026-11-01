@@ -234,3 +234,38 @@ main { flex: 1; min-width: 0; position: relative; }
 .chat-log-wrap .chat-log { flex: 1; }
 .chat-latest { position: absolute; right: 18px; bottom: 14px; box-shadow: var(--shadow); background: var(--surface-3); }
 .chat-latest.fresh { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* ---- responsive: the sidebar collapses to a top bar, two-pane pages stack */
+@media (max-width: 1100px) {
+  .activity-pane { width: 42%; min-width: 340px; }
+  .chat-side { width: 240px; }
+}
+@media (max-width: 860px) {
+  html, body { overflow: auto; }
+  body { flex-direction: column; height: auto; min-height: 100%; }
+  .sidebar { width: auto; border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; align-items: center; position: sticky; top: 0; z-index: 5; }
+  .brand { padding: 8px 14px; }
+  .brand small, .nav-label, .side-foot, .usage, .svc-state { display: none; }
+  nav { flex-direction: row; flex-wrap: wrap; flex: 1; padding: 4px 8px; }
+  .nav-item { padding: 6px 9px; }
+  .nav-item.active::before { left: 8px; right: 8px; top: auto; bottom: 0; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
+  .nav-item .sub { display: none; }
+  .svc-tools { margin: 0; }
+  main { height: calc(100vh - 96px); min-height: 480px; }
+  .home { flex-direction: column; height: auto; }
+  .commands-pane { overflow: visible; padding: 0 16px 24px; }
+  .page-head { position: static; flex-wrap: wrap; padding-top: 16px; }
+  #find { width: 100%; }
+  .activity-pane { width: auto; max-width: none; min-width: 0; border-left: 0; border-top: 1px solid var(--line); min-height: 60vh; }
+  .chat { flex-direction: column; }
+  .chat-side { width: auto; max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .chat-perms { display: none; }
+  .chat-main { padding: 12px 14px; flex: 1; min-height: 0; }
+  .chat-log .user .bubble { max-width: 92%; }
+}
+@media (max-width: 520px) {
+  .tiles { grid-template-columns: 1fr; }
+  .field.wide { grid-column: auto; }
+  .composer { flex-direction: column; }
+  .composer-side { flex-direction: row; align-items: center; }
+}
