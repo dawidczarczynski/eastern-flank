@@ -16,7 +16,6 @@ run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
 boot_splash/bg_color=Color(0.078, 0.094, 0.114, 1)
 boot_splash/image="res://assets/branding/splash.png"
-boot_splash/fullsize=true
 config/icon="res://assets/branding/icon.png"
 
 [debug]
@@ -34,7 +33,6 @@ locale/translations=PackedStringArray("res://assets/i18n/strings.en.translation"
 
 [rendering]
 
-lights_and_shadows/directional_shadow/size=4096
+rendering_device/driver.windows="d3d12"
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 anti_aliasing/quality/msaa_3d=2
-rendering_device/driver.windows="d3d12"
