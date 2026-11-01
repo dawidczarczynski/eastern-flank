@@ -24,6 +24,9 @@ META_LINE = re.compile(r"^- \*\*([^*]+)\*\*: (.+)$", re.MULTILINE)
 MODEL_NAME = re.compile(r"^`?(opus|sonnet|haiku)\b", re.IGNORECASE)
 # A notes paragraph that opens a topic: `HUD v3 (TASK-076 … TASK-082, handoff …): …`.
 TOPIC_LINE = re.compile(r"^([A-Z][^(|\n]*?) \([^)]*?(TASK-\d+[a-z]?) … (TASK-\d+[a-z]?)")
+# A notes line that tags tasks: `Tag `mvp` – what the tag means: TASK-092a, TASK-092b, …` (explicit IDs, no ranges).
+# A task file can add tags itself with a `- **Tags**: mvp, ui` header line.
+TAG_LINE = re.compile(r"^Tag `([\w-]+)`(?: – ([^:\n]*))?: (.+)$", re.MULTILINE)
 # Tasks before the first topic's range (the skeleton and the first rules).
 FIRST_TOPIC = "Foundation"
 OTHER_TOPIC = "Other"
@@ -56,6 +59,16 @@ def id_key(task_id: str) -> int:
     if not match:
         return 0
     return int(match.group(1)) * 100 + (ord(match.group(2)) - 96 if match.group(2) else 0)
+
+
+def tag_lines(notes: str) -> Dict[str, Dict[str, Any]]:
+    """The tags the notes define: name → description and the task IDs they list."""
+    tags: Dict[str, Dict[str, Any]] = {}
+    for name, description, ids in TAG_LINE.findall(notes):
+        tag = tags.setdefault(name, {"description": "", "ids": []})
+        tag["description"] = tag["description"] or description.strip()
+        tag["ids"] += [i for i in dict.fromkeys(backlog.TASK_ID.findall(ids)) if i not in tag["ids"]]
+    return tags
 
 
 def topic_sections(notes: str) -> List[Dict[str, Any]]:
@@ -189,6 +202,7 @@ def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -
     rows: List[Dict[str, Any]] = []
     texts: Dict[str, str] = {}
     explicit_topics: Dict[str, str] = {}
+    tag_meta: Dict[str, str] = {}
     for order, row in enumerate(backlog.parse_rows(text)):
         cells = [cell.strip() for cell in lines[row["line"]].strip().strip("|").split("|")]
         deps_cell = cells[3]
@@ -200,6 +214,8 @@ def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -
             meta = task_meta(texts[row["id"]])
             if meta.get("topic"):
                 explicit_topics[row["id"]] = meta["topic"]
+            if meta.get("tags"):
+                tag_meta[row["id"]] = meta["tags"]
         rows.append(
             {
                 "order": order,
@@ -223,6 +239,14 @@ def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -
     for row in rows:
         row["dependents"] = dependents.get(row["id"], [])
     intro, notes = _split_table(text)
+    tags = tag_lines(notes)
+    for row in rows:
+        own = [t.strip().lower() for t in tag_meta.get(row["id"], "").split(",") if t.strip()]
+        listed = [name for name, tag in tags.items() if row["id"] in tag["ids"]]
+        row["tags"] = sorted(dict.fromkeys(own + listed))
+    for row in rows:
+        for name in row["tags"]:
+            tags.setdefault(name, {"description": "", "ids": []})
     sections = topic_sections(notes)
     topic_of = assign_topics(rows, sections, explicit_topics)
     for row in rows:
@@ -233,6 +257,7 @@ def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -
         "intro": intro,
         "notes": notes,
         "statuses": STATUS_ORDER,
+        "tags": {name: tag["description"] for name, tag in sorted(tags.items())},
         "icons": backlog.STATUS_ICONS,
         "tree": build_tree(rows, topic_of, topic_order),
         "usage": usage(rows, texts, tasks_dir, limits_file),

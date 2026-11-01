@@ -72,6 +72,24 @@ class BacklogDataTest(unittest.TestCase):
         # a linked file that does not exist is reported as missing
         self.assertIsNone(rows["TASK-001"]["file"])
 
+    def test_tags_from_notes_and_task_file_headers(self) -> None:
+        notes = "Notes.\n\nTag `mvp` – the first playable loop: TASK-001, TASK-003 and TASK-003 (TASK-999 is unknown)\nTag `ui`: TASK-003\n"
+        (self.dir / "BACKLOG.md").write_text(BACKLOG.replace("Notes after the table.\n", notes), encoding="utf-8")
+        (self.dir / "TASK-002-b.md").write_text(TASK_002.replace("- **Model**: sonnet", "- **Model**: sonnet\n- **Tags**: UI, Extra"), encoding="utf-8")
+        data = backlog_data.load(self.dir)
+        rows = {row["id"]: row for row in data["rows"]}
+        self.assertEqual(rows["TASK-001"]["tags"], ["mvp"])
+        self.assertEqual(rows["TASK-002"]["tags"], ["extra", "ui"])
+        self.assertEqual(rows["TASK-003"]["tags"], ["mvp", "ui"])
+        self.assertEqual(rows["TASK-004"]["tags"], [])
+        self.assertEqual(data["tags"], {"extra": "", "mvp": "the first playable loop", "ui": ""})
+        self.assertEqual(backlog_data.tag_lines(notes)["mvp"]["ids"], ["TASK-001", "TASK-003", "TASK-999"])
+
+    def test_no_tags_without_tag_lines(self) -> None:
+        data = backlog_data.load(self.dir)
+        self.assertEqual(data["tags"], {})
+        self.assertTrue(all(row["tags"] == [] for row in data["rows"]))
+
     def test_intro_and_notes(self) -> None:
         data = backlog_data.load(self.dir)
         self.assertIn("Intro text.", data["intro"])

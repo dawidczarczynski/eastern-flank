@@ -6,12 +6,14 @@ const STORE = "backlog_view.state.v2";
 const POLL_MS = 1000;
 const OPEN = ["in progress", "to playtest", "ready", "blocked", "idea"];
 const state = Object.assign(
-  { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", view: "table", folded: [] },
+  { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", tag: "", view: "table", folded: [] },
   JSON.parse(localStorage.getItem(STORE) || "{}")
 );
 const VIEWS = ["table", "board", "tree"];
-const urlView = new URLSearchParams(location.search).get("view"); // ?view=board / ?view=table / ?view=tree
+const urlParams = new URLSearchParams(location.search);
+const urlView = urlParams.get("view"); // ?view=board / ?view=table / ?view=tree
 if (VIEWS.includes(urlView)) state.view = urlView;
+if (urlParams.has("tag")) state.tag = urlParams.get("tag"); // ?tag=mvp (empty = any tag)
 let data = null;
 let version = null;
 let selected = null; // { id, file }
@@ -138,8 +140,9 @@ function sortValue(row, key) {
 function matches(row, ignoreStatus) {
   if (!ignoreStatus && !state.statuses.includes(row.status)) return false;
   if (state.model && row.model !== state.model) return false;
+  if (state.tag && !row.tags.includes(state.tag)) return false;
   const words = state.query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hay = [row.id, row.title, row.status_text, row.depends, row.layers, row.model].join(" ").toLowerCase();
+  const hay = [row.id, row.title, row.status_text, row.depends, row.layers, row.model, row.tags.join(" ")].join(" ").toLowerCase();
   return words.every((w) => hay.includes(w));
 }
 
@@ -230,6 +233,8 @@ function usageFacts(row) {
     '</span><div class="chips-cell basis">' + basis + "</div></dd>";
 }
 
+const tagBadges = (row) => row.tags.map((t) => '<span class="tag" title="' + esc(data.tags[t] || t) + '">' + esc(t) + "</span>").join("");
+
 const modelBadge = (row) => row.model ? '<span class="model ' + esc(row.model) + '" title="' + esc(row.model_note) + '">' + esc(row.model) + "</span>" : "";
 
 function relation(id) {
@@ -251,7 +256,7 @@ function renderTable(rows) {
     return '<tr data-row="' + row.id + '" class="' + relation(row.id) + '">' +
       '<td class="order">' + (row.order + 1) + "</td>" +
       '<td class="id">' + (row.file ? row.id : '<span class="nofile" title="no task file yet">' + row.id + "</span>") + "</td>" +
-      '<td class="title">' + inline(row.title) + "</td>" +
+      '<td class="title">' + inline(row.title) + tagBadges(row) + "</td>" +
       '<td class="status">' + pill(row.status) + (extra ? '<span class="extra">' + inline(extra) + "</span>" : "") + "</td>" +
       '<td class="deps" title="' + esc(row.depends) + '">' + (deps ? '<div class="chips-cell">' + deps + "</div>" : '<span class="none">' + inline(row.depends) + "</span>") + "</td>" +
       '<td class="dependents">' + (unblocks ? '<div class="chips-cell">' + unblocks + "</div>" : "") + "</td>" +
@@ -272,7 +277,7 @@ function renderBoard(rows) {
     return '<section class="column ' + cls(s) + (cards.length ? "" : " empty-col") + '"><div class="column-head"><span>' + esc(s) + '</span><span class="n">' + cards.length + "</span></div>" +
       '<div class="cards">' + cards.map((row) => {
         const pending = depChips(row, true);
-        return '<div class="card ' + relation(row.id) + '" data-row="' + row.id + '"><div class="card-top"><span>' + row.id + "</span>" + modelBadge(row) + "</div>" +
+        return '<div class="card ' + relation(row.id) + '" data-row="' + row.id + '"><div class="card-top"><span>' + row.id + "</span>" + tagBadges(row) + modelBadge(row) + "</div>" +
           '<div class="card-title">' + inline(row.title) + "</div>" +
           (pending ? '<div class="chips-cell"><span class="label">waits for</span>' + pending + "</div>" : "") + "</div>";
       }).join("") + (cards.length ? "" : '<div class="none">no tasks</div>') + "</div></section>";
@@ -424,6 +429,12 @@ function renderHeader() {
   document.querySelectorAll("[data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === state.view));
   const models = [...new Set(data.rows.map((r) => r.model).filter(Boolean))].sort();
   $("#model").innerHTML = '<option value="">Any model</option>' + models.map((m) => "<option" + (m === state.model ? " selected" : "") + ' value="' + esc(m) + '">' + esc(m) + "</option>").join("");
+  const tags = Object.keys(data.tags);
+  $("#tag").hidden = !tags.length;
+  $("#tag").innerHTML = '<option value="">Any tag</option>' + tags.map((t) => {
+    const n = data.rows.filter((r) => r.tags.includes(t)).length;
+    return "<option" + (t === state.tag ? " selected" : "") + ' value="' + esc(t) + '">' + esc(t) + " (" + n + ")</option>";
+  }).join("");
 }
 
 function renderBody() {
@@ -468,6 +479,7 @@ function renderFacts(row) {
     "<dt>Unblocks</dt><dd>" + (unblocks ? '<div class="chips-cell">' + unblocks + '<span class="legend"><i style="background: var(--ok)"></i>marked green in the list</span></div>' : '<span class="muted">nothing</span>') + "</dd>" +
     (row.layers ? "<dt>Layers</dt><dd>" + inline(row.layers) + "</dd>" : "") +
     (row.model_note ? "<dt>Model</dt><dd>" + inline(row.model_note) + "</dd>" : "") +
+    (row.tags.length ? "<dt>Tags</dt><dd>" + tagBadges(row) + "</dd>" : "") +
     usageFacts(row) +
     "<dt>Priority</dt><dd>#" + (row.order + 1) + " in BACKLOG.md</dd></dl>";
 }
@@ -631,8 +643,9 @@ document.addEventListener("click", (ev) => {
 $("#search").value = state.query;
 $("#search").addEventListener("input", (ev) => { state.query = ev.target.value; save(); renderBody(); });
 $("#model").addEventListener("change", (ev) => { state.model = ev.target.value; save(); renderBody(); });
+$("#tag").addEventListener("change", (ev) => { state.tag = ev.target.value; save(); renderBody(); });
 $("#reset").addEventListener("click", () => {
-  Object.assign(state, { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "" });
+  Object.assign(state, { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", tag: "" });
   $("#search").value = "";
   save();
   render();

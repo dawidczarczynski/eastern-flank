@@ -76,6 +76,8 @@ td.layers { color: var(--text-3); font-size: 12.5px; max-width: 240px; }
 .model { font: 600 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .06em; padding: 4px 7px; border-radius: 4px; background: var(--surface-3); color: var(--text-2); }
 .model.opus { color: var(--violet); background: color-mix(in srgb, var(--violet) 15%, transparent); }
 .model.sonnet { color: var(--teal); background: color-mix(in srgb, var(--teal) 13%, transparent); }
+.tag { display: inline-block; margin-left: 6px; font: 600 10.5px/1 var(--sans); text-transform: uppercase; letter-spacing: .06em; padding: 3px 6px; border-radius: 4px; vertical-align: 1px; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.card-top .tag { margin-left: 0; margin-right: 4px; }
 
 /* ---- board */
 .board { display: flex; gap: 14px; align-items: flex-start; padding-top: 16px; min-height: 100%; }

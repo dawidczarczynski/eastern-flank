@@ -4,7 +4,7 @@
 
 ## Vision
 
-Full vision: [VISION.md](VISION.md) (2026-10-30). It moves the game from a single tactical battle to **two layers**: an operational map (formations, logistics, reconnaissance, air defence, deep strikes, political events) as the main scene, and tactical battles that start on contact and are fought in the conditions the operation created. Everything below this section describes the tactical layer as implemented so far.
+Full vision: [VISION.md](VISION.md) (2026-10-30). It moves the game from a single tactical battle to **two layers**: an operational map (formations, logistics, reconnaissance, air defence, deep strikes, political events) as the main scene, and tactical battles that start on contact and are fought in the conditions the operation created. Everything below this section describes the tactical layer as implemented so far, except the section "Operational layer" (specified, not implemented yet).
 
 - **Genre**: turn-based (I-go-you-go) 3D operational + tactical strategy on hex grids.
 - **One sentence**: run a real present-day NATO vs. Russia operation on Europe's eastern flank, where deep strikes, supply and command shape every battle before it starts.
@@ -19,11 +19,16 @@ Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-
 - **Tactical maps come from real geography**: operational and tactical maps are generated from real map data (land use, roads, rivers, elevation – e.g. OpenStreetMap + a DEM), imported offline and committed as data; the game stays offline and deterministic. A battle's map is the real terrain around the contact point. The random generator stays only for tests and quick battles; it is not tuned further.
 - **Victory conditions and turn limits are per battle** (`BattleObjectives`): a list of conditions (hold / take objectives, destroy a share of the enemy, survive N turns, exit through a map edge) plus a turn limit. Authored for scenario battles, derived from the operational situation for contact battles. Replaces "eliminate all enemy units".
 - **C2 delay = command points**: each turn a side has N command points; activating a unit (its first move or attack in the turn) costs 1. N comes from the battle conditions – a damaged C2 (e.g. by a deep strike) lowers it.
-- **Battles are always played** – no auto-resolve for now.
+- ~~**Battles are always played** – no auto-resolve for now.~~ Superseded 2026-11-01: see "Auto-resolve" below.
 - **Fog of war** is in the MVP (both layers); reconnaissance drives deep strike accuracy.
 - **Priorities**: the core loop "operation → deep strikes → battle → consequences" comes first; new visual polish waits (TASK-048, TASK-063, TASK-066 and further model reworks move down the backlog).
 - **Tactical randomness** – decided 2026-10-30 (TASK-089a, numbers in "Combat" → "Per-element rolls"): per-element rolls (each strength point of the attacking company rolls to inflict a loss, so a full company has a small spread and a battered one a large spread; a damaged company deals less), with the expected range shown before the attack; later suppression / morale checks from fire (TASK-090) and indirect-fire accuracy from spotting. All through `GameState.rng`.
-- **First theatre** – proposed **[ASSUMPTION]**: the Suwałki Gap (Poland / Lithuania / Kaliningrad / Belarus).
+- **First theatre** – **decided 2026-11-01**: a regional theatre of about 300 × 300 km around the Suwałki Gap – north-east Poland, the Kaliningrad oblast, southern Lithuania and western Belarus (GDD "Operational layer" → "Theatre").
+- **Operational freedom** – **decided 2026-11-01**: the player gets real strategic choices beyond the front – attack the Kaliningrad oblast or Belarus, or keep them out of the war; escalate or de-escalate. Modelled by a stance per country and one shared escalation ladder (GDD "Countries and stances", "Escalation ladder", "Strategic options").
+- **Two player roles** – **decided 2026-11-01**: the two layers are also two roles played by the same person. On the operational layer the player is, in one person, the **head of government** (politics) and the **chief of the general staff** (the operation); in a battle the player takes the role of the **lower-rank commanders** (battalion / company level) who fight it. Details in "Operational layer" → "Player roles".
+- **Auto-resolve** – **decided 2026-11-01** (replaces "battles are always played"): at every contact the player chooses to play the battle or to auto-resolve it. Auto-resolve computes the result from the same forces, postures, terrain and battle conditions, deterministically, and hands back the same kind of `BattleResult` as a played battle, so the operation treats both alike. AI-vs-AI battles (simulation, TASK-103) are always auto-resolved. Rules in "Operational layer" → "Battle hand-off and auto-resolve"; task [TASK-120](tasks/TASK-120-battle-auto-resolve.md).
+- **Both sides playable, sides are blocs** – **decided 2026-11-01**: the player picks a side when starting an operation and the AI plays the other one (its leader and its commanders). The two sides are blocs – the **North Atlantic Alliance (NATO)** vs **Russia** – and **third countries** take part only through the political game: **Belarus** (on the map, aligned with Russia), possible **North Korean units** and possible **Chinese and Iranian weapons** (off the map). Nothing of the off-map third group is present or fixed at the start; it comes in (or not) through the escalation level, stances, decisions and incidents. Details in "Operational layer" → "Sides" and "Outside support".
+- **Build order: the core loop first, politics after** – **decided 2026-11-01**: the loop "move → contact → battle (played or auto-resolved) → consequences" is closed before the political layer (TASK-113 … TASK-118) is built; the political rules then hook into the finished loop (e.g. the border rule for battles is added by TASK-116 to TASK-094's contact rule). Order and milestone in docs/tasks/BACKLOG.md ("Two-layer game").
 
 ## Gameplay loop
 
@@ -264,6 +269,296 @@ Implemented in [TASK-089a](tasks/TASK-089a-company-combat-rolls.md) (core, forec
 - **Determinism**: per attack the attacker rolls exactly `hp` times (even after the target is dead), then – only if the counter happens – the defender rolls exactly its remaining `hp` times; `validate()` and the forecast never use the rng. The replay fixture is regenerated.
 - **Check**: `tools/simulate.sh 200` before/after with `--factions=poland,russia`, `russia,poland` and the mirrors `poland,poland` / `russia,russia` (side bias); target Poland 40–60 % of decided matches, draws ≤ 15 %.
 
+## Operational layer
+
+Specified 2026-11-01 in [TASK-092a](tasks/TASK-092a-operational-map-import.md) (map), [TASK-092b](tasks/TASK-092b-operational-state-formations.md) (state, formations, turns), [TASK-092c](tasks/TASK-092c-move-formation.md) (movement costs and route planning), [TASK-092d](tasks/TASK-092d-formation-orders.md) (orders and postures) and [TASK-092e](tasks/TASK-092e-order-execution.md) (order execution); not implemented yet. Architecture: ADR 0015 (separate `OperationalState` / `OperationalSimulation`, own RNG stream, `BattleSetup` / `BattleResult` as the only channels to battles). Contact → battle is TASK-094, auto-resolve [TASK-120](tasks/TASK-120-battle-auto-resolve.md), battle results → formations TASK-095, the view TASK-093. The political layer (countries, stances, escalation, decisions; added 2026-11-01 after the human's "operational freedom" decision) is specified in [TASK-113](tasks/TASK-113-country-per-hex-import.md) (country per hex), [TASK-114](tasks/TASK-114-country-stances.md) (stances in the state), [TASK-115](tasks/TASK-115-escalation-ladder.md) (escalation ladder), [TASK-116](tasks/TASK-116-borders-in-movement.md) (borders and incidents in movement), [TASK-117](tasks/TASK-117-political-decisions.md) (player decisions) and [TASK-118](tasks/TASK-118-allied-contributions.md) (allies' formations); outside support from off-map third parties in [TASK-121](tasks/TASK-121-outside-support.md) and [TASK-122](tasks/TASK-122-support-strike-means.md); both sides playable as blocs ("Sides"). Numbers marked **[ASSUMPTION]** wait for the human (Open questions → "Operational layer v1", "Political layer v1").
+
+**The operational layer must feel clearly different from the battle** (the human, 2026-11-01): the same hexes underneath (`ImportedMap`, hex pathfinding, 5 km hexes), but (1) it looks like a **paper staff map**, not a 3D world, and (2) the player gives **multi-turn orders** to formations instead of moving them hex by hex. Turns stay alternating (I-go-you-go); simultaneous resolution of both sides' orders was considered and rejected.
+
+### Player roles
+
+Decided by the human 2026-11-01: the two layers are two roles of **one person**. Points marked **[ASSUMPTION]** are open questions for the human (Open questions → "Player roles").
+
+| | **Leader** – head of government + chief of the general staff (operational layer) | **Commander** – battalion / company level (tactical battle) |
+|---|---|---|
+| Where | the operational staff map (TASK-093) | the 3D battle |
+| Decides | **politics**: stances, escalation, alliances, ultimatums, whether to widen the war into a neighbouring country or keep it out (NATO: the Kaliningrad oblast, Belarus; Russia: Lithuania) (TASK-117), whether to request outside support (TASK-121); **the operation**: formation orders and postures (TASK-092d), deep strikes as a tool (TASK-097), supply (TASK-096), forces and replacements (TASK-105); at each contact: **play the battle or auto-resolve it** (TASK-120) | how the companies in this battle move and fight (move, attack, later unit orders – TASK-081) to fulfil the mission |
+| Cannot | move or fight companies inside a battle; change a battle's forces, terrain or conditions once it has started | change the political situation (stances, escalation level, decisions), order formations outside the battle, call deep strikes, bring reinforcements, change the mission or the objectives; a battle never raises the escalation level ("Escalation ladder") |
+| Gets from the other role | the **after-action result**: losses per company, who holds the field, who retreats (`BattleResult`, TASK-095 applies it) | the **mission and intent**: what the leader's order means for this battle (below) |
+
+- **Hand-over, leader → commander**: the order the leader gave becomes the commander's **mission** (the task – *attack*, *defend*, or *hold out* for a formation caught on the march – with the battle's measurable objectives and turn limit, `BattleObjectives`) and the **intent** (why: the formation's order destination, e.g. "open the S61 towards Suwałki for the 15th Brigade"). Both are carried in `BattleSetup` (TASK-094) and shown when the battle starts and in the battle HUD. The commander fights only with what the operation created: the companies at their current strength, the terrain at the contact point, the postures and the battle conditions (command points, later ammunition, morale, fire support – TASK-099).
+- **Hand-over, commander → leader**: the battle ends by its objectives; the end screen is the commander's report to the staff ("Report to staff" returns to the staff map), and the result flows back only through `BattleResult` (ADR 0015). The commander's only influence on the operation is what the battle gives: losses, ground, retreat.
+- **The same person**: there is no separate AI general above the player and no AI subordinate deciding for the player – formations carry out the leader's orders mechanically (TASK-092e), and in battle the player commands every own company **[ASSUMPTION]**. The player chooses per contact whether to play the battle as the commander or to auto-resolve it (no AI commander plays it instead – auto-resolve is a calculation from the same inputs, "Battle hand-off and auto-resolve"). The player chooses the side when starting an operation (NATO or Russia – "Sides"); the opponent is an AI on both layers whichever side it gets (TASK-102 plays its leader, the tactical AI its commanders). The leader of the **NATO side** is the alliance's leadership for the theatre – in the Suwałki operation the Polish government and General Staff acting for the alliance; the leader of the **Russia side** is the Russian government and General Staff **[ASSUMPTION – wording only]**.
+- **Wording**: the operational view and its texts address the leader (staff map, orders, decisions, "the government" / "the General Staff"); battle texts address the commander ("Mission", "Intent", "Report to staff"). The leader's political panel (TASK-119) is never shown inside a battle.
+
+### Sides
+
+Decided by the human 2026-11-01: **both sides are playable** and they are **blocs**. Specified in TASK-092b (sides as data), TASK-114 … TASK-118 (symmetric political rules), [TASK-121](tasks/TASK-121-outside-support.md) / [TASK-122](tasks/TASK-122-support-strike-means.md) (outside support), hooks in TASK-093 / TASK-102 / TASK-103 / TASK-107. Points marked **[ASSUMPTION]** wait for the human (Open questions → "Sides and outside support v1").
+
+- **A side is a player** (0 or 1) and a bloc, defined as data (`data/sides/<id>.tres`, `SideDefinition`): id, name, **lead faction** (colours, HUD, the default formation types) and the **factions** whose formation types it may field. In the Suwałki operation: side 0 **NATO** (`nato`, lead faction Poland) and side 1 **Russia** (`russia`, lead faction Russia). A **country** is not a side: Poland, Lithuania, Belarus and Russia are countries on the map with a stance towards the sides ("Countries and stances"); the **off-map supporters** (NATO allies, North Korea, China, Iran) are neither on the map nor countries with a stance – they act only through support packages ("Outside support").
+- **Members of each bloc** in the Suwałki operation:
+
+  | | NATO (side 0) | Russia (side 1) |
+  |---|---|---|
+  | On the map, fighting from the start | Poland (belligerent) | Russia – the Kaliningrad oblast (belligerent) |
+  | On the map, aligned (staging, transit), joins by decision or the ladder | Lithuania (3 formations when belligerent) | Belarus (hosts the Russian Belarus group; 3 formations when belligerent) |
+  | Off the map, by support packages (TASK-121 / 122) | NATO allies (USA, Germany, …): 2 battalions, extra cruise missiles | North Korea: 2 battalions; China: missile components (cruise missiles); Iran: strike drones |
+
+  Allies' and supporters' formations use the side's formation types with their own names (e.g. "US Armored Battalion" as a `pl_tank_battalion`, "North Korean Infantry Battalion" as a `ru_motor_rifle_battalion`) until they become factions with their own rosters **[ASSUMPTION]**.
+- **The side choice changes nothing in the rules or the start situation**: the operation (order of battle, positions, start stances, start level *Limited war*, Russia moving first as the attacker) is the same whichever side the human plays; the choice only says which player the human controls and from whose point of view the staff map is drawn. It lives outside the operational state (session, `CampaignRecord`), so an operation and its replay are identical for both choices. Chosen when starting the operation (TASK-107; the staff map takes it as a parameter from the start, TASK-093); **NATO is listed first** in the choice **[ASSUMPTION – only the order]**.
+- **What differs by side** – data, never code (no rule asks "is this NATO?"):
+
+  | | NATO | Russia |
+  |---|---|---|
+  | Order of battle | 8 formations, 276 strength – quality (TASK-092b) | 10 formations, 332 – mass, two groups (Kaliningrad, Belarus) |
+  | Initiative | moves second | moves first (`first_player` 1) |
+  | Aligned partner | Lithuania – **refuses an ultimatum** (a NATO member with allied troops on its soil, `accepts_ultimatum` false) **[ASSUMPTION]** | Belarus – accepts an ultimatum (a sovereign regime that prefers to stay out of a direct war) |
+  | Enemy sanctuary to respect | the Kaliningrad oblast (Russian soil) | none on the map |
+  | Off-map support | NATO allies: reinforcements, strike means | North Korea, China, Iran |
+  | Name of *Invoke alliance* | "Invoke collective defence" | "Invoke the Union State" |
+  | Objectives (TASK-107) | keep the Gap open | close the Gap (a land link Kaliningrad – Belarus) |
+
+- **Sanctuary asymmetry – decided by the designer, to confirm [ASSUMPTION]**: only **Russian soil** is a sanctuary; Polish and Lithuanian soil is not. Reasons: (1) the war is a Russian attack on NATO territory – fighting on Polish soil *is* the war, while striking or entering the soil of a nuclear power is the step real decision-makers fear most; NATO's nuclear members (USA, UK, France) are off the map, so the mirror of the sanctuary (strikes on their soil or on NATO's rear outside the theatre) does not exist on this map; (2) it gives each side a different restraint instead of the same one: NATO must weigh the **sanctuary** (Kaliningrad is the source of Russian fire but closed until *Open war*), Russia must weigh **Lithuania** (a closed country until a *Declare hostilities* that brings in its army) and the **price of outside support** (North Korean troops cost escalation and hand NATO a casus belli against Belarus). The rule itself is symmetric: `sanctuary` is a country flag in data, and any side facing an enemy sanctuary gets the same gate (tests use a hand-made map where Poland is a sanctuary).
+- **Decisions by side**: the five decisions of "Political decisions" and *Request support* are the same commands for both sides with the same conditions and costs; side differences come only from data (which countries are aligned with whom, `accepts_ultimatum`, which support packages belong to which side, the decision's display name).
+- **Victory** (TASK-107) **[ASSUMPTION]**: the same scoring for both (objective points, −3 per net escalation step caused, the threshold defeat for whoever takes the last step), different objectives: NATO keeps a road link between Poland and Lithuania through the Gap (Suwałki – Marijampolė) open to the end of the operation; Russia closes it (holds the Gap's road hexes or links the Kaliningrad oblast to Belarus by land). Optional objectives worth points to each side: Kaliningrad / Chernyakhovsk (NATO), Białystok / Vilnius (Russia), Grodno (either – it makes attacking Belarus worth it).
+- **The AI plays either side** (TASK-102): it reads the side, the countries' relations and the packages from the state and data; no side-specific code. Balance is measured with the AI on both sides (TASK-103), and both sides must come out playable: each side wins 40–60 % of the decided operations **[ASSUMPTION]**.
+
+### Theatre
+
+- **Decided by the human 2026-11-01**: a regional theatre of about 300 × 300 km – north-east Poland, the Kaliningrad oblast, southern Lithuania, western Belarus and the Suwałki Gap between them – so that attacking Kaliningrad or Belarus, or keeping them out, are real options on the map.
+- **Map** (TASK-092a): id `suwalki_theatre`, **68 × 64 hexes** (4 352 hexes, ≈ 340 km west–east × 277 km north–south; 5 km between columns, 4.33 km between rows) centred on **54.20 N, 22.90 E**, one UTM zone 34N projection (EPSG:32634; the east edge lies ~4.4° east of the zone's central meridian – the Krüger series stays mm-accurate, the grid north there is ~3.5° off true north). Slightly more than 60 × 60 so that both capitals of the area sit ≥ 2 hexes inside the edge **[ASSUMPTION – exact size for the human; 60 × 60 would put Kaliningrad and Vilnius on the edge columns]**. Must contain, each ≥ 2 hexes from the edge: Kaliningrad, Chernyakhovsk, Sovetsk, Olsztyn, Białystok, Ełk, Suwałki, Augustów, Grodno, Lida, Marijampolė, Kaunas, Vilnius; the tactical Suwałki sample map lies inside it. Sea in the north-west corner (the Baltic off the Sambian peninsula, the Curonian Lagoon).
+- **Every land hex has a country** (TASK-113): Poland, Lithuania, Belarus or Russia, from the OSM country borders (`admin_level=2`), by majority of the hex's land; water hexes have none. The country is a rule input (stances, below).
+- **Import**: the TASK-087 importer with `--profile=operational`: 250 m sample lattice (~350 points per hex), Copernicus GLO-90 DEM (90 m is enough for 5 km relief; ~1/9 of GLO-30's download), Overpass downloaded in 0.5° × 0.5° tiles cached separately (resumable; the result does not depend on the tiling), sea from the OSM coastline. First download and import time are measured in TASK-092a.
+
+### Operational map
+
+- **Hex 5 km** between neighbouring hex centres (ADR 0018: a 250 m tactical battle map covers about 1.5 × 1 operational hexes). Same offset layout, UTM projection and `ImportedMap` format as tactical maps, imported by `tools/import_map.py --profile=operational` from the same sources (Copernicus + OSM).
+- **Terrain per operational hex** (shares of the hex's sample points, first match wins) **[ASSUMPTION – tuned on the real import]**: water ≥ 50 % → WATER; urban ≥ 15 % → URBAN; forest ≥ 50 % → FOREST; marsh ≥ 25 % → MARSH; relief (90th − 10th percentile of the open heights) ≥ 60 m → HILLS; otherwise PLAINS (fields are not told apart at this scale). Targets for the tuning: water ≤ 15 % of the hexes, hills 5–25 % of the land, the hexes of Kaliningrad, Vilnius, Kaunas, Białystok, Grodno, Olsztyn and Suwałki URBAN.
+- **Roads and rivers** per link as on tactical maps, but only major ones: roads = `highway` motorway, trunk, primary, secondary (+ `_link`); rivers = `waterway` river and canal (no streams).
+- **Countries per hex** are imported (TASK-113) and used by the rules (stances). Fine border lines for drawing, place names and a fine relief raster for the paper map: TASK-112 (view data only).
+
+### Formations
+
+- A **formation** is the operational counter: a **battalion-sized** group of companies **[ASSUMPTION]**; the brigade is only a label (`parent`, e.g. "15th Mechanised Brigade") until a rule needs it (command, supply).
+- A formation **type** is data (`data/formations/<id>.tres`): faction, echelon, class (mechanised / armoured / artillery – read by TASK-093's map symbols), operational move points and an ordered list of companies (unit types from the faction roster). An operation (`data/operations/<id>.tres`) places named formations of these types on its map.
+- Each company has a **strength** (its battle HP, 1 … the unit's `max_hp`) and a ref `<formation id>/<n>` (n from 1), the `BattleSetup.Company.ref` it fights under. Formations start at full strength. A formation's strength = the sum of its companies.
+- **First types and order of battle** of the Suwałki Gap operation (id `suwalki_gap`, played on the `suwalki_theatre` map) **[ASSUMPTION]** (quality vs. mass, like the default battle; Russia ≈ 1.2× Poland's strength):
+
+  | Type (id) | Faction | Class | Companies | Strength |
+  |---|---|---|---|---|
+  | Mechanised Battalion (`pl_mech_battalion`) | Poland | mechanised | 3 × Mechanised Infantry Squad, 1 × M1A2 SEPv3 | 40 |
+  | Tank Battalion (`pl_tank_battalion`) | Poland | armoured | 3 × M1A2 SEPv3, 1 × Mechanised Infantry Squad | 40 |
+  | Rocket Artillery Squadron (`pl_mlrs_squadron`) | Poland | artillery | 3 × Homar-K | 18 |
+  | Motor Rifle Battalion (`ru_motor_rifle_battalion`) | Russia | mechanised | 3 × Motor Rifle Squad, 1 × T-72B3 | 38 |
+  | Tank Battalion (`ru_tank_battalion`) | Russia | armoured | 3 × T-72B3, 1 × Motor Rifle Squad | 34 |
+  | MLRS Battalion (`ru_mlrs_battalion`) | Russia | artillery | 3 × 9K57 Uragan | 18 |
+
+  Order of battle on the theatre map (reworked 2026-11-01 for the 340 × 277 km theatre) **[ASSUMPTION – balance guess]**:
+  - **NATO side – Poland** (8 formations, 276): 4 mechanised battalions, 2 tank battalions, 2 rocket artillery squadrons – facing Kaliningrad around Bartoszyce / Braniewo–Lidzbark (15th / 20th Mechanised Brigade labels), in the Gap around Suwałki / Augustów, and facing Belarus around Białystok / Sokółka.
+  - **Russia side – Russia** (10 formations, 332 ≈ 1.2× Poland): the **Kaliningrad group** – 3 motor rifle battalions, 1 tank battalion, 1 MLRS battalion (166) in the oblast (Gusev / Chernyakhovsk / Sovetsk area, labels of the 11th Army Corps); the **Belarus group** – 3 motor rifle battalions, 1 tank battalion, 1 MLRS battalion (166) staged in Belarus around Grodno (a Russian force hosted by an aligned Belarus).
+  - **Allies that may join** (TASK-118, enter play only when their country goes to war on its leaning side): Lithuania – 2 mechanised battalions ("Iron Wolf" Brigade) + 1 tank battalion ("NATO Brigade Lithuania") around Kaunas / Rukla / Vilnius (120); Belarus – 2 motor rifle battalions + 1 tank battalion ("6th Mechanised Brigade") around Grodno / Lida (110). Represented with the side's formation types and flavour names until Lithuania and Belarus are factions.
+  - **Off-map support that may arrive** (TASK-121, only through "Outside support"): NATO allies – 1 armoured + 1 mechanised battalion (80) at the west edge of Poland; North Korea – 1 infantry + 1 artillery battalion (56) at the east edge of Belarus.
+  - The order of battle and the positions are the same whichever side the human plays ("Sides").
+  - Every formation starts in a country open to its side (Polish ones in Poland, Russian ones in the Kaliningrad oblast or Belarus), ≥ 3 hexes from every enemy formation. The theatre is deliberately not filled: with ~18–24 formations on 4 352 hexes there are open flanks – the operational freedom the human asked for.
+
+### Operational turns
+
+- **I-go-you-go** like the battle (kept by the human 2026-11-01): during their turn the current player gives, changes and cancels orders; **ending the turn executes that player's orders**, then the other side plays. The turn number grows when play returns to the operation's **first player** – **Russia** in the Suwałki Gap operation (the attacker has the initiative), whichever side the human plays **[ASSUMPTION]**. One operational turn ≈ **12 hours** **[ASSUMPTION]** (no rule reads it yet; shown by TASK-093). No end of the operation yet (operation victory: TASK-107), except the escalation threshold (TASK-115, "Escalation ladder"). At the round boundary (play returning to the first player) the ladder's calm counter is checked.
+- There are **no direct moves**: a formation moves only by carrying out an order.
+
+### Orders and postures
+
+- An **order** = a **destination** hex + a **posture**. Each formation has at most one order and always has a posture (start: `defend`, data per operation). Commands: issue order (destination + posture; replaces the old order), cancel order, set posture (keeps the order). Issuing never moves the formation; the order is rejected when no route exists for that posture, another formation stands on the destination, or (TASK-116) the destination lies in a country closed to the side.
+- **Postures** (data `data/operational/postures/<id>.tres`, TASK-092d) **[ASSUMPTION]** – a minimal set; their battle effects come with contact battles (TASK-094):
+
+  | Posture | Move points spent per turn | Route | On contact | Planned battle effect (TASK-094) |
+  |---|---|---|---|---|
+  | **March** (`march`) | 100 % (8) | avoids enemy zones of control | never plans into contact | caught in column: defends without preparation, position bonus −1 |
+  | **Advance** (`advance`) | 75 % (6) | straight, through enemy zones of control | halts next to the enemy, keeps the order | attacker, position bonus 0 |
+  | **Defend** (`defend`) | 50 % (4) – moving into position | avoids enemy zones of control | never plans into contact | defender in prepared positions, position bonus +1 |
+
+  The **position bonus** **[ASSUMPTION]** (posture data, TASK-094) is added to the defense of every company of that side in its battle – played and auto-resolved alike ("Battle hand-off and auto-resolve").
+
+  A formation's per-turn budget = `move_points × share`, rounded down, at least 1. A `delay` posture (fall back while fighting) needs retreat rules and waits for TASK-095 (open question).
+- **Route**: the cheapest path by step cost to the destination, **re-planned every turn** from the current situation (nothing is stored but the destination), ties broken deterministically. Enemy hexes are impassable; own formations' hexes can be passed through but never ended on; postures that avoid contact treat hexes next to an enemy as impassable except the destination.
+- **Execution** (at the end of the owner's turn, TASK-092e): the side's formations act one after another in order-of-battle order. Each walks its route while it can pay the next step; **the first step of a turn is always made**, whatever it costs; unused points are lost. It never stops on another formation's hex (it stops on the last free hex before it).
+- **How an order ends**:
+  - *arrived* – the order is done (the posture stays);
+  - *contact* – an advancing formation that enters a hex next to an enemy halts there and keeps the order (contact → battle is TASK-094);
+  - *interrupted* (order removed, reported to the player): the destination is held by another formation (`destination_occupied`), no route is left for the posture (`no_route`), or own formations block the way so it cannot move at all (`blocked`); with countries (TASK-116) also when the destination's country has become closed to the side (`closed_country`).
+  - otherwise it continues next turn.
+- **Forecast**: for any order the player sees where the formation will stand after each turn, assuming nothing else moves (TASK-092c `forecast`, drawn by TASK-093).
+- Later rules lower the budget: out of supply (TASK-096), fatigue / readiness (TASK-095). No fog yet: routes are planned on all enemies, both sides see every formation (operational fog: TASK-100 – routes will be planned on known enemies only).
+
+### Movement costs
+
+- **Move points**: 8 per turn for every motorised formation type (data per type) **[ASSUMPTION]**; the posture decides how many of them a formation uses per turn.
+- **Step cost** (data `data/operational/movement.tres`) **[ASSUMPTION]**: along a road link 1 (whatever the terrain); otherwise by the entered hex: plains / fields / urban 2, forest / hills 3, marsh 4, water impassable; entering a river hex not along a road link +2. So a marching formation (8 points) covers 40 km on roads, 20 km across open ground, 10–15 km through forest per turn; an advancing one 30 / 15 km; a defending one 20 / 10 km.
+- **One formation per hex**: own formations can be passed through but not stopped on; enemy hexes are impassable.
+- **Zone of control**: the hexes next to an enemy formation. Marching and defending formations plan around them (a destination inside one is allowed); an advancing formation that enters one halts for the turn. A formation that starts next to an enemy may move away.
+
+### Battle hand-off and auto-resolve
+
+Specified in [TASK-120](tasks/TASK-120-battle-auto-resolve.md) (auto-resolve, shared result fields); the contact rule and the setup are TASK-094, the consequences TASK-095 (both still ideas – this section is the contract they must keep). Pure logic in `src/core/`, randomness only from the battle's own seed.
+
+- **Contact rule** (TASK-094): after order execution, a formation that halted on contact attacks the adjacent enemy formation; the contact rule asks one predicate, `ContactRules.battle_allowed(state, attacker, defender)` – always true in TASK-094; TASK-116 adds the border rule (no battle against a formation in a country closed to the attacker). Further rules (e.g. fog, TASK-100) extend the same predicate.
+- **`BattleSetup` additions** (TASK-094): `attacker` (player, −1 in scenario battles), `terrain` (terrain id of the defending formation's operational hex; `&""` = plains in scenario battles), per player in `Conditions`: `posture` (`&""` in scenario battles) and `position_bonus` (the posture's bonus from the posture data, resolved by the operation – the tactical layer never reads operational data), and per player a `Mission` (`task` `&"attack"` / `&"defend"` / `&"hold_out"`, `intent` text, the formation's display name) for the commander's briefing ("Player roles").
+- **`BattleResult` additions** (TASK-120, used by both kinds of battle): `resolution` (`&"played"` / `&"auto"`), `field_holder` (the winner; on a draw the defender, `1 − attacker`; −1 in scenario battles without an attacker) and `retreat` (the loser when there is a winner and the loser has a company left, else −1). One helper fills `field_holder` / `retreat` for both paths, so the rule exists once. TASK-095 reads only these fields and the per-company strengths – **never `resolution`** – so a played and an auto-resolved battle with the same outcome have the same consequences.
+- **The choice**: when a battle is pending, the human chooses on the contact notice **Play battle** or **Auto-resolve** (TASK-120 adds the button). The AI never chooses for the human; a battle between two AI sides (simulation) is always auto-resolved. A played battle cannot be switched to auto-resolve halfway **[ASSUMPTION]**.
+- **Auto-resolve rules** **[ASSUMPTION – numbers in `data/battle/auto_resolve.tres`]**: the companies fight in **rounds** (the setup's turn limit, else `default_rounds` 8). In each round every living company fires once, **simultaneously** (damage is applied after all rolls; a company destroyed in the round has already fired), at the living enemy company with the highest hit chance (ties: lowest strength at the start of the round, then lowest setup index). The roll is the tactical one ("Per-element rolls"): `shots` = strength at the start of the round, `hit_on = min(max(1, attack − (defense + bonus)), max_hp)`; the bonus is the side's `position_bonus`, plus the terrain's defense bonus for the defending side. With `command_points` > 0 only the first that many living companies of the side (setup order) fire in a round – the same C2 limit as in a played battle. After each round a side whose losses reach **`break_share` 50 %** of its starting strength **breaks**; a side with no strength left is eliminated. One side broken / eliminated → the other wins (`reason` `broken` / `eliminated`); both in the same round → draw; no break after the last round → draw (`turn_limit`). Ammunition, morale and fire support are not read – like in a played battle today; TASK-099 / TASK-090 must change both resolvers together.
+- **Determinism**: auto-resolve seeds its own `RandomNumberGenerator` from `setup.seed` – the same seed a played battle's `GameState.rng` gets – and never draws from the operational RNG, so the operation's random stream is the same whether a battle was played or auto-resolved. It changes no state: the result enters the operation only through `ResolveBattleCommand` (TASK-094 v0, consequences TASK-095), which re-computes an `auto` result and rejects a mismatch (`auto_mismatch`, added by TASK-120). A `CampaignRecord` battle entry stores `"resolution": "auto"` and no tactical commands (ADR 0015 amendment in TASK-120).
+
+### Countries and stances
+
+Specified in TASK-113 (country per hex), TASK-114 (stances in the state), TASK-116 (borders in movement), TASK-118 (allies' formations). Pure rules in `src/core/operational/`, numbers in data, every change through operational commands or the end-of-turn step – deterministic, no `rng`.
+
+- **Countries** are data (`data/countries/<id>.tres`): id, ISO code, name and `sanctuary` – the sovereign soil of a nuclear power (Russia: `true`; Poland, Lithuania, Belarus: `false`). A player is a **side** – a bloc ("Sides"; 0 = NATO, 1 = Russia in the Suwałki operation); a country is not a player. The sanctuary flag is data and works the same for both sides (only Russia has it in the shipped data – "Sides" → sanctuary asymmetry).
+- **Stance** – each country has exactly one (stored in the operation data at start and in `OperationalState`):
+
+  | Stance | Side | Meaning |
+  |---|---|---|
+  | `neutral` | none | stays out of the war |
+  | `aligned` | 0 or 1 | supports that side without fighting: hosts its forces, transit, supply; not a battlefield |
+  | `belligerent` | 0 or 1 | at war on that side; a battlefield for both |
+
+  Seen from a player the stance reads as **own** (aligned or belligerent on my side), **hostile** (aligned with the enemy), **enemy** (belligerent on the enemy side) or **neutral** – the labels the view and the AI use.
+- **What a stance allows** a side (a hex is "open" to a side when the side may enter it):
+
+  | For my side the country is | Enter / route through | Supply (TASK-096) | Strike targets there (TASK-097) | Battle on its soil (TASK-116 hook in TASK-094's contact rule) |
+  |---|---|---|---|---|
+  | own | yes | yes | – (own soil) | yes |
+  | enemy | yes – but an enemy **sanctuary** only from *Open war* or after this side has breached it | no | yes, within the ROE of the level | yes |
+  | hostile (aligned with the enemy) | no | no | no | no |
+  | neutral | no | no | no | no |
+
+  Closed hexes are impassable for route planning and for retreat after a battle (TASK-095's retreat, the check added by TASK-116; a formation standing on one may always step off it). Orders to a destination in a closed country are rejected (`closed_country`). A battle starts only when the defending formation's hex is open to the attacker (TASK-116 adds this to `ContactRules.battle_allowed`, TASK-094). Hexes without a country (water) are open to everyone but impassable anyway.
+- **Start stances of the Suwałki operation** **[ASSUMPTION]**: Poland belligerent (side 0); Russia belligerent (side 1); Lithuania **aligned with side 0** (NATO ally: Polish transit and supply, its own army not yet fighting); Belarus **aligned with side 1** (Union State hosting the Russian Belarus group). Start level: *Limited war*. Each country also has a **leaning** side (Lithuania 0, Belarus 1) – where it goes when the war widens.
+- **Legal transitions** (anything else is a rule error; `belligerent` is final in v1 – wars don't end inside one operation):
+
+  | From | To | Caused by |
+  |---|---|---|
+  | neutral | aligned with its leaning | the ladder reaching *Regional war*; political events (TASK-106) |
+  | neutral | belligerent against the declarer | *Declare hostilities* |
+  | aligned (S) | belligerent (S) | *Invoke alliance* by S; *Declare hostilities* by the other side; the ladder reaching *Regional war* |
+  | aligned (S) | neutral | *Demand neutrality* by the other side |
+
+- **Incidents** (detected by the rules, TASK-116; strikes by TASK-097; battles cause none – they are fought only on soil open to the attacker):
+  - *Sanctuary breach*: the first time a side's formation enters (or its strike hits) the soil of an enemy sanctuary, the level rises by 1 and that country stays open to that side for the rest of the operation (a formation is never trapped behind a closing border).
+  - *Launching from aligned soil*: when a formation steps from a hex of a country aligned (not belligerent) with its side straight into an enemy country's hex, the other side gains a **casus belli** against that country: declaring hostilities on it then costs no escalation. (Russia attacking out of Belarus hands NATO a free hand against Belarus; NATO attacking out of Lithuania does the same for Russia. Outside support delivered into an aligned country does the same – "Outside support".)
+- **Allies join with forces** (TASK-118): when a country becomes belligerent on its leaning side, its formations (operation data, see "Formations") enter play on their start hexes (or the nearest free open hex of that country within 3 hexes), owned by that side, at full strength, without orders.
+
+### Escalation ladder
+
+Specified in TASK-115 (ladder, automatic effects, calm, threshold), TASK-116 (incidents in movement), TASK-117 (decisions). One level **shared by both sides**, data in `data/operational/escalation.tres` **[ASSUMPTION – names and numbers]**:
+
+| Level | Id | Name | Strike target classes allowed (ROE, TASK-097) | Enemy sanctuary soil | Automatic on reaching it |
+|---|---|---|---|---|---|
+| 0 | `contained` | Contained clash | formation | closed | – |
+| 1 | `limited_war` | Limited war (start) | formation, air defence, depot | closed | – |
+| 2 | `open_war` | Open war | + airfield, command post (C2) | open to ground entry and strikes (first breach +1) | – |
+| 3 | `regional_war` | Regional war | as Open war | open | every **aligned** country becomes **belligerent** on its side; every **neutral** country becomes **aligned** with its leaning |
+| 4 | `strategic_threshold` | Strategic threshold | – | – | **the operation ends: the side whose action raised the level to 4 loses** |
+
+- **Raises** (each step is attributed to the side that caused it – `caused[side]`): the decision *Escalate* (+1), *Declare hostilities* (+1, 0 with a casus belli), *Invoke alliance* (+1), *Request support* (the package's cost, 0 for a response – "Outside support"), a sanctuary breach (+1, once per side and country), a strike on a target in an **urban** hex (+1 each – civilian areas; TASK-097). Battles and ordinary moves on open soil never raise it.
+- **Lowers**: the decision *Stand down* (−1, attributed as `deescalated[side]`), and **calm**: after **3 consecutive full rounds** without any raise, the level drops by 1, but not below the operation's start level (*Limited war*); calm steps are attributed to nobody. Counted at the round boundary (when play returns to the first player); no randomness.
+- **Deliberate decisions never reach the top**: *Escalate*, *Declare hostilities*, *Invoke alliance* and *Request support* are rejected when they would raise the level to 4. Only incidents (an order that breaches a sanctuary, a strike on a town) can – the view and the AI warn about them before the order is given (TASK-116 `route_incidents`).
+- **After the operation ends** (`operation_ended`) every operational command is rejected (`operation_over`).
+- **Victory hooks for TASK-107** **[ASSUMPTION]**: the threshold rule above; each side's score loses 3 points per **net** step it caused (`caused − deescalated`, at least 0).
+
+### Political decisions
+
+Specified in TASK-117 (the five below) and TASK-121 (*Request support*). Commands like every other operational action (`OperationalSimulation.execute`, codec, replay), **the same for both sides** ("Sides"). **One decision per side per own turn** **[ASSUMPTION]**. A side that stood down cannot take an escalating decision (*Escalate*, *Declare hostilities*, *Invoke alliance*, *Request support* with a cost > 0) during its next 2 own turns. The view names *Invoke alliance* from the side's data (NATO "Invoke collective defence", Russia "Invoke the Union State").
+
+| Decision | Target | Allowed when | Effect |
+|---|---|---|---|
+| **Escalate** (authorise wider ROE) | – | level + 1 < 4; not standing down | level +1 (unlocks the next level's ROE for **both** sides) |
+| **Stand down** | – | level > 0; the side raised nothing in this or the previous round; none of its formations stands in a country it breached or declared hostilities on | level −1; 2-turn cooldown on escalating decisions |
+| **Declare hostilities** | a neutral or hostile country | the level after the cost < 4; not standing down | the country becomes belligerent **against the declarer** (a neutral joins the enemy side); +1, or 0 with a casus belli; its soil opens to the declarer |
+| **Invoke alliance** | an own **aligned** country | level + 1 < 4; not standing down | the country becomes belligerent on the declarer's side, its formations join (TASK-118); +1 |
+| **Demand neutrality** (ultimatum) | a hostile country (aligned with the enemy) that **accepts ultimatums** (data: Belarus yes, Lithuania no **[ASSUMPTION]**) | level ≤ Open war; **no enemy formation stands in that country** | the country becomes neutral: the enemy loses its staging area and transit there (and the entry route of outside support through it); no escalation |
+| **Request support** (TASK-121) | a support package of the own side | the package is available ("Outside support"); level + cost < 4; not standing down when the cost > 0 | the package is on its way (arrives after its delay); the package's escalation cost (0 for a response); the other side sees it and may get a response option |
+
+### Outside support
+
+Decided by the human 2026-11-01 (third countries come in through the political game); mechanism designed 2026-11-01, specified in [TASK-121](tasks/TASK-121-outside-support.md) (supporters, packages, the request decision, formations arriving) and [TASK-122](tasks/TASK-122-support-strike-means.md) (strike means for TASK-097's stocks). All numbers **[ASSUMPTION]**. Pure rules in `src/core/operational/`, everything as data, changes only through commands and the end-of-turn step, **no `rng`**.
+
+- **Supporters** (`data/supporters/<id>.tres`): off-map actors with a fixed side – `nato_allies` (USA, Germany, … – NATO), `north_korea`, `china`, `iran` (Russia). Not countries: no hexes, no stance. Their **status** is computed from the packages, seen the same by both sides (no fog yet): **uninvolved** (none of its packages is available or requested), **considering** (a package is available to its side, or requested and on its way), **supporting** (at least one package delivered); always with its side. A withdrawn package counts as never requested.
+- **Support packages** (`SupportPackage`, listed per operation in `OperationDefinition.support_packages`): id, supporter, side (the recipient – the supporter's side), and
+  - **conditions** (all must hold): `min_level` ≤ escalation level ≤ `max_level`; `max_caused` (−1 = none): the requester's **net** escalation caused (`caused − deescalated`) is at most this;
+  - **response**: `response_to` – packages of the other side; once the other side has **requested** any of them, this package is available whatever its conditions and costs **no escalation** – the visible consequence that the other bloc gets an answer;
+  - **cost**: `escalation_cost` steps, attributed to the requester (cause `support_request`; waived for a response); `entry_casus_belli` – formations delivered into a country **aligned** (not belligerent) with the recipient give the other side a casus belli against that country;
+  - **delay**: `delay_turns` – delivered at the start of the recipient's own turn in round `request turn + delay`;
+  - `withdraw_if_unmet` – the conditions are checked again at delivery; unmet → the package is **withdrawn** (nothing arrives, a paid cost is not refunded);
+  - **effects**: `formations` (placements – the same `FormationPlacement` as the order of battle; the coord is the **entry hex**) and (TASK-122) `strike_means` (means id + count added to the side's strike stock of TASK-097). No new formation types and no new means types: formations use the side's types, means the TASK-097 types.
+- **Request** = the decision *Request support* (one per turn with the other decisions). One request per package; it cannot be cancelled.
+- **Delivery of formations** uses the same placement rule as allies joining (TASK-118): on the entry hex, else the nearest free passable hex of the same country within 3 hexes; additionally the hex must be **open** to the side. When no hex is found, the formation **waits off the map** and is retried at the start of each own turn (an ally's contribution, in contrast, is lost) – e.g. North Korean troops cannot arrive while Belarus is neutral. Delivered formations are full-strength, in the operation's start posture, without orders, and can get orders in the same turn.
+- **Delivery of means** (TASK-122): added to the side's stock; TASK-097 consumes stock without knowing where it came from.
+- **Shipped packages of the Suwałki operation** **[ASSUMPTION – balance guess, checked by TASK-103]**:
+
+  | Package (id) | Side ← supporter | Effect | Conditions | Cost | Delay | Response to |
+  |---|---|---|---|---|---|---|
+  | Allied reinforcements (`allied_reinforcements`) | NATO ← NATO allies | US Armored Battalion (`pl_tank_battalion`) + NATO Mechanised Battalion (`pl_mech_battalion`), 80, west edge of Poland | level 1–3 | +1 | 4 | `nk_troops` |
+  | North Korean expeditionary force (`nk_troops`) | Russia ← North Korea | North Korean Infantry Battalion (`ru_motor_rifle_battalion`) + North Korean Artillery Battalion (`ru_mlrs_battalion`), 56, east edge of Belarus; `entry_casus_belli` | level 2–3 (only once the war is open) | +1 | 4 | `allied_reinforcements` |
+  | Chinese missile components (`china_components`, TASK-122) | Russia ← China | +4 `cruise` | level 1–2; Russia's net caused ≤ 1; `withdraw_if_unmet` | 0 | 6 | – |
+  | Iranian strike drones (`iran_drones`, TASK-122) | Russia ← Iran | +8 `strike_drone` | level 1–3 | 0 | 2 | – |
+  | Allied strike means (`allied_strike_means`, TASK-122) | NATO ← NATO allies | +4 `cruise` | level 2–3 | 0 | 2 | `china_components`, `iran_drones` |
+
+  Means counts are relative to TASK-097's starting stocks (about +50 % of a side's stock of that means) and are re-set when TASK-097 fixes the stocks.
+
+### Strategic options
+
+The design goal: attacking Kaliningrad or Belarus, or keeping them out, is a **trade**, never a free switch. What each option buys and what it costs, for the start situation above **[ASSUMPTION – to be balanced with TASK-103 simulations]**:
+
+**NATO (side 0 – Poland holds the Gap, Lithuania aligned)**
+
+| Option | Military gain | Cost / risk |
+|---|---|---|
+| Fight only on Polish (and Lithuanian) soil, level 1 | no escalation penalty; Lithuania stays a safe transit area | Kaliningrad and Belarus are **sanctuaries**: Russian rocket artillery, depots and staging formations there cannot be struck or attacked; beaten Russian formations retreat into them |
+| *Demand neutrality* of Belarus | closes Russia's Belarus staging area and transit for good (until *Regional war*) | only when no Russian formation stands in Belarus – a timing play once the Belarus group has crossed; one decision |
+| *Invoke alliance* with Lithuania | +3 formations (120 strength) around Kaunas / Vilnius | +1 attributed; Lithuania becomes a battlefield – Russia may now enter it (the Lithuanian half of the Gap and the short road link Kaliningrad – Belarus open up) |
+| *Escalate* to *Open war* | strikes on airfields and C2; Kaliningrad's soil opens to strikes and ground attack | +1 attributed; Russia gets the same ROE against Polish airfields and C2 |
+| **Attack the Kaliningrad oblast** (needs *Open war*) | destroy the northern jaw, depots and airfields at the source; Kaliningrad objectives (TASK-107) | the first entry is a sanctuary breach: +1 → *Regional war*: Belarus joins Russia (+110) and Lithuania joins Poland (+120) automatically; Poland has caused 2 net steps and the ladder is one step from the threshold – any later Polish sanctuary or urban-strike incident loses the operation |
+| **Attack Belarus** (*Declare hostilities*) | hit the Russian Belarus group in its staging area, cut its roads, flank through Grodno | Belarus joins Russia with its army (+110); +1 attributed – **free if Russia has launched an attack out of Belarus** (casus belli) |
+| *Stand down* | −1 level, cuts the net escalation penalty; brings the ladder away from the threshold | lower ROE for both sides; Poland must first leave any country it breached or declared on; 2-turn cooldown |
+
+**Russia (side 1 – wants to close the Gap, Belarus aligned)**
+
+| Option | Military gain | Cost / risk |
+|---|---|---|
+| Close the Gap on Polish soil only, Belarus group kept in Belarus | Belarus stays a sanctuary and a threat-in-being that ties Polish forces to the Białystok border; blocks a Polish ultimatum | the Belarus group does not fight |
+| Attack out of Belarus while Belarus stays aligned | a second axis from Grodno – the classic pincer on the Gap | hands Poland a **casus belli** (a free declaration against Belarus); once the group has left Belarus, Poland may demand its neutrality |
+| *Invoke alliance* with Belarus | +3 Belarusian formations (110) | +1 attributed; Belarus loses sanctuary status for Russian forces – Polish strikes and attacks may follow |
+| *Declare hostilities* on Lithuania | the Lithuanian half of the Gap and the short road link between Kaliningrad and Belarus | Lithuania joins Poland (+120); +1 attributed (0 if Poland launched out of Lithuania) |
+| *Escalate* to *Open war* | deep strikes on Polish airfields and C2 | +1 attributed; opens the Kaliningrad oblast to Polish strikes and ground attack |
+| *Demand neutrality* of Lithuania | – | not possible: Lithuania refuses ultimatums (NATO member) **[ASSUMPTION]** – Russia's levers are Belarus and outside support instead |
+
+**Third countries – draw them in or keep them out** (both sides; "Outside support", TASK-118 / TASK-121 / TASK-122):
+
+| Third party | What it brings | Russia: draw in / keep out | NATO: draw in / keep out |
+|---|---|---|---|
+| **Belarus** (on the map, aligned with Russia) | staging area and transit for the Russian Belarus group; 3 formations (110) when belligerent on Russia's side; the entry route of North Korean troops | *keep aligned*: closed to NATO, a threat-in-being; *invoke the Union State*: +110 but Belarus becomes a battlefield open to NATO (+1) | *keep out*: an ultimatum once the Belarus group has left (also closes the North Korean route); *draw in* (declare, free with a casus belli): its staging area opens to strikes and attack, but Belarus fights for Russia (+110) |
+| **North Korea** (off the map) | 2 battalions (56) at the east edge of Belarus after 4 turns, from *Open war* | *draw in*: +56, but +1 attributed, a casus belli for NATO against an aligned Belarus, and NATO's allied reinforcements (+80) become a **free** response; *keep out*: no cost, no NATO reinforcements for free | cannot request it; *keeps it out* by keeping the war below *Open war* or by neutralising Belarus (no entry hex – the troops wait off the map); if it comes, answers for free |
+| **China / Iran** (off the map, weapons only) | China: +4 cruise missiles after 6 turns; Iran: +8 strike drones after 2 turns | *draw in*: no escalation, but NATO's allied strike means become a free response; China delivers only to a **restrained** Russia (level ≤ *Open war*, net caused ≤ 1) and withdraws otherwise – escalating costs Russia the Chinese missiles | cannot stop the request; *cuts China off* by pushing the level to *Regional war* – at the price of its own escalation record; answers with allied strike means for free |
+| **NATO allies** (off the map) | 2 battalions (80) at the west edge of Poland after 4 turns; +4 cruise missiles from *Open war* | cannot request them; *keeps them out* by not requesting North Korean troops (that makes the reinforcements free for NATO) | *draw in*: +80 for +1 attributed (free as a response); the cost is the ladder – a request at *Open war* takes it to *Regional war* (all aligned countries join) |
+
+The core dilemmas: the **sanctuary** (strike the source or respect the border), the **ally's army vs. a new front** (invoking an ally adds formations but turns its soil into a battlefield), the **casus belli** (using an aligned country as a launch pad makes it fair game), the **threshold** (every step brings a ruinous defeat closer for whoever takes the last one) and **internationalising the war** (outside help arrives late, and whoever brings it in first pays, while the other bloc answers for free).
+
+### Operational map view (TASK-093, planned)
+
+Deliberately unlike the 3D battle scene – a **paper staff map**, the leader's map (head of government + chief of the general staff, "Player roles") **[ASSUMPTION – details for the human to confirm]**. Built **before** TASK-094 as v0 without politics (recommended 2026-11-01 **[ASSUMPTION]**, see BACKLOG "Two-layer game"): the loop must be visible to the human when it closes, and TASK-094's contact notice and scene change live in this scene. Country borders, stance tints and the escalation level come later with the political layer (TASK-119, data from TASK-112 / TASK-113).
+
+- **Flat and top-down**: no 3D terrain or models. A 2D view with a **fixed top-down camera**: pan (drag / keys / screen edge) and zoom (wheel) clamped to the map; no rotation or tilt.
+- **Base map**: pale paper tint with **shaded relief** (grey hillshade, low contrast) and flat land-cover fills drawn as real geography: forests green, lakes and wide rivers blue, marshes with a blue hatch, towns as grey blocks. Land cover comes from the hex terrain in v0 (smoothed across hex edges); finer shapes are a later refinement.
+- **Lines**: roads as red / orange lines along the road links (major roads only), rivers as blue lines along the river links, **country borders** as a dash-dot line (TASK-119), **place names** (towns, villages) as map labels. Fine border lines, names and a fine relief raster need importer data – TASK-112; until then borders follow the hex edges between hexes of different countries (per-hex country, TASK-113) and the relief comes from the per-hex elevation.
+- **Countries and politics** (TASK-114 / 115 state, drawn by TASK-119): each country gets a faint tint by its stance seen from the player (own / hostile / enemy / neutral) and its name; closed countries are hatched; the **escalation level** (name + number, e.g. "1 · Limited war") sits in the turn bar. The full political panel (ladder with ROE per level, decisions with the reason a decision is unavailable, route warnings for sanctuary breaches) is TASK-119.
+- **Hex grid hidden** by default, a very faint grid on a toggle (G, as in battle) – the hexes stay the rules underneath.
+- **Seen from the human's side** ("Sides"): the view takes the human's player index as a parameter from v0 (NATO or Russia); friendly / hostile, stance tints and orders are relative to it.
+- **Formations as NATO APP-6 counters**: friendly frame (blue rectangle) / hostile (red diamond), branch icon by formation class (mechanised infantry, armour, rocket artillery), echelon mark above (battalion `II`), short designation beside (e.g. `1/15`), a small strength bar. No 3D models.
+- **Front line drawn as a line** **[ASSUMPTION]**: each land hex within 3 hexes of a formation belongs to the side of the nearest formation (hex distance; ties belong to nobody); the front line is drawn along the edges between hexes of different sides (a thick line with small teeth towards the enemy), recomputed after every event. A pure helper in core, tested.
+- **Orders on the map**: selecting a formation and clicking a destination shows the planned route as an arrow with a tick at each per-turn stop (forecast); posture chosen with keys 1 march / 2 advance / 3 defend or a small picker; arrow style per posture (march dashed, advance solid, defend ending in a defence arc). Existing orders stay drawn as arrows; cancel with Delete / X. End turn executes the orders and the counters slide along their paths; interrupted orders are listed in a short report.
+- **Turn bar**: turn number, date and time of day (12 h per turn), the side to play.
+- **Contact notice** (TASK-094 / TASK-120): when a battle is pending, a notice names the formations, the attacker and the place, and offers **Play battle** (the battle scene, as the commander) or **Auto-resolve** (the result at once); afterwards a short after-action report lists losses, who holds the field and who retreats.
+
 ## Open questions
 
 Each question lists the tasks that depend on the answer.
@@ -314,6 +609,45 @@ Each question lists the tasks that depend on the answer.
   → TASK-110, TASK-111, then TASK-110's follow-up tasks; TASK-108b … 108e use `MapScale` and are right at any scale.
 - ~~**Buildings and road classes from OSM**~~ – decided 2026-10-31: procedural villages and one road look first; an importer task (`building=*` footprints, road class / `surface`) only if the procedural look is not convincing. Original note (TASK-108b/108d): the importer stores only a dominant class per hex and road link masks, so villages are drawn procedurally inside urban hexes, scattered farmsteads in non-urban hexes are missing, and every road looks the same (gravel). Importing `building=*` footprints (per-hex counts or positions) and the road class / `surface` tag would make both real – a later importer + look task if the procedural look is not enough.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.
+- **Operational layer v1** (2026-11-01, TASK-092a–e; the specs follow the recommended options, marked **[ASSUMPTION]** in "Operational layer" – waiting for the human):
+  - *Feel* – **decided** by the human 2026-11-01: clearly different from the battle through presentation (paper map, NATO counters, front lines, top-down camera) and multi-turn orders (destination + posture, executed over several turns); hexes stay underneath; alternating turns kept, simultaneous resolution rejected. → TASK-092c–e, TASK-093.
+  - *Postures*: the minimal set march / advance / defend with 100 / 75 / 50 % of the move points, march and defend planning around enemy zones of control, advance halting on contact and keeping its order (recommended). Alternatives: two postures only (move / attack); a `delay` posture now (fall back one hex when contacted – needs TASK-095's retreat rule, so recommended later). → TASK-092d, TASK-094 (battle effects).
+  - *Execution timing*: at the end of the owner's turn, formations in order-of-battle order, first step always allowed, unused points lost (recommended). Alternatives: at the start of the owner's next turn (the opponent sees the orders' arrows for a turn first – only meaningful with fog), or the player choosing the execution order. → TASK-092e.
+  - *Map view*: a 2D view (recommended – simplest, sharp lines and labels) vs. an orthographic 3D camera over a flat plane (reuses the battle's map-to-world code); the front-line rule (nearest formation within 3 hexes); counter style (blue / red APP-6 frames, battalion `II`). → TASK-093.
+  - *Map area and size* – **decided** by the human 2026-11-01: a regional theatre of ~300 × 300 km (north-east Poland, Kaliningrad oblast, southern Lithuania, western Belarus). Proposed exact extent **[ASSUMPTION]**: 68 × 64 hexes centred on 54.20 N, 22.90 E (GDD "Theatre") – alternative exactly 60 × 60 (Kaliningrad and Vilnius end up on the edge columns). The earlier 20 × 16 Suwałki Gap map is dropped. → TASK-092a.
+  - *Formation level*: battalion-sized counters with the brigade as a label (recommended) vs. brigade counters (12–15 companies – too many for one 30 × 24 battle) vs. both levels with split / merge. → TASK-092b.
+  - *Order of battle*: the six formation types and, on the theatre map, 8 Polish vs. 10 Russian formations (Kaliningrad group + Belarus group) plus the allies' formations that join with their country (Lithuania 3, Belarus 3) in "Formations"; real unit designations (e.g. Poland's 15th Mechanised Brigade) only as flavour labels. → TASK-092b, TASK-118.
+  - *Movement*: 8 move points, road 1 / open 2 / forest and hills 3 / marsh 4 / river +2, one formation per hex, zone of control (planned around, or halting an advance), Russia moving first, 12-hour turns. → TASK-092b, TASK-092c.
+  - *Country borders and hex control* – **decided** 2026-11-01: every hex has a country, imported with the map (TASK-113) and used by the rules through stances (GDD "Countries and stances"); TASK-112 keeps only the fine border lines for drawing. Hex *control* (who holds a hex of an enemy country – supply TASK-096, objectives TASK-107) stays open.
+  - *Tactical maps for contacts anywhere* (revised for the theatre): the 340 × 277 km theatre is ≈ 1 360 × 1 280 ≈ 1.7 million tactical hexes, so the earlier recommendation (a) – one big tactical import cut by `BattleSetup.map_region` – no longer fits (several GB of full-detail OSM, hours of import, tens of MB committed). Options: (b) pre-import one 30 × 24 tactical map per operational hex (~4 000 maps, ~200 MB – too big); (c) allow contacts only where a tactical map exists (kills operational freedom); (d) a **chunked theatre-wide tactical layer** – a resumable offline batch import (land hexes only) into compact per-chunk files (≈ 1 byte terrain + 2 link bytes + 1 elevation byte per tactical hex ≈ 7 MB raw, a few MB compressed), cut per battle; (e) battle maps derived at battle time from the operational hex (breaks "real geography"). Recommended **(d), measured first** (download size, import time, committed size) as a study step of TASK-094 or a split-off task. → TASK-094.
+  - *Campaign record*: `CampaignRecord` (ADR 0015 §4) is left for TASK-094, where the first battle enters the record; TASK-092e only proves that replaying the operational commands gives the same state.
+- **Political layer v1** (2026-11-01, TASK-113–119; the human decided: regional theatre, per-country stance + one shared escalation ladder, new tasks on top of 092b. The details below follow the recommended options, marked **[ASSUMPTION]** in "Countries and stances", "Escalation ladder", "Political decisions", "Strategic options" – waiting for the human):
+  - *Stance set*: neutral / aligned / belligerent with a side, shown player-relative as own / hostile / enemy / neutral (recommended – the smallest set that tells "may stage and transit" from "is a battlefield"). Alternative: a per-side relation pair (each country's attitude to each side separately) – more expressive, more states to test. → TASK-114.
+  - *Belligerent is final*: no peace or armistice inside one operation (recommended). → TASK-114, TASK-106.
+  - *Crossing into a closed country*: only after an explicit *Declare hostilities* decision; routes never cross closed borders by themselves (recommended – no accidental widening of the war by the route planner). Alternative: an order may target a closed country and the first entry declares automatically (closer to "crossing a border changes the stance", but one mis-click widens the war). → TASK-116, TASK-117.
+  - *Start stances*: Lithuania aligned with Poland (not fighting), Belarus aligned with Russia and hosting the Russian Belarus group, start level 1 *Limited war* (recommended). Alternatives: Belarus neutral at start (Russia must first win Belarus over – needs a "request access" decision); Lithuania belligerent from the start (NATO Article 5 fully invoked – removes Poland's invoke choice). → TASK-114.
+  - *Ladder*: five levels with the ROE table in "Escalation ladder"; sanctuary soil opens at *Open war*; allies join at *Regional war*; reaching the top loses for the side that caused it; calm decay after 3 quiet rounds down to the start level; urban strikes +1 each. Alternatives: the top ends in a draw for both (weaker deterrent); no automatic joining (allies only by decision). → TASK-115.
+  - *Decisions*: five (Escalate, Stand down, Declare hostilities, Invoke alliance, Demand neutrality), one per own turn, 2-turn cooldown after standing down, decisions can never take the ladder to the top. Not included: "guarantee neutrality", "request access" (neutral → aligned by decision), peace offers – candidates for TASK-106 events. → TASK-117.
+  - *Allies' forces*: represented with the side's formation types and flavour names (Lithuanian brigades with Polish types, Belarusian with Russian types) until Lithuania / Belarus are factions with their own rosters. → TASK-118.
+  - *Scoring*: −3 victory points per net escalation step caused, plus the threshold defeat. → TASK-107.
+  - *Contacts at a closed border*: zones of control work across borders (a formation in a hostile country still halts an advance next to it), but no battle starts against a formation in a country closed to the attacker (recommended). Alternative: no zone of control across a closed border. → TASK-116 (adds the rule to TASK-094's `ContactRules.battle_allowed`; decided 2026-11-01 that the loop comes first, so TASK-094 no longer waits for the political layer).
+- **Player roles** (2026-11-01; the two roles are decided, "Operational layer" → "Player roles"; the details below are recommendations **[ASSUMPTION]** waiting for the human):
+  - *Which units the commander commands*: every own company in the battle (recommended – the battle stays the game it is today; the player is "the commanders" of the engaged battle group). Alternative: the player picks one company or battalion and the tactical AI commands the rest (closer to "a lower-rank commander", but needs a friendly tactical AI and orders between AI and player units). → TASK-094.
+  - ~~*Playing as Russia*~~ – **decided by the human 2026-11-01**: both sides are selectable when starting an operation, and both belong to the MVP; the sides are blocs (NATO vs Russia, "Sides"). Only the order of the choice is open: NATO listed first **[ASSUMPTION]**. → TASK-092b (sides as data), TASK-093 (perspective parameter), TASK-102 (AI for either side), TASK-103 (balance of both), TASK-107 (the choice).
+  - *Personal / political cost of losing a battle*: none in v1 – a lost battle costs only losses, ground and the retreat; the operation's score (TASK-107) counts the outcome (recommended). Alternative: a "public support" or "government confidence" track that lost battles and losses lower (dismissal of the leader as a defeat condition) – a candidate for TASK-106 events once the loop works. → TASK-106, TASK-107.
+  - *Auto-resolve availability*: every contact, for the human's side, chosen on the contact notice; not switchable once a battle is played; no fidelity penalty for auto-resolving (recommended; TASK-120 compares auto-resolve with headless AI-vs-AI played battles and reports the gap). Alternative: a small penalty (e.g. +10 % own losses) to reward playing. → TASK-120.
+  - *Commander's view of politics*: the battle HUD shows mission and intent only, no political panel or escalation level (recommended – the commander cannot act on them). → TASK-094.
+- **Sides and outside support v1** (2026-11-01; the human decided both sides playable, blocs NATO vs Russia, third countries only through politics – "Sides", "Outside support"; the details below are the designer's recommendations **[ASSUMPTION]**):
+  - *Sanctuary asymmetry*: only Russian soil is a sanctuary (reasons in "Sides"); the rule is symmetric in code. Alternative: make Poland a sanctuary for Russia too (symmetric "homeland" rule – but then Russia could not fight on Polish soil below *Open war*, which contradicts the scenario). → TASK-114, TASK-115.
+  - *Lithuania refuses ultimatums* (`accepts_ultimatum` false; Belarus true). Alternative: symmetric – Russia may demand Lithuania's neutrality like NATO Belarus's (more mirror-like, less plausible for a NATO member). → TASK-117.
+  - *Supporters as off-map packages* instead of on-map countries with stances: North Korea, China, Iran and the NATO allies never get hexes or stances; status uninvolved / considering / supporting is computed. Alternative: off-map countries with stances (heavier, no gain while they have no soil). → TASK-121.
+  - *Response rule*: requesting a package with a `response_to` link makes the other bloc's answer available and free of escalation. Alternative: no free responses (each bloc pays for its own help). → TASK-121.
+  - *Numbers*: the five packages in "Outside support" (entry hexes, delays 2–6 turns, +1 for troops, 0 for weapons, China's restraint condition). → TASK-121, TASK-122, TASK-103.
+  - *Supporters' formations* use the side's types with own names until North Korean / US / German factions exist. → TASK-121.
+  - *Objectives per side* ("Sides" → victory: the Gap road link open vs closed, optional city objectives). Depends on the open "hex control" rule. → TASK-107.
+  - *MVP*: outside support (TASK-121, TASK-122) is recommended **in** the MVP – the two blocs need their own levers for both sides to be balanced and interesting to play (without them Russia has fewer political options than NATO), and both tasks are small additions to TASK-117 / TASK-118 / TASK-097. Alternative: after the MVP, with Russia's political game limited to Belarus and Lithuania. → BACKLOG `mvp` tag.
+- **Auto-resolve numbers** (TASK-120) **[ASSUMPTION]**: rounds = the battle's turn limit (else 8), break at 50 % losses, simultaneous fire with focus on the highest hit chance, position bonus defend +1 / advance 0 / march −1, the defender's operational hex terrain as the terrain bonus (not the tactical map – auto-resolve must not load a battle map, for speed); range, movement and objective hexes are not modelled (artillery fires like any company). Alternatives: a terrain mix from the tactical map cut (more faithful, slower); a lower break share for formations at low readiness (TASK-095). → TASK-120, TASK-094.
+- **Seeing the loop** (2026-11-01, build order "loop first"): the human needs a view to playtest the vertical slice "move → contact → battle (played or auto-resolved) → consequences". Recommended **[ASSUMPTION]**: build TASK-093 (staff map v0, without the political overlays, which move to TASK-119) right after TASK-092e and before TASK-094 – no throwaway debug view, and TASK-094's contact notice and scene change need the operational scene anyway. Alternative: a minimal debug view (formations as text / dots on a grid, an end-turn key) before TASK-095, with TASK-093 after the political layer. → TASK-093, TASK-094.
 
 ### Ideas from the visual design
 
