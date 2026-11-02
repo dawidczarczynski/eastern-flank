@@ -85,6 +85,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `LeafTexture` – Procedural alpha cards for the tree crowns (TASK-060): `cluster` is a bunch of broad leav… (`leaf_texture.gd`)
 - `Locomotion` – Pure math for unit locomotion (TASK-025): marching bob/sway of infantry, wheel spin and (`locomotion.gd`)
 - `LookPreset` – Colour look of the battlefield (TASK-071): ground tints, tree leaf colours, species mix, (`look_preset.gd`)
+- `MapScale` – Real-world scale of the map (TASK-108e; TASK-108b/110 reuse it): how many metres one world (`map_scale.gd`)
 - `MapView` – Map view: builds one continuous terrain mesh (heights from TerrainSurface, per-vertex gro… (`map_view.gd`)
 - `MatchSaver` – Writes a MatchRecord as JSON to disk (F5 and the automatic save on game_over). (`match_saver.gd`)
 - `MotionEffects` – Pure parameters of the movement effects (TASK-064): track / wheel dust and engine exhaust… (`motion_effects.gd`)

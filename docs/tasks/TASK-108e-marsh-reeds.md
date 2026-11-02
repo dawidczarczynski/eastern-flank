@@ -1,6 +1,6 @@
 # TASK-108e: Real-terrain look v2 – reeds on marshes and river banks
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`GrassPlanner` new kind, `GrassTexture` reed card, `grass.gdshader` colour, `LookPreset` meadow keys) + docs (ARCHITECTURE, MANUAL)
 - **Depends on**: TASK-108 (done) (soft: TASK-108c – real river width and banks; TASK-110 – real grass scale; priority: after the operational core loop 092 → 094 → 095)
 - **Model**: sonnet
@@ -53,4 +53,11 @@ Grass planner tests (`test_grass_planner*.gd`), `test_look_preset.gd`, `test_gra
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done (presentation only):
+- `GrassPlanner.Kind.REED`, `is_reed` (marsh noise + bank band), `dry_k`, `kind_color(..., dry)`, `_clump_at` (plan_chunk body extracted). `GroundNoise.reed_k`. `GrassTexture.reed_card` (5-7 blades, 2-3 brown seed heads). `grass.gdshader` `reed_mode`. `GrassField`: `Reeds_<x>_<z>` node per chunk, `reed_nodes()`, budget estimate counts the marsh surplus, `max_clump_height` includes `reed_height`. `LookPreset` keys `marsh_density`, `reed_share`, `reed_from`, `reed_seed`, `bank_reeds`, `reed_band_m`, `reed_height`, `reed_color`, `reed_dry_color`, `reed_mix` (MEADOW_OFF = off).
+- **`MapScale` did not exist** (108b not landed): introduced `src/presentation/map_scale.gd` (`metres_per_unit`, `to_units`, `reset`), default 250 / sqrt(3) = 144.34 m, which equals the Suwalki scale, so nothing sets it yet (MapView does not; 108b should assign it for other scales).
+- **Density 1.3 and "no new RNG draws"**: the main stream cannot yield 1.3x candidates, so the marsh surplus uses its own hash-seeded stream (`MARSH_SEED_SALT`) and counts only on marsh; main-stream positions do not move (tests: marsh old positions subset, non-marsh chunks and the default battle identical to reeds-off).
+- Reeds are a separate MultiMesh per chunk (own card); the bank band is applied to every land terrain except URBAN, including forest tiles; the tile-centre short-grass radius applies to banks too.
+- Tests: `tests/unit/test_grass_reeds.gd` (marsh share 0.707 / count ratio 1.315, bank share 0.697, band scaling, urban, positions, current preset, card). `tools/check.sh`: only `test_operational_map_data.gd` fails (3 tests, unrelated TASK-092a work in progress, missing operational map data).
+- Screenshots (Suwalki, SCREENSHOT_FOV=16 close-ups, HIGH): marsh hex near (8.66, 27) and the river bank near (24.3, 0): dense tall upright reed stands, short centre kept; reed colour checked with a temporary magenta tint. Seed heads are small at this distance. Default battle unchanged (no marsh, no river links), `docs/images/gameplay.png` not refreshed.
+- **Not measured**: frame times (no Windows D3D12 before/after run was made; the 240-frame median comparison is left to the human). Marsh adds ~0.3 x 9 hexes of clumps (a few thousand instances at most) inside the existing budget; "Grass density cut to 0.98" appears on Suwalki (the cut existed for the dense plains/fields map; not re-checked without the marsh surplus).

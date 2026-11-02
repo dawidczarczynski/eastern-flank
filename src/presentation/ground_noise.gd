@@ -43,3 +43,9 @@ static func patch_k(x: float, z: float, meadow: Dictionary) -> float:
 static func flower_k(x: float, z: float, meadow: Dictionary) -> float:
 	var f: float = meadow["flower_frequency"]
 	return TerrainNoise.fbm(x * f, z * f + 7.0, meadow["flower_seed"], 2)
+
+
+## Marsh reed patch noise in [0, 1] (TASK-108e): the tall-grass patch noise at its own offset.
+static func reed_k(x: float, z: float, meadow: Dictionary) -> float:
+	var f: float = meadow["patch_frequency"]
+	return TerrainNoise.fbm(x * f + 41.0, z * f + 23.0, meadow["reed_seed"], 2)

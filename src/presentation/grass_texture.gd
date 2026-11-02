@@ -11,6 +11,10 @@ const ROOT_COLOR := Color(0.85, 0.85, 0.85)
 const TIP_COLOR := Color(1.0, 1.0, 1.0)
 const FLOWER_STEMS_MIN := 5
 const FLOWER_STEMS_MAX := 7
+const REED_BLADES_MIN := 5
+const REED_BLADES_MAX := 7
+## Seed head colour #5a4433 (sRGB; the card is sampled as source_color).
+const REED_HEAD_COLOR := Color(0.353, 0.267, 0.2, 1.0)
 
 
 ## An RGBA8 card of `size` x `size` pixels with mipmaps; `seed_value` varies the blade layout.
@@ -77,5 +81,52 @@ static func flower_card(size: int, seed_value: int) -> Image:
 			):
 				if Vector2(x + 0.5 - tip_x, y + 0.5 - tip_y).length() <= radius:
 					image.set_pixel(x, y, Color(shade, 1.0, 0.0, 1.0))
+	image.generate_mipmaps()
+	return image
+
+
+## A reed card (TASK-108e) of `size` x `size` pixels with mipmaps: 5-7 thin, tall, almost straight
+## blades, 2-3 of them with a darker brown seed head near the tip. Blades are neutral grey (RGB
+## equal, tinted by the instance colour); seed heads carry their own brown (R > B), which
+## grass.gdshader (reed_mode) leaves untinted. Alpha is 0 or 1.
+static func reed_card(size: int, seed_value: int) -> Image:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var image := Image.create(size, size, true, Image.FORMAT_RGBA8)
+	image.fill(Color(TIP_COLOR, 0.0))
+	var unit := size / 128.0
+	var blades := rng.randi_range(REED_BLADES_MIN, REED_BLADES_MAX)
+	var heads := rng.randi_range(2, 3)
+	for b in blades:
+		var root_x := (0.08 + 0.84 * (float(b) + 0.2 + rng.randf() * 0.6) / blades) * size
+		var tip_y := (0.0 + 0.12 * rng.randf()) * size
+		var lean := (rng.randf() * 2.0 - 1.0) * 0.06 * size
+		var half := (1.5 + 0.8 * rng.randf()) * unit
+		var shade := 0.85 + 0.15 * rng.randf()
+		var rows := int(size - 1 - tip_y)
+		for row in rows:
+			var t := float(row) / rows
+			var y := size - 1 - row
+			var x_center := root_x + lean * t * t
+			var w := maxf(half * (1.0 - 0.8 * t * t), 0.6 * unit)
+			var color := ROOT_COLOR.lerp(TIP_COLOR, t) * shade
+			color.a = 1.0
+			for x in range(
+				maxi(int(floor(x_center - w)), 0), mini(int(ceil(x_center + w)), size - 1) + 1
+			):
+				if absf(x + 0.5 - x_center) <= w:
+					image.set_pixel(x, y, color)
+		if b < heads:
+			var head_len := (14.0 + 4.0 * rng.randf()) * unit
+			var head_half := (2.8 + 0.8 * rng.randf()) * unit
+			var tip_x := root_x + lean
+			for y in range(maxi(int(tip_y), 0), mini(int(ceil(tip_y + head_len)), size - 1) + 1):
+				var u := (y - tip_y) / head_len  # 0 at the tip .. 1 at the base of the head
+				var w := head_half * sin(clampf(u, 0.0, 1.0) * PI * 0.85 + 0.15) * 1.0
+				for x in range(
+					maxi(int(floor(tip_x - w)), 0), mini(int(ceil(tip_x + w)), size - 1) + 1
+				):
+					if absf(x + 0.5 - tip_x) <= w:
+						image.set_pixel(x, y, REED_HEAD_COLOR)
 	image.generate_mipmaps()
 	return image

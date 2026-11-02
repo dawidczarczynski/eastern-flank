@@ -7,7 +7,8 @@ extends Node3D
 ## fade; the exact start of the margin was not measured). The range is measured from the chunk
 ## node's origin, which sits at the chunk centre, so whole chunks pop in and out of range, not
 ## single clumps. Grass casts no shadows. Meadow flowers (TASK-070) are a second MultiMesh node per
-## chunk ("Flowers_<x>_<z>") with the same ranges.
+## chunk ("Flowers_<x>_<z>") with the same ranges; reeds (TASK-108e) likewise ("Reeds_<x>_<z>",
+## own card).
 
 const SEED := 7919
 const RANGE := 14.0
@@ -22,6 +23,7 @@ const CARD_HEIGHT := 0.05
 const CARD_SIZE := 128
 const CARD_SEED := 31
 const FLOWER_CARD_SEED := 43
+const REED_CARD_SEED := 47
 ## Upper bound of the flower share of a plains area, for the instance estimate only.
 const FLOWER_ESTIMATE_SHARE := 0.3
 const SHADER := preload("res://assets/shaders/grass.gdshader")
@@ -37,10 +39,13 @@ var _color_of: Callable
 var _mesh: ArrayMesh
 var _material: ShaderMaterial
 var _flower_material: ShaderMaterial
+var _reed_material: ShaderMaterial
 ## LookPreset.meadow() of the last setup.
 var _meadow: Dictionary = {}
 ## Vector2i chunk -> flower MultiMeshInstance3D (only chunks that have flowers).
 var _flower_chunks: Dictionary = {}
+## Vector2i chunk -> reed MultiMeshInstance3D (only chunks that have reeds).
+var _reed_chunks: Dictionary = {}
 ## Vector2i chunk -> MultiMeshInstance3D (null for a chunk without clumps), chunks built so far.
 var _chunks: Dictionary = {}
 var _pending: Array[Vector2i] = []
@@ -71,6 +76,7 @@ func setup(
 	_color_of = color_of
 	_chunks.clear()
 	_flower_chunks.clear()
+	_reed_chunks.clear()
 	_pending.clear()
 	_clearings.clear()
 	_instances = 0
@@ -102,6 +108,12 @@ func setup(
 	_flower_material.set_shader_parameter(
 		&"stem_color", (_meadow["flower_stem_color"] as Color).srgb_to_linear()
 	)
+	_reed_material = ShaderMaterial.new()
+	_reed_material.shader = SHADER
+	_reed_material.set_shader_parameter(
+		&"card", ImageTexture.create_from_image(GrassTexture.reed_card(CARD_SIZE, REED_CARD_SEED))
+	)
+	_reed_material.set_shader_parameter(&"reed_mode", true)
 	_pending = GrassPlanner.chunks_covering(map_rect)
 
 
@@ -113,6 +125,7 @@ static func max_clump_height() -> float:
 		maxf(meadow["tall_height"], meadow["dry_stalk_height"]),
 		maxf(meadow["nettle_height"], (meadow["flower_height"] as Vector2).y)
 	)
+	tallest = maxf(tallest, meadow["reed_height"])
 	return (
 		(
 			CARD_HEIGHT
@@ -141,7 +154,7 @@ func add_clearing(center: Vector2, radius: float) -> void:
 		return
 	var area := Rect2(center - Vector2.ONE * radius, Vector2.ONE * 2.0 * radius)
 	for chunk: Vector2i in GrassPlanner.chunks_covering(area):
-		var built := _chunks.has(chunk) or _flower_chunks.has(chunk)
+		var built := _chunks.has(chunk) or _flower_chunks.has(chunk) or _reed_chunks.has(chunk)
 		_drop_chunk(chunk)
 		if built and not _pending.has(chunk):
 			_pending.append(chunk)
@@ -157,7 +170,7 @@ func is_cleared(position: Vector3) -> bool:
 
 
 func _drop_chunk(chunk: Vector2i) -> void:
-	for chunks: Dictionary in [_chunks, _flower_chunks]:
+	for chunks: Dictionary in [_chunks, _flower_chunks, _reed_chunks]:
 		var node: MultiMeshInstance3D = chunks.get(chunk)
 		if node != null:
 			_instances -= node.multimesh.instance_count
@@ -186,6 +199,14 @@ func instance_count() -> int:
 func flower_nodes() -> Array[MultiMeshInstance3D]:
 	var nodes: Array[MultiMeshInstance3D] = []
 	for node: Variant in _flower_chunks.values():
+		nodes.append(node)
+	return nodes
+
+
+## The reed nodes built so far (chunks without reeds have none).
+func reed_nodes() -> Array[MultiMeshInstance3D]:
+	var nodes: Array[MultiMeshInstance3D] = []
+	for node: Variant in _reed_chunks.values():
 		nodes.append(node)
 	return nodes
 
@@ -242,6 +263,8 @@ func _estimate(density: float) -> float:
 	for c in _grid.coords():
 		if _grid.get_terrain(c) == Terrain.Type.PLAINS:
 			total += float(meadow["flower_density"]) * FLOWER_ESTIMATE_SHARE
+		elif _grid.get_terrain(c) == Terrain.Type.MARSH:
+			total += GrassPlanner.PLAINS_DENSITY * (float(meadow["marsh_density"]) - 1.0)
 	return total * area * density
 
 
@@ -260,6 +283,14 @@ func _build_chunk(chunk: Vector2i) -> MultiMeshInstance3D:
 	var clumps := _without_cleared(
 		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow)
 	)
+	var reeds := clumps.filter(
+		func(g: Dictionary) -> bool: return g["kind"] == GrassPlanner.Kind.REED
+	)
+	if not reeds.is_empty():
+		clumps = clumps.filter(
+			func(g: Dictionary) -> bool: return g["kind"] != GrassPlanner.Kind.REED
+		)
+		_reed_chunks[chunk] = _build_reeds(chunk, reeds)
 	if clumps.is_empty():
 		return null
 	var rect := GrassPlanner.chunk_rect(chunk)
@@ -288,6 +319,26 @@ static func clump_transform(g: Dictionary, origin: Vector3) -> Transform3D:
 	var h: float = g["height"]
 	var basis := Basis(Vector3.UP, g["yaw"]) * Basis.from_scale(Vector3(s, s * h, s))
 	return Transform3D(basis, (g["position"] as Vector3) - origin)
+
+
+func _build_reeds(chunk: Vector2i, reeds: Array) -> MultiMeshInstance3D:
+	var rect := GrassPlanner.chunk_rect(chunk)
+	var origin := Vector3(rect.get_center().x, 0.0, rect.get_center().y)
+	var multi := _new_multimesh(reeds.size())
+	var cells := {}
+	for i in reeds.size():
+		var g: Dictionary = reeds[i]
+		var p: Vector3 = g["position"]
+		multi.set_instance_transform(i, clump_transform(g, origin))
+		var cell := Vector2i((Vector2(p.x, p.z) / COLOR_CELL).floor())
+		if not cells.has(cell):
+			cells[cell] = _color_of.call(p)
+		var dry := GrassPlanner.dry_k(p.x, p.z)
+		multi.set_instance_color(
+			i, GrassPlanner.kind_color(g["kind"], cells[cell], g["tint"], _meadow, dry)
+		)
+	_instances += reeds.size()
+	return _new_instance("Reeds_%d_%d" % [chunk.x, chunk.y], multi, _reed_material, origin)
 
 
 func _build_flowers(chunk: Vector2i, flowers: Array) -> MultiMeshInstance3D:

@@ -5,8 +5,9 @@ extends RefCounted
 ## uses its own hash-seeded RandomNumberGenerator, never GameState.rng, so the same map and seed
 ## always give the same grass and the simulation stays deterministic.
 
-## Grass clump kinds (TASK-070): short lawn, tall unmown grass, dry straw stalks, nettle tufts.
-enum Kind { SHORT, TALL, DRY_STALK, NETTLE }
+## Grass clump kinds (TASK-070): short lawn, tall unmown grass, dry straw stalks, nettle tufts;
+## reeds (TASK-108e) on marshes and river banks.
+enum Kind { SHORT, TALL, DRY_STALK, NETTLE, REED }
 
 const CHUNK_SIZE := 4.0
 ## Clumps per world unit² at density 1.0.
@@ -28,6 +29,8 @@ const INSTANCE_BUDGET := 120000
 const _SLOPE_STEP := 0.1
 ## Own RNG stream of the flowers (TASK-070), so the grass stream is untouched.
 const FLOWER_SEED_SALT := 0xF10E
+## Own RNG stream of the extra marsh candidates (TASK-108e).
+const MARSH_SEED_SALT := 0x4A25
 ## Flower candidates per chunk at flower_density 1 and density 1 (CHUNK_SIZE²).
 const FLOWER_CANDIDATES_PER_DENSITY := 16
 
@@ -85,33 +88,68 @@ static func plan_chunk(
 		var scale_k := rng.randf()
 		var tint := rng.randf()
 		var accept := rng.randf()
-		var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
-		if not grid.has_tile(coord):
-			continue
-		var terrain := grid.get_terrain(coord)
-		var keep := density_of(terrain) / PLAINS_DENSITY
-		if terrain != Terrain.Type.FOREST and meadow["bare_thinning"] > 0.0:
-			keep *= 1.0 - float(meadow["bare_thinning"]) * bare_k(x, z)
-		if accept >= keep:
-			continue
-		var y := surface.ground_height(x, z)
-		if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
-			continue
-		if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
-			continue
-		if not FeatureRibbonPlanner.is_clear(grid, x, z):
-			continue
-		var kind := _kind_at(x, z, coord, terrain, grid, meadow)
-		var clump := {
-			"position": Vector3(x, y, z),
-			"yaw": yaw,
-			"scale": SCALE_MIN + scale_k * SCALE_RANGE,
-			"tint": tint,
-			"kind": kind,
-			"height": kind_height(kind, meadow),
-		}
-		result.append(clump)
+		var clump := _clump_at(x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow)
+		if not clump.is_empty():
+			result.append(clump)
+	# Marsh is denser (TASK-108e): the extra candidates come from their own stream and only
+	# count on marsh, so the main stream above (and every other chunk) is untouched.
+	var extra := roundi(candidates * (float(meadow["marsh_density"]) - 1.0))
+	if extra > 0:
+		var extra_rng := RandomNumberGenerator.new()
+		extra_rng.seed = hash([seed_value ^ MARSH_SEED_SALT, chunk.x, chunk.y])
+		for i in extra:
+			var x := origin.x + extra_rng.randf() * CHUNK_SIZE
+			var z := origin.y + extra_rng.randf() * CHUNK_SIZE
+			var yaw := extra_rng.randf() * TAU
+			var scale_k := extra_rng.randf()
+			var tint := extra_rng.randf()
+			var clump := _clump_at(x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow)
+			if not clump.is_empty():
+				result.append(clump)
 	return result
+
+
+## One clump candidate, or {} when it is rejected. `extra` candidates (the marsh surplus) only
+## count on marsh and are always accepted by density.
+static func _clump_at(
+	x: float,
+	z: float,
+	yaw: float,
+	scale_k: float,
+	tint: float,
+	accept: float,
+	extra: bool,
+	grid: HexGrid,
+	surface: TerrainSurface,
+	meadow: Dictionary
+) -> Dictionary:
+	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
+	if not grid.has_tile(coord):
+		return {}
+	var terrain := grid.get_terrain(coord)
+	if extra and terrain != Terrain.Type.MARSH:
+		return {}
+	var keep := 1.0 if extra else density_of(terrain) / PLAINS_DENSITY
+	if terrain != Terrain.Type.FOREST and meadow["bare_thinning"] > 0.0:
+		keep *= 1.0 - float(meadow["bare_thinning"]) * bare_k(x, z)
+	if accept >= keep:
+		return {}
+	var y := surface.ground_height(x, z)
+	if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
+		return {}
+	if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
+		return {}
+	if not FeatureRibbonPlanner.is_clear(grid, x, z):
+		return {}
+	var kind := _kind_at(x, z, coord, terrain, grid, meadow)
+	return {
+		"position": Vector3(x, y, z),
+		"yaw": yaw,
+		"scale": SCALE_MIN + scale_k * SCALE_RANGE,
+		"tint": tint,
+		"kind": kind,
+		"height": kind_height(kind, meadow),
+	}
 
 
 ## Clumps per world unit² of a terrain type at density 1.0 (0 on water).
@@ -130,6 +168,13 @@ static func density_of(terrain: int) -> float:
 		Terrain.Type.MARSH:
 			return MARSH_DENSITY
 	return 0.0
+
+
+## Dry-grass share [0, 1] at (x, z) (the macro noise the ground texture's dry grass uses).
+static func dry_k(x: float, z: float) -> float:
+	return TerrainNoise.smooth(
+		TerrainSplat.DRY_FROM, TerrainSplat.DRY_TO, GroundNoise.macro_k(x, z)
+	)
 
 
 ## Share [0, 1] of the bare dirt patches of the ground texture at (x, z).
@@ -206,12 +251,17 @@ static func kind_height(kind: int, meadow: Dictionary) -> float:
 			return meadow["dry_stalk_height"]
 		Kind.NETTLE:
 			return meadow["nettle_height"]
+		Kind.REED:
+			return meadow["reed_height"]
 	return 1.0
 
 
 ## Instance colour (linear) of a clump: the ground colour with the per-clump tint, replaced
 ## towards the kind's colour by its mix.
-static func kind_color(kind: int, ground: Color, tint: float, meadow: Dictionary) -> Color:
+## Reeds blend from `reed_color` towards `reed_dry_color` by `dry` (the macro dry noise).
+static func kind_color(
+	kind: int, ground: Color, tint: float, meadow: Dictionary, dry: float = 0.0
+) -> Color:
 	var k := lerpf(0.85, 1.1, tint)
 	var base := Color(ground.r * k, ground.g * k, ground.b * k)
 	var key := ""
@@ -222,10 +272,14 @@ static func kind_color(kind: int, ground: Color, tint: float, meadow: Dictionary
 			key = "dry_stalk"
 		Kind.NETTLE:
 			key = "nettle"
+		Kind.REED:
+			key = "reed"
 		_:
 			return base
-	var target: Color = (meadow[key + "_color"] as Color).srgb_to_linear()
-	return base.lerp(target, meadow[key + "_mix"])
+	var target: Color = meadow[key + "_color"] as Color
+	if kind == Kind.REED:
+		target = target.lerp(meadow["reed_dry_color"], dry)
+	return base.lerp(target.srgb_to_linear(), meadow[key + "_mix"])
 
 
 ## Flowers of one chunk: [{position, yaw, scale, height, color (sRGB), species}], in clusters of
@@ -315,20 +369,44 @@ static func _pick_group(groups: Array, roll: float) -> int:
 	return groups.size() - 1
 
 
+## Whether the clump at (x, z) is a reed (TASK-108e): on marsh where the reed patch noise passes
+## `reed_from` (a `reed_share` fraction of those), or within `reed_band_m` of a river edge on any
+## land except URBAN (with probability `bank_reeds`). Position hashes only, no RNG draws.
+static func is_reed(
+	x: float, z: float, terrain: Terrain.Type, grid: HexGrid, meadow: Dictionary
+) -> bool:
+	if terrain == Terrain.Type.MARSH and float(meadow["reed_share"]) > 0.0:
+		if (
+			GroundNoise.reed_k(x, z, meadow) > float(meadow["reed_from"])
+			and hash01(x, z, 4) < float(meadow["reed_share"])
+		):
+			return true
+	if terrain == Terrain.Type.URBAN or float(meadow["bank_reeds"]) <= 0.0:
+		return false
+	if not grid.has_links():
+		return false
+	var edge := FeatureRibbonPlanner.edge_distance(grid, FeatureRibbonPlanner.Kind.RIVER, x, z)
+	return (
+		edge > 0.0
+		and edge <= MapScale.to_units(float(meadow["reed_band_m"]))
+		and hash01(x, z, 5) < float(meadow["bank_reeds"])
+	)
+
+
 static func _kind_at(
 	x: float, z: float, coord: Vector2i, terrain: Terrain.Type, grid: HexGrid, meadow: Dictionary
 ) -> int:
-	if terrain == Terrain.Type.FOREST:
-		return Kind.SHORT
 	var centre := Hex.to_world(coord, TerrainField.HEX_SIZE)
 	var centre_distance := Vector2(x - centre.x, z - centre.z).length()
 	if centre_distance < float(meadow["centre_clear"]):
 		return Kind.SHORT
-	var dry_k := TerrainNoise.smooth(
-		TerrainSplat.DRY_FROM, TerrainSplat.DRY_TO, GroundNoise.macro_k(x, z)
-	)
+	if is_reed(x, z, terrain, grid, meadow):
+		return Kind.REED
+	if terrain == Terrain.Type.FOREST:
+		return Kind.SHORT
+	var dry_value := dry_k(x, z)
 	var in_edge := forest_edge_distance(x, z, grid) <= float(meadow["edge_band"])
 	var tall := tall_k(terrain, GroundNoise.patch_k(x, z, meadow), in_edge, meadow)
 	var h1 := hash01(x, z, 1)
 	var h2 := hash01(x, z, 2)
-	return pick_kind(terrain, centre_distance, dry_k, tall, in_edge, h1, h2, meadow)
+	return pick_kind(terrain, centre_distance, dry_value, tall, in_edge, h1, h2, meadow)
