@@ -7,6 +7,8 @@ tools: Read, Grep, Glob, Bash
 
 You review the changes (`git diff` plus new files from `git status`) against the task file and CLAUDE.md. Read the diff and the changed files; open other files only where a check needs them.
 
+Keep your context small: start from `git diff --stat` and `git status --short`, read diffs per file, read docs only by section (`tools/doc.py architecture "<heading>"`), and pipe check output through `tail -40`.
+
 Checklist:
 1. `tools/check.sh` passes – run it yourself unless the orchestrator told you it already passed on the current tree.
 2. `src/core/` and `src/ai/` don't reference `Node`, scenes, `Input`, `get_tree`, `await` (check with grep).

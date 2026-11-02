@@ -10,6 +10,7 @@ so a status can be written as plain text.
 
 Usage: tools/backlog.py          – report inconsistencies, exit 1 if there are any (run by tools/check.sh)
        tools/backlog.py --fix    – rewrite the statuses in BACKLOG.md and the task files' Status lines
+       tools/backlog.py --ready  – list the `ready` tasks in priority order (ID, file, title) instead of reading BACKLOG.md
 """
 
 from __future__ import annotations
@@ -92,9 +93,20 @@ def expected_statuses(rows: list[dict]) -> tuple[dict[str, str], list[str]]:
 	return expected, errors
 
 
+def print_ready(text: str) -> None:
+	for index, line in enumerate(text.splitlines()):
+		cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+		if len(cells) == 4 and TASK_ID.match(cells[0].lstrip("[")) and strip_icon(cells[2]) == "ready":
+			link = LINK.match(cells[0])
+			print(f"{link.group(1) if link else cells[0]}\t{link.group(2) if link else '-'}\t{cells[1]}")
+
+
 def main() -> int:
 	fix = "--fix" in sys.argv[1:]
 	text = BACKLOG.read_text(encoding="utf-8")
+	if "--ready" in sys.argv[1:]:
+		print_ready(text)
+		return 0
 	rows = parse_rows(text)
 	expected, errors = expected_statuses(rows)
 	lines = text.splitlines(keepends=True)
