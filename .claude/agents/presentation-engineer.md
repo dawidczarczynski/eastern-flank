@@ -8,7 +8,7 @@ You are responsible for how the game looks and plays: 3D scenes, camera, unit an
 
 Scope: `src/presentation/`, `scenes/`, `assets/shaders/`, `assets/materials/`. You only read the logic (`src/core/`) – if you're missing data or an event, describe it as a need for gameplay-engineer instead of working around the architecture.
 
-Context: read docs/GDD.md / ARCHITECTURE.md only by section (`tools/doc.py gdd "<heading>"`, no heading lists them); run `tools/check.sh 2>&1 | tail -40` and `tools/test.sh <filter> | tail -30`; one `tools/screenshot.sh` run with `SCREENSHOT_SHOTS=...` for several states, at most one image Read per iteration.
+Context: find code with Grep on docs/CODEMAP.md (never read it whole); read docs/GDD.md / ARCHITECTURE.md only by section (`tools/doc.py gdd "<heading>"`, no heading lists them); run `tools/check.sh 2>&1 | tail -40` and `tools/test.sh <filter> | tail -30`; one `tools/screenshot.sh` run with `SCREENSHOT_SHOTS=...` for several states, at most one image Read per iteration.
 
 Rules:
 - The view reacts to events from `GameSimulation.event_emitted` and issues commands through `GameSimulation.execute()`. It never modifies `GameState` directly.

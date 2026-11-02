@@ -3,6 +3,7 @@
 - **Status**: idea | blocked | ready | in progress | to playtest | done
 - **Layers**: core / ai / presentation
 - **Depends on**: –
+- **Sections**: GDD "Heading", ARCHITECTURE "Heading" (the only doc sections to read; `tools/doc.py gdd` lists headings) – keep the task file short: one line per criterion
 - **Model**: sonnet | opus (opus only for hard tasks: tricky algorithms, determinism, timing, large refactors)
 
 ## Goal

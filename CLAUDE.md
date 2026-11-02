@@ -9,6 +9,7 @@ Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL
 - `tools/lint.sh [--fix]` – gdformat + gdlint
 - `tools/backlog.py [--fix]` – checks/fixes `blocked`/`ready` in docs/tasks/BACKLOG.md against dependencies; run after any status change
 - `tools/doc.py gdd|architecture [heading]` – print one section of a big doc instead of the whole file (no heading = list headings with line numbers); `tools/backlog.py --ready` lists ready tasks. **docs/GDD.md (~120 KB), ARCHITECTURE.md and BACKLOG.md must never be read whole.**
+- `docs/CODEMAP.md` – generated one-line-per-file map of `src/` (class name + purpose): **Grep it** to find where something lives instead of exploring; kept current by `tools/check.sh`.
 - `tools/screenshot.sh [out.png]` – render the battle scene to `.screenshots/battle.png`; Read it to check visual changes
 - `tools/readme_screenshot.sh` – re-render `docs/images/gameplay.png`
 - `tools/simulate.sh N [--seed=S] [--scenario=…]` – headless AI-vs-AI matches (balancing)

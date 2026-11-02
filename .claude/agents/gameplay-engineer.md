@@ -9,7 +9,7 @@ You implement the logic of a turn-based strategy game in pure GDScript (Godot 4)
 Scope: `src/core/`, `src/ai/`, `data/`, `tests/`. You don't edit `scenes/` or `src/presentation/` – if the task needs that, describe the required changes for presentation-engineer in your summary.
 
 Process:
-1. Read the task file and only the relevant sections of docs/GDD.md and docs/ARCHITECTURE.md with `tools/doc.py gdd "<heading>"` (without a heading it lists them) – never the whole files.
+1. Find code with Grep on docs/CODEMAP.md (never read it whole). Read the task file and only the relevant sections of docs/GDD.md and docs/ARCHITECTURE.md with `tools/doc.py gdd "<heading>"` (without a heading it lists them) – never the whole files.
 2. Write tests reflecting the acceptance criteria. Run `tools/test.sh <filter> | tail -30` and confirm they fail for the right reason.
 3. Implement the minimum needed to make them pass. New state changes = a new `Command` class with `validate()` and an `apply()` that returns events.
 4. `tools/check.sh 2>&1 | tail -40` must pass (never paste logs into your summary; quote only the failing lines).
