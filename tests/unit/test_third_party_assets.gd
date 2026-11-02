@@ -7,7 +7,7 @@ const MANIFEST_PATH := ROOT + "/credits.json"
 const REQUIRED_KEYS: Array[String] = [
 	"id", "kind", "title", "author", "source_url", "license", "downloaded", "files", "notes"
 ]
-const KINDS: Array[String] = ["hdri", "textures", "models"]
+const KINDS: Array[String] = ["hdri", "textures", "models", "audio"]
 const LICENSE := "CC0-1.0"
 const MAX_TOTAL_BYTES := 80 * 1024 * 1024
 const MAX_IMAGE_SIDE := 2048

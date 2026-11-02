@@ -14,3 +14,6 @@ move_points = 3
 attack = 4
 defense = 3
 attack_range = 1
+fire_sound = &"rifle_ak"
+engine_sound = &"none"
+move_sound = &"none"

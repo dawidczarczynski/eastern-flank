@@ -308,6 +308,7 @@ The game opens in the main menu:
 - **Start operation** starts the battle. There is no way back to the menu from a battle; restart the game for that.
 - **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
 - **Unit catalog** opens a viewer where you can look at every unit in the game.
+- **Sound** switches all sound on or off; **Master volume** and **Ambient volume** are sliders (0-100 %). They apply at once and are saved for the next start. See section 12a.
 
 **Unit catalog.** The list on the left has every unit, grouped by class; a unit without a finished 3D model is marked `(!)` and shown as a simple placeholder. The selected unit stands on a ground disc in the middle. The panel on the right shows its name, its side (with buttons to switch sides when more than one army fields it, e.g. a squad in Polish or Russian colours), its class, how it moves, its HP, Attack, Defense, Moves and Range, and the model's size in metres.
 
@@ -334,6 +335,16 @@ While Deploy, Raise launcher, Traverse or Fire is running, the other pose button
 | Reset the view | Double-click, or Home |
 | Back to the main menu | Esc, or the ‹ Back button |
 
+## 12a. Sound
+
+The battle has sound; there is no music yet.
+
+- **Clicks.** Buttons click when pressed and tick softly when you hover over them; selecting one of your units, giving a move order and giving an attack order each have their own short cue, and an order the game refuses plays a low error sound.
+- **Weapons.** Every kind of unit fires with its own sound: tank cannon, rifle (Polish and Russian squads sound different), rocket launchers (one launch sound per rocket of a salvo). Shells and rockets explode where they land; a destroyed unit gets a bigger explosion. A complete miss of a tank or squad makes no impact sound.
+- **Engines.** A moving vehicle rumbles for the whole length of its move (tanks with a low track rumble, rocket trucks with a tyre hum); the engine rises in pitch when it sets off and drops when it stops. Infantry moves silently. Sounds are positional: they are louder and pan to the side when the unit is near the camera's view.
+- **Forest.** When you zoom the camera in close (roughly the closest third of the zoom range) over a forest, birdsong and the rustle of trees fade in over a second or two, with random bird calls on top; they fade out when you zoom out or pan to open ground.
+- **Volume.** Master volume, Ambient volume (the forest sound only) and the Sound on/off switch are in the main menu, and are remembered. With the volume at 0 or sound off, nothing is played.
+
 ## 13. Not in the game yet
 
-To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, an options or graphics settings menu, and saving/loading a match to continue later. On real-terrain maps: bridges over lakes and wide rivers (a road across water does not make it passable), houses in villages, and field or forest tracks as roads.
+To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, line of sight, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, a graphics settings menu, music, and saving/loading a match to continue later. On real-terrain maps: bridges over lakes and wide rivers (a road across water does not make it passable), houses in villages, and field or forest tracks as roads.

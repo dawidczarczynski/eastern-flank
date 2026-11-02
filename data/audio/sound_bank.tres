@@ -1,0 +1,95 @@
+[gd_resource type="Resource" script_class="SoundBank" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/sound_bank.gd" id="1_bank"]
+
+[resource]
+script = ExtResource("1_bank")
+entries = {
+"ui_click": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/click_001.ogg", "res://assets/third_party/audio/kenney_interface/click_002.ogg"),
+"gain_db": -14.0
+},
+"ui_hover": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/tick_001.ogg", "res://assets/third_party/audio/kenney_interface/tick_002.ogg"),
+"gain_db": -26.0,
+"pitch": 1.1
+},
+"ui_select": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/tick_004.ogg"),
+"gain_db": -20.0,
+"pitch": 1.3
+},
+"ui_move": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/click_004.ogg"),
+"gain_db": -20.0,
+"pitch": 0.8
+},
+"ui_attack": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/click_003.ogg"),
+"gain_db": -19.0,
+"pitch": 0.65
+},
+"ui_error": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/tick_001.ogg"),
+"gain_db": -26.0,
+"pitch": 0.55
+},
+"ui_toggle": {
+"streams": PackedStringArray("res://assets/third_party/audio/kenney_interface/click_004.ogg"),
+"gain_db": -16.0,
+"pitch": 1.1
+},
+"tank_cannon": {
+"streams": PackedStringArray("res://assets/third_party/audio/cc0_bang/cannon_01.ogg", "res://assets/third_party/audio/cc0_bang/cannon_02.ogg", "res://assets/third_party/audio/cc0_bang/cannon_03.ogg", "res://assets/third_party/audio/cc0_bang/cannon_04.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_fire_1.ogg"),
+"gain_db": -1.0
+},
+"rifle": {
+"streams": PackedStringArray("res://assets/third_party/audio/firearms/rifle_1.wav", "res://assets/third_party/audio/firearms/rifle_2.wav"),
+"gain_db": -4.0
+},
+"rifle_ak": {
+"streams": PackedStringArray("res://assets/third_party/audio/firearms/rifle_ak_1.wav", "res://assets/third_party/audio/firearms/rifle_ak_2.wav"),
+"gain_db": -4.0
+},
+"mlrs_rocket": {
+"streams": PackedStringArray("res://assets/audio/sfx/rocket_launch_1.wav", "res://assets/audio/sfx/rocket_launch_2.wav"),
+"gain_db": -9.0
+},
+"explosion_small": {
+"streams": PackedStringArray("res://assets/third_party/audio/cc0_100sfx/explosion.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_cannon_1.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_wall_no_splash.ogg"),
+"gain_db": -3.0
+},
+"explosion_large": {
+"streams": PackedStringArray("res://assets/third_party/audio/battle_at_sea/ship_destroyed_short.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_1.ogg"),
+"gain_db": 0.0
+},
+"engine_diesel_heavy": {
+"streams": PackedStringArray("res://assets/audio/sfx/engine_heavy_loop.wav"),
+"gain_db": -14.0,
+"loop": true
+},
+"engine_diesel_light": {
+"streams": PackedStringArray("res://assets/audio/sfx/engine_light_loop.wav"),
+"gain_db": -16.0,
+"loop": true
+},
+"move_tracks": {
+"streams": PackedStringArray("res://assets/audio/sfx/tracks_loop.wav"),
+"gain_db": -16.0,
+"loop": true
+},
+"move_wheels": {
+"streams": PackedStringArray("res://assets/audio/sfx/wheels_loop.wav"),
+"gain_db": -18.0,
+"loop": true
+},
+"forest_ambience": {
+"streams": PackedStringArray("res://assets/third_party/audio/forest_ambience/forest_ambience.mp3"),
+"gain_db": -8.0,
+"loop": true
+},
+"forest_birds": {
+"streams": PackedStringArray("res://assets/third_party/audio/forest_birds/birds_01.wav", "res://assets/third_party/audio/forest_birds/birds_02.wav", "res://assets/third_party/audio/forest_birds/birds_03.wav", "res://assets/third_party/audio/forest_birds/birds_04.wav", "res://assets/third_party/audio/forest_birds/birds_05.wav", "res://assets/third_party/audio/forest_birds/birds_06.wav", "res://assets/third_party/audio/forest_birds/birds_07.wav", "res://assets/third_party/audio/forest_birds/birds_08.wav", "res://assets/third_party/audio/forest_birds/birds_09.wav", "res://assets/third_party/audio/forest_birds/birds_10.wav"),
+"gain_db": -4.0
+}
+}

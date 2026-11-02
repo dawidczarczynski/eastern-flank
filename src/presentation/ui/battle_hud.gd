@@ -93,6 +93,11 @@ func on_turn_started(state: GameState, turn: int, player: int) -> void:
 	_prev_player = player
 
 
+## The end-turn button (the controller hooks its click and hover sounds to it).
+func end_button() -> Button:
+	return _end_button
+
+
 func set_end_enabled(enabled: bool) -> void:
 	_end_button.disabled = not enabled
 	_end_button.modulate.a = 1.0 if enabled else 0.5

@@ -9,6 +9,9 @@ extends Node
 ##   It follows the unit every frame and closes on Esc, a click elsewhere, the end of the turn or
 ##   when input stops being allowed. ATTACK issues AttackCommand through GameSimulation.execute().
 
+## The ATTACK action was accepted by the simulation (the battle plays its order cue).
+signal attack_ordered
+
 var _sim: GameSimulation
 var _human := 0
 var _unit_views: Dictionary  # unit id -> UnitView (shared with BattleController)
@@ -196,7 +199,8 @@ func _activate(slot: int) -> void:
 			if data["enabled"]:
 				var command := AttackCommand.new(_model["attacker_id"], _model["target_id"])
 				close()
-				_sim.execute(command)
+				if _sim.execute(command):
+					attack_ordered.emit()
 			else:
 				_ring.hovered = slot  # a key press shows why it is unavailable
 				_refresh_side()

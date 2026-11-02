@@ -136,3 +136,8 @@ UNIT MENU,UNIT MENU,MENU JEDNOSTKI
 ACTION,ACTION,AKCJA
 UNIT,UNIT,JEDNOSTKA
 "Show the unit's card: strength, stats and status.","Show the unit's card: strength, stats and status.","Pokaż kartę jednostki: siłę, parametry i stan."
+Sound,Sound,Dźwięk
+On,On,Włączony
+Off,Off,Wyłączony
+Master volume,Master volume,Głośność główna
+Ambient volume,Ambient volume,Głośność otoczenia

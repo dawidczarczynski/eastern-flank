@@ -31,3 +31,10 @@ Rules:
 - (+) Every downloaded file has a traceable source and licence; the guard test fails as soon as an uncredited or oversized file is added.
 - (−) Repository size and first import time grow; Godot generates `.import` files for the assets, which are committed as usual and never hand-edited.
 - (−) "Every model is procedural" no longer holds for vegetation; style consistency becomes a review point.
+
+## Amendment 2026-11-02 (TASK-123): audio
+
+- **Sound effects and ambient loops – allowed**, same CC0-only rule and manifest. Kind `audio`, layout `assets/third_party/audio/<group>/<files>` (manifest id `audio_<group>`). Sources: [OpenGameArt](https://opengameart.org) (licence checked on each file's page), [Kenney](https://kenney.nl) (CC0 packs, also mirrored on OpenGameArt). Music stays out of scope.
+- Files may be trimmed, converted (mono, 16-bit WAV, <= 32 kHz where a recording is long) and renamed before they are committed; the entry's `notes` say what was done. Formats Godot imports directly: `.ogg`, `.wav`, `.mp3`. Keep the audio total well below the shared 80 MB budget (TASK-123: ~4 MB).
+- Sounds the project generates itself (no suitable CC0 recording found: engine, track and wheel loops and the rocket launch, `tools/gen_move_loops.py`) live in `assets/audio/sfx/`, not in `assets/third_party/`, and need no credit.
+- Downloaded archives (`.zip`, `.7z`) are unpacked in a scratch directory; only audio files are copied in.

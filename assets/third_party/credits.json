@@ -113,5 +113,121 @@
 			"hdri/kloofendal_38d_partly_cloudy_puresky/sky_2k.hdr"
 		],
 		"notes": "TASK-054 battle sky, ambient and reflections. 2k HDR (2048 x 1024). Sun measured from the image: u = 0.600 (pixel column 1228 of 2048), elevation 37.9 deg. Horizon band (0-8 deg) average #abb1b5 (sRGB). Renamed from kloofendal_38d_partly_cloudy_puresky_2k.hdr."
+	},
+	{
+		"id": "audio_kenney_interface",
+		"kind": "audio",
+		"title": "Interface Sounds",
+		"author": "Kenney (kenney.nl)",
+		"source_url": "https://opengameart.org/content/interface-sounds",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/kenney_interface/click_001.ogg",
+			"audio/kenney_interface/click_002.ogg",
+			"audio/kenney_interface/click_003.ogg",
+			"audio/kenney_interface/click_004.ogg",
+			"audio/kenney_interface/tick_001.ogg",
+			"audio/kenney_interface/tick_002.ogg",
+			"audio/kenney_interface/tick_004.ogg"
+		],
+		"notes": "TASK-123. Quiet UI clicks and ticks (7 of the 100 files), copied unchanged from kenney_interfaceSounds.zip (Audio/); pitched and attenuated in the sound bank."
+	},
+	{
+		"id": "audio_cc0_bang",
+		"kind": "audio",
+		"title": "25 CC0 bang / firework SFX",
+		"author": "rubberduck",
+		"source_url": "https://opengameart.org/content/25-cc0-bang-firework-sfx",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/cc0_bang/cannon_01.ogg",
+			"audio/cc0_bang/cannon_02.ogg",
+			"audio/cc0_bang/cannon_03.ogg",
+			"audio/cc0_bang/cannon_04.ogg"
+		],
+		"notes": "TASK-123. Tank cannon shots (cannon_01..04), copied unchanged from 25-CC0-bang-sfx.zip."
+	},
+	{
+		"id": "audio_cc0_100sfx",
+		"kind": "audio",
+		"title": "100 CC0 SFX",
+		"author": "rubberduck",
+		"source_url": "https://opengameart.org/content/100-cc0-sfx",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/cc0_100sfx/explosion.ogg"
+		],
+		"notes": "TASK-123. Small explosion (explosion.ogg), copied unchanged from 100-CC0-SFX_0.zip."
+	},
+	{
+		"id": "audio_battle_at_sea",
+		"kind": "audio",
+		"title": "Battle at sea",
+		"author": "Thimras",
+		"source_url": "https://opengameart.org/content/battle-at-sea",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/battle_at_sea/cannon_fire_1.ogg",
+			"audio/battle_at_sea/cannon_hit_1.ogg",
+			"audio/battle_at_sea/cannon_hit_cannon_1.ogg",
+			"audio/battle_at_sea/cannon_hit_wall_no_splash.ogg",
+			"audio/battle_at_sea/ship_destroyed_short.ogg"
+		],
+		"notes": "TASK-123. Cannon fire / impacts / destruction used for the tank cannon layer and the explosions; the five files are copied unchanged."
+	},
+	{
+		"id": "audio_firearms",
+		"kind": "audio",
+		"title": "The Free Firearm Sound Library",
+		"author": "Ben Jaszczak, et al. (OpenGameArt upload by bart)",
+		"source_url": "https://opengameart.org/content/the-free-firearm-sound-library",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/firearms/rifle_1.wav",
+			"audio/firearms/rifle_2.wav",
+			"audio/firearms/rifle_ak_1.wav",
+			"audio/firearms/rifle_ak_2.wav"
+		],
+		"notes": "TASK-123. Rifle shots: rifle_1/2 from AR-15 D_24P/D_32P, rifle_ak_1/2 from AK-47 C_29P/C_27P (near-distance recordings). Converted from 96 kHz 24-bit stereo to 32 kHz 16-bit mono, trimmed to the first shot(s) (1.2-1.4 s) with a 0.15 s fade-out."
+	},
+	{
+		"id": "audio_forest_ambience",
+		"kind": "audio",
+		"title": "Forest Ambience",
+		"author": "TinyWorlds",
+		"source_url": "https://opengameart.org/content/forest-ambience",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/forest_ambience/forest_ambience.mp3"
+		],
+		"notes": "TASK-123. Seamless forest loop, Forest_Ambience.mp3 unchanged."
+	},
+	{
+		"id": "audio_forest_birds",
+		"kind": "audio",
+		"title": "forest bird sounds",
+		"author": "pauliuw",
+		"source_url": "https://opengameart.org/content/forest-bird-sounds",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-02",
+		"files": [
+			"audio/forest_birds/birds_01.wav",
+			"audio/forest_birds/birds_02.wav",
+			"audio/forest_birds/birds_03.wav",
+			"audio/forest_birds/birds_04.wav",
+			"audio/forest_birds/birds_05.wav",
+			"audio/forest_birds/birds_06.wav",
+			"audio/forest_birds/birds_07.wav",
+			"audio/forest_birds/birds_08.wav",
+			"audio/forest_birds/birds_09.wav",
+			"audio/forest_birds/birds_10.wav"
+		],
+		"notes": "TASK-123. Ten bird clips (8 kHz mono), renamed Forest Birds N.wav -> birds_NN.wav; random one-shot chirps."
 	}
 ]

@@ -14,3 +14,6 @@ move_points = 3
 attack = 6
 defense = 1
 attack_range = 5
+fire_sound = &"mlrs_rocket"
+engine_sound = &"diesel_light"
+move_sound = &"wheels"

@@ -38,6 +38,7 @@ var scenario_name := ""
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
+var _audio: AudioDirector  # TASK-123: sound at the same playback moments as the animations
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
 var _selected_unit_id := -1
@@ -83,6 +84,7 @@ func _ready() -> void:
 	_sim = GameSimulation.new(state)
 	_sim.event_emitted.connect(_on_event)
 	_sim.command_rejected.connect(_on_command_rejected)
+	_audio = AudioDirector.create(self, _camera_rig, state.grid, _map_view.hex_size)
 
 	_build_hud_root()
 	_build_bottom_left_stack()
@@ -417,11 +419,15 @@ func _draw_path_preview() -> int:
 func _on_hex_clicked(coord: Vector2i) -> void:
 	var clicked := _sim.state.unit_at(coord)
 	if clicked != null and clicked.owner_id == HUMAN_PLAYER:
+		if clicked.id != _selected_unit_id:
+			_audio.play_ui(&"select_unit")
 		_select(clicked.id)
 	elif clicked != null and _selected_unit_id != -1:
-		_sim.execute(AttackCommand.new(_selected_unit_id, clicked.id))
+		if _sim.execute(AttackCommand.new(_selected_unit_id, clicked.id)):
+			_audio.play_ui(&"attack_order")
 	elif _selected_unit_id != -1:
-		_sim.execute(MoveUnitCommand.new(_selected_unit_id, coord))
+		if _sim.execute(MoveUnitCommand.new(_selected_unit_id, coord)):
+			_audio.play_ui(&"move_order")
 	# The selection UI is refreshed when the resulting events have been played (_on_queue_drained).
 
 
@@ -537,6 +543,7 @@ func _build_hud_root() -> void:
 	_hud_root.add_child(_hud)
 	_hud.setup(HUMAN_PLAYER)
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	_audio.hook_button(_hud.end_button())
 	_hud_root.add_child(FpsCounter.new())
 
 
@@ -563,6 +570,7 @@ func _build_bottom_left_stack() -> void:
 	_portraits.setup(quality)
 	_target_ring.setup(_sim, HUMAN_PLAYER, _hud_root, _unit_views, _portrait_of, _input_allowed)
 	add_child(_target_ring)
+	_target_ring.attack_ordered.connect(_audio.play_ui.bind(&"attack_order"))
 
 
 ## The target tag over a valid target of the selected unit (TASK-089b), hidden during a camera
@@ -714,6 +722,7 @@ func _play_event(event: Dictionary) -> Tween:
 				_play_track_marks(event["unit_id"], points, view.facing_yaw())
 				var move := view.move_along(points, _map_view.surface().ground_height)
 				if move != null:
+					_audio.follow_move(move, _sim.state.get_unit(event["unit_id"]), view)
 					# A unit that ends its move on a wreck's tile hides the wreck.
 					move.finished.connect(_wrecks.on_unit_moved.bind(event["to"]), CONNECT_ONE_SHOT)
 				return move
@@ -734,6 +743,7 @@ func _play_event(event: Dictionary) -> Tween:
 				return _play_direct_fire(shooter, target, event["target_hp"], event)
 			if target != null:
 				_add_impact_marks(event, target, shooter)
+				_audio.play_attack(_definition_of(event), shooter, target, event["damage"])
 				return target.play_hit(event["target_hp"])
 		&"unit_died":
 			return _on_unit_died(event["unit_id"])
@@ -765,7 +775,8 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 	var volley := VolleyPlayback.append_salvo(
 		tween, self, shooter, aim_point, rng, radius, context, ground
 	)
-	volley.effects = SalvoFxPool.effects(_salvo_fx_pool, quality)
+	var fx := SalvoFxPool.effects(_salvo_fx_pool, quality)
+	volley.effects = _audio.salvo_effects(fx, _definition_of(event), event["damage"])
 	VolleyPlayback.connect_hp_steps(
 		volley, target, target_hp, _event_speed, _add_impact_marks.bind(event, target, shooter)
 	)
@@ -800,9 +811,15 @@ func _play_direct_hit(
 	if not is_instance_valid(target):
 		return
 	_add_impact_marks(event, target, shooter)
+	_audio.play_attack(_definition_of(event), shooter, target, event["damage"])
 	var hit := target.play_hit(target_hp)
 	if hit != null:
 		hit.set_speed_scale(_event_speed)
+
+
+## The definition of the attacker of an attack event.
+func _definition_of(event: Dictionary) -> UnitDefinition:
+	return _sim.state.get_unit(event["attacker_id"]).definition
 
 
 ## Tile centres of `[from] + path` of a `unit_moved` event (`[from, to]` for events without
@@ -829,6 +846,7 @@ func _on_unit_died(unit_id: int) -> Tween:
 	var view: UnitView = _unit_views.get(unit_id)
 	if view == null:
 		return null
+	_audio.play_impact(1, true, false, view.global_position)
 	# Forget the view right away: it frees itself at the end of the death tween.
 	_unit_views.erase(unit_id)
 	var unit := _sim.state.get_unit(unit_id)
@@ -965,6 +983,8 @@ func _on_queue_drained() -> void:
 
 func _on_command_rejected(command: Command, reason: String) -> void:
 	print("Rejected %s: %s" % [command.get_script().get_global_name(), reason])
+	if _sim.state.current_player == HUMAN_PLAYER:
+		_audio.play_ui(&"rejected")
 	# Only the human's own rejected orders get a toast (the AI never reaches the UI).
 	if REJECT_TOASTS.has(reason) and _sim.state.current_player == HUMAN_PLAYER:
 		_hud.show_toast(REJECT_TOASTS[reason])

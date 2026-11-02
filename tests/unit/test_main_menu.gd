@@ -73,3 +73,14 @@ func test_scenario_button_cycles_and_start_stores_the_choice() -> void:
 	BattleOptions.menu_choice = "suwalki_battle"
 	assert_eq(BattleOptions.chosen(PackedStringArray()), "suwalki_battle")
 	BattleOptions.menu_choice = ""
+
+
+func test_sound_controls_persist() -> void:
+	assert_eq(_menu.mute_button().text, "SOUND: ON")
+	_menu.mute_button().pressed.emit()
+	assert_eq(_menu.mute_button().text, "SOUND: OFF")
+	_menu.master_slider().value_changed.emit(0.4)
+	var stored := GameSettings.load_sound(TEMP)
+	assert_true(stored["muted"])
+	assert_eq(stored["master"], 0.4)
+	SoundMix.apply(GameSettings.load_sound("user://does_not_exist.cfg"))  # restore the buses

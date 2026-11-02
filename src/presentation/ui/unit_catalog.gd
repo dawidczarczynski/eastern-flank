@@ -45,6 +45,7 @@ func _ready() -> void:
 	add_child(_camera)
 	_stage.state_changed.connect(_refresh_animation_buttons)
 	_build_ui()
+	AudioDirector.create(self, null, null, 1.0).hook_tree(self)
 	var groups := CatalogUnits.grouped()
 	if not groups.is_empty():
 		select_unit((groups[0]["units"] as Array)[0])

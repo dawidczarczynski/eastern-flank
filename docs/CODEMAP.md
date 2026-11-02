@@ -42,11 +42,19 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `FactionDefinition` – Static data for a faction (a country). Instances are kept as .tres files in data/factions/ (`faction_definition.gd`)
 - `ImportedMap` – A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018): (`imported_map.gd`)
+- `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
 - `TerrainFeatures` – Rule numbers of the linear map features (TASK-108): roads and rivers, stored per tile as… (`terrain_features.gd`)
 - `TerrainGenerationSettings` – Numbers of the elevation/moisture terrain generator (TerrainField, MapGenerator). (`terrain_generation_settings.gd`)
 - `UnitDefinition` – Static data for a unit type. Instances are kept as .tres files in data/units/. (`unit_definition.gd`)
 - `VictoryCondition` – One way a battle can be won (BattleObjectives.conditions, TASK-088); BattleRules checks t… (`victory_condition.gd`)
+
+## src/presentation/audio/
+
+- `AudioDirector` – Plays the battle sound (TASK-123). Presentation only: BattleController calls it at the sa… (`audio_director.gd`)
+- `AudioSalvoEffects` – Sound of a rocket salvo (TASK-123): one launch sound per rocket at its tube and an explos… (`audio_salvo_effects.gd`)
+- `SoundMix` – Audio buses and volume settings (TASK-123): Master -> SFX, UI, Ambient. Buses are created… (`sound_mix.gd`)
+- `SoundPlanner` – Pure rules of the battle sound (TASK-123): which sound id plays for which UI action, shot, (`sound_planner.gd`)
 
 ## src/presentation/
 

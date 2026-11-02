@@ -16,3 +16,9 @@ extends Resource
 @export var attack: int = 4
 @export var defense: int = 2
 @export var attack_range: int = 1
+## Sound ids (TASK-123) looked up in data/audio/sound_bank.tres by the view: the shot, the engine
+## loop while the unit moves (`none` = silent) and the running-gear loop (`tracks`, `wheels`;
+## `none` for infantry).
+@export var fire_sound: StringName = &"rifle"
+@export var engine_sound: StringName = &"none"
+@export var move_sound: StringName = &"none"
