@@ -88,7 +88,9 @@ NO COMMAND POINTS LEFT THIS TURN,NO COMMAND POINTS LEFT THIS TURN,Brak punktów 
 CONFIRM,CONFIRM,POTWIERDŹ
 CANCEL,CANCEL,ANULUJ
 BUILDING THE BATTLEFIELD,BUILDING THE BATTLEFIELD,Budowanie pola bitwy
-Start operation,Start operation,Rozpocznij operację
+Start scenario,Start scenario,Rozpocznij scenariusz
+Start,Start,Start
+Settings,Settings,Ustawienia
 Language,Language,Język
 Scenario,Scenario,Scenariusz
 Objective battle,Objective battle,Bitwa o cele

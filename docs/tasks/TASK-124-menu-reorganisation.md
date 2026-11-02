@@ -1,6 +1,6 @@
 # TASK-124: Main menu reorganisation – scenario screen, settings screen
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`src/presentation/ui/main_menu.gd`, two new screens), tests
 - **Depends on**: – (builds on TASK-084 main menu and TASK-123 sound settings)
 - **Sections**: MANUAL "12. Main menu and unit catalog"
@@ -40,4 +40,7 @@ Rewrite the list in docs/MANUAL.md section 12 (and the sound section 12a where i
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `MainMenu` is now three pages in one scene (main / scenario / settings, `show_page()`); Esc on a sub-page returns to main. The unit catalog already had Back + Esc.
+- New `ScenarioPreview` control (`src/presentation/ui/scenario_preview.gd`): draws the scenario grid as 2D hex polygons (terrain colours, roads, rivers, unit start dots) from `Scenario.build`; geometry cached per scenario (12 ms cold for the 120-hex maps, 43 ms for suwalki).
+- Strings added: "Start scenario", "Start", "Settings" (EN/PL); "Start operation" replaced. MANUAL sections 12/12a and the "Start operation" mentions updated.
+- `tools/check.sh`: all menu tests pass; the only 3 failures are `test_operational_map_data` (uncommitted TASK-092a work from another session), unrelated.

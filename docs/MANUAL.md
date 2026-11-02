@@ -10,7 +10,7 @@ The two sides field different, real-world equipment with its own stats: Poland h
 
 **Goal:** every battle has its own victory conditions and may have a turn limit (see section 8). In the normal battle the goal is to destroy every enemy unit: the last side with units left on the map wins, and there is no turn limit. A second, objective battle (a debug option for now) is about taking and holding two marked hexes within 8 turns.
 
-The game opens in a main menu, where you start the battle, pick the scenario, pick the language or browse the units in the unit catalog (see section 12).
+The game opens in a main menu, where you start the battle, pick the scenario, change the settings (language, sound) or browse the units in the unit catalog (see section 12).
 
 ## 2. The battle
 
@@ -46,7 +46,7 @@ Some battles limit how many units each side can command per turn. The normal bat
 - **Counterattacks never cost points.**
 - With 0 points left, a unit that has not acted yet this turn can't move or attack; trying it shows "NO COMMAND POINTS LEFT THIS TURN". Units already activated keep acting normally.
 - The turn bar shows the points left, e.g. `C2 1/2` (see Screen).
-- To try it, start the game with `--scenario=command_points_battle` (for example `tools/run.sh --scenario=command_points_battle`), then pick **Start operation**: the normal battle with **N = 2** for both sides. It is a test battle; later, an operation's battle conditions will set N.
+- To try it, start the game with `--scenario=command_points_battle` (for example `tools/run.sh --scenario=command_points_battle`), then pick **Start scenario** and **Start** (the option preselects its entry): the normal battle with **N = 2** for both sides. It is a test battle; later, an operation's battle conditions will set N.
 
 ## 4. Units
 
@@ -97,7 +97,7 @@ Battles are meant to be fought on the real ground of the eastern flank. A real-t
 - A hex takes the terrain that covers most of it: mostly lake → **water**, mostly forest → **forest**. Otherwise it is open ground, checked in this order: **urban** when buildings and yards cover at least a fifth of it, **marsh** when wetland covers at least a quarter, **hills** when the ground rises or falls 15 m or more within the hex, **fields** when farmland is the largest open cover, else **plains** (meadows and open ground the map data does not describe).
 - Main roads and village streets count as **roads** (field and forest tracks do not); rivers, canals and named streams count as **rivers**. Wide rivers drawn as water areas are water.
 - On a real-terrain map the terrain panel shows the hex's **real height above sea level**. The 3D relief is drawn 1.5 × taller than reality so that hills read on screen, and every lake sits at the same water level.
-- To try it, start the game with `--scenario=suwalki_battle` (for example `tools/run.sh --scenario=suwalki_battle`), then pick **Start operation**: the usual forces on the lakes and moraine hills around **Szurpiły** in the Suwałki Landscape Park (north-east Poland). Poland deploys in the west, Russia in the east; the usual objectives and win conditions apply (see the battle rules).
+- To try it, start the game with `--scenario=suwalki_battle` (for example `tools/run.sh --scenario=suwalki_battle`), then pick **Start scenario** and **Start** (the option preselects its entry): the usual forces on the lakes and moraine hills around **Szurpiły** in the Suwałki Landscape Park (north-east Poland). Poland deploys in the west, Russia in the east; the usual objectives and win conditions apply (see the battle rules).
 - Map data © OpenStreetMap contributors (ODbL), elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
 ## 6. Movement
@@ -185,7 +185,7 @@ Remember that a unit's HP differ too: the Abrams and the squads have 10 HP, the 
 
 ## 8. Victory and defeat
 
-Each battle sets its own victory conditions and, optionally, a turn limit. The game has two battles: the **normal battle** (what **Start operation** starts) and the **objective battle**.
+Each battle sets its own victory conditions and, optionally, a turn limit. The game has two battles: the **normal battle** (the Iron Shore scenario) and the **objective battle**.
 
 ### Ways to win
 
@@ -214,7 +214,7 @@ Each battle sets its own victory conditions and, optionally, a turn limit. The g
 - **Poland (you)** wins by having units standing on **both** objective hexes at the end of one of your turns, or by eliminating every Russian unit.
 - **Russia** wins by still holding **both** hexes when turn 8 ends, or by eliminating every Polish unit.
 - Anything else when turn 8 ends – for example Poland has taken one hex, or holds both but no longer stands on both – is a **draw**.
-- To play it, start the game with `--scenario=objective_battle` (for example `tools/run_windows.sh --scenario=objective_battle` or `tools/run.sh --scenario=objective_battle`), then pick **Start operation**. Without the option you get the normal battle.
+- To play it, start the game with `--scenario=objective_battle` (for example `tools/run_windows.sh --scenario=objective_battle` or `tools/run.sh --scenario=objective_battle`), then pick **Start scenario** and **Start** (the option preselects its entry). Without the option you get the normal battle.
 
 ### The end of the battle
 
@@ -302,13 +302,13 @@ In a battle with command points it spends its points on its most valuable action
 
 ## 12. Main menu and unit catalog
 
-The game opens in the main menu:
+The game opens in the main menu with three buttons. Every other screen has a **‹ Back** button, and Esc does the same.
 
-- **Scenario: …** cycles through the available battles (Iron Shore, Objective battle, Command points battle, Szurpiły Lakes); the chosen one is started by Start operation.
-- **Start operation** starts the battle. There is no way back to the menu from a battle; restart the game for that.
-- **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
+- **Start scenario** opens the scenario screen: the available battles (Iron Shore, Objective battle, Command points battle, Szurpiły Lakes) are listed on the left, and a flat map preview of the selected one (terrain, roads, rivers, and a dot per starting unit) is shown on the right. **Start** starts the selected battle; **Back** returns to the main menu. There is no way back to the menu from a battle; restart the game for that.
 - **Unit catalog** opens a viewer where you can look at every unit in the game.
-- **Sound** switches all sound on or off; **Master volume** and **Ambient volume** are sliders (0-100 %). They apply at once and are saved for the next start. See section 12a.
+- **Settings** opens the settings screen:
+  - **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
+  - **Sound** switches all sound on or off; **Master volume** and **Ambient volume** are sliders (0-100 %). They apply at once and are saved for the next start. See section 12a.
 
 **Unit catalog.** The list on the left has every unit, grouped by class; a unit without a finished 3D model is marked `(!)` and shown as a simple placeholder. The selected unit stands on a ground disc in the middle. The panel on the right shows its name, its side (with buttons to switch sides when more than one army fields it, e.g. a squad in Polish or Russian colours), its class, how it moves, its HP, Attack, Defense, Moves and Range, and the model's size in metres.
 
@@ -343,7 +343,7 @@ The battle has sound; there is no music yet.
 - **Weapons.** Every kind of unit fires with its own sound: tank cannon, rifle (Polish and Russian squads sound different), rocket launchers (one launch sound per rocket of a salvo). Shells and rockets explode where they land; a destroyed unit gets a bigger explosion. A complete miss of a tank or squad makes no impact sound.
 - **Engines.** A moving vehicle rumbles for the whole length of its move (tanks with a low track rumble, rocket trucks with a tyre hum); the engine rises in pitch when it sets off and drops when it stops. Infantry moves silently. Sounds are positional: they are louder and pan to the side when the unit is near the camera's view.
 - **Forest.** When you zoom the camera in close (roughly the closest third of the zoom range) over a forest, birdsong and the rustle of trees fade in over a second or two, with random bird calls on top; they fade out when you zoom out or pan to open ground.
-- **Volume.** Master volume, Ambient volume (the forest sound only) and the Sound on/off switch are in the main menu, and are remembered. With the volume at 0 or sound off, nothing is played.
+- **Volume.** Master volume, Ambient volume (the forest sound only) and the Sound on/off switch are in the Settings screen of the main menu, and are remembered. With the volume at 0 or sound off, nothing is played.
 
 ## 13. Not in the game yet
 
