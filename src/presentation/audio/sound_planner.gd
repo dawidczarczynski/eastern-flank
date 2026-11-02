@@ -19,6 +19,7 @@ const UI_SOUNDS := {
 }
 const EXPLOSION_SMALL := &"explosion_small"
 const EXPLOSION_LARGE := &"explosion_large"
+const EXPLOSION_ROCKET := &"explosion_rocket"  ## short excerpt: every rocket of a salvo sounds
 const AMBIENT_LOOP := &"forest_ambience"
 const AMBIENT_BIRDS := &"forest_birds"
 
@@ -84,6 +85,7 @@ static func all_ids() -> Array[StringName]:
 			[
 				EXPLOSION_SMALL,
 				EXPLOSION_LARGE,
+				EXPLOSION_ROCKET,
 				AMBIENT_LOOP,
 				AMBIENT_BIRDS,
 				&"engine_diesel_heavy",

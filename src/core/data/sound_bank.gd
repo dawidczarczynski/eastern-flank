@@ -6,7 +6,8 @@ extends Resource
 
 ## id -> { "streams": PackedStringArray (res:// paths, 2-4 variants for one-shots), "pitch": float
 ## (base pitch scale, e.g. 0.55 to turn a car engine into a diesel), "gain_db": float,
-## "loop": bool (the first stream loops) }. Missing keys mean pitch 1, gain 0, no loop.
+## "loop": bool (the first stream loops), "clip": float (seconds; a long recording of which a random
+## excerpt of that length plays) }. Missing keys mean pitch 1, gain 0, no loop.
 @export var entries: Dictionary = {}
 
 ## Ambient forest loop: the camera must be closer than `ambient_max_distance` (camera distance in
@@ -50,6 +51,10 @@ func gain_db_of(id: StringName) -> float:
 
 func is_loop(id: StringName) -> bool:
 	return _entry(id).get("loop", false)
+
+
+func clip_of(id: StringName) -> float:
+	return _entry(id).get("clip", 0.0)
 
 
 func _entry(id: StringName) -> Dictionary:

@@ -4,8 +4,6 @@ extends SalvoEffects
 ## where it lands, on top of the visual effects `inner` (SalvoFxPool or the empty base class),
 ## which still get every hook.
 
-## Every n-th landing sounds (a 12-rocket salvo would drown the player pool), plus the last.
-const IMPACT_EVERY := 3
 ## Rockets launch a little apart (index mod 3 steps of this many seconds): no single hard attack.
 const STAGGER := 0.05
 
@@ -39,8 +37,9 @@ func on_flight(index: int, from: Vector3, to: Vector3, s: float, motor: bool) ->
 
 func on_impact(index: int, point: Vector3, first: bool, last: bool) -> void:
 	_inner.on_impact(index, point, first, last)
-	if index % IMPACT_EVERY == 0 or last:
-		_director.play_impact(_damage, false, true, point)
+	_director.play_at(
+		SoundPlanner.EXPLOSION_ROCKET, point, SoundPlanner.impact_gain_db(_damage, true)
+	)
 
 
 func end(target_centre: Vector3) -> void:

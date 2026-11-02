@@ -40,8 +40,13 @@ entries = {
 "pitch": 1.1
 },
 "tank_cannon": {
-"streams": PackedStringArray("res://assets/third_party/audio/cc0_bang/cannon_01.ogg", "res://assets/third_party/audio/cc0_bang/cannon_02.ogg", "res://assets/third_party/audio/cc0_bang/cannon_03.ogg", "res://assets/third_party/audio/cc0_bang/cannon_04.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_fire_1.ogg"),
+"streams": PackedStringArray("res://assets/audio/sfx/tank_gunshot.mp3", "res://assets/third_party/audio/cc0_bang/cannon_01.ogg", "res://assets/third_party/audio/cc0_bang/cannon_02.ogg", "res://assets/third_party/audio/cc0_bang/cannon_03.ogg", "res://assets/third_party/audio/cc0_bang/cannon_04.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_fire_1.ogg"),
 "gain_db": -1.0
+},
+"infantry_fight": {
+"streams": PackedStringArray("res://assets/audio/sfx/infantry_fighting.mp3"),
+"gain_db": -6.0,
+"clip": 3.5
 },
 "rifle": {
 "streams": PackedStringArray("res://assets/third_party/audio/firearms/rifle_1.wav", "res://assets/third_party/audio/firearms/rifle_2.wav"),
@@ -52,15 +57,20 @@ entries = {
 "gain_db": -4.0
 },
 "mlrs_rocket": {
-"streams": PackedStringArray("res://assets/audio/sfx/rocket_launch_1.wav", "res://assets/audio/sfx/rocket_launch_2.wav"),
+"streams": PackedStringArray("res://assets/audio/sfx/rocket_artillery_launch.mp3"),
 "gain_db": -9.0
 },
 "explosion_small": {
-"streams": PackedStringArray("res://assets/third_party/audio/cc0_100sfx/explosion.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_cannon_1.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_wall_no_splash.ogg"),
+"streams": PackedStringArray("res://assets/audio/sfx/explosion.mp3", "res://assets/third_party/audio/cc0_100sfx/explosion.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_cannon_1.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_wall_no_splash.ogg"),
 "gain_db": -3.0
 },
+"explosion_rocket": {
+"streams": PackedStringArray("res://assets/audio/sfx/explosion.mp3"),
+"gain_db": -5.0,
+"clip": 1.8
+},
 "explosion_large": {
-"streams": PackedStringArray("res://assets/third_party/audio/battle_at_sea/ship_destroyed_short.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_1.ogg"),
+"streams": PackedStringArray("res://assets/audio/sfx/explosion.mp3", "res://assets/third_party/audio/battle_at_sea/ship_destroyed_short.ogg", "res://assets/third_party/audio/battle_at_sea/cannon_hit_1.ogg"),
 "gain_db": 0.0
 },
 "engine_diesel_heavy": {
@@ -74,12 +84,12 @@ entries = {
 "loop": true
 },
 "move_tracks": {
-"streams": PackedStringArray("res://assets/audio/sfx/tracks_loop.wav"),
+"streams": PackedStringArray("res://assets/audio/sfx/tank_movement.mp3"),
 "gain_db": -16.0,
 "loop": true
 },
 "move_wheels": {
-"streams": PackedStringArray("res://assets/audio/sfx/wheels_loop.wav"),
+"streams": PackedStringArray("res://assets/audio/sfx/wheeled_movement.mp3"),
 "gain_db": -18.0,
 "loop": true
 },

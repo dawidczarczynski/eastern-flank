@@ -215,9 +215,21 @@ func play_at(id: StringName, position: Vector3, gain_db := 0.0, bus := &"SFX") -
 	player.volume_db = _bank.gain_db_of(id) + gain_db
 	player.pitch_scale = _bank.pitch_of(id)
 	player.global_position = position
-	player.play()
 	_serial += 1
 	_shot_serial[index] = _serial
+	var clip := _bank.clip_of(id)
+	if clip <= 0.0:
+		player.play()
+		return true
+	var length := _source_length(stream)
+	player.play(randf() * maxf(length - clip, 0.0))
+	var serial := _serial
+	get_tree().create_timer(clip).timeout.connect(
+		func() -> void:
+			if _shot_serial[index] == serial:
+				player.stop(),
+		CONNECT_ONE_SHOT
+	)
 	return true
 
 
@@ -415,6 +427,12 @@ func _stream_for(id: StringName) -> AudioStream:
 			result = randomizer
 	_streams[id] = result
 	return result
+
+
+static func _source_length(stream: AudioStream) -> float:
+	if stream is AudioStreamRandomizer and (stream as AudioStreamRandomizer).streams_count > 0:
+		return (stream as AudioStreamRandomizer).get_stream(0).get_length()
+	return stream.get_length()
 
 
 static func _enable_loop(stream: AudioStream) -> void:

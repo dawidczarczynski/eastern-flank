@@ -29,7 +29,7 @@ func test_tank_infantry_and_mlrs_fire_differently() -> void:
 	var infantry := SoundPlanner.fire_sound(_unit("pl_mech_infantry"))
 	var mlrs := SoundPlanner.fire_sound(_unit("homar_k"))
 	assert_eq(tank, &"tank_cannon")
-	assert_eq(infantry, &"rifle")
+	assert_eq(infantry, &"infantry_fight")
 	assert_eq(mlrs, &"mlrs_rocket")
 	assert_true(tank != infantry and infantry != mlrs and tank != mlrs)
 
