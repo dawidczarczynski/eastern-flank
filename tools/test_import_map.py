@@ -11,6 +11,7 @@ it into tiles the way the Overpass API answers a bbox query (whole ways and rela
 `--make-fixtures` writes the 0.5-degree tiles into tools/import_map_fixtures/op_cache/osm/, the DEM into
 op_dem.tif and the golden map tests/fixtures/maps/sample_op_map.tres.
 """
+import base64
 import json
 import math
 import shutil
@@ -1414,6 +1415,262 @@ class CountryImportTest(unittest.TestCase):
             self.assertEqual(t == "W", c == ".", "%s %s" % (t, c))
         self.assertIn("0", countries)
         self.assertIn("1", countries)
+
+
+def read_png_gray(data: bytes) -> tuple:
+    """(width, height, pixels) of a non-interlaced grayscale PNG of bit depth 1 (expanded to 0 / 255) or 8."""
+    assert data[:8] == b"\x89PNG\r\n\x1a\n"
+    pos, idat, header = 8, b"", None
+    while pos < len(data):
+        (length,) = struct.unpack(">I", data[pos : pos + 4])
+        kind, body = data[pos + 4 : pos + 8], data[pos + 8 : pos + 8 + length]
+        assert struct.unpack(">I", data[pos + 8 + length : pos + 12 + length])[0] == zlib.crc32(kind + body) & 0xFFFFFFFF
+        if kind == b"IHDR":
+            header = struct.unpack(">IIBBBBB", body)
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + length
+    width, height, depth, color, _, _, interlace = header
+    assert color == 0 and interlace == 0 and depth in (1, 8)
+    raw = zlib.decompress(idat)
+    row_bytes = (width + 7) // 8 if depth == 1 else width
+    prior = bytearray(row_bytes)
+    pixels = bytearray()
+    for r in range(height):
+        kind = raw[r * (row_bytes + 1)]
+        line = bytearray(raw[r * (row_bytes + 1) + 1 : (r + 1) * (row_bytes + 1)])
+        for k in range(row_bytes):
+            a = line[k - 1] if k else 0
+            b = prior[k]
+            c = prior[k - 1] if k else 0
+            predictor = (0, a, b, (a + b) >> 1, import_map._paeth(a, b, c))[kind]
+            line[k] = (line[k] + predictor) & 0xFF
+        if depth == 1:
+            pixels.extend(255 if line[c >> 3] & (0x80 >> (c & 7)) else 0 for c in range(width))
+        else:
+            pixels.extend(line)
+        prior = line
+    return width, height, bytes(pixels)
+
+
+def _fields(text: str) -> dict:
+    """Plain `key = value` lines of a .tres (the value text as written)."""
+    result = {}
+    for line in text.splitlines():
+        if " = " in line and not line.startswith("["):
+            key, value = line.split(" = ", 1)
+            result[key] = value
+    return result
+
+
+class TerrainLayers:
+    """The graphic layers of an imported .tres (TASK-126), decoded, with lookups by WGS84 point."""
+
+    def __init__(self, text: str) -> None:
+        fields = _fields(text)
+        self.width = int(fields["layer_width"])
+        self.height = int(fields["layer_height"])
+        self.pixel_m = float(fields["layer_pixel_m"])
+        self.origin_e = float(fields["layer_origin_easting"])
+        self.origin_n = float(fields["layer_origin_northing"])
+        self.relief_step = int(fields["layer_relief_step"])
+        self.size = {"water": (self.width, self.height), "cover": (self.width, self.height),
+                     "relief": ((self.width - 1) // self.relief_step + 1, (self.height - 1) // self.relief_step + 1)}  # fmt: skip
+        self.png = {}
+        self.pixels = {}
+        for kind in ("water", "cover", "relief"):
+            value = fields["layer_%s_png" % kind]
+            self.png[kind] = base64.b64decode(value[value.index('"') + 1 : value.rindex('"')])
+            w, h, self.pixels[kind] = read_png_gray(self.png[kind])
+            assert (w, h) == self.size[kind], (kind, w, h)
+        self.layout = import_map.HexLayout(int(fields["width"]), int(fields["height"]), float(fields["hex_spacing_m"]),
+                                           float(fields["origin_easting"]), float(fields["origin_northing"]))  # fmt: skip
+        self.terrain = "".join(r.strip('"') for r in _arrays(text)["terrain_rows"].split(", "))
+
+    def pixel(self, lat: float, lon: float, kind: str = "water") -> tuple:
+        e, n = import_map.to_utm(lat, lon, 34)
+        size = self.pixel_m * (self.relief_step if kind == "relief" else 1)
+        return int(round((e - self.origin_e) / size)), int(round((self.origin_n - n) / size))
+
+    def at(self, kind: str, lat: float, lon: float) -> int:
+        i, j = self.pixel(lat, lon, kind)
+        width, height = self.size[kind]
+        assert 0 <= i < width and 0 <= j < height, (lat, lon)
+        return self.pixels[kind][j * width + i]
+
+    def hex_terrain(self, lat: float, lon: float) -> str:
+        col, row = self.layout.tile_at(*import_map.to_utm(lat, lon, 34))
+        return self.terrain[row * self.layout.width + col]
+
+
+class HillshadeTest(unittest.TestCase):
+    def test_flat_ground_is_constant(self) -> None:
+        shade = import_map.hillshade([120.0] * 30, 6, 5, 250.0)
+        self.assertEqual(set(shade), {import_map.RELIEF_FLAT})
+        self.assertEqual(import_map.RELIEF_FLAT, 180)
+
+    def test_a_slope_facing_the_north_west_is_brighter_than_one_facing_the_south_east(self) -> None:
+        cols, rows = 7, 7
+        # rising towards the south-east = facing the north-west, and the reverse
+        facing_nw = [10.0 * (c + r) for r in range(rows) for c in range(cols)]
+        facing_se = [-v for v in facing_nw]
+        nw = import_map.hillshade(facing_nw, cols, rows, 250.0)[3 * cols + 3]
+        se = import_map.hillshade(facing_se, cols, rows, 250.0)[3 * cols + 3]
+        self.assertGreater(nw, import_map.RELIEF_FLAT)
+        self.assertLess(se, import_map.RELIEF_FLAT)
+
+    def test_exaggeration_strengthens_the_shading(self) -> None:
+        heights = [5.0 * c for r in range(3) for c in range(3)]  # rising east: facing west, half lit
+        mild = import_map.hillshade(heights, 3, 3, 250.0, z=1.0)[4]
+        strong = import_map.hillshade(heights, 3, 3, 250.0, z=8.0)[4]
+        self.assertLess(abs(mild - import_map.RELIEF_FLAT), abs(strong - import_map.RELIEF_FLAT))
+
+
+class DownsampleTest(unittest.TestCase):
+    def test_constant_stays_constant_and_size_keeps_both_edges(self) -> None:
+        values, cols, rows = import_map.downsample([7.0] * (9 * 5), 9, 5, 2)
+        self.assertEqual((cols, rows), (5, 3))
+        self.assertEqual(values, [7.0] * 15)
+
+    def test_a_ramp_keeps_its_values_on_the_kept_points(self) -> None:
+        ramp = [float(c) for r in range(5) for c in range(9)]
+        values, cols, _ = import_map.downsample(ramp, 9, 5, 2)
+        self.assertEqual(values[1:4], [2.0, 4.0, 6.0], "tent filter centred on the kept points")
+
+    def test_a_spike_is_spread_not_dropped(self) -> None:
+        spike = [0.0] * 25
+        spike[1 * 5 + 1] = 16.0  # between kept points (0 and 2)
+        values, _, _ = import_map.downsample(spike, 5, 5, 2)
+        self.assertGreater(values[0], 0.0)
+        self.assertEqual(import_map.downsample(spike, 5, 5, 1)[0], spike)
+
+
+class PngTest(unittest.TestCase):
+    def test_eight_bit_round_trip(self) -> None:
+        pixels = bytes((7 * i + (i // 13) * 31) & 0xFF for i in range(13 * 9))
+        self.assertEqual(read_png_gray(import_map.png_gray(13, 9, pixels)), (13, 9, pixels))
+
+    def test_one_bit_round_trip_expands_to_white(self) -> None:
+        pixels = bytes(1 if (i * 7) % 5 < 2 else 0 for i in range(11 * 4))
+        width, height, decoded = read_png_gray(import_map.png_gray(11, 4, pixels, 1))
+        self.assertEqual((width, height), (11, 4))
+        self.assertEqual(decoded, bytes(255 if p else 0 for p in pixels))
+
+    def test_unfiltered_round_trip(self) -> None:
+        pixels = bytes((i * 3) % 7 for i in range(10 * 6))
+        self.assertEqual(read_png_gray(import_map.png_gray(10, 6, pixels, 8, False)), (10, 6, pixels))
+
+    def test_the_same_pixels_give_the_same_bytes(self) -> None:
+        pixels = bytes(range(256)) * 4
+        self.assertEqual(import_map.png_gray(64, 16, pixels), import_map.png_gray(64, 16, bytes(pixels)))
+
+
+class OperationalLayersTest(unittest.TestCase):
+    """Graphic layers of the synthetic operational sample (10 x 8 hexes of 1 km, 250 m pixels; TASK-126)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
+        cls.layers = TerrainLayers(cls.text)
+
+    def test_the_layers_cover_the_map_at_250_m(self) -> None:
+        layers = self.layers
+        self.assertEqual(layers.pixel_m, 250.0)
+        min_e, min_n, max_e, max_n = layers.layout.bounds()
+        self.assertEqual(layers.width, int((max_e - min_e) // 250.0) + 1)
+        self.assertEqual(layers.height, int((max_n - min_n) // 250.0) + 1)
+        self.assertAlmostEqual(layers.origin_e, min_e, places=2)
+        self.assertAlmostEqual(layers.origin_n, min_n + (layers.height - 1) * 250.0, places=2)
+        self.assertEqual(layers.relief_step, 2, "the relief has 500 m pixels")
+
+    def test_two_imports_give_identical_layer_bytes(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            texts = []
+            for name in ("a.tres", "b.tres"):
+                import_map.run(OP_ARGS + ["--offline", "--cache=%s" % OP_CACHE, "--dem=%s" % OP_DEM_FIXTURE,
+                                          "--out=%s" % (tmp / name)])  # fmt: skip
+                texts.append(TerrainLayers((tmp / name).read_text(encoding="utf-8")).png)
+            self.assertEqual(texts[0], texts[1])
+            self.assertEqual(texts[0], self.layers.png, "re-run tools/test_import_map.py --make-fixtures")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_lake_pixels_are_water(self) -> None:
+        self.assertEqual(self.layers.at("water", 54.475, 22.5625), 255)
+        self.assertEqual(self.layers.at("cover", 54.475, 22.5625), import_map.COVER_CLASSES.index("W"))
+
+    def test_the_coast_separates_sea_and_land(self) -> None:
+        # the coast segment (54.515, 22.47) - (54.495, 22.40); the sea lies to its north-west
+        self.assertEqual(self.layers.at("water", 54.5085, 22.4300), 255, "~450 m off the coast")
+        self.assertEqual(self.layers.at("water", 54.5020, 22.4400), 0, "~350 m inland")
+        self.assertEqual(self.layers.at("water", 54.4900, 22.4500), 0, "inland")
+
+    def test_forest_inside_its_polygon_not_in_the_clearing_or_outside(self) -> None:
+        forest = import_map.COVER_CLASSES.index("F")
+        self.assertEqual(self.layers.at("cover", 54.4880, 22.5000), forest)
+        self.assertNotEqual(self.layers.at("cover", 54.4815, 22.4700), forest, "the clearing (inner ring)")
+        self.assertNotEqual(self.layers.at("cover", 54.4950, 22.4500), forest, "north of the forest")
+
+    def test_town_is_urban_and_military_is_not(self) -> None:
+        urban = import_map.COVER_CLASSES.index("U")
+        self.assertEqual(self.layers.at("cover", 54.5070, 22.5550), urban)
+        self.assertNotEqual(self.layers.at("cover", 54.5200, 22.5730), urban, "military areas are not drawn urban")
+
+    def test_wetland_is_marsh(self) -> None:
+        self.assertEqual(self.layers.at("cover", 54.4700, 22.5200), import_map.COVER_CLASSES.index("M"))
+
+    def test_the_north_west_flank_of_the_hill_is_brighter_than_the_south_east_flank(self) -> None:
+        nw = self.layers.at("relief", 54.5180, 22.4990)
+        se = self.layers.at("relief", 54.5120, 22.5110)
+        self.assertGreater(nw, import_map.RELIEF_FLAT + 10)
+        self.assertLess(se, import_map.RELIEF_FLAT - 10)
+
+    def test_the_sea_is_flat(self) -> None:
+        sea = self.layers.at("relief", 54.5300, 22.4300)  # inside the lagoon polygon, DEM slope only
+        self.assertLess(abs(sea - import_map.RELIEF_FLAT), 10)
+
+    def test_the_hex_values_do_not_depend_on_the_layers(self) -> None:
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            layout = self.layers.layout
+            settings = import_map.Settings(import_map.OPERATIONAL, sea_seeds=[tuple(map(float, OP_SEED.split(",")))],
+                                           countries=import_map.parse_countries([OP_COUNTRIES]))  # fmt: skip
+            tiles = sorted((OP_CACHE / "osm").glob("op1_*.json"))
+            borders = sorted((OP_CACHE / "osm").glob("bd1_*.json"))
+            dem = import_map.Dem([OP_DEM_FIXTURE])
+            with_layers = import_map.build_map(layout, 34, dem, tiles, settings, borders)
+            settings.layers = False
+            without = import_map.build_map(layout, 34, dem, tiles, settings, borders)
+            self.assertIsNone(without["layers"])
+            self.assertIsNotNone(with_layers["layers"])
+            self.assertEqual(with_layers["tiles"], without["tiles"])
+            bbox = (0.0, 0.0, 0.0, 0.0)
+            import_map.write_tres(tmp / "w.tres", "m", "m", layout, 34, with_layers, bbox)
+            import_map.write_tres(tmp / "o.tres", "m", "m", layout, 34, without, bbox)
+            layered = (tmp / "w.tres").read_text(encoding="utf-8").splitlines()
+            plain = (tmp / "o.tres").read_text(encoding="utf-8").splitlines()
+            self.assertEqual([line for line in layered if not line.startswith("layer_")], plain)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_a_pond_smaller_than_its_hex_stays_water(self) -> None:
+        layout = self.layers.layout
+        pond = {"elements": [{"type": "node", "id": k + 1, "lat": lat, "lon": lon} for k, (lat, lon) in enumerate(
+            [(54.4800, 22.4800), (54.4800, 22.4924), (54.4841, 22.4924), (54.4841, 22.4800)])]
+            + [{"type": "way", "id": 1, "nodes": [1, 2, 3, 4, 1], "tags": {"natural": "water"}}]}  # fmt: skip
+        result = import_map.build_map(layout, 34, import_map.Dem([OP_DEM_FIXTURE]), pond,
+                                      import_map.Settings(import_map.OPERATIONAL))  # fmt: skip
+        self.assertNotIn("water", {t["terrain"] for t in result["tiles"].values()}, "800 x 450 m: no hex is water")
+        layers = result["layers"]
+        water = [k for k, v in enumerate(layers["water"]) if v]
+        columns = {k % layers["width"] for k in water}
+        rows = {k // layers["width"] for k in water}
+        self.assertGreaterEqual(len(columns), 3, "at least 3 px wide")
+        self.assertGreaterEqual(len(rows), 1)
+
+    def test_tactical_maps_have_no_layers(self) -> None:
+        self.assertNotIn("layer_", SAMPLE_MAP.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

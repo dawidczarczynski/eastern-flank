@@ -1,7 +1,9 @@
 class_name StaffMapView
 extends Node3D
 ## The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced ground mesh
-## (land cover, baked hillshade, marsh hatch), the land-cover edges, rivers and roads as one
+## – coloured from the map's graphic layers (water, land cover, hillshade; TASK-126,
+## StaffMapTerrain) or, for a map without layers, the v0 per-hex land cover, baked hillshade and
+## marsh hatch with its land-cover edges – rivers and roads as one
 ## screen-space line mesh per class, the optional grid and the hover outline. Everything is built
 ## once from StaffMapLayers / StaffMapRelief (nothing is rebuilt per frame; the hover outline only
 ## when the hex changes). It only reads the HexGrid and the palette. World: hex units, x east,
@@ -19,11 +21,18 @@ const COUNTRY_NAME := Color(0.86, 0.84, 0.74, 0.16)
 const COUNTRY_NAME_PIXEL := 0.02
 const COUNTRY_PRIORITY := 14
 const NO_HEX := Vector2i(-100000, -100000)
+## Vertex spacing of the layered terrain mesh (hex units): fine enough to follow the relief,
+## which is linear between hex centres.
+const TERRAIN_STEP := 0.5
+
+## The one-time warning for a map drawn in the v0 hex look has been given.
+static var _fallback_warned := false
 
 var _grid: HexGrid
 var _palette: StaffMapPalette
 var _relief: StaffMapRelief
 var _ground_material: ShaderMaterial
+var _terrain: StaffMapTerrain
 var _grid_lines: MeshInstance3D
 var _hover_outline: MeshInstance3D
 var _hover_fill: MeshInstance3D
@@ -47,8 +56,13 @@ func _init() -> void:
 	name = "StaffMapView"
 
 
-## Builds every layer for `grid`; `hex_spacing_m` = distance between hex centres in metres.
-func build(grid: HexGrid, palette: StaffMapPalette, hex_spacing_m := 5000.0) -> void:
+## Builds every layer for `grid`; `hex_spacing_m` = distance between hex centres in metres. With
+## a `map` that carries graphic layers (TASK-126) the terrain is drawn from them (water, cover,
+## relief in one textured surface, no per-hex fill or edge lines); otherwise the v0 hex look, with
+## a one-time warning for a map without layers.
+func build(
+	grid: HexGrid, palette: StaffMapPalette, hex_spacing_m := 5000.0, map: ImportedMap = null
+) -> void:
 	_grid = grid
 	_palette = palette
 	var unit_m := hex_spacing_m / Hex.SQRT3
@@ -61,11 +75,23 @@ func build(grid: HexGrid, palette: StaffMapPalette, hex_spacing_m := 5000.0) -> 
 		palette.hillshade_z_factor
 	)
 	_edge_rect = StaffMapLayers.straight_rect(grid)
-	var classes := {}
-	for c: Vector2i in StaffMapLayers.sea_tiles(grid, palette.sea_max_m):
-		classes[c] = StaffMapPalette.SEA
-	_build_ground(StaffMapLayers.fills(grid, classes))
-	_build_edges(StaffMapLayers.borders(grid, classes))
+	_terrain = StaffMapTerrain.from_map(map, palette)
+	if _terrain != null:
+		_build_terrain_ground()
+	else:
+		if map != null and not _fallback_warned:
+			_fallback_warned = true
+			push_warning(
+				(
+					"StaffMapView: map '%s' has no usable graphic layers – drawing the v0 hex look"
+					% map.id
+				)
+			)
+		var classes := {}
+		for c: Vector2i in StaffMapLayers.sea_tiles(grid, palette.sea_max_m):
+			classes[c] = StaffMapPalette.SEA
+		_build_ground(StaffMapLayers.fills(grid, classes))
+		_build_edges(StaffMapLayers.borders(grid, classes))
 	_build_strokes(hex_spacing_m / 1000.0)
 	var grid_mesh := StaffMapLines.segments_mesh(
 		_drape(StaffMapLayers.clip_segments(StaffMapLayers.grid_lines(grid), _edge_rect))
@@ -173,6 +199,16 @@ func _country_name(iso: String, at: Vector2) -> Label3D:
 	label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)  # lies on the map, north up
 	label.position = _relief.surface_point(at) + Vector3(0.0, 0.05, 0.0)
 	return label
+
+
+## True when the terrain is drawn from the map's graphic layers (TASK-126), false for the v0 hex
+## look.
+func uses_graphic_layers() -> bool:
+	return _terrain != null
+
+
+func terrain() -> StaffMapTerrain:
+	return _terrain
 
 
 func relief() -> StaffMapRelief:
@@ -317,6 +353,49 @@ func _build_ground(fills: Dictionary) -> void:
 	_ground_material.set_shader_parameter(&"marsh_color", _palette.map_marsh)
 	_ground_material.set_shader_parameter(&"shade_strength", _palette.hillshade_strength)
 	_ground_material.set_shader_parameter(&"hatch_tile_px", _palette.marsh_hatch_tile)
+	var ground := MeshInstance3D.new()
+	ground.name = "Ground"
+	ground.mesh = mesh
+	ground.material_override = _ground_material
+	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ground)
+
+
+## The layered terrain (TASK-126): a regular grid over the straight map rectangle draped on the
+## relief, coloured entirely by the terrain shader from the graphic layers.
+func _build_terrain_ground() -> void:
+	var columns := maxi(ceili(_edge_rect.size.x / TERRAIN_STEP), 1)
+	var rows := maxi(ceili(_edge_rect.size.y / TERRAIN_STEP), 1)
+	var vertices := PackedVector3Array()
+	vertices.resize((columns + 1) * (rows + 1))
+	var k := 0
+	for j in rows + 1:
+		var y := _edge_rect.position.y + _edge_rect.size.y * j / rows
+		for i in columns + 1:
+			var x := _edge_rect.position.x + _edge_rect.size.x * i / columns
+			vertices[k] = _relief.surface_point(Vector2(x, y))
+			k += 1
+	var indices := PackedInt32Array()
+	indices.resize(columns * rows * 6)
+	k = 0
+	for j in rows:
+		for i in columns:
+			var a := j * (columns + 1) + i
+			var b := a + columns + 1
+			indices[k] = a
+			indices[k + 1] = a + 1
+			indices[k + 2] = b
+			indices[k + 3] = b
+			indices[k + 4] = a + 1
+			indices[k + 5] = b + 1
+			k += 6
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_ground_material = _terrain.material
 	var ground := MeshInstance3D.new()
 	ground.name = "Ground"
 	ground.mesh = mesh

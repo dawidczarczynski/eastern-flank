@@ -357,9 +357,9 @@ The battle has sound; there is no music yet.
 | Drawn as | Meaning |
 |---|---|
 | Dark grey-green | open ground (plains, fields, hills) |
-| Slightly greener patches with a fine edge | forest |
-| Grey blocks with a lighter edge | towns and cities |
-| Very dark blue with a thin blue-grey shore line | the sea (darkest) and lakes |
+| Slightly greener patches with a faint edge | forest |
+| Small grey patches with a lighter edge | towns and cities |
+| Very dark blue with a thin blue-grey shore line | the sea, lagoons and lakes |
 | Short blue-grey dashes | marsh |
 | Light and dark shading | relief: slopes lit from the north-west (a hint of hills and valleys; heights are exaggerated) |
 | Light sand line with a dark outline | main road |
@@ -367,9 +367,9 @@ The battle has sound; there is no music yet.
 | Dark brown thin line | minor road (close zoom) |
 | Blue lines, from thick and light to thin and dark | large, medium and minor rivers |
 
-Which road is "main" is worked out from how far it runs on the map, not from its real road category yet, so the hierarchy is approximate. The land cover comes from the 5 km hexes and is rounded off across hex edges, so shapes are approximate; a small lake or a narrow river is only as exact as its hex.
+The terrain is drawn from real geography, not from the hexes: the coastline, the lagoons and the lakes, forests, fields, marshes and towns are their real shapes (to about 250 m) with soft edges, and the relief shading comes from real heights. A lake smaller than a hex (Wigry, Hańcza) shows although its hex counts as land. The hexes underneath only decide movement and borders, so a hex's terrain on the card can differ from what is drawn under part of it. Which road is "main" is worked out from how far it runs on the map, not from its real road category yet, so the hierarchy is approximate; roads and rivers still run along the hexes.
 
-**Grid and hex card.** The hex grid is hidden; **G** shows or hides a faint grid. Pointing at a hex outlines it in amber and shows a small card: its coordinate (column·row), terrain, elevation in metres, and whether a road and a river cross it. Picking follows the raised relief, so the card names the hex really under the cursor at any tilt. The card disappears when the cursor leaves the map.
+**Grid and hex card.** The hex grid is hidden; **G** shows or hides a thin, faint helper grid over the map (press it again to hide it). Pointing at a hex outlines it in amber and shows a small card: its coordinate (column·row), terrain, elevation in metres, and whether a road and a river cross it. Picking follows the raised relief, so the card names the hex really under the cursor at any tilt. The card disappears when the cursor leaves the map.
 
 | Action (operational map) | Control |
 |---|---|

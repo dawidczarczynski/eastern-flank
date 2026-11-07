@@ -190,6 +190,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapFormations` – Pure view rules of the formation counters on the staff map (TASK-092b): own / enemy relat… (`staff_map_formations.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
+- `StaffMapTerrain` – The staff map's terrain from real geography (TASK-126, ADR 0018 "Graphic layers"): the ma… (`staff_map_terrain.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
 
 ## src/presentation/ui/

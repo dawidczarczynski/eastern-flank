@@ -26,6 +26,24 @@ const TERRAIN_CHARS := {
 const LINK_CHARS := ".123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ#@"
 ## Imported maps live here as <id>.tres.
 const MAPS_DIR := "res://data/maps/"
+## Graphic layers (TASK-126) – names for `layer_image` / `layer_bytes`.
+const LAYER_WATER := &"water"
+const LAYER_COVER := &"cover"
+const LAYER_RELIEF := &"relief"
+const LAYERS: Array[StringName] = [LAYER_WATER, LAYER_COVER, LAYER_RELIEF]
+## Values of the `cover` layer (the importer's COVER_CLASSES index). The operational import does
+## not download fields or grass, so there OPEN is all open land (mostly fields).
+const COVER_OPEN := 0
+const COVER_GRASS := 1
+const COVER_FIELDS := 2
+const COVER_URBAN := 3
+const COVER_FOREST := 4
+const COVER_MARSH := 5
+const COVER_WATER := 6
+## Value of the `water` layer on water (land is 0).
+const WATER_VALUE := 255
+## `relief` value of flat ground (255 * sin 45°: the sun stands 45° high in the north-west).
+const RELIEF_FLAT := 180
 
 @export var id: StringName
 @export var display_name: String
@@ -72,6 +90,29 @@ const MAPS_DIR := "res://data/maps/"
 @export var elevation: PackedFloat32Array
 ## Attribution of the source data (see data/maps/CREDITS).
 @export var sources: String
+
+## Graphic layers for drawing the operational map (TASK-126; GDD "Operational map", map
+## principle): images of the importer's sample lattice, finer than the hexes and never read by a
+## rule. Grayscale PNGs, row 0 north, pixel (0, 0) the north-west one: water and cover have
+## `layer_width` x `layer_height` pixels `layer_pixel_m` metres apart, the relief one pixel per
+## `layer_relief_step` of them (its pixel (i, j) lies on layer pixel (i * step, j * step)).
+## Empty = no layers (tactical maps, older maps). Decode them with `layer_image` /
+## `layer_bytes`; place them in world space with `layer_world_rect(kind)` /
+## `layer_pixel_to_world`.
+@export var layer_width: int
+@export var layer_height: int
+@export var layer_pixel_m: float
+## Projected position (`crs`, metres) of the centre of pixel (0, 0).
+@export var layer_origin_easting: float
+@export var layer_origin_northing: float
+## Layer pixels per relief pixel (2: the relief has 500 m pixels).
+@export var layer_relief_step: int = 1
+## 1-bit PNG: water (lakes, reservoirs, wide rivers, the sea) decodes to WATER_VALUE, land to 0.
+@export var layer_water_png: PackedByteArray
+## 8-bit PNG: COVER_* per pixel.
+@export var layer_cover_png: PackedByteArray
+## 8-bit PNG: hillshade of the DEM (RELIEF_FLAT on flat ground, brighter facing the north-west).
+@export var layer_relief_png: PackedByteArray
 
 
 ## The map data/maps/<map_id>.tres; null when there is none (or the id is not a plain name).
@@ -249,6 +290,123 @@ func to_grid() -> HexGrid:
 		for c: Vector2i in rivers:
 			grid.set_river_links(c, rivers[c])
 	return grid
+
+
+## True when the map carries the three graphic layers (TASK-126). A cheap check of the fields;
+## `graphic_layers_problem` decodes and validates them.
+func has_graphic_layers() -> bool:
+	return (
+		layer_width > 0
+		and layer_height > 0
+		and layer_pixel_m > 0.0
+		and not layer_water_png.is_empty()
+		and not layer_cover_png.is_empty()
+		and not layer_relief_png.is_empty()
+	)
+
+
+## Pixels of one graphic layer (columns east, rows south); (0, 0) without layers.
+func layer_size(kind: StringName = LAYER_WATER) -> Vector2i:
+	if not has_graphic_layers() or not LAYERS.has(kind):
+		return Vector2i.ZERO
+	if kind == LAYER_RELIEF:
+		var step := maxi(layer_relief_step, 1)
+		return Vector2i((layer_width - 1) / step + 1, (layer_height - 1) / step + 1)
+	return Vector2i(layer_width, layer_height)
+
+
+## The stored PNG of one layer (LAYER_WATER, LAYER_COVER, LAYER_RELIEF); empty for other names.
+func layer_png(kind: StringName) -> PackedByteArray:
+	match kind:
+		LAYER_WATER:
+			return layer_water_png
+		LAYER_COVER:
+			return layer_cover_png
+		LAYER_RELIEF:
+			return layer_relief_png
+	return PackedByteArray()
+
+
+## One layer decoded: a FORMAT_L8 image of `layer_size(kind)`, row 0 north (ready for an
+## ImageTexture; one byte per pixel, see WATER_VALUE, COVER_*, RELIEF_FLAT). Decodes on every
+## call – build the textures once. Null without layers or when the PNG is malformed.
+func layer_image(kind: StringName) -> Image:
+	if not has_graphic_layers() or not LAYERS.has(kind):
+		return null
+	var image := Image.new()
+	if image.load_png_from_buffer(layer_png(kind)) != OK:
+		return null
+	if Vector2i(image.get_width(), image.get_height()) != layer_size(kind):
+		return null
+	if image.get_format() != Image.FORMAT_L8:
+		image.convert(Image.FORMAT_L8)
+	return image
+
+
+## One layer as row-major bytes (`layer_size(kind).x` per row, row 0 north); empty when
+## unavailable.
+func layer_bytes(kind: StringName) -> PackedByteArray:
+	var image := layer_image(kind)
+	return image.get_data() if image != null else PackedByteArray()
+
+
+## "" when the graphic layers decode to images of the stated size with valid values, otherwise
+## what is wrong (also when there are none – the view then falls back to the hex look).
+func graphic_layers_problem() -> String:
+	if not has_graphic_layers():
+		return "no graphic layers"
+	for kind in LAYERS:
+		var data := layer_bytes(kind)
+		var size := layer_size(kind)
+		if data.is_empty() or data.size() != size.x * size.y:
+			return "%s layer does not decode to %dx%d pixels" % [kind, size.x, size.y]
+		if kind == LAYER_WATER and data.count(0) + data.count(WATER_VALUE) != data.size():
+			return "water layer value other than 0 / %d" % WATER_VALUE
+		if kind == LAYER_COVER:
+			var known := 0
+			for value in COVER_WATER + 1:
+				known += data.count(value)
+			if known != data.size():
+				return "cover layer value above %d" % COVER_WATER
+	return ""
+
+
+## World units (x east, z south) between neighbouring pixels of a layer.
+func layer_pixel_world_size(kind: StringName = LAYER_WATER) -> float:
+	var step := maxi(layer_relief_step, 1) if kind == LAYER_RELIEF else 1
+	return layer_pixel_m * step / metres_per_world_unit()
+
+
+## World position (Vector2.x = world x east, Vector2.y = world z south, `Hex.to_world` space) of
+## a point in water / cover pixel coordinates; Vector2(i, j) is the centre of pixel (i, j) (relief
+## pixel (i, j) is at Vector2(i, j) * layer_relief_step).
+func layer_pixel_to_world(pixel: Vector2) -> Vector2:
+	var m := metres_per_world_unit()
+	var e := layer_origin_easting + pixel.x * layer_pixel_m
+	var n := layer_origin_northing - pixel.y * layer_pixel_m
+	return Vector2((e - origin_easting) / m, (origin_northing - n) / m)
+
+
+## Inverse of `layer_pixel_to_world`.
+func world_to_layer_pixel(world: Vector2) -> Vector2:
+	var m := metres_per_world_unit()
+	var e := origin_easting + world.x * m
+	var n := origin_northing - world.y * m
+	return Vector2(
+		(e - layer_origin_easting) / layer_pixel_m, (layer_origin_northing - n) / layer_pixel_m
+	)
+
+
+## The world rectangle (x east, y = world z south) a layer's pixels cover, from the outer edge
+## of pixel (0, 0) to the outer edge of the last pixel: a texture over it puts each texel centre
+## on its pixel centre (uv = (world - position) / size). The relief's rectangle is slightly
+## larger than the water / cover one (half a coarse pixel). Empty without layers.
+func layer_world_rect(kind: StringName = LAYER_WATER) -> Rect2:
+	if not has_graphic_layers() or not LAYERS.has(kind):
+		return Rect2()
+	var step := float(maxi(layer_relief_step, 1)) if kind == LAYER_RELIEF else 1.0
+	var corner := layer_pixel_to_world(Vector2(-0.5, -0.5) * step)
+	return Rect2(corner, Vector2(layer_size(kind)) * layer_pixel_world_size(kind))
 
 
 ## Metres of one world unit (TerrainField.HEX_SIZE).

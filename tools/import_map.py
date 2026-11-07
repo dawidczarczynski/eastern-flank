@@ -60,12 +60,23 @@ fetched like the land-cover tiles, `--offline` fails naming a missing tile). Wri
 The borders are also written as lines for drawing (`border_lines`, `border_polylines`): the ways clipped to the map, chained
 and Douglas-Peucker simplified (0.1 hex), in world units (x east, z south, hex size 1) - never snapped to hexes.
 
+Graphic layers (TASK-126, operational only; GDD "Operational map", map principle): the drawn staff map is not made
+of hexes, so the importer also writes three images of the whole lattice (one pixel per lattice point, `--sample`
+= 250 m, row 0 north): `water` (1-bit: the water class of the lattice - lakes, reservoirs, riverbanks and the sea
+fill), `cover` (8-bit: the lattice's COVER_CLASSES index, `LAYER_COVER_*`) and `relief` (8-bit hillshade of the
+DEM heights at the lattice points, forest canopy removed, on every `--relief-step`-th point = 500 m (tent filtered,
+`downsample`), sun from the north-west at 45 degrees, `--relief-z` vertical exaggeration; flat ground =
+`RELIEF_FLAT`). They are stored as grayscale PNGs (deterministic: water and
+cover unfiltered, relief with a fixed adaptive filter rule, zlib level 9), base64 `PackedByteArray`s in the `.tres` (`layer_*` fields). The rules grid
+is computed exactly as without them (`Settings.layers`).
+
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import math
 import os
@@ -163,6 +174,13 @@ OP_URBAN_SHARE = 0.15
 OP_FOREST_SHARE = 0.50
 OP_MARSH_SHARE = 0.25
 OP_HILLS_RELIEF = 35.0  # GDD start 60 m gave 0.5 % hills on the real theatre; tuned (TASK-092a)
+# Graphic layers (TASK-126): hillshade light and vertical exaggeration (the theatre's slopes over 250 m pixels are
+# a few percent, true scale would leave the shading almost flat).
+RELIEF_AZIMUTH = 315.0  # degrees clockwise from north: the sun in the north-west (cartographic convention)
+RELIEF_ALTITUDE = 45.0
+RELIEF_Z = 4.0
+RELIEF_STEP = 2  # relief pixel = 2 x 2 lattice points (500 m): a 250 m hillshade made the theatre file load 0.2 s slower
+RELIEF_FLAT = int(255.0 * math.sin(math.radians(RELIEF_ALTITUDE)) + 0.5)  # 180: the hillshade of flat ground
 
 
 class Profile:
@@ -198,7 +216,9 @@ class Settings:
                  marsh_share: float = MARSH_SHARE, sea_seeds: Sequence[Tuple[float, float]] = (),
                  default_seeds: Sequence[Tuple[float, float]] = (),
                  countries: Sequence[Tuple[str, float, float]] = (),
-                 default_countries: Sequence[Tuple[str, float, float]] = ()) -> None:  # fmt: skip
+                 default_countries: Sequence[Tuple[str, float, float]] = (),
+                 layers: Optional[bool] = None, relief_z: float = RELIEF_Z,
+                 relief_step: int = RELIEF_STEP) -> None:  # fmt: skip
         operational = profile is OPERATIONAL
         self.profile = profile
         self.sample_m = sample_m if sample_m is not None else profile.sample_m
@@ -213,6 +233,9 @@ class Settings:
         self.default_seeds = list(default_seeds)  # the profile's: skipped when off the lattice
         self.countries = list(countries)  # (ISO code, lat, lon of a seed point): explicit, each must lie on the map
         self.default_countries = list(default_countries)  # the profile's: skipped when off the map
+        self.layers = operational if layers is None else layers  # graphic layers (TASK-126): operational maps
+        self.relief_z = relief_z
+        self.relief_step = relief_step
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1165,6 +1188,157 @@ def hex_country(land_by_country: Sequence[int]) -> int:
     return best
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# Graphic layers (TASK-126).
+
+LAYER_WATER, LAYER_COVER, LAYER_RELIEF = "water", "cover", "relief"
+
+
+def hillshade(heights: Sequence[float], cols: int, rows: int, cell_m: float, z: float = RELIEF_Z,
+              azimuth: float = RELIEF_AZIMUTH, altitude: float = RELIEF_ALTITUDE) -> bytearray:  # fmt: skip
+    """8-bit hillshade of a height grid (row-major, row 0 north, `cell_m` apart): Horn's 3 x 3 gradient (edge
+    cells repeat the border), heights times `z`, Lambert shading towards the sun at `azimuth` (clockwise from
+    north) and `altitude` degrees; flat ground is 255 * sin(altitude), facing away from the sun steeply is 0."""
+    az, alt = math.radians(azimuth), math.radians(altitude)
+    lx, ly, lz = math.cos(alt) * math.sin(az), math.cos(alt) * math.cos(az), math.sin(alt)  # x east, y north
+    scale = z / (8.0 * cell_m)
+    out = bytearray(cols * rows)
+    for r in range(rows):
+        north = heights[max(r - 1, 0) * cols : max(r - 1, 0) * cols + cols]
+        mid = heights[r * cols : r * cols + cols]
+        south = heights[min(r + 1, rows - 1) * cols : min(r + 1, rows - 1) * cols + cols]
+        base = r * cols
+        for c in range(cols):
+            w, e = max(c - 1, 0), min(c + 1, cols - 1)
+            a, b, cc = north[w], north[c], north[e]
+            d, f = mid[w], mid[e]
+            g, h, i = south[w], south[c], south[e]
+            dx = ((cc + 2.0 * f + i) - (a + 2.0 * d + g)) * scale  # rise per metre towards the east
+            dy = ((a + 2.0 * b + cc) - (g + 2.0 * h + i)) * scale  # rise per metre towards the north
+            shade = (lz - dx * lx - dy * ly) / math.sqrt(dx * dx + dy * dy + 1.0)
+            out[base + c] = 0 if shade <= 0.0 else min(255, int(255.0 * shade + 0.5))
+    return out
+
+
+def _png_filter_rows(width_bytes: int, height: int, data: bytes, adaptive: bool) -> bytes:
+    """PNG scanlines (bpp 1): unfiltered, or (`adaptive`) each with the filter of the smallest sum of |signed
+    bytes| (the usual heuristic; ties take the lower filter type), so the bytes depend only on the image."""
+    out = bytearray()
+    prior = bytes(width_bytes)
+    for r in range(height):
+        row = data[r * width_bytes : (r + 1) * width_bytes]
+        if not adaptive:
+            out.append(0)
+            out.extend(row)
+            continue
+        left = b"\0" + row[:-1]
+        up_left = b"\0" + prior[:-1]
+        candidates = [
+            bytes(row),
+            bytes((x - a) & 0xFF for x, a in zip(row, left)),
+            bytes((x - b) & 0xFF for x, b in zip(row, prior)),
+            bytes((x - ((a + b) >> 1)) & 0xFF for x, a, b in zip(row, left, prior)),
+            bytes((x - _paeth(a, b, c)) & 0xFF for x, a, b, c in zip(row, left, prior, up_left)),
+        ]
+        costs = [sum(v if v < 128 else 256 - v for v in cand) for cand in candidates]
+        best = costs.index(min(costs))
+        out.append(best)
+        out.extend(candidates[best])
+        prior = row
+    return bytes(out)
+
+
+def _paeth(a: int, b: int, c: int) -> int:
+    p = a + b - c
+    pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+    if pa <= pb and pa <= pc:
+        return a
+    return b if pb <= pc else c
+
+
+def png_gray(width: int, height: int, pixels: bytes, bit_depth: int = 8, filtered: bool = True) -> bytes:
+    """Grayscale PNG of `pixels` (row-major, one byte per pixel). `bit_depth` 1 stores nonzero as white (decoders
+    expand it to 0 / 255), 8 stores the bytes. `filtered` = adaptive PNG filters (smooth images such as the
+    relief); class images (water, cover) compress better unfiltered (theatre cover: 219 KB instead of 341 KB)."""
+    if bit_depth == 1:
+        width_bytes = (width + 7) // 8
+        packed = bytearray(width_bytes * height)
+        for r in range(height):
+            row = pixels[r * width : (r + 1) * width]
+            for c in range(width):
+                if row[c]:
+                    packed[r * width_bytes + (c >> 3)] |= 0x80 >> (c & 7)
+        data, row_bytes = bytes(packed), width_bytes
+    elif bit_depth == 8:
+        data, row_bytes = bytes(pixels), width
+    else:
+        raise ValueError("bit depth %d" % bit_depth)
+
+    def chunk(kind: bytes, body: bytes) -> bytes:
+        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF)
+
+    header = struct.pack(">IIBBBBB", width, height, bit_depth, 0, 0, 0, 0)
+    idat = zlib.compress(_png_filter_rows(row_bytes, height, data, filtered), 9)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", idat) + chunk(b"IEND", b"")
+
+
+def downsample(values: Sequence[float], cols: int, rows: int, step: int) -> Tuple[List[float], int, int]:
+    """Every `step`-th point of a row-major grid in both directions (from point 0), each the tent-weighted mean
+    (weight step - |offset| per axis, edges clamped) of the points around it, so a coarser grid keeps its pixel
+    centres on grid points without aliasing. Returns (values, cols, rows) of the coarse grid."""
+    if step <= 1:
+        return list(values), cols, rows
+    out_cols, out_rows = (cols - 1) // step + 1, (rows - 1) // step + 1
+    offsets = [(d, step - abs(d)) for d in range(1 - step, step)]
+    across: List[float] = []  # pass 1: along the rows, at every row
+    for r in range(rows):
+        row = values[r * cols : (r + 1) * cols]
+        for i in range(out_cols):
+            c = i * step
+            total = weight = 0.0
+            for d, w in offsets:
+                total += row[min(max(c + d, 0), cols - 1)] * w
+                weight += w
+            across.append(total / weight)
+    out: List[float] = []
+    for j in range(out_rows):
+        r = j * step
+        for i in range(out_cols):
+            total = weight = 0.0
+            for d, w in offsets:
+                total += across[min(max(r + d, 0), rows - 1) * out_cols + i] * w
+                weight += w
+            out.append(total / weight)
+    return out, out_cols, out_rows
+
+
+def graphic_layers(cover: List[bytearray], heights: Sequence[float], min_e: float, min_n: float, step: float,
+                   canopy: float = 0.0, relief_z: float = RELIEF_Z, relief_step: int = RELIEF_STEP) -> dict:  # fmt: skip
+    """The three layers of the lattice as raw bytes (row-major, row 0 = the northernmost lattice row): `water`
+    (1 / 0) and `cover` (COVER_CLASSES index) one pixel per lattice point, `relief` the hillshade of `heights` (the
+    row-major lattice heights, south row first like `cover`, minus `canopy` on forest points - the DEM is a surface
+    model) on every `relief_step`-th lattice point (`downsample`; relief pixel (i, j) lies on lattice pixel
+    (i * relief_step, j * relief_step)). `origin_e` / `origin_n` are the projected metres of the centre of pixel
+    (0, 0), the north-west one, of all three."""
+    rows = len(cover)
+    cols = len(cover[0]) if rows else 0
+    water_class, forest_class = COVER_CLASSES.index("W"), COVER_CLASSES.index("F")
+    cover_px = bytearray()
+    ground: List[float] = []
+    for r in range(rows):
+        j = rows - 1 - r
+        line = cover[j]
+        cover_px.extend(line)
+        base = j * cols
+        ground.extend(heights[base + i] - (canopy if line[i] == forest_class else 0.0) for i in range(cols))
+    water_px = bytearray(1 if v == water_class else 0 for v in cover_px)
+    coarse, relief_cols, relief_rows = downsample(ground, cols, rows, relief_step)
+    return {"width": cols, "height": rows, "pixel_m": step, "origin_e": min_e, "origin_n": min_n + (rows - 1) * step,
+            "relief_step": relief_step, "relief_width": relief_cols, "relief_height": relief_rows,
+            LAYER_WATER: water_px, LAYER_COVER: cover_px,
+            LAYER_RELIEF: hillshade(coarse, relief_cols, relief_rows, step * relief_step, relief_z)}  # fmt: skip
+
+
 def _load_osm(source: object) -> dict:
     if isinstance(source, dict):
         return source
@@ -1236,6 +1410,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     water_class = COVER_CLASSES.index("W")
     land_by_country: Dict[Tuple[int, int], List[int]] = {}
     samples: Dict[Tuple[int, int], List[Tuple[float, int]]] = {}
+    heights = array("d", bytes(8 * rows * cols)) if settings.layers else None  # every lattice point (TASK-126)
+    last_height = 0.0
     for j in range(rows):
         n = min_n + j * step
         cover_row = cover[j]
@@ -1243,9 +1419,19 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             e = min_e + i * step
             tile = layout.tile_at(e, n)
             if tile is None:
+                if heights is not None:  # off the hexes (the jagged map edge): only drawn
+                    lat, lon = from_utm(e, n, zone)
+                    try:
+                        last_height = dem.sample(lat, lon)
+                    except ValueError:
+                        pass  # no DEM there: repeat the last height
+                    heights[j * cols + i] = last_height
                 continue
             lat, lon = from_utm(e, n, zone)
-            samples.setdefault(tile, []).append((dem.sample(lat, lon), cover_row[i]))
+            height = dem.sample(lat, lon)
+            samples.setdefault(tile, []).append((height, cover_row[i]))
+            if heights is not None:
+                heights[j * cols + i] = last_height = height
             if country_seeds and cover_row[i] != water_class:
                 index = owner[j * cols + i]
                 if index != NO_COUNTRY:
@@ -1301,8 +1487,12 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             t["elevation"] = WATER_ELEVATION
         else:
             t["elevation"] = LAND_MIN + (t["metres"] - low) * scale
+    layers = None
+    if heights is not None:
+        layers = graphic_layers(cover, heights, min_e, min_n, step, settings.canopy, settings.relief_z,
+                                settings.relief_step)  # fmt: skip
     return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points,
-            "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn}  # fmt: skip
+            "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn, "layers": layers}  # fmt: skip
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1368,6 +1558,23 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
             lines[at + 2:at + 2] = ["border_lines = Array[PackedVector2Array]([%s])" % ", ".join(
                 "PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(x, 3), _f(z, 3)) for x, z in line)
                 for line in result["border_lines"])]  # fmt: skip
+    layers = result.get("layers")
+    if layers:
+        at = lines.index("sources = %s" % _string(sources)) + 1
+        width, height = layers["width"], layers["height"]
+        lines[at:at] = [
+            "layer_width = %d" % width,
+            "layer_height = %d" % height,
+            "layer_pixel_m = %s" % _f(layers["pixel_m"], 3),
+            "layer_origin_easting = %s" % _f(layers["origin_e"], 3),
+            "layer_origin_northing = %s" % _f(layers["origin_n"], 3),
+            "layer_relief_step = %d" % layers["relief_step"],
+        ] + [
+            "layer_%s_png = PackedByteArray(\"%s\")" % (kind, base64.b64encode(png).decode("ascii")) for kind, png in (
+                (LAYER_WATER, png_gray(width, height, layers[LAYER_WATER], 1, False)),
+                (LAYER_COVER, png_gray(width, height, layers[LAYER_COVER], 8, False)),
+                (LAYER_RELIEF, png_gray(layers["relief_width"], layers["relief_height"], layers[LAYER_RELIEF])))
+        ]  # fmt: skip
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
@@ -1584,6 +1791,10 @@ def run(argv: Sequence[str]) -> Path:
                         help="ISO:lat,lon[,ISO:lat,lon...] - the countries to assign to the hexes, each with a seed "
                              "point inside it (repeatable; operational default: %s; tactical maps have none)"
                              % ",".join("%s:%.2f,%.2f" % c for c in OP_COUNTRIES))  # fmt: skip
+    parser.add_argument("--relief-z", type=float, default=RELIEF_Z,
+                        help="vertical exaggeration of the relief layer's hillshade (operational, TASK-126)")  # fmt: skip
+    parser.add_argument("--relief-step", type=int, default=RELIEF_STEP,
+                        help="lattice points per relief pixel (operational, TASK-126; 2 = 500 m)")  # fmt: skip
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
     try:
@@ -1652,7 +1863,8 @@ def run(argv: Sequence[str]) -> Path:
                         args.urban_share, args.forest_share, args.marsh_share,
                         [_pair(s, ",", float) for s in args.sea_seed],
                         OP_SEA_SEEDS if profile is OPERATIONAL and not args.sea_seed else (),
-                        countries, OP_COUNTRIES if profile is OPERATIONAL and not countries else ())  # fmt: skip
+                        countries, OP_COUNTRIES if profile is OPERATIONAL and not countries else (),
+                        relief_z=args.relief_z, relief_step=args.relief_step)  # fmt: skip
     result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files)
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
@@ -1667,6 +1879,10 @@ def run(argv: Sequence[str]) -> Path:
     if result["countries"]:
         owned = [sum(1 for t in result["tiles"].values() if t["country"] == k) for k in range(len(result["countries"]))]
         print("Countries: %s" % ", ".join("%s %d" % (iso, n) for iso, n in zip(result["countries"], owned)))
+    if result.get("layers"):
+        layers = result["layers"]
+        print("Graphic layers: %dx%d px of %.0f m, water %d px; file %.2f MB" % (layers["width"], layers["height"],
+              layers["pixel_m"], sum(layers[LAYER_WATER]), out.stat().st_size / 1e6))  # fmt: skip
     if profile is OPERATIONAL:
         print("Operational import: %d sea points filled; inputs %.0f s, import %.0f s" % (result["sea_points"],
               downloaded - started, time.time() - downloaded))  # fmt: skip

@@ -1,6 +1,6 @@
 # TASK-126: Realistic operational-map terrain – fine graphic layers instead of per-hex colour
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: tools (`tools/import_map.py`), core data (`ImportedMap` graphic layers, no rules), presentation (`src/presentation/operational/`, a shader)
 - **Depends on**: TASK-092a, TASK-125 (soft: TASK-113 – it draws the border polylines; do not touch its files)
 - **Model**: opus
@@ -13,7 +13,7 @@ The staff map looks like real geography (human decision 2026-11-07): true coastl
 
 ## Acceptance criteria (testable)
 
-- [ ] Importer (`--profile=operational`) emits **graphic layers** next to the rules grid, at **250 m per pixel** (≈ 1 360 × 1 108 px for `suwalki_theatre`): `water` (1 bit: sea from the OSM coastline, lakes / reservoirs / wide rivers from `natural=water`, `waterway=riverbank`), `cover` (1 byte per pixel: field, forest, urban, marsh, bare/other; same OSM classes as the hex terrain rules), `relief` (1 byte hillshade from the 90 m DEM, sun from the NW). Stored with the map (`ImportedMap` fields, packed bytes); the rules grid, its fields and `to_grid()` are unchanged (test: existing hex terrain / elevation / country values are byte-identical before and after).
+- [ ] Importer (`--profile=operational`) emits **graphic layers** next to the rules grid, at **250 m per pixel** (≈ 1 360 × 1 108 px for `suwalki_theatre`): `water` (1 bit: sea from the OSM coastline, lakes / reservoirs / wide rivers from `natural=water`, `waterway=riverbank`), `cover` (1 byte per pixel: field, forest, urban, marsh, bare/other; same OSM classes as the hex terrain rules), `relief` (1 byte hillshade from the 90 m DEM, **stored at 500 m/px** – 250 m broke the load budget, sun from the NW). Stored with the map (`ImportedMap` fields, packed bytes); the rules grid, its fields and `to_grid()` are unchanged (test: existing hex terrain / elevation / country values are byte-identical before and after).
 - [ ] **Deterministic**: two offline imports from the same cache give identical layer bytes (test on the tool's fixture cache, `tools/test_import_map.py`); no `random`, sorted iteration, fixed rasterisation order.
 - [ ] **Golden tests** on the fixture map: a pixel inside a known lake is `water`; a pixel on the sea side of the coastline is `water`, one a few hundred metres inland is not; a forest polygon gives `cover = forest` inside and not outside; a pixel in a known town is `urban`; a flat DEM gives a constant hillshade, a slope facing the NW is brighter than one facing the SE.
 - [ ] Lakes and features smaller than a hex are kept (Wigry-sized lake ≥ 3 px wide stays `water` although its hex is not WATER); the Curonian Spit is visible as land.
@@ -47,4 +47,8 @@ The staff map looks like real geography (human decision 2026-11-07): true coastl
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Importer emits `water`, `cover` (250 m/px) and `relief` (500 m/px, deviation: 250 m exceeded the 150 ms load budget) as PNGs in `ImportedMap`; hex values byte-identical; deterministic. Theatre map 655 KB, load +~78 ms. Details: ADR 0018 "Graphic layers (TASK-126)".
+- Staff map: one ground mesh + `staff_map_terrain.gdshader` (`StaffMapTerrain` builds textures once); no per-hex fills on the layered path; fallback to v0 hex look + one-time warning for maps without layers. Grid helper (G) unchanged: default off, 1 px, low alpha.
+- Frame time (RX 580, uncapped): 1.4-1.8 ms avg; flat view / panning not measured. Sea and lakes share one colour (water layer has no distinction).
+- Playtest 1: map was almost black. Cause: the terrain shader applied to_linear to colours the 3D output already encodes (double gamma); removed. Palette is back to the design reference values; forest/town edge lines raised to 85 % (`cover_edge_alpha`) for readability. The v0 hex fallback shader still applies to_linear (dark). Roads/rivers still follow hex links (straight diagonals) – the biggest remaining gap to the design, needs real polylines (TASK-112); gdformat/gdlint could not run in this environment – run `tools/lint.sh` once fixed.
+- Battle scene unchanged, so README screenshot not refreshed.

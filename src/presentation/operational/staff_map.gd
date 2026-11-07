@@ -115,7 +115,7 @@ func build_now() -> bool:
 	_km_per_unit = imported.hex_spacing_m / Hex.SQRT3 / 1000.0
 	_view = StaffMapView.new()
 	add_child(_view)
-	_view.build(_grid, _palette, imported.hex_spacing_m)
+	_view.build(_grid, _palette, imported.hex_spacing_m, imported)
 	_view.build_countries(imported)
 	_bounds = _view.world_bounds()
 	_build_operation(definition)

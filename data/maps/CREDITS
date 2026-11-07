@@ -60,6 +60,8 @@ and the DEM) and 2026-11-07 (the last 6 OSM tiles, 55.0-55.5 N 23.0-26.0 E):
   countries (TASK-113) from the seed points Suwalki, Kaunas, Grodno, Kaliningrad - the default
   of --countries, spelled out here - and the country borders of OpenStreetMap: 72 more
   Overpass tiles "bd1_*" with only the member ways of the admin_level=2 border relations)
+  (re-imported offline from the same cache on 2026-11-07 for the graphic layers, TASK-126: water,
+  land cover and relief images; the hex data is unchanged)
   (a re-download gets today's OpenStreetMap, so the result may differ from the committed file)
 
 The test maps tests/fixtures/maps/sample_map.tres and sample_op_map.tres are built from SYNTHETIC
