@@ -1,0 +1,268 @@
+{
+ "elements": [
+  {
+   "id": 5001,
+   "lat": 54.545,
+   "lon": 22.52,
+   "type": "node"
+  },
+  {
+   "id": 5002,
+   "lat": 54.515,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 5003,
+   "lat": 54.495,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 5012,
+   "lat": 54.471,
+   "lon": 22.43,
+   "type": "node"
+  },
+  {
+   "id": 5013,
+   "lat": 54.471,
+   "lon": 22.53,
+   "type": "node"
+  },
+  {
+   "id": 5014,
+   "lat": 54.492,
+   "lon": 22.53,
+   "type": "node"
+  },
+  {
+   "id": 5015,
+   "lat": 54.492,
+   "lon": 22.43,
+   "type": "node"
+  },
+  {
+   "id": 5016,
+   "lat": 54.478,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5017,
+   "lat": 54.478,
+   "lon": 22.48,
+   "type": "node"
+  },
+  {
+   "id": 5018,
+   "lat": 54.485,
+   "lon": 22.48,
+   "type": "node"
+  },
+  {
+   "id": 5019,
+   "lat": 54.485,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5032,
+   "lat": 54.468,
+   "lon": 22.5,
+   "type": "node"
+  },
+  {
+   "id": 5033,
+   "lat": 54.468,
+   "lon": 22.54,
+   "type": "node"
+  },
+  {
+   "id": 5034,
+   "lat": 54.476,
+   "lon": 22.54,
+   "type": "node"
+  },
+  {
+   "id": 5035,
+   "lat": 54.476,
+   "lon": 22.5,
+   "type": "node"
+  },
+  {
+   "id": 5036,
+   "lat": 54.5,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5037,
+   "lat": 54.5,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5038,
+   "lat": 54.53,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5039,
+   "lat": 54.53,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5040,
+   "lat": 54.488,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 5041,
+   "lat": 54.4885,
+   "lon": 22.5,
+   "type": "node"
+  },
+  {
+   "id": 5042,
+   "lat": 54.489,
+   "lon": 22.6,
+   "type": "node"
+  },
+  {
+   "id": 5043,
+   "lat": 54.53,
+   "lon": 22.45,
+   "type": "node"
+  },
+  {
+   "id": 5044,
+   "lat": 54.47,
+   "lon": 22.455,
+   "type": "node"
+  },
+  {
+   "id": 100,
+   "nodes": [
+    5001,
+    5002,
+    5003
+   ],
+   "tags": {
+    "natural": "coastline"
+   },
+   "type": "way"
+  },
+  {
+   "id": 111,
+   "nodes": [
+    5012,
+    5013,
+    5014
+   ],
+   "type": "way"
+  },
+  {
+   "id": 112,
+   "nodes": [
+    5012,
+    5015,
+    5014
+   ],
+   "type": "way"
+  },
+  {
+   "id": 113,
+   "nodes": [
+    5016,
+    5017,
+    5018,
+    5019,
+    5016
+   ],
+   "type": "way"
+  },
+  {
+   "id": 130,
+   "nodes": [
+    5032,
+    5033,
+    5034,
+    5035,
+    5032
+   ],
+   "tags": {
+    "natural": "wetland"
+   },
+   "type": "way"
+  },
+  {
+   "id": 131,
+   "nodes": [
+    5036,
+    5037,
+    5038,
+    5039,
+    5036
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  },
+  {
+   "id": 140,
+   "nodes": [
+    5040,
+    5041,
+    5042
+   ],
+   "tags": {
+    "highway": "primary",
+    "ref": "S61"
+   },
+   "type": "way"
+  },
+  {
+   "id": 141,
+   "nodes": [
+    5043,
+    5044
+   ],
+   "tags": {
+    "highway": "tertiary"
+   },
+   "type": "way"
+  },
+  {
+   "id": 110,
+   "members": [
+    {
+     "ref": 111,
+     "role": "outer",
+     "type": "way"
+    },
+    {
+     "ref": 112,
+     "role": "outer",
+     "type": "way"
+    },
+    {
+     "ref": 113,
+     "role": "inner",
+     "type": "way"
+    }
+   ],
+   "tags": {
+    "landuse": "forest",
+    "type": "multipolygon"
+   },
+   "type": "relation"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

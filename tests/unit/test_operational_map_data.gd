@@ -1,0 +1,202 @@
+extends TestCase
+## The operational theatre map data/maps/suwalki_theatre.tres (TASK-092a): REAL data imported by
+## `tools/import_map.py --profile=operational` (5 km hexes, 68 x 64, UTM 34N; see
+## data/maps/CREDITS).
+## Places are given in WGS84 degrees and projected with the map's UTM zone (Krüger series, the
+## same as the importer's `to_utm`).
+
+const MAP_ID := &"suwalki_theatre"
+const WIDTH := 68
+const HEIGHT := 64
+## [name, lat, lon] – each must lie on a tile ≥ 2 hexes from every map edge.
+const PLACES := [
+	["Kaliningrad", 54.7104, 20.4522],
+	["Chernyakhovsk", 54.6346, 21.8128],
+	["Sovetsk", 55.0817, 21.8869],
+	["Olsztyn", 53.7784, 20.4801],
+	["Bialystok", 53.1325, 23.1688],
+	["Elk", 53.8281, 22.3647],
+	["Suwalki", 54.1115, 22.9308],
+	["Augustow", 53.8436, 22.9799],
+	["Grodno", 53.6694, 23.8131],
+	["Lida", 53.8885, 25.2846],
+	["Marijampole", 54.5599, 23.3541],
+	["Kaunas", 54.8985, 23.9036],
+	["Vilnius", 54.6872, 25.2797],
+]
+## The cities whose hexes should be URBAN (≥ 5 of 7 must be; the tuning target is all 7).
+const CITIES := ["Kaliningrad", "Vilnius", "Kaunas", "Bialystok", "Grodno", "Olsztyn", "Suwalki"]
+## Water points: the importer's default sea seeds (open Baltic, Curonian Lagoon) and Lake Śniardwy.
+const WATER_POINTS := [
+	["Baltic seed", 55.30, 20.60],
+	["Curonian Lagoon seed", 55.10, 21.05],
+	["Sniardwy", 53.75, 21.73]
+]
+
+# WGS84 / UTM (the importer's constants).
+const _A := 6378137.0
+const _F := 1.0 / 298.257223563
+const _K0 := 0.9996
+const _ZONE_34_MERIDIAN := 21.0
+
+static var _map: ImportedMap
+static var _grid: HexGrid
+
+
+func before_all() -> void:
+	_map = ImportedMap.find(MAP_ID)
+	_grid = _map.to_grid() if _map != null else null
+
+
+func after_all() -> void:
+	_map = null
+	_grid = null
+
+
+static func _atanh(x: float) -> float:
+	return 0.5 * log((1.0 + x) / (1.0 - x))
+
+
+## [easting, northing] in UTM zone 34N of a WGS84 point (Krüger series to n³, like the importer).
+static func _to_utm34(lat_deg: float, lon_deg: float) -> Array[float]:
+	var n := _F / (2.0 - _F)
+	var rect := _A / (1.0 + n) * (1.0 + n * n / 4.0 + pow(n, 4.0) / 64.0)
+	var alpha: Array[float] = [
+		n / 2.0 - 2.0 * n * n / 3.0 + 5.0 * pow(n, 3.0) / 16.0,
+		13.0 * n * n / 48.0 - 3.0 * pow(n, 3.0) / 5.0,
+		61.0 * pow(n, 3.0) / 240.0,
+	]
+	var c := 2.0 * sqrt(n) / (1.0 + n)
+	var phi := deg_to_rad(lat_deg)
+	var dlam := deg_to_rad(lon_deg - _ZONE_34_MERIDIAN)
+	var t := sinh(_atanh(sin(phi)) - c * _atanh(c * sin(phi)))
+	var xi_p := atan2(t, cos(dlam))
+	var eta_p := _atanh(sin(dlam) / sqrt(1.0 + t * t))
+	var xi := xi_p
+	var eta := eta_p
+	for j in range(1, 4):
+		xi += alpha[j - 1] * sin(2.0 * j * xi_p) * cosh(2.0 * j * eta_p)
+		eta += alpha[j - 1] * cos(2.0 * j * xi_p) * sinh(2.0 * j * eta_p)
+	return [500000.0 + _K0 * rect * eta, _K0 * rect * xi]
+
+
+## Offset tile (column, row) of a WGS84 point on the theatre map.
+func _tile_of(lat: float, lon: float) -> Vector2i:
+	var utm := _to_utm34(lat, lon)
+	return MapGenerator.axial_to_offset(_map.projected_to_tile(utm[0], utm[1]))
+
+
+func _terrain_at(offset: Vector2i) -> String:
+	return _map.terrain_rows[offset.y][offset.x]
+
+
+func _place(place_name: String) -> Array:
+	for place: Array in PLACES:
+		if place[0] == place_name:
+			return place
+	return []
+
+
+func test_projection_matches_the_importer() -> void:
+	# tools/import_map.py to_utm(54.1115, 22.9308, 34) = (626217.4, 5997651.5) (rounded).
+	var utm := _to_utm34(54.1115, 22.9308)
+	assert_true(absf(utm[0] - 626217.4) < 1.0, "easting %f" % utm[0])
+	assert_true(absf(utm[1] - 5997651.5) < 1.0, "northing %f" % utm[1])
+
+
+func test_theatre_map_is_valid_and_has_the_decided_size() -> void:
+	assert_true(_map != null, "data/maps/suwalki_theatre.tres loads")
+	assert_eq(_map.problem(), "")
+	assert_eq([_map.width, _map.height, _map.hex_spacing_m], [WIDTH, HEIGHT, 5000.0])
+	assert_eq(_map.crs, "EPSG:32634", "UTM 34N for the whole map")
+	assert_eq(_grid.coords().size(), 4352)
+	assert_true(_map.sources.contains("GLO-90"), "the operational import reads GLO-90")
+
+
+func test_places_lie_at_least_two_hexes_inside_the_edges() -> void:
+	for place: Array in PLACES:
+		var tile := _tile_of(place[1], place[2])
+		var edge := mini(mini(tile.x, tile.y), mini(WIDTH - 1 - tile.x, HEIGHT - 1 - tile.y))
+		assert_true(edge >= 2, "%s on tile %s, %d hexes from the edge" % [place[0], tile, edge])
+
+
+func test_the_tactical_sample_lies_on_land_inside_the_theatre() -> void:
+	var tactical := ImportedMap.find(&"suwalki")
+	var middle := MapGenerator.offset_to_axial(tactical.width / 2, tactical.height / 2)
+	var world := Hex.to_world(middle, TerrainField.HEX_SIZE)
+	var axial := _map.projected_to_tile(tactical.easting(world), tactical.northing(world))
+	var tile := MapGenerator.axial_to_offset(axial)
+	assert_true(tile.x >= 0 and tile.x < WIDTH and tile.y >= 0 and tile.y < HEIGHT, str(tile))
+	assert_true(_terrain_at(tile) != "W", "tile %s is %s" % [tile, _terrain_at(tile)])
+
+
+func test_water_is_at_most_fifteen_percent_and_where_it_belongs() -> void:
+	var water := 0
+	for row in _map.terrain_rows:
+		water += row.count("W")
+	assert_true(water <= 0.15 * WIDTH * HEIGHT, "%d water hexes" % water)
+	for point: Array in WATER_POINTS:
+		var tile := _tile_of(point[1], point[2])
+		assert_eq(_terrain_at(tile), "W", "%s on tile %s" % [point[0], tile])
+
+
+func test_most_cities_are_urban() -> void:
+	var urban: Array[String] = []
+	for city: String in CITIES:
+		var place := _place(city)
+		if _terrain_at(_tile_of(place[1], place[2])) == "U":
+			urban.append(city)
+	assert_true(urban.size() >= 5, "urban city hexes: %s" % [urban])
+
+
+func test_roads_and_rivers() -> void:
+	var roads := 0
+	var rivers := 0
+	for c: Vector2i in _grid.coords():
+		if _grid.road_links(c) != 0:
+			roads += 1
+		if _grid.is_river(c):
+			rivers += 1
+	assert_true(roads >= 300, "%d hexes with a road link" % roads)
+	assert_true(rivers >= 50, "%d river hexes" % rivers)
+
+
+func test_the_land_is_one_connected_region() -> void:
+	var land := {}
+	for c: Vector2i in _grid.coords():
+		if _grid.get_terrain(c) != Terrain.Type.WATER:
+			land[c] = true
+	var largest := 0
+	var seen := {}
+	for start: Vector2i in land:
+		if seen.has(start):
+			continue
+		var size := 0
+		var stack: Array[Vector2i] = [start]
+		seen[start] = true
+		while not stack.is_empty():
+			var c: Vector2i = stack.pop_back()
+			size += 1
+			for n in Hex.neighbors(c):
+				if land.has(n) and not seen.has(n):
+					seen[n] = true
+					stack.append(n)
+		largest = maxi(largest, size)
+	assert_true(largest >= 0.9 * land.size(), "largest region %d of %d" % [largest, land.size()])
+
+
+func test_to_grid_takes_at_most_a_second() -> void:
+	var times: Array[float] = []
+	for i in 3:
+		var start := Time.get_ticks_usec()
+		var grid := _map.to_grid()
+		times.append((Time.get_ticks_usec() - start) / 1e6)
+		assert_true(grid != null)
+	times.sort()
+	assert_true(times[1] <= 1.0, "to_grid median %.3f s" % times[1])
+
+
+func test_the_theatre_is_not_a_battle_scenario() -> void:
+	assert_false("suwalki_theatre" in Scenario.NAMES)
+	for scenario_name in Scenario.NAMES:
+		assert_false(scenario_name.contains("theatre"), scenario_name)

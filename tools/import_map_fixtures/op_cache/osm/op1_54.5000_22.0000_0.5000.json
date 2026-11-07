@@ -1,0 +1,136 @@
+{
+ "elements": [
+  {
+   "id": 5001,
+   "lat": 54.545,
+   "lon": 22.52,
+   "type": "node"
+  },
+  {
+   "id": 5002,
+   "lat": 54.515,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 5003,
+   "lat": 54.495,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 5008,
+   "lat": 54.525,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 5009,
+   "lat": 54.525,
+   "lon": 22.44,
+   "type": "node"
+  },
+  {
+   "id": 5010,
+   "lat": 54.545,
+   "lon": 22.44,
+   "type": "node"
+  },
+  {
+   "id": 5011,
+   "lat": 54.545,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 5036,
+   "lat": 54.5,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5037,
+   "lat": 54.5,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5038,
+   "lat": 54.53,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5039,
+   "lat": 54.53,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5043,
+   "lat": 54.53,
+   "lon": 22.45,
+   "type": "node"
+  },
+  {
+   "id": 5044,
+   "lat": 54.47,
+   "lon": 22.455,
+   "type": "node"
+  },
+  {
+   "id": 100,
+   "nodes": [
+    5001,
+    5002,
+    5003
+   ],
+   "tags": {
+    "natural": "coastline"
+   },
+   "type": "way"
+  },
+  {
+   "id": 102,
+   "nodes": [
+    5008,
+    5009,
+    5010,
+    5011,
+    5008
+   ],
+   "tags": {
+    "natural": "water",
+    "water": "lagoon"
+   },
+   "type": "way"
+  },
+  {
+   "id": 131,
+   "nodes": [
+    5036,
+    5037,
+    5038,
+    5039,
+    5036
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  },
+  {
+   "id": 141,
+   "nodes": [
+    5043,
+    5044
+   ],
+   "tags": {
+    "highway": "tertiary"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

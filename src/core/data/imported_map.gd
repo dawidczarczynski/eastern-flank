@@ -1,9 +1,10 @@
 class_name ImportedMap
 extends Resource
-## A tactical map imported from real geography by tools/import_map.py (TASK-087, ADR 0018):
-## data/maps/<id>.tres. Rectangular offset layout like MapGenerator (row 0 north, odd rows shifted
-## east), one character per tile in `terrain_rows`, elevation per tile in game units. The importer
-## writes these files; nothing in the game edits them.
+## A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018):
+## data/maps/<id>.tres – a tactical battle map (250 m hexes) or the operational theatre map
+## (5 km hexes, `--profile=operational`, TASK-092a). Rectangular offset layout like MapGenerator
+## (row 0 north, odd rows shifted east), one character per tile in `terrain_rows`, elevation per
+## tile in game units. The importer writes these files; nothing in the game edits them.
 ##
 ## Geo-reference: tile centres lie `hex_spacing_m` apart in the projected CRS `crs` (UTM), so one
 ## world unit (TerrainField.HEX_SIZE, centre to corner) is hex_spacing_m / sqrt(3) metres; world x
@@ -31,7 +32,7 @@ const MAPS_DIR := "res://data/maps/"
 ## Columns and rows (offset layout; tile (col, row) = MapGenerator.offset_to_axial(col, row)).
 @export var width: int
 @export var height: int
-## Distance between neighbouring tile centres in metres (the tactical scale, 250 m).
+## Distance between neighbouring tile centres in metres (tactical 250 m, operational 5000 m).
 @export var hex_spacing_m: float = 250.0
 ## Projected CRS of the origin, e.g. "EPSG:32634" (UTM 34N).
 @export var crs: String

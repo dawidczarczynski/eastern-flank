@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Tactical hex map from real geography (TASK-087, ADR 0018). Python 3.8, stdlib only.
+"""Tactical and operational hex maps from real geography (TASK-087, TASK-092a, ADR 0018). Python 3.8, stdlib only.
 
 Usage:
-  tools/import_map.py [<min_lon,min_lat,max_lon,max_lat>] [--center=<lat,lon>] [--size=30x24] [--hex=250]
+  tools/import_map.py [<min_lon,min_lat,max_lon,max_lat>] [--profile=tactical|operational] [--center=<lat,lon>]
+                      [--size=30x24] [--hex=250] [--sample=25] [--tile-deg=0.5] [--sea-seed=<lat,lon> ...]
                       --name=<id> --out=data/maps/<id>.tres [--display-name=<text>]
                       [--cache=~/.cache/eastern-flank/maps] [--offline] [--dem=<file.tif> ...] [--osm=<file.json>]
 
@@ -35,6 +36,17 @@ at least a quarter of the hex is open; a hex that is mostly forest takes the mea
 elevation: land = land_min + (metres - lowest land hex) x vertical scale (`--exaggeration` x true scale, reduced
 so the highest hex stays at `TOP_ELEVATION`), water = `WATER_ELEVATION` (the game has one water plane at 0).
 
+Profiles (`--profile`, TASK-092a, ADR 0018 "Operational maps"): `tactical` (default) is everything above;
+`operational` is for the 5 km theatre map: hex 5000 m, lattice 250 m (`--sample`), Copernicus GLO-90 tiles
+(`<cache>/dem/Copernicus_DSM_COG_30_N<lat>_00_E<lon>_00_DEM.tif`; `--dem=glo30|glo90` picks the cached DEM),
+`classify_operational` (water / urban / forest / marsh shares, hills by relief, else plains - never fields), only
+major roads (`OP_ROAD_HIGHWAYS`) and rivers / canals, the corner clip scaled with the hex (`clip_length`). Its OSM
+input is fetched in `--tile-deg` tiles on a grid aligned to multiples of the tile size (`osm_tile_paths`, each
+tile its own cache file `<cache>/osm/op1_<lat>_<lon>_<deg>.json`, retried and resumable); tiles are read one at a
+time and areas / lines that appear in several tiles give the same result again (highest class per point, link
+masks OR-ed). OSM has no sea polygons: `natural=coastline` ways are rasterised as a barrier and the sea is filled
+from `--sea-seed` points (`fill_sea`; the theatre's defaults `OP_SEA_SEEDS` apply when they lie on the map).
+
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
 """
@@ -48,13 +60,17 @@ import struct
 import sys
 import urllib.parse
 import urllib.request
+import time
 import zlib
+from array import array
+from collections import deque
 from itertools import accumulate
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 DEFAULT_CACHE = Path(os.path.expanduser("~/.cache/eastern-flank/maps"))
 DEM_URL = "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif"
+DEM_URLS = {"glo30": DEM_URL, "glo90": "https://copernicus-dem-90m.s3.amazonaws.com/{name}/{name}.tif"}
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 USER_AGENT = "eastern-flank-map-import/1 (offline game map builder; one-off download)"
 SQRT3 = math.sqrt(3.0)
@@ -70,6 +86,7 @@ SOURCES = (
     "all rights reserved. Land cover: (c) OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). "
     "See data/maps/CREDITS."
 )
+SOURCES_GLO90 = SOURCES.replace("GLO-30 DEM", "GLO-90 DEM").replace("WorldDEM-30", "WorldDEM-90")
 
 # Cover classes in priority order (a later class wins where polygons overlap) and their map characters.
 # Terrain (`classify`): W -> WATER, F -> FOREST by dominance; in an open hex U -> URBAN and M -> MARSH by share,
@@ -105,6 +122,76 @@ _TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
         "brownfield": "G", "greenfield": "G", "quarry": "G", "landfill": "G",
     }),
 ]  # fmt: skip
+
+# Operational profile (TASK-092a, GDD "Operational map"): 5 km hexes read only major features. Urban areas without
+# the large military training grounds (mostly forest and heath, they would make whole 5 km hexes urban); fields and
+# grass are not told apart at this scale, so they are not downloaded (unmapped = plains).
+OP_URBAN_LANDUSE = ("residential", "commercial", "industrial", "retail", "farmyard", "garages", "construction",
+                    "railway")  # fmt: skip
+_OP_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
+    ("natural", {"water": "W", "bay": "W", "wetland": "M", "wood": "F"}),
+    ("waterway", {"riverbank": "W", "dock": "W"}),
+    ("water", {"*": "W"}),
+    ("landuse", dict([("reservoir", "W"), ("basin", "W"), ("forest", "F")] + [(v, "U") for v in OP_URBAN_LANDUSE])),
+]
+OP_ROAD_HIGHWAYS = ("motorway", "trunk", "primary", "secondary")
+OP_SEA_SEEDS = ((55.30, 20.60), (55.10, 21.05))  # the open Baltic west of the Curonian Spit; the Curonian Lagoon
+OP_QUERY_VERSION = "op1"  # part of the tile file names: a changed query must not reuse old tiles
+OSM_TILE_DEG = 0.5
+DOWNLOAD_RETRIES = 3
+RETRY_PAUSE_S = 60.0
+# GDD "Operational map" thresholds (shares of a hex's sample points, relief in metres).
+OP_WATER_SHARE = 0.50
+OP_URBAN_SHARE = 0.15
+OP_FOREST_SHARE = 0.50
+OP_MARSH_SHARE = 0.25
+OP_HILLS_RELIEF = 35.0  # GDD start 60 m gave 0.5 % hills on the real theatre; tuned (TASK-092a)
+
+
+class Profile:
+    """What a map scale reads: hex and lattice spacing, DEM, classifier, tag table, line classes, OSM tiling."""
+
+    def __init__(self, name: str, hex_m: float, sample_m: float, dem: str, tag_classes: list,
+                 road_highways: Tuple[str, ...], named_streams: bool, line_step_m: float, tiled: bool) -> None:  # fmt: skip
+        self.name = name
+        self.hex_m = hex_m
+        self.sample_m = sample_m
+        self.dem = dem
+        self.tag_classes = tag_classes
+        self.road_highways = road_highways
+        self.named_streams = named_streams
+        self.line_step_m = line_step_m
+        self.tiled = tiled
+
+
+PROFILES = {
+    "tactical": Profile("tactical", 250.0, SAMPLE_M, "glo30", _TAG_CLASSES, ROAD_HIGHWAYS, True, LINE_STEP_M, False),
+    "operational": Profile("operational", 5000.0, 250.0, "glo90", _OP_TAG_CLASSES, OP_ROAD_HIGHWAYS, False, 50.0, True),
+}
+TACTICAL = PROFILES["tactical"]
+OPERATIONAL = PROFILES["operational"]
+
+
+class Settings:
+    """Everything `build_map` needs besides the layout and the inputs (the CLI options, resolved per profile)."""
+
+    def __init__(self, profile: Profile = TACTICAL, sample_m: Optional[float] = None,
+                 hills_relief: Optional[float] = None, canopy: float = 15.0, exaggeration: float = 1.5, water_share: float = OP_WATER_SHARE,
+                 urban_share: Optional[float] = None, forest_share: float = OP_FOREST_SHARE,
+                 marsh_share: float = MARSH_SHARE, sea_seeds: Sequence[Tuple[float, float]] = (),
+                 default_seeds: Sequence[Tuple[float, float]] = ()) -> None:  # fmt: skip
+        operational = profile is OPERATIONAL
+        self.profile = profile
+        self.sample_m = sample_m if sample_m is not None else profile.sample_m
+        self.hills_relief = hills_relief if hills_relief is not None else (OP_HILLS_RELIEF if operational else 15.0)
+        self.canopy = canopy
+        self.exaggeration = exaggeration
+        self.water_share = water_share
+        self.urban_share = urban_share if urban_share is not None else (OP_URBAN_SHARE if operational else URBAN_SHARE)
+        self.forest_share = forest_share
+        self.marsh_share = marsh_share
+        self.sea_seeds = list(sea_seeds)  # explicit: each must lie on the map's lattice, on the sea side
+        self.default_seeds = list(default_seeds)  # the profile's: skipped when off the lattice
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -214,7 +301,7 @@ class GeoTiff:
         # Degrees of the centre of pixel (0, 0).
         self.lon0 = tie[3] + (half - tie[0]) * self.dx
         self.lat0 = tie[4] - (half - tie[1]) * self.dy
-        self._cache: Dict[int, List[float]] = {}
+        self._cache: Dict[int, Sequence[float]] = {}
 
     def _read_ifd(self, offset: int) -> Dict[int, tuple]:
         bo = self._bo
@@ -231,7 +318,7 @@ class GeoTiff:
             tags[tag] = (raw,) if code == "s" else struct.unpack(bo + code * n, raw)
         return tags
 
-    def _block(self, index: int) -> List[float]:
+    def _block(self, index: int) -> Sequence[float]:
         if index in self._cache:
             return self._cache[index]
         raw = self._data[self._offsets[index] : self._offsets[index] + self._counts[index]]
@@ -254,7 +341,8 @@ class GeoTiff:
                 for r in range(rows):
                     for i in range(1, w):
                         values[r * w + i] += values[r * w + i - 1]
-        self._cache[index] = values
+        # Compact storage, the same values: float32 samples stay float32, integers fit a double exactly.
+        self._cache[index] = array("f" if self._sample == "f" else "d", values)
         return values
 
     def pixel(self, i: int, j: int) -> float:
@@ -287,18 +375,35 @@ class Dem:
 
     def __init__(self, paths: Sequence[Path]) -> None:
         self.tiles = [GeoTiff(p) for p in sorted(paths, key=lambda p: Path(p).name)]
+        self._candidates: Dict[Tuple[int, int], List[GeoTiff]] = {}
+
+    def _cell(self, lat: float, lon: float) -> List[GeoTiff]:
+        """The tiles (in order) that may contain a point of the 1-degree cell of (lat, lon)."""
+        key = (int(math.floor(lat)), int(math.floor(lon)))
+        found = self._candidates.get(key)
+        if found is None:
+            found = []
+            for t in self.tiles:
+                west, east = t.lon0 - t.dx, t.lon0 + t.width * t.dx
+                north, south = t.lat0 + t.dy, t.lat0 - t.height * t.dy
+                if west <= key[1] + 1 and east >= key[1] and south <= key[0] + 1 and north >= key[0]:
+                    found.append(t)
+            self._candidates[key] = found
+        return found
 
     def sample(self, lat: float, lon: float) -> float:
-        for tile in self.tiles:
+        for tile in self._cell(lat, lon):
             if tile.contains(lat, lon):
                 return tile.sample(lat, lon)
         raise ValueError("no DEM tile covers %.5f, %.5f" % (lat, lon))
 
 
-def copernicus_tile_name(lat: int, lon: int) -> str:
+def copernicus_tile_name(lat: int, lon: int, dem: str = "glo30") -> str:
+    """Copernicus COG tile name; GLO-30 tiles are `_10_` (1 arc second), GLO-90 tiles `_30_` (3 arc seconds)."""
     ns = "N" if lat >= 0 else "S"
     ew = "E" if lon >= 0 else "W"
-    return "Copernicus_DSM_COG_10_%s%02d_00_%s%03d_00_DEM" % (ns, abs(lat), ew, abs(lon))
+    res = {"glo30": "10", "glo90": "30"}[dem]
+    return "Copernicus_DSM_COG_%s_%s%02d_00_%s%03d_00_DEM" % (res, ns, abs(lat), ew, abs(lon))
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -321,9 +426,32 @@ def overpass_query(south: float, west: float, north: float, east: float) -> str:
     ])  # fmt: skip
 
 
-def cover_class(tags: Dict[str, str]) -> Optional[str]:
+def operational_query(south: float, west: float, north: float, east: float) -> str:
+    """Overpass query of one operational tile: only what the operational profile reads (forest, water, wetland,
+    urban land use, major roads, rivers and canals) plus the coastline (sea fill) and the country borders
+    (`admin_level=2` ways, read by TASK-113)."""
+    bbox = "%.5f,%.5f,%.5f,%.5f" % (south, west, north, east)
+    landuse = "|".join(["forest", "reservoir", "basin"] + list(OP_URBAN_LANDUSE))
+    return "\n".join([
+        "[out:json][timeout:900];",
+        "(",
+        '  wr["natural"~"^(water|bay|wetland|wood)$"](%s);' % bbox,
+        '  wr["landuse"~"^(%s)$"](%s);' % (landuse, bbox),
+        '  wr["water"](%s);' % bbox,
+        '  wr["waterway"~"^(riverbank|dock)$"](%s);' % bbox,
+        '  way["highway"~"^(%s)(_link)?$"](%s);' % ("|".join(OP_ROAD_HIGHWAYS), bbox),
+        '  way["waterway"~"^(river|canal)$"](%s);' % bbox,
+        '  way["natural"="coastline"](%s);' % bbox,
+        '  way["boundary"="administrative"]["admin_level"="2"](%s);' % bbox,
+        ");",
+        "(._;>;);",
+        "out body;",
+    ])  # fmt: skip
+
+
+def cover_class(tags: Dict[str, str], table: Optional[list] = None) -> Optional[str]:
     """Cover class character of an OSM area's tags, or None when the area does not set the cover."""
-    for key, values in _TAG_CLASSES:
+    for key, values in _TAG_CLASSES if table is None else table:
         value = tags.get(key)
         if value is None:
             continue
@@ -357,7 +485,7 @@ def _assemble_rings(ways: List[List[int]]) -> List[List[int]]:
     return rings
 
 
-def osm_areas(osm: dict) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
+def osm_areas(osm: dict, table: Optional[list] = None) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
     """(cover class, rings of (lat, lon)) of every land-cover area, sorted by priority, then element type and id.
     Closed ways are areas; multipolygon relations assemble all member ways into rings (filled even-odd)."""
     nodes: Dict[int, Tuple[float, float]] = {}
@@ -377,7 +505,7 @@ def osm_areas(osm: dict) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
 
     for way_id in sorted(ways):
         way = ways[way_id]
-        cls = cover_class(way.get("tags", {}))
+        cls = cover_class(way.get("tags", {}), table)
         refs = way.get("nodes", [])
         if cls and len(refs) >= 4 and refs[0] == refs[-1]:
             rings = rings_of([refs])
@@ -385,7 +513,7 @@ def osm_areas(osm: dict) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
                 areas.append((COVER_CLASSES.index(cls), 0, way_id, cls, rings))
     for rel in sorted(relations, key=lambda r: r["id"]):
         tags = rel.get("tags", {})
-        cls = cover_class(tags)
+        cls = cover_class(tags, table)
         if not cls or tags.get("type") not in ("multipolygon", "boundary"):
             continue
         members = [ways[m["ref"]]["nodes"] for m in rel.get("members", []) if m.get("type") == "way" and m.get("ref") in ways]
@@ -396,20 +524,40 @@ def osm_areas(osm: dict) -> List[Tuple[str, List[List[Tuple[float, float]]]]]:
     return [(a[3], a[4]) for a in areas]
 
 
-def line_kind(tags: Dict[str, str]) -> Optional[str]:
-    """ROAD, RIVER or None for an OSM way's tags (rule roads and rivers only, TASK-108)."""
+def line_kind(tags: Dict[str, str], profile: Optional[Profile] = None) -> Optional[str]:
+    """ROAD, RIVER or None for an OSM way's tags (rule roads and rivers only, TASK-108; the operational profile
+    reads only major roads and no streams, TASK-092a)."""
+    profile = profile or TACTICAL
     if tags.get("area") == "yes":
         return None
     highway = tags.get("highway", "")
-    if highway in ROAD_HIGHWAYS or (highway.endswith("_link") and highway[: -len("_link")] in ROAD_HIGHWAYS):
+    roads = profile.road_highways
+    if highway in roads or (highway.endswith("_link") and highway[: -len("_link")] in roads):
         return ROAD
     waterway = tags.get("waterway", "")
-    if waterway in RIVER_WATERWAYS or (waterway == "stream" and tags.get("name")):
+    if waterway in RIVER_WATERWAYS or (profile.named_streams and waterway == "stream" and tags.get("name")):
         return RIVER
     return None
 
 
-def osm_lines(osm: dict) -> List[Tuple[str, List[Tuple[float, float]]]]:
+def osm_coastlines(osm: dict) -> List[Tuple[int, List[Tuple[float, float]]]]:
+    """(way id, [(lat, lon), ...]) of every `natural=coastline` way, sorted by id (land on the left, OSM rule)."""
+    nodes: Dict[int, Tuple[float, float]] = {}
+    ways = []
+    for el in osm.get("elements", []):
+        if el.get("type") == "node":
+            nodes[el["id"]] = (el["lat"], el["lon"])
+        elif el.get("type") == "way" and el.get("tags", {}).get("natural") == "coastline":
+            ways.append(el)
+    lines = []
+    for way in sorted(ways, key=lambda w: w["id"]):
+        points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
+        if len(points) >= 2:
+            lines.append((way["id"], points))
+    return lines
+
+
+def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, List[Tuple[float, float]]]]:
     """(ROAD or RIVER, [(lat, lon), ...]) of every road and river way, sorted by (kind, way id)."""
     nodes: Dict[int, Tuple[float, float]] = {}
     ways = []
@@ -420,7 +568,7 @@ def osm_lines(osm: dict) -> List[Tuple[str, List[Tuple[float, float]]]]:
             ways.append(el)
     lines = []
     for way in ways:
-        kind = line_kind(way.get("tags", {}))
+        kind = line_kind(way.get("tags", {}), profile)
         points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
         if kind and len(points) >= 2:
             lines.append((kind, way["id"], points))
@@ -500,8 +648,9 @@ class HexLayout:
 
 def _scanline_fill(grid: List[bytearray], value: int, rings: List[List[Tuple[float, float]]],
                    min_e: float, min_n: float, step: float) -> None:  # fmt: skip
-    """Sets `value` on lattice points (row j at N = min_n + j*step, column i at E = min_e + i*step) inside the
-    rings (even-odd)."""
+    """Raises lattice points (row j at N = min_n + j*step, column i at E = min_e + i*step) inside the rings
+    (even-odd) to `value`: a point keeps the highest class of all areas covering it, whatever the order the areas
+    come in (idempotent, so areas that appear in several OSM tiles may be filled again)."""
     rows = len(grid)
     cols = len(grid[0]) if rows else 0
     edges = []
@@ -528,7 +677,8 @@ def _scanline_fill(grid: List[bytearray], value: int, rings: List[List[Tuple[flo
             i0 = max(0, int(math.ceil((xs[k] - min_e) / step)))
             i1 = min(cols - 1, int(math.floor((xs[k + 1] - min_e) / step)))
             for i in range(i0, i1 + 1):
-                row[i] = value
+                if row[i] < value:
+                    row[i] = value
 
 
 def _percentile(sorted_values: List[float], p: float) -> float:
@@ -557,6 +707,29 @@ def classify(counts: Sequence[int], relief: float, hills_relief: float = 15.0, u
         return "hills"
     if dominant_open_class(counts) == "A":
         return "fields"
+    return "plains"
+
+
+def classify_operational(counts: Sequence[int], relief: float, water_share: float = OP_WATER_SHARE,
+                         urban_share: float = OP_URBAN_SHARE, forest_share: float = OP_FOREST_SHARE,
+                         marsh_share: float = OP_MARSH_SHARE, hills_relief: float = OP_HILLS_RELIEF) -> str:  # fmt: skip
+    """Terrain of a 5 km hex (GDD "Operational map", first match wins): water share -> water, urban share ->
+    urban, forest share -> forest, marsh share -> marsh, relief -> hills, else plains (never fields)."""
+    total = sum(counts)
+
+    def reaches(cls: str, share: float) -> bool:
+        return counts[COVER_CLASSES.index(cls)] >= share * total - 1e-9
+
+    if reaches("W", water_share):
+        return "water"
+    if reaches("U", urban_share):
+        return "urban"
+    if reaches("F", forest_share):
+        return "forest"
+    if reaches("M", marsh_share):
+        return "marsh"
+    if relief >= hills_relief:
+        return "hills"
     return "plains"
 
 
@@ -596,11 +769,18 @@ def _hex_distance(a: Tuple[int, int], b: Tuple[int, int]) -> int:
     return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
 
 
-def line_links(layout: HexLayout, points: Sequence[Tuple[float, float]]) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
+def clip_length(layout: HexLayout) -> float:
+    """Corner-clip length of the layout: CLIP_M at the 250 m tactical hex, scaled with the hex (800 m at 5 km)."""
+    return CLIP_M * layout.spacing / 250.0
+
+
+def line_links(layout: HexLayout, points: Sequence[Tuple[float, float]],
+               step: float = LINE_STEP_M) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:  # fmt: skip
     """Links (axial a, axial b) between consecutive hexes along a projected polyline (also off the map), after
-    dropping stretches shorter than CLIP_M that clip a hex corner between two neighbouring hexes (or leave and
-    re-enter the same hex)."""
-    samples = _densify(points, LINE_STEP_M)
+    dropping stretches shorter than `clip_length` that clip a hex corner between two neighbouring hexes (or leave
+    and re-enter the same hex). The line is densified every `step` metres."""
+    clip = clip_length(layout)
+    samples = _densify(points, step)
     runs: List[list] = []  # [axial, distance where the line enters, distance where it leaves]
     for e, n, along in samples:
         tile = layout.axial_at(e, n)
@@ -615,7 +795,7 @@ def line_links(layout: HexLayout, points: Sequence[Tuple[float, float]]) -> List
         changed = False
         for i in range(1, len(runs) - 1):
             prev, run, nxt = runs[i - 1], runs[i], runs[i + 1]
-            if run[2] - run[1] < CLIP_M and _hex_distance(prev[0], nxt[0]) <= 1:
+            if run[2] - run[1] < clip and _hex_distance(prev[0], nxt[0]) <= 1:
                 del runs[i]
                 if prev[0] == nxt[0]:
                     prev[2] = nxt[2]
@@ -646,33 +826,130 @@ def store_links(layout: HexLayout, links: Sequence[Tuple[Tuple[int, int], Tuple[
     return masks
 
 
-def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: float = 15.0,
-              canopy: float = 15.0, exaggeration: float = 1.5, urban_share: float = URBAN_SHARE,
-              marsh_share: float = MARSH_SHARE) -> dict:  # fmt: skip
-    """Per-hex terrain, cover and elevation of the layout (see the module docstring)."""
+def _coast_barrier(rows: int, cols: int, coastlines: Sequence[Sequence[Tuple[float, float]]],
+                   min_e: float, min_n: float, step: float) -> bytearray:  # fmt: skip
+    """Lattice points (row-major, 1 = barrier) on the projected coastlines: each segment is walked every quarter
+    step and the nearest lattice point marked, so the marks form an 8-connected chain no 4-connected fill crosses."""
+    barrier = bytearray(rows * cols)
+    for line in coastlines:
+        for (e1, n1), (e2, n2) in zip(line, line[1:]):
+            parts = max(1, int(math.ceil(math.hypot(e2 - e1, n2 - n1) / (step / 4.0))))
+            for k in range(parts + 1):
+                t = k / parts
+                i = int(round((e1 + (e2 - e1) * t - min_e) / step))
+                j = int(round((n1 + (n2 - n1) * t - min_n) / step))
+                if 0 <= i < cols and 0 <= j < rows:
+                    barrier[j * cols + i] = 1
+    return barrier
+
+
+def sea_side(coastlines: Sequence[Sequence[Tuple[float, float]]], e: float, n: float) -> bool:
+    """True when the projected point lies on the sea side (right, OSM: land is on the left) of the nearest
+    coastline segment."""
+    best = None
+    for line in coastlines:
+        for (e1, n1), (e2, n2) in zip(line, line[1:]):
+            de, dn = e2 - e1, n2 - n1
+            length2 = de * de + dn * dn
+            t = 0.0 if length2 == 0.0 else min(1.0, max(0.0, ((e - e1) * de + (n - n1) * dn) / length2))
+            dist = math.hypot(e - (e1 + de * t), n - (n1 + dn * t))
+            if best is None or dist < best[0]:
+                best = (dist, de * (n - n1) - dn * (e - e1))
+    return best is not None and best[1] < 0.0  # cross product < 0: the point is right of the segment
+
+
+def fill_sea(cover: List[bytearray], coastlines: Sequence[Sequence[Tuple[float, float]]],
+             seeds: Sequence[Tuple[float, float]], min_e: float, min_n: float, step: float) -> int:  # fmt: skip
+    """Marks as water every lattice point 4-connected to a projected seed point without crossing a coastline
+    (OSM has no sea polygons). A seed off the lattice, on land or on the coastline is an error. Returns the number
+    of points reached."""
+    rows = len(cover)
+    cols = len(cover[0]) if rows else 0
+    barrier = _coast_barrier(rows, cols, coastlines, min_e, min_n, step)
+    water = COVER_CLASSES.index("W")
+    seen = bytearray(rows * cols)
+    reached = 0
+    for e, n in seeds:
+        i = int(round((e - min_e) / step))
+        j = int(round((n - min_n) / step))
+        if not (0 <= i < cols and 0 <= j < rows):
+            raise ValueError("sea seed E %.0f N %.0f is off the map" % (e, n))
+        if not coastlines or barrier[j * cols + i] or not sea_side(coastlines, e, n):
+            raise ValueError("sea seed E %.0f N %.0f is not on the sea side of a coastline" % (e, n))
+        queue = deque([j * cols + i])
+        seen[j * cols + i] = 1
+        while queue:
+            k = queue.popleft()
+            cover[k // cols][k % cols] = water
+            reached += 1
+            ki, kj = k % cols, k // cols
+            for nk, ok in ((k - 1, ki > 0), (k + 1, ki < cols - 1), (k - cols, kj > 0), (k + cols, kj < rows - 1)):
+                if ok and not seen[nk] and not barrier[nk]:
+                    seen[nk] = 1
+                    queue.append(nk)
+    return reached
+
+
+def _load_osm(source: object) -> dict:
+    if isinstance(source, dict):
+        return source
+    with open(str(source), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Optional[Settings] = None) -> dict:
+    """Per-hex terrain, cover and elevation of the layout (see the module docstring). `osm` is one Overpass
+    answer (dict or path) or a list of them (OSM tiles, loaded one at a time; areas and lines that appear in several
+    tiles give the same result again, `_scanline_fill` and link masks are idempotent)."""
+    settings = settings or Settings()
+    profile = settings.profile
+    step = settings.sample_m
+    operational = profile is OPERATIONAL
     min_e, min_n, max_e, max_n = layout.bounds()
-    cols = int(math.floor((max_e - min_e) / SAMPLE_M)) + 1
-    rows = int(math.floor((max_n - min_n) / SAMPLE_M)) + 1
+    cols = int(math.floor((max_e - min_e) / step)) + 1
+    rows = int(math.floor((max_n - min_n) / step)) + 1
     cover = [bytearray(cols) for _ in range(rows)]
-    for cls, rings in osm_areas(osm):
-        projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
-        _scanline_fill(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, SAMPLE_M)
+    links: Dict[str, set] = {ROAD: set(), RIVER: set()}
+    coastlines: Dict[int, List[Tuple[float, float]]] = {}
+    sources = osm if isinstance(osm, list) else [osm]
+    for index, source in enumerate(sources):
+        if len(sources) > 1:
+            print("OSM tile %d/%d %s" % (index + 1, len(sources), getattr(source, "name", "")), file=sys.stderr)
+        data = _load_osm(source)
+        for cls, rings in osm_areas(data, profile.tag_classes):
+            projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
+            _scanline_fill(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, step)
+        for kind, line in osm_lines(data, profile):
+            links[kind].update(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m))
+        if operational:
+            for way_id, line in osm_coastlines(data):
+                coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
+        del data
+    seeds = [to_utm(lat, lon, zone) for lat, lon in settings.sea_seeds]
+    for lat, lon in settings.default_seeds:
+        e, n = to_utm(lat, lon, zone)
+        if min_e <= e <= max_e and min_n <= n <= max_n:
+            seeds.append((e, n))
+    sea_points = 0
+    if seeds:
+        sea_points = fill_sea(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step)
     samples: Dict[Tuple[int, int], List[Tuple[float, int]]] = {}
     for j in range(rows):
-        n = min_n + j * SAMPLE_M
+        n = min_n + j * step
+        cover_row = cover[j]
         for i in range(cols):
-            e = min_e + i * SAMPLE_M
+            e = min_e + i * step
             tile = layout.tile_at(e, n)
             if tile is None:
                 continue
             lat, lon = from_utm(e, n, zone)
-            samples.setdefault(tile, []).append((dem.sample(lat, lon), cover[j][i]))
+            samples.setdefault(tile, []).append((dem.sample(lat, lon), cover_row[i]))
     tiles = {}
     for row in range(layout.height):
         for col in range(layout.width):
             points = samples.get((col, row), [])
             if not points:
-                raise ValueError("hex %d,%d has no sample points (hex smaller than SAMPLE_M?)" % (col, row))
+                raise ValueError("hex %d,%d has no sample points (hex smaller than the lattice step?)" % (col, row))
             counts = [0] * len(COVER_CLASSES)
             for _, c in points:
                 counts[c] += 1
@@ -683,24 +960,26 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: f
                 mean = sum(open_heights) / len(open_heights)
                 relief = _percentile(open_heights, 0.9) - _percentile(open_heights, 0.1)
             else:
-                mean = sum(all_heights) / len(all_heights) - (canopy if group == FOREST else 0.0)
+                mean = sum(all_heights) / len(all_heights) - (settings.canopy if group == FOREST else 0.0)
                 relief = _percentile(all_heights, 0.9) - _percentile(all_heights, 0.1)
-            terrain = classify(counts, relief, hills_relief, urban_share, marsh_share)
+            if operational:
+                terrain = classify_operational(counts, relief, settings.water_share, settings.urban_share,
+                                               settings.forest_share, settings.marsh_share, settings.hills_relief)  # fmt: skip
+            else:
+                terrain = classify(counts, relief, settings.hills_relief, settings.urban_share, settings.marsh_share)
             cover_char = "W" if group == WATER else "F" if group == FOREST else dominant_open_class(counts)
             tiles[(col, row)] = {"terrain": terrain, "cover": cover_char, "metres": round(mean, 1),
                                  "relief": round(relief, 1)}  # fmt: skip
+    del samples
     water = [tile for tile, t in tiles.items() if t["terrain"] == "water"]
-    links: Dict[str, list] = {ROAD: [], RIVER: []}
-    for kind, line in osm_lines(osm):
-        links[kind].extend(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line]))
-    masks = {kind: store_links(layout, links[kind], water) for kind in (ROAD, RIVER)}
+    masks = {kind: store_links(layout, sorted(links[kind]), water) for kind in (ROAD, RIVER)}
     for tile, t in tiles.items():
         t["road"] = masks[ROAD].get(tile, 0)
         t["river"] = masks[RIVER].get(tile, 0)
     land = [t["metres"] for t in tiles.values() if t["terrain"] != "water"]
     low = min(land) if land else 0.0
     high = max(land) if land else 0.0
-    scale = exaggeration / layout.metres_per_unit
+    scale = settings.exaggeration / layout.metres_per_unit
     if high > low:
         scale = min(scale, (TOP_ELEVATION - LAND_MIN) / (high - low))
     for t in tiles.values():
@@ -708,7 +987,7 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: dict, hills_relief: f
             t["elevation"] = WATER_ELEVATION
         else:
             t["elevation"] = LAND_MIN + (t["metres"] - low) * scale
-    return {"tiles": tiles, "reference_m": low, "vertical_scale": scale}
+    return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points}
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -725,7 +1004,7 @@ def _string(text: str) -> str:
 
 
 def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone: int, result: dict,
-               bbox: Tuple[float, float, float, float]) -> None:  # fmt: skip
+               bbox: Tuple[float, float, float, float], sources: str = SOURCES) -> None:  # fmt: skip
     tiles = result["tiles"]
     terrain_rows, cover_rows, road_rows, river_rows, metres, elevation = [], [], [], [], [], []
     for row in range(layout.height):
@@ -759,7 +1038,7 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
         "river_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in river_rows),
         "elevation_m = PackedFloat32Array(%s)" % ", ".join(metres),
         "elevation = PackedFloat32Array(%s)" % ", ".join(elevation),
-        "sources = %s" % _string(SOURCES),
+        "sources = %s" % _string(sources),
         "",
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -776,7 +1055,7 @@ def _download(url: str, target: Path, data: Optional[bytes] = None) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".part")
     print("Downloading %s -> %s" % (url, target), file=sys.stderr)
-    with urllib.request.urlopen(request, timeout=600) as response, open(tmp, "wb") as out:
+    with urllib.request.urlopen(request, timeout=1000) as response, open(tmp, "wb") as out:
         while True:
             chunk = response.read(1 << 20)
             if not chunk:
@@ -785,16 +1064,17 @@ def _download(url: str, target: Path, data: Optional[bytes] = None) -> None:
     tmp.replace(target)
 
 
-def dem_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool) -> List[Path]:
+def dem_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+              dem: str = "glo30") -> List[Path]:  # fmt: skip
     paths = []
     for lat in range(int(math.floor(south)), int(math.floor(north)) + 1):
         for lon in range(int(math.floor(west)), int(math.floor(east)) + 1):
-            name = copernicus_tile_name(lat, lon)
+            name = copernicus_tile_name(lat, lon, dem)
             path = cache / "dem" / (name + ".tif")
             if not path.exists():
                 if offline:
                     raise SystemExit("missing DEM tile %s (run without --offline to download it)" % path)
-                _download(DEM_URL.format(name=name), path)
+                _download(DEM_URLS[dem].format(name=name), path)
             paths.append(path)
     return paths
 
@@ -809,6 +1089,76 @@ def osm_path(cache: Path, south: float, west: float, north: float, east: float, 
     return path
 
 
+def osm_tiles(south: float, west: float, north: float, east: float, deg: float) -> List[Tuple[float, float]]:
+    """South-west corners (lat, lon) of the `deg` x `deg` tiles, on a grid aligned to multiples of `deg`, that
+    cover the bbox; sorted south to north, then west to east."""
+    def index(value: float) -> int:
+        return int(math.floor(value / deg + 1e-9))
+
+    return [(round(i * deg, 6), round(k * deg, 6)) for i in range(index(south), index(north - 1e-9) + 1)
+            for k in range(index(west), index(east - 1e-9) + 1)]  # fmt: skip
+
+
+def osm_tile_path(cache: Path, lat: float, lon: float, deg: float) -> Path:
+    return cache / "osm" / ("%s_%.4f_%.4f_%.4f.json" % (OP_QUERY_VERSION, lat, lon, deg))
+
+
+def _check_overpass_answer(path: Path) -> None:
+    """Raises when a downloaded Overpass answer is not complete JSON (an error page, or a 200 answer whose
+    `remark` reports a runtime error such as a timeout - its data would be cut off)."""
+    with open(path, "rb") as f:
+        head = f.read(64).lstrip()
+        f.seek(0, os.SEEK_END)
+        f.seek(max(0, f.tell() - 4096))
+        tail = f.read()
+    if not head.startswith(b"{") or not tail.rstrip().endswith(b"}"):
+        raise ValueError("not an Overpass JSON answer: %r" % head[:40])
+    if b'"remark"' in tail and b"error" in tail:
+        remark = tail[tail.index(b'"remark"') :][:300].decode("utf-8", "replace")
+        raise ValueError("Overpass reported an error: %s" % remark)
+
+
+def _fetch_tile(path: Path, lat: float, lon: float, deg: float) -> None:
+    query = operational_query(lat, lon, lat + deg, lon + deg)
+    tmp = path.with_name(path.name + ".check")
+    _download(OVERPASS_URL, tmp, urllib.parse.urlencode({"data": query}).encode("utf-8"))
+    try:
+        _check_overpass_answer(tmp)
+    except ValueError:
+        tmp.unlink()
+        raise
+    tmp.replace(path)
+
+
+def osm_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+                   deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
+    """The cached OSM tiles of the bbox, downloading missing ones one by one (each retried DOWNLOAD_RETRIES times
+    after a pause that doubles each time); finished tiles are never fetched again, so a failed run continues where it stopped."""
+    paths = []
+    tiles = osm_tiles(south, west, north, east, deg)
+    for lat, lon in tiles:
+        path = osm_tile_path(cache, lat, lon, deg)
+        if not path.exists():
+            name = "tile %.4f N %.4f E (%.4f deg) %s" % (lat, lon, deg, path)
+            if offline:
+                raise SystemExit("missing OSM %s (run without --offline to download it)" % name)
+            for attempt in range(DOWNLOAD_RETRIES + 1):
+                try:
+                    started = time.time()
+                    _fetch_tile(path, lat, lon, deg)
+                    print("  %d/%d: %.1f MB in %.0f s" % (len(paths) + 1, len(tiles), path.stat().st_size / 1e6,
+                          time.time() - started), file=sys.stderr)  # fmt: skip
+                    break
+                except (OSError, ValueError) as error:
+                    if attempt == DOWNLOAD_RETRIES:
+                        raise SystemExit("OSM %s failed %d times: %s (re-run to continue)" % (name, attempt + 1, error))
+                    pause = RETRY_PAUSE_S * 2**attempt  # 60, 120, 240 s: the public server's 502 / 429 last minutes
+                    print("OSM %s failed (%s), retrying in %.0f s" % (name, error, pause), file=sys.stderr)
+                    time.sleep(pause)
+        paths.append(path)
+    return paths
+
+
 def _pair(text: str, sep: str, kind: type) -> Tuple:
     parts = text.split(sep)
     if len(parts) != 2:
@@ -819,22 +1169,43 @@ def _pair(text: str, sep: str, kind: type) -> Tuple:
 def run(argv: Sequence[str]) -> Path:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("bbox", nargs="?", help="min_lon,min_lat,max_lon,max_lat (WGS84 degrees)")
+    parser.add_argument("--profile", choices=sorted(PROFILES), default="tactical",
+                        help="map scale: tactical (250 m hexes) or operational (5 km hexes, TASK-092a)")  # fmt: skip
     parser.add_argument("--center", help="lat,lon of the map centre (default: the bbox centre)")
     parser.add_argument("--size", help="columns x rows, e.g. 30x24 (default: from the bbox extent)")
-    parser.add_argument("--hex", type=float, default=250.0, help="metres between neighbouring hex centres")
+    parser.add_argument("--hex", type=float, help="metres between neighbouring hex centres (250 / 5000)")
+    parser.add_argument("--sample", type=float, help="metres between lattice sample points (25 / 250)")
     parser.add_argument("--name", required=True, help="map id (data/maps/<id>.tres)")
     parser.add_argument("--display-name", default="", help="name shown to the player (default: the id)")
     parser.add_argument("--out", required=True)
     parser.add_argument("--cache", default=str(DEFAULT_CACHE))
     parser.add_argument("--offline", action="store_true", help="never download; fail on a missing cache file")
-    parser.add_argument("--dem", action="append", default=[], help="DEM GeoTIFF instead of the cache (repeatable)")
+    parser.add_argument("--dem", action="append", default=[],
+                        help="glo30 / glo90 (the cached Copernicus DEM, default per profile), or a DEM GeoTIFF "
+                             "instead of the cache (repeatable)")  # fmt: skip
     parser.add_argument("--osm", help="Overpass JSON instead of the cache")
-    parser.add_argument("--hills-relief", type=float, default=15.0, help="metres of in-hex relief that make HILLS")
+    parser.add_argument("--tile-deg", type=float, default=OSM_TILE_DEG, help="OSM tile size in degrees (operational)")
+    parser.add_argument("--sea-seed", action="append", default=[],
+                        help="lat,lon of a sea point; the sea is filled from it up to the coastline (repeatable; "
+                             "operational default: %s)" % "; ".join("%.2f,%.2f" % s for s in OP_SEA_SEEDS))  # fmt: skip
+    parser.add_argument("--hills-relief", type=float, help="metres of in-hex relief that make HILLS (15 / 35)")
     parser.add_argument("--canopy", type=float, default=15.0, help="metres a mostly forested hex's DSM is lowered")
     parser.add_argument("--exaggeration", type=float, default=1.5, help="vertical exaggeration of the 3D relief")
-    parser.add_argument("--urban-share", type=float, default=URBAN_SHARE, help="built-up share of a hex for URBAN")
+    parser.add_argument("--urban-share", type=float, help="built-up share of a hex for URBAN (0.20 / 0.15)")
     parser.add_argument("--marsh-share", type=float, default=MARSH_SHARE, help="wetland share of a hex for MARSH")
+    parser.add_argument("--water-share", type=float, default=OP_WATER_SHARE, help="water share for WATER (operational)")
+    parser.add_argument("--forest-share", type=float, default=OP_FOREST_SHARE,
+                        help="forest share for FOREST (operational)")  # fmt: skip
     args = parser.parse_args(argv)
+    profile = PROFILES[args.profile]
+    hex_m = args.hex if args.hex is not None else profile.hex_m
+    dem_kind = profile.dem
+    dem_files = []
+    for value in args.dem:
+        if value in DEM_URLS:
+            dem_kind = value
+        else:
+            dem_files.append(Path(value))
     bbox = tuple(float(v) for v in args.bbox.split(",")) if args.bbox else None
     if bbox is not None and len(bbox) != 4:
         parser.error("bbox needs four numbers")
@@ -851,13 +1222,13 @@ def run(argv: Sequence[str]) -> Path:
     elif bbox:
         w_e, s_n = to_utm(bbox[1], bbox[0], zone)
         e_e, n_n = to_utm(bbox[3], bbox[2], zone)
-        width = max(1, int(round((e_e - w_e) / args.hex)))
-        height = max(1, int(round((n_n - s_n) / (args.hex * SQRT3 / 2.0))))
+        width = max(1, int(round((e_e - w_e) / hex_m)))
+        height = max(1, int(round((n_n - s_n) / (hex_m * SQRT3 / 2.0))))
     else:
         parser.error("give --size with --center")
     if width < 1 or height < 1:
         parser.error("size must be positive")
-    layout = HexLayout.centred(width, height, args.hex, centre_e, centre_n)
+    layout = HexLayout.centred(width, height, hex_m, centre_e, centre_n)
     min_e, min_n, max_e, max_n = layout.bounds()
     corners = [from_utm(e, n, zone) for e in (min_e, max_e) for n in (min_n, max_n)]
     map_bbox = (min(c[1] for c in corners), min(c[0] for c in corners),
@@ -869,21 +1240,34 @@ def run(argv: Sequence[str]) -> Path:
     north = round(max(c[0] for c in corners), 5)
     east = round(max(c[1] for c in corners), 5)
     cache = Path(os.path.expanduser(args.cache))
-    dem_files = [Path(p) for p in args.dem] or dem_paths(cache, south, west, north, east, args.offline)
-    osm_file = Path(args.osm) if args.osm else osm_path(cache, south, west, north, east, args.offline)
-    with open(osm_file, encoding="utf-8") as f:
-        osm = json.load(f)
-    result = build_map(layout, zone, Dem(dem_files), osm, args.hills_relief, args.canopy, args.exaggeration,
-                       args.urban_share, args.marsh_share)  # fmt: skip
+    started = time.time()
+    dem_files = dem_files or dem_paths(cache, south, west, north, east, args.offline, dem_kind)
+    osm: object
+    if args.osm:
+        osm = Path(args.osm)
+    elif profile.tiled:
+        osm = osm_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
+    else:
+        osm = osm_path(cache, south, west, north, east, args.offline)
+    downloaded = time.time()
+    settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
+                        args.urban_share, args.forest_share, args.marsh_share,
+                        [_pair(s, ",", float) for s in args.sea_seed],
+                        OP_SEA_SEEDS if profile is OPERATIONAL and not args.sea_seed else ())  # fmt: skip
+    result = build_map(layout, zone, Dem(dem_files), osm, settings)
     out = Path(args.out)
-    write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox)
+    sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
+    write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():
         counts[t["terrain"]] = counts.get(t["terrain"], 0) + 1
     roads = sum(1 for t in result["tiles"].values() if t["road"])
     rivers = sum(1 for t in result["tiles"].values() if t["river"])
     print("Wrote %s: %dx%d hexes of %.0f m, %s; %d hexes with roads, %d river hexes" % (out, width, height,
-          args.hex, ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)), roads, rivers))  # fmt: skip
+          hex_m, ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)), roads, rivers))  # fmt: skip
+    if profile is OPERATIONAL:
+        print("Operational import: %d sea points filled; inputs %.0f s, import %.0f s" % (result["sea_points"],
+              downloaded - started, time.time() - downloaded))  # fmt: skip
     return out
 
 

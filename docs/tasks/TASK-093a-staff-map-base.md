@@ -1,6 +1,6 @@
 # TASK-093a: Staff map (1/3) – the theatre on paper: entry from the menu, 2D pan / zoom camera, land cover, roads, rivers, hex inspector
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`src/presentation/operational/`, `scenes/operational/`) + one small pure helper (map → draw data) + docs
 - **Depends on**: TASK-092a, TASK-124
 - **Model**: sonnet
