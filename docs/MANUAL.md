@@ -348,32 +348,35 @@ The battle has sound; there is no music yet.
 
 ## 12b. Operational map
 
-**Operation** in the main menu opens the staff map of the Suwałki theatre: a flat paper map, seen from straight above, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. For now you can only look around: there are no formations, turns or orders yet. **‹ Back** or Esc returns to the menu.
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. For now you can only look around: there are no formations, turns or orders yet. **‹ Back** or Esc returns to the menu.
 
-**Camera.** The view is always top-down; it cannot be rotated or tilted. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
+**Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
-**What you see.**
+**What you see.** Lines keep the same width on screen at every zoom and tilt. The more you zoom in, the more detail fades in: zoomed out you see only the main roads and the large rivers, in the middle range the secondary roads and medium rivers join them, close in also the minor roads and streams.
 
 | Drawn as | Meaning |
 |---|---|
-| Pale paper | open ground (plains) |
-| Green | forest |
-| Light yellow | fields |
-| Blue | the sea, lakes and wide water |
-| Blue hatching on pale green | marsh |
-| Grey blocks | towns and cities |
-| Soft grey and pale shading | relief: the ground's slope, lit from the north-west (a hint of hills and valleys, not a precise elevation) |
-| Orange-red lines | roads (motorways and main roads only) |
-| Blue lines | rivers and canals |
+| Dark grey-green | open ground (plains, fields, hills) |
+| Slightly greener patches with a fine edge | forest |
+| Grey blocks with a lighter edge | towns and cities |
+| Very dark blue with a thin blue-grey shore line | the sea (darkest) and lakes |
+| Short blue-grey dashes | marsh |
+| Light and dark shading | relief: slopes lit from the north-west (a hint of hills and valleys; heights are exaggerated) |
+| Light sand line with a dark outline | main road |
+| Grey-brown line, thinner | secondary road (middle and close zoom) |
+| Dark brown thin line | minor road (close zoom) |
+| Blue lines, from thick and light to thin and dark | large, medium and minor rivers |
 
-The land cover comes from the 5 km hexes and is rounded off across hex edges, so shapes are approximate; a small lake or a narrow river is only as exact as its hex.
+Which road is "main" is worked out from how far it runs on the map, not from its real road category yet, so the hierarchy is approximate. The land cover comes from the 5 km hexes and is rounded off across hex edges, so shapes are approximate; a small lake or a narrow river is only as exact as its hex.
 
-**Grid and hex card.** The hex grid is hidden; **G** shows or hides a faint grid. Pointing at a hex outlines it and shows a small card: its coordinate (column·row), terrain, elevation in metres, and whether a road and a river cross it. The card disappears when the cursor leaves the map.
+**Grid and hex card.** The hex grid is hidden; **G** shows or hides a faint grid. Pointing at a hex outlines it in amber and shows a small card: its coordinate (column·row), terrain, elevation in metres, and whether a road and a river cross it. Picking follows the raised relief, so the card names the hex really under the cursor at any tilt. The card disappears when the cursor leaves the map.
 
 | Action (operational map) | Control |
 |---|---|
 | Pan | Left-drag, W A S D, arrow keys, or the cursor at the window edge |
 | Zoom | Mouse wheel (towards the cursor) |
+| Tilt | Ctrl + mouse wheel, or hold Q (flatter) / E (steeper) |
+| Flat / tilted | V |
 | Grid on / off | G |
 | Back to the main menu | Esc, or the ‹ Back button |
 

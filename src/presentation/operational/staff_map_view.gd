@@ -1,84 +1,113 @@
 class_name StaffMapView
-extends Node2D
-## The paper map of the staff map scene (TASK-093a): flat fills, hillshade, hatch, roads, rivers
-## and the optional grid, all built once from StaffMapLayers as cached meshes / Line2D nodes
-## (nothing is redrawn per frame). It only reads the HexGrid and the palette. The node is scaled
-## by UNIT, so its children work in hex units (centre to corner = 1).
+extends Node3D
+## The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced ground mesh
+## (land cover, baked hillshade, marsh hatch), the land-cover edges, rivers and roads as one
+## screen-space line mesh per class, the optional grid and the hover outline. Everything is built
+## once from StaffMapLayers / StaffMapRelief (nothing is rebuilt per frame; the hover outline only
+## when the hex changes). It only reads the HexGrid and the palette. World: hex units, x east,
+## y up, z south. Zoom levels Z0-Z2 fade layers in / out and change line widths over
+## palette.fade_seconds.
 
-## Screen pixels per hex unit at camera zoom 1.
+## Screen pixels per hex unit at camera zoom 1 (the v0 zoom scale, kept for the camera maths).
 const UNIT := 20.0
+const GROUND_SHADER := preload("res://assets/shaders/staff_map_ground.gdshader")
+const NO_HEX := Vector2i(-100000, -100000)
 
 var _grid: HexGrid
 var _palette: StaffMapPalette
-var _grid_lines: MeshInstance2D
-var _outline: Line2D
+var _relief: StaffMapRelief
+var _ground_material: ShaderMaterial
+var _grid_lines: MeshInstance3D
+var _hover_outline: MeshInstance3D
+var _hover_fill: MeshInstance3D
+var _hovered := NO_HEX
+## name -> {"node", "material", "widths": PackedFloat32Array, "extra": float, "alpha", "width",
+## "from_alpha", "from_width", "to_alpha", "to_width"}
+var _layers := {}
+var _level := -1
+var _fade := 1.0  # 0..1 progress of the current fade
+var _gain := 1.0
+var _gain_from := 1.0
+var _gain_to := 1.0
+
+
+## Fully covered rectangle: ground and lines are clipped to it so the left / right edge is straight.
+var _edge_rect := Rect2()
 
 
 func _init() -> void:
 	name = "StaffMapView"
-	scale = Vector2(UNIT, UNIT)
 
 
-## Builds every layer for `grid`.
-func build(grid: HexGrid, palette: StaffMapPalette) -> void:
+## Builds every layer for `grid`; `hex_spacing_m` = distance between hex centres in metres.
+func build(grid: HexGrid, palette: StaffMapPalette, hex_spacing_m := 5000.0) -> void:
 	_grid = grid
 	_palette = palette
-	var bounds := StaffMapLayers.bounds(grid)
-	var paper := Polygon2D.new()
-	paper.name = "Paper"
-	paper.color = palette.paper
-	paper.polygon = PackedVector2Array(
-		[
-			bounds.position,
-			Vector2(bounds.end.x, bounds.position.y),
-			bounds.end,
-			Vector2(bounds.position.x, bounds.end.y)
-		]
+	var unit_m := hex_spacing_m / Hex.SQRT3
+	_relief = StaffMapRelief.new(
+		grid,
+		unit_m,
+		palette.relief_exaggeration,
+		palette.hillshade_azimuth,
+		palette.hillshade_altitude,
+		palette.hillshade_z_factor
 	)
-	add_child(paper)
-	var fills := StaffMapLayers.fills(grid)
-	for terrain: int in Terrain.Type.values():
-		if not fills.has(terrain):
-			continue
-		var colour := palette.fill(terrain as Terrain.Type)
-		if colour.a > 0.0:
-			var polygons: Array = fills[terrain]
-			var triangles := StaffMapLayers.triangulate(polygons)
-			_add_mesh("Fill%d" % terrain, Mesh.PRIMITIVE_TRIANGLES, triangles, colour)
-	if fills.has(Terrain.Type.MARSH):
-		var hatch := StaffMapLayers.hatch(fills[Terrain.Type.MARSH], palette.marsh_hatch_spacing)
-		_add_mesh("MarshHatch", Mesh.PRIMITIVE_LINES, hatch, palette.marsh_hatch)
-	_add_hillshade()
-	# Rivers under roads; each kind is one mesh (thousands of Line2D nodes would be thousands of
-	# draw calls).
-	var rivers := StaffMapLayers.ribbons(
-		StaffMapLayers.rivers(grid, palette.smoothing), palette.river_width
+	_edge_rect = StaffMapLayers.straight_rect(grid)
+	var classes := {}
+	for c: Vector2i in StaffMapLayers.sea_tiles(grid, palette.sea_max_m):
+		classes[c] = StaffMapPalette.SEA
+	_build_ground(StaffMapLayers.fills(grid, classes))
+	_build_edges(StaffMapLayers.borders(grid, classes))
+	_build_strokes(hex_spacing_m / 1000.0)
+	var grid_mesh := StaffMapLines.segments_mesh(
+		_drape(StaffMapLayers.clip_segments(StaffMapLayers.grid_lines(grid), _edge_rect))
 	)
-	_add_mesh("Rivers", Mesh.PRIMITIVE_TRIANGLES, rivers, palette.river)
-	var roads := StaffMapLayers.ribbons(
-		StaffMapLayers.roads(grid, palette.smoothing), palette.road_width
+	var grid_colour := Color(
+		palette.grid, linear_alpha(palette.grid, palette.grid.a, palette.map_land)
 	)
-	_add_mesh("Roads", Mesh.PRIMITIVE_TRIANGLES, roads, palette.road)
-	var grid_vertices := StaffMapLayers.grid_lines(grid)
-	_grid_lines = _add_mesh("Grid", Mesh.PRIMITIVE_LINES, grid_vertices, palette.grid)
+	_grid_lines = _add_line_node("Grid", grid_mesh, grid_colour, palette.grid_px, 11)
 	_grid_lines.visible = false
-	_outline = Line2D.new()
-	_outline.name = "HoverOutline"
-	_outline.width = 0.08
-	_outline.default_color = palette.hover_outline
-	_outline.visible = false
-	add_child(_outline)
+	_hover_fill = MeshInstance3D.new()
+	_hover_fill.name = "HoverFill"
+	var fill_material := StandardMaterial3D.new()
+	fill_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	fill_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	fill_material.no_depth_test = true
+	fill_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	fill_material.albedo_color = Color(
+		palette.ui_amber, linear_alpha(palette.ui_amber, palette.hover_fill_alpha, palette.map_land)
+	)
+	fill_material.render_priority = 12
+	_hover_fill.material_override = fill_material
+	_hover_fill.visible = false
+	add_child(_hover_fill)
+	_hover_outline = _add_line_node(
+		"HoverOutline", ArrayMesh.new(), palette.ui_amber, palette.hover_outline_px, 13
+	)
+	_hover_outline.visible = false
+	set_zoom_level(1, true)
 
 
-## Rectangle the camera may show, in world pixels (scene coordinates).
+## The renderer blends in linear light, which makes a faint overlay much stronger than the same
+## alpha in the reference (sRGB, CSS). The alpha that gives over `ground` the sRGB-space mix of
+## `alpha` (by luminance).
+static func linear_alpha(colour: Color, alpha: float, ground: Color) -> float:
+	var wanted := ground.lerp(colour, alpha).srgb_to_linear().get_luminance()
+	var below := ground.srgb_to_linear().get_luminance()
+	var above := colour.srgb_to_linear().get_luminance()
+	if absf(above - below) < 0.0001:
+		return alpha
+	return clampf((wanted - below) / (above - below), 0.0, 1.0)
+
+
+func relief() -> StaffMapRelief:
+	return _relief
+
+
+## Rectangle the camera may show, in world pixels (hex units * UNIT, x east / y south).
 func world_bounds() -> Rect2:
 	var rect := StaffMapLayers.bounds(_grid)
 	return Rect2(rect.position * UNIT, rect.size * UNIT)
-
-
-## The hex under a world position (pixels); check `has_tile` before using it.
-func hex_at_world(point: Vector2) -> Vector2i:
-	return StaffMapLayers.hex_at(point / UNIT)
 
 
 func has_tile(c: Vector2i) -> bool:
@@ -93,45 +122,245 @@ func grid_visible() -> bool:
 	return _grid_lines.visible
 
 
-## Outlines hex `c`; a hex off the map hides the outline.
+## Outlines hex `c` (amber line + faint fill, draped on the relief); off the map hides it.
 func highlight(c: Vector2i) -> void:
-	_outline.visible = _grid.has_tile(c)
-	if _outline.visible:
-		_outline.points = StaffMapLayers.outline(c)
+	var on := _grid.has_tile(c)
+	_hover_outline.visible = on
+	_hover_fill.visible = on
+	if not on or c == _hovered:
+		_hovered = c if on else NO_HEX
+		return
+	_hovered = c
+	var ring := _drape_line(StaffMapLayers.outline(c))
+	_hover_outline.mesh = StaffMapLines.polylines_mesh([ring])
+	var centre := _relief.surface_point(_centre(c))
+	var triangles := PackedVector3Array()
+	for k in 6:
+		triangles.append_array([centre, ring[k], ring[k + 1]])
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = triangles
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_hover_fill.mesh = mesh
 
 
-func _add_hillshade() -> void:
-	var shade := StaffMapLayers.hillshade(_grid)
-	var vertices: PackedVector2Array = shade["vertices"]
-	var values: PackedFloat32Array = shade["values"]
+func hovered() -> Vector2i:
+	return _hovered
+
+
+## Zoom level 0 / 1 / 2: layer opacity, line widths and the hillshade gain move to that level's
+## values over palette.fade_seconds (`instant` jumps there).
+func set_zoom_level(level: int, instant := false) -> void:
+	if level == _level and not instant:
+		return
+	_level = level
+	for layer: Dictionary in _layers.values():
+		var widths: PackedFloat32Array = layer["widths"]
+		var target: float = widths[level] if widths.size() > level else 0.0
+		layer["from_alpha"] = layer["alpha"]
+		layer["from_width"] = layer["width"]
+		layer["to_alpha"] = 1.0 if target > 0.0 else 0.0
+		layer["to_width"] = (target + float(layer["extra"])) if target > 0.0 else layer["width"]
+	_gain_from = _gain
+	_gain_to = _palette.hillshade_contrast * (_palette.hillshade_far_gain if level == 0 else 1.0)
+	_fade = 0.0
+	_advance(1.0 if instant else 0.0)
+
+
+func zoom_level() -> int:
+	return _level
+
+
+## Screen scale (pixels per hex unit) and pitch: keeps the marsh hatch tile constant on screen.
+func set_view_scale(scale: float, pitch: float) -> void:
+	var tile := _palette.marsh_hatch_tile
+	var world := Vector2(tile.x / scale, tile.y / (scale * cos(deg_to_rad(pitch))))
+	_ground_material.set_shader_parameter(&"hatch_tile_world", world)
+
+
+## Test / tool aid: a layer's node ("RoadT1", "RiverMajor", "EdgeForest", …).
+func layer(layer_name: String) -> MeshInstance3D:
+	return _layers[layer_name]["node"] if _layers.has(layer_name) else null
+
+
+func layer_opacity(layer_name: String) -> float:
+	return _layers[layer_name]["alpha"]
+
+
+func layer_width(layer_name: String) -> float:
+	return _layers[layer_name]["width"]
+
+
+func hillshade_gain() -> float:
+	return _gain
+
+
+func _process(delta: float) -> void:
+	if _fade < 1.0:
+		_advance(delta / maxf(_palette.fade_seconds, 0.001))
+
+
+func _advance(step: float) -> void:
+	_fade = minf(_fade + step, 1.0)
+	var t := smoothstep(0.0, 1.0, _fade)
+	for layer: Dictionary in _layers.values():
+		layer["alpha"] = lerpf(layer["from_alpha"], layer["to_alpha"], t)
+		layer["width"] = lerpf(layer["from_width"], layer["to_width"], t)
+		var material: ShaderMaterial = layer["material"]
+		material.set_shader_parameter(&"opacity", layer["alpha"])
+		material.set_shader_parameter(&"width_px", layer["width"])
+		(layer["node"] as MeshInstance3D).visible = float(layer["alpha"]) > 0.001
+	_gain = lerpf(_gain_from, _gain_to, t)
+	_ground_material.set_shader_parameter(&"shade_gain", _gain)
+
+
+func _build_ground(fills: Dictionary) -> void:
+	var vertices := PackedVector3Array()
 	var colours := PackedColorArray()
-	for v in values:
-		var tint := _palette.shade_light if v > 0.0 else _palette.shade_dark
-		colours.append(Color(tint, absf(v) * _palette.shade_strength))
+	var uvs := PackedVector2Array()
+	var keys := fills.keys()
+	keys.sort()
+	for fill_class: int in keys:
+		var colour := _palette.fill(fill_class)
+		var marsh := 1.0 if fill_class == Terrain.Type.MARSH else 0.0
+		var polygons := StaffMapLayers.clip_polygons(fills[fill_class], _edge_rect)
+		for p in StaffMapLayers.triangulate(polygons):
+			vertices.append(_relief.surface_point(p))
+			colours.append(colour)
+			uvs.append(Vector2(_relief.shade_at(p), marsh))
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var instance := MeshInstance2D.new()
-	instance.name = "Hillshade"
-	instance.mesh = mesh
-	add_child(instance)
+	if not vertices.is_empty():
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_ground_material = ShaderMaterial.new()
+	_ground_material.shader = GROUND_SHADER
+	_ground_material.set_shader_parameter(&"marsh_color", _palette.map_marsh)
+	_ground_material.set_shader_parameter(&"shade_strength", _palette.hillshade_strength)
+	_ground_material.set_shader_parameter(&"hatch_tile_px", _palette.marsh_hatch_tile)
+	var ground := MeshInstance3D.new()
+	ground.name = "Ground"
+	ground.mesh = mesh
+	ground.material_override = _ground_material
+	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(ground)
 
 
-func _add_mesh(
-	node_name: String, primitive: Mesh.PrimitiveType, vertices: PackedVector2Array, colour: Color
-) -> MeshInstance2D:
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	var mesh := ArrayMesh.new()
-	if vertices.size() > 0:
-		mesh.add_surface_from_arrays(primitive, arrays)
-	var instance := MeshInstance2D.new()
-	instance.name = node_name
-	instance.mesh = mesh
-	instance.self_modulate = colour
-	add_child(instance)
-	return instance
+func _build_edges(borders: Dictionary) -> void:
+	# Forest and town edges first, the shore line over them.
+	var order := [
+		["EdgeForest", [Terrain.Type.FOREST], 1],
+		["EdgeUrban", [Terrain.Type.URBAN], 2],
+		["Shore", [Terrain.Type.WATER, StaffMapPalette.SEA], 3],
+	]
+	for entry: Array in order:
+		var segments := PackedVector2Array()
+		for fill_class: int in entry[1]:
+			if borders.has(fill_class):
+				segments.append_array(borders[fill_class])
+		var colour := _palette.edge((entry[1] as Array)[0])
+		var mesh := StaffMapLines.segments_mesh(
+			_drape(StaffMapLayers.clip_segments(segments, _edge_rect))
+		)
+		_add_layer(entry[0], mesh, colour, _palette.edge_widths, 0.0, entry[2])
+
+
+func _build_strokes(km_per_step: float) -> void:
+	var rivers := {"RiverMinor": [], "RiverNamed": [], "RiverMajor": []}
+	for stroke in StaffMapLayers.strokes(_grid, true, _palette.smoothing):
+		var km: float = stroke["steps"] * km_per_step
+		var key := (
+			"RiverMajor"
+			if km >= _palette.river_major_min_km
+			else ("RiverNamed" if km >= _palette.river_named_min_km else "RiverMinor")
+		)
+		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
+			rivers[key].append(_drape_line(piece))
+	var roads := {"RoadT3": [], "RoadT2": [], "RoadT1": []}
+	for stroke in StaffMapLayers.strokes(_grid, false, _palette.smoothing):
+		var km: float = stroke["steps"] * km_per_step
+		var key := (
+			"RoadT1"
+			if km >= _palette.road_t1_min_km
+			else ("RoadT2" if km >= _palette.road_t2_min_km else "RoadT3")
+		)
+		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
+			roads[key].append(_drape_line(piece))
+	var p := _palette
+	_add_layer(
+		"RiverMinor", _lines_mesh(rivers["RiverMinor"]), p.river_minor, p.river_minor_widths, 0.0, 4
+	)
+	_add_layer(
+		"RiverNamed", _lines_mesh(rivers["RiverNamed"]), p.river_named, p.river_named_widths, 0.0, 5
+	)
+	_add_layer(
+		"RiverMajor", _lines_mesh(rivers["RiverMajor"]), p.river_major, p.river_major_widths, 0.0, 6
+	)
+	_add_layer("RoadT3", _lines_mesh(roads["RoadT3"]), p.road_t3, p.road_t3_widths, 0.0, 7)
+	_add_layer("RoadT2", _lines_mesh(roads["RoadT2"]), p.road_t2, p.road_t2_widths, 0.0, 8)
+	var t1 := _lines_mesh(roads["RoadT1"])
+	_add_layer("RoadT1Casing", t1, p.road_t1_casing, p.road_t1_widths, p.road_t1_casing_px, 9)
+	_add_layer("RoadT1", t1, p.road_t1, p.road_t1_widths, 0.0, 10)
+
+
+func _lines_mesh(lines: Array) -> ArrayMesh:
+	return StaffMapLines.polylines_mesh(lines)
+
+
+func _add_layer(
+	layer_name: String,
+	mesh: ArrayMesh,
+	colour: Color,
+	widths: PackedFloat32Array,
+	extra: float,
+	priority: int
+) -> void:
+	var node := _add_line_node(layer_name, mesh, colour, 1.0, priority)
+	var start := widths[1] + extra if widths.size() > 1 and widths[1] > 0.0 else 1.0
+	_layers[layer_name] = {
+		"node": node,
+		"material": node.material_override,
+		"widths": widths,
+		"extra": extra,
+		"alpha": 0.0,
+		"width": start,
+		"from_alpha": 0.0,
+		"from_width": start,
+		"to_alpha": 0.0,
+		"to_width": start,
+	}
+
+
+func _add_line_node(
+	node_name: String, mesh: ArrayMesh, colour: Color, width: float, priority: int
+) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.name = node_name
+	node.mesh = mesh
+	node.material_override = StaffMapLines.material(colour, width, priority)
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The shader moves the vertices in screen space: never cull the mesh by its bounds.
+	node.extra_cull_margin = 16384.0
+	add_child(node)
+	return node
+
+
+## Map points (pairs) -> points on the relief.
+func _drape(points: PackedVector2Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for p in points:
+		out.append(_relief.surface_point(p))
+	return out
+
+
+func _drape_line(points: PackedVector2Array) -> PackedVector3Array:
+	return _drape(points)
+
+
+func _centre(c: Vector2i) -> Vector2:
+	var w := Hex.to_world(c, 1.0)
+	return Vector2(w.x, w.z)

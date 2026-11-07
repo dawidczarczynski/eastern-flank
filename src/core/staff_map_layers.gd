@@ -1,6 +1,6 @@
 class_name StaffMapLayers
 extends RefCounted
-## Pure map -> draw data for the flat staff map (TASK-093a). Everything is in "hex units": the
+## Pure map -> draw data for the staff map (TASK-093a, TASK-125). Everything is in "hex units": the
 ## centre-to-corner distance of a hex is 1, x grows east, y south (Hex.to_world with size 1).
 ##
 ## Smoothing of the land cover: the hex centres form a triangular lattice. Every lattice triangle
@@ -19,17 +19,76 @@ const SHADE_FULL_M := 30.0
 const _KEY_BIAS := 4096
 
 
-## Terrain type -> Array of convex PackedVector2Array polygons (triangle, trapezoid or kite).
-static func fills(grid: HexGrid) -> Dictionary:
+## Fill class -> Array of convex PackedVector2Array polygons (triangle, trapezoid or kite). The
+## class of a hex is its terrain type unless `classes` (Vector2i -> int) overrides it.
+static func fills(grid: HexGrid, classes := {}) -> Dictionary:
 	var result := {}
 	for tri in _triangles(grid):
 		var nodes: Array[Vector2i] = tri
 		var p: Array[Vector2] = [_point(nodes[0]), _point(nodes[1]), _point(nodes[2])]
 		var t: Array[int] = [
-			grid.get_terrain(nodes[0]), grid.get_terrain(nodes[1]), grid.get_terrain(nodes[2])
+			_class(grid, classes, nodes[0]),
+			_class(grid, classes, nodes[1]),
+			_class(grid, classes, nodes[2])
 		]
 		_split(p, t, result)
 	return result
+
+
+## Fill class -> segment end points in pairs: the borders of that class's fill polygons against
+## other classes (the cuts of `fills`, through edge midpoints); a border between two classes is in
+## both lists. The outer edge of the lattice is not a border.
+static func borders(grid: HexGrid, classes := {}) -> Dictionary:
+	var result := {}
+	for tri in _triangles(grid):
+		var nodes: Array[Vector2i] = tri
+		var p: Array[Vector2] = [_point(nodes[0]), _point(nodes[1]), _point(nodes[2])]
+		var t: Array[int] = [
+			_class(grid, classes, nodes[0]),
+			_class(grid, classes, nodes[1]),
+			_class(grid, classes, nodes[2])
+		]
+		if t[0] == t[1] and t[1] == t[2]:
+			continue
+		if t[0] != t[1] and t[1] != t[2] and t[0] != t[2]:
+			var centre := (p[0] + p[1] + p[2]) / 3.0
+			for i in 3:
+				var j := (i + 1) % 3
+				var mid := (p[i] + p[j]) * 0.5
+				_add_segment(result, t[i], mid, centre)
+				_add_segment(result, t[j], mid, centre)
+		else:
+			var odd := 0 if t[1] == t[2] else (1 if t[0] == t[2] else 2)
+			var i := (odd + 1) % 3
+			var j := (odd + 2) % 3
+			var mi := (p[i] + p[odd]) * 0.5
+			var mj := (p[j] + p[odd]) * 0.5
+			_add_segment(result, t[odd], mi, mj)
+			_add_segment(result, t[i], mi, mj)
+	return result
+
+
+## Water tiles that are sea: connected (over water) to a water tile on the map edge and not higher
+## than `max_m` metres. Vector2i -> true.
+static func sea_tiles(grid: HexGrid, max_m: float) -> Dictionary:
+	var sea := {}
+	var queue: Array[Vector2i] = []
+	for c in _sorted(grid):
+		if not _is_low_water(grid, c, max_m):
+			continue
+		for d in Hex.DIRECTIONS:
+			if not grid.has_tile(c + d):
+				sea[c] = true
+				queue.append(c)
+				break
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_back()
+		for d in Hex.DIRECTIONS:
+			var n := c + d
+			if not sea.has(n) and _is_low_water(grid, n, max_m):
+				sea[n] = true
+				queue.append(n)
+	return sea
 
 
 ## Fan triangulation of convex polygons into a flat triangle vertex list.
@@ -81,6 +140,31 @@ static func roads(grid: HexGrid, smoothing := 2) -> Array[PackedVector2Array]:
 ## River polylines (links of HexGrid.river_links).
 static func rivers(grid: HexGrid, smoothing := 2) -> Array[PackedVector2Array]:
 	return _polylines(grid, true, smoothing)
+
+
+## Road (or river) strokes: chains of links that continue through a junction along the
+## straightest pair of links (a turn of at most 60 degrees, straightest pairs first), so a through
+## road stays one line and its side roads end at it. Array of {"points": PackedVector2Array
+## (Chaikin-smoothed `smoothing` times), "steps": float (length in hex steps, unsmoothed)}; every
+## link is in exactly one stroke. Deterministic.
+static func strokes(grid: HexGrid, river: bool, smoothing := 2) -> Array[Dictionary]:
+	var adjacency := _adjacency(grid, river)
+	var keys: Array = adjacency.keys()
+	keys.sort()
+	var partners := {}  # node -> {neighbour: neighbour it continues to}
+	for node: int in keys:
+		partners[node] = _pair_links(node, adjacency[node])
+	var used := {}
+	var result: Array[Dictionary] = []
+	for pass_index in 2:  # first strokes with a free end, then closed loops
+		for start: int in keys:
+			for next: int in adjacency[start]:
+				if used.has(_edge(start, next)):
+					continue
+				if pass_index == 0 and (partners[start] as Dictionary).has(next):
+					continue  # not a stroke end
+				result.append(_trace_stroke(partners, used, start, next, smoothing))
+	return result
 
 
 ## Triangle list of all `lines` as ribbons of `width` (one quad per segment, extended by half the
@@ -180,6 +264,96 @@ static func bounds(grid: HexGrid) -> Rect2:
 	return rect
 
 
+## Largest rectangle the map fills completely: the lattice of centres zigzags by half a hex at
+## the left / right edge (offset rows), so this is trimmed to the x range every row covers.
+static func straight_rect(grid: HexGrid) -> Rect2:
+	var low := {}
+	var high := {}
+	for c in grid.coords():
+		var p := _point(c)
+		low[c.y] = minf(low.get(c.y, INF), p.x)
+		high[c.y] = maxf(high.get(c.y, -INF), p.x)
+	var rect := bounds(grid)
+	if low.is_empty():
+		return rect
+	var x_low := -INF
+	var x_high := INF
+	for row: int in low:
+		x_low = maxf(x_low, low[row])
+		x_high = minf(x_high, high[row])
+	if x_high <= x_low:
+		return rect
+	return Rect2(x_low, rect.position.y, x_high - x_low, rect.size.y)
+
+
+## Convex polygons clipped to `rect` (empty results dropped).
+static func clip_polygons(polygons: Array, rect: Rect2) -> Array:
+	var box := PackedVector2Array(
+		[
+			rect.position,
+			Vector2(rect.end.x, rect.position.y),
+			rect.end,
+			Vector2(rect.position.x, rect.end.y)
+		]
+	)
+	var out := []
+	for poly: PackedVector2Array in polygons:
+		for clipped: PackedVector2Array in Geometry2D.intersect_polygons(poly, box):
+			if clipped.size() >= 3:
+				out.append(clipped)
+	return out
+
+
+## Segment end points in pairs, each clipped to `rect` (Liang-Barsky); outside parts are dropped.
+static func clip_segments(segments: PackedVector2Array, rect: Rect2) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for i in range(0, segments.size() - 1, 2):
+		var a := segments[i]
+		var d := segments[i + 1] - a
+		var t0 := 0.0
+		var t1 := 1.0
+		var ok := true
+		for side in 4:
+			var pv := [-d.x, d.x, -d.y, d.y][side] as float
+			var qv := [a.x - rect.position.x, rect.end.x - a.x, a.y - rect.position.y, rect.end.y - a.y][side] as float
+			if is_zero_approx(pv):
+				if qv < 0.0:
+					ok = false
+					break
+			else:
+				var r := qv / pv
+				if pv < 0.0:
+					t0 = maxf(t0, r)
+				else:
+					t1 = minf(t1, r)
+		if ok and t0 < t1:
+			out.append(a + d * t0)
+			out.append(a + d * t1)
+	return out
+
+
+## A polyline clipped to `rect`: the parts inside, as separate polylines.
+static func clip_polyline(line: PackedVector2Array, rect: Rect2) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var piece := PackedVector2Array()
+	for i in range(line.size() - 1):
+		var seg := clip_segments(PackedVector2Array([line[i], line[i + 1]]), rect)
+		if seg.is_empty():
+			if piece.size() >= 2:
+				out.append(piece)
+			piece = PackedVector2Array()
+			continue
+		if piece.is_empty():
+			piece.append(seg[0])
+		elif not piece[piece.size() - 1].is_equal_approx(seg[0]):
+			out.append(piece)
+			piece = PackedVector2Array([seg[0]])
+		piece.append(seg[1])
+	if piece.size() >= 2:
+		out.append(piece)
+	return out
+
+
 ## The six corners of a hex, closed (first point repeated).
 static func outline(c: Vector2i) -> PackedVector2Array:
 	var out := PackedVector2Array()
@@ -221,13 +395,32 @@ static func _triangles(grid: HexGrid) -> Array:
 	var out := []
 	for c in _sorted(grid):
 		var east := c + Hex.DIRECTIONS[0]
-		var south := c + Hex.DIRECTIONS[5]
-		var far := east + Hex.DIRECTIONS[5]
-		if grid.has_tile(east) and grid.has_tile(south):
-			out.append([c, east, south] as Array[Vector2i])
-			if grid.has_tile(far):
-				out.append([east, far, south] as Array[Vector2i])
+		var south_east := c + Hex.DIRECTIONS[5]
+		var south_west := c + Hex.DIRECTIONS[4]
+		if grid.has_tile(east) and grid.has_tile(south_east):
+			out.append([c, east, south_east] as Array[Vector2i])
+		if grid.has_tile(south_east) and grid.has_tile(south_west):
+			out.append([c, south_east, south_west] as Array[Vector2i])
 	return out
+
+
+static func _class(grid: HexGrid, classes: Dictionary, c: Vector2i) -> int:
+	return classes.get(c, grid.get_terrain(c))
+
+
+static func _is_low_water(grid: HexGrid, c: Vector2i, max_m: float) -> bool:
+	return (
+		grid.has_tile(c) and grid.get_terrain(c) == Terrain.Type.WATER and _height(grid, c) <= max_m
+	)
+
+
+static func _add_segment(result: Dictionary, fill_class: int, a: Vector2, b: Vector2) -> void:
+	if not result.has(fill_class):
+		result[fill_class] = PackedVector2Array()
+	var list: PackedVector2Array = result[fill_class]
+	list.append(a)
+	list.append(b)
+	result[fill_class] = list
 
 
 static func _add(result: Dictionary, terrain: int, poly: Array[Vector2]) -> void:
@@ -273,8 +466,9 @@ static func _node_point(key: int) -> Vector2:
 	return (_point(c) + _point(c + Hex.DIRECTIONS[terminal - 1])) * 0.5
 
 
-static func _polylines(grid: HexGrid, river: bool, smoothing: int) -> Array[PackedVector2Array]:
-	var adjacency := {}  # node key -> Array[int] of neighbour keys
+## Link graph: node key -> sorted Array[int] of neighbour keys.
+static func _adjacency(grid: HexGrid, river: bool) -> Dictionary:
+	var adjacency := {}
 	for c in _sorted(grid):
 		var mask := grid.river_links(c) if river else grid.road_links(c)
 		for dir in 6:
@@ -283,6 +477,68 @@ static func _polylines(grid: HexGrid, river: bool, smoothing: int) -> Array[Pack
 			var n := c + Hex.DIRECTIONS[dir]
 			var to := _key(n, 0) if grid.has_tile(n) else _key(c, dir + 1)
 			_connect(adjacency, _key(c, 0), to)
+	return adjacency
+
+
+## Which links of `node` continue into which (both ways): two links always pair, at a junction the
+## straightest pairs first while the turn is at most 60 degrees.
+static func _pair_links(node: int, neighbours: Array) -> Dictionary:
+	var pairs := {}
+	if neighbours.size() < 2:
+		return pairs
+	if neighbours.size() == 2:
+		pairs[neighbours[0]] = neighbours[1]
+		pairs[neighbours[1]] = neighbours[0]
+		return pairs
+	var here := _node_point(node)
+	var candidates := []  # [cosine between the two links, a, b]
+	for i in neighbours.size():
+		for j in range(i + 1, neighbours.size()):
+			var a: int = neighbours[i]
+			var b: int = neighbours[j]
+			var da := (_node_point(a) - here).normalized()
+			var db := (_node_point(b) - here).normalized()
+			if da.dot(db) < -0.4:  # 180 or 120 degrees apart
+				candidates.append([da.dot(db), a, b])
+	candidates.sort_custom(
+		func(x: Array, y: Array) -> bool:
+			if not is_equal_approx(x[0], y[0]):
+				return x[0] < y[0]
+			return x[1] < y[1] or (x[1] == y[1] and x[2] < y[2])
+	)
+	for pair: Array in candidates:
+		if not pairs.has(pair[1]) and not pairs.has(pair[2]):
+			pairs[pair[1]] = pair[2]
+			pairs[pair[2]] = pair[1]
+	return pairs
+
+
+static func _trace_stroke(
+	partners: Dictionary, used: Dictionary, start: int, first: int, smoothing: int
+) -> Dictionary:
+	var line := PackedVector2Array([_node_point(start)])
+	var steps := 0.0
+	var previous := start
+	var current := first
+	while true:
+		used[_edge(previous, current)] = true
+		line.append(_node_point(current))
+		steps += _node_point(previous).distance_to(_node_point(current)) / Hex.SQRT3
+		if current == start:
+			break
+		var through: Dictionary = partners[current]
+		if not through.has(previous):
+			break
+		var next: int = through[previous]
+		if used.has(_edge(current, next)):
+			break
+		previous = current
+		current = next
+	return {"points": smooth(line, smoothing), "steps": steps}
+
+
+static func _polylines(grid: HexGrid, river: bool, smoothing: int) -> Array[PackedVector2Array]:
+	var adjacency := _adjacency(grid, river)
 	var keys: Array = adjacency.keys()
 	keys.sort()
 	var used := {}  # "a:b" of a traced edge, a < b

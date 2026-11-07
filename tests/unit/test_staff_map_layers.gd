@@ -181,3 +181,117 @@ func test_ribbons_make_two_triangles_per_segment_around_the_line() -> void:
 	for p in mesh:
 		assert_true(p.x >= -0.251 and p.x <= 2.251 and p.y >= -0.251 and p.y <= 2.251)
 	assert_true(mesh.has(Vector2(0, 0) + Vector2(0, 0.25)) or mesh.has(Vector2(-0.25, 0.25)))
+
+
+# --- TASK-125: strokes, class borders, sea ---
+
+
+func test_a_through_road_is_one_stroke_and_the_side_road_ends_at_it() -> void:
+	var grid := Fixtures.plains_grid(4)
+	for q in range(-3, 3):
+		_link(grid, Vector2i(q, 0), Vector2i(q + 1, 0))
+	_link(grid, Vector2i(0, 0), Vector2i(0, 1))
+	_link(grid, Vector2i(0, 1), Vector2i(0, 2))
+	var strokes := StaffMapLayers.strokes(grid, false, 0)
+	assert_eq(strokes.size(), 2)
+	var lengths: Array = strokes.map(func(s: Dictionary) -> float: return s["steps"])
+	lengths.sort()
+	assert_true(absf(lengths[0] - 2.0) < 0.001, str(lengths))
+	assert_true(absf(lengths[1] - 6.0) < 0.001, str(lengths))
+
+
+func test_strokes_cover_every_link_once_and_are_deterministic() -> void:
+	var grid := Fixtures.plains_grid(3)
+	_link(grid, Vector2i(0, 0), Vector2i(1, 0))
+	_link(grid, Vector2i(1, 0), Vector2i(1, 1))
+	_link(grid, Vector2i(1, 1), Vector2i(0, 1))
+	_link(grid, Vector2i(0, 1), Vector2i(0, 0))  # a loop
+	_link(grid, Vector2i(-1, 0), Vector2i(-2, 0), true)
+	var roads := StaffMapLayers.strokes(grid, false, 0)
+	var total := 0.0
+	for s in roads:
+		total += s["steps"]
+	assert_true(absf(total - 4.0) < 0.001)
+	assert_eq(StaffMapLayers.strokes(grid, false, 2), StaffMapLayers.strokes(grid, false, 2))
+	assert_eq(StaffMapLayers.strokes(grid, true, 0).size(), 1)
+
+
+func test_borders_separate_the_classes_and_skip_uniform_ground() -> void:
+	var grid := Fixtures.plains_grid(2)
+	assert_eq(StaffMapLayers.borders(grid).size(), 0)
+	grid.set_terrain(Vector2i.ZERO, Terrain.Type.FOREST)
+	var borders := StaffMapLayers.borders(grid)
+	var forest: PackedVector2Array = borders[Terrain.Type.FOREST]
+	assert_eq(forest.size(), 12, "six triangles around the hex, one cut each")
+	assert_eq(borders[Terrain.Type.PLAINS].size(), 12)
+	for p in forest:
+		assert_true(absf(p.length() - Hex.SQRT3 * 0.5) < 0.001, "cuts run through edge midpoints")
+
+
+func test_sea_is_low_water_connected_to_the_map_edge() -> void:
+	var grid := Fixtures.plains_grid(3)
+	for c in grid.coords():
+		grid.set_elevation_m(c, 50.0)
+	for c in [Vector2i(3, 0), Vector2i(2, 0)]:  # edge water, sea level
+		grid.set_terrain(c, Terrain.Type.WATER)
+		grid.set_elevation_m(c, 0.0)
+	grid.set_terrain(Vector2i(-1, 0), Terrain.Type.WATER)  # inland lake
+	grid.set_elevation_m(Vector2i(-1, 0), 0.0)
+	var sea := StaffMapLayers.sea_tiles(grid, 5.0)
+	assert_true(sea.has(Vector2i(3, 0)) and sea.has(Vector2i(2, 0)))
+	assert_false(sea.has(Vector2i(-1, 0)))
+	var fills := StaffMapLayers.fills(grid, {Vector2i(3, 0): StaffMapPalette.SEA})
+	assert_true(fills.has(StaffMapPalette.SEA))
+
+
+func _offset_grid(cols: int, rows: int) -> HexGrid:
+	var grid := HexGrid.new()
+	for r in rows:
+		for col in cols:
+			grid.set_terrain(Vector2i(col - (r >> 1), r), Terrain.Type.PLAINS)
+	return grid
+
+
+func test_straight_rect_clips_fills_to_a_straight_left_and_right_edge() -> void:
+	var grid := _offset_grid(6, 8)
+	var rect := StaffMapLayers.straight_rect(grid)
+	var full := StaffMapLayers.bounds(grid)
+	assert_true(rect.size.x < full.size.x, "trimmed by the half-hex zigzag")
+	var clipped := StaffMapLayers.clip_polygons(StaffMapLayers.fills(grid)[Terrain.Type.PLAINS], rect)
+	assert_true(clipped.size() > 0)
+	for poly: PackedVector2Array in clipped:
+		for p in poly:
+			assert_true(p.x >= rect.position.x - 0.001 and p.x <= rect.end.x + 0.001)
+
+
+func test_clip_segments_cuts_at_the_rectangle() -> void:
+	var rect := Rect2(0, 0, 10, 10)
+	var out := StaffMapLayers.clip_segments(
+		PackedVector2Array([Vector2(-5, 5), Vector2(5, 5), Vector2(20, 20), Vector2(30, 30)]), rect
+	)
+	assert_eq(out.size(), 2)
+	assert_true(out[0].is_equal_approx(Vector2(0, 5)))
+	assert_true(out[1].is_equal_approx(Vector2(5, 5)))
+
+
+func test_clip_polyline_splits_at_the_rectangle() -> void:
+	var rect := Rect2(0, 0, 10, 10)
+	var line := PackedVector2Array([Vector2(-5, 5), Vector2(5, 5), Vector2(5, 20), Vector2(8, 5)])
+	var pieces := StaffMapLayers.clip_polyline(line, rect)
+	assert_eq(pieces.size(), 2)
+	assert_true(pieces[0][0].is_equal_approx(Vector2(0, 5)))
+
+
+func test_clipped_fill_covers_the_whole_straight_edge() -> void:
+	var grid := _offset_grid(6, 8)
+	var rect := StaffMapLayers.straight_rect(grid)
+	var polys := StaffMapLayers.clip_polygons(StaffMapLayers.fills(grid)[Terrain.Type.PLAINS], rect)
+	var missed := 0
+	for i in 40:
+		var p := Vector2(rect.position.x + 0.02, rect.position.y + rect.size.y * (i + 0.5) / 40.0)
+		var hit := false
+		for poly: PackedVector2Array in polys:
+			hit = hit or Geometry2D.is_point_in_polygon(p, poly)
+		if not hit:
+			missed += 1
+	assert_eq(missed, 0)

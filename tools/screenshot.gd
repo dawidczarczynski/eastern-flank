@@ -341,8 +341,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## tools/screenshot.sh.
 ## SCREENSHOT_STAFF_MAP=<token>,... sets up the staff map (TASK-093a): zoom:<factor> (clamped to
 ## the map's limits; "min"/"max" allowed), focus:<col>:<row> (centre on that hex), grid (G),
-## hover:<col>:<row> (the hover card), e.g.
-## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=zoom:max,focus:30:20,grid.
+## hover:<col>:<row> (the hover card), pitch:<degrees> (camera tilt, 0 = flat; default 35,
+## TASK-125), e.g.
+## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -388,8 +389,8 @@ func _apply_debug_selection() -> void:
 func _apply_staff_map_state(spec: String) -> void:
 	var map: StaffMap = _battle
 	map.card().hide()  # a card from the real mouse position before processing stopped
-	var limits := map.zoom_limits()
-	var zoom := limits.x
+	map.view().highlight(StaffMapView.NO_HEX)
+	var zoom_spec := "min"
 	var centre := map.view().world_bounds().get_center() / StaffMapView.UNIT
 	var hover := Vector2i(-1, -1)
 	var show_hover := false
@@ -397,12 +398,7 @@ func _apply_staff_map_state(spec: String) -> void:
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
 			"zoom":
-				var value := parts[1] if parts.size() > 1 else ""
-				zoom = (
-					limits.x
-					if value == "min"
-					else (limits.y if value == "max" else value.to_float())
-				)
+				zoom_spec = parts[1] if parts.size() > 1 else ""
 			"focus", "hover":
 				if parts.size() != 3 or not parts[1].is_valid_int() or not parts[2].is_valid_int():
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
@@ -416,8 +412,19 @@ func _apply_staff_map_state(spec: String) -> void:
 					show_hover = true
 			"grid":
 				map.view().set_grid_visible(true)
+			"pitch":
+				if parts.size() != 2 or not parts[1].is_valid_float():
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				map.debug_pitch(parts[1].to_float())
 			_:
 				printerr("ERROR: unknown SCREENSHOT_STAFF_MAP token '%s'" % token)
+	var limits := map.zoom_limits()  # after the pitch: the minimum zoom depends on it
+	var zoom := (
+		limits.x
+		if zoom_spec == "min"
+		else (limits.y if zoom_spec == "max" else zoom_spec.to_float())
+	)
 	map.debug_focus(centre, zoom)
 	if show_hover:
 		map.debug_hover(hover)

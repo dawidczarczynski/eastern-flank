@@ -1,6 +1,6 @@
 # TASK-125: Staff map restyle – modern dark look, 2.5D camera over a stylised relief
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`src/presentation/operational/`, `scenes/operational/`, a shader) + palette resource + docs; the pure `StaffMapLayers` only gains data it already has (no rules)
 - **Depends on**: TASK-093a
 - **Model**: opus
@@ -49,4 +49,11 @@ Update the "Operational map" chapter: new look (legend of roads / rivers / terra
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Camera: tilted orthographic** (`StaffMapCameraMath`), pitched about the east axis only (no yaw), default 35°, 0–50°, Ctrl + wheel (5°/notch, smoothed), Q / E held (60°/s), V flat ↔ last tilt. The v0 2D state is kept (position in world px, zoom = screen px per world px); the ground plane is handled through a "ground viewport" (height / cos pitch), so pitch 0 reproduces v0 exactly (tested) and clamp / cursor-centred zoom stay the v0 functions. **Anti-compression measured** in `test_staff_map_relief.gd`: projected hex area far edge / near edge at 35° = **1.00** (orthographic: no perspective shrink; the same test with a 30° FOV perspective camera would give ~0.56). The 2.5D cue is the uniform foreshortening (cos pitch) plus the displaced relief and hillshade.
+- **Relief** (`StaffMapRelief`, pure): per-hex height over the mean land height, interpolated linearly on the lattice of hex centres (the same triangles as the fills), so the surface is continuous. **Exaggeration 20×** (palette `relief_exaggeration`), not ~3×: the theatre's relief is 0–263 m on 5 km hexes, at 3× that is 0.27 hex units – invisible at every zoom. Picking: the camera ray marched against the surface + bisection (`raycast`); tested on a ridge grid at pitch 0 / 35 / 50 with 30× exaggeration: max error < 0.05 hex units (a plane pick misses by a hex there, also tested).
+- **Hillshade** az 315°, alt 38°, soft-light 0.8, from per-hex slopes with a shading-only z factor (20, palette); baked per vertex, blended in the ground shader; gain ×1.4 at Z0.
+- **Lines** are screen-space ribbons (`assets/shaders/staff_map_line.gdshader`, mitred joints in screen space, 1 px AA fringe, no depth test, render_priority orders the layers), one mesh per class built once (`StaffMapLines`): land-cover edges (forest, town), shore, rivers minor / named / major, roads t3 / t2 / t1 (+ casing), grid, hover outline. Road and river classes come from the link data via **strokes** (`StaffMapLayers.strokes`: links continued straight through junctions) ranked by length (palette km thresholds; t1 ≥ 100 km, t2 ≥ 40 km; rivers major ≥ 80 km, named ≥ 40 km). No rail / canal data yet (rail colour and widths are in the palette, no layer).
+- **Zoom levels** by px/km at the screen centre with ±10 % hysteresis; thresholds 5 / 9 px/km (palette) instead of the reference's 1.6 / 5, which are for a continental extent – the 340 km theatre already shows 3–5 px/km at full overview. Layers fade and widths change over 150 ms (`StaffMapView._process`, only while a fade runs).
+- Sea vs lakes: water connected to the map edge and ≤ 5 m (`StaffMapLayers.sea_tiles`). Faint overlays (grid 12 %, hover fill 10 %) get their alpha converted so the linear-light blend matches the reference's sRGB mix.
+- Screenshot: `SCREENSHOT_STAFF_MAP=pitch:N` (with `zoom:min` resolved after the pitch).
+- **Not measured: FPS** (the agent cannot run the frame-time overlay). Nothing is rebuilt per frame: the ground is one mesh (~50 k triangles), each line class one mesh, uniforms change only during a 150 ms fade or a zoom / pitch change, the hover outline only when the hovered hex changes.
