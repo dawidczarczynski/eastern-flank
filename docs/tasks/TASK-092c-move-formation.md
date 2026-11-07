@@ -53,6 +53,15 @@ View (route preview on the staff map – no order is given yet, TASK-092d turns 
 - [ ] The preview is read-only: the state, snapshot and history are identical before and after (test on the controller: hover and key presses create no command).
 - [ ] Translations for all labels.
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Orders"). The route lies **on the relief** (follows the displaced ground) but is drawn as a **px-width ribbon** (screen-space, constant width under zoom and tilt); markers and labels are screen-space; the hovered hex comes from the ray pick of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Route line smoothed with **Chaikin ×3** through the A* hex centres (smoothing is cosmetic – the stops and costs stay those of `plan` / `forecast`; test: the smoothed polyline starts and ends on the first / last hex centre).
+- [ ] Planning preview at **full opacity** with a dot on every hex centre and an **amber target** (`ui.amber`); the hovered hex gets the reference hover: amber outline 1.6 px + 10 % fill.
+- [ ] Per-turn stops drawn as a **cross-bar** across the line with the label `+n` (n = turns until it is reached). **Conflict:** the criteria above number the ticks 1, 2, 3 – the reference's `+n` replaces the bare number **[ASSUMPTION]**; the red cross for unreachable hexes stays.
+- [ ] Keys 1 / 2 / 3 as above match the reference's picker order (March / Attack / Defend); the picker widget itself is TASK-092d.
+
 ## Playtest (for the human)
 
 1. **Operation**, click a Polish battalion in the Gap (Suwałki).

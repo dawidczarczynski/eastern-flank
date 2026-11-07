@@ -44,6 +44,13 @@ View (the decisions panel – moved here from TASK-119 so that every decision is
 - [ ] The decisions are also in the order of battle of events: a decision log line per decision in the turn report (TASK-092e).
 - [ ] The debug panel's raise / lower (TASK-115) stays; the real decisions replace it for play.
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Panels" → political layer: decision card, "Symmetry"). Screen-space panel, independent of the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Decision rows follow the reference's decision card layout: title, the **effect in one line**, cost, button; danger (threshold) lines in `ui.alert`. Names per side come from `SideDefinition` (symmetry: no side literal in the view).
+- [ ] **NOT adopted:** the card with an **expiry** and "2–3 options" per event, and the "advisor" line – they belong to event-driven decisions (political events, TASK-106); this panel offers the five standing decisions. The style (card, one-line effect) is reused there later.
+
 ## Playtest (for the human)
 
 1. **Operation** as NATO, press **D**: five decisions. *Escalate* shows "level 1 → 2", *Stand down* is disabled ("level is already the lowest"), *Invoke Article 5* is disabled with the reason.

@@ -53,6 +53,16 @@ View (giving and cancelling orders on the staff map):
 - [ ] The staff map restores the arrows from the state alone (scene rebuilt mid-game shows the same orders – test on the controller).
 - [ ] Translations for postures and rejection reasons.
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Orders", "Turn bar"). Arrows are px-width ribbons lying on the relief; counters, picker and labels are screen-space; must work under the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Posture picker = three buttons `[1] March  [2] Attack  [3] Defend` **under the selected counter**, keys 1 / 2 / 3, **Backspace (⌫) cancels** the order (alias of Delete / X above). **Conflict:** the reference calls `advance` "Attack"; ids and rules stay (`advance`), the display name is **[ASSUMPTION]** "Attack" in the picker (translation only) – confirm with the human.
+- [ ] Posture = line style (existing criterion: march dashed, advance solid, defend ending in a defence arc – the reference gives no further detail, so these stay); routes smoothed (Chaikin ×3, see TASK-092c); halts as cross-bar with `+n`.
+- [ ] Opacity: planning preview 100 % with hex dots and an amber target; **issued orders 82 % without dots**. Test on the view-model: preview vs issued style flags.
+- [ ] Counter state **"has order"** (a small order mark on the frame) for the side's ordered formations; `ORDERS n / m ↵` on the End turn button (TASK-093b) now shows n ordered of m formations.
+- [ ] Enemy orders stay invisible (as above). **NOT adopted:** the reference's optional thin dotted red "predicted axis" from intel (needs TASK-100).
+
 ## Playtest (for the human)
 
 1. Select a Polish battalion, click a far hex: a dashed arrow (march) with ticks 1…n appears and stays after you deselect.

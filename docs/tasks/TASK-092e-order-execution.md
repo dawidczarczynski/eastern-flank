@@ -48,6 +48,16 @@ View (End turn now does something):
 - [ ] Skipping the animation and letting it play give the same final state (test on the controller: events applied first, animation is cosmetic).
 - [ ] Operational replay check (above) is additionally exercised by a scripted run through the scene controller with no input (headless smoke test: end 6 turns with orders given, state equals the pure-logic run).
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Counters" states, "Orders"). Counters slide in screen space along the projected path (following the relief); must work under the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Counter state **"moved"** (dimmed / marked frame) for formations that moved this turn, cleared when the side's next turn starts; state **"in contact"** = dashed `ui.alert #e07c5e` ring on a formation that `formation_halted` with `contact` (and on the adjacent enemy). Test on the view-model.
+- [ ] Remaining routes redrawn as issued orders (82 % opacity, no dots – TASK-092d); an arrived formation loses the arrow and the "has order" mark.
+- [ ] The turn report uses the HUD v3 panel style; the reference has no report layout (its report is the after-action report, TASK-095) – **no design values beyond that**.
+- [ ] **NOT adopted:** "AI moving…" state (TASK-102).
+- [ ] **Note for TASK-094a:** it draws one `state.rng` value per started battle after execution; the "no `rng` draws" test above must therefore use a scripted run without a contact (or compare only until the contact).
+
 ## Playtest (for the human)
 
 1. Give a Polish battalion in the Gap a far destination with posture advance (6 points), another a march order along a road.

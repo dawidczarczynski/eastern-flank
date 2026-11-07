@@ -2,7 +2,7 @@
 
 - **Status**: blocked
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (level in the turn bar, notices, end screen)
-- **Depends on**: TASK-114, TASK-094, TASK-093b (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
+- **Depends on**: TASK-114, TASK-094a, TASK-093b (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -48,6 +48,14 @@ View (the level on the staff map):
 - [ ] Every change shows a **toast** with the cause and the side that caused it ("Open war – NATO entered Russian soil"), including calm decay at the start of a turn ("Calm: level 2 → 1"). When the level reaches **Regional war** the allies' stance change is visible through the tints (TASK-114) and the toast says who joined.
 - [ ] Reaching the top level ends the operation: a full-screen **end notice** names the side that caused it and the outcome (the causer loses), the pending battles are dropped, the staff map goes read-only (End turn / orders disabled with the reason), and a button returns to the menu. Scene-level smoke test: raising to the threshold via the state shows the end notice and disables End turn.
 - [ ] the debug politics panel (**F9**, only with `--debug` – introduced in TASK-114; every action in it goes through the same commands / functions as the real decisions, so it is a test handle, not a rule) gains **Raise / Lower** buttons (attributed to a chosen side) so every effect above can be reached without waiting for movement (TASK-116) or decisions (TASK-117).
+
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Turn bar", "Panels" → political layer). Screen-space HUD, independent of the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] **Escalation chip** directly under the turn bar (TASK-093b): level number and name, **5 ticks colouring green → red** (`#b9d38a` … `ui.alert #e07c5e` **[ASSUMPTION: interpolated]**), click opens the ladder card (the hover/click card above).
+- [ ] Ladder card = a table of the five levels with the current one marked, ROE per level and the sanctuary / allies markers. **Conflict:** the reference names the levels "0 Crisis … 4 Strategic threshold"; our data names (`contained` … `strategic_threshold`, start level 1) stay – the card reads names from the data.
+- [ ] Toast / end notice text colours: `ui.text`, danger lines `ui.alert`.
 
 ## Playtest (for the human)
 

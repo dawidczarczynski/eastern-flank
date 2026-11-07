@@ -47,6 +47,16 @@ View (counters and selection, `src/presentation/operational/`):
 - [ ] Translations for formation names, parents, panel labels (`tr()`); `test_localization.gd` green.
 - [ ] A scene-level smoke test (like the existing presentation tests) builds the staff map with the shipped operation and asserts one counter node per formation and that selecting one fills the panel.
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Counters", "Panels"). Everything below is **screen-space** (counters on a `CanvasLayer`, positions projected from the hex centre on the relief) and must work under the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md); picking a counter is a 2D hit test, the hex under the cursor is picked by ray.
+
+- [ ] Own formation = rectangle **40 × 26 px**, enemy = **diamond 38 × 38 px** (shape and colour both encode the side); style A "HUD": side fill (`side.own #5b93d6` / `side.enemy #d76a52`), ink glyph (`#0f1a26` / `#2a110b`), cut corner; APP-6 branch icons stay. Colours from `StaffMapPalette`; own / enemy decided by one view function (`viewer_relation(owner, viewer)`; TASK-114 turns it into the reference's `stance(country, player_side)`), test: swapping the viewer swaps shape and colour.
+- [ ] Strength = **5 slanted segments** under the frame, HP colours `#b9d38a` (≥ 75 %), `#e2c069` (≥ 50 %), `ui.alert #e07c5e` below **[ASSUMPTION]**. **Conflict:** replaces the "small strength bar" above (same data). Test: segments lit for strength 40 / 30 / 20 / 10 of 40 = 5 / 4 / 3 / 1 **[ASSUMPTION: round up]**.
+- [ ] States in this task: normal, hover (brighter), selected (2 px corner brackets), low strength (< 50 %), stack (count badge). Later tasks add "has order" (092d), "moved" (092e), "in contact" (dashed `ui.alert` ring, 092e / 094). **NOT adopted:** estimated / detected enemy (dashed frame, "?", "EST.") – needs fog, TASK-100.
+- [ ] Declutter: the stack rule above stays; the reference's Z0 "brigade counters ×n" (aggregate by `parent` label when zoomed out) is **[ASSUMPTION]** optional here – flagged: it conflicts with "one counter per formation"; the agent documents the choice. Battalion counters from Z1 (≥ 1.6 px/km).
+- [ ] Formation panel on the **right edge**: strength, location (nearest place name or coordinate), companies list. Posture / order rows come with 092d. **NOT adopted:** supply days, cohesion, mortar "Firing" status (no rules). Hex card (TASK-093a) stays `pointer-events: none`. Keys: **Tab** cycles own formations **[ASSUMPTION]**; "F centre on formation" **not adopted** (F is the front-line toggle in the reference too – clash).
+
 ## Playtest (for the human)
 
 1. Start → **Operation**. Counters appear: eight blue ones in Poland (two near Bartoszyce / Braniewo, three in the Gap, three near Białystok) and ten red ones in Kaliningrad and Belarus.

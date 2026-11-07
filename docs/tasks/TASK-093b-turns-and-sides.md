@@ -27,6 +27,15 @@ View:
 - [ ] The view has a `viewer_player` parameter (0 or 1, `--side=nato|russia` override, default NATO – a **[ASSUMPTION]**). Counters and frames are drawn friendly / hostile relative to it. In hot-seat v0 the viewer follows the side to play after each End turn (the human plays both until the AI, TASK-102, exists); a toggle in the turn bar ("follow side to play / fixed side") keeps one side's view.
 - [ ] The viewer index never enters the operational state or snapshot (test: same snapshot whichever side is viewed – the TASK-092b rule).
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Turn bar"). Screen-space HUD (not part of the tilted map), unaffected by the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Turn bar **top centre**: side (name + colour) with its formation count, `TURN n`, date, day / night with a sun / moon icon, the side to move, **End turn** button with key hint `↵`. Fonts Chakra Petch (titles) / JetBrains Mono (numbers), `ui.amber` accents (HUD v3).
+- [ ] Day / night: **odd turns 06:00–18:00 (sun), even turns 18:00–06:00 (moon)**; test on the helper. Consistent with "12 h per turn" above because `turn` increments once per round (both blocs move inside one 12 h turn) – **flagged** so the implementer does not give each bloc move 12 h. The date comes from the operation data; nothing darkens the map at night **[ASSUMPTION – not in the reference]**.
+- [ ] `ORDERS n / m` counter on the End turn button (n formations with an order, m formations of the side) appears with TASK-092d; "AI moving…" (button greyed while the opponent plays) only when the operational AI exists (TASK-102) – **NOT adopted here**.
+- [ ] The escalation chip under the bar is TASK-115; leave room (second row), do not draw it here.
+
 ## Playtest (for the human)
 
 1. Open **Operation**. The turn bar says turn 1, the first side (Russia, `first_player` 1), date and time.

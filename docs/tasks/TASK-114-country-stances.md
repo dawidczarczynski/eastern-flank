@@ -45,6 +45,15 @@ View (stances on the staff map):
 - [ ] the debug politics panel (**F9**, only with `--debug` – introduced in TASK-114; every action in it goes through the same commands / functions as the real decisions, so it is a test handle, not a rule): a list of countries with a stance dropdown that calls `set_stance` (illegal transitions are refused with the rule's reason, shown in a toast). Stances are never changed anywhere else in this task.
 - [ ] Switching the viewer (TASK-093b) swaps own / hostile tints (test on the helper `StanceTint.for_viewer(state, player)`).
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Palette", "Typography", "Panels" → closed-country card, "Symmetry"). Tints and hatching are drawn on the relief in the ground shader; country names and the card are screen-space; works under the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
+
+- [ ] Country tint alpha **5 %** (own `side.own #5b93d6`) / **5.5 %** (enemy `side.enemy #d76a52`); neutral `side.neutral #a8a598`. Country names in Chakra Petch 26–34 px, tracking .42 em, 55–60 % alpha of the stance colour (names come from TASK-113).
+- [ ] **Conflict:** the reference has three stance colours (own / enemy / neutral) and treats "closed" as a state of `stance(country, player_side)`; we have four relations (own / hostile / enemy / neutral) plus open / closed. Mapping **[ASSUMPTION]**: hostile = the enemy colour at a lighter alpha, closed = hatch overlay on top of any colour (as the criterion above). The single view function is `StanceTint.for_viewer(state, player)`; no side or country literal in the view (symmetry test above).
+- [ ] Closed-country card (the country card above): stance to you, access (*may enter* / *may strike* with reasons). "Opens at escalation level" is added when TASK-115 exists (read from the ladder). **NOT adopted:** "forces estimate" (needs recon, TASK-100) and "entry cost" (rule is TASK-115 / 116).
+- [ ] Hex card: Country line shows the stance seen from the viewer (TASK-113 adds the line).
+
 ## Playtest (for the human)
 
 1. **Operation**, start stances: Poland tinted own (blue), Russia hostile (red), Lithuania aligned with NATO (light blue), Belarus aligned with Russia (light red), exactly as in GDD "Countries and stances" – re-read the table and judge.

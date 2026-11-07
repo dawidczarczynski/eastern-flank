@@ -16,6 +16,16 @@ The map shows who holds what: a front line drawn between the blocs and recompute
 - [ ] Drawn as a thick line with small teeth towards the enemy (relative to the viewer), plus a faint own / hostile territory tint (toggle **T**); recomputed on `formation_moved`, `operational_turn_started` and when the viewer changes; no per-frame work (measured, noted).
 - [ ] The line never changes the simulation (rule 3; test: `OperationalState.snapshot()` is identical with and without the view).
 
+## Look (Claude Design)
+
+Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Front line", "Line hierarchy"). The line is a px-width ribbon lying on the relief; the teeth are screen-space and evenly spaced in pixels, so the tilt of [TASK-125](TASK-125-staff-map-restyle-2-5d.md) never makes them uneven.
+
+- [ ] Width **2.4 / 3 / 3 px** at Z0 / Z1 / Z2 (constant in screen pixels); **teeth 5.5 px long every 15 px**, pointing to the enemy as seen by the viewer (flip when the viewer changes).
+- [ ] Smoothed variant (edge midpoints + **Chaikin ×3**) by default; the exact hex-edge polyline when the grid is shown (`G`, Z2) and as a debug option. Test: both variants have the same endpoints; the smoothed one has no vertex further than 1 hex from the exact one **[ASSUMPTION]**.
+- [ ] Rebuilt only on `formation_moved` / `operational_turn_started` / viewer change (as above), never per frame.
+- [ ] **Differs from the reference:** it derives the front from hex control (RU hex vs NATO hex); ours comes from `FrontLine.ownership` (nearest formation within 3 hexes). Our rule stays. "No front against a closed country" is **not adopted** here (needs TASK-114 / 116).
+- [ ] Territory tint (T): own / enemy at ~5 % alpha (`side.own` / `side.enemy`, as the reference's country tint) **[ASSUMPTION]**.
+
 ## Playtest (for the human)
 
 1. Open **Operation**: a line runs between the Polish and Russian groups; the teeth point away from your side.
