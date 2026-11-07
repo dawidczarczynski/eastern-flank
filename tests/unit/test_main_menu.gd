@@ -104,3 +104,10 @@ func test_sound_controls_persist() -> void:
 	assert_true(stored["muted"])
 	assert_eq(stored["master"], 0.4)
 	SoundMix.apply(GameSettings.load_sound("user://does_not_exist.cfg"))  # restore the buses
+
+
+func test_operation_button_opens_the_staff_map_entry() -> void:
+	assert_eq(_menu.operation_button().text, "OPERATION")
+	assert_eq(_menu.page(), "main")
+	_menu.language_button().pressed.emit()
+	assert_eq(_menu.operation_button().text, "OPERACJA")

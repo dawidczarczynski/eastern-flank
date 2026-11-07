@@ -143,3 +143,9 @@ On,On,Włączony
 Off,Off,Wyłączony
 Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
+Operation,Operation,Operacja
+BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
+STAFF_MAP_HINT,Drag / WASD: pan   Wheel: zoom   G: grid   Esc: back,Przeciągnij / WASD: przesuwanie   Kółko: zoom   G: siatka   Esc: wstecz
+River,River,Rzeka
+Yes,Yes,Tak
+No,No,Nie

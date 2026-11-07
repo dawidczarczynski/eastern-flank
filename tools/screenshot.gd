@@ -9,6 +9,7 @@ const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
 const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
 const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
+const STAFF_MAP_SCENE_PATH := "res://scenes/operational/staff_map.tscn"
 const USAGE := "Usage: tools/screenshot.sh [out.png] [--frames=N]"
 const EXPECTED_SIZE := Vector2i(1280, 720)
 const GALLERY_SETTLE_FRAMES := 4
@@ -17,7 +18,8 @@ var _output := ""
 var _frames_left := 0
 var _battle: Node
 var _catalog_spec := ""  # SCREENSHOT_CATALOG, applied once the scene is ready
-var _is_battle := true  # false for the menu and catalog scenes (SCREENSHOT_SCENE)
+var _is_battle := true  # false for the menu, catalog and staff map scenes (SCREENSHOT_SCENE)
+var _is_staff_map := false
 var _first_frame := true
 var _finished := false  # capture started or run failed – quit() only takes effect after this frame
 ## Frame-time probe (SCREENSHOT_MEASURE_FRAMES): frames still to time after the warm-up, and the
@@ -67,12 +69,17 @@ func _initialize() -> void:
 			scene_path = MENU_SCENE_PATH
 		"catalog":
 			scene_path = CATALOG_SCENE_PATH
+		"staff_map":
+			scene_path = STAFF_MAP_SCENE_PATH
 		"", "battle":
 			pass
 		_:
-			_fail("unknown SCREENSHOT_SCENE '%s' (battle, menu or catalog)" % scene_name, 2)
+			_fail(
+				"unknown SCREENSHOT_SCENE '%s' (battle, menu, catalog or staff_map)" % scene_name, 2
+			)
 			return
 	_is_battle = scene_path == SCENE_PATH
+	_is_staff_map = scene_path == STAFF_MAP_SCENE_PATH
 	var scene: PackedScene = load(scene_path)
 	if scene == null:
 		_fail("could not load %s" % scene_path, 1)
@@ -103,8 +110,11 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _finished:
 		return false
-	if _is_battle and not bool(_battle.get("is_built")):
-		return false  # the battle scene shows its loading screen for a frame before building
+	if (_is_battle or _is_staff_map) and not bool(_battle.get("is_built")):
+		return false  # these scenes show a loading screen for a frame before building
+	if _first_frame and _is_staff_map:
+		_first_frame = false
+		_apply_staff_map_state(OS.get_environment("SCREENSHOT_STAFF_MAP"))
 	if _first_frame and not _is_battle:
 		_first_frame = false
 		if _battle.has_method("select_unit"):
@@ -322,13 +332,17 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_SCENARIO=<one of Scenario.NAMES> starts that scenario (like the game's
 ## `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
 ## limit: SCREENSHOT_SCENARIO=objective_battle tools/screenshot.sh .screenshots/objectives.png
-## SCREENSHOT_SCENE=<battle|menu|catalog> renders another scene (default battle);
+## SCREENSHOT_SCENE=<battle|menu|catalog|staff_map> renders another scene (default battle);
 ## SCREENSHOT_LOCALE=<pl|en> switches the language first.
 ## SCREENSHOT_CATALOG=<unit id>[:<animation>[+<animation>...][:<yaw>,<pitch>,<distance>]] picks
 ## the catalog unit, plays the animations to their end (finish_pose; "fire" is left running, so
 ## --frames=N decides which moment of the salvo is captured) and sets the orbit camera (degrees),
 ## e.g. SCREENSHOT_SCENE=catalog SCREENSHOT_CATALOG=homar_k:deploy+raise+traverse
 ## tools/screenshot.sh.
+## SCREENSHOT_STAFF_MAP=<token>,... sets up the staff map (TASK-093a): zoom:<factor> (clamped to
+## the map's limits; "min"/"max" allowed), focus:<col>:<row> (centre on that hex), grid (G),
+## hover:<col>:<row> (the hover card), e.g.
+## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -367,6 +381,47 @@ func _apply_debug_selection() -> void:
 	var hover_id := OS.get_environment("SCREENSHOT_HOVER_UNIT")
 	if hover_id.is_valid_int():
 		_battle.call("debug_hover_unit", hover_id.to_int())
+
+
+## Staff map scene: tokens of SCREENSHOT_STAFF_MAP; processing stops afterwards so that the real
+## mouse can't pan the camera or move the hover card.
+func _apply_staff_map_state(spec: String) -> void:
+	var map: StaffMap = _battle
+	map.card().hide()  # a card from the real mouse position before processing stopped
+	var limits := map.zoom_limits()
+	var zoom := limits.x
+	var centre := map.view().world_bounds().get_center() / StaffMapView.UNIT
+	var hover := Vector2i(-1, -1)
+	var show_hover := false
+	for token in spec.split(",", false):
+		var parts := token.strip_edges().split(":")
+		match parts[0]:
+			"zoom":
+				var value := parts[1] if parts.size() > 1 else ""
+				zoom = (
+					limits.x
+					if value == "min"
+					else (limits.y if value == "max" else value.to_float())
+				)
+			"focus", "hover":
+				if parts.size() != 3 or not parts[1].is_valid_int() or not parts[2].is_valid_int():
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				var axial := MapGenerator.offset_to_axial(parts[1].to_int(), parts[2].to_int())
+				if parts[0] == "focus":
+					var w := Hex.to_world(axial, 1.0)
+					centre = Vector2(w.x, w.z)
+				else:
+					hover = axial
+					show_hover = true
+			"grid":
+				map.view().set_grid_visible(true)
+			_:
+				printerr("ERROR: unknown SCREENSHOT_STAFF_MAP token '%s'" % token)
+	map.debug_focus(centre, zoom)
+	if show_hover:
+		map.debug_hover(hover)
+	map.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 ## Catalog scene: "<unit id>[:<animations joined by +>[:<yaw>,<pitch>,<distance>]]".

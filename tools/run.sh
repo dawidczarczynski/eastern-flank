@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Runs the game (needs a graphical environment – in WSL2 it works through WSLg).
-# Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>]
+# Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>] [--scene=<name>]
 #   --quality  force the graphics quality (default: auto-detected; LOW on software rendering)
 #   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle)
+#   --scene    open a scene directly instead of the main menu: staff_map (the operational staff map, TASK-093a), battle, menu
 # The Godot path can be overridden with the GODOT variable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,16 +23,29 @@ fi
 
 user_args=()
 editor=0
+scene=""
 for arg in "$@"; do
 	case "$arg" in
 	--editor) editor=1 ;;
+	--scene=*) scene="${arg#--scene=}" ;;
 	--quality=* | --scenario=*) user_args+=("$arg") ;;
 	esac
 done
 if [[ $editor -eq 1 ]]; then
 	exec "$GODOT" --path . --editor
 fi
+scene_path=()
+case "$scene" in
+"") ;;
+staff_map) scene_path=(res://scenes/operational/staff_map.tscn) ;;
+battle) scene_path=(res://scenes/battle/battle.tscn) ;;
+menu) scene_path=(res://scenes/ui/main_menu.tscn) ;;
+*)
+	echo "Unknown --scene '$scene' (staff_map, battle, menu)" >&2
+	exit 2
+	;;
+esac
 if [[ ${#user_args[@]} -gt 0 ]]; then
-	exec "$GODOT" --path . -- "${user_args[@]}"
+	exec "$GODOT" --path . "${scene_path[@]}" -- "${user_args[@]}"
 fi
-exec "$GODOT" --path .
+exec "$GODOT" --path . "${scene_path[@]}"

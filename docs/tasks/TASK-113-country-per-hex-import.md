@@ -1,6 +1,6 @@
 # TASK-113: Country per hex – importer fills countries from OSM borders, `ImportedMap.country_at`, re-import the theatre
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: tools (Python, offline) + core (`src/core/data/imported_map.gd`) + data + presentation (borders on the staff map)
 - **Depends on**: TASK-092a, TASK-093a
 - **Model**: sonnet

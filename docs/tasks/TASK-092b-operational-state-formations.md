@@ -1,6 +1,6 @@
 # TASK-092b: Formations on the staff map – operational state, formations as data, the Suwałki Gap operation, APP-6 counters, selection panel
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (counters, panel)
 - **Depends on**: TASK-092a, TASK-086, TASK-093a
 - **Model**: opus (new simulation facade, state snapshot and RNG stream every later operational task builds on; plus the first view of it)

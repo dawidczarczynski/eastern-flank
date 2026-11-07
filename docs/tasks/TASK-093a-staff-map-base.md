@@ -1,6 +1,6 @@
 # TASK-093a: Staff map (1/3) – the theatre on paper: entry from the menu, 2D pan / zoom camera, land cover, roads, rivers, hex inspector
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`src/presentation/operational/`, `scenes/operational/`) + one small pure helper (map → draw data) + docs
 - **Depends on**: TASK-092a, TASK-124
 - **Model**: sonnet
@@ -46,4 +46,14 @@ New chapter "Operational map" (start): opening it from the menu, camera, what th
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+**Done (status stays "in progress" until the human has played it).**
+
+- `src/core/staff_map_layers.gd` (`StaffMapLayers`, pure, 18 tests): fills, hatch, road / river polylines (graph walk, split at junctions, links off the map end at the hex edge, Chaikin smoothing, `ribbons()` turns lines into one triangle list), hillshade, grid lines, bounds, hex lookup. `src/core/data/staff_map_palette.gd` + `data/operational/staff_map_palette.tres` hold every colour, width and spacing.
+- **Smoothing method: lattice triangles with edge-midpoint cuts** (not marching squares, not per-corner majority). The hex centres form a triangular lattice; each triangle of three adjacent hexes is cut by the terrain of its corners (all alike: whole; two alike: trapezoid + corner triangle through the edge midpoints; all different: three kites). Needs no land-cover data between hexes, is exact-area (tested) and deterministic. Known look: single hexes of a rare class (town, lake) stay roughly hexagonal; only the outermost half-hex band of the map is not drawn (camera bounds = hex centres).
+- Hillshade: per-hex slope against a light from the north-west (metres per hex step, full shade at 30 m), vertex-coloured triangles over the same lattice (smooth interpolation); water has no shade.
+- Scene `scenes/operational/staff_map.tscn` + `src/presentation/operational/`: `StaffMap` (controller, loading notice, camera, input, hover), `StaffMapView` (cached meshes: paper, one mesh per terrain, marsh hatch, hillshade, rivers, roads, grid; nothing is redrawn per frame; node scaled by 20 px per hex unit), `StaffMapCard` (HUD v3 hover card), `StaffMapCameraMath` (tested). MSAA 2D 4x is switched on for the scene's viewport (line edges) and off again on exit.
+- Menu: **Operation** button; `tools/run.sh --scene=staff_map|battle|menu`; `SCREENSHOT_SCENE=staff_map` with `SCREENSHOT_STAFF_MAP=zoom:min|max|N,focus:col:row,hover:col:row,grid`. Strings added to `assets/i18n/strings.csv`; MANUAL chapter 12b.
+- Max zoom: the shorter window side shows 10 hex rows (1280x720: about 15 hexes wide).
+- **Measured** (software renderer llvmpipe only, no GPU build available here): map build 580-900 ms (first frame well under 3 s); 15-28 draw calls, 61 k triangles at min zoom. llvmpipe frame times (60-140 ms) are CPU rasterisation of full-screen layers and say nothing about a GPU, so **60 FPS is not verified** – the human checks it with the frame-time overlay.
+- **Known limitations**: the real data is dense (61 % of hexes carry a road link, 49 % a river link; the rivers include many drainage canals, see TASK-092a notes), so zoomed out the map looks busy; roads / rivers connect hex centres, so long links are straight segments between rounded joins. A tuning of the importer (named rivers only, fewer roads) belongs to TASK-092b/c or a follow-up. gdtoolkit was broken in the dev shell (no module) – lint was run from a pip target directory.
+

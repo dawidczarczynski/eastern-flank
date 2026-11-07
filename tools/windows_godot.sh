@@ -19,6 +19,8 @@ find_windows_godot() {
 	for candidate in \
 		/mnt/c/Godot/"$GODOT_WIN_EXE" \
 		/mnt/c/Godot/*/"$GODOT_WIN_EXE" \
+		/mnt/c/godot/"$GODOT_WIN_EXE" \
+		/mnt/c/godot/*/"$GODOT_WIN_EXE" \
 		"/mnt/c/Program Files/Godot/$GODOT_WIN_EXE" \
 		/mnt/c/Users/*/Downloads/"$GODOT_WIN_EXE" \
 		/mnt/c/Users/*/Downloads/*/"$GODOT_WIN_EXE" \

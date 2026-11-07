@@ -23,6 +23,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `MatchRecord` – A whole match as scenario + seed + executed commands (their `to_dict()` form). (`match_record.gd`)
 - `Replay` – Rebuilds a match from a MatchRecord: the scenario's starting state from the seed, then ev… (`replay.gd`)
 - `Scenario` – Battle setups built headless from a seed (shared by the game, replays and AI simulations). (`scenario.gd`)
+- `StaffMapLayers` – Pure map -> draw data for the flat staff map (TASK-093a). Everything is in "hex units": t… (`staff_map_layers.gd`)
 - `Terrain` – Terrain types. Each enum value maps to a TerrainDefinition in data/terrain/*.tres, (`terrain.gd`)
 - `TerrainField` – Continuous height and moisture of the landscape at any world point (XZ plane). (`terrain_field.gd`)
 - `TerrainNoise` – Deterministic 2D noise, an exact port of the visual design's helpers (`terrain_noise.gd`)
@@ -43,6 +44,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `FactionDefinition` – Static data for a faction (a country). Instances are kept as .tres files in data/factions/ (`faction_definition.gd`)
 - `ImportedMap` – A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018): (`imported_map.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
+- `StaffMapPalette` – Colours and line widths of the paper staff map (TASK-093a). One resource, (`staff_map_palette.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
 - `TerrainFeatures` – Rule numbers of the linear map features (TASK-108): roads and rivers, stored per tile as… (`terrain_features.gd`)
 - `TerrainGenerationSettings` – Numbers of the elevation/moisture terrain generator (TerrainField, MapGenerator). (`terrain_generation_settings.gd`)
@@ -163,6 +165,13 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `vehicle_frame` – Real-vehicle measurements -> model space for the detailed models: `x` metres from the hull (`vehicle_frame.gd`)
 - `WheeledRunningGear` – Shared wheeled running gear for the truck models (TASK-073), the wheeled counterpart of (`wheeled_running_gear.gd`)
 
+## src/presentation/operational/
+
+- `StaffMap` – The operational staff map scene (TASK-093a): the theatre as a flat paper map with a fixed (`staff_map.gd`)
+- `StaffMapCameraMath` – Pure maths of the fixed top-down staff map camera (TASK-093a): zoom limits, the clamp to… (`staff_map_camera_math.gd`)
+- `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
+- `StaffMapView` – The paper map of the staff map scene (TASK-093a): flat fills, hillshade, hatch, roads, ri… (`staff_map_view.gd`)
+
 ## src/presentation/ui/
 
 - `BattleHud` – Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick (`battle_hud.gd`)
@@ -177,7 +186,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `HudTheme` – Builds the HUD Theme in code (palette, dark translucent panels) and serves the HUD fonts: (`hud_theme.gd`)
 - `KeyCap` – Key hint cap: a 1 px `LINE` border around amber mono text (10 px). "↵" is drawn as a shape (`key_cap.gd`)
 - `LoadingScreen` – Full-screen loading notice (HUD v3 "06 Notices"): `OPERACJA` amber, the operation name at (`loading_screen.gd`)
-- `main_menu` – Main menu (TASK-084, TASK-124): Start scenario, Unit catalog and Settings. The scenario a… (`main_menu.gd`)
+- `main_menu` – Main menu (TASK-084, TASK-124): Start scenario, Operation (staff map, TASK-093a), Unit ca… (`main_menu.gd`)
 - `MenuStyle` – HUD v3 look of the main menu and the unit catalog widgets (buttons, panels, labels), buil… (`menu_style.gd`)
 - `OperationLabel` – "■ OP. <NAME>" above the terrain card (TASK-079): amber mono text over a thin 150×3 hatch. (`operation_label.gd`)
 - `RadialRing` – HUD v3 radial ring (docs/design/hud_v3/README.md "04 Radial orders menu"): six trapezoid (`radial_ring.gd`)

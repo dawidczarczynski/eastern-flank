@@ -302,9 +302,10 @@ In a battle with command points it spends its points on its most valuable action
 
 ## 12. Main menu and unit catalog
 
-The game opens in the main menu with three buttons. Every other screen has a **‹ Back** button, and Esc does the same.
+The game opens in the main menu with four buttons. Every other screen has a **‹ Back** button, and Esc does the same.
 
 - **Start scenario** opens the scenario screen: the available battles (Iron Shore, Objective battle, Command points battle, Szurpiły Lakes) are listed on the left, and a flat map preview of the selected one (terrain, roads, rivers, and a dot per starting unit) is shown on the right. **Start** starts the selected battle; **Back** returns to the main menu. There is no way back to the menu from a battle; restart the game for that.
+- **Operation** opens the operational map (section 12b).
 - **Unit catalog** opens a viewer where you can look at every unit in the game.
 - **Settings** opens the settings screen:
   - **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
@@ -344,6 +345,39 @@ The battle has sound; there is no music yet.
 - **Engines.** A moving vehicle rumbles for the whole length of its move (tanks with a low track rumble, rocket trucks with a tyre hum); the engine rises in pitch when it sets off and drops when it stops. Infantry moves silently. Sounds are positional: they are louder and pan to the side when the unit is near the camera's view.
 - **Forest.** When you zoom the camera in close (roughly the closest third of the zoom range) over a forest, birdsong and the rustle of trees fade in over a second or two, with random bird calls on top; they fade out when you zoom out or pan to open ground.
 - **Volume.** Master volume, Ambient volume (the forest sound only) and the Sound on/off switch are in the Settings screen of the main menu, and are remembered. With the volume at 0 or sound off, nothing is played.
+
+## 12b. Operational map
+
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a flat paper map, seen from straight above, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. For now you can only look around: there are no formations, turns or orders yet. **‹ Back** or Esc returns to the menu.
+
+**Camera.** The view is always top-down; it cannot be rotated or tilted. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
+
+**What you see.**
+
+| Drawn as | Meaning |
+|---|---|
+| Pale paper | open ground (plains) |
+| Green | forest |
+| Light yellow | fields |
+| Blue | the sea, lakes and wide water |
+| Blue hatching on pale green | marsh |
+| Grey blocks | towns and cities |
+| Soft grey and pale shading | relief: the ground's slope, lit from the north-west (a hint of hills and valleys, not a precise elevation) |
+| Orange-red lines | roads (motorways and main roads only) |
+| Blue lines | rivers and canals |
+
+The land cover comes from the 5 km hexes and is rounded off across hex edges, so shapes are approximate; a small lake or a narrow river is only as exact as its hex.
+
+**Grid and hex card.** The hex grid is hidden; **G** shows or hides a faint grid. Pointing at a hex outlines it and shows a small card: its coordinate (column·row), terrain, elevation in metres, and whether a road and a river cross it. The card disappears when the cursor leaves the map.
+
+| Action (operational map) | Control |
+|---|---|
+| Pan | Left-drag, W A S D, arrow keys, or the cursor at the window edge |
+| Zoom | Mouse wheel (towards the cursor) |
+| Grid on / off | G |
+| Back to the main menu | Esc, or the ‹ Back button |
+
+Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
 ## 13. Not in the game yet
 

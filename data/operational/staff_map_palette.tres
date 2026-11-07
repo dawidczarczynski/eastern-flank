@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="StaffMapPalette" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/staff_map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+road_width = 0.08
+river_width = 0.06

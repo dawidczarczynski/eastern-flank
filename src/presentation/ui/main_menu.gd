@@ -1,10 +1,12 @@
 extends Control
-## Main menu (TASK-084, TASK-124): Start scenario, Unit catalog and Settings. The scenario and the
-## settings are separate pages of this scene, each with a Back button (Esc does the same).
+## Main menu (TASK-084, TASK-124): Start scenario, Operation (staff map, TASK-093a), Unit catalog
+## and Settings. The scenario and the settings are separate pages of this scene, each with a Back
+## button (Esc does the same).
 ## Presentation only: it switches scenes and the UI language (GameSettings stores the choice).
 
 const BATTLE_SCENE := "res://scenes/battle/battle.tscn"
 const CATALOG_SCENE := "res://scenes/ui/unit_catalog.tscn"
+const STAFF_MAP_SCENE := "res://scenes/operational/staff_map.tscn"
 const BUTTON_WIDTH := 340.0
 const SCENARIO_WIDTH := 860.0
 const PREVIEW_SIZE := Vector2(480, 340)
@@ -14,6 +16,7 @@ const TITLE_SIZE := 52
 var settings_path := GameSettings.PATH
 var _scenario_name := BattleOptions.chosen(OS.get_cmdline_user_args())
 var _start: Button  # main page: opens the scenario page
+var _operation: Button  # main page: opens the operational staff map
 var _catalog: Button
 var _settings: Button
 var _title: Label
@@ -58,6 +61,10 @@ func language_text() -> String:
 
 func start_button() -> Button:
 	return _start
+
+
+func operation_button() -> Button:
+	return _operation
 
 
 func catalog_button() -> Button:
@@ -179,6 +186,7 @@ func _build_main(column: VBoxContainer) -> void:
 	column.add_child(hatch)
 	column.add_child(_spacer(18.0))
 	_start = _add_button(column, show_page.bind("scenario"))
+	_operation = _add_button(column, _on_operation_pressed)
 	_catalog = _add_button(column, _on_catalog_pressed)
 	_settings = _add_button(column, show_page.bind("settings"))
 
@@ -256,6 +264,7 @@ func _spacer(height: float) -> Control:
 func refresh_texts() -> void:
 	_title.text = "EASTERN FLANK"
 	_start.text = tr("Start scenario").to_upper()
+	_operation.text = tr("Operation").to_upper()
 	_catalog.text = tr("Unit catalog").to_upper()
 	_settings.text = tr("Settings").to_upper()
 	_scenario_title.text = tr("Start scenario").to_upper()
@@ -294,6 +303,10 @@ func _on_begin_pressed() -> void:
 func _on_language_pressed() -> void:
 	GameSettings.set_locale(GameSettings.next_locale(TranslationServer.get_locale()), settings_path)
 	refresh_texts()
+
+
+func _on_operation_pressed() -> void:
+	get_tree().change_scene_to_file(STAFF_MAP_SCENE)
 
 
 func _on_catalog_pressed() -> void:
