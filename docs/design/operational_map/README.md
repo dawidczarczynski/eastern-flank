@@ -12,7 +12,7 @@ Descriptions in the files are Polish; UI strings in them are English (translatio
 ## Verdict
 
 - **Direction:** dark, muted, **flat top-down with baked relief** (orthographic camera, hillshade from the DEM burnt into the base texture, soft-light ~0.8). 2.5D (~34° tilt) is shown and rejected as the default – it compresses the north (~40 % fewer pixels per hex), makes arrows and the front uneven and needs billboard counters; suggested only as an intro animation / "briefing" mode. Light paper map and full 3D rejected as well.
-- **Conflict with our direction change (GDD, 2026-11-07: "modern, slightly 3D welcome"):** the *modern, no paper* part is confirmed by the proposal; the *slightly 3D* part is not – the designer argues for flat. Decision for the restyle task: start flat + relief, keep the tilt as an optional camera mode (`StaffMapCameraMath` is isolated for exactly this).
+- **Conflict with our direction change (GDD, 2026-11-07: "modern, slightly 3D welcome"):** the *modern, no paper* part is confirmed by the proposal; the *slightly 3D* part is not – the designer argues for flat. **Decided by the human (2026-11-07): 2.5D is wanted** – [TASK-125](../../tasks/TASK-125-staff-map-restyle-2-5d.md) implements the proposal's look with a tilted camera (default ~35°, `V` toggles flat) and answers the designer's objections (pixel compression, uneven lines, billboard counters).
 - Everything is consistent with HUD v3 (Chakra Petch, JetBrains Mono, amber `#e8b04a`) and with the architecture rules (view reads state only, counters on a `CanvasLayer`, one palette resource).
 
 ## Key values
