@@ -18,12 +18,15 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 		{"type": &"operational_turn_ended", "player": state.current_player}
 	]
 	_switch_side(state)
-	events.append(
-		{
-			"type": &"operational_turn_started",
-			"player": state.current_player,
-			"turn": state.turn,
-		}
+	(
+		events
+		. append(
+			{
+				"type": &"operational_turn_started",
+				"player": state.current_player,
+				"turn": state.turn,
+			}
+		)
 	)
 	return events
 

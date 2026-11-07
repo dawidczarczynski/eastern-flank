@@ -103,8 +103,8 @@ func show_formation(
 	var side_name := tr(side.display_name) if side != null else ""
 	var side_label: Label = _values["Side"]
 	side_label.text = (
-		("%s · %s" % [side_name, tr("HOSTILE")]) if hostile else side_name
-	).to_upper()
+		(("%s · %s" % [side_name, tr("HOSTILE")]) if hostile else side_name).to_upper()
+	)
 	side_label.add_theme_color_override(&"font_color", side_colour)
 	var current := formation.strength()
 	var maximum := formation.max_strength()
@@ -160,9 +160,7 @@ func _fill_companies(formation: Formation) -> void:
 	for i in formation.companies.size():
 		var company := formation.companies[i]
 		var unit: UnitDefinition = (
-			formation.definition.companies[i]
-			if i < formation.definition.companies.size()
-			else null
+			formation.definition.companies[i] if i < formation.definition.companies.size() else null
 		)
 		# Two lines: unit type and strength, then ref and gauge.
 		var entry := VBoxContainer.new()

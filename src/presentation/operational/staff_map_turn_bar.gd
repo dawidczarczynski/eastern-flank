@@ -92,7 +92,8 @@ func _init() -> void:
 	add_child(_follow)
 
 
-## Fills the bar from `state`; `viewer` picks the side shown on the left and the YOUR / ENEMY labels (colours belong to the sides), `follow` the toggle.
+## Fills the bar from `state`; `viewer` picks the side shown on the left and the YOUR / ENEMY
+## labels (colours belong to the sides), `follow` the toggle.
 func show_state(
 	state: OperationalState, palette: StaffMapPalette, viewer: int, follow: bool
 ) -> void:
@@ -104,10 +105,13 @@ func show_state(
 	_turn_label.text = "%02d" % state.turn
 	_day = OperationalClock.is_day(state.turn)
 	_icon.set_day(_day, Color("#e2c069"))
-	_date_label.text = "%s · %s" % [
-		_date_text(OperationalClock.date(state.turn, state.start_date)),
-		OperationalClock.time_of_day(state.turn),
-	]
+	_date_label.text = (
+		"%s · %s"
+		% [
+			_date_text(OperationalClock.date(state.turn, state.start_date)),
+			OperationalClock.time_of_day(state.turn),
+		]
+	)
 	_mover.text = ("▸ %s" % tr("%s MOVING") % side_name(state, mover)).to_upper()
 	_mover.add_theme_color_override(&"font_color", _colour(mover))
 	_follow.set_pressed_no_signal(follow)
@@ -205,7 +209,9 @@ func _apply_side(index: int, state: OperationalState, player: int, active: bool)
 	var status := tr("WAITING")
 	if active:
 		status = tr("YOUR MOVE") if own else tr("ENEMY MOVE")
-	(side["meta"] as Label).text = ("%s · %s" % [status, tr("%d FMN") % _count(state, player)]).to_upper()
+	(side["meta"] as Label).text = (
+		("%s · %s" % [status, tr("%d FMN") % _count(state, player)]).to_upper()
+	)
 	var bar: HatchBar = side["bar"]
 	bar.color = colour
 	bar.visible = active
