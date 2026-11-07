@@ -50,12 +50,16 @@ and the DEM) and 2026-11-07 (the last 6 OSM tiles, 55.0-55.5 N 23.0-26.0 E):
        the Copernicus DEM GLO-90 licence, tiles from https://copernicus-dem-90m.s3.amazonaws.com)
   OSM: 72 Overpass tiles of 0.5 x 0.5 degrees (52.5-55.5 N, 20.0-26.0 E; the operational
        query: forest, water, wetland, urban land use, major roads, rivers, coastline, country
-       borders), 1.85 GB in the cache
+       borders), 1.85 GB in the cache; plus 72 borders-only tiles (country borders, TASK-113)
   Rebuild: tools/import_map.py --profile=operational --center=54.20,22.888 --size=68x64
            --name=suwalki_theatre --display-name="Suwalki Gap theatre"
            --out=data/maps/suwalki_theatre.tres
+           --countries=PL:54.10,22.93,LT:54.90,23.90,BY:53.68,23.83,RU:54.71,20.51
   (the committed file was imported 2026-11-07 with --offline added, with the profile's tuned
-  default thresholds; sea filled from the default seeds 55.30 N 20.60 E and 55.10 N 21.05 E)
+  default thresholds; sea filled from the default seeds 55.30 N 20.60 E and 55.10 N 21.05 E;
+  countries (TASK-113) from the seed points Suwalki, Kaunas, Grodno, Kaliningrad - the default
+  of --countries, spelled out here - and the country borders of OpenStreetMap: 72 more
+  Overpass tiles "bd1_*" with only the member ways of the admin_level=2 border relations)
   (a re-download gets today's OpenStreetMap, so the result may differ from the committed file)
 
 The test maps tests/fixtures/maps/sample_map.tres and sample_op_map.tres are built from SYNTHETIC

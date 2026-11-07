@@ -1,0 +1,30 @@
+{
+ "elements": [
+  {
+   "id": 9001,
+   "lat": 54.4,
+   "lon": 22.4,
+   "type": "node"
+  },
+  {
+   "id": 9002,
+   "lat": 54.6,
+   "lon": 22.6,
+   "type": "node"
+  },
+  {
+   "id": 1,
+   "nodes": [
+    9001,
+    9002
+   ],
+   "tags": {
+    "admin_level": "2",
+    "boundary": "administrative"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

@@ -343,6 +343,81 @@ func test_problem_reports_malformed_links() -> void:
 	assert_true(map.to_grid() == null)
 
 
+# --- TASK-113: countries per hex ---
+
+
+## 3x2 map: terrain "PWP" / "PPP", countries ["PL", "LT"], country rows "0.1" / "001".
+func _country_map() -> ImportedMap:
+	var map := ImportedMap.new()
+	map.id = &"countries"
+	map.width = 3
+	map.height = 2
+	map.terrain_rows = PackedStringArray(["PWP", "PPP"])
+	map.elevation = PackedFloat32Array([0.2, -0.4, 0.2, 0.2, 0.2, 0.2])
+	map.countries = PackedStringArray(["PL", "LT"])
+	map.country_rows = PackedStringArray(["0.1", "001"])
+	return map
+
+
+func test_country_at_reads_the_iso_code_of_an_axial_tile() -> void:
+	var map := _country_map()
+	assert_eq(map.problem(), "")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(0, 0)), "PL")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(2, 0)), "LT")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(0, 1)), "PL")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(1, 1)), "PL")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(2, 1)), "LT")
+
+
+func test_country_at_is_empty_for_water_off_the_map_and_maps_without_countries() -> void:
+	var map := _country_map()
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(1, 0)), "", "water")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(3, 0)), "", "off the map (east)")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(0, 2)), "", "off the map (south)")
+	assert_eq(map.country_at(Vector2i(-5, -5)), "", "off the map (north-west)")
+	map.countries = PackedStringArray()
+	map.country_rows = PackedStringArray()
+	assert_eq(map.problem(), "")
+	assert_eq(map.country_at(MapGenerator.offset_to_axial(0, 0)), "", "no country rows")
+
+
+func test_problem_reports_malformed_countries() -> void:
+	var map := _country_map()
+	map.country_rows = PackedStringArray(["0.1"])
+	assert_true(map.problem().contains("country"), "row count: " + map.problem())
+	map = _country_map()
+	map.country_rows[1] = "00"
+	assert_true(map.problem().contains("country"), "row width: " + map.problem())
+	map = _country_map()
+	map.country_rows[1] = "002"
+	assert_true(map.problem().contains("2"), "digit beyond the countries: " + map.problem())
+	map = _country_map()
+	map.country_rows[1] = "0x1"
+	assert_true(map.problem().contains("x"), "unknown character: " + map.problem())
+	map = _country_map()
+	map.country_rows[0] = "010"
+	assert_true(map.problem().contains("water"), "country on a water tile: " + map.problem())
+	map = _country_map()
+	map.countries = PackedStringArray(["PL", "lt"])
+	assert_true(map.problem().contains("lt"), "not upper case: " + map.problem())
+	map.countries = PackedStringArray(["PL", "LTU"])
+	assert_true(map.problem().contains("LTU"), "three letters: " + map.problem())
+	map.countries = PackedStringArray(["PL", "PL"])
+	assert_true(map.problem().contains("PL"), "duplicate: " + map.problem())
+	map = _country_map()
+	map.countries = PackedStringArray()
+	assert_true(map.problem() != "", "country rows without countries")
+	assert_true(map.to_grid() == null)
+
+
+func test_the_tactical_maps_have_no_countries() -> void:
+	for map_id: StringName in [&"suwalki"]:
+		var map := ImportedMap.find(map_id)
+		assert_eq(map.problem(), "")
+		assert_true(map.countries.is_empty() and map.country_rows.is_empty(), String(map_id))
+		assert_eq(map.country_at(Vector2i.ZERO), "")
+
+
 # --- TASK-108: the regenerated Suwalki map against the TASK-087 import ---
 
 
@@ -385,3 +460,24 @@ func test_suwalki_has_roads_and_rivers() -> void:
 			rivers += 1
 	assert_true(roads >= 1, "road links")
 	assert_true(rivers >= 1, "river hexes")
+
+
+func test_border_lines_are_valid_world_polylines() -> void:
+	var map := _country_map()
+	assert_eq(map.border_lines.size(), 0, "none by default")
+	map.border_lines = [PackedVector2Array([Vector2(0, 0), Vector2(1.5, 2.25), Vector2(3, 3)])]
+	assert_eq(map.problem(), "")
+
+
+func test_problem_reports_malformed_border_lines() -> void:
+	var map := _country_map()
+	map.border_lines = [PackedVector2Array([Vector2(0, 0)])]
+	assert_true(map.problem().contains("border line 0"), "one point: " + map.problem())
+	map = _country_map()
+	map.border_lines = [PackedVector2Array([Vector2(0, 0), Vector2(1, 1)]), PackedVector2Array()]
+	assert_true(map.problem().contains("border line 1"), "empty: " + map.problem())
+	map = _country_map()
+	map.border_lines = [PackedVector2Array([Vector2(0, 0), Vector2(INF, 1)])]
+	assert_true(map.problem().contains("non-finite"), "infinite: " + map.problem())
+	map.border_lines = [PackedVector2Array([Vector2(0, 0), Vector2(NAN, 1)])]
+	assert_true(map.problem().contains("non-finite"), "NaN: " + map.problem())

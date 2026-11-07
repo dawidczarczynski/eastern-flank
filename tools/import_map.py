@@ -6,6 +6,7 @@ Usage:
                       [--size=30x24] [--hex=250] [--sample=25] [--tile-deg=0.5] [--sea-seed=<lat,lon> ...]
                       --name=<id> --out=data/maps/<id>.tres [--display-name=<text>]
                       [--cache=~/.cache/eastern-flank/maps] [--offline] [--dem=<file.tif> ...] [--osm=<file.json>]
+                      [--countries=<ISO>:<lat,lon>[,<ISO>:<lat,lon>...]]
 
 The map is a rectangle of `--size` columns x rows of pointy-top hexes (offset layout, odd rows shifted east, like
 MapGenerator) whose neighbouring centres are `--hex` metres apart, centred on `--center` (or the bbox centre; without
@@ -46,6 +47,18 @@ tile its own cache file `<cache>/osm/op1_<lat>_<lon>_<deg>.json`, retried and re
 time and areas / lines that appear in several tiles give the same result again (highest class per point, link
 masks OR-ed). OSM has no sea polygons: `natural=coastline` ways are rasterised as a barrier and the sea is filled
 from `--sea-seed` points (`fill_sea`; the theatre's defaults `OP_SEA_SEEDS` apply when they lie on the map).
+
+Countries (TASK-113, operational only; ADR 0018 "Countries"): `--countries=PL:54.10,22.93,LT:54.90,23.90,...` gives each
+country an ISO code and a seed point inside it (the operational defaults `OP_COUNTRIES` apply when they lie on the map).
+The country-border ways are rasterised as barrier points on the lattice (`border_barrier`, supercover: every lattice
+cell a segment crosses), a 4-connected flood fill from each seed owns its region (`fill_countries`; two seeds in one
+region = a gap in the border line = error), barrier points take the majority of their 4 neighbours (ties: the first
+country), and a hex takes the country with the most land points (`hex_country`; water hexes none). The border ways
+come from the tagged `admin_level=2` ways of the land-cover tiles plus the borders-only tiles
+`<cache>/osm/bd1_<lat>_<lon>_<deg>.json` (`border_query`: the member ways of the country relations touching the tile;
+fetched like the land-cover tiles, `--offline` fails naming a missing tile). Written as `countries` and `country_rows`.
+The borders are also written as lines for drawing (`border_lines`, `border_polylines`): the ways clipped to the map, chained
+and Douglas-Peucker simplified (0.1 hex), in world units (x east, z south, hex size 1) - never snapped to hexes.
 
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
@@ -137,6 +150,10 @@ _OP_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
 OP_ROAD_HIGHWAYS = ("motorway", "trunk", "primary", "secondary")
 OP_SEA_SEEDS = ((55.30, 20.60), (55.10, 21.05))  # the open Baltic west of the Curonian Spit; the Curonian Lagoon
 OP_QUERY_VERSION = "op1"  # part of the tile file names: a changed query must not reuse old tiles
+BORDER_QUERY_VERSION = "bd1"  # borders-only tile files (TASK-113), next to the `op1` land-cover tiles
+OP_COUNTRIES = (("PL", 54.10, 22.93), ("LT", 54.90, 23.90), ("BY", 53.68, 23.83), ("RU", 54.71, 20.51))
+# Suwalki, Kaunas, Grodno, Kaliningrad: the operational defaults of `--countries` (skipped when off the map)
+NO_COUNTRY = 255
 OSM_TILE_DEG = 0.5
 DOWNLOAD_RETRIES = 3
 RETRY_PAUSE_S = 60.0
@@ -179,7 +196,9 @@ class Settings:
                  hills_relief: Optional[float] = None, canopy: float = 15.0, exaggeration: float = 1.5, water_share: float = OP_WATER_SHARE,
                  urban_share: Optional[float] = None, forest_share: float = OP_FOREST_SHARE,
                  marsh_share: float = MARSH_SHARE, sea_seeds: Sequence[Tuple[float, float]] = (),
-                 default_seeds: Sequence[Tuple[float, float]] = ()) -> None:  # fmt: skip
+                 default_seeds: Sequence[Tuple[float, float]] = (),
+                 countries: Sequence[Tuple[str, float, float]] = (),
+                 default_countries: Sequence[Tuple[str, float, float]] = ()) -> None:  # fmt: skip
         operational = profile is OPERATIONAL
         self.profile = profile
         self.sample_m = sample_m if sample_m is not None else profile.sample_m
@@ -192,6 +211,8 @@ class Settings:
         self.marsh_share = marsh_share
         self.sea_seeds = list(sea_seeds)  # explicit: each must lie on the map's lattice, on the sea side
         self.default_seeds = list(default_seeds)  # the profile's: skipped when off the lattice
+        self.countries = list(countries)  # (ISO code, lat, lon of a seed point): explicit, each must lie on the map
+        self.default_countries = list(default_countries)  # the profile's: skipped when off the map
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -426,6 +447,21 @@ def overpass_query(south: float, west: float, north: float, east: float) -> str:
     ])  # fmt: skip
 
 
+def border_query(south: float, west: float, north: float, east: float) -> str:
+    """Overpass query of one borders-only tile (TASK-113): the member ways of the country-border relations
+    (`boundary=administrative`, `admin_level=2`) that touch the bbox, with their nodes. Most of the Poland - Russia and
+    Lithuania - Russia borders are untagged members of these relations, so the tagged `admin_level=2` ways of the land-cover
+    tiles miss them. Whole ways come back (no clipping), but only ways touching the bbox, never whole countries."""
+    bbox = "%.5f,%.5f,%.5f,%.5f" % (south, west, north, east)
+    return "\n".join([
+        "[out:json][timeout:900];",
+        'rel["boundary"="administrative"]["admin_level"="2"](%s);' % bbox,
+        "way(r)(%s);" % bbox,
+        "(._;>;);",
+        "out body;",
+    ])  # fmt: skip
+
+
 def operational_query(south: float, west: float, north: float, east: float) -> str:
     """Overpass query of one operational tile: only what the operational profile reads (forest, water, wetland,
     urban land use, major roads, rivers and canals) plus the coastline (sea fill) and the country borders
@@ -554,6 +590,26 @@ def osm_coastlines(osm: dict) -> List[Tuple[int, List[Tuple[float, float]]]]:
         points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
         if len(points) >= 2:
             lines.append((way["id"], points))
+    return lines
+
+
+def osm_borders(osm: dict, all_ways: bool = False) -> Dict[int, List[Tuple[float, float]]]:
+    """Way id -> [(lat, lon), ...] of the country-border ways of an Overpass answer: the ways tagged
+    `boundary=administrative` + `admin_level=2`, or - in a borders-only tile (`all_ways`) - every way."""
+    nodes: Dict[int, Tuple[float, float]] = {}
+    ways = []
+    for el in osm.get("elements", []):
+        if el.get("type") == "node":
+            nodes[el["id"]] = (el["lat"], el["lon"])
+        elif el.get("type") == "way":
+            tags = el.get("tags", {})
+            if all_ways or (tags.get("boundary") == "administrative" and tags.get("admin_level") == "2"):
+                ways.append(el)
+    lines = {}
+    for way in ways:
+        points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
+        if len(points) >= 2:
+            lines[way["id"]] = points
     return lines
 
 
@@ -890,6 +946,225 @@ def fill_sea(cover: List[bytearray], coastlines: Sequence[Sequence[Tuple[float, 
     return reached
 
 
+def border_barrier(rows: int, cols: int, lines: Sequence[Sequence[Tuple[float, float]]],
+                   min_e: float, min_n: float, step: float) -> bytearray:  # fmt: skip
+    """Lattice points (row-major, 1 = barrier) that projected border lines pass through. Supercover: every lattice
+    cell (the `step` square around a point) a segment crosses is marked, so the barrier is a 4-connected chain and
+    neither a 4- nor an 8-connected fill leaks through a diagonal border; a segment through exactly a cell corner
+    marks both cells that touch it."""
+    barrier = bytearray(rows * cols)
+
+    def mark(i: int, j: int) -> None:
+        if 0 <= i < cols and 0 <= j < rows:
+            barrier[j * cols + i] = 1
+
+    for line in lines:
+        for (e1, n1), (e2, n2) in zip(line, line[1:]):
+            x1, y1 = (e1 - min_e) / step + 0.5, (n1 - min_n) / step + 0.5  # cell (i, j) is [i, i+1) x [j, j+1)
+            x2, y2 = (e2 - min_e) / step + 0.5, (n2 - min_n) / step + 0.5
+            if (max(x1, x2) < 0 or min(x1, x2) > cols or max(y1, y2) < 0 or min(y1, y2) > rows):
+                continue
+            i, j = int(math.floor(x1)), int(math.floor(y1))
+            end_i, end_j = int(math.floor(x2)), int(math.floor(y2))
+            dx, dy = x2 - x1, y2 - y1
+            sx = 1 if dx > 0 else -1
+            sy = 1 if dy > 0 else -1
+            inf = float("inf")
+            t_x = ((i + (1 if dx > 0 else 0)) - x1) / dx if dx != 0 else inf
+            t_y = ((j + (1 if dy > 0 else 0)) - y1) / dy if dy != 0 else inf
+            d_x = abs(1.0 / dx) if dx != 0 else inf
+            d_y = abs(1.0 / dy) if dy != 0 else inf
+            mark(i, j)
+            for _ in range(abs(end_i - i) + abs(end_j - j) + 2):
+                if (i, j) == (end_i, end_j):
+                    break
+                if abs(t_x - t_y) < 1e-12:  # through a cell corner: both cells beside it are touched
+                    mark(i + sx, j)
+                    mark(i, j + sy)
+                    i += sx
+                    j += sy
+                    t_x += d_x
+                    t_y += d_y
+                elif t_x < t_y:
+                    i += sx
+                    t_x += d_x
+                else:
+                    j += sy
+                    t_y += d_y
+                mark(i, j)
+    return barrier
+
+
+BORDER_TOLERANCE = 0.1  # Douglas-Peucker tolerance of the drawn border lines, in hex units (world units)
+
+
+def _clip_runs(line: Sequence[Tuple[float, float]], rect: Tuple[float, float, float, float]) -> List[list]:
+    """The parts of a polyline inside the rectangle (min_x, min_y, max_x, max_y), Liang-Barsky per segment; a run
+    continues across segments that stay inside and ends where the line leaves."""
+    runs: List[list] = []
+    run: list = []
+    for (x1, y1), (x2, y2) in zip(line, line[1:]):
+        t0, t1 = 0.0, 1.0
+        dx, dy = x2 - x1, y2 - y1
+        inside = True
+        for p, q in ((-dx, x1 - rect[0]), (dx, rect[2] - x1), (-dy, y1 - rect[1]), (dy, rect[3] - y1)):
+            if p == 0:
+                if q < 0:
+                    inside = False
+                    break
+            elif p < 0:
+                t0 = max(t0, q / p)
+            else:
+                t1 = min(t1, q / p)
+        if not inside or t0 >= t1:
+            if len(run) >= 2:
+                runs.append(run)
+            run = []
+            continue
+        a = (x1, y1) if t0 == 0.0 else (x1 + t0 * dx, y1 + t0 * dy)
+        b = (x2, y2) if t1 == 1.0 else (x1 + t1 * dx, y1 + t1 * dy)
+        if t0 > 0.0 and len(run) >= 2:
+            runs.append(run)
+            run = []
+        if not run:
+            run = [a]
+        run.append(b)
+        if t1 < 1.0:
+            runs.append(run)
+            run = []
+    if len(run) >= 2:
+        runs.append(run)
+    return runs
+
+
+def simplify_line(points: Sequence[Tuple[float, float]], tolerance: float) -> List[Tuple[float, float]]:
+    """Douglas-Peucker; the end points stay (a closed ring keeps its first point as the last)."""
+    if len(points) < 3:
+        return list(points)
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(points) - 1)]
+    while stack:
+        lo, hi = stack.pop()
+        (ax, ay), (bx, by) = points[lo], points[hi]
+        length = math.hypot(bx - ax, by - ay)
+        best, at = -1.0, lo
+        for i in range(lo + 1, hi):
+            px, py = points[i]
+            if length == 0.0:
+                d = math.hypot(px - ax, py - ay)
+            else:
+                d = abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / length
+            if d > best:
+                best, at = d, i
+        if best > tolerance:
+            keep[at] = True
+            stack += [(lo, at), (at, hi)]
+    return [p for p, k in zip(points, keep) if k]
+
+
+def border_polylines(layout: "HexLayout", lines: Dict[int, List[Tuple[float, float]]],
+                     tolerance: float = BORDER_TOLERANCE) -> List[List[Tuple[float, float]]]:  # fmt: skip
+    """The real country borders for drawing (TASK-113): projected border ways (way id -> [(E, N), ...]) clipped to the
+    map's rectangle, chained end to end where exactly two ways meet, converted to world units (x east, z south, hex
+    size 1, world (0, 0) = the centre of tile (0, 0)) and simplified (`tolerance` in hex units). Deterministic: ways
+    in id order, each line starts at its smaller end point (x, then z), lines sorted by their first point."""
+    m = layout.metres_per_unit
+    min_e, min_n, max_e, max_n = layout.bounds()
+    rect = ((min_e - layout.origin_e) / m, (layout.origin_n - max_n) / m,
+            (max_e - layout.origin_e) / m, (layout.origin_n - min_n) / m)  # fmt: skip
+    pieces: List[list] = []
+    for way_id in sorted(lines):
+        world = [((e - layout.origin_e) / m, (layout.origin_n - n) / m) for e, n in lines[way_id]]
+        pieces += _clip_runs(world, rect)
+    ends: Dict[Tuple[float, float], list] = {}
+    for index, piece in enumerate(pieces):
+        ends.setdefault(piece[0], []).append(index)
+        ends.setdefault(piece[-1], []).append(index)
+    used = [False] * len(pieces)
+
+    def extend(chain: list) -> None:
+        while chain[0] != chain[-1] or len(chain) < 3:
+            owners = ends.get(chain[-1], [])
+            if len(owners) != 2:
+                return
+            nxt = [i for i in owners if not used[i]]
+            if not nxt:
+                return
+            used[nxt[0]] = True
+            piece = pieces[nxt[0]]
+            chain.extend((piece if piece[0] == chain[-1] else piece[::-1])[1:])
+
+    result = []
+    for index, piece in enumerate(pieces):
+        if used[index]:
+            continue
+        used[index] = True
+        chain = list(piece)
+        extend(chain)
+        if chain[0] != chain[-1]:
+            chain.reverse()
+            extend(chain)
+        if chain[-1] < chain[0] and chain[0] != chain[-1]:
+            chain.reverse()
+        simple = simplify_line(chain, tolerance)
+        if len(simple) >= 2:
+            result.append(simple)
+    result.sort(key=lambda line: (line[0], len(line)))
+    return result
+
+
+def fill_countries(rows: int, cols: int, barrier: bytearray, seeds: Sequence[Tuple[str, float, float]],
+                   min_e: float, min_n: float, step: float) -> bytearray:  # fmt: skip
+    """Country index (position in `seeds`, NO_COUNTRY = none) of every lattice point. `seeds` are (ISO code, easting,
+    northing). A 4-connected flood fill from each seed over the non-barrier points owns its region; a barrier point
+    then takes the country of the majority of its 4 neighbours (ties: the first country; none when no neighbour has
+    one). A seed off the map or on a barrier point is an error, and so are two seeds in one region (a gap in the
+    border line)."""
+    owner = bytearray([NO_COUNTRY]) * (rows * cols)
+    for index, (iso, e, n) in enumerate(seeds):
+        i = int(round((e - min_e) / step))
+        j = int(round((n - min_n) / step))
+        if not (0 <= i < cols and 0 <= j < rows):
+            raise ValueError("country %s: the seed point is off the map" % iso)
+        start = j * cols + i
+        if barrier[start]:
+            raise ValueError("country %s: the seed point lies on the border line" % iso)
+        if owner[start] != NO_COUNTRY:
+            raise ValueError("countries %s and %s: two seeds in one region (a gap in the border line?)"
+                             % (seeds[owner[start]][0], iso))  # fmt: skip
+        owner[start] = index
+        queue = deque([start])
+        while queue:
+            k = queue.popleft()
+            ki, kj = k % cols, k // cols
+            for nk, ok in ((k - 1, ki > 0), (k + 1, ki < cols - 1), (k - cols, kj > 0), (k + cols, kj < rows - 1)):
+                if ok and not barrier[nk] and owner[nk] == NO_COUNTRY:
+                    owner[nk] = index
+                    queue.append(nk)
+    settled = bytes(owner)  # barrier points read the fill, not each other
+    for k in range(rows * cols):
+        if not barrier[k]:
+            continue
+        ki, kj = k % cols, k // cols
+        votes: Dict[int, int] = {}
+        for nk, ok in ((k - 1, ki > 0), (k + 1, ki < cols - 1), (k - cols, kj > 0), (k + cols, kj < rows - 1)):
+            if ok and settled[nk] != NO_COUNTRY:
+                votes[settled[nk]] = votes.get(settled[nk], 0) + 1
+        if votes:
+            owner[k] = max(sorted(votes), key=lambda c: votes[c])  # first of the best: sorted, max keeps the first
+    return owner
+
+
+def hex_country(land_by_country: Sequence[int]) -> int:
+    """Country index with the most land sample points of a hex (ties: the first), NO_COUNTRY without any."""
+    best = NO_COUNTRY
+    for index, count in enumerate(land_by_country):
+        if count > 0 and (best == NO_COUNTRY or count > land_by_country[best]):
+            best = index
+    return best
+
+
 def _load_osm(source: object) -> dict:
     if isinstance(source, dict):
         return source
@@ -897,10 +1172,12 @@ def _load_osm(source: object) -> dict:
         return json.load(f)
 
 
-def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Optional[Settings] = None) -> dict:
+def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Optional[Settings] = None,
+              borders: object = None) -> dict:  # fmt: skip
     """Per-hex terrain, cover and elevation of the layout (see the module docstring). `osm` is one Overpass
     answer (dict or path) or a list of them (OSM tiles, loaded one at a time; areas and lines that appear in several
-    tiles give the same result again, `_scanline_fill` and link masks are idempotent)."""
+    tiles give the same result again, `_scanline_fill` and link masks are idempotent). `borders` is a list of
+    borders-only answers (TASK-113) whose ways all count as country borders, added to the tagged border ways of `osm`."""
     settings = settings or Settings()
     profile = settings.profile
     step = settings.sample_m
@@ -912,6 +1189,14 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     links: Dict[str, set] = {ROAD: set(), RIVER: set()}
     coastlines: Dict[int, List[Tuple[float, float]]] = {}
     sources = osm if isinstance(osm, list) else [osm]
+    country_seeds = [(iso, *to_utm(lat, lon, zone)) for iso, lat, lon in settings.countries]
+    for iso, lat, lon in settings.default_countries:
+        e, n = to_utm(lat, lon, zone)
+        if min_e <= e <= max_e and min_n <= n <= max_n:
+            country_seeds.append((iso, e, n))
+    if len(country_seeds) > 10:
+        raise ValueError("at most 10 countries (one digit each in country_rows)")
+    border_lines: Dict[int, List[Tuple[float, float]]] = {}
     for index, source in enumerate(sources):
         if len(sources) > 1:
             print("OSM tile %d/%d %s" % (index + 1, len(sources), getattr(source, "name", "")), file=sys.stderr)
@@ -924,7 +1209,13 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         if operational:
             for way_id, line in osm_coastlines(data):
                 coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
+        if country_seeds:
+            for way_id, line in osm_borders(data).items():
+                border_lines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
         del data
+    for source in (borders if country_seeds and borders else []):
+        for way_id, line in osm_borders(_load_osm(source), True).items():
+            border_lines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
     seeds = [to_utm(lat, lon, zone) for lat, lon in settings.sea_seeds]
     for lat, lon in settings.default_seeds:
         e, n = to_utm(lat, lon, zone)
@@ -933,6 +1224,17 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     sea_points = 0
     if seeds:
         sea_points = fill_sea(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step)
+    owner = bytearray()
+    drawn: List[List[Tuple[float, float]]] = []
+    if country_seeds:
+        if not border_lines:
+            raise ValueError("countries given but no border ways found (borders-only tiles missing?)")
+        barrier = border_barrier(rows, cols, [border_lines[k] for k in sorted(border_lines)], min_e, min_n, step)
+        owner = fill_countries(rows, cols, barrier, country_seeds, min_e, min_n, step)
+        del barrier
+        drawn = border_polylines(layout, border_lines)
+    water_class = COVER_CLASSES.index("W")
+    land_by_country: Dict[Tuple[int, int], List[int]] = {}
     samples: Dict[Tuple[int, int], List[Tuple[float, int]]] = {}
     for j in range(rows):
         n = min_n + j * step
@@ -944,6 +1246,10 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
                 continue
             lat, lon = from_utm(e, n, zone)
             samples.setdefault(tile, []).append((dem.sample(lat, lon), cover_row[i]))
+            if country_seeds and cover_row[i] != water_class:
+                index = owner[j * cols + i]
+                if index != NO_COUNTRY:
+                    land_by_country.setdefault(tile, [0] * len(country_seeds))[index] += 1
     tiles = {}
     for row in range(layout.height):
         for col in range(layout.width):
@@ -971,6 +1277,14 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             tiles[(col, row)] = {"terrain": terrain, "cover": cover_char, "metres": round(mean, 1),
                                  "relief": round(relief, 1)}  # fmt: skip
     del samples
+    unassigned = []
+    for (col, row), t in sorted(tiles.items(), key=lambda item: (item[0][1], item[0][0])):
+        t["country"] = hex_country(land_by_country.get((col, row), [])) if t["terrain"] != "water" else NO_COUNTRY
+        if country_seeds and t["terrain"] != "water" and t["country"] == NO_COUNTRY:
+            unassigned.append("%d,%d" % (col, row))
+    if unassigned:
+        raise ValueError("%d land hexes have no country (a leak in the border line or a missing seed); first: %s"
+                         % (len(unassigned), "; ".join(unassigned[:5])))  # fmt: skip
     water = [tile for tile, t in tiles.items() if t["terrain"] == "water"]
     masks = {kind: store_links(layout, sorted(links[kind]), water) for kind in (ROAD, RIVER)}
     for tile, t in tiles.items():
@@ -987,7 +1301,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             t["elevation"] = WATER_ELEVATION
         else:
             t["elevation"] = LAND_MIN + (t["metres"] - low) * scale
-    return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points}
+    return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points,
+            "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn}  # fmt: skip
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1041,6 +1356,18 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
         "sources = %s" % _string(sources),
         "",
     ]
+    if result.get("countries"):
+        country_rows = ["".join("." if tiles[(c, row)]["country"] == NO_COUNTRY else str(tiles[(c, row)]["country"])
+                                for c in range(layout.width)) for row in range(layout.height)]  # fmt: skip
+        at = lines.index("elevation_m = PackedFloat32Array(%s)" % ", ".join(metres))
+        lines[at:at] = [
+            "countries = PackedStringArray(%s)" % ", ".join(_string(c) for c in result["countries"]),
+            "country_rows = PackedStringArray(%s)" % ", ".join(_string(r) for r in country_rows),
+        ]
+        if result.get("border_lines"):
+            lines[at + 2:at + 2] = ["border_lines = Array[PackedVector2Array]([%s])" % ", ".join(
+                "PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(x, 3), _f(z, 3)) for x, z in line)
+                for line in result["border_lines"])]  # fmt: skip
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
@@ -1119,7 +1446,10 @@ def _check_overpass_answer(path: Path) -> None:
 
 
 def _fetch_tile(path: Path, lat: float, lon: float, deg: float) -> None:
-    query = operational_query(lat, lon, lat + deg, lon + deg)
+    _fetch_answer(path, operational_query(lat, lon, lat + deg, lon + deg))
+
+
+def _fetch_answer(path: Path, query: str) -> None:
     tmp = path.with_name(path.name + ".check")
     _download(OVERPASS_URL, tmp, urllib.parse.urlencode({"data": query}).encode("utf-8"))
     try:
@@ -1130,33 +1460,87 @@ def _fetch_tile(path: Path, lat: float, lon: float, deg: float) -> None:
     tmp.replace(path)
 
 
-def osm_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
-                   deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
-    """The cached OSM tiles of the bbox, downloading missing ones one by one (each retried DOWNLOAD_RETRIES times
+def border_tile_path(cache: Path, lat: float, lon: float, deg: float) -> Path:
+    return cache / "osm" / ("%s_%.4f_%.4f_%.4f.json" % (BORDER_QUERY_VERSION, lat, lon, deg))
+
+
+def _fetch_border_tile(path: Path, lat: float, lon: float, deg: float) -> None:
+    _fetch_answer(path, border_query(lat, lon, lat + deg, lon + deg))
+
+
+def _cached_tiles(cache: Path, south: float, west: float, north: float, east: float, offline: bool, deg: float,
+                  path_of, fetch, what: str) -> List[Path]:  # fmt: skip
+    """The cached tile files of the bbox, downloading missing ones one by one (each retried DOWNLOAD_RETRIES times
     after a pause that doubles each time); finished tiles are never fetched again, so a failed run continues where it stopped."""
     paths = []
     tiles = osm_tiles(south, west, north, east, deg)
     for lat, lon in tiles:
-        path = osm_tile_path(cache, lat, lon, deg)
+        path = path_of(cache, lat, lon, deg)
         if not path.exists():
-            name = "tile %.4f N %.4f E (%.4f deg) %s" % (lat, lon, deg, path)
+            name = "%s tile %.4f N %.4f E (%.4f deg) %s" % (what, lat, lon, deg, path)
             if offline:
-                raise SystemExit("missing OSM %s (run without --offline to download it)" % name)
+                raise SystemExit("missing %s (run without --offline to download it)" % name)
             for attempt in range(DOWNLOAD_RETRIES + 1):
                 try:
                     started = time.time()
-                    _fetch_tile(path, lat, lon, deg)
+                    fetch(path, lat, lon, deg)
                     print("  %d/%d: %.1f MB in %.0f s" % (len(paths) + 1, len(tiles), path.stat().st_size / 1e6,
                           time.time() - started), file=sys.stderr)  # fmt: skip
                     break
                 except (OSError, ValueError) as error:
                     if attempt == DOWNLOAD_RETRIES:
-                        raise SystemExit("OSM %s failed %d times: %s (re-run to continue)" % (name, attempt + 1, error))
+                        raise SystemExit("%s failed %d times: %s (re-run to continue)" % (name, attempt + 1, error))
                     pause = RETRY_PAUSE_S * 2**attempt  # 60, 120, 240 s: the public server's 502 / 429 last minutes
-                    print("OSM %s failed (%s), retrying in %.0f s" % (name, error, pause), file=sys.stderr)
+                    print("%s failed (%s), retrying in %.0f s" % (name, error, pause), file=sys.stderr)
                     time.sleep(pause)
         paths.append(path)
     return paths
+
+
+def osm_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+                   deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
+    """The cached land-cover OSM tiles of the bbox (see `_cached_tiles`)."""
+    return _cached_tiles(cache, south, west, north, east, offline, deg, osm_tile_path, _fetch_tile, "OSM")
+
+
+def border_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+                      deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
+    """The cached borders-only tiles of the bbox (TASK-113), same tiling as `osm_tile_paths`; the land-cover tiles
+    are never touched."""
+    return _cached_tiles(cache, south, west, north, east, offline, deg, border_tile_path, _fetch_border_tile,
+                         "OSM border")  # fmt: skip
+
+
+def parse_countries(values: Sequence[str]) -> List[Tuple[str, float, float]]:
+    """`ISO:lat,lon[,ISO:lat,lon...]` (the option is repeatable) -> [(ISO, lat, lon)] in the given order."""
+    result = []
+    for value in values:
+        tokens = [t.strip() for t in value.split(",") if t.strip()]
+        k = 0
+        while k < len(tokens):
+            if ":" not in tokens[k] or k + 1 >= len(tokens):
+                raise ValueError("--countries expects ISO:lat,lon, got %r" % value)
+            iso, lat = tokens[k].split(":", 1)
+            try:
+                result.append((iso, float(lat), float(tokens[k + 1])))
+            except ValueError:
+                raise ValueError("--countries expects ISO:lat,lon, got %r" % value)
+            k += 2
+    for iso, _, _ in result:
+        if len(iso) != 2 or not iso.isalpha() or not iso.isupper():
+            raise ValueError("country code %r is not two upper-case letters" % iso)
+    if len({iso for iso, _, _ in result}) != len(result):
+        raise ValueError("duplicate country code in --countries")
+    return result
+
+
+def _countries_on_map(countries: Sequence[Tuple[str, float, float]], layout: HexLayout, zone: int) -> bool:
+    min_e, min_n, max_e, max_n = layout.bounds()
+    for _, lat, lon in countries:
+        e, n = to_utm(lat, lon, zone)
+        if min_e <= e <= max_e and min_n <= n <= max_n:
+            return True
+    return False
 
 
 def _pair(text: str, sep: str, kind: type) -> Tuple:
@@ -1196,8 +1580,18 @@ def run(argv: Sequence[str]) -> Path:
     parser.add_argument("--water-share", type=float, default=OP_WATER_SHARE, help="water share for WATER (operational)")
     parser.add_argument("--forest-share", type=float, default=OP_FOREST_SHARE,
                         help="forest share for FOREST (operational)")  # fmt: skip
+    parser.add_argument("--countries", action="append", default=[],
+                        help="ISO:lat,lon[,ISO:lat,lon...] - the countries to assign to the hexes, each with a seed "
+                             "point inside it (repeatable; operational default: %s; tactical maps have none)"
+                             % ",".join("%s:%.2f,%.2f" % c for c in OP_COUNTRIES))  # fmt: skip
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
+    try:
+        countries = parse_countries(args.countries)
+    except ValueError as error:
+        parser.error(str(error))
+    if countries and profile is not OPERATIONAL:
+        parser.error("--countries needs --profile=operational")
     hex_m = args.hex if args.hex is not None else profile.hex_m
     dem_kind = profile.dem
     dem_files = []
@@ -1249,12 +1643,17 @@ def run(argv: Sequence[str]) -> Path:
         osm = osm_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
     else:
         osm = osm_path(cache, south, west, north, east, args.offline)
+    border_files = None
+    if profile.tiled and not args.osm and (countries or (profile is OPERATIONAL and _countries_on_map(
+            OP_COUNTRIES, layout, zone))):  # fmt: skip
+        border_files = border_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
     downloaded = time.time()
     settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
                         args.urban_share, args.forest_share, args.marsh_share,
                         [_pair(s, ",", float) for s in args.sea_seed],
-                        OP_SEA_SEEDS if profile is OPERATIONAL and not args.sea_seed else ())  # fmt: skip
-    result = build_map(layout, zone, Dem(dem_files), osm, settings)
+                        OP_SEA_SEEDS if profile is OPERATIONAL and not args.sea_seed else (),
+                        countries, OP_COUNTRIES if profile is OPERATIONAL and not countries else ())  # fmt: skip
+    result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files)
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
@@ -1265,6 +1664,9 @@ def run(argv: Sequence[str]) -> Path:
     rivers = sum(1 for t in result["tiles"].values() if t["river"])
     print("Wrote %s: %dx%d hexes of %.0f m, %s; %d hexes with roads, %d river hexes" % (out, width, height,
           hex_m, ", ".join("%s %d" % (k, counts[k]) for k in sorted(counts)), roads, rivers))  # fmt: skip
+    if result["countries"]:
+        owned = [sum(1 for t in result["tiles"].values() if t["country"] == k) for k in range(len(result["countries"]))]
+        print("Countries: %s" % ", ".join("%s %d" % (iso, n) for iso, n in zip(result["countries"], owned)))
     if profile is OPERATIONAL:
         print("Operational import: %d sea points filled; inputs %.0f s, import %.0f s" % (result["sea_points"],
               downloaded - started, time.time() - downloaded))  # fmt: skip

@@ -194,14 +194,20 @@
   },
   {
    "id": 5050,
-   "lat": 54.46,
-   "lon": 22.59,
+   "lat": 54.4,
+   "lon": 22.525,
    "type": "node"
   },
   {
    "id": 5051,
-   "lat": 54.54,
-   "lon": 22.592,
+   "lat": 54.5,
+   "lon": 22.535,
+   "type": "node"
+  },
+  {
+   "id": 5052,
+   "lat": 54.6,
+   "lon": 22.6,
    "type": "node"
   },
   {
@@ -340,6 +346,14 @@
    "type": "way"
   },
   {
+   "id": 161,
+   "nodes": [
+    5051,
+    5052
+   ],
+   "type": "way"
+  },
+  {
    "id": 110,
    "members": [
     {
@@ -361,6 +375,27 @@
    "tags": {
     "landuse": "forest",
     "type": "multipolygon"
+   },
+   "type": "relation"
+  },
+  {
+   "id": 170,
+   "members": [
+    {
+     "ref": 160,
+     "role": "outer",
+     "type": "way"
+    },
+    {
+     "ref": 161,
+     "role": "outer",
+     "type": "way"
+    }
+   ],
+   "tags": {
+    "admin_level": "2",
+    "boundary": "administrative",
+    "type": "boundary"
    },
    "type": "relation"
   }

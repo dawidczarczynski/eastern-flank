@@ -1,6 +1,6 @@
 # TASK-113: Country per hex – importer fills countries from OSM borders, `ImportedMap.country_at`, re-import the theatre
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: tools (Python, offline) + core (`src/core/data/imported_map.gd`) + data + presentation (borders on the staff map)
 - **Depends on**: TASK-092a, TASK-093a
 - **Model**: sonnet
@@ -40,13 +40,13 @@ Docs:
 
 View (borders on the staff map, `src/presentation/operational/`):
 
-- [ ] The staff map draws **country borders** as a dash-dot line along the hex edges between hexes of different countries (helper `CountryBorders.edges(grid)` in core, pure, tested on a small hand-made grid: two countries → one polyline; an exclave → a closed ring; deterministic), one faint large **country name** (PL / LT / BY / RU as full names via `tr()`) centred on each country, and the hex card (TASK-093a) gains a **Country** line. Key **B** toggles borders and names (default on). Fine border lines are TASK-112; until then the line follows hex edges.
+- [ ] The staff map draws **country borders** as a dash-dot line along the **real border ways** (not hex edges - hexes are mechanics only; `ImportedMap.border_lines`, see Implementation notes "Border drawing rework"), one faint large **country name** (PL / LT / BY / RU as full names via `tr()`) centred on each country, and the hex card (TASK-093a) gains a **Country** line. Key **B** toggles borders and names (default on).
 - [ ] 60 FPS stays (borders are baked with the map layers, measured and noted).
 
 ## Playtest (for the human)
 
 1. Re-import / load the theatre (offline, as in the implementation notes), start → **Operation**.
-2. A dash-dot line separates Poland from the Kaliningrad oblast along its south edge, Poland from Lithuania along the Gap, Belarus in the south-east; the names Polska / Litwa / Białoruś / Rosja sit faintly over the countries.
+2. A dash-dot line follows the real border (smooth, not stepping along hexes): Poland from the Kaliningrad oblast along its south edge, Lithuania from the oblast along the Neman, Poland from Lithuania along the Gap, Belarus in the south-east; the names Polska / Litwa / Białoruś / Rosja sit faintly over the countries.
 3. Hover hexes on each side of the Gap: the hex card names the country. Press **B**: borders and names disappear, again: back.
 4. Check the Kaliningrad oblast is one closed region and the Gap (Polish–Lithuanian–Belarusian meeting point) looks right against a real map.
 
@@ -56,9 +56,22 @@ Section "Countries" in the "Operational map" chapter (starts the "Politics" chap
 
 ## Out of scope
 
-- Fine border lines for drawing (TASK-112), stance tints and rules (TASK-114 …), hex control (who holds enemy hexes – TASK-096 / TASK-107).
+- Stance tints and rules (TASK-114 …), hex control (who holds enemy hexes – TASK-096 / TASK-107).
 - Countries on tactical maps (no rule needs them in battle).
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+_Non-visual part (importer, core, data, ADR) done 2026-11-07; the "View" part (borders on the staff map, hex card line, B key, manual) is still open._
+
+- **Border cache** (`tools/import_map.py`): new query version `bd1` (`border_query`: `rel["boundary"="administrative"]["admin_level"="2"](bbox); way(r)(bbox); (._;>;); out body;`), cached per 0.5 deg tile as `bd1_<lat>_<lon>_<deg>.json` next to the `op1` files (`border_tile_paths`, same retry / resume logic as the land-cover tiles via `_cached_tiles`); land-cover tiles untouched. `--offline` never downloads; a missing border tile fails naming it. The border ways of both kinds of file are merged by way id.
+  **Real download**: 72 tiles, **3.8 MB** in total, 4 095 s (~36 s per tile even when empty; 14 attempts retried after 502 / 504 from the public server). Checked on the data: Poland-Russia along the south edge of the oblast (country rows 28-29, cols 10-26), Lithuania-Russia diagonally along the Neman (cols 31-33, rows 14-28).
+- **Countries**: `--countries=ISO:lat,lon[,...]` (repeatable); operational defaults `OP_COUNTRIES` (PL Suwalki, LT Kaunas, BY Grodno, RU Kaliningrad - skipped when off the map, so the fixture without `--countries` has none); tactical refuses the option. `border_barrier` (supercover DDA incl. corner passes), `fill_countries` (4-connected seed fill, majority rule for barrier points, errors: seed off the map / on the line / two seeds in one region naming both / no border ways), `hex_country` (most land points, ties first). A hex classified WATER gets no country even if it has some land points (so "no country on a water tile" holds); a land hex left without one is an error listing the first 5.
+- **Output**: `countries` and `country_rows` written after the link rows (before `elevation_m`). `data/maps/suwalki_theatre.tres` re-imported offline (300 s): `diff` against the TASK-092a file shows exactly the two added lines, every other line byte-identical. Result PL 1 568, LT 1 384, BY 650, RU 569 hexes. `tests/fixtures/maps/sample_op_map.tres` regenerated (2 countries, PL 53 / LT 17 hexes; synthetic border split into a tagged way in the land tiles and an untagged relation member in the `bd1` tiles, so the golden needs both). Synthetic country fixtures `tools/import_map_fixtures/country_*.json` (straight, diagonal, lake, gap, ring) are written by `--make-fixtures`.
+- **Core**: `ImportedMap.countries`, `country_rows`, `country_at(coord: Vector2i) -> String` (axial coord), `problem()` checks; `CountryBorders.edges(map: ImportedMap, size: float = 1.0) -> Array[PackedVector2Array]` in `src/core/country_borders.gd`.
+- **Suwalki Gap value**: **16** (shortest chain of PL / LT hexes between a RU and a BY hex; test range 10-18; the real gap is ~65 km = 13 hexes).
+- Tests: `tools/test_import_map.py` (100 tests), `tests/unit/test_imported_map.gd`, `test_country_borders.gd`, `test_operational_map_data.gd`; `tools/test.sh` 1428 tests, 0 failed. `tools/lint.sh` could not run in this environment (gdtoolkit is installed for Python 3.8 only, `python3` is 3.12), so the GDScript was formatted by hand.
+- **View** (2026-11-07): `StaffMapCountries` (pure: `dashes(line, pattern)` cuts a border polyline into dash / gap / dot / gap pieces in hex units, `name_anchors(map)` puts each name on the country's hex nearest its mean; `NAMES` = translation keys), `StaffMapView.build_countries(map)` bakes one line mesh (the shared screen-space line shader, 2 px, warm colour, priority 14, clipped to the straight map rectangle, draped on the relief) and four flat `Label3D` names (faint, lying on the map, north up) into a `Countries` node; `set_countries_visible` (key **B** in `StaffMap`, default on) only flips `visible`. `StaffMapCard.info(grid, c, country)` and a **Country** row (name via `tr()`, dash for none). New strings Lithuania / Belarus / Country (Poland / Russia existed); the hint line gained "B: borders" (and lost "Ctrl+wheel" to stay on one line). The border is dashed in geometry, so dashes scale with zoom (fixed in hex units).
+- **60 FPS**: no per-frame work - the border is one baked mesh (one draw call, same shader as the roads), four labels, the toggle is a visibility flag; build cost is inside the existing build (CountryBorders + dashing, not measurable against the ~2.9 s map build). Not measured with a frame counter in this environment: the human should confirm FPS on the staff map as before.
+- Tests: `tests/unit/test_staff_map_countries.gd` (dash pattern, corner, short line, name anchor, card info, translations). Screenshot (`SCREENSHOT_SCENE=staff_map`) seen: dash-dot lines along the oblast's south edge and the Gap, names POLSKA / ROSJA / LITWA / BIAŁORUŚ faint over the countries, the card shows PAŃSTWO: ROSJA.
+
+- **Border drawing rework** (2026-11-07, memory rule: hexes are mechanics only, the drawn map must look realistic): the dash-dot line no longer follows hex edges. `tools/import_map.py` `border_polylines` clips the border ways (tagged `admin_level=2` ways of the `op1` tiles plus the `bd1` ways) to the map rectangle, chains them where exactly two meet, converts to world units (x east, z south, hex size 1 = `Hex.to_world` space) and simplifies with Douglas-Peucker at 0.1 hex; written as `border_lines = Array[PackedVector2Array]([...])` after `country_rows` (`ImportedMap.border_lines`, `problem()`: >= 2 finite points per line). The per-hex country (rules) is unchanged. `CountryBorders.edges` and its tests are deleted; `StaffMapView.build_countries` clips `map.border_lines` to the map rectangle, dashes them (`StaffMapCountries.dashes` already works in world units = hex size 1, so unchanged), drapes them on the relief and bakes one mesh as before. Golden `sample_op_map.tres` regenerated (one border line); `data/maps/suwalki_theatre.tres` re-imported offline, `diff` against the previous file shows only the added `border_lines` line. Tests: `BorderPolylinesTest` (Python), `test_imported_map.gd` (border line problems), `test_operational_map_data.gd` (every country edge lies within 1.2 hex of a border line).

@@ -1,0 +1,74 @@
+{
+ "elements": [
+  {
+   "id": 9001,
+   "lat": 54.4,
+   "lon": 22.5,
+   "type": "node"
+  },
+  {
+   "id": 9002,
+   "lat": 54.6,
+   "lon": 22.5,
+   "type": "node"
+  },
+  {
+   "id": 1,
+   "nodes": [
+    9001,
+    9002
+   ],
+   "tags": {
+    "admin_level": "2",
+    "boundary": "administrative"
+   },
+   "type": "way"
+  },
+  {
+   "id": 9003,
+   "lat": 54.485,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 9004,
+   "lat": 54.485,
+   "lon": 22.54,
+   "type": "node"
+  },
+  {
+   "id": 9005,
+   "lat": 54.515,
+   "lon": 22.54,
+   "type": "node"
+  },
+  {
+   "id": 9006,
+   "lat": 54.515,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 9007,
+   "lat": 54.485,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 2,
+   "nodes": [
+    9003,
+    9004,
+    9005,
+    9006,
+    9003
+   ],
+   "tags": {
+    "natural": "water"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

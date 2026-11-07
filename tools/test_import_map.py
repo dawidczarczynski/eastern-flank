@@ -34,8 +34,10 @@ OP_CACHE = FIXTURES / "op_cache"
 OP_DEM_FIXTURE = FIXTURES / "op_dem.tif"
 SAMPLE_OP_MAP = REPO / "tests" / "fixtures" / "maps" / "sample_op_map.tres"
 OP_SEED = "54.52,22.44"  # in the sea north-west of the synthetic coast
+OP_COUNTRIES = "PL:54.47,22.47,LT:54.52,22.57"  # west and east of the synthetic border
 OP_ARGS = ["--profile=operational", "--center=54.5,22.5", "--size=10x8", "--hex=1000", "--name=sample_op_map",
-           "--display-name=Operational sample (synthetic)", "--sea-seed=%s" % OP_SEED]  # fmt: skip
+           "--display-name=Operational sample (synthetic)", "--sea-seed=%s" % OP_SEED,
+           "--countries=%s" % OP_COUNTRIES]  # fmt: skip
 # Synthetic operational DEM grid (pixel-is-point), ~110 x 100 m pixels.
 OP_DEM_LAT0, OP_DEM_LON0 = 54.55, 22.38
 OP_DEM_DLAT, OP_DEM_DLON = 0.001, 0.0015
@@ -196,7 +198,14 @@ def fixture_op_elements() -> dict:
     way(141, line([(54.530, 22.450), (54.470, 22.455)]), {"highway": "tertiary"})
     way(150, line([(54.540, 22.545), (54.500, 22.520), (54.460, 22.515)]), {"waterway": "river", "name": "Rzeka"})
     way(151, line([(54.520, 22.570), (54.470, 22.585)]), {"waterway": "stream", "name": "Struga"})
-    way(160, line([(54.460, 22.590), (54.540, 22.592)]), {"boundary": "administrative", "admin_level": "2"})
+    # The border: its southern half is tagged (what the land-cover tiles cache), the northern half is an untagged
+    # member of the country relation (found only by the borders-only query). Poland lies west of it, Lithuania east.
+    border = line([(54.400, 22.525), (54.500, 22.535)])
+    way(160, border, {"boundary": "administrative", "admin_level": "2"})
+    way(161, [border[-1]] + line([(54.600, 22.600)]))
+    elements.append({"type": "relation", "id": 170, "tags": {"type": "boundary", "boundary": "administrative",
+                                                              "admin_level": "2"},
+                     "members": [{"type": "way", "ref": 160, "role": "outer"}, {"type": "way", "ref": 161, "role": "outer"}]})  # fmt: skip
     return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
 
 
@@ -238,6 +247,25 @@ def fake_overpass(whole: dict, s: float, w: float, n: float, e: float) -> dict:
     return {"version": 0.6, "generator": whole["generator"], "elements": elements}
 
 
+def fake_border_overpass(whole: dict, s: float, w: float, n: float, e: float) -> dict:
+    """What Overpass answers for `border_query`: the ways of the country relations that touch the bbox (untagged
+    members included) and their nodes, no relations."""
+    nodes = {el["id"]: el for el in whole["elements"] if el["type"] == "node"}
+    ways = {el["id"]: el for el in whole["elements"] if el["type"] == "way"}
+    picked = set()
+    for rel in (el for el in whole["elements"] if el["type"] == "relation"):
+        tags = rel.get("tags", {})
+        if tags.get("boundary") != "administrative" or tags.get("admin_level") != "2":
+            continue
+        for member in rel["members"]:
+            pts = [(nodes[k]["lat"], nodes[k]["lon"]) for k in ways[member["ref"]]["nodes"]]
+            if any(_segment_touches(a, b, s, w, n, e) for a, b in zip(pts, pts[1:])):
+                picked.add(member["ref"])
+    node_ids = sorted({k for way_id in picked for k in ways[way_id]["nodes"]})
+    elements = [nodes[k] for k in node_ids] + [ways[k] for k in sorted(picked)]
+    return {"version": 0.6, "generator": whole["generator"], "elements": elements}
+
+
 def write_op_cache(cache: Path, deg: float) -> None:
     """The synthetic operational area cut into `deg` tiles in `cache`/osm, named like the importer's tiles."""
     whole = fixture_op_elements()
@@ -246,6 +274,47 @@ def write_op_cache(cache: Path, deg: float) -> None:
         answer = fake_overpass(whole, lat, lon, lat + deg, lon + deg)
         path = import_map.osm_tile_path(cache, lat, lon, deg)
         path.write_text(json.dumps(answer, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        borders = fake_border_overpass(whole, lat, lon, lat + deg, lon + deg)
+        path = import_map.border_tile_path(cache, lat, lon, deg)
+        path.write_text(json.dumps(borders, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+
+COUNTRY_CASES = ("straight", "diagonal", "lake", "gap", "ring")
+COUNTRY_SEEDS = "PL:54.50,22.44,LT:54.50,22.56"  # west and east of the synthetic borders (lon 22.44 / 22.56)
+
+
+def fixture_country_osm(case: str) -> dict:
+    """A tiny Overpass-like answer of border ways (tagged, as TASK-092a caches them) for one TASK-113 case on the
+    10 x 8 hex operational sample at 54.5 N 22.5 E; the DEM and the sea are not needed."""
+    elements = []
+    next_node = [9000]
+
+    def way(way_id: int, points: list, tags: dict = None) -> None:
+        ids = []
+        for lat, lon in points:
+            next_node[0] += 1
+            elements.append({"type": "node", "id": next_node[0], "lat": lat, "lon": lon})
+            ids.append(next_node[0])
+        if points[0] == points[-1]:
+            ids[-1] = ids[0]  # a closed ring shares its first node
+        elements.append({"type": "way", "id": way_id, "nodes": ids, "tags": tags or {}})
+
+    border = {"boundary": "administrative", "admin_level": "2"}
+    if case == "straight":
+        way(1, [(54.40, 22.50), (54.60, 22.50)], border)
+    elif case == "diagonal":
+        way(1, [(54.40, 22.40), (54.60, 22.60)], border)
+    elif case == "lake":
+        way(1, [(54.40, 22.50), (54.60, 22.50)], border)
+        way(2, [(54.485, 22.46), (54.485, 22.54), (54.515, 22.54), (54.515, 22.46), (54.485, 22.46)],
+            {"natural": "water"})  # fmt: skip
+    elif case == "gap":
+        way(1, [(54.40, 22.50), (54.49, 22.50)], border)
+        way(2, [(54.51, 22.50), (54.60, 22.50)], border)  # 2.2 km gap in the line
+    elif case == "ring":  # a closed border around a land area without a seed
+        way(1, [(54.40, 22.50), (54.60, 22.50)], border)
+        way(2, [(54.48, 22.52), (54.48, 22.55), (54.52, 22.55), (54.52, 22.52), (54.48, 22.52)], border)
+    return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
 
 
 def make_fixtures() -> None:
@@ -260,6 +329,9 @@ def make_fixtures() -> None:
     shutil.rmtree(OP_CACHE, ignore_errors=True)
     write_op_cache(OP_CACHE, import_map.OSM_TILE_DEG)
     import_map.run(OP_ARGS + ["--offline", "--cache=%s" % OP_CACHE, "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % SAMPLE_OP_MAP])
+    for case in COUNTRY_CASES:
+        (FIXTURES / ("country_%s.json" % case)).write_text(json.dumps(fixture_country_osm(case), indent=1, sort_keys=True) + "\n",
+                                                           encoding="utf-8")  # fmt: skip
 
 
 def _arrays(text: str) -> dict:
@@ -928,7 +1000,7 @@ class OperationalImportTest(unittest.TestCase):
         write_op_cache(cache, import_map.OSM_TILE_DEG)
         committed = sorted(p.name for p in (OP_CACHE / "osm").glob("*.json"))
         self.assertEqual(committed, sorted(p.name for p in (cache / "osm").glob("*.json")))
-        self.assertEqual(len(committed), 4, "the sample lies where four tiles meet")
+        self.assertEqual(len(committed), 8, "the sample lies where four tiles meet: land cover and borders each")
         for name in committed:
             self.assertEqual((OP_CACHE / "osm" / name).read_text(encoding="utf-8"),
                              (cache / "osm" / name).read_text(encoding="utf-8"), name)  # fmt: skip
@@ -936,7 +1008,7 @@ class OperationalImportTest(unittest.TestCase):
     def test_one_tile_or_four_tiles_give_the_same_map(self) -> None:
         one = self.dir / "one"
         write_op_cache(one, 1.0)
-        self.assertEqual(len(list((one / "osm").glob("*.json"))), 1)
+        self.assertEqual(len(list((one / "osm").glob("*.json"))), 2, "land cover and borders")
         self.assertEqual(self._import("one.tres", one, ("--tile-deg=1.0",)), self._import("four.tres"))
 
     def test_sample_classification(self) -> None:
@@ -972,6 +1044,376 @@ class OperationalImportTest(unittest.TestCase):
     def test_a_seed_on_land_stops_the_import(self) -> None:
         with self.assertRaises(ValueError):
             self._import("land.tres", extra=("--sea-seed=54.48,22.55",))
+
+
+class BorderBarrierTest(unittest.TestCase):
+    """Supercover of border lines on a 10 x 10 lattice of 1 m (cell (i, j) is the square around point (i, j))."""
+
+    def _cells(self, line: list) -> set:
+        barrier = import_map.border_barrier(10, 10, [line], 0.0, 0.0, 1.0)
+        return {(k % 10, k // 10) for k in range(100) if barrier[k]}
+
+    def test_a_straight_line_marks_its_column(self) -> None:
+        self.assertEqual(self._cells([(4.0, -2.0), (4.0, 12.0)]), {(4, j) for j in range(10)})
+
+    def test_a_diagonal_line_is_a_4_connected_chain(self) -> None:
+        cells = self._cells([(0.0, 0.0), (9.0, 9.0)])
+        self.assertTrue({(i, i) for i in range(10)} <= cells)
+        self.assertTrue({(i + 1, i) for i in range(9)} <= cells or {(i, i + 1) for i in range(9)} <= cells,
+                        "a pass through the cell corners marks the cells beside them")  # fmt: skip
+        # no 8-connected leak: a fill from the north-west corner never reaches the south-east corner
+        barrier = import_map.border_barrier(10, 10, [[(0.0, 9.0), (9.0, 0.0)]], 0.0, 0.0, 1.0)
+        owner = import_map.fill_countries(10, 10, barrier, [("PL", 0.0, 0.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(owner[9 * 10 + 9], import_map.NO_COUNTRY)
+        self.assertEqual(owner[0], 0)
+
+    def test_a_shallow_slanted_line_leaves_no_hole(self) -> None:
+        barrier = import_map.border_barrier(10, 10, [[(0.2, 0.1), (9.7, 4.3)]], 0.0, 0.0, 1.0)
+        owner = import_map.fill_countries(10, 10, barrier, [("PL", 0.0, 9.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(owner[3], import_map.NO_COUNTRY, "south of the line is the far side")
+
+    def test_segments_outside_the_lattice_are_ignored(self) -> None:
+        self.assertEqual(self._cells([(-5.0, -5.0), (-5.0, 50.0)]), set())
+
+
+class BorderPolylinesTest(unittest.TestCase):
+    """The real border lines for drawing (TASK-113): clipped, chained, simplified, in world units."""
+
+    def setUp(self) -> None:
+        self.layout = import_map.HexLayout(10, 8, 5000.0, 500000.0, 6000000.0)  # 1 unit = 2886.75 m
+        self.m = self.layout.metres_per_unit
+
+    def _en(self, x: float, z: float) -> tuple:
+        return (self.layout.origin_e + x * self.m, self.layout.origin_n - z * self.m)
+
+    def _lines(self, ways: dict, tolerance: float = 0.1) -> list:
+        projected = {k: [self._en(*p) for p in v] for k, v in ways.items()}
+        return import_map.border_polylines(self.layout, projected, tolerance)
+
+    def test_world_units_x_east_z_south(self) -> None:
+        (line,) = self._lines({1: [(0.0, 0.0), (3.0, 2.0)]})
+        self.assertAlmostEqual(line[0][0], 0.0)
+        self.assertAlmostEqual(line[0][1], 0.0)
+        self.assertAlmostEqual(line[-1][0], 3.0)
+        self.assertAlmostEqual(line[-1][1], 2.0)
+
+    def test_ways_meeting_end_to_end_become_one_line_whatever_their_order_or_direction(self) -> None:
+        a, b, c = [(0.0, 0.0), (2.0, 1.0)], [(5.0, 3.0), (2.0, 1.0)], [(5.0, 3.0), (6.0, 6.0)]
+        for ways in ({1: a, 2: b, 3: c}, {3: c, 2: b, 1: a}, {1: c, 2: a, 3: b}):
+            lines = self._lines(ways)
+            self.assertEqual(len(lines), 1, ways)
+            self.assertEqual([tuple(round(v, 6) for v in p) for p in lines[0]],
+                             [(0.0, 0.0), (2.0, 1.0), (5.0, 3.0), (6.0, 6.0)])  # fmt: skip
+
+    def test_a_junction_of_three_ways_is_not_chained(self) -> None:
+        lines = self._lines({1: [(0.0, 0.0), (2.0, 2.0)], 2: [(2.0, 2.0), (4.0, 0.0)], 3: [(2.0, 2.0), (2.0, 5.0)]})
+        self.assertEqual(len(lines), 3)
+
+    def test_clipped_to_the_map_rectangle(self) -> None:
+        min_e, min_n, max_e, max_n = self.layout.bounds()
+        x_max = (max_e - self.layout.origin_e) / self.m
+        (line,) = self._lines({1: [(-50.0, 2.0), (50.0, 2.0)]})
+        self.assertEqual(len(line), 2)
+        self.assertLess(line[0][0], 0.0)
+        self.assertGreater(line[0][0], -2.0)
+        self.assertAlmostEqual(line[-1][0], x_max)
+        self.assertEqual(self._lines({1: [(-50.0, -50.0), (-40.0, -40.0)]}), [], "wholly outside: nothing")
+
+    def test_a_line_leaving_and_re_entering_gives_two_lines(self) -> None:
+        lines = self._lines({1: [(1.0, 1.0), (1.0, -50.0), (4.0, -50.0), (4.0, 2.0)]})
+        self.assertEqual(len(lines), 2)
+
+    def test_simplified_below_a_tenth_of_a_hex_and_kept_above(self) -> None:
+        wobble = [(float(i), 0.04 * (i % 2)) for i in range(8)]
+        (line,) = self._lines({1: wobble})
+        self.assertEqual(len(line), 2, "wobble of 0.04 hex goes")
+        bend = [(0.0, 0.0), (3.0, 0.5), (6.0, 0.0)]
+        (line,) = self._lines({1: bend})
+        self.assertEqual(len(line), 3, "a bend of 0.5 hex stays")
+
+    def test_a_closed_ring_stays_closed(self) -> None:
+        ring = [(2.0, 2.0), (5.0, 2.0), (5.0, 5.0), (2.0, 5.0), (2.0, 2.0)]
+        (line,) = self._lines({1: ring})
+        self.assertEqual(line[0], line[-1])
+        self.assertEqual(len(line), 5)
+
+    def test_deterministic_and_sorted_by_first_point(self) -> None:
+        ways = {7: [(6.0, 1.0), (7.0, 4.0)], 3: [(1.0, 1.0), (2.0, 5.0)]}
+        lines = self._lines(ways)
+        self.assertEqual(lines, self._lines(dict(reversed(list(ways.items())))))
+        self.assertEqual([round(line[0][0]) for line in lines], [1, 6])
+
+    def test_the_tres_has_border_lines_in_world_units_and_tactical_has_none(self) -> None:
+        text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
+        self.assertIn("\nborder_lines = Array[PackedVector2Array]([PackedVector2Array(", text)
+        self.assertLess(text.index("country_rows ="), text.index("border_lines ="))
+        self.assertLess(text.index("border_lines ="), text.index("elevation_m ="))
+        self.assertNotIn("border_lines", SAMPLE_MAP.read_text(encoding="utf-8"))
+
+
+class FillCountriesTest(unittest.TestCase):
+    def _fill(self, line: list, seeds: list) -> bytearray:
+        barrier = import_map.border_barrier(10, 10, [line], 0.0, 0.0, 1.0)
+        return import_map.fill_countries(10, 10, barrier, seeds, 0.0, 0.0, 1.0)
+
+    def test_each_side_gets_its_seed_and_the_border_points_the_majority(self) -> None:
+        owner = self._fill([(4.0, -1.0), (4.0, 11.0)], [("PL", 1.0, 5.0), ("LT", 8.0, 5.0)])
+        row = list(owner[50:60])
+        self.assertEqual(row[:4], [0] * 4)
+        self.assertEqual(row[5:], [1] * 5)
+        self.assertEqual(row[4], 0, "a border point with 1 west and 1 east neighbour (+ 2 on the line): tie -> first")
+
+    def test_a_border_point_follows_the_majority_of_its_neighbours(self) -> None:
+        barrier = bytearray(9)
+        barrier[4] = 1  # centre of a 3 x 3 lattice, an island of border
+        owner = import_map.fill_countries(3, 3, barrier, [("PL", 0.0, 0.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(owner[4], 0, "all 4 neighbours belong to PL")
+        owner = import_map.fill_countries(3, 3, bytearray([0, 0, 0, 0, 0, 0, 0, 0, 0]), [("PL", 0.0, 0.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(set(owner), {0})
+        barrier = bytearray([0, 1, 0, 1, 1, 1, 0, 1, 0])  # four corners cut off by a cross; the centre has no voters
+        owner = import_map.fill_countries(3, 3, barrier, [("PL", 0.0, 0.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(owner[4], import_map.NO_COUNTRY, "no neighbour owns a country: none")
+        barrier = bytearray([0, 0, 0, 1, 1, 1, 0, 0, 0])
+        owner = import_map.fill_countries(3, 3, barrier, [("PL", 0.0, 0.0), ("LT", 0.0, 2.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(list(owner), [0, 0, 0, 0, 0, 0, 1, 1, 1], "the middle row has 1 vote each way: the first wins")
+        owner = import_map.fill_countries(3, 3, barrier, [("LT", 0.0, 2.0), ("PL", 0.0, 0.0)], 0.0, 0.0, 1.0)
+        self.assertEqual(list(owner), [1, 1, 1, 0, 0, 0, 0, 0, 0], "ties follow the --countries order")
+
+    def test_a_gap_in_the_border_names_both_countries(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            self._fill([(4.0, -1.0), (4.0, 3.0)], [("PL", 1.0, 5.0), ("LT", 8.0, 5.0)])
+        self.assertIn("two seeds in one region", str(raised.exception))
+        self.assertIn("PL", str(raised.exception))
+        self.assertIn("LT", str(raised.exception))
+
+    def test_a_seed_on_the_border_or_off_the_map_is_an_error(self) -> None:
+        with self.assertRaises(ValueError):
+            self._fill([(4.0, -1.0), (4.0, 11.0)], [("PL", 4.0, 5.0)])
+        with self.assertRaises(ValueError):
+            self._fill([(4.0, -1.0), (4.0, 11.0)], [("PL", 40.0, 5.0)])
+
+    def test_hex_country_is_the_most_land_points_ties_first(self) -> None:
+        self.assertEqual(import_map.hex_country([3, 5, 1]), 1)
+        self.assertEqual(import_map.hex_country([4, 4]), 0)
+        self.assertEqual(import_map.hex_country([0, 0]), import_map.NO_COUNTRY)
+        self.assertEqual(import_map.hex_country([]), import_map.NO_COUNTRY)
+
+
+class CountriesOptionTest(unittest.TestCase):
+    def test_parse(self) -> None:
+        self.assertEqual(import_map.parse_countries(["PL:54.1,22.9,LT:54.9,23.9"]), [("PL", 54.1, 22.9), ("LT", 54.9, 23.9)])
+        self.assertEqual(import_map.parse_countries(["PL:54.1,22.9", "LT:54.9,23.9"]), [("PL", 54.1, 22.9), ("LT", 54.9, 23.9)])
+
+    def test_bad_input(self) -> None:
+        for bad in (["PL:54.1"], ["PL54.1,22.9"], ["pl:54.1,22.9"], ["POL:54.1,22.9"], ["PL:a,b"],
+                    ["PL:1,2", "PL:3,4"]):  # fmt: skip
+            with self.assertRaises(ValueError, msg=str(bad)):
+                import_map.parse_countries(bad)
+
+    def test_the_operational_defaults(self) -> None:
+        self.assertEqual([c[0] for c in import_map.OP_COUNTRIES], ["PL", "LT", "BY", "RU"])
+        self.assertEqual(import_map.OP_COUNTRIES[3], ("RU", 54.71, 20.51))
+
+    def test_tactical_with_countries_is_refused(self) -> None:
+        with self.assertRaises(SystemExit):
+            import_map.run(SAMPLE_ARGS + ["--offline", "--countries=PL:54.2,22.9", "--out=/nonexistent/x.tres"])
+
+    def test_tactical_output_has_no_countries(self) -> None:
+        self.assertNotIn("countries", SAMPLE_MAP.read_text(encoding="utf-8"))
+
+
+class BorderTilesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+        self._download = import_map._download
+        self._pause = import_map.RETRY_PAUSE_S
+        import_map.RETRY_PAUSE_S = 0.0
+        self.calls = []
+
+    def tearDown(self) -> None:
+        import_map._download = self._download
+        import_map.RETRY_PAUSE_S = self._pause
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _fake_download(self) -> None:
+        def download(url: str, target: Path, data: bytes = None) -> None:
+            self.calls.append((target.name, data))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text('{"version": 0.6, "elements": []}\n', encoding="utf-8")
+
+        import_map._download = download
+
+    def test_the_border_query_asks_for_country_relation_member_ways_only(self) -> None:
+        query = import_map.border_query(54.0, 22.5, 54.5, 23.0)
+        self.assertIn('rel["boundary"="administrative"]["admin_level"="2"](54.00000,22.50000,54.50000,23.00000)', query)
+        self.assertIn("way(r)(54.00000,22.50000,54.50000,23.00000)", query)
+        self.assertNotIn("landuse", query)
+        self.assertNotIn("natural", query)
+
+    def test_border_tiles_sit_next_to_the_land_cover_tiles_with_their_own_version(self) -> None:
+        write_op_cache(self.dir, 0.5)
+        self.assertEqual(import_map.border_tile_path(self.dir, 54.5, 22.5, 0.5).name, "bd1_54.5000_22.5000_0.5000.json")
+        self.assertTrue(import_map.border_tile_path(self.dir, 54.5, 22.5, 0.5).exists())
+        self.assertNotEqual(import_map.border_tile_path(self.dir, 54.5, 22.5, 0.5), import_map.osm_tile_path(self.dir, 54.5, 22.5, 0.5))
+
+    def test_offline_with_a_complete_cache_never_downloads(self) -> None:
+        write_op_cache(self.dir, 0.5)
+        self._fake_download()
+        paths = import_map.border_tile_paths(self.dir, 54.45, 22.40, 54.55, 22.60, True, 0.5)
+        self.assertEqual(len(paths), 4)
+        self.assertEqual(self.calls, [])
+
+    def test_a_missing_border_tile_fails_offline_naming_the_tile(self) -> None:
+        write_op_cache(self.dir, 0.5)
+        import_map.border_tile_path(self.dir, 54.5, 22.5, 0.5).unlink()
+        with self.assertRaises(SystemExit) as raised:
+            import_map.border_tile_paths(self.dir, 54.45, 22.40, 54.55, 22.60, True, 0.5)
+        self.assertIn("54.5000 N 22.5000 E", str(raised.exception))
+        self.assertIn("border", str(raised.exception))
+        self.assertIn("bd1_54.5000_22.5000_0.5000.json", str(raised.exception))
+
+    def test_only_the_missing_border_tiles_are_downloaded_never_land_cover(self) -> None:
+        write_op_cache(self.dir, 0.5)
+        import_map.border_tile_path(self.dir, 54.0, 22.0, 0.5).unlink()
+        land_before = {p.name: p.read_text(encoding="utf-8") for p in (self.dir / "osm").glob("op1_*.json")}
+        self._fake_download()
+        import_map.osm_tile_paths(self.dir, 54.45, 22.40, 54.55, 22.60, False, 0.5)
+        import_map.border_tile_paths(self.dir, 54.45, 22.40, 54.55, 22.60, False, 0.5)
+        self.assertEqual([name for name, _ in self.calls], ["bd1_54.0000_22.0000_0.5000.json.check"])
+        self.assertIn(b"admin_level", self.calls[0][1])
+        land_after = {p.name: p.read_text(encoding="utf-8") for p in (self.dir / "osm").glob("op1_*.json")}
+        self.assertEqual(land_before, land_after)
+
+    def test_borders_only_ways_count_whatever_their_tags(self) -> None:
+        answer = {"elements": [{"type": "node", "id": 1, "lat": 54.0, "lon": 22.0}, {"type": "node", "id": 2, "lat": 54.1, "lon": 22.1},
+                               {"type": "way", "id": 7, "nodes": [1, 2]},
+                               {"type": "way", "id": 8, "nodes": [1, 2], "tags": {"highway": "primary"}}]}  # fmt: skip
+        self.assertEqual(list(import_map.osm_borders(answer)), [])
+        self.assertEqual(sorted(import_map.osm_borders(answer, True)), [7, 8])
+        answer["elements"][2]["tags"] = {"boundary": "administrative", "admin_level": "2"}
+        self.assertEqual(list(import_map.osm_borders(answer)), [7])
+
+
+class CountryImportTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _args(self, osm: Path = None) -> list:
+        args = [a for a in OP_ARGS if not a.startswith(("--sea-seed", "--countries"))]
+        return args + ["--offline", "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % (self.dir / "c.tres"),
+                       "--osm=%s" % (osm or OP_CACHE)]  # fmt: skip
+
+    def _case(self, case: str, seeds: str = COUNTRY_SEEDS) -> dict:
+        import_map.run(self._args(FIXTURES / ("country_%s.json" % case)) + ["--countries=%s" % seeds])
+        return _arrays((self.dir / "c.tres").read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _rows(arrays: dict, key: str) -> list:
+        return [r.strip('"') for r in arrays[key].split(", ")]
+
+    def test_committed_country_fixtures_are_current(self) -> None:
+        for case in COUNTRY_CASES:
+            text = (FIXTURES / ("country_%s.json" % case)).read_text(encoding="utf-8")
+            self.assertEqual(text, json.dumps(fixture_country_osm(case), indent=1, sort_keys=True) + "\n", case)
+
+    def test_a_straight_border_each_side_one_country(self) -> None:
+        arrays = self._case("straight")
+        self.assertEqual(arrays["countries"], '"PL", "LT"')
+        rows = self._rows(arrays, "country_rows")
+        self.assertEqual(len(rows), 8)
+        for row in rows:
+            self.assertTrue(all(len(r) == 10 for r in rows))
+            self.assertEqual(row[0], "0", row)
+            self.assertEqual(row[-1], "1", row)
+            self.assertEqual(row.strip("01"), "", "land everywhere (no sea, no lake): " + row)
+            self.assertEqual(row, "0" * row.count("0") + "1" * row.count("1"), "one border crossing per row: " + row)
+
+    def test_a_diagonal_border_does_not_leak(self) -> None:
+        rows = self._rows(self._case("diagonal"), "country_rows")
+        flat = "".join(rows)
+        self.assertGreater(flat.count("0"), 10)
+        self.assertGreater(flat.count("1"), 10)
+        # PL (seed west, 54.50 N 22.44 E) lies north-west of the line, LT south-east: row 0 is the north row
+        self.assertEqual(rows[0][0], "0")
+        self.assertEqual(rows[-1][-1], "1")
+        for row in rows:
+            self.assertEqual(row, "0" * row.count("0") + "1" * row.count("1"), row)
+
+    def test_a_lake_across_the_border_has_no_country_and_the_shores_keep_theirs(self) -> None:
+        arrays = self._case("lake")
+        terrain = self._rows(arrays, "terrain_rows")
+        rows = self._rows(arrays, "country_rows")
+        lake = [(r, c) for r in range(8) for c in range(10) if terrain[r][c] == "W"]
+        self.assertGreaterEqual(len(lake), 4)
+        for r, c in lake:
+            self.assertEqual(rows[r][c], ".", "a water hex has no country")
+        for r in {r for r, _ in lake}:
+            cols = [c for rr, c in lake if rr == r]
+            self.assertEqual(rows[r][min(cols) - 1], "0", "west shore")
+            self.assertEqual(rows[r][max(cols) + 1], "1", "east shore")
+        self.assertEqual(sum(row.count(".") for row in rows), len(lake))
+
+    def test_a_gap_in_the_border_is_an_error(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            self._case("gap")
+        self.assertIn("two seeds in one region", str(raised.exception))
+
+    def test_a_land_area_closed_off_without_a_seed_is_an_error_listing_hexes(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            self._case("ring")
+        self.assertIn("no country", str(raised.exception))
+        self.assertRegex(str(raised.exception), r"first: \d+,\d+")
+
+    def test_seeds_off_the_map_or_on_the_line_stop_the_import(self) -> None:
+        with self.assertRaises(ValueError):
+            self._case("straight", "PL:54.50,22.44,LT:54.50,23.90")
+        with self.assertRaises(ValueError):
+            self._case("straight", "PL:54.50,22.50,LT:54.50,22.56")
+
+    def test_countries_without_any_border_way_is_an_error(self) -> None:
+        with self.assertRaises(ValueError):
+            import_map.run(self._args(OSM_FIXTURE) + ["--countries=%s" % COUNTRY_SEEDS])
+
+    def test_the_committed_sample_needs_the_border_tiles_for_a_complete_border(self) -> None:
+        cache = self.dir / "cache"
+        write_op_cache(cache, 0.5)
+        args = [a for a in OP_ARGS if not a.startswith("--out")] + ["--offline", "--cache=%s" % cache,
+                                                                    "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % (self.dir / "o.tres")]  # fmt: skip
+        import_map.run(args)
+        self.assertEqual((self.dir / "o.tres").read_text(encoding="utf-8"), SAMPLE_OP_MAP.read_text(encoding="utf-8"))
+        for tile in (cache / "osm").glob("bd1_*.json"):  # only the tagged half of the border (in the land tiles) is left
+            tile.write_text('{"version": 0.6, "elements": []}\n', encoding="utf-8")
+        with self.assertRaises(ValueError) as raised:
+            import_map.run(args)
+        self.assertIn("two seeds in one region", str(raised.exception))
+        for tile in (cache / "osm").glob("bd1_*.json"):
+            tile.unlink()
+        with self.assertRaises(SystemExit) as missing:
+            import_map.run(args)
+        self.assertIn("border tile", str(missing.exception))
+
+    def test_borders_in_both_files_are_merged_without_duplicates(self) -> None:
+        cache = self.dir / "cache"
+        write_op_cache(cache, 0.5)
+        shutil.copy(import_map.border_tile_path(cache, 54.0, 22.5, 0.5), import_map.border_tile_path(cache, 54.0, 22.0, 0.5))
+        args = [a for a in OP_ARGS if not a.startswith("--out")] + ["--offline", "--cache=%s" % cache,
+                                                                    "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % (self.dir / "d.tres")]  # fmt: skip
+        import_map.run(args)  # way 160 now comes from three files (one land-cover tile, two border tiles)
+        self.assertEqual((self.dir / "d.tres").read_text(encoding="utf-8"), SAMPLE_OP_MAP.read_text(encoding="utf-8"))
+
+    def test_the_sample_has_two_countries_and_none_on_water(self) -> None:
+        arrays = _arrays(SAMPLE_OP_MAP.read_text(encoding="utf-8"))
+        self.assertEqual(arrays["countries"], '"PL", "LT"')
+        terrain = "".join(self._rows(arrays, "terrain_rows"))
+        countries = "".join(self._rows(arrays, "country_rows"))
+        self.assertEqual(len(terrain), len(countries))
+        for t, c in zip(terrain, countries):
+            self.assertEqual(t == "W", c == ".", "%s %s" % (t, c))
+        self.assertIn("0", countries)
+        self.assertIn("1", countries)
 
 
 if __name__ == "__main__":

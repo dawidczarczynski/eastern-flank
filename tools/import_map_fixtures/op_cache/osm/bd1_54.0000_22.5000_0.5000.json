@@ -1,0 +1,44 @@
+{
+ "elements": [
+  {
+   "id": 5050,
+   "lat": 54.4,
+   "lon": 22.525,
+   "type": "node"
+  },
+  {
+   "id": 5051,
+   "lat": 54.5,
+   "lon": 22.535,
+   "type": "node"
+  },
+  {
+   "id": 5052,
+   "lat": 54.6,
+   "lon": 22.6,
+   "type": "node"
+  },
+  {
+   "id": 160,
+   "nodes": [
+    5050,
+    5051
+   ],
+   "tags": {
+    "admin_level": "2",
+    "boundary": "administrative"
+   },
+   "type": "way"
+  },
+  {
+   "id": 161,
+   "nodes": [
+    5051,
+    5052
+   ],
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

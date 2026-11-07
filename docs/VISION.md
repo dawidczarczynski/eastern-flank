@@ -24,6 +24,8 @@ The centre of the game; the player spends most of the time here.
 - Reacting to the enemy's deep strikes
 - Political events and their consequences
 
+**Map principle (the human, 2026-11-07):** on the operational map the hexes are **only the rules grid** (move cost, country, contact). The drawn map must look **realistic** – real coastlines, lakes, forests, fields, rivers and country borders from higher-resolution source data (OSM / DEM), never per-hex fills or hex-edge lines. The hex grid is at most a thin, optional helper overlay.
+
 **Deep strikes:**
 
 - The player picks the means (cruise and ballistic missiles, aircraft, strike drones, …) and the targets.

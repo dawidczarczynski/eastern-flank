@@ -33,6 +33,24 @@ const WATER_POINTS := [
 	["Sniardwy", 53.75, 21.73]
 ]
 
+## Country of each place (TASK-113).
+const PLACE_COUNTRIES := {
+	"Kaliningrad": "RU",
+	"Chernyakhovsk": "RU",
+	"Sovetsk": "RU",
+	"Olsztyn": "PL",
+	"Bialystok": "PL",
+	"Elk": "PL",
+	"Suwalki": "PL",
+	"Augustow": "PL",
+	"Grodno": "BY",
+	"Lida": "BY",
+	"Marijampole": "LT",
+	"Kaunas": "LT",
+	"Vilnius": "LT",
+}
+const COUNTRY_CODES := ["PL", "LT", "BY", "RU"]
+
 # WGS84 / UTM (the importer's constants).
 const _A := 6378137.0
 const _F := 1.0 / 298.257223563
@@ -183,6 +201,127 @@ func test_the_land_is_one_connected_region() -> void:
 					stack.append(n)
 		largest = maxi(largest, size)
 	assert_true(largest >= 0.9 * land.size(), "largest region %d of %d" % [largest, land.size()])
+
+
+# --- TASK-113: countries ---
+
+
+func _axial_of(place_name: String) -> Vector2i:
+	var place := _place(place_name)
+	var tile := _tile_of(place[1], place[2])
+	return MapGenerator.offset_to_axial(tile.x, tile.y)
+
+
+func _hexes_of(code: String) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for c: Vector2i in _grid.coords():
+		if _map.country_at(c) == code:
+			result.append(c)
+	return result
+
+
+func test_the_four_countries_are_in_the_data_in_the_decided_order() -> void:
+	assert_eq(Array(_map.countries), COUNTRY_CODES)
+	assert_eq(_map.country_rows.size(), HEIGHT)
+
+
+func test_every_land_hex_has_a_country_and_water_has_none() -> void:
+	var missing: Array[Vector2i] = []
+	for c: Vector2i in _grid.coords():
+		var water := _grid.get_terrain(c) == Terrain.Type.WATER
+		if water:
+			assert_eq(_map.country_at(c), "", "water %s" % c)
+		elif _map.country_at(c) == "":
+			missing.append(c)
+	assert_true(
+		missing.is_empty(),
+		"%d land hexes without a country, first %s" % [missing.size(), missing.slice(0, 5)]
+	)
+
+
+func test_each_country_owns_at_least_thirty_hexes() -> void:
+	for code: String in COUNTRY_CODES:
+		assert_true(_hexes_of(code).size() >= 30, "%s: %d hexes" % [code, _hexes_of(code).size()])
+
+
+func test_the_places_fall_into_the_right_country() -> void:
+	for place_name: String in PLACE_COUNTRIES:
+		assert_eq(_map.country_at(_axial_of(place_name)), PLACE_COUNTRIES[place_name], place_name)
+
+
+func test_the_kaliningrad_oblast_is_one_region_and_never_touches_belarus() -> void:
+	var russia := _hexes_of("RU")
+	var seen := {}
+	var start := _axial_of("Kaliningrad")
+	var stack: Array[Vector2i] = [start]
+	seen[start] = true
+	while not stack.is_empty():
+		var c: Vector2i = stack.pop_back()
+		for n in Hex.neighbors(c):
+			if not seen.has(n) and _map.country_at(n) == "RU":
+				seen[n] = true
+				stack.append(n)
+	assert_eq(seen.size(), russia.size(), "RU hexes reachable from Kaliningrad through RU hexes")
+	for c in russia:
+		for n in Hex.neighbors(c):
+			assert_true(_map.country_at(n) != "BY", "RU hex %s touches BY hex %s" % [c, n])
+
+
+## The Suwalki Gap: the fewest PL / LT land hexes in a chain from a RU hex to a BY hex.
+func test_the_suwalki_gap_is_about_thirteen_hexes_wide() -> void:
+	var dist := {}
+	var queue: Array[Vector2i] = []
+	for c in _hexes_of("RU"):
+		for n in Hex.neighbors(c):
+			var code := _map.country_at(n)
+			if (code == "PL" or code == "LT") and not dist.has(n):
+				dist[n] = 1
+				queue.append(n)
+	var best := 1000000
+	var head := 0
+	while head < queue.size():
+		var c := queue[head]
+		head += 1
+		for n in Hex.neighbors(c):
+			var code := _map.country_at(n)
+			if code == "BY":
+				best = mini(best, dist[c])
+			elif (code == "PL" or code == "LT") and not dist.has(n):
+				dist[n] = dist[c] + 1
+				queue.append(n)
+	print("Suwalki Gap: shortest RU-to-BY chain of PL/LT hexes = %d" % best)
+	assert_true(best >= 10 and best <= 18, "Gap chain of %d hexes" % best)
+
+
+## The drawn borders are the real ways (TASK-113): valid, simplified, and every pair of
+## neighbouring hexes of different countries has a border line close to its shared edge.
+func test_the_drawn_borders_run_where_the_countries_meet() -> void:
+	assert_eq(_map.problem(), "")
+	assert_true(_map.border_lines.size() >= 3, "%d border lines" % _map.border_lines.size())
+	var far: Array[String] = []
+	var checked := 0
+	for c in _hexes_of("RU") + _hexes_of("LT") + _hexes_of("BY"):
+		for n in Hex.neighbors(c):
+			var other := _map.country_at(n)
+			if other == "" or other == _map.country_at(c):
+				continue
+			checked += 1
+			var a := Hex.to_world(c, 1.0)
+			var b := Hex.to_world(n, 1.0)
+			var mid := Vector2(a.x + b.x, a.z + b.z) / 2.0
+			if _distance_to_borders(mid) > 1.2:
+				far.append("%s-%s" % [c, n])
+	assert_true(checked > 50, "%d country edges checked" % checked)
+	assert_eq(far.size(), 0, "edges far from every border line: %s" % [far.slice(0, 5)])
+
+
+func _distance_to_borders(point: Vector2) -> float:
+	var best := INF
+	for line in _map.border_lines:
+		for i in line.size() - 1:
+			var closest := Geometry2D.get_closest_point_to_segment(point, line[i], line[i + 1])
+			best = minf(best, closest.distance_to(point))
+	return best
 
 
 func test_to_grid_takes_at_most_a_second() -> void:

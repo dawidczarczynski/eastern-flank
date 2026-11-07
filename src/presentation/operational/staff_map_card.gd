@@ -11,8 +11,8 @@ var _values: Array[Label] = []
 
 
 ## Untranslated facts about hex `c` (pure, tested): name, hex ("col·row", 1-based), elevation
-## ("143 m"), road and river flags.
-static func info(grid: HexGrid, c: Vector2i) -> Dictionary:
+## ("143 m"), road and river flags, `country` (ISO code or "", from ImportedMap.country_at).
+static func info(grid: HexGrid, c: Vector2i, country := "") -> Dictionary:
 	var offset := MapGenerator.axial_to_offset(c)
 	var metres := grid.elevation_m(c) if grid.has_elevation_m(c) else grid.elevation(c) * 1000.0
 	return {
@@ -21,6 +21,7 @@ static func info(grid: HexGrid, c: Vector2i) -> Dictionary:
 		"elevation": "%d m" % roundi(metres),
 		"road": grid.road_links(c) != 0,
 		"river": grid.river_links(c) != 0,
+		"country": country,
 	}
 
 
@@ -38,7 +39,7 @@ func _init() -> void:
 	add_child(column)
 	_name_label = _label(HudTheme.display(700, 1), 20, UiPalette.HUD_TEXT)
 	column.add_child(_name_label)
-	for caption in ["ELEVATION", "Road", "River"]:
+	for caption in ["ELEVATION", "Road", "River", "Country"]:
 		column.add_child(_row(caption))
 	hide()
 	reset_size()
@@ -52,6 +53,10 @@ func show_info(data: Dictionary) -> void:
 	_values[0].text = data["elevation"]
 	_values[1].text = _yes_no(data["road"])
 	_values[2].text = _yes_no(data["river"])
+	var country: String = data.get("country", "")
+	_values[3].text = (
+		tr(StaffMapCountries.NAMES.get(country, country)).to_upper() if country != "" else "–"
+	)
 	show()
 	reset_size()
 

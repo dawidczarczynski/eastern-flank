@@ -11,6 +11,13 @@ extends Node3D
 ## Screen pixels per hex unit at camera zoom 1 (the v0 zoom scale, kept for the camera maths).
 const UNIT := 20.0
 const GROUND_SHADER := preload("res://assets/shaders/staff_map_ground.gdshader")
+## Country layer look (TASK-113): a warm dash-dot line and very faint large names.
+const COUNTRY_LINE := Color(0.95, 0.66, 0.5, 0.9)
+const COUNTRY_LINE_PX := 2.0
+const COUNTRY_NAME := Color(0.86, 0.84, 0.74, 0.16)
+## World size of one font pixel of a country name (hex units): 128 px -> ~2.6 hexes tall.
+const COUNTRY_NAME_PIXEL := 0.02
+const COUNTRY_PRIORITY := 14
 const NO_HEX := Vector2i(-100000, -100000)
 
 var _grid: HexGrid
@@ -21,6 +28,7 @@ var _grid_lines: MeshInstance3D
 var _hover_outline: MeshInstance3D
 var _hover_fill: MeshInstance3D
 var _hovered := NO_HEX
+var _countries: Node3D
 ## name -> {"node", "material", "widths": PackedFloat32Array, "extra": float, "alpha", "width",
 ## "from_alpha", "from_width", "to_alpha", "to_width"}
 var _layers := {}
@@ -98,6 +106,73 @@ static func linear_alpha(colour: Color, alpha: float, ground: Color) -> float:
 	if absf(above - below) < 0.0001:
 		return alpha
 	return clampf((wanted - below) / (above - below), 0.0, 1.0)
+
+
+## Country borders (dash-dot along hex edges) and one faint name per country (TASK-113), baked
+## once like the other layers; the toggle only flips `visible`. No-op for a map without countries.
+func build_countries(map: ImportedMap) -> void:
+	if _countries != null:
+		_countries.queue_free()
+		_countries = null
+	if map.country_rows.is_empty():
+		return
+	_countries = Node3D.new()
+	_countries.name = "Countries"
+	add_child(_countries)
+	var pieces: Array = []
+	for line in map.border_lines:  # the real border ways, world units (hex size 1)
+		for piece in StaffMapLayers.clip_polyline(line, _edge_rect):
+			for dash in StaffMapCountries.dashes(piece):
+				pieces.append(_drape_line(dash))
+	var border := MeshInstance3D.new()
+	border.name = "CountryBorders"
+	border.mesh = StaffMapLines.polylines_mesh(pieces)
+	border.material_override = StaffMapLines.material(
+		COUNTRY_LINE, COUNTRY_LINE_PX, COUNTRY_PRIORITY
+	)
+	border.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	border.extra_cull_margin = 16384.0
+	_countries.add_child(border)
+	var anchors := StaffMapCountries.name_anchors(map, 1.0)
+	for iso: String in anchors:
+		_countries.add_child(_country_name(iso, anchors[iso]))
+
+
+func set_countries_visible(value: bool) -> void:
+	if _countries != null:
+		_countries.visible = value
+
+
+func countries_visible() -> bool:
+	return _countries != null and _countries.visible
+
+
+## Re-translates the country names (language switch).
+func refresh_country_names() -> void:
+	if _countries == null:
+		return
+	for child in _countries.get_children():
+		var label := child as Label3D
+		if label != null:
+			label.text = tr(StaffMapCountries.NAMES.get(label.name, label.name)).to_upper()
+
+
+func _country_name(iso: String, at: Vector2) -> Label3D:
+	var label := Label3D.new()
+	label.name = iso
+	label.text = tr(StaffMapCountries.NAMES.get(iso, iso)).to_upper()
+	label.font = HudTheme.display(700, 1)
+	label.font_size = 128
+	label.pixel_size = COUNTRY_NAME_PIXEL
+	label.modulate = COUNTRY_NAME
+	label.outline_size = 0
+	label.no_depth_test = true
+	label.shaded = false
+	label.double_sided = true
+	label.render_priority = COUNTRY_PRIORITY - 1
+	label.rotation_degrees = Vector3(-90.0, 0.0, 0.0)  # lies on the map, north up
+	label.position = _relief.surface_point(at) + Vector3(0.0, 0.05, 0.0)
+	return label
 
 
 func relief() -> StaffMapRelief:

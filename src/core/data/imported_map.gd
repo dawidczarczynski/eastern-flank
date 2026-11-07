@@ -55,6 +55,17 @@ const MAPS_DIR := "res://data/maps/"
 @export var road_rows: PackedStringArray
 ## River links per tile, same encoding and storage rule; a tile with a link is a river hex.
 @export var river_rows: PackedStringArray
+## ISO 3166 alpha-2 codes of the countries of an operational map (TASK-113), in the importer's
+## `--countries` order; empty = no countries (tactical maps, old maps).
+@export var countries: PackedStringArray
+## Country per tile, one character like `terrain_rows`: "0".."9" = index into `countries`,
+## "." = none (water, or a hex without land). Empty = no countries. No country on a water tile.
+@export var country_rows: PackedStringArray
+## The real country borders for drawing (TASK-113): smooth polylines clipped to the map, in world
+## units (Vector2.x = world x east, Vector2.y = world z south, hex size 1, i.e. `Hex.to_world`
+## space), simplified to 0.1 hex. They are never snapped to hexes; the per-hex `country_rows`
+## are for the rules only. Empty = none (tactical maps, old maps).
+@export var border_lines: Array[PackedVector2Array]
 ## Mean DEM height of each tile in metres (row-major), the real data behind `elevation`.
 @export var elevation_m: PackedFloat32Array
 ## Game elevation of each tile (row-major; water below 0, land from land_min up).
@@ -90,6 +101,9 @@ func problem() -> String:
 		var links_problem := _links_problem(kind, road_rows if kind == "road" else river_rows)
 		if links_problem != "":
 			return links_problem
+	var country_problem := _countries_problem()
+	if country_problem != "":
+		return country_problem
 	return ""
 
 
@@ -101,6 +115,66 @@ func _row_problem(row: int) -> String:
 		if not TERRAIN_CHARS.has(ch):
 			return "unknown terrain '%s' in row %d" % [ch, row]
 	return ""
+
+
+## Checks the country layer: codes, then one row per map row with the map's width, only digits
+## below `countries.size()` and ".", no country on a water tile.
+func _countries_problem() -> String:
+	var lines_problem := _border_lines_problem()
+	if lines_problem != "":
+		return lines_problem
+	if country_rows.is_empty() and countries.is_empty():
+		return ""
+	var seen := {}
+	for code in countries:
+		if code.length() != 2 or code != code.to_upper() or code.to_lower() == code.to_upper():
+			return "country code '%s' is not two upper-case letters" % code
+		if seen.has(code):
+			return "duplicate country '%s'" % code
+		seen[code] = true
+	if country_rows.size() != height:
+		return "%d country rows, expected %d" % [country_rows.size(), height]
+	for row in height:
+		var line := country_rows[row]
+		if line.length() != width:
+			return "country row %d has %d tiles, expected %d" % [row, line.length(), width]
+		for col in width:
+			var ch := line[col]
+			if ch == ".":
+				continue
+			if not ch.is_valid_int() or ch.to_int() >= countries.size():
+				return "unknown country '%s' in row %d" % [ch, row]
+			if TERRAIN_CHARS[terrain_rows[row][col]] == Terrain.Type.WATER:
+				return "country on water tile (%d, %d)" % [col, row]
+	return ""
+
+
+## Every border line needs at least two finite points.
+func _border_lines_problem() -> String:
+	for index in border_lines.size():
+		var line := border_lines[index]
+		if line.size() < 2:
+			return "border line %d has %d points, expected at least 2" % [index, line.size()]
+		for point in line:
+			if not (is_finite(point.x) and is_finite(point.y)):
+				return "border line %d has a non-finite point" % index
+	return ""
+
+
+## ISO code of the country of the axial tile `coord`; "" for water, a hex without a country, a
+## tile off the map or a map without country rows.
+func country_at(coord: Vector2i) -> String:
+	if country_rows.is_empty():
+		return ""
+	var offset := MapGenerator.axial_to_offset(coord)
+	if offset.x < 0 or offset.x >= width or offset.y < 0 or offset.y >= height:
+		return ""
+	if offset.y >= country_rows.size() or offset.x >= country_rows[offset.y].length():
+		return ""
+	var ch := country_rows[offset.y][offset.x]
+	if ch == "." or not ch.is_valid_int() or ch.to_int() >= countries.size():
+		return ""
+	return countries[ch.to_int()]
 
 
 ## Checks one link layer: size, characters, no links on water, land–land links on both tiles.
