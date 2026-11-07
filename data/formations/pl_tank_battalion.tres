@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="FormationDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_unit"]
+[ext_resource type="Script" path="res://src/core/data/formation_definition.gd" id="2_formation"]
+[ext_resource type="Resource" path="res://data/units/m1a2_sepv3.tres" id="3_m1a2_sepv3"]
+[ext_resource type="Resource" path="res://data/units/pl_mech_infantry.tres" id="4_pl_mech_infantry"]
+
+[resource]
+script = ExtResource("2_formation")
+id = &"pl_tank_battalion"
+display_name = "Tank Battalion"
+faction = &"poland"
+echelon = &"battalion"
+formation_class = &"armoured"
+move_points = 8
+companies = Array[ExtResource("1_unit")]([ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("4_pl_mech_infantry")])

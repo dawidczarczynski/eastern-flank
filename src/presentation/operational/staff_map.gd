@@ -3,25 +3,48 @@ extends Node3D
 ## The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark
 ## digital map over a mildly extruded relief, seen by a tilted orthographic camera (no yaw, north
 ## up). Opens from the main menu ("Operation") or with `tools/run.sh --scene=staff_map`.
-## Presentation only: it reads the ImportedMap / HexGrid.
+## Presentation only: it reads the ImportedMap / HexGrid and the OperationalState of its
+## OperationalSimulation (TASK-092b) and reacts to its event_emitted (rule 3).
+## Formations (TASK-092b): counters on their own CanvasLayer (StaffMapCounters), click selects
+## (formation panel on the right), click on empty map or Esc deselects, Tab cycles own
+## formations; `--side=nato|russia` picks the viewer (default NATO).
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
-## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the grid,
-## Esc / Back returns to the menu. Maths in StaffMapCameraMath, picking in StaffMapRelief.
+## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the grid, B the country
+## borders and names,
+## Esc (nothing selected) / Back returns to the menu. Maths in StaffMapCameraMath, picking in
+## StaffMapRelief.
 
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
 const CARD_OFFSET := Vector2(18, 18)
 ## How fast the pitch follows its target (1 / s, exponential).
 const PITCH_SMOOTHING := 14.0
+const DEFAULT_OPERATION := &"suwalki_gap"
+## Campaign seed until the session carries one (TASK-094); nothing draws from the RNG yet.
+const DEFAULT_SEED := 1
+## A left press released within this many pixels of travel is a click, not a drag.
+const CLICK_SLOP := 5.0
+const PANEL_MARGIN := Vector2(16, 16)
+## Viewport size assumed outside the scene tree (headless tests).
+const FALLBACK_VIEWPORT := Vector2(1280, 720)
 
 ## Which map to open (the Operation button uses the default).
 var map_id: StringName = DEFAULT_MAP
+## The operation shown (its map replaces map_id when it loads).
+var operation_id: StringName = DEFAULT_OPERATION
+var seed_value := DEFAULT_SEED
+## The player the human views the map as (0 = first side of the operation); -1 = from the
+## command line (`--side=`), see StaffMapFormations.viewer_from_args.
+var viewer_player := -1
+## False: _ready only sets up the scene and the caller runs build_now() (headless tests).
+var auto_build := true
 ## True once the map is built (the loading notice shows for a frame first).
 var is_built := false
 ## Milliseconds the build took (reported by the screenshot / measure tools).
 var build_ms := 0
 
 var _grid: HexGrid
+var _imported: ImportedMap
 var _palette: StaffMapPalette
 var _view: StaffMapView
 var _camera: Camera3D
@@ -29,6 +52,13 @@ var _card: StaffMapCard
 var _hint: Label
 var _back: Button
 var _hud: CanvasLayer
+var _simulation: OperationalSimulation
+var _counter_layer: CanvasLayer
+var _counters: StaffMapCounters
+var _panel: StaffMapFormationPanel
+var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
+var _press_position := Vector2.ZERO
+var _drag_travel := 0.0
 var _dragging := false
 var _min_zoom := 0.1
 var _max_zoom := 1.0
@@ -47,11 +77,12 @@ var _last_mouse := Vector2(-1, -1)
 func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	GameSettings.apply_saved()
-	_palette = load(StaffMapPalette.PATH) as StaffMapPalette
-	_build_environment()
-	_hud = CanvasLayer.new()
-	_hud.name = "HUD"
-	add_child(_hud)
+	_setup()
+	if not auto_build:
+		return
+	var definition := OperationDefinition.find(operation_id)
+	if definition != null:
+		map_id = definition.map_id
 	var imported := ImportedMap.find(map_id)
 	var loading := LoadingScreen.new()
 	loading.set_operation(imported.display_name if imported != null else "")
@@ -60,24 +91,41 @@ func _ready() -> void:
 	# The notice must be presented before the heavy build blocks the loop.
 	await get_tree().process_frame
 	await get_tree().process_frame
+	var built := build_now()
+	loading.queue_free()
+	if not built:
+		_return_to_menu()
+
+
+## Builds map, operation, camera and HUD at once (_ready calls it after the loading notice);
+## false when the map is missing. Works outside the scene tree too (headless tests: the
+## viewport is then FALLBACK_VIEWPORT).
+func build_now() -> bool:
+	_setup()
 	var start := Time.get_ticks_msec()
+	var definition := OperationDefinition.find(operation_id)
+	if definition != null:
+		map_id = definition.map_id
+	var imported := ImportedMap.find(map_id)
 	if imported == null:
 		push_error("StaffMap: no map '%s'" % map_id)
-		_return_to_menu()
-		return
+		return false
+	_imported = imported
 	_grid = imported.to_grid()
 	_km_per_unit = imported.hex_spacing_m / Hex.SQRT3 / 1000.0
 	_view = StaffMapView.new()
 	add_child(_view)
 	_view.build(_grid, _palette, imported.hex_spacing_m)
+	_view.build_countries(imported)
 	_bounds = _view.world_bounds()
+	_build_operation(definition)
 	_build_camera()
 	_build_hud()
 	build_ms = Time.get_ticks_msec() - start
 	print("Staff map built in %d ms" % build_ms)
-	loading.queue_free()
 	is_built = true
 	refresh_texts()
+	return true
 
 
 func _notification(what: int) -> void:
@@ -100,9 +148,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key != null and key.pressed and not key.echo:
 		match key.keycode:
 			KEY_ESCAPE:
-				_return_to_menu()
+				if selected_formation() != &"":
+					select_formation(&"")
+				else:
+					_return_to_menu()
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
+			KEY_B:
+				_view.set_countries_visible(not _view.countries_visible())
 			KEY_V:
 				_pitch_target = StaffMapCameraMath.toggle_pitch(_pitch_target, _tilt)
 		return
@@ -115,7 +168,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		if motion.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_MIDDLE) == 0:
 			_dragging = false  # the release went to a button
 			return
+		_drag_travel += motion.relative.length()
 		_move_camera(_position + StaffMapCameraMath.drag_delta(motion.relative, _zoom, _pitch))
+
+
+## Tab is read here, before the GUI could take it for focus navigation.
+func _input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if not is_built or key == null or not key.pressed or key.keycode != KEY_TAB:
+		return
+	get_viewport().set_input_as_handled()
+	if _counters != null:
+		var next := StaffMapFormations.next_in_cycle(_counters.own_ids(), selected_formation())
+		select_formation(next)
+		_reveal(next)
 
 
 ## Sets every text in the current language.
@@ -124,6 +190,13 @@ func refresh_texts() -> void:
 		return  # not built yet; _ready calls it again
 	_back.text = "‹ " + tr("Back").to_upper()
 	_hint.text = tr("STAFF_MAP_HINT")
+	_view.refresh_country_names()
+	if _panel != null and _panel.visible:
+		select_formation(_panel.formation_id, true)
+
+
+func _card_info(c: Vector2i) -> Dictionary:
+	return StaffMapCard.info(_grid, c, _imported.country_at(c) if _imported != null else "")
 
 
 func view() -> StaffMapView:
@@ -136,6 +209,50 @@ func camera() -> Camera3D:
 
 func card() -> StaffMapCard:
 	return _card
+
+
+func simulation() -> OperationalSimulation:
+	return _simulation
+
+
+func counters() -> StaffMapCounters:
+	return _counters
+
+
+func formation_panel() -> StaffMapFormationPanel:
+	return _panel
+
+
+func selected_formation() -> StringName:
+	return _counters.selected() if _counters != null else &""
+
+
+## Selects a formation (counter brackets + panel); &"" deselects. `refill` refreshes the panel
+## even when the selection did not change (language switch, events).
+func select_formation(formation_id: StringName, refill := false) -> void:
+	if _counters == null:
+		return
+	var formation := _simulation.state.get_formation(formation_id)
+	if formation == null:
+		formation_id = &""
+	if formation_id == _counters.selected() and not refill:
+		return
+	_counters.set_selected(formation_id)
+	if formation == null:
+		_panel.hide()
+		return
+	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
+	_place_panel()
+
+
+## Views the map as `player` (own / enemy swap); the panel follows.
+func set_viewer(player: int) -> void:
+	viewer_player = player
+	if _counters == null:
+		return
+	_counters.set_viewer(player)
+	if _panel.visible:
+		select_formation(_panel.formation_id, true)
 
 
 func pitch() -> float:
@@ -172,7 +289,7 @@ func debug_hover(c: Vector2i) -> void:
 	if not _view.has_tile(c):
 		return
 	_view.highlight(c)
-	_card.show_info(StaffMapCard.info(_grid, c))
+	_card.show_info(_card_info(c))
 	_place_card(_screen_of_hex(c))
 
 
@@ -182,14 +299,24 @@ func hex_at_screen(screen: Vector2) -> Vector2i:
 	return StaffMapLayers.hex_at(_view.relief().raycast(ray["origin"], ray["direction"]))
 
 
+## Screen position of a formation counter (its hex centre on the relief).
+func counter_screen_position(formation_id: StringName) -> Vector2:
+	return _project(_anchors[formation_id])
+
+
 ## Screen position of a hex centre on the relief.
 func _screen_of_hex(c: Vector2i) -> Vector2:
 	var w := Hex.to_world(c, 1.0)
-	var point := _view.relief().surface_point(Vector2(w.x, w.z))
+	return _project(_view.relief().surface_point(Vector2(w.x, w.z)))
+
+
+func _project(point: Vector3) -> Vector2:
 	return StaffMapCameraMath.project(point, _viewport_size(), _target(), _scale(), _pitch)
 
 
 func _viewport_size() -> Vector2:
+	if not is_inside_tree():
+		return FALLBACK_VIEWPORT
 	return get_viewport().get_visible_rect().size
 
 
@@ -204,6 +331,22 @@ func _scale() -> float:
 
 func _ground_viewport() -> Vector2:
 	return StaffMapCameraMath.ground_viewport(_viewport_size(), _pitch)
+
+
+## Palette, environment and the two canvas layers (once).
+func _setup() -> void:
+	if _hud != null:
+		return
+	_palette = load(StaffMapPalette.PATH) as StaffMapPalette
+	_build_environment()
+	_counter_layer = CanvasLayer.new()
+	_counter_layer.name = "CounterLayer"
+	_counter_layer.layer = 1
+	add_child(_counter_layer)
+	_hud = CanvasLayer.new()
+	_hud.name = "HUD"
+	_hud.layer = 2
+	add_child(_hud)
 
 
 func _build_environment() -> void:
@@ -225,17 +368,87 @@ func _build_camera() -> void:
 	_camera.near = 1.0
 	_camera.far = StaffMapCameraMath.CAMERA_DISTANCE * 2.0
 	add_child(_camera)
-	_camera.make_current()
+	if is_inside_tree():
+		_camera.make_current()
 	_position = _bounds.get_center()
 	_update_limits()
 	_set_zoom(_min_zoom)
 	_view.set_zoom_level(_view.zoom_level(), true)
-	get_viewport().size_changed.connect(_on_viewport_resized)
+	if is_inside_tree():
+		get_viewport().size_changed.connect(_on_viewport_resized)
+
+
+## The operational state, its simulation and the counters (TASK-092b).
+func _build_operation(definition: OperationDefinition) -> void:
+	var state: OperationalState = null
+	if definition != null:
+		state = Operation.from_definition(definition, seed_value, _grid)
+	if state == null:
+		push_error("StaffMap: cannot build operation '%s'" % operation_id)
+		state = OperationalState.new()
+		state.grid = _grid
+	_simulation = OperationalSimulation.new(state)
+	_simulation.event_emitted.connect(_on_operational_event)
+	if viewer_player < 0:
+		viewer_player = StaffMapFormations.viewer_from_args(
+			OS.get_cmdline_user_args(), state.player_sides
+		)
+	_counters = StaffMapCounters.new()
+	_counter_layer.add_child(_counters)
+	_counters.build(state, _palette, viewer_player)
+	_update_anchors()
+
+
+func _update_anchors() -> void:
+	_anchors.clear()
+	for formation in _simulation.state.formations:
+		var w := Hex.to_world(formation.coord, 1.0)
+		_anchors[formation.id] = _view.relief().surface_point(Vector2(w.x, w.z))
+
+
+## Screen-space counters follow the camera; called only when it moved (no per-frame cost).
+func _layout_counters() -> void:
+	if _counters == null:
+		return
+	var points := {}
+	for id: StringName in _anchors:
+		points[id] = _project(_anchors[id])
+	_counters.layout(points)
+
+
+func _on_operational_event(_event: Dictionary) -> void:
+	_update_anchors()
+	_counters.refresh()
+	_layout_counters()
+	if _panel.visible:
+		select_formation(_panel.formation_id, true)
+
+
+func _place_panel() -> void:
+	if _panel == null:
+		return
+	_panel.reset_size()
+	_panel.position = Vector2(
+		_viewport_size().x - PANEL_MARGIN.x - _panel.size.x, PANEL_MARGIN.y
+	)
+
+
+## Centres the camera on a formation whose counter is off screen (Tab).
+func _reveal(formation_id: StringName) -> void:
+	if not _anchors.has(formation_id):
+		return
+	var screen := counter_screen_position(formation_id)
+	if Rect2(Vector2.ZERO, _viewport_size()).grow(-60.0).has_point(screen):
+		return
+	var point: Vector3 = _anchors[formation_id]
+	_move_camera(Vector2(point.x, point.z) * StaffMapView.UNIT)
 
 
 func _build_hud() -> void:
 	_card = StaffMapCard.new()
 	_hud.add_child(_card)
+	_panel = StaffMapFormationPanel.new()
+	_hud.add_child(_panel)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)
@@ -259,6 +472,7 @@ func _update_limits() -> void:
 func _on_viewport_resized() -> void:
 	_update_limits()
 	_set_zoom(_zoom)
+	_place_panel()
 
 
 func _set_zoom(zoom_value: float) -> void:
@@ -276,6 +490,7 @@ func _apply_camera() -> void:
 	_camera.transform = StaffMapCameraMath.camera_transform(_target(), _pitch)
 	_camera.size = _viewport_size().y / _scale()
 	_view.set_view_scale(_scale(), _pitch)
+	_layout_counters()
 	var px_per_km := _scale() / _km_per_unit
 	_view.set_zoom_level(
 		StaffMapCameraMath.zoom_level(
@@ -322,6 +537,16 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
 		MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE:
 			_dragging = event.pressed
+			if event.button_index != MOUSE_BUTTON_LEFT:
+				return
+			if event.pressed:
+				_press_position = event.position
+				_drag_travel = 0.0
+			elif (
+				_drag_travel < CLICK_SLOP
+				and event.position.distance_to(_press_position) < CLICK_SLOP
+			):
+				click_at(event.position)
 		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
 			if not event.pressed:
 				return
@@ -381,6 +606,12 @@ func _edge_direction() -> Vector2:
 	)
 
 
+## A left click on the map: selects the counter under `screen`, or deselects.
+func click_at(screen: Vector2) -> void:
+	if _counters != null:
+		select_formation(_counters.counter_at(screen))
+
+
 func _update_hover() -> void:
 	if _dragging or not DisplayServer.window_is_focused():
 		return
@@ -388,13 +619,18 @@ func _update_hover() -> void:
 	if not get_viewport().get_visible_rect().has_point(mouse):
 		_clear_hover()
 		return
+	if _panel != null and _panel.visible and _panel.get_global_rect().has_point(mouse):
+		_clear_hover()  # the panel covers the map
+		return
+	if _counters != null:
+		_counters.set_hovered(_counters.counter_at(mouse))
 	var c := hex_at_screen(mouse)
 	if not _view.has_tile(c):
 		_clear_hover()
 		return
 	if c != _view.hovered() or not _card.visible:
 		_view.highlight(c)
-		_card.show_info(StaffMapCard.info(_grid, c))
+		_card.show_info(_card_info(c))
 	if mouse != _last_mouse:
 		_place_card(mouse)
 		_last_mouse = mouse
@@ -402,6 +638,8 @@ func _update_hover() -> void:
 
 func _clear_hover() -> void:
 	_view.highlight(StaffMapView.NO_HEX)
+	if _counters != null:
+		_counters.set_hovered(&"")
 	_card.hide()
 
 

@@ -1,0 +1,237 @@
+class_name StaffMapFormationPanel
+extends FramedPanel
+## Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"),
+## HUD v3 style, on the right edge: name, parent, type, side, strength (5-segment gauge),
+## location and the companies (ref, unit type, strength). Hostile formations are fully shown
+## (fog is TASK-100) but marked HOSTILE in the tab and the side row. Posture / order rows come with
+## TASK-092d. Stops the mouse, so a click on it never reaches a counter under it.
+
+const WIDTH := 300
+const ROW_SIZE := 12
+const REF_SIZE := 10
+
+
+## A 5-segment strength gauge (StaffMapCounter.draw_segments) as a control.
+class Gauge:
+	extends Control
+	const SCALE := 1.3
+	var lit := 0
+	var colour := Color.WHITE
+	var unlit := Color(1, 1, 1, 0.2)
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		custom_minimum_size = Vector2(
+			StaffMapCounter.segments_width(SCALE), StaffMapCounter.SEGMENT_SIZE.y * SCALE
+		)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+
+	func set_value(p_lit: int, p_colour: Color, p_unlit: Color) -> void:
+		lit = p_lit
+		colour = p_colour
+		unlit = p_unlit
+		queue_redraw()
+
+	func _draw() -> void:
+		StaffMapCounter.draw_segments(self, Vector2.ZERO, lit, colour, unlit, SCALE)
+
+
+var formation_id: StringName = &""
+var hostile := false
+
+var _palette: StaffMapPalette
+var _name_label: Label
+var _parent_label: Label
+var _values := {}  # caption -> Label
+var _gauge: Gauge
+var _companies: VBoxContainer
+var _companies_caption: Label
+
+
+func _init() -> void:
+	super()
+	name = "FormationPanel"
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	custom_minimum_size = Vector2(WIDTH, 0)
+	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	chamfers = Vector4(0, 12, 0, 12)
+	padding = Vector2(14, 12)
+	tab_text = " "
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override(&"separation", 5)
+	add_child(column)
+	_name_label = _label(HudTheme.display(700, 1), 18, UiPalette.HUD_TEXT)
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# A fixed width, so the wrapped height is known before the first layout.
+	_name_label.custom_minimum_size = Vector2(WIDTH - 2 * padding.x - 2, 0)
+	column.add_child(_name_label)
+	_parent_label = _label(HudTheme.display(500), ROW_SIZE, UiPalette.HUD_MUTED)
+	column.add_child(_parent_label)
+	column.add_child(_divider())
+	for caption in ["Type", "Side", "STRENGTH", "Location"]:
+		column.add_child(_row(caption))
+	column.add_child(_divider())
+	_companies_caption = _label(HudTheme.mono(600, 1), REF_SIZE, UiPalette.HUD_MUTED)
+	column.add_child(_companies_caption)
+	_companies = VBoxContainer.new()
+	_companies.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_companies.add_theme_constant_override(&"separation", 6)
+	column.add_child(_companies)
+	hide()
+
+
+## Fills the panel from a formation of `state` and shows it.
+func show_formation(
+	state: OperationalState, formation: Formation, viewer_player: int, palette: StaffMapPalette
+) -> void:
+	_palette = palette
+	formation_id = formation.id
+	hostile = (
+		StaffMapFormations.viewer_relation(formation.owner_id, viewer_player)
+		== StaffMapFormations.ENEMY
+	)
+	var side_colour := palette.side_enemy if hostile else palette.side_own
+	tab_text = tr("FORMATION").to_upper()
+	tab_right_text = tr("HOSTILE") if hostile else tr("OWN")
+	tab_right_color = side_colour
+	line_color = Color(side_colour, 0.45) if hostile else UiPalette.LINE
+	_name_label.text = tr(formation.display_name).to_upper()
+	_parent_label.text = tr(formation.parent)
+	_values["Type"].text = tr(formation.definition.display_name).to_upper()
+	var side := SideDefinition.find(state.player_sides[formation.owner_id])
+	var side_name := tr(side.display_name) if side != null else ""
+	var side_label: Label = _values["Side"]
+	side_label.text = (
+		("%s · %s" % [side_name, tr("HOSTILE")]) if hostile else side_name
+	).to_upper()
+	side_label.add_theme_color_override(&"font_color", side_colour)
+	var current := formation.strength()
+	var maximum := formation.max_strength()
+	_values["STRENGTH"].text = "%d / %d" % [current, maximum]
+	_gauge.set_value(
+		StaffMapFormations.lit_segments(current, maximum),
+		StaffMapFormations.strength_colour(current, maximum, palette),
+		Color(palette.ui_muted, 0.3)
+	)
+	_values["Location"].text = tr("HEX %s") % _hex_text(formation.coord)
+	_companies_caption.text = tr("COMPANIES").to_upper()
+	_fill_companies(formation)
+	show()
+	reset_size()
+
+
+func name_text() -> String:
+	return _name_label.text
+
+
+func parent_text() -> String:
+	return _parent_label.text
+
+
+func value_text(caption: String) -> String:
+	return (_values[caption] as Label).text
+
+
+func company_count() -> int:
+	return _companies.get_child_count()
+
+
+## Text of a company entry: "<unit>  <strength>/<max>  <ref>".
+func company_text(index: int) -> String:
+	var parts: Array[String] = []
+	for row in _companies.get_child(index).get_children():
+		for child in row.get_children():
+			if child is Label:
+				parts.append((child as Label).text)
+	return "  ".join(parts)
+
+
+## The axial coordinate as the hex card shows it ("col·row", 1-based offset).
+static func _hex_text(c: Vector2i) -> String:
+	var offset := MapGenerator.axial_to_offset(c)
+	return "%02d·%02d" % [offset.x + 1, offset.y + 1]
+
+
+func _fill_companies(formation: Formation) -> void:
+	for child in _companies.get_children():
+		_companies.remove_child(child)
+		child.queue_free()
+	for i in formation.companies.size():
+		var company := formation.companies[i]
+		var unit: UnitDefinition = (
+			formation.definition.companies[i]
+			if i < formation.definition.companies.size()
+			else null
+		)
+		# Two lines: unit type and strength, then ref and gauge.
+		var entry := VBoxContainer.new()
+		entry.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		entry.add_theme_constant_override(&"separation", 1)
+		var top := _hbox()
+		var unit_label := _label(HudTheme.display(600), ROW_SIZE, UiPalette.HUD_TEXT)
+		unit_label.text = tr(unit.display_name) if unit != null else String(company.unit_type)
+		unit_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		unit_label.clip_text = true
+		var value := _label(HudTheme.mono(600), REF_SIZE, UiPalette.HUD_TEXT)
+		value.text = "%d/%d" % [company.strength, company.max_strength]
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		top.add_child(unit_label)
+		top.add_child(value)
+		var bottom := _hbox()
+		var ref := _label(HudTheme.mono(500), REF_SIZE, UiPalette.HUD_MUTED)
+		ref.text = company.ref
+		ref.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var gauge := Gauge.new()
+		gauge.set_value(
+			StaffMapFormations.lit_segments(company.strength, company.max_strength),
+			StaffMapFormations.strength_colour(company.strength, company.max_strength, _palette),
+			Color(_palette.ui_muted, 0.3)
+		)
+		bottom.add_child(ref)
+		bottom.add_child(gauge)
+		entry.add_child(top)
+		entry.add_child(bottom)
+		_companies.add_child(entry)
+
+
+func _hbox() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 8)
+	return row
+
+
+func _row(caption: String) -> Control:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 8)
+	var cap := _label(HudTheme.display(400), ROW_SIZE, UiPalette.HUD_MUTED)
+	cap.text = tr(caption).to_upper()
+	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(cap)
+	if caption == "STRENGTH":
+		_gauge = Gauge.new()
+		row.add_child(_gauge)
+	var value := _label(HudTheme.mono(600), ROW_SIZE, UiPalette.HUD_TEXT)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_values[caption] = value
+	row.add_child(value)
+	return row
+
+
+func _divider() -> Control:
+	var line := ColorRect.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.color = UiPalette.DIVIDER
+	line.custom_minimum_size = Vector2(0, 1)
+	return line
+
+
+func _label(font: Font, size: int, color: Color) -> Label:
+	var label := Label.new()
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_override(&"font", font)
+	label.add_theme_font_size_override(&"font_size", size)
+	label.add_theme_color_override(&"font_color", color)
+	return label

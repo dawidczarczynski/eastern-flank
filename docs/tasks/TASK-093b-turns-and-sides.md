@@ -1,6 +1,6 @@
 # TASK-093b: Staff map (2/3) – operational turns, turn bar, End turn, playing either side
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`) + presentation (turn bar, side parameter) + docs
 - **Depends on**: TASK-092b
 - **Model**: sonnet

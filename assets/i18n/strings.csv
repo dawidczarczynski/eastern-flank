@@ -145,7 +145,46 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Drag / WASD: pan   Wheel: zoom   Ctrl+wheel / Q E: tilt   V: flat / tilted   G: grid   Esc: back,Przeciągnij / WASD: przesuwanie   Kółko: zoom   Ctrl+kółko / Q E: nachylenie   V: płasko / skos   G: siatka   Esc: wstecz
+STAFF_MAP_HINT,Click: select   Tab: next   Drag / WASD: pan   Wheel: zoom   Q E: tilt   V: flat / tilted   G: grid   B: borders   Esc: deselect / back,Klik: wybór   Tab: następna   Przeciągnij / WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko / skos   G: siatka   B: granice   Esc: odznacz / wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
+1st Mechanised Battalion,1st Mechanised Battalion,1. Batalion Zmechanizowany
+2nd Mechanised Battalion,2nd Mechanised Battalion,2. Batalion Zmechanizowany
+3rd Mechanised Battalion,3rd Mechanised Battalion,3. Batalion Zmechanizowany
+4th Mechanised Battalion,4th Mechanised Battalion,4. Batalion Zmechanizowany
+1st Tank Battalion,1st Tank Battalion,1. Batalion Czołgów
+1st Rocket Artillery Squadron,1st Rocket Artillery Squadron,1. Dywizjon Artylerii Rakietowej
+1st MLRS Battalion,1st MLRS Battalion,1. Dywizjon Wyrzutni Rakietowych
+2nd Tank Battalion,2nd Tank Battalion,2. Batalion Czołgów
+2nd Rocket Artillery Squadron,2nd Rocket Artillery Squadron,2. Dywizjon Artylerii Rakietowej
+2nd MLRS Battalion,2nd MLRS Battalion,2. Dywizjon Wyrzutni Rakietowych
+1st Motor Rifle Battalion,1st Motor Rifle Battalion,1. Batalion Piechoty Zmotoryzowanej
+2nd Motor Rifle Battalion,2nd Motor Rifle Battalion,2. Batalion Piechoty Zmotoryzowanej
+3rd Motor Rifle Battalion,3rd Motor Rifle Battalion,3. Batalion Piechoty Zmotoryzowanej
+4th Motor Rifle Battalion,4th Motor Rifle Battalion,4. Batalion Piechoty Zmotoryzowanej
+5th Motor Rifle Battalion,5th Motor Rifle Battalion,5. Batalion Piechoty Zmotoryzowanej
+6th Motor Rifle Battalion,6th Motor Rifle Battalion,6. Batalion Piechoty Zmotoryzowanej
+11th Army Corps,11th Army Corps,11. Korpus Armijny
+15th Mechanised Brigade,15th Mechanised Brigade,15. Brygada Zmechanizowana
+18th Mechanised Brigade,18th Mechanised Brigade,18. Brygada Zmechanizowana
+20th Mechanised Brigade,20th Mechanised Brigade,20. Brygada Zmechanizowana
+16th Artillery Regiment,16th Artillery Regiment,16. Pułk Artylerii
+18th Artillery Regiment,18th Artillery Regiment,18. Pułk Artylerii
+1st Guards Tank Army,1st Guards Tank Army,1. Gwardyjska Armia Pancerna
+Mechanised Battalion,Mechanised Battalion,Batalion zmechanizowany
+Tank Battalion,Tank Battalion,Batalion czołgów
+Rocket Artillery Squadron,Rocket Artillery Squadron,Dywizjon artylerii rakietowej
+Motor Rifle Battalion,Motor Rifle Battalion,Batalion piechoty zmotoryzowanej
+MLRS Battalion,MLRS Battalion,Dywizjon wyrzutni rakietowych
+NATO,NATO,NATO
+FORMATION,FORMATION,FORMACJA
+HOSTILE,HOSTILE,WRÓG
+OWN,OWN,WŁASNA
+COMPANIES,COMPANIES,KOMPANIE
+Type,Type,Typ
+Side,Side,Strona
+Location,Location,Położenie
+Lithuania,Lithuania,Litwa
+Belarus,Belarus,Białoruś
+Country,Country,Państwo

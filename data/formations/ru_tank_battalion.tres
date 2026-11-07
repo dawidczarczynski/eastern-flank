@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="FormationDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_unit"]
+[ext_resource type="Script" path="res://src/core/data/formation_definition.gd" id="2_formation"]
+[ext_resource type="Resource" path="res://data/units/t72b3.tres" id="3_t72b3"]
+[ext_resource type="Resource" path="res://data/units/ru_motor_rifle.tres" id="4_ru_motor_rifle"]
+
+[resource]
+script = ExtResource("2_formation")
+id = &"ru_tank_battalion"
+display_name = "Tank Battalion"
+faction = &"russia"
+echelon = &"battalion"
+formation_class = &"armoured"
+move_points = 8
+companies = Array[ExtResource("1_unit")]([ExtResource("3_t72b3"), ExtResource("3_t72b3"), ExtResource("3_t72b3"), ExtResource("4_ru_motor_rifle")])

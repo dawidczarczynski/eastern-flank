@@ -1,0 +1,25 @@
+class_name OperationalSimulation
+extends RefCounted
+## Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, applies
+## them and emits events. Campaign seed + command history reproduce the whole operation.
+
+signal event_emitted(event: Dictionary)
+signal command_rejected(command: OperationalCommand, reason: String)
+
+var state: OperationalState
+var history: Array[OperationalCommand] = []
+
+
+func _init(p_state: OperationalState) -> void:
+	state = p_state
+
+
+func execute(command: OperationalCommand) -> bool:
+	var reason := command.validate(state)
+	if reason != "":
+		command_rejected.emit(command, reason)
+		return false
+	history.append(command)
+	for event in command.apply(state):
+		event_emitted.emit(event)
+	return true

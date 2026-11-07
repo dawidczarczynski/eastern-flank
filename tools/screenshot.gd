@@ -342,7 +342,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_STAFF_MAP=<token>,... sets up the staff map (TASK-093a): zoom:<factor> (clamped to
 ## the map's limits; "min"/"max" allowed), focus:<col>:<row> (centre on that hex), grid (G),
 ## hover:<col>:<row> (the hover card), pitch:<degrees> (camera tilt, 0 = flat; default 35,
-## TASK-125), e.g.
+## TASK-125), side:<player> (view as player 0 / 1, TASK-092b), select:<formation id> (formation
+## panel), hovercounter:<formation id> (counter hover), e.g.
 ## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -394,6 +395,8 @@ func _apply_staff_map_state(spec: String) -> void:
 	var centre := map.view().world_bounds().get_center() / StaffMapView.UNIT
 	var hover := Vector2i(-1, -1)
 	var show_hover := false
+	var select_id := &""
+	var hover_counter := &""
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -412,6 +415,12 @@ func _apply_staff_map_state(spec: String) -> void:
 					show_hover = true
 			"grid":
 				map.view().set_grid_visible(true)
+			"side":
+				map.set_viewer(parts[1].to_int() if parts.size() > 1 else 0)
+			"select":
+				select_id = StringName(parts[1]) if parts.size() > 1 else &""
+			"hovercounter":
+				hover_counter = StringName(parts[1]) if parts.size() > 1 else &""
 			"pitch":
 				if parts.size() != 2 or not parts[1].is_valid_float():
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
@@ -428,6 +437,10 @@ func _apply_staff_map_state(spec: String) -> void:
 	map.debug_focus(centre, zoom)
 	if show_hover:
 		map.debug_hover(hover)
+	if select_id != &"":
+		map.select_formation(select_id)
+	if hover_counter != &"" and map.counters() != null:
+		map.counters().set_hovered(hover_counter)
 	map.process_mode = Node.PROCESS_MODE_DISABLED
 
 

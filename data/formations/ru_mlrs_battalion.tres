@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="FormationDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_unit"]
+[ext_resource type="Script" path="res://src/core/data/formation_definition.gd" id="2_formation"]
+[ext_resource type="Resource" path="res://data/units/bm27_uragan.tres" id="3_bm27_uragan"]
+
+[resource]
+script = ExtResource("2_formation")
+id = &"ru_mlrs_battalion"
+display_name = "MLRS Battalion"
+faction = &"russia"
+echelon = &"battalion"
+formation_class = &"artillery"
+move_points = 8
+companies = Array[ExtResource("1_unit")]([ExtResource("3_bm27_uragan"), ExtResource("3_bm27_uragan"), ExtResource("3_bm27_uragan")])

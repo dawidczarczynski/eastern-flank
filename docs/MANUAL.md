@@ -348,7 +348,7 @@ The battle has sound; there is no music yet.
 
 ## 12b. Operational map
 
-**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. For now you can only look around: there are no formations, turns or orders yet. **‹ Back** or Esc returns to the menu.
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); there are no turns or orders yet. **‹ Back** (or Esc when no formation is selected) returns to the menu.
 
 **Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
@@ -378,7 +378,52 @@ Which road is "main" is worked out from how far it runs on the map, not from its
 | Tilt | Ctrl + mouse wheel, or hold Q (flatter) / E (steeper) |
 | Flat / tilted | V |
 | Grid on / off | G |
-| Back to the main menu | Esc, or the ‹ Back button |
+| Country borders and names on / off | B |
+| Select a formation | Left click on its counter |
+| Next own formation | Tab |
+| Deselect | Esc, or a click on empty map |
+| Back to the main menu | Esc (nothing selected), or the ‹ Back button |
+
+### Countries
+
+Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or Russia (the Kaliningrad oblast). A warm dash-dot line follows the real state border – along the south edge of the oblast, along the Neman, across the Suwałki Gap and along the Belarusian border – and a very faint, large name (POLSKA / LITWA / BIAŁORUŚ / ROSJA, or the English names) lies over each country. Hexes in the sea or in a large lake belong to none. Pointing at a hex adds a **Country** line to the hex card (a dash for a hex without a country). The line is drawn from the real border (OpenStreetMap), not along the hexes; the hexes only decide which country a hex counts as for the rules. Press **B** to hide or show the borders and the names (on at the start).
+
+### Formations
+
+The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO) – two facing the Kaliningrad oblast near Bartoszyce and Lidzbark Warmiński, three in the Gap around Suwałki, Augustów and Ełk, three facing Belarus around Białystok, Sokółka and Mońki – and ten Russian, five in the Kaliningrad oblast (Chernyakhovsk, Gusev, Sovetsk, Nesterov, Gvardeysk) and five in Belarus around Grodno. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
+
+**Counters.** Each formation is a counter of fixed size on screen (it does not grow or shrink with the zoom), standing on its hex:
+
+| Part of the counter | Meaning |
+|---|---|
+| Blue rectangle with a cut corner | your formation |
+| Red diamond | enemy formation |
+| Cross with an oval inside | mechanised infantry (or motor rifle) battalion |
+| Oval | tank battalion |
+| Dot between two upward arrows | rocket artillery (MLRS) |
+| `II` above | battalion |
+| Number beside, e.g. `2/15` | battalion / its brigade or higher formation (2nd battalion of the 15th Mechanised Brigade) |
+| Five slanted bars below | strength: lit bars ≈ fifths of full strength (rounded; one bar stays lit while anything is left). Green from 75 %, yellow from 50 %, red below |
+| Darker fill with a red outline | low strength (below half) |
+| Small number in an amber box at the top-right | a stack: that many formations of the same side stand so close on screen that only one counter is shown – zoom in to separate them |
+| Amber corner brackets | the selected formation |
+
+Pointing at a counter brightens it; the hex card keeps working underneath.
+
+**The six formation types.**
+
+| Type | Side | Companies | Strength |
+|---|---|---|---|
+| Mechanised Battalion | NATO | 3 × Mechanised Infantry Squad, 1 × M1A2 SEPv3 Abrams | 40 |
+| Tank Battalion | NATO | 3 × M1A2 SEPv3 Abrams, 1 × Mechanised Infantry Squad | 40 |
+| Rocket Artillery Squadron | NATO | 3 × Homar-K | 18 |
+| Motor Rifle Battalion | Russia | 3 × Motor Rifle Squad, 1 × T-72B3 | 38 |
+| Tank Battalion | Russia | 3 × T-72B3, 1 × Motor Rifle Squad | 34 |
+| MLRS Battalion | Russia | 3 × 9K57 Uragan | 18 |
+
+Strength is the sum of the companies' hit points – the same units that fight when a battle starts.
+
+**Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel.
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 

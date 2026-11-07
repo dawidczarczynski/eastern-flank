@@ -1,0 +1,184 @@
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=30 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
+[ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
+[ext_resource type="Script" path="res://src/core/data/operation_definition.gd" id="3_operation"]
+[ext_resource type="Resource" path="res://data/sides/nato.tres" id="4_nato"]
+[ext_resource type="Resource" path="res://data/sides/russia.tres" id="5_russia"]
+[ext_resource type="Resource" path="res://data/formations/pl_mech_battalion.tres" id="6_pl_mech_battalion"]
+[ext_resource type="Resource" path="res://data/formations/pl_tank_battalion.tres" id="7_pl_tank_battalion"]
+[ext_resource type="Resource" path="res://data/formations/pl_mlrs_squadron.tres" id="8_pl_mlrs_squadron"]
+[ext_resource type="Resource" path="res://data/formations/ru_motor_rifle_battalion.tres" id="9_ru_motor_rifle_battalion"]
+[ext_resource type="Resource" path="res://data/formations/ru_tank_battalion.tres" id="10_ru_tank_battalion"]
+[ext_resource type="Resource" path="res://data/formations/ru_mlrs_battalion.tres" id="11_ru_mlrs_battalion"]
+
+[sub_resource type="Resource" id="Resource_pl_mech_1"]
+script = ExtResource("2_placement")
+id = &"pl_mech_1"
+display_name = "1st Mechanised Battalion"
+parent = "20th Mechanised Brigade"
+player = 0
+definition = ExtResource("6_pl_mech_battalion")
+coord = Vector2i(-9, 31)
+
+[sub_resource type="Resource" id="Resource_pl_tank_1"]
+script = ExtResource("2_placement")
+id = &"pl_tank_1"
+display_name = "1st Tank Battalion"
+parent = "20th Mechanised Brigade"
+player = 0
+definition = ExtResource("7_pl_tank_battalion")
+coord = Vector2i(-13, 34)
+
+[sub_resource type="Resource" id="Resource_pl_mech_2"]
+script = ExtResource("2_placement")
+id = &"pl_mech_2"
+display_name = "2nd Mechanised Battalion"
+parent = "15th Mechanised Brigade"
+player = 0
+definition = ExtResource("6_pl_mech_battalion")
+coord = Vector2i(17, 34)
+
+[sub_resource type="Resource" id="Resource_pl_mech_3"]
+script = ExtResource("2_placement")
+id = &"pl_mech_3"
+display_name = "3rd Mechanised Battalion"
+parent = "15th Mechanised Brigade"
+player = 0
+definition = ExtResource("6_pl_mech_battalion")
+coord = Vector2i(15, 41)
+
+[sub_resource type="Resource" id="Resource_pl_mlrs_1"]
+script = ExtResource("2_placement")
+id = &"pl_mlrs_1"
+display_name = "1st Rocket Artillery Squadron"
+parent = "16th Artillery Regiment"
+player = 0
+definition = ExtResource("8_pl_mlrs_squadron")
+coord = Vector2i(7, 41)
+
+[sub_resource type="Resource" id="Resource_pl_mech_4"]
+script = ExtResource("2_placement")
+id = &"pl_mech_4"
+display_name = "4th Mechanised Battalion"
+parent = "18th Mechanised Brigade"
+player = 0
+definition = ExtResource("6_pl_mech_battalion")
+coord = Vector2i(9, 59)
+
+[sub_resource type="Resource" id="Resource_pl_tank_2"]
+script = ExtResource("2_placement")
+id = &"pl_tank_2"
+display_name = "2nd Tank Battalion"
+parent = "18th Mechanised Brigade"
+player = 0
+definition = ExtResource("7_pl_tank_battalion")
+coord = Vector2i(17, 51)
+
+[sub_resource type="Resource" id="Resource_pl_mlrs_2"]
+script = ExtResource("2_placement")
+id = &"pl_mlrs_2"
+display_name = "2nd Rocket Artillery Squadron"
+parent = "18th Artillery Regiment"
+player = 0
+definition = ExtResource("8_pl_mlrs_squadron")
+coord = Vector2i(7, 52)
+
+[sub_resource type="Resource" id="Resource_ru_mr_1"]
+script = ExtResource("2_placement")
+id = &"ru_mr_1"
+display_name = "1st Motor Rifle Battalion"
+parent = "11th Army Corps"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(9, 21)
+
+[sub_resource type="Resource" id="Resource_ru_mr_2"]
+script = ExtResource("2_placement")
+id = &"ru_mr_2"
+display_name = "2nd Motor Rifle Battalion"
+parent = "11th Army Corps"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(14, 22)
+
+[sub_resource type="Resource" id="Resource_ru_mr_3"]
+script = ExtResource("2_placement")
+id = &"ru_mr_3"
+display_name = "3rd Motor Rifle Battalion"
+parent = "11th Army Corps"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(16, 9)
+
+[sub_resource type="Resource" id="Resource_ru_tank_1"]
+script = ExtResource("2_placement")
+id = &"ru_tank_1"
+display_name = "1st Tank Battalion"
+parent = "11th Army Corps"
+player = 1
+definition = ExtResource("10_ru_tank_battalion")
+coord = Vector2i(19, 21)
+
+[sub_resource type="Resource" id="Resource_ru_mlrs_1"]
+script = ExtResource("2_placement")
+id = &"ru_mlrs_1"
+display_name = "1st MLRS Battalion"
+parent = "11th Army Corps"
+player = 1
+definition = ExtResource("11_ru_mlrs_battalion")
+coord = Vector2i(0, 20)
+
+[sub_resource type="Resource" id="Resource_ru_mr_4"]
+script = ExtResource("2_placement")
+id = &"ru_mr_4"
+display_name = "4th Motor Rifle Battalion"
+parent = "1st Guards Tank Army"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(24, 45)
+
+[sub_resource type="Resource" id="Resource_ru_mr_5"]
+script = ExtResource("2_placement")
+id = &"ru_mr_5"
+display_name = "5th Motor Rifle Battalion"
+parent = "1st Guards Tank Army"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(29, 46)
+
+[sub_resource type="Resource" id="Resource_ru_mr_6"]
+script = ExtResource("2_placement")
+id = &"ru_mr_6"
+display_name = "6th Motor Rifle Battalion"
+parent = "1st Guards Tank Army"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(36, 46)
+
+[sub_resource type="Resource" id="Resource_ru_tank_2"]
+script = ExtResource("2_placement")
+id = &"ru_tank_2"
+display_name = "2nd Tank Battalion"
+parent = "1st Guards Tank Army"
+player = 1
+definition = ExtResource("10_ru_tank_battalion")
+coord = Vector2i(21, 57)
+
+[sub_resource type="Resource" id="Resource_ru_mlrs_2"]
+script = ExtResource("2_placement")
+id = &"ru_mlrs_2"
+display_name = "2nd MLRS Battalion"
+parent = "1st Guards Tank Army"
+player = 1
+definition = ExtResource("11_ru_mlrs_battalion")
+coord = Vector2i(31, 51)
+
+[resource]
+script = ExtResource("3_operation")
+id = &"suwalki_gap"
+display_name = "Suwałki Gap"
+map_id = &"suwalki_theatre"
+sides = Array[ExtResource("1_side")]([ExtResource("4_nato"), ExtResource("5_russia")])
+first_player = 1
+formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])

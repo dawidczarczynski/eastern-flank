@@ -42,7 +42,11 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `FactionDefinition` – Static data for a faction (a country). Instances are kept as .tres files in data/factions/ (`faction_definition.gd`)
+- `FormationDefinition` – A formation type of the operational layer (TASK-092b, GDD "Formations"): a battalion-sized (`formation_definition.gd`)
+- `FormationPlacement` – One named formation of an operation at its start hex (a sub-resource of OperationDefiniti… (`formation_placement.gd`)
 - `ImportedMap` – A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018): (`imported_map.gd`)
+- `OperationDefinition` – An operation (TASK-092b): map, the two sides and the start order of battle. Instances are… (`operation_definition.gd`)
+- `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
@@ -50,6 +54,15 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `TerrainGenerationSettings` – Numbers of the elevation/moisture terrain generator (TerrainField, MapGenerator). (`terrain_generation_settings.gd`)
 - `UnitDefinition` – Static data for a unit type. Instances are kept as .tres files in data/units/. (`unit_definition.gd`)
 - `VictoryCondition` – One way a battle can be won (BattleObjectives.conditions, TASK-088); BattleRules checks t… (`victory_condition.gd`)
+
+## src/core/operational/
+
+- `Formation` – A formation on the operational map at runtime (TASK-092b, GDD "Formations"): a named (`formation.gd`)
+- `Operation` – Builds an OperationalState from an OperationDefinition (TASK-092b). Takes no human-side (`operation.gd`)
+- `OperationalCommand` – Base command of the operational layer (ADR 0015 §2) – the only way to change (`operational_command.gd`)
+- `OperationalCommandCodec` – Rebuilds operational commands from their `to_dict()` form (also after a JSON round trip). (`operational_command_codec.gd`)
+- `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
+- `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
 
 ## src/presentation/audio/
 
@@ -170,6 +183,11 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
+- `StaffMapCounter` – One formation counter of the staff map (TASK-092b, look: docs/design/operational_map (`staff_map_counter.gd`)
+- `StaffMapCounters` – The formation counters of the staff map (TASK-092b) in screen space: one StaffMapCounter… (`staff_map_counters.gd`)
+- `StaffMapCountries` – Pure helpers of the staff map's country layer (TASK-113): the dash-dot pattern cut into a (`staff_map_countries.gd`)
+- `StaffMapFormationPanel` – Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"), (`staff_map_formation_panel.gd`)
+- `StaffMapFormations` – Pure view rules of the formation counters on the staff map (TASK-092b): own / enemy relat… (`staff_map_formations.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)

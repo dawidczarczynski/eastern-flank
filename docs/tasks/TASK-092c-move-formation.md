@@ -1,6 +1,6 @@
 # TASK-092c: Operational routes on the map – step costs as data, route planner, one turn's walk, per-turn forecast, route preview
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (route preview)
 - **Depends on**: TASK-092b (view: TASK-093a)
 - **Model**: sonnet

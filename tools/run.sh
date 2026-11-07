@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Runs the game (needs a graphical environment – in WSL2 it works through WSLg).
-# Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>] [--scene=<name>]
+# Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>]
 #   --quality  force the graphics quality (default: auto-detected; LOW on software rendering)
 #   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle)
 #   --scene    open a scene directly instead of the main menu: staff_map (the operational staff map, TASK-093a), battle, menu
+#   --side     the side the staff map is viewed as: nato (default) or russia (TASK-092b)
 # The Godot path can be overridden with the GODOT variable.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,7 +29,7 @@ for arg in "$@"; do
 	case "$arg" in
 	--editor) editor=1 ;;
 	--scene=*) scene="${arg#--scene=}" ;;
-	--quality=* | --scenario=*) user_args+=("$arg") ;;
+	--quality=* | --scenario=* | --side=*) user_args+=("$arg") ;;
 	esac
 done
 if [[ $editor -eq 1 ]]; then
