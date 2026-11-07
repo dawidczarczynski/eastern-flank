@@ -7,6 +7,8 @@ extends SceneTree
 ##   --script res://tools/teaser.gd -- [--attacker=4] [--target=6] [--seconds=17]
 ##   [--spin=<pitch deg>,<distance>,<focus blend>]
 ##
+## Sound: the game's own (AudioDirector) is recorded into the .avi (see _start).
+##
 ## What the video shows (times from the salvo start; the battle's own loading frames come first,
 ## hidden behind black):
 ##   -0.6 s  fade in from black; the camera orbits low around the launcher from its front right
@@ -135,6 +137,10 @@ func _start() -> void:
 	(views[_target] as UnitView).process_mode = Node.PROCESS_MODE_ALWAYS
 	(_battle.get("_wrecks") as Node).process_mode = Node.PROCESS_MODE_ALWAYS
 	(_battle.get("_marks") as Node).process_mode = Node.PROCESS_MODE_ALWAYS
+	# Sound: the director's _process drives the forest ambience and the birds (it fades in during
+	# the loading frames, behind black); the salvo's launch and explosion sounds come through the
+	# battle's own volley playback (AudioSalvoEffects), the target's death through _on_unit_died.
+	(_battle.get("_audio") as AudioDirector).process_mode = Node.PROCESS_MODE_ALWAYS
 	_launcher_at = (views[_attacker] as UnitView).global_position
 	_target_at = (views[_target] as UnitView).global_position
 	var middle := (_launcher_at + _target_at) * 0.5

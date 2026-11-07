@@ -14,7 +14,9 @@
 #   --resolution  window size = video size
 #   --fps         frames per second of the video (also the simulation step)
 #   after --       passed to tools/teaser.gd (other attacker / target, length, the --spin camera scout)
-# The video has no sound (the game has none yet). Convert it with e.g.
+# The video has the game's own sound: forest ambience and birds from the start, then the rocket
+# launches and the explosions of the impacts (AudioDirector, volume from the saved sound settings –
+# a muted game records silence). Convert it with e.g.
 #   ffmpeg -i homar_teaser.avi -c:v libx264 -crf 18 -pix_fmt yuv420p homar_teaser.mp4
 # Exit codes: 0 written, 1 script error or no recording, 124 timeout (20 min), 127 Godot not found.
 set -uo pipefail
