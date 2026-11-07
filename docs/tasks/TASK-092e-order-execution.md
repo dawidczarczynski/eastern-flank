@@ -1,8 +1,8 @@
 # TASK-092e: Order execution – formations carry out their orders over several turns at the end of their side's turn
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`)
-- **Depends on**: TASK-092d
+- **Layers**: core (`src/core/operational/`) + presentation (counter movement, report)
+- **Depends on**: TASK-092d, TASK-093b
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -40,19 +40,31 @@ Determinism and docs:
 - [ ] Nothing in execution draws from `state.rng` (test: `rng_state` unchanged after the scripted run).
 - [ ] docs/ARCHITECTURE.md: "Operational events" gets `formation_moved`, `formation_halted`, `formation_order_completed`, `formation_order_interrupted` (with the reasons); "Two layers" describes the execution step of `EndOperationalTurnCommand`.
 
+View (End turn now does something):
+
+- [ ] **End turn** (TASK-093b) executes the side's orders: the counters **slide along `path`** from `formation_moved` events (about 0.4 s per hex, capped at 2.5 s per formation, all formations of the side at once; **Space** or a click skips the animation; End turn is disabled while it plays). Arrows are redrawn for the remaining route from the state.
+- [ ] A short **turn report** panel after the move lists, per ordered formation, `arrived` / `halted on contact` / `interrupted` with the reason in words and a place name or coordinate; clicking an entry centres the map and selects the formation. The report can be closed and reopened (key **R**).
+- [ ] An order that continues over several turns shows its remaining route and the new per-turn ticks; a formation that arrived loses its arrow.
+- [ ] Skipping the animation and letting it play give the same final state (test on the controller: events applied first, animation is cosmetic).
+- [ ] Operational replay check (above) is additionally exercised by a scripted run through the scene controller with no input (headless smoke test: end 6 turns with orders given, state equals the pure-logic run).
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093). The agent pastes in the implementation notes a short log of the scripted `suwalki_gap` run: per round, where each formation stands (hex + nearest place name) and which orders completed / halted / were interrupted, so the human can judge pace and contact behaviour.
+1. Give a Polish battalion in the Gap a far destination with posture advance (6 points), another a march order along a road.
+2. End turn: nothing moves yet for the other side – then End turn again for the other bloc and again for yours: the counters slide hex by hex, the road convoy further than the one going across country.
+3. Press Space during the slide: counters jump to their end hexes. The report lists "arrived", "halted on contact" etc.; click an entry: the map centres on that formation.
+4. Send an advancing battalion towards a Russian one: it halts next to it (contact, order kept) – nothing else happens yet (battles are TASK-094).
+5. Order a formation onto a hex that another formation then occupies: the report says why the order was dropped.
 
 ## Player manual
 
-None yet – not reachable before TASK-093. TASK-093's "Operational map" chapter will describe: orders execute when you end your turn, in the order of battle; a formation keeps following its order on later turns; it stops when it arrives (the order is done), when an advancing formation comes next to an enemy (it halts and keeps the order), or the order is cancelled and reported when the destination is taken, no route is left or the way is blocked by own formations.
+Section "End of turn": orders execute when you end your turn, in the order of battle; a formation keeps following its order on later turns; it stops when it arrives (the order is done), when an advancing formation comes next to an enemy (it halts and keeps the order), or the order is cancelled and reported when the destination is taken, no route is left or the way is blocked by own formations; the turn report.
 
 ## Out of scope
 
 - What happens on contact (battle, TASK-094); supply and readiness lowering the budget (TASK-096, TASK-095); fog (TASK-100).
 - Simultaneous resolution of both sides' orders – rejected by the human (2026-11-01); turns stay alternating.
-- Any view or animation (TASK-093 plays `formation_moved` as a counter sliding along `path`).
+- The front line (TASK-093c); battles on contact (TASK-094).
 
 ## Implementation notes
 

@@ -1,8 +1,8 @@
 # TASK-116: Borders in movement and battle – closed countries in routes and orders, sanctuary breach and casus belli while orders execute, route incident forecast, the border rule for contact battles and retreats
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`)
-- **Depends on**: TASK-115, TASK-094, TASK-095 (re-ordered 2026-11-01: the loop first – this task adds the border rule to the finished contact and retreat rules; TASK-092e via TASK-094)
+- **Layers**: core (`src/core/operational/`) + presentation (warnings in the preview, toasts)
+- **Depends on**: TASK-115, TASK-094, TASK-095, TASK-092d (re-ordered 2026-11-01: the loop first – this task adds the border rule to the finished contact and retreat rules; TASK-092e via TASK-094)
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -47,17 +47,27 @@ Real operation and performance:
 - [ ] Operational replay test of TASK-092e extended with one breach and one casus belli: identical snapshot and events after decode + replay; no `rng` draws.
 - [ ] docs/ARCHITECTURE.md: closed hexes in `OperationalRoutes`, `closed_country` (order rejection and interruption), incidents in the execution step, `route_incidents`, the border check in `ContactRules.battle_allowed` and in retreat; "Operational events": `casus_belli_gained`.
 
+View (borders in the route preview, orders and execution):
+
+- [ ] The **route preview** (TASK-092c) and the order arrow (TASK-092d) show closed countries as unreachable (red cross with the reason `closed_country` and the country's name) and draw a **warning marker** at the first hex of each incident in `route_incidents` – sanctuary breach (+1 escalation) and casus belli (launching out of an aligned country) – with a label ("Enters Russia: escalation +1", "NATO attacks out of Lithuania: casus belli for Russia", "This ends the operation" at the threshold). Clicking such a hex asks for a one-key **confirmation** (Enter/Esc) before the order is issued.
+- [ ] While orders execute (TASK-092e) an incident shows a toast and updates the turn-bar level (TASK-115) and the tints (TASK-114); an order interrupted by `closed_country` appears in the turn report with its reason.
+- [ ] A contact that the border rule forbids (formation in a country closed to the attacker) shows in the turn report as "halted – cannot attack into <country>"; a beaten formation's retreat arrow never points into a closed hex (visible in the after-action report of TASK-095).
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093 / TASK-119 draw closed countries and route warnings). The agent lists in the implementation notes the scripted `suwalki_gap` run of TASK-092e again, now with borders: which orders were rejected as `closed_country`, which formations crossed from Belarus into Poland (casus belli) – so the human can judge whether the start layout still makes sense.
+1. **Operation**, NATO: select a Polish battalion near the Kaliningrad border and hover a hex inside the oblast: a red cross "Russia – closed (sanctuary until Open war)". Hover a hex in Belarus: "Belarus – hostile, closed".
+2. F9 (`--debug`) raise to Open war, hover the same Kaliningrad hex: a route appears with a warning at the border hex "Enters Russia: escalation +1"; click it: a confirmation; confirm and end turns – when the formation crosses, a toast and the level goes up.
+3. As Russia (`--side=russia`) order a Belarus battalion to attack from Belarus into Poland while Belarus is only aligned: the preview warns "casus belli for NATO against Belarus"; after the crossing the Belarus tint changes accordingly.
+4. Send an advancing Polish battalion next to a Russian one inside the closed oblast: it halts, the report says it may not attack into Russia, no battle starts.
+5. Judge whether the start layout and these warnings make sense (scripted run in the implementation notes).
 
 ## Player manual
 
-None yet – not visible before TASK-093 / TASK-119. The politics chapter will describe: formations never enter a neutral or hostile country (orders there are refused), Russian soil opens at Open war and the first entry raises the escalation by one, attacking out of an aligned country gives the enemy a casus belli against it, and the route preview warns about both. The operational chapter's battle section (TASK-094 / TASK-095) gains: no battle is fought against a formation standing in a country closed to the attacker (it still stops your advance next to it), and a beaten formation never retreats into a closed country.
+Section in the "Politics" chapter (started by TASK-113) – formations never enter a neutral or hostile country (orders there are refused), Russian soil opens at Open war and the first entry raises the escalation by one, attacking out of an aligned country gives the enemy a casus belli against it, and the route preview warns about both. The operational chapter's battle section (TASK-094 / TASK-095) gains: no battle is fought against a formation standing in a country closed to the attacker (it still stops your advance next to it), and a beaten formation never retreats into a closed country.
 
 ## Out of scope
 
-- The decisions that open a country (TASK-117), allied formations joining (TASK-118), strikes (TASK-097 calls `on_strike`), supply through countries (TASK-096), AI use of `route_incidents` (TASK-102). The contact rule and retreat themselves are TASK-094 / TASK-095; this task only adds the border checks to them.
+- The decisions that open a country (TASK-117), allied formations joining (TASK-118), strikes (TASK-097 calls `on_strike`), supply through countries (TASK-096), AI use of `route_incidents` (TASK-102). The political decisions' own panel (TASK-117); the contact rule and retreat themselves are TASK-094 / TASK-095; this task only adds the border checks to them.
 
 ## Implementation notes
 

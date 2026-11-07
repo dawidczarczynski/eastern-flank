@@ -1,7 +1,7 @@
 # TASK-122: Outside support – strike means as package effects (Chinese missile components, Iranian drones, allied cruise missiles) added to the side's strike stock
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stock line in the Support tab)
 - **Depends on**: TASK-121, TASK-097
 - **Model**: sonnet
 - **Topic**: Two-layer game
@@ -23,13 +23,20 @@ Contract with TASK-097 (must exist there; if TASK-097 did not build it, add it h
 - [ ] No `rng` draws in the delivery (test: `rng_state` unchanged by a means delivery).
 - [ ] docs/ARCHITECTURE.md: means grants in "Two layers"; `support_delivered.means`.
 
+View (strike means in the Support tab, TASK-121):
+
+- [ ] The Support tab shows a **Strike means** line per side stock (cruise / ballistic / drones counts from `StrikeRules`), updated on delivery; a package that delivers means shows what and when ("Iranian drones: 12 in 2 turns"); a **delivery toast** when means arrive; a withdrawn Chinese package is marked with the reason ("withdrawn – Russia above Open war") and a toast. The stock is the same number the strike view (TASK-101) offers.
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-101 / TASK-119). The agent lists in the implementation notes a scripted `suwalki_gap` line where Russia requests both Chinese and Iranian support, NATO answers with allied strike means, and Russia then escalates to *Regional war* and loses the Chinese delivery – stocks per side after each step.
+1. As Russia (`--side=russia`, `--debug` for the level): press D → Support: request Chinese and Iranian support; the Strike means line shows the pending deliveries and their delays.
+2. End turns: delivery toasts, the stock rises. Raise the level above Open war: the Chinese package shows "withdrawn" with the reason and a toast.
+3. As NATO: after Russia's requests the allied cruise missile response appears for free; take it, the NATO stock rises.
+4. Check the stock numbers against the implementation-notes script.
 
 ## Player manual
 
-None yet. The politics chapter (TASK-119) and the deep strike chapter (TASK-101) will say: which supporters send weapons, how many of which strike means arrive after how many turns, that China delivers only while Russia keeps the war at *Open war* or below and has caused at most one net escalation step, and that NATO can answer with allied cruise missiles for free.
+Section in the "Politics" chapter (started by TASK-113) – the politics chapter (TASK-119) and the deep strike chapter (TASK-101) will say: which supporters send weapons, how many of which strike means arrive after how many turns, that China delivers only while Russia keeps the war at *Open war* or below and has caused at most one net escalation step, and that NATO can answer with allied cruise missiles for free.
 
 ## Out of scope
 

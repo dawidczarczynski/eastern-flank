@@ -1,7 +1,7 @@
 # TASK-121: Outside support – off-map supporters, support packages as data, the *Request support* decision, delayed arrival of formations, responses for the other bloc
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (support tab, arrivals)
 - **Depends on**: TASK-117, TASK-118
 - **Model**: sonnet
 - **Topic**: Two-layer game
@@ -58,17 +58,27 @@ Codec, replay, docs:
 - [ ] Operational replay (TASK-117's scripted `suwalki_gap` sequence) extended with one NATO request and one free North Korean response, run until both arrive → decode + replay identical snapshot and events.
 - [ ] docs/ARCHITECTURE.md "Two layers": supporters, packages, `SupportRules`, `RequestSupportCommand` and its rejection codes, delivery in the end-of-turn step; "Operational events": `support_requested`, `support_delivered`, `support_delayed`, `support_withdrawn`; `formation_joined.source`; escalation cause `support_request`.
 
+View (the Support tab of the Decisions panel, TASK-117):
+
+- [ ] A **Support** tab in the Decisions panel lists the viewer side's **supporters** (NATO allies; North Korea, China, Iran for Russia) with status (available / waiting / unavailable + reason), and for each its **packages**: what arrives, where, delay in turns, level band, escalation cost, the condition text. *Request support* is the decision button of that package (same disabled-with-reason and confirmation rules as TASK-117). Another section lists **requests of the other bloc** and the **free responses** they open, as buttons.
+- [ ] **Arrivals on the way** are shown on the map as ghost counters at the entry hex with "in n turns"; when they arrive they become real counters with a toast; a waiting arrival (entry country closed) shows "waiting – Belarus closed" and the casus belli it gives is toasted.
+- [ ] Withdrawn / lost packages show their status with the reason (used by TASK-122).
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-119 shows supporters and packages). The agent lists in the implementation notes two scripted lines on `suwalki_gap` – NATO requests reinforcements at *Limited war* (Russia answers with North Korea for free) and Russia requests North Korea at *Open war* (NATO answers for free, gets a casus belli on Belarus) – with the level, caused counts and arrival turns, so the human can judge the "whoever internationalises first pays" trade.
+1. **Operation** as NATO, `--debug` raise the level to *Limited war*, press **D** → **Support**: NATO allies with the reinforcement package, delay and cost; request it, confirm: the turn bar shows the new level, a ghost counter "in 3 turns" appears at its entry hex.
+2. End turns: after the delay the ghost turns into a real counter with a toast.
+3. Look at the Russian side's tab (`--side=russia`): the response "North Korean troops" is offered **for free** after NATO's request; take it: ghost counters near the Belarus border; with Belarus closed they show "waiting – Belarus closed" and NATO gets a toast about a casus belli on Belarus.
+4. Request Russian support at Open war and check NATO's free response button appears.
+5. Check the two scripted lines of the implementation notes against the "whoever internationalises first pays" trade.
 
 ## Player manual
 
-None yet – not visible before TASK-119. The politics chapter (TASK-119) will describe: the off-map supporters of each side (NATO allies; North Korea, China, Iran) and their status, each package (what arrives, where, after how many turns, from which escalation level, its escalation cost), the *Request support* decision, that a request lets the other side answer for free, that North Korean troops arrive through Belarus (and wait while Belarus is closed, handing NATO a casus belli while Belarus is only aligned).
+Section in the "Politics" chapter (started by TASK-113) – the off-map supporters of each side (NATO allies; North Korea, China, Iran) and their status, each package (what arrives, where, after how many turns, from which escalation level, its escalation cost), the *Request support* decision, that a request lets the other side answer for free, that North Korean troops arrive through Belarus (and wait while Belarus is closed, handing NATO a casus belli while Belarus is only aligned).
 
 ## Out of scope
 
-- Strike means as package effects (TASK-122); AI use of requests (TASK-102); the political panel (TASK-119); supporter factions, rosters and camouflage; events that change packages (TASK-106); supporters as on-map countries with stances.
+- Strike means as package effects (TASK-122); AI use of requests (TASK-102); the read-only politics overview (TASK-119); supporter factions, rosters and camouflage; events that change packages (TASK-106); supporters as on-map countries with stances.
 
 ## Implementation notes
 

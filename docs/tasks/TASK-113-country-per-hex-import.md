@@ -1,8 +1,8 @@
 # TASK-113: Country per hex – importer fills countries from OSM borders, `ImportedMap.country_at`, re-import the theatre
 
 - **Status**: blocked
-- **Layers**: tools (Python, offline) + core (`src/core/data/imported_map.gd`) + data
-- **Depends on**: TASK-092a
+- **Layers**: tools (Python, offline) + core (`src/core/data/imported_map.gd`) + data + presentation (borders on the staff map)
+- **Depends on**: TASK-092a, TASK-093a
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -37,17 +37,25 @@ Docs:
 
 - [ ] ADR 0018 amendment (the TASK-092a section gets a paragraph "Countries"): seed fill, supercover barriers, majority rule, why not Overpass relations (country relations are whole-country multipolygons – far too big to download for a regional map).
 
+View (borders on the staff map, `src/presentation/operational/`):
+
+- [ ] The staff map draws **country borders** as a dash-dot line along the hex edges between hexes of different countries (helper `CountryBorders.edges(grid)` in core, pure, tested on a small hand-made grid: two countries → one polyline; an exclave → a closed ring; deterministic), one faint large **country name** (PL / LT / BY / RU as full names via `tr()`) centred on each country, and the hex card (TASK-093a) gains a **Country** line. Key **B** toggles borders and names (default on). Fine border lines are TASK-112; until then the line follows hex edges.
+- [ ] 60 FPS stays (borders are baked with the map layers, measured and noted).
+
 ## Playtest (for the human)
 
-None in the game. The agent pastes the `country_rows` in the implementation notes next to `terrain_rows`; the human checks against a real map that the Polish–Russian border runs along the oblast's south edge, the Polish–Lithuanian border along the Gap, and Belarus sits in the south-east.
+1. Re-import / load the theatre (offline, as in the implementation notes), start → **Operation**.
+2. A dash-dot line separates Poland from the Kaliningrad oblast along its south edge, Poland from Lithuania along the Gap, Belarus in the south-east; the names Polska / Litwa / Białoruś / Rosja sit faintly over the countries.
+3. Hover hexes on each side of the Gap: the hex card names the country. Press **B**: borders and names disappear, again: back.
+4. Check the Kaliningrad oblast is one closed region and the Gap (Polish–Lithuanian–Belarusian meeting point) looks right against a real map.
 
 ## Player manual
 
-None – not visible before TASK-093 (which draws borders along hex edges between countries and adds the "Operational map" chapter).
+Section "Countries" in the "Operational map" chapter (starts the "Politics" chapter): the four countries, the border line, the B toggle, the Country line on the hex card.
 
 ## Out of scope
 
-- Fine border lines for drawing (TASK-112), stances and rules (TASK-114 …), hex control (who holds enemy hexes – TASK-096 / TASK-107).
+- Fine border lines for drawing (TASK-112), stance tints and rules (TASK-114 …), hex control (who holds enemy hexes – TASK-096 / TASK-107).
 - Countries on tactical maps (no rule needs them in battle).
 
 ## Implementation notes

@@ -1,8 +1,8 @@
 # TASK-117: Political decisions – Escalate, Stand down, Declare hostilities, Invoke alliance, Demand neutrality (commands, one per turn, cooldown, codec)
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-116
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (decisions panel)
+- **Depends on**: TASK-116 (view: TASK-093b)
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -37,17 +37,29 @@ Codec and determinism:
 - [ ] Operational replay: on `Operation.build("suwalki_gap", 7)`, a scripted 4-round sequence with orders and decisions (one Escalate, one rejected Stand down, one Invoke alliance, one Demand neutrality rejected for `troops_present`) → decode + replay → identical snapshot and events; `rng_state` unchanged.
 - [ ] docs/ARCHITECTURE.md: the five commands and their rejection codes; "Operational events": `political_decision_taken`.
 
+View (the decisions panel – moved here from TASK-119 so that every decision is clickable the moment it exists):
+
+- [ ] A **Decisions** panel (key **D**, button in the turn bar) lists the five decisions with the names of the viewer's side (*Invoke alliance* is named per side – NATO "Invoke Article 5", Russia "Invoke the Union State" or the names GDD "Political decisions" gives), each with its escalation cost / effect text, a target picker where needed (a country or a side), and a **disabled state with the reason** (not your turn, one decision already taken this turn, standing down, threshold, no casus belli, Lithuania refuses ultimatums …). A decision that would raise the level asks for a confirmation showing the new level; one that would reach the threshold says so in red.
+- [ ] The panel shows the **decision budget** (one per turn) and the **cooldown** after standing down as a counter. Taking a decision issues the command, shows the resulting toasts (TASK-115) and the tint changes (TASK-114); an invalid state never lets the button through (test on the panel's view-model).
+- [ ] The decisions are also in the order of battle of events: a decision log line per decision in the turn report (TASK-092e).
+- [ ] The debug panel's raise / lower (TASK-115) stays; the real decisions replace it for play.
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-119 adds the political panel). The agent describes in the implementation notes four short scripted lines on `suwalki_gap` (NATO keeps Belarus out with an ultimatum after the Belarus group crosses; NATO attacks Kaliningrad after escalating; Russia invokes Belarus; Russia declares hostilities on Lithuania after NATO launched out of it) with the level, stances and caused counts after each step, so the human can judge whether the trade-offs in GDD "Strategic options" come out as designed.
+1. **Operation** as NATO, press **D**: five decisions. *Escalate* shows "level 1 → 2", *Stand down* is disabled ("level is already the lowest"), *Invoke Article 5* is disabled with the reason.
+2. Press *Escalate*, confirm: the turn bar goes to level 2, the other decisions become disabled ("one decision per turn"); end the turn: available again next turn.
+3. *Declare hostilities* on a country you have a casus belli against (after TASK-116's incident, or via the debug panel): free, the tint of that country changes.
+4. Take *Stand down*: the level drops, the cooldown shows 2 turns and *Escalate* is disabled with that reason.
+5. Switch to Russia (`--side=russia`): the panel uses Russia's names and Russia's options (*Invoke the Union State* → Belarus).
+6. Check the four scripted lines of the implementation notes against GDD "Strategic options" (ultimatum after the Belarus crossing, attack on Kaliningrad after escalating, …).
 
 ## Player manual
 
-None yet – not visible before TASK-119. The politics chapter will describe the five decisions for both sides (with each side's name for *Invoke alliance*), when each is available (the reasons shown when not, incl. that Lithuania refuses ultimatums), their effects and escalation cost, one decision per turn, and the 2-turn cooldown after standing down.
+Section in the "Politics" chapter (started by TASK-113) – the five decisions for both sides (with each side's name for *Invoke alliance*), when each is available (the reasons shown when not, incl. that Lithuania refuses ultimatums), their effects and escalation cost, one decision per turn, and the 2-turn cooldown after standing down.
 
 ## Out of scope
 
-- The political panel and confirmations (TASK-119); allied formations entering play (TASK-118 – triggered by `set_stance` automatically); decisions by the AI (TASK-102); *Request support* (TASK-121 – uses this task's decision budget, `standing_down` and `threshold` checks); further decisions such as "guarantee neutrality", "request access" or peace offers (GDD open question "Political layer v1"; TASK-106 events); victory points for escalation (TASK-107).
+- The read-only politics overview (ladder table, countries list, event log – TASK-119); allied formations entering play (TASK-118 – triggered by `set_stance` automatically); decisions by the AI (TASK-102); *Request support* (TASK-121 – uses this task's decision budget, `standing_down` and `threshold` checks); further decisions such as "guarantee neutrality", "request access" or peace offers (GDD open question "Political layer v1"; TASK-106 events); victory points for escalation (TASK-107).
 
 ## Implementation notes
 

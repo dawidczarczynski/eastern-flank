@@ -1,8 +1,8 @@
 # TASK-092d: Formation orders – postures as data, issue / cancel order, set posture (commands, codec, snapshot)
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-092c
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (order arrows, posture picker)
+- **Depends on**: TASK-092c, TASK-093b
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -45,18 +45,30 @@ Codec and docs:
 - [ ] `OperationalCommandCodec`: round trip of all three commands; null for a non-string `formation_id` or `posture`, a `destination` that is not two integral numbers, a missing field. An unknown posture string decodes (the command rejects it in `validate`), like unknown ids elsewhere.
 - [ ] docs/ARCHITECTURE.md: "Operational events" gets `formation_order_issued`, `formation_order_cancelled`, `formation_posture_changed`; "Two layers" names `OperationalPosture`, `FormationOrder` and the three commands.
 
+View (giving and cancelling orders on the staff map):
+
+- [ ] With a formation selected, a **left click on a hex** (Move mode, default for the side to play) sends `IssueOrderCommand` with the posture shown in the picker; the preview of TASK-092c becomes the order: a route arrow with per-turn stop ticks stays drawn after deselecting. Only the **side to play's** formations can be ordered (the other side's panel shows its orders read-only); a rejected command shows its reason in a toast.
+- [ ] Posture picker in the formation panel (keys **1 march / 2 advance / 3 defend**, also changeable on an existing order via `SetPostureCommand`); arrow style per posture (march dashed, advance solid, defend ending in a defence arc); the forecast ticks and "n turns" label update at once when the posture changes. The preview paces of TASK-092c are replaced by the posture numbers (one source of truth).
+- [ ] **Delete / X** cancels the selected formation's order (`CancelOrderCommand`); orders of all formations of the side stay drawn (own side full, enemy orders hidden – fog is TASK-100 – **[ASSUMPTION]**).
+- [ ] The staff map restores the arrows from the state alone (scene rebuilt mid-game shows the same orders – test on the controller).
+- [ ] Translations for postures and rejection reasons.
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093). Review the posture numbers (GDD "Orders and postures").
+1. Select a Polish battalion, click a far hex: a dashed arrow (march) with ticks 1…n appears and stays after you deselect.
+2. Press 2: the arrow turns solid and the tick count rises (advance is slower, 6 points); press 3: it ends in a defence arc, slower still.
+3. Give orders to three formations; select none: all three arrows are visible. Order a formation of the other side: refused with a reason (or read-only).
+4. Select a formation and press Delete: the arrow disappears.
+5. Order to a lake / occupied hex: a clear refusal message.
 
 ## Player manual
 
-None yet – not reachable before TASK-093. TASK-093's "Operational map" chapter will describe giving an order (destination + posture), the three postures with their pace (march 8, advance 6, defend 4 move points per turn for 8-point formations) and contact behaviour, changing posture, cancelling an order, and the per-turn stops shown on the route.
+Section "Orders": giving an order (destination + posture), the three postures with their pace (march 8, advance 6, defend 4 move points per turn for 8-point formations) and contact behaviour, changing posture, cancelling an order, the per-turn stops on the route.
 
 ## Out of scope
 
 - Executing orders (TASK-092e); battle effects of postures (TASK-094); a `delay` posture (needs retreat rules – TASK-095, GDD open question); waypoints or several queued orders per formation.
-- Any view (TASK-093); operational AI (TASK-102).
+- Operational AI (TASK-102); the orders do nothing until the turn ends (TASK-092e).
 
 ## Implementation notes
 

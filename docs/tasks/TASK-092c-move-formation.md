@@ -1,8 +1,8 @@
-# TASK-092c: Operational routes – step costs as data, route planner, one turn's walk, per-turn forecast (pure)
+# TASK-092c: Operational routes on the map – step costs as data, route planner, one turn's walk, per-turn forecast, route preview
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-092b
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (route preview)
+- **Depends on**: TASK-092b (view: TASK-093a)
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -46,19 +46,30 @@ Real map:
 - [ ] Speed on the theatre map (68 × 64 = 4 352 hexes, added 2026-11-01 with the bigger map): `plan` across the map (a formation near one corner to a land hex near the opposite corner, `avoid_contact` false) ≤ **30 ms** median of 5 headless (test with a generous CI margin, e.g. fails above 90 ms; the measured value goes into the implementation notes next to TASK-092a's `HexGrid.path_to` baseline). `HexGrid._search` uses a linear minimum search over the frontier; if that misses the budget, use a bucket queue (step costs are small integers) or a binary heap that keeps the same tie rule – the tie-breaking test above must stay green.
 - [ ] docs/ARCHITECTURE.md "Two layers": `OperationalMovement` and `OperationalRoutes` (plan / walk / forecast, the ZOC and first-step rules).
 
+View (route preview on the staff map – no order is given yet, TASK-092d turns the preview into orders):
+
+- [ ] With a formation selected (TASK-092b panel), moving the cursor over a hex shows the planned route from `plan` as a line along the hex centres with a tick at every per-turn stop from `forecast` (numbered 1, 2, 3 … = "after your turn n"), and a label at the cursor: total cost, number of turns, and the stop reason of the last walk (`arrived` / `contact`). Unreachable hexes (water, enemy, no route) show a red cross and the reason. Hover is debounced so scanning the map never drops below 60 FPS (the 4 352-hex speed criterion above applies; measured and noted).
+- [ ] Preview paces: keys **1 / 2 / 3** switch the preview between the three paces listed in `data/operational/movement.tres` (`preview_paces`: id, budget, `avoid_contact` – 8 / avoid, 6 / enter, 4 / avoid; TASK-092d replaces them with postures read from the same numbers). The panel shows the active pace and the formation's budget.
+- [ ] The preview is read-only: the state, snapshot and history are identical before and after (test on the controller: hover and key presses create no command).
+- [ ] Translations for all labels.
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093). The agent lists in the implementation notes the `forecast` of a Polish battalion from Suwałki to Budzisko (S61 / DK8) with budgets 8, 6 and 4 (the three postures of TASK-092d) and the same distance across country, with place names, so the human can judge the pace (1 turn ≈ 12 h).
+1. **Operation**, click a Polish battalion in the Gap (Suwałki).
+2. Move the cursor east along the road towards Budzisko: a line follows the road, ticks `1`, `2` mark where the battalion stands after each of its turns; the label shows the cost and the number of turns. The same distance across forest / marsh costs visibly more turns.
+3. Hover a lake or a Russian counter: a red cross with the reason. Hover a hex next to a Russian formation with pace 2 (advance): the route ends there with "contact"; with pace 1 (march) the route goes around the enemy's zone of control.
+4. Press 1 / 2 / 3: the number of turns changes (8 / 6 / 4 points per turn).
+5. Move fast over the whole map: no stutter.
 
 ## Player manual
 
-None yet – not reachable by the player before TASK-093. TASK-093's "Operational map" chapter will describe: step costs (road 1, open ground and towns 2, forest and hills 3, marsh 4, river without a bridge +2, lakes impassable), one formation per hex (own formations can be passed), the zone of control (an advancing formation stops when it comes next to an enemy; marching and defending formations plan their route around enemies), the one-hex-per-turn minimum, and that unused points are lost.
+Section "Routes": step costs (road 1, open ground and towns 2, forest and hills 3, marsh 4, river without a bridge +2, lakes impassable), one formation per hex (own formations can be passed), the zone of control (an advancing formation stops next to an enemy; marching and defending formations plan around enemies), the one-hex-per-turn minimum, unused points are lost, how to read the route preview.
 
 ## Out of scope
 
 - Orders, postures, commands (TASK-092d); executing orders and their events (TASK-092e).
 - What adjacency to an enemy causes (contact → battle, TASK-094); supply and readiness effects (TASK-096, TASK-095); fog – planning on known enemies only (TASK-100); operational AI (TASK-102).
-- Any view (TASK-093).
+- Giving orders (TASK-092d); the preview creates no command.
 
 ## Implementation notes
 

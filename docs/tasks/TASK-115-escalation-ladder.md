@@ -1,8 +1,8 @@
 # TASK-115: Escalation ladder – shared level as data, raise / lower with attribution, ROE by target class, sanctuary gate, allies join at Regional war, calm decay, threshold ends the operation
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-114, TASK-094 (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (level in the turn bar, notices, end screen)
+- **Depends on**: TASK-114, TASK-094, TASK-093b (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -42,17 +42,28 @@ Docs:
 
 - [ ] docs/ARCHITECTURE.md "Two layers": `EscalationLadder`, `EscalationRules` (raise / lower with attribution, joining at the level, threshold, calm at the round boundary, sanctuary gate, ROE); "Operational events": `escalation_changed` (causes: `decision`, `declaration`, `alliance`, `sanctuary_breach`, `urban_strike`, `stand_down`, `calm`; TASK-121 adds `support_request`), `sanctuary_breached`, `operation_ended`; the `operation_over` rejection.
 
+View (the level on the staff map):
+
+- [ ] The **turn bar** (TASK-093b) shows the escalation level: number and name (e.g. `2 · Limited war`), colour rising from calm to red, five ticks. Hover/click opens a **ladder card** with the five levels, the current one marked, and the ROE of each (what may be struck) and sanctuary / allies markers – read-only, from the data.
+- [ ] Every change shows a **toast** with the cause and the side that caused it ("Open war – NATO entered Russian soil"), including calm decay at the start of a turn ("Calm: level 2 → 1"). When the level reaches **Regional war** the allies' stance change is visible through the tints (TASK-114) and the toast says who joined.
+- [ ] Reaching the top level ends the operation: a full-screen **end notice** names the side that caused it and the outcome (the causer loses), the pending battles are dropped, the staff map goes read-only (End turn / orders disabled with the reason), and a button returns to the menu. Scene-level smoke test: raising to the threshold via the state shows the end notice and disables End turn.
+- [ ] the debug politics panel (**F9**, only with `--debug` – introduced in TASK-114; every action in it goes through the same commands / functions as the real decisions, so it is a test handle, not a rule) gains **Raise / Lower** buttons (attributed to a chosen side) so every effect above can be reached without waiting for movement (TASK-116) or decisions (TASK-117).
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093 shows the level in the turn bar, TASK-119 the ladder). Review the level table and numbers in GDD "Escalation ladder".
+1. **Operation** (`--debug`): the turn bar shows `1 · Tension` (or the first level's name from the data) with five ticks; click it: the ladder card lists the five levels and what may be struck at each.
+2. F9 → Raise as NATO: toast "… raised by NATO", the bar changes colour; raise to Open war: the Russian-soil tint stops being hatched (sanctuary open); raise to Regional war: Lithuania and Belarus change tint (allies join).
+3. End turns without raising: after 3 quiet rounds a toast reports the calm decay and the level drops by one.
+4. Raise to the top: the end screen "Operation over – NATO caused the strategic threshold – defeat" appears, End turn is disabled, **Back to menu** works.
+5. Review the level table and numbers in GDD "Escalation ladder".
 
 ## Player manual
 
-None yet – not visible before TASK-093 / TASK-119. The politics chapter (TASK-119) will describe: the five levels with their names and what may be struck at each, that the level is shared, what raises it (decisions, breaching Russian soil, striking towns) and lowers it (standing down, 3 quiet rounds back to the start level), that allies join automatically at Regional war, and that the side whose action reaches the Strategic threshold loses the operation at once.
+Section in the "Politics" chapter (started by TASK-113) – the five levels with their names and what may be struck at each, that the level is shared, what raises it (decisions, breaching Russian soil, striking towns) and lowers it (standing down, 3 quiet rounds back to the start level), that allies join automatically at Regional war, and that the side whose action reaches the Strategic threshold loses the operation at once.
 
 ## Out of scope
 
-- Breach and casus belli detection in movement, closed hexes in routes (TASK-116); the player's decisions (TASK-117); allied formations entering play (TASK-118 – hooks into `set_stance`); the strikes themselves (TASK-097); scoring by escalation (TASK-107); political events (TASK-106).
+- Breach and casus belli detection in movement, closed hexes in routes (TASK-116); the player's decisions (TASK-117); allied formations entering play (TASK-118 – hooks into `set_stance`); the strikes themselves (TASK-097); the decisions that raise or lower the level for the player (TASK-117 – until then the debug panel); scoring by escalation (TASK-107); political events (TASK-106).
 
 ## Implementation notes
 

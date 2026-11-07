@@ -1,14 +1,14 @@
-# TASK-092b: Operational state – formations as data, the Suwałki Gap operation, operational turns
+# TASK-092b: Formations on the staff map – operational state, formations as data, the Suwałki Gap operation, APP-6 counters, selection panel
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-092a, TASK-086
-- **Model**: opus (new simulation facade, state snapshot and RNG stream every later operational task builds on)
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (counters, panel)
+- **Depends on**: TASK-092a, TASK-086, TASK-093a
+- **Model**: opus (new simulation facade, state snapshot and RNG stream every later operational task builds on; plus the first view of it)
 - **Topic**: Two-layer game
 
 ## Goal
 
-The operation exists as a deterministic state: named battalions made of real companies stand on the real Suwałki theatre map (`suwalki_theatre`, 68 × 64 hexes – TASK-092a) and the two sides take operational turns (GDD "Operational layer" → "Formations", "Operational turns"). Formations never move step by step: they get multi-turn orders – route planning is TASK-092c, orders and postures TASK-092d, order execution at the end of a turn TASK-092e (human decision 2026-11-01).
+The operation exists as a deterministic state: named battalions made of real companies stand on the real Suwałki theatre map (`suwalki_theatre`, 68 × 64 hexes – TASK-092a) and the two sides take operational turns (GDD "Operational layer" → "Formations", "Operational turns"). The human **sees** them: NATO APP-6 counters stand on the staff map (TASK-093a) at their real start positions and clicking one opens its order of battle. Formations never move step by step: they get multi-turn orders – route planning is TASK-092c, orders and postures TASK-092d, order execution at the end of a turn TASK-092e (human decision 2026-11-01).
 
 ## Acceptance criteria (testable)
 
@@ -33,29 +33,37 @@ Building (`Operation`):
 - [ ] **The human's side is not part of the operation**: `Operation.build` / `from_definition` take no human-side parameter and the state stores none (the choice lives in the session and `CampaignRecord` – TASK-094 / TASK-107), so the state, its snapshot and a replay are identical whichever side the human plays. Nothing in `src/core/operational/` compares a side or faction id with a literal (`nato`, `russia`, `poland`) – a test greps for those literals.
 - [ ] `OperationalState`: `operation_id`, `grid`, `player_sides` (side ids by player), `player_factions` (each side's `lead_faction`), `first_player`, `current_player` (= `first_player`), `turn` (1), `formations`, `rng` (seeded with the campaign seed; nothing draws from it yet), `pending_battles: Array[BattleSetup]` (empty; filled by TASK-094), `get_formation(id)`, `formation_at(coord)`, `snapshot()` → `{turn, current_player, rng_state (String), formations: [{id, player, coord: [q, r], companies: [[unit_type, strength], ...]}] sorted by id}`. Static data (definitions, map) is not in the snapshot. There is no `moves_left`: move points are spent automatically when orders execute (TASK-092e), so nothing carries between turns. TASK-092d adds `posture` and `order` to `Formation` and to each snapshot entry – keep the snapshot built in one place so it can grow.
 
-Operational turns (`EndOperationalTurnCommand`, `{"type": "end_operational_turn"}`):
+Determinism and docs:
 
-- [ ] Rejected with `battle_pending` while `pending_battles` is not empty (test: append a `BattleSetup` by hand).
-- [ ] Apply: event `operational_turn_ended` (`player`), the other player becomes current, `turn` + 1 when the new current player is `first_player`, then event `operational_turn_started` (`player`, `turn`). Keep the apply as small steps (e.g. a private `_switch_side`) – TASK-092e inserts order execution before `operational_turn_ended`.
-- [ ] Example (test, `first_player` 1): start turn 1 / player 1 → end → turn 1 / player 0 → end → turn 2 / player 1; events in that order with these fields.
-- [ ] Codec round trip: `OperationalCommandCodec.from_dict(cmd.to_dict())` gives an equal command; `{"type": "end_turn"}` (the tactical type), a missing or unknown `type` → null.
-- [ ] Determinism: `Operation.build("suwalki_gap", 7).snapshot()` equals a second build with seed 7; seeds 7 and 8 differ only in `rng_state`.
-- [ ] docs/ARCHITECTURE.md: "Two layers" names the new classes and data; a new table "Operational events" lists `operational_turn_ended` and `operational_turn_started`.
+- [ ] `Operation.build("suwalki_gap", 7).snapshot()` equals a second build with seed 7; seeds 7 and 8 differ only in `rng_state`. `OperationalCommandCodec.from_dict` returns null for any unknown or malformed dictionary (no command exists yet – 093b adds the first; test the null cases).
+- [ ] docs/ARCHITECTURE.md: "Two layers" names the new classes and data (the "Operational events" table is created by TASK-093b).
+
+View (counters and selection, `src/presentation/operational/`):
+
+- [ ] `OperationalSimulation` is created by the staff map scene (`Operation.build("suwalki_gap", seed)`), the scene reads state and reacts to `event_emitted` only (rule 3). The view takes a `viewer_player` parameter (0 = first side listed, 1 = second; `--side=nato|russia` override, default NATO **[ASSUMPTION]**); frames are friendly (blue rectangle) / hostile (red diamond) relative to it. TASK-093b makes the viewer follow turns.
+- [ ] Counters: NATO APP-6 style – frame, branch icon by `formation_class` (mechanised infantry, armour, rocket artillery), echelon mark `II` above, short designation beside (e.g. `1/15`), a small strength bar (current / max). Drawn flat on the map at a fixed pixel size (readable at full zoom-out, not scaled with the map), one per formation at its hex centre, declutter when two sit within a few pixels (stack with a count; the agent documents the rule).
+- [ ] Click a counter: selection ring and a **formation panel** (HUD v3 style): name, parent, type, strength, the companies list with `ref`, unit type and strength bar. Click empty map or Esc deselects. Enemy formations can be inspected (v0: full information, fog is TASK-100) but the panel marks them hostile.
+- [ ] Hover: a counter highlights; the hex card of TASK-093a still works.
+- [ ] Translations for formation names, parents, panel labels (`tr()`); `test_localization.gd` green.
+- [ ] A scene-level smoke test (like the existing presentation tests) builds the staff map with the shipped operation and asserts one counter node per formation and that selecting one fills the panel.
 
 ## Playtest (for the human)
 
-None – no view yet (TASK-093). Review the order of battle and the start positions listed in the implementation notes.
+1. Start → **Operation**. Counters appear: eight blue ones in Poland (two near Bartoszyce / Braniewo, three in the Gap, three near Białystok) and ten red ones in Kaliningrad and Belarus.
+2. Zoom in on Suwałki: a mechanised battalion shows a frame, the mechanised-infantry icon, `II`, a designation and a full strength bar.
+3. Click a Polish battalion: the panel lists its four companies (three infantry, one Abrams) with strengths and total 40; click a Russian one: marked hostile.
+4. Start with `--side=russia`: colours swap (your formations are blue-framed, NATO's red).
+5. Check that every counter stands on land and that the start positions make sense on the map (details in the implementation notes).
 
 ## Player manual
 
-None – not visible to the player before TASK-093. TASK-093 describes formations (types, companies, strength) and operational turns from GDD "Operational layer". The `move_points` field stays: it is the per-turn budget that postures scale (TASK-092d / 092e).
+Section "Formations" in the "Operational map" chapter (TASK-093a): what a counter shows, the six formation types with their companies and strength, reading the panel.
 
 ## Out of scope
 
-- Route planning (TASK-092c), orders and postures (TASK-092d), executing orders (TASK-092e), contact and battles (TASK-094), losses (TASK-095), the view (TASK-093), operational AI (TASK-102), end of the operation (TASK-107).
+- Operational turns and End turn (TASK-093b), route planning (TASK-092c), orders and postures (TASK-092d), executing orders (TASK-092e), contact and battles (TASK-094), losses (TASK-095), operational AI (TASK-102), end of the operation (TASK-107).
 - Countries, stances, escalation and allied formations (TASK-113 … TASK-118): this task places the formations by coordinates only.
 - `CampaignRecord` and the `Session` autoload (TASK-094).
-- Translation rows for formation names: added when TASK-093 shows them (unless `test_localization.gd` already requires them for `data/` strings – then add them here).
 
 ## Implementation notes
 

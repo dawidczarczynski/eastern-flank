@@ -1,8 +1,8 @@
 # TASK-118: Allied contributions – a country that goes to war on its leaning side brings its formations (data per operation)
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-114
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (allied counters, arrival notice)
+- **Depends on**: TASK-114, TASK-092b
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -26,13 +26,22 @@ Joining (hooked into `CountryRules.set_stance` – the one change point of TASK-
 - [ ] No `rng` draws.
 - [ ] docs/ARCHITECTURE.md: contributions in "Two layers"; "Operational events": `formation_joined`, `formation_join_failed`.
 
+View (allies appear on the map):
+
+- [ ] On `formation_joined` the staff map shows a **notice** ("Lithuania joins NATO – 3 formations", with a *Show* button that centres the map on them) and the new counters appear with a short pulse; they are ordinary counters with a small country tag, selectable like any other (panel shows the formation's country of origin). They obey orders (TASK-092d) from the turn after they appear.
+- [ ] A scene smoke test: setting Lithuania to belligerent on NATO's side through the state adds three counters to the scene, none appear for a country that stays neutral.
+
 ## Playtest (for the human)
 
-None – no view yet. Review the allies' order of battle in GDD "Formations" (Lithuania 120, Belarus 110 against Poland 276 / Russia 332).
+1. **Operation** as NATO (`--debug`): note the count of blue counters (8 Polish).
+2. F9 → set Lithuania belligerent on NATO's side (or play *Invoke Article 5* once TASK-117 exists): the notice "Lithuania joins NATO – 3 formations" appears; *Show* centres on them; 3 blue counters stand on Lithuanian soil near the Gap.
+3. Click one: panel shows its companies and "Lithuania". Order it somewhere: the route preview works as for Polish battalions.
+4. Do the same for Belarus on Russia's side (red counters near Grodno).
+5. Review the allies' order of battle in GDD "Formations" (Lithuania 120, Belarus 110 against Poland 276 / Russia 332).
 
 ## Player manual
 
-None yet – not visible before TASK-093 / TASK-119. The politics chapter will say which allies can join, with how many formations, and when (invoked alliance, a declaration against them, the Regional war level).
+Section in the "Politics" chapter (started by TASK-113) – which allies can join, with how many formations, and when (invoked alliance, a declaration against them, the Regional war level).
 
 ## Out of scope
 

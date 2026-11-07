@@ -543,7 +543,7 @@ The design goal: attacking Kaliningrad or Belarus, or keeping them out, is a **t
 
 The core dilemmas: the **sanctuary** (strike the source or respect the border), the **ally's army vs. a new front** (invoking an ally adds formations but turns its soil into a battlefield), the **casus belli** (using an aligned country as a launch pad makes it fair game), the **threshold** (every step brings a ruinous defeat closer for whoever takes the last one) and **internationalising the war** (outside help arrives late, and whoever brings it in first pays, while the other bloc answers for free).
 
-### Operational map view (TASK-093, planned)
+### Operational map view (TASK-093a / 092b / 093b / 092c–e / 093c, planned)
 
 Deliberately unlike the 3D battle scene – a **paper staff map**, the leader's map (head of government + chief of the general staff, "Player roles") **[ASSUMPTION – details for the human to confirm]**. Built **before** TASK-094 as v0 without politics (recommended 2026-11-01 **[ASSUMPTION]**, see BACKLOG "Two-layer game"): the loop must be visible to the human when it closes, and TASK-094's contact notice and scene change live in this scene. Country borders, stance tints and the escalation level come later with the political layer (TASK-119, data from TASK-112 / TASK-113).
 

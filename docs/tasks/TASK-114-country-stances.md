@@ -1,8 +1,8 @@
 # TASK-114: Countries and stances in the operational state – data, per-hex country, player-relative relation, open / closed hexes, legal stance changes
 
 - **Status**: blocked
-- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data
-- **Depends on**: TASK-113, TASK-092b
+- **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stance tints, country card, debug panel)
+- **Depends on**: TASK-113, TASK-092b, TASK-093b
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
@@ -38,13 +38,24 @@ Docs:
 - [ ] docs/ARCHITECTURE.md "Two layers": `CountryDefinition`, `CountrySetup`, `CountryState`, `CountryRules` (relation, may_enter, may_strike, set_stance as the single change point); "Operational events": `country_stance_changed`.
 - [ ] ADR (next free number – 0020 today): "Political state in the operational layer" – countries as data, stances and flags in `OperationalState`, every change through `CountryRules.set_stance` (later the trigger point for the ladder's reactions and allied formations), player-relative relations computed, never stored.
 
+View (stances on the staff map):
+
+- [ ] Each country is tinted by its stance **seen from the viewer's side** (own / hostile / enemy / neutral – four colours from the palette resource; closed countries (not open to the viewer) are hatched). Key **P** toggles the political tint (default on). Recomputed on `stance_changed` and when the viewer changes.
+- [ ] Clicking a country's name (or the Country line of the hex card) opens a **country card**: name, stance seen from the viewer, leaning, sanctuary yes / no, and what it allows the viewer – *may enter*, *may strike* – each with the reason when not (e.g. "hostile to you", "sanctuary until Open war").
+- [ ] the debug politics panel (**F9**, only with `--debug` – introduced in TASK-114; every action in it goes through the same commands / functions as the real decisions, so it is a test handle, not a rule): a list of countries with a stance dropdown that calls `set_stance` (illegal transitions are refused with the rule's reason, shown in a toast). Stances are never changed anywhere else in this task.
+- [ ] Switching the viewer (TASK-093b) swaps own / hostile tints (test on the helper `StanceTint.for_viewer(state, player)`).
+
 ## Playtest (for the human)
 
-None – no view yet (TASK-093). Review the start stances in GDD "Countries and stances".
+1. **Operation**, start stances: Poland tinted own (blue), Russia hostile (red), Lithuania aligned with NATO (light blue), Belarus aligned with Russia (light red), exactly as in GDD "Countries and stances" – re-read the table and judge.
+2. Click "Lithuania": the card says aligned, leans NATO, may enter yes for you, may strike yes. Click "Russia" as NATO: sanctuary, may enter no, "sanctuary until Open war".
+3. Switch the viewer to Russia (`--side=russia`): the tints swap, Poland and Russia exchange roles, Belarus is now *aligned with you*.
+4. Start with `--debug`, press F9: set Belarus to belligerent on Russia's side – the tint changes at once; try an illegal change (e.g. back from belligerent to neutral): refusal with a reason.
+5. **P** toggles the tint.
 
 ## Player manual
 
-None yet – not visible before TASK-093 / TASK-119. The manual's politics chapter (written with TASK-119) will describe: each country's stance seen from the player (own / hostile / enemy / neutral) and what it allows (entering, supply, strikes, battles on its soil), that a hostile or neutral country is closed, and that Russian soil is a sanctuary until the war is open or the NATO side has breached it (Polish and Lithuanian soil is not a sanctuary for Russia – the reason is given from GDD "Sides"), each written for both sides.
+Section in the "Politics" chapter (started by TASK-113) – the manual's politics chapter (written with TASK-119) will describe: each country's stance seen from the player (own / hostile / enemy / neutral) and what it allows (entering, supply, strikes, battles on its soil), that a hostile or neutral country is closed, and that Russian soil is a sanctuary until the war is open or the NATO side has breached it (Polish and Lithuanian soil is not a sanctuary for Russia – the reason is given from GDD "Sides"), each written for both sides.
 
 ## Out of scope
 
