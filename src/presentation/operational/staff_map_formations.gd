@@ -27,6 +27,17 @@ static func viewer_relation(owner_id: int, viewer_player: int) -> StringName:
 	return OWN if owner_id == viewer_player else ENEMY
 
 
+## A side keeps its colour whoever views the map (TASK-093b): the first side of the operation
+## (player 0, NATO) is always blue, the second (Russia) always red. Only the shape (rectangle /
+## diamond) and the YOUR / ENEMY labels depend on the viewer.
+static func side_colour(palette: StaffMapPalette, owner_id: int) -> Color:
+	return palette.side_own if owner_id == 0 else palette.side_enemy
+
+
+static func side_ink(palette: StaffMapPalette, owner_id: int) -> Color:
+	return palette.side_own_ink if owner_id == 0 else palette.side_enemy_ink
+
+
 ## Lit segments of the 5-segment gauge: strength / max rounded to the nearest fifth (halves up),
 ## at least one while anything is left: 40 / 30 / 20 / 10 of 40 -> 5 / 4 / 3 / 1.
 static func lit_segments(strength: int, max_strength: int) -> int:

@@ -1,6 +1,6 @@
 # TASK-114: Countries and stances in the operational state – data, per-hex country, player-relative relation, open / closed hexes, legal stance changes
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stance tints, country card, debug panel)
 - **Depends on**: TASK-113, TASK-092b, TASK-093b
 - **Model**: sonnet

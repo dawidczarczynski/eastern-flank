@@ -27,6 +27,7 @@ const LOW_DARKEN := 0.3
 var formation_id: StringName
 var formation_class: StringName
 var relation := StaffMapFormations.OWN
+var owner_id := 0
 var designation := ""
 var strength := 0
 var max_strength := 0
@@ -91,8 +92,9 @@ func setup(formation: Formation, viewer_player: int, palette: StaffMapPalette) -
 	set_strength(formation.strength(), formation.max_strength())
 
 
-func set_viewer(owner_id: int, viewer_player: int) -> void:
-	relation = StaffMapFormations.viewer_relation(owner_id, viewer_player)
+func set_viewer(p_owner_id: int, viewer_player: int) -> void:
+	owner_id = p_owner_id
+	relation = StaffMapFormations.viewer_relation(p_owner_id, viewer_player)
 	queue_redraw()
 
 
@@ -116,7 +118,7 @@ func is_low() -> bool:
 
 ## The side fill as drawn now (state included).
 func fill_colour() -> Color:
-	var colour := _palette.side_own if is_own() else _palette.side_enemy
+	var colour := StaffMapFormations.side_colour(_palette, owner_id)
 	if is_low():
 		colour = colour.lerp(_palette.map_void, LOW_DARKEN)
 	if hovered:
@@ -125,7 +127,7 @@ func fill_colour() -> Color:
 
 
 func ink_colour() -> Color:
-	return _palette.side_own_ink if is_own() else _palette.side_enemy_ink
+	return StaffMapFormations.side_ink(_palette, owner_id)
 
 
 ## True when `local` (relative to the hex centre) hits the frame or the gauge.

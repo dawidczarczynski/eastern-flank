@@ -144,6 +144,15 @@ View-only annotations: `BattleController` adds `view_duration` (seconds) and `vi
 
 Wrecks (TASK-065) are view-only too; no new event types. A vehicle's `unit_died` plays `UnitView.play_death(on_wreck)` over the unchanged `EventQueue.DEATH_DURATION`: flash light, death burst (HIGH), camo shader instance uniform `burnt` 0 -> 1, the model's `Turret` pivot knocked askew (`WreckPlan`: yaw 20-35 deg, tilt 6-10 deg from a hash of the unit id) and launcher pods stowed; at the end `WreckField.adopt` moves the body into a `WreckView` (smoke column + first-turn fire light only with the `particles` quality flag). `WreckLife` (pure) counts `turn_started` events (smoke thins after 1, stops after 3) and hides the wreck when `unit_moved` ends on its tile (`BattleController` relays both to `WreckField`). Infantry leaves no wreck (`WreckPlan.leaves_wreck`). Wrecks have no collision and are not in the units dictionary, so hover and picking (which read `GameState.unit_at`) ignore them.
 
+**Operational events** (`OperationalSimulation.event_emitted`, TASK-093b; separate from the tactical table above):
+
+| type | fields | emitted by |
+|---|---|---|
+| `operational_turn_ended` | `player` (the player whose move ended) | EndOperationalTurnCommand |
+| `operational_turn_started` | `player` (the player to move), `turn` (rises when the move returns to `first_player`) | EndOperationalTurnCommand |
+
+`OperationalClock` (pure) maps a turn to its date (from `OperationDefinition.start_date`, 12 h per turn) and day / night (odd turns 06:00–18:00).
+
 ## Localization
 
 All UI strings live in `assets/i18n/strings.csv` (columns `keys,en,pl`); Godot imports it into `strings.<locale>.translation`, registered in `project.godot` (fallback `en`). Keys are the English source strings (gettext style): `tr("Your turn")`, format strings are keys too and values are substituted after translation: `tr("Turn %d") % turn`. Static/pure helpers without `Object.tr()` call `TranslationServer.translate(key)`. Labels whose text is composed in code set `auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED` so the text is not translated twice. Every new UI string = a CSV row with `en` + `pl` (`tests/unit/test_localization.gd` checks coverage and placeholders). To try Polish, set the project setting `internationalization/locale/test="pl"` (do not commit it).

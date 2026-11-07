@@ -93,7 +93,7 @@ func test_next_in_cycle() -> void:
 	assert_eq(StaffMapFormations.next_in_cycle([] as Array[StringName], &"a"), &"")
 
 
-func test_swapping_the_viewer_swaps_shape_and_colour() -> void:
+func test_swapping_the_viewer_swaps_shape_but_not_colour() -> void:
 	var formation := Operation.build(&"suwalki_gap", 1).formations[0]
 	assert_eq(formation.owner_id, 0)
 	var counter := StaffMapCounter.new()
@@ -107,10 +107,17 @@ func test_swapping_the_viewer_swaps_shape_and_colour() -> void:
 	assert_false(counter.hits(tip))
 	counter.set_viewer(formation.owner_id, 1)
 	assert_false(counter.is_own())
-	assert_eq(counter.fill_colour(), _palette.side_enemy)
-	assert_eq(counter.ink_colour(), _palette.side_enemy_ink)
+	assert_eq(counter.fill_colour(), _palette.side_own, "NATO stays blue for either viewer")
+	assert_eq(counter.ink_colour(), _palette.side_own_ink)
 	assert_false(counter.hits(corner))
 	assert_true(counter.hits(tip))
+	var russian := Operation.build(&"suwalki_gap", 1).formations[-1]
+	assert_eq(russian.owner_id, 1)
+	counter.setup(russian, 0, _palette)
+	assert_eq(counter.fill_colour(), _palette.side_enemy, "Russia is always red")
+	counter.set_viewer(1, 1)
+	assert_true(counter.is_own())
+	assert_eq(counter.fill_colour(), _palette.side_enemy, "also when it is the viewer's side")
 	counter.free()
 
 

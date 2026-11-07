@@ -7,6 +7,8 @@ extends RefCounted
 var operation_id: StringName
 ## Display name of the operation (translation key; static, not in the snapshot).
 var operation_name: String
+## Calendar date of turn 1 (YYYY-MM-DD, OperationalClock); static, not in the snapshot.
+var start_date: String = ""
 var grid: HexGrid
 ## Side id of each player (SideDefinition.id).
 var player_sides: Array[StringName] = []

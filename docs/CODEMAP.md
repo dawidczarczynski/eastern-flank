@@ -57,8 +57,10 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/operational/
 
+- `EndOperationalTurnCommand` – Ends the current player's move on the staff map (TASK-093b): the other player becomes cur… (`end_operational_turn_command.gd`)
 - `Formation` – A formation on the operational map at runtime (TASK-092b, GDD "Formations"): a named (`formation.gd`)
 - `Operation` – Builds an OperationalState from an OperationDefinition (TASK-092b). Takes no human-side (`operation.gd`)
+- `OperationalClock` – Calendar of an operation (TASK-093b): `turn` is one 12 h period in which both blocs move. (`operational_clock.gd`)
 - `OperationalCommand` – Base command of the operational layer (ADR 0015 §2) – the only way to change (`operational_command.gd`)
 - `OperationalCommandCodec` – Rebuilds operational commands from their `to_dict()` form (also after a JSON round trip). (`operational_command_codec.gd`)
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
@@ -191,6 +193,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
 - `StaffMapTerrain` – The staff map's terrain from real geography (TASK-126, ADR 0018 "Graphic layers"): the ma… (`staff_map_terrain.gd`)
+- `StaffMapTurnBar` – Turn bar of the staff map (TASK-093b, look: docs/design/operational_map "Turn bar" – the… (`staff_map_turn_bar.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
 
 ## src/presentation/ui/

@@ -1,7 +1,6 @@
 class_name OperationalCommandCodec
 extends RefCounted
 ## Rebuilds operational commands from their `to_dict()` form (also after a JSON round trip).
-## No operational command exists yet (TASK-093b adds the first), so every dictionary gives null.
 ## Same rules as the tactical codec: unknown "type", missing fields or non-numeric values give
 ## null; numbers may be ints or integral floats (JSON parses every number as a float), anything
 ## else (bools, strings, 1.5, INF, NAN, values beyond +-2^53) is rejected. Extra keys are ignored.
@@ -15,6 +14,8 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 	if not (type is String or type is StringName):
 		return null
 	match String(type):
+		EndOperationalTurnCommand.TYPE:
+			return EndOperationalTurnCommand.new()
 		_:
 			return null
 

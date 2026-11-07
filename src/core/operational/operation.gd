@@ -40,6 +40,7 @@ static func from_definition(
 	var state := OperationalState.new()
 	state.operation_id = definition.id
 	state.operation_name = definition.display_name
+	state.start_date = definition.start_date
 	state.grid = grid
 	for side in definition.sides:
 		state.player_sides.append(side.id)

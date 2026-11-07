@@ -348,7 +348,7 @@ The battle has sound; there is no music yet.
 
 ## 12b. Operational map
 
-**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); there are no turns or orders yet. **‹ Back** (or Esc when no formation is selected) returns to the menu.
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); there are no orders yet (turns: see **Turns** below). **‹ Back** (or Esc when no formation is selected) returns to the menu.
 
 **Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
@@ -379,6 +379,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Flat / tilted | V |
 | Grid on / off | G |
 | Country borders and names on / off | B |
+| End turn | Enter, or the **End turn** button |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
 | Deselect | Esc, or a click on empty map |
@@ -388,6 +389,12 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 
 Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or Russia (the Kaliningrad oblast). A warm dash-dot line follows the real state border – along the south edge of the oblast, along the Neman, across the Suwałki Gap and along the Belarusian border – and a very faint, large name (POLSKA / LITWA / BIAŁORUŚ / ROSJA, or the English names) lies over each country. Hexes in the sea or in a large lake belong to none. Pointing at a hex adds a **Country** line to the hex card (a dash for a hex without a country). The line is drawn from the real border (OpenStreetMap), not along the hexes; the hexes only decide which country a hex counts as for the rules. Press **B** to hide or show the borders and the names (on at the start).
 
+### Turns
+
+The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.
+
+You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; with **FOLLOW SIDE** on (the default) the view switches to the bloc to move after each End turn, so whoever sits at the screen always sees their own forces as rectangles. Switch the toggle to **FIXED SIDE** to keep looking from one bloc's point of view. `--side=nato` or `--side=russia` picks the bloc you start with. Nothing happens at the end of a turn yet; orders and the enemy playing by itself come later.
+
 ### Formations
 
 The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO) – two facing the Kaliningrad oblast near Bartoszyce and Lidzbark Warmiński, three in the Gap around Suwałki, Augustów and Ełk, three facing Belarus around Białystok, Sokółka and Mońki – and ten Russian, five in the Kaliningrad oblast (Chernyakhovsk, Gusev, Sovetsk, Nesterov, Gvardeysk) and five in Belarus around Grodno. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
@@ -396,8 +403,9 @@ The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO
 
 | Part of the counter | Meaning |
 |---|---|
-| Blue rectangle with a cut corner | your formation |
-| Red diamond | enemy formation |
+| Rectangle with a cut corner | your formation |
+| Diamond | enemy formation |
+| Blue / red fill | NATO / Russia (never swapped) |
 | Cross with an oval inside | mechanised infantry (or motor rifle) battalion |
 | Oval | tank battalion |
 | Dot between two upward arrows | rocket artillery (MLRS) |

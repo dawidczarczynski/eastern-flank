@@ -7,7 +7,9 @@ extends Node3D
 ## OperationalSimulation (TASK-092b) and reacts to its event_emitted (rule 3).
 ## Formations (TASK-092b): counters on their own CanvasLayer (StaffMapCounters), click selects
 ## (formation panel on the right), click on empty map or Esc deselects, Tab cycles own
-## formations; `--side=nato|russia` picks the viewer (default NATO).
+## formations; `--side=nato|russia` picks the viewer (default NATO). Turns (TASK-093b): the turn bar
+## (top centre) and Enter end the move (EndOperationalTurnCommand); with "follow" on the view
+## switches to the side to play; `--pending-battle` adds a dummy pending battle (blocks End turn).
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
 ## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the grid, B the country
 ## borders and names,
@@ -56,6 +58,10 @@ var _simulation: OperationalSimulation
 var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
 var _panel: StaffMapFormationPanel
+var _turn_bar: StaffMapTurnBar
+var _banner: TurnBanner
+## True: the view switches to the side to play after each End turn (hot-seat).
+var _follow_side := true
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
 var _press_position := Vector2.ZERO
 var _drag_travel := 0.0
@@ -152,6 +158,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					select_formation(&"")
 				else:
 					_return_to_menu()
+			KEY_ENTER, KEY_KP_ENTER:
+				end_turn()
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
 			KEY_B:
@@ -191,6 +199,7 @@ func refresh_texts() -> void:
 	_back.text = "‹ " + tr("Back").to_upper()
 	_hint.text = tr("STAFF_MAP_HINT")
 	_view.refresh_country_names()
+	_refresh_turn_bar()
 	if _panel != null and _panel.visible:
 		select_formation(_panel.formation_id, true)
 
@@ -250,9 +259,37 @@ func set_viewer(player: int) -> void:
 	viewer_player = player
 	if _counters == null:
 		return
+	_refresh_turn_bar()
 	_counters.set_viewer(player)
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
+
+
+func turn_bar() -> StaffMapTurnBar:
+	return _turn_bar
+
+
+func turn_banner() -> TurnBanner:
+	return _banner
+
+
+func follows_side() -> bool:
+	return _follow_side
+
+
+## Ends the move of the side to play; false when the command is rejected (a battle is pending).
+func end_turn() -> bool:
+	if _simulation == null:
+		return false
+	return _simulation.execute(EndOperationalTurnCommand.new())
+
+
+## "Follow the side to play" on / off; switching it on views the side to play at once.
+func set_follow_side(follow: bool) -> void:
+	_follow_side = follow
+	if follow and _simulation != null:
+		set_viewer(_simulation.state.current_player)
+	_refresh_turn_bar()
 
 
 func pitch() -> float:
@@ -397,6 +434,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_counter_layer.add_child(_counters)
 	_counters.build(state, _palette, viewer_player)
 	_update_anchors()
+	if OS.get_cmdline_user_args().has("--pending-battle"):
+		state.pending_battles.append(BattleSetup.new())
 
 
 func _update_anchors() -> void:
@@ -416,21 +455,51 @@ func _layout_counters() -> void:
 	_counters.layout(points)
 
 
-func _on_operational_event(_event: Dictionary) -> void:
+func _on_operational_event(event: Dictionary) -> void:
+	if event.get("type") == &"operational_turn_started":
+		_on_turn_started(event)
 	_update_anchors()
 	_counters.refresh()
 	_layout_counters()
+	_refresh_turn_bar()
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
+
+
+## The move changed hands: the view follows (if wanted) and the banner names the bloc.
+func _on_turn_started(event: Dictionary) -> void:
+	var player: int = event["player"]
+	if _follow_side and player != viewer_player:
+		set_viewer(player)
+	var state := _simulation.state
+	var colour := StaffMapFormations.side_colour(_palette, player)
+	_banner.show_timed(
+		"%s %02d" % [tr("TURN"), state.turn],
+		(tr("%s to move") % StaffMapTurnBar.side_name(state, player)).to_upper(),
+		colour
+	)
+
+
+func _refresh_turn_bar() -> void:
+	if _turn_bar != null and _simulation != null:
+		_turn_bar.show_state(_simulation.state, _palette, viewer_player, _follow_side)
+		_place_turn_bar()
+		_place_panel()
+
+
+func _place_turn_bar() -> void:
+	_turn_bar.position = Vector2((_viewport_size().x - _turn_bar.size.x) / 2.0, 0.0)
 
 
 func _place_panel() -> void:
 	if _panel == null:
 		return
 	_panel.reset_size()
-	_panel.position = Vector2(
-		_viewport_size().x - PANEL_MARGIN.x - _panel.size.x, PANEL_MARGIN.y
-	)
+	# Below the turn bar (the bar is as wide as the middle of the screen).
+	var top := PANEL_MARGIN.y
+	if _turn_bar != null:
+		top = _turn_bar.size.y + PANEL_MARGIN.y / 2.0
+	_panel.position = Vector2(_viewport_size().x - PANEL_MARGIN.x - _panel.size.x, top)
 
 
 ## Centres the camera on a formation whose counter is off screen (Tab).
@@ -449,6 +518,12 @@ func _build_hud() -> void:
 	_hud.add_child(_card)
 	_panel = StaffMapFormationPanel.new()
 	_hud.add_child(_panel)
+	_turn_bar = StaffMapTurnBar.new()
+	_turn_bar.end_turn_pressed.connect(end_turn)
+	_turn_bar.follow_toggled.connect(set_follow_side)
+	_hud.add_child(_turn_bar)
+	_banner = TurnBanner.new()
+	_hud.add_child(_banner)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)
@@ -473,6 +548,8 @@ func _on_viewport_resized() -> void:
 	_update_limits()
 	_set_zoom(_zoom)
 	_place_panel()
+	if _turn_bar != null:
+		_place_turn_bar()
 
 
 func _set_zoom(zoom_value: float) -> void:

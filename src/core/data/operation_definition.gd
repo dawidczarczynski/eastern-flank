@@ -14,6 +14,8 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var sides: Array[SideDefinition] = []
 ## Player who moves first (0 or 1).
 @export var first_player: int = 0
+## Calendar date (YYYY-MM-DD) on which turn 1 starts (OperationalClock).
+@export var start_date: String = ""
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

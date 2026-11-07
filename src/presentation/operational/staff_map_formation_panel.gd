@@ -91,7 +91,7 @@ func show_formation(
 		StaffMapFormations.viewer_relation(formation.owner_id, viewer_player)
 		== StaffMapFormations.ENEMY
 	)
-	var side_colour := palette.side_enemy if hostile else palette.side_own
+	var side_colour := StaffMapFormations.side_colour(palette, formation.owner_id)
 	tab_text = tr("FORMATION").to_upper()
 	tab_right_text = tr("HOSTILE") if hostile else tr("OWN")
 	tab_right_color = side_colour

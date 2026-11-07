@@ -1,6 +1,6 @@
 # TASK-093b: Staff map (2/3) – operational turns, turn bar, End turn, playing either side
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`) + presentation (turn bar, side parameter) + docs
 - **Depends on**: TASK-092b
 - **Model**: sonnet
@@ -53,4 +53,8 @@ Section "Turns": alternating bloc turns of 12 h, End turn, which side you play a
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `EndOperationalTurnCommand` (`_switch_side` is the hook for TASK-092e), codec entry, `OperationalClock` (date from `OperationDefinition.start_date` = 2027-06-14 [ASSUMPTION], odd turn = day), `start_date` copied to `OperationalState` (static, not in the snapshot). Events in docs/ARCHITECTURE.md "Operational events".
+- View: `StaffMapTurnBar` follows the mock-up "Turn bar" (reuses the battle HUD's `TurnBarFrame`, `HexBadge`, `HatchBar`, `EndTurnButton`: viewed side left, TURN / date / day-night / mover in the middle, opponent dimmed right, End turn filled in the mover's colour; follow toggle in the second row, shared with TASK-115's chip; no `ORDERS n / m` yet), `TurnBanner` reused, `StaffMap.end_turn / set_follow_side`, follow toggle default on. `--pending-battle` user arg adds a dummy pending battle to check the disabled button.
+- Deviation: the key is **Enter** only – **E** is already the pitch key (Q / E tilt). The hint line and strings (en / pl) are updated.
+- Tests: `test_operational_turns.gd`, `test_staff_map_turns.gd` (incl. snapshot independent of the viewer).
+- Not done here: `tools/check.sh` could not run lint (gdtoolkit missing in this environment) – tests were run with `tools/test.sh` (1459 pass); run `tools/lint.sh --fix` once. README screenshot not refreshed (battle scene unchanged).

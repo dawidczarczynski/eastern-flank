@@ -145,7 +145,7 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Click: select   Tab: next   Drag / WASD: pan   Wheel: zoom   Q E: tilt   V: flat / tilted   G: grid   B: borders   Esc: deselect / back,Klik: wybór   Tab: następna   Przeciągnij / WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko / skos   G: siatka   B: granice   Esc: odznacz / wstecz
+STAFF_MAP_HINT,Click: select   Tab: next   Enter: end turn   WASD: pan   Wheel: zoom   Q E: tilt   V: flat / tilted   G: grid   B: borders   Esc: deselect / back,Klik: wybór   Tab: następna   Enter: koniec tury   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko / skos   G: siatka   B: granice   Esc: odznacz / wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
@@ -188,3 +188,15 @@ Location,Location,Położenie
 Lithuania,Lithuania,Litwa
 Belarus,Belarus,Białoruś
 Country,Country,Państwo
+DAY,DAY,DZIEŃ
+NIGHT,NIGHT,NOC
+TO MOVE,TO MOVE,RUCH
+FOLLOW SIDE,FOLLOW SIDE,ŚLEDŹ STRONĘ
+FIXED SIDE,FIXED SIDE,STAŁA STRONA
+FOLLOW_TOOLTIP,Follow: the view switches to the side to play after End turn. Fixed: the view stays on one side.,"Śledź: widok przełącza się na stronę, która ma ruch, po zakończeniu tury. Stała: widok zostaje przy jednej stronie."
+END_TURN_BLOCKED_BATTLE_PENDING,A contact battle has to be fought first.,Najpierw trzeba rozegrać bitwę.
+%s to move,%s to move,Ruch: %s
+%s MOVING,%s MOVING,RUCH: %s
+YOUR MOVE,YOUR MOVE,TWÓJ RUCH
+ENEMY MOVE,ENEMY MOVE,RUCH WROGA
+%d FMN,%d FMN,%d FORM.

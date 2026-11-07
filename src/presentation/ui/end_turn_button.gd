@@ -16,6 +16,11 @@ const GLYPH_SIZE := Vector2(9, 8)
 const HOVER_BRIGHTNESS := 1.12
 const PRESSED_BRIGHTNESS := 0.9
 
+## Minimum height; the staff map's turn bar uses 46 px as in its design.
+@export var min_height := MIN_HEIGHT:
+	set(value):
+		min_height = value
+		custom_minimum_size = _compute_minimum()
 @export var fill := UiPalette.NEUTRAL_FACTION:
 	set(value):
 		fill = value
@@ -56,7 +61,7 @@ func _font() -> Font:
 func _compute_minimum() -> Vector2:
 	var text_width := _font().get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 	var width := PAD_LEFT + HATCH_SIZE.x + GAP + text_width + GAP + GLYPH_SIZE.x + PAD_RIGHT
-	return Vector2(ceilf(width), MIN_HEIGHT)
+	return Vector2(ceilf(width), min_height)
 
 
 func _draw() -> void:

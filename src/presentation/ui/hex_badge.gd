@@ -4,6 +4,8 @@ extends Control
 ## the faction ink (Chakra Petch 700).
 
 const FONT_SIZE := 14
+## Texts longer than two characters ("NATO") use this size, as in the design.
+const LONG_FONT_SIZE := 10
 
 @export var fill := UiPalette.NEUTRAL_FACTION:
 	set(value):
@@ -29,14 +31,15 @@ func _draw() -> void:
 	if text == "":
 		return
 	var font := HudTheme.display(700)
-	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
-	var baseline := (size.y + font.get_ascent(FONT_SIZE) - font.get_descent(FONT_SIZE)) * 0.5
+	var font_size := FONT_SIZE if text.length() <= 2 else LONG_FONT_SIZE
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var baseline := (size.y + font.get_ascent(font_size) - font.get_descent(font_size)) * 0.5
 	draw_string(
 		font,
 		Vector2((size.x - width) * 0.5, baseline),
 		text,
 		HORIZONTAL_ALIGNMENT_LEFT,
 		-1,
-		FONT_SIZE,
+		font_size,
 		ink
 	)

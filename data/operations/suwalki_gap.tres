@@ -181,4 +181,5 @@ display_name = "Suwałki Gap"
 map_id = &"suwalki_theatre"
 sides = Array[ExtResource("1_side")]([ExtResource("4_nato"), ExtResource("5_russia")])
 first_player = 1
+start_date = "2027-06-14"
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
