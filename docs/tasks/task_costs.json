@@ -1464,6 +1464,43 @@
     "output": 9148
    }
   },
+  "TASK-092b": {
+   "active_hours": 0.63,
+   "cost": 9.4318,
+   "first": "2026-11-07T15:03:02.632Z",
+   "last": "2026-11-07T15:40:50.225Z",
+   "main_cost": 0.5767,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 10701595,
+    "cache_write": 305949,
+    "input": 250,
+    "output": 106711
+   }
+  },
+  "TASK-093a": {
+   "active_hours": 1.38,
+   "cost": 2.8999,
+   "first": "2026-11-07T11:07:57.489Z",
+   "last": "2026-11-07T12:30:49.361Z",
+   "main_cost": 0.5252,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 6571485,
+    "cache_write": 218241,
+    "input": 149,
+    "output": 7304
+   }
+  },
   "TASK-109": {
    "active_hours": 0.56,
    "cost": 9.2507,
@@ -1481,6 +1518,24 @@
     "cache_write": 224746,
     "input": 192,
     "output": 97760
+   }
+  },
+  "TASK-113": {
+   "active_hours": 2.67,
+   "cost": 9.0276,
+   "first": "2026-11-07T15:44:22.053Z",
+   "last": "2026-11-07T18:24:28.479Z",
+   "main_cost": 1.1442,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 17810262,
+    "cache_write": 437978,
+    "input": 406,
+    "output": 136060
    }
   },
   "TASK-123": {
@@ -1517,6 +1572,44 @@
     "cache_write": 49680,
     "input": 54,
     "output": 15837
+   }
+  },
+  "TASK-125": {
+   "active_hours": 0.82,
+   "cost": 9.7971,
+   "first": "2026-11-07T14:09:10.282Z",
+   "last": "2026-11-07T14:58:18.877Z",
+   "main_cost": 1.2103,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 11501842,
+    "cache_write": 264698,
+    "input": 208,
+    "output": 127905
+   }
+  },
+  "TASK-126": {
+   "active_hours": 1.08,
+   "cost": 14.3181,
+   "first": "2026-11-07T18:43:13.310Z",
+   "last": "2026-11-07T19:48:10.986Z",
+   "main_cost": 1.2363,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 18755236,
+    "cache_write": 417569,
+    "input": 356,
+    "output": 132295
    }
   }
  },
