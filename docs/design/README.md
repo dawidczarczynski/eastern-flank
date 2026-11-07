@@ -18,3 +18,5 @@ UI text in the mock-up is Polish. Per CLAUDE.md, UI strings in code are English;
 **HUD v3 (tactical C2 look)**: supersedes the HUD palette and fonts above; spec and reference render in [hud_v3/](hud_v3/README.md), decisions in ADR 0013 (Chakra Petch + JetBrains Mono in `assets/fonts/`, tokens in `UiPalette`, shapes in `HudShapes`).
 **Scene**: sky/fog `#a9b4b2`, fog 38–90, ACES tone mapping, exposure 1.05, hemisphere light `#dde7ee`/`#4b4534` 1.0, sun `#fff0d8` 2.7 from (-18, 26, 14) with soft shadows; camera FOV 34°, distance 7–46, pitch grows with distance.
 **Terrain colours**: deep water `#17323b`, shoal `#5d8778`, sand `#c6b78a`, grass `#627c33`/`#87974b`, forest `#2f4a26`/`#3f5a2d`, hills `#837b50`, rock `#756e5e`/`#a29c8f`, snow `#eef0ef`, urban `#86837b`; water plane `#2c5866`, opacity 0.84; grid lines `#0d120c` at opacity 0.2.
+
+**Operational (staff) map**: style spec and mock-ups (Claude Design, 2026-11-07) in [operational_map/](operational_map/README.md).
