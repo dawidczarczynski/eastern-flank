@@ -11,9 +11,7 @@ const NAMES := {"PL": "Poland", "LT": "Lithuania", "BY": "Belarus", "RU": "Russi
 
 ## The drawn pieces of `line` for the alternating drawn / gap lengths in `pattern` (even
 ## index = drawn). The pattern runs on across corners; a closed ring ends mid-pattern.
-static func dashes(
-	line: PackedVector2Array, pattern: Array = PATTERN
-) -> Array[PackedVector2Array]:
+static func dashes(line: PackedVector2Array, pattern: Array = PATTERN) -> Array[PackedVector2Array]:
 	var out: Array[PackedVector2Array] = []
 	if line.size() < 2 or pattern.is_empty():
 		return out

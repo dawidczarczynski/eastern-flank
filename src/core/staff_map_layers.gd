@@ -315,7 +315,10 @@ static func clip_segments(segments: PackedVector2Array, rect: Rect2) -> PackedVe
 		var ok := true
 		for side in 4:
 			var pv := [-d.x, d.x, -d.y, d.y][side] as float
-			var qv := [a.x - rect.position.x, rect.end.x - a.x, a.y - rect.position.y, rect.end.y - a.y][side] as float
+			var qv := (
+				[a.x - rect.position.x, rect.end.x - a.x, a.y - rect.position.y, rect.end.y - a.y][side]
+				as float
+			)
 			if is_zero_approx(pv):
 				if qv < 0.0:
 					ok = false

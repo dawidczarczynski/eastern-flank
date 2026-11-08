@@ -257,7 +257,9 @@ func test_straight_rect_clips_fills_to_a_straight_left_and_right_edge() -> void:
 	var rect := StaffMapLayers.straight_rect(grid)
 	var full := StaffMapLayers.bounds(grid)
 	assert_true(rect.size.x < full.size.x, "trimmed by the half-hex zigzag")
-	var clipped := StaffMapLayers.clip_polygons(StaffMapLayers.fills(grid)[Terrain.Type.PLAINS], rect)
+	var clipped := StaffMapLayers.clip_polygons(
+		StaffMapLayers.fills(grid)[Terrain.Type.PLAINS], rect
+	)
 	assert_true(clipped.size() > 0)
 	for poly: PackedVector2Array in clipped:
 		for p in poly:

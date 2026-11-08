@@ -88,12 +88,9 @@ func test_suwalki_gap_definition() -> void:
 		assert_false(p.parent.is_empty(), "%s parent" % p.id)
 	assert_eq(counts, [8, 10])
 	assert_eq(strength, [276, 332])
+	assert_eq(types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2, &"pl_mlrs_squadron": 2})
 	assert_eq(
-		types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2, &"pl_mlrs_squadron": 2}
-	)
-	assert_eq(
-		types[1],
-		{&"ru_motor_rifle_battalion": 6, &"ru_tank_battalion": 2, &"ru_mlrs_battalion": 2}
+		types[1], {&"ru_motor_rifle_battalion": 6, &"ru_tank_battalion": 2, &"ru_mlrs_battalion": 2}
 	)
 
 

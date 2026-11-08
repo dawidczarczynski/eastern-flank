@@ -47,7 +47,6 @@ var _gain := 1.0
 var _gain_from := 1.0
 var _gain_to := 1.0
 
-
 ## Fully covered rectangle: ground and lines are clipped to it so the left / right edge is straight.
 var _edge_rect := Rect2()
 
