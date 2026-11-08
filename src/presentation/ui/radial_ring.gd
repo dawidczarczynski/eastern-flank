@@ -38,10 +38,19 @@ const DASH_GAP := 4.0
 const ICON_LINES := {
 	&"attack": [[2, 12, 7, 12], [17, 12, 22, 12], [12, 2, 12, 7], [12, 17, 12, 22]],
 	&"info": [[12, 10.5, 12, 17.5], [12, 6.5, 12, 8.3]],
+	# Orders ring of the staff map: dashed arrow, line ending in a defence arc, a cross.
+	&"march":
+	[[2, 12, 6, 12], [9, 12, 13, 12], [16, 12, 21, 12], [16, 7, 21, 12], [16, 17, 21, 12]],
+	&"defend": [[2, 12, 13, 12]],
+	&"cancel": [[6, 6, 18, 18], [18, 6, 6, 18]],
 }
 const ICON_CIRCLES := {
 	&"attack": [[12, 12, 6], [12, 12, 1]],
 	&"info": [[12, 12, 9.5]],
+}
+## Arcs [centre x, centre y, radius, from angle, to angle] (radians).
+const ICON_ARCS := {
+	&"defend": [[13, 12, 7, -1.1, 1.1]],
 }
 
 var slots: Array[Dictionary] = []:
@@ -221,6 +230,9 @@ func _draw_icon(icon: StringName, center: Vector2, color: Color) -> void:
 			draw_circle(c, radius, color, true, -1.0, true)
 		else:
 			draw_arc(c, radius, 0.0, TAU, 32, color, ICON_STROKE, true)
+	for arc: Array in ICON_ARCS.get(icon, []):
+		var c := origin + Vector2(arc[0], arc[1]) * scale
+		draw_arc(c, arc[2] * scale, arc[3], arc[4], 16, color, ICON_STROKE, true)
 
 
 ## Text horizontally centred on `center`, vertically centred on it too.

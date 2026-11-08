@@ -147,7 +147,9 @@ func show_origin(country_name: String) -> void:
 func show_order(formation: Formation) -> void:
 	var posture := OperationalPosture.find(formation.posture)
 	var move_points := formation.definition.move_points
-	(_values["POSTURE"] as Label).text = StaffMapPosturePicker.caption(formation.posture).to_upper()
+	(_values["POSTURE"] as Label).text = (
+		StaffMapOrderRingModel.caption(formation.posture).to_upper()
+	)
 	var budget := posture.budget(move_points) if posture != null else move_points
 	(_values["POINTS"] as Label).text = "%d / %d" % [budget, move_points]
 	(_values["ORDER"] as Label).text = (

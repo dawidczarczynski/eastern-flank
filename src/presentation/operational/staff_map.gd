@@ -12,10 +12,12 @@ extends Node3D
 ## (top centre) and Enter end the move (EndOperationalTurnCommand); with "follow" on the view
 ## switches to the side to play; `--pending-battle` adds a dummy pending battle (blocks End turn).
 ## Orders (TASK-092c / 092d): with an own formation selected the cursor hex shows the route
-## (StaffMapRoutePreview) in the formation's posture, a left click on a hex gives the order
-## (IssueOrderCommand), keys 1 / 2 / 3 or the picker under the counter set the posture
-## (SetPostureCommand), Delete / Backspace / X cancel the order (CancelOrderCommand). The issued
-## orders of the viewed side stay drawn (StaffMapOrders), rejections show in a toast.
+## (StaffMapRoutePreview); a left click on a hex gives a MARCH order (IssueOrderCommand), on an
+## enemy counter / hex an ATTACK order (advance posture). A right click on a hex opens the order
+## ring (StaffMapOrderRing, the battle unit ring component): 1 MARCH, 2 ATTACK, 3 DEFEND,
+## 4 CANCEL ORDER (keys 1-4 while it is open); Delete / Backspace / X cancel the order
+## (CancelOrderCommand). The issued orders of the viewed side stay drawn (StaffMapOrders),
+## rejections show in a toast.
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
 ## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the
 ## grid, B the country borders and names,
@@ -33,8 +35,6 @@ const DEFAULT_SEED := 1
 ## A left press released within this many pixels of travel is a click, not a drag.
 const CLICK_SLOP := 5.0
 const PANEL_MARGIN := Vector2(16, 16)
-## Gap between the selected counter and the posture picker under it.
-const PICKER_GAP := 12.0
 ## Viewport size assumed outside the scene tree (headless tests).
 const FALLBACK_VIEWPORT := Vector2(1280, 720)
 
@@ -71,7 +71,7 @@ var _route: StaffMapRoutePreview
 var _route_marks: StaffMapRouteMarks
 var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
-var _picker: StaffMapPosturePicker
+var _order_ring: StaffMapOrderRing
 var _toast: Toast
 var _join_notice: StaffMapJoinNotice
 var _origins := {}  # formation id -> country id of origin (joined allies, TASK-118)
@@ -178,6 +178,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
+		if _order_ring.handle_key(key.keycode):  # Esc closes the ring, 1-4 pick a slot
+			return
 		match key.keycode:
 			KEY_ESCAPE:
 				if _politics.close_card():
@@ -192,9 +194,6 @@ func _unhandled_input(event: InputEvent) -> void:
 				skip_slide()
 			KEY_R:
 				toggle_report()
-			KEY_1, KEY_2, KEY_3, KEY_KP_1, KEY_KP_2, KEY_KP_3:
-				var first := KEY_KP_1 if key.keycode >= KEY_KP_1 else KEY_1
-				set_posture_number(key.keycode - first + 1)
 			KEY_DELETE, KEY_BACKSPACE, KEY_X:
 				cancel_order()
 			KEY_G:
@@ -205,8 +204,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_B:
 				if _contacts.is_active():
 					_play_battle()
-					return
-				_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
+				else:
+					_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
 			KEY_P:
 				_politics.toggle_tint()
 			KEY_F9:
@@ -300,16 +299,16 @@ func orders() -> StaffMapOrders:
 	return _orders
 
 
-func posture_picker() -> StaffMapPosturePicker:
-	return _picker
+func order_ring() -> StaffMapOrderRing:
+	return _order_ring
 
 
 func toast() -> Toast:
 	return _toast
 
 
-## Sets the selected own formation's posture to number `number` (1-based, keys 1 / 2 / 3);
-## false when nothing happened.
+## Sets the selected own formation's posture to number `number` (1-based: march, attack, defend;
+## debug / screenshot hooks); false when nothing happened.
 func set_posture_number(number: int) -> bool:
 	return set_posture(StaffMapRoute.posture_for_key(number))
 
@@ -322,12 +321,15 @@ func set_posture(posture: StringName) -> bool:
 	return _execute(SetPostureCommand.new(formation.id, posture))
 
 
-## IssueOrderCommand: the selected own formation goes to `destination` in its picker posture.
-func issue_order(destination: Vector2i) -> bool:
+## IssueOrderCommand: the selected own formation goes to `destination` in `posture`; &"" = the
+## default of a left click (attack on an enemy-held hex, else march).
+func issue_order(destination: Vector2i, posture := &"") -> bool:
 	var formation := _selected_own()
 	if formation == null:
 		return false
-	return _execute(IssueOrderCommand.new(formation.id, destination, formation.posture))
+	if posture == &"":
+		posture = StaffMapOrderRingModel.default_posture(_simulation.state, formation, destination)
+	return _execute(IssueOrderCommand.new(formation.id, destination, posture))
 
 
 ## CancelOrderCommand for the selected own formation.
@@ -372,11 +374,11 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 		formation_id = &""
 	if formation_id == _counters.selected() and not refill:
 		return
+	_order_ring.close()
 	_counters.set_selected(formation_id)
 	if formation == null:
 		_panel.hide()
 		_route.set_formation(_simulation.state, &"")
-		_picker.hide()
 		return
 	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
 	var own := formation.owner_id == viewer_player
@@ -387,19 +389,12 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	_place_panel()
 
 
-## Posture / order rows of the panel and the picker under the counter: own formations only; the
-## picker only while the viewed side is the side to play.
+## Posture / order rows of the panel: own formations only.
 func _show_order_ui(formation: Formation) -> void:
 	if formation.owner_id != viewer_player:
 		_panel.hide_order()
-		_picker.hide()
 		return
 	_panel.show_order(formation)
-	if formation.owner_id == _simulation.state.current_player:
-		_picker.show_posture(formation.posture)
-		_place_picker()
-	else:
-		_picker.hide()
 
 
 ## Views the map as `player` (own / enemy swap); the panel follows.
@@ -566,6 +561,10 @@ func counter_screen_position(formation_id: StringName) -> Vector2:
 
 
 ## Screen position of a hex centre on the relief.
+func hex_screen_position(c: Vector2i) -> Vector2:
+	return _screen_of_hex(c)
+
+
 func _screen_of_hex(c: Vector2i) -> Vector2:
 	var w := Hex.to_world(c, 1.0)
 	return _project(_view.relief().surface_point(Vector2(w.x, w.z)))
@@ -708,7 +707,8 @@ func _layout_counters() -> void:
 	if _route_marks != null:
 		_route_marks.refresh()
 		_orders.refresh_projection()
-		_place_picker()
+		if _order_ring != null:
+			_order_ring.follow()
 	if _contacts != null:
 		_contacts.layout()
 		_place_queue()
@@ -736,6 +736,7 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
 	_update_anchors()
+	_order_ring.follow()  # closes the ring when its formation may no longer be ordered
 	_counters.refresh()
 	_counters.apply_marks(_marks)
 	_refresh_orders()
@@ -984,9 +985,9 @@ func _build_hud() -> void:
 	_hud.add_child(_report)
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
-	_picker = StaffMapPosturePicker.new()
-	_picker.posture_chosen.connect(set_posture)
-	_counter_layer.add_child(_picker)
+	_order_ring = StaffMapOrderRing.new(_hud, _execute, _screen_of_hex, _viewport_size, _can_order)
+	_order_ring.ordered.connect(_on_ring_ordered)
+	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()
 	_hud.add_child(_toast)
 	_join_notice = StaffMapJoinNotice.new()
@@ -1117,6 +1118,9 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				and event.position.distance_to(_press_position) < CLICK_SLOP
 			):
 				click_at(event.position)
+		MOUSE_BUTTON_RIGHT:
+			if not event.pressed:
+				right_click_at(event.position)
 		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN:
 			if not event.pressed:
 				return
@@ -1176,14 +1180,18 @@ func _edge_direction() -> Vector2:
 	)
 
 
-## A left click on the map: selects the counter under `screen`; with an own formation selected a
-## click on a hex gives it an order there (and deselects it); elsewhere it deselects. In a posture
-## that seeks contact (Advance) a click on an enemy counter orders an attack on it.
+## A left click on the map: with the order ring open it only closes it; otherwise selects the
+## counter under `screen`. With an own formation selected a click on a hex gives it a MARCH order
+## there (and deselects it), a click on an enemy counter or hex an ATTACK order; elsewhere it
+## deselects.
 func click_at(screen: Vector2) -> void:
 	if _counters == null:
 		return
+	if _order_ring.is_open():
+		_order_ring.close()
+		return
 	var hit := _counters.counter_at(screen)
-	var target := _attack_target(hit)
+	var target := _enemy_of_selected(hit)
 	if target != null:
 		if issue_order(target.coord):
 			select_formation(&"")
@@ -1203,21 +1211,63 @@ func click_at(screen: Vector2) -> void:
 	select_formation(hit)
 
 
-## The enemy formation behind counter `hit` when the selected own formation could attack it
-## (its posture does not avoid contact); null otherwise.
-func _attack_target(hit: StringName) -> Formation:
+## A right click on the map: with an own formation selected (and its side to play) opens the order
+## ring on the hex under `screen`; otherwise it only closes an open ring. Returns true when the
+## ring is open afterwards.
+func right_click_at(screen: Vector2) -> bool:
+	if _counters == null:
+		return false
+	var was_open := _order_ring.is_open()
+	_order_ring.close()
+	var formation := _selected_own()
+	if formation == null or not _can_order(formation.id):
+		return false
+	var hex := hex_at_screen(screen)
+	if not _view.has_tile(hex):
+		return false
+	_order_ring.open(
+		_simulation.state, formation, hex, StaffMapFormations.side_colour(_palette, viewer_player)
+	)
+	return was_open or _order_ring.is_open()
+
+
+## The enemy formation behind counter `hit` when an own formation is selected; null otherwise.
+func _enemy_of_selected(hit: StringName) -> Formation:
 	var own := _selected_own()
 	if own == null or hit == &"" or _simulation == null:
 		return null
-	var posture := OperationalPosture.find(own.posture)
 	var other := _simulation.state.get_formation(hit)
-	if posture == null or posture.avoids_contact or other == null:
-		return null
-	return other if other.owner_id != own.owner_id else null
+	return other if other != null and other.owner_id != own.owner_id else null
+
+
+## True while `formation_id` is an own formation whose side is the side to play.
+func _can_order(formation_id: StringName) -> bool:
+	var formation := _simulation.state.get_formation(formation_id)
+	return (
+		formation != null
+		and formation_id == selected_formation()
+		and formation.owner_id == viewer_player
+		and formation.owner_id == _simulation.state.current_player
+	)
+
+
+func _on_ring_ordered(action: StringName) -> void:
+	if action != StaffMapOrderRingModel.CANCEL:
+		select_formation(&"")  # done with this one, as after a left click order
+	else:
+		select_formation(selected_formation(), true)
+
+
+func _on_ring_closed() -> void:
+	if _route != null:
+		_route.set_posture(&"")
 
 
 func _update_hover() -> void:
 	if _dragging or not DisplayServer.window_is_focused():
+		return
+	if _order_ring.is_open():
+		_hover_ring()
 		return
 	var mouse := get_viewport().get_mouse_position()
 	if not get_viewport().get_visible_rect().has_point(mouse):
@@ -1241,6 +1291,16 @@ func _update_hover() -> void:
 		_last_mouse = mouse
 
 
+## While the order ring is open the route preview shows its hex in the hovered posture.
+func _hover_ring() -> void:
+	_card.hide()
+	if _counters != null:
+		_counters.set_hovered(&"")
+	_route.set_posture(_order_ring.hovered_posture())
+	_route.set_hex(_order_ring.hex())
+	_view.highlight(_order_ring.hex())
+
+
 func _clear_hover() -> void:
 	if _route != null:
 		_route.set_hex(StaffMapRoutePreview.OFF)
@@ -1251,18 +1311,6 @@ func _clear_hover() -> void:
 
 
 ## Puts the card next to `screen`, kept inside the window.
-func _place_picker() -> void:
-	if _picker == null or not _picker.visible:
-		return
-	var id := selected_formation()
-	if not _anchors.has(id):
-		return
-	var at := _project(_anchors[id])
-	_picker.position = Vector2(
-		at.x - _picker.size.x / 2.0, at.y + StaffMapCounter.OWN_SIZE.y / 2.0 + PICKER_GAP
-	)
-
-
 func _place_card(screen: Vector2) -> void:
 	var size := _viewport_size()
 	var at := screen + CARD_OFFSET

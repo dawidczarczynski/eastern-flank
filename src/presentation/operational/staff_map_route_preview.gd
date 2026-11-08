@@ -16,6 +16,8 @@ var _movement: OperationalMovement
 var _state: OperationalState
 var _formation_id: StringName = &""
 var _hex := OFF
+var _posture_override: StringName = &""
+var _shown_posture: StringName = &""
 var _dirty := false
 var _last_msec := -DEBOUNCE_MSEC
 var _shown := {}  # the last preview() result (for tests and the panel)
@@ -58,6 +60,20 @@ func set_hex(hex: Vector2i) -> void:
 	_request()
 
 
+## Previews the route in `posture` instead of the default one of a left click (the order ring's
+## hovered slot); &"" = the default: attack on an enemy-held hex, else march.
+func set_posture(posture: StringName) -> void:
+	if posture == _posture_override:
+		return
+	_posture_override = posture
+	_request()
+
+
+## The posture of the last shown preview.
+func shown_posture() -> StringName:
+	return _shown_posture
+
+
 ## The state changed under the preview (turn ended, formation moved): plan again.
 func invalidate() -> void:
 	_request()
@@ -78,8 +94,13 @@ func rebuild(now_msec := Time.get_ticks_msec()) -> void:
 	if formation == null or _hex == OFF or _state == null or not _state.grid.has_tile(_hex):
 		_hide()
 		return
+	_shown_posture = (
+		_posture_override
+		if _posture_override != &""
+		else StaffMapOrderRingModel.default_posture(_state, formation, _hex)
+	)
 	var preview := StaffMapRoute.preview_in_posture(
-		_state, formation, _hex, formation.posture, _movement
+		_state, formation, _hex, _shown_posture, _movement
 	)
 	_plans += 1
 	if preview.is_empty():
@@ -128,7 +149,7 @@ static func _tr_static(key: String) -> String:
 
 
 func _show_route(formation: Formation, preview: Dictionary) -> void:
-	var style := StaffMapRoute.style(formation.posture, false)
+	var style := StaffMapRoute.style(_shown_posture, false)
 	var geometry := geometry_of(_relief, formation, preview, style)
 	_ribbon.show_lines(geometry["lines"], _marks.colour)
 	_marks.show_route(

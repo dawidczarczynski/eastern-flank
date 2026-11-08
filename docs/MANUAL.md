@@ -382,8 +382,9 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | End turn | Enter, or the **End turn** button |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
-| Order the selected formation to a hex | Left click on the hex (current posture) |
-| Posture March / Attack / Defend | 1 / 2 / 3, or the picker under the counter |
+| March the selected formation to a hex | Left click on the hex |
+| Attack an enemy formation | Left click on its counter or hex |
+| Order ring (March / Attack / Defend / Cancel) | Right click on the hex; 1-4 pick a segment, Esc closes |
 | Cancel the order | Delete, Backspace or X |
 | Deselect | Esc, or a click on empty map |
 | Back to the main menu | Esc (nothing selected), or the ‹ Back button |
@@ -457,7 +458,16 @@ A thick light line with small teeth runs between the two blocs. It is a **displa
 
 With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. Orders are carried out when you end your turn (see **End of turn**).
 
-**Giving an order.** Choose a posture, then left click the destination hex. The order uses the posture currently chosen for that formation. A short message confirms "Order given", or says why the order was refused:
+**Giving an order.** With one of your formations selected (on your turn), **left click** a hex to send it there: the default order is **March**, whatever the formation did before. **Right click** a hex to open the **order ring** on it, the same ring as the unit ring in battle (it follows the hex when you pan, zoom or tilt, and stays on screen):
+
+| Segment | Order |
+|---|---|
+| 1 MARCH | go there, around enemy zones of control |
+| 2 ATTACK | go there and attack, entering enemy zones and stopping in contact |
+| 3 DEFEND | go there in the defensive posture, around enemy zones |
+| 4 CANCEL ORDER | only while the formation has an order: drop it |
+
+Hovering a segment shows a card with what the posture does, the route cost, the points per turn, the number of turns and how the route ends (arrived / contact / no progress), and the route preview on the map switches to that posture. Click a segment or press **1-4** to give the order; **Esc**, a click elsewhere or another right click closes the ring. On an enemy-held hex only ATTACK is available; a segment that cannot be used is dimmed and its card says why (UNAVAILABLE and the reason). A short message confirms "Order given", or says why the order was refused:
 
 - a contact battle has to be fought first;
 - not your formation;
@@ -467,19 +477,19 @@ With one of your formations selected, point at a hex to see how it would get the
 - no route in this posture (for example, the way is blocked by enemy zones of control while marching);
 - already in this posture (when you pick the posture it already has).
 
-**Attacking.** Select your formation, press **2** (Attack) and click the enemy counter (or its hex). The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped. In March and Defend a click on an enemy counter selects it, as before.
+**Attacking.** Select your formation and **left click** the enemy counter (or its hex), or right click the enemy hex and choose 2 ATTACK. The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped.
 
-**Postures.** The formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** and **POINTS**. Choose the posture with keys **1 / 2 / 3**, or with the picker under the counter. The points are what the formation can spend in one turn (for a formation with 8 move points):
+**Postures.** The formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** (the posture of the last order you gave it) and **POINTS**. The posture comes with the order: choose it in the order ring. The points are what the formation can spend in one turn (for a formation with 8 move points):
 
 | Key | Posture | Points | Enemy zone of control |
 |---|---|---|---|
-| 1 | March | 8 (100 %) | the route goes around it |
-| 2 | Attack | 6 (75 %) | the route may enter it, but the formation stops there ("contact") |
-| 3 | Defend | 4 (50 %) | the route goes around it |
+| ring 1 | March | 8 (100 %) | the route goes around it |
+| ring 2 | Attack | 6 (75 %) | the route may enter it, but the formation stops there ("contact") |
+| ring 3 | Defend | 4 (50 %) | the route goes around it |
 
-Changing the posture of a formation that already has an order re-plans the same destination in the new posture (or refuses, if there is no route that way).
+Giving a new order replaces the old one.
 
-**Cancelling.** With the formation selected, press **Delete**, **Backspace** or **X** to cancel its order. The message "Order cancelled" appears, or "No order to cancel" if it had none.
+**Cancelling.** With the formation selected, choose 4 CANCEL ORDER in the ring, or press **Delete**, **Backspace** or **X**. The message "Order cancelled" appears, or "No order to cancel" if it had none.
 
 **Reading the orders.** March orders are drawn as a dashed line, attack orders as a solid line. A defend order is a line that ends in a defence arc at the destination. Each **+n** cross-bar marks where the formation will stand after n turns (the per-turn stops). Orders you have issued are drawn slightly faded (82 % opacity) so they differ from the preview; the enemy's orders are never shown. A counter with an order carries a small amber tab. The **End turn** button shows **ORDERS n / m**: n of your m formations have an order.
 

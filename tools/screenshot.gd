@@ -346,7 +346,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## panel), hovercounter:<formation id> (counter hover), route:<col>:<row> (route preview of the
 ## selected formation to that hex, TASK-092c), posture:<1-3> (posture of the selected formation,
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
-## posture; view as the side to play), e.g.
+## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
+## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
 ## endturn (after the orders: ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
@@ -408,6 +409,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var show_route := false
 	var route_posture := 0
 	var orders: Array = []
+	var ring: Array = []
 	var end_turn_after := false
 	var joins: Array = []
 	var contacts: Array = []
@@ -440,6 +442,11 @@ func _apply_staff_map_state(spec: String) -> void:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
 					continue
 				orders.append(parts)
+			"ring":
+				if parts.size() < 3:
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				ring = parts
 			"endturn":
 				end_turn_after = true
 			"join":  # join:<country id>:<side> – the country turns belligerent (TASK-118)
@@ -482,8 +489,10 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.debug_hover(hover)
 	for order in orders:
 		map.select_formation(StringName(order[1]))
-		map.set_posture_number(order[4].to_int())
-		map.issue_order(MapGenerator.offset_to_axial(order[2].to_int(), order[3].to_int()))
+		map.issue_order(
+			MapGenerator.offset_to_axial(order[2].to_int(), order[3].to_int()),
+			StaffMapRoute.posture_for_key(order[4].to_int())
+		)
 	for join in joins:
 		var state := map.simulation().state
 		for event in CountryRules.set_stance(
@@ -505,6 +514,13 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.route_preview().set_hex(route_hex)
 		map.route_preview().rebuild()
 		map.view().highlight(route_hex)
+	if not ring.is_empty():
+		var ring_hex := MapGenerator.offset_to_axial(ring[1].to_int(), ring[2].to_int())
+		map.right_click_at(map.hex_screen_position(ring_hex))
+		if ring.size() > 3:
+			map.order_ring().ring().hovered = ring[3].to_int() - 1
+			map.order_ring().ring().slot_hovered.emit(ring[3].to_int() - 1)
+		map.view().highlight(ring_hex)
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
 	map.process_mode = Node.PROCESS_MODE_DISABLED

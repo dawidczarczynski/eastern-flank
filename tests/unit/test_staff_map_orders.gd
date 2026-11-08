@@ -1,7 +1,8 @@
+# gdlint: disable=max-public-methods
 extends TestCase
-## Orders on the staff map (TASK-092d): route styles (preview vs issued), dashes, the posture
-## picker, the controller (order / posture / cancel through commands, toast on rejection, arrows
-## restored from the state alone, enemy orders hidden). One StaffMap is shared by the tests.
+## Orders on the staff map (TASK-092d): route styles (preview vs issued), dashes, the controller
+## (left click = march / attack, the right-click order ring, cancel through commands, toast on
+## rejection, arrows restored from the state alone, enemy orders hidden). One StaffMap is shared.
 
 static var _map: StaffMap
 static var _previous_locale: String
@@ -131,41 +132,25 @@ func test_preview_in_posture_uses_the_posture_numbers() -> void:
 	assert_true(StaffMapRoute.preview_in_posture(state, formation, target, &"nope").is_empty())
 
 
-# --- picker ---
-
-
-func test_picker_captions_and_current_posture() -> void:
-	var picker := StaffMapPosturePicker.new()
-	picker.show_posture(&"advance")
-	assert_eq(picker.captions(), PackedStringArray(["[1] MARCH", "[2] ATTACK", "[3] DEFEND"]))
-	assert_eq(picker.pressed_posture(), &"advance")
-	picker.show_posture(&"defend")
-	assert_eq(picker.pressed_posture(), &"defend")
-	picker.free()
-
-
-func test_picker_button_emits_the_posture() -> void:
-	var picker := StaffMapPosturePicker.new()
-	var chosen: Array[StringName] = []
-	picker.posture_chosen.connect(func(id: StringName) -> void: chosen.append(id))
-	picker.button(&"march").pressed.emit()
-	assert_eq(chosen, [&"march"] as Array[StringName])
-	picker.free()
-
-
 # --- controller ---
 
 
-func test_selecting_an_own_formation_shows_the_picker_and_rows() -> void:
+func _click_hex(c: Vector2i) -> void:
+	_map.click_at(_map.hex_screen_position(c))
+
+
+func _slot(index: int) -> Dictionary:
+	return _map.order_ring().slots()[index]
+
+
+func test_selecting_an_own_formation_shows_the_panel_rows_but_no_picker() -> void:
 	var formation := _own()
 	_map.select_formation(formation.id)
-	assert_true(_map.posture_picker().visible)
-	assert_eq(_map.posture_picker().pressed_posture(), &"defend")
 	assert_true(_map.formation_panel().order_visible())
 	assert_eq(_map.formation_panel().value_text("POSTURE"), "[3] DEFEND")
 	assert_eq(_map.formation_panel().value_text("ORDER"), "NONE")
+	assert_false(_map.order_ring().is_open())
 	_map.select_formation(_enemy().id)
-	assert_false(_map.posture_picker().visible, "the enemy has no picker")
 	assert_false(_map.formation_panel().order_visible())
 
 
@@ -183,28 +168,188 @@ func test_issue_order_creates_a_command_and_keeps_the_arrow_after_deselect() -> 
 	assert_eq(_map.turn_bar().end_button().detail.begins_with("ORDERS 1 / "), true)
 
 
-func test_posture_keys_send_set_posture() -> void:
+func test_left_click_on_a_hex_marches_whatever_the_posture() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	formation.posture = &"defend"
+	_map.select_formation(formation.id)
+	_click_hex(target)
+	assert_eq(formation.order.destination, target)
+	assert_eq(formation.posture, &"march")
+	assert_eq(_map.selected_formation(), &"", "done with this one")
+	assert_eq(_map.formation_panel().value_text("POSTURE"), "[1] MARCH")
+
+
+func test_left_click_on_an_enemy_orders_an_attack() -> void:
+	var formation := _own()
+	var enemy := _enemy()
+	formation.posture = &"march"
+	_map.select_formation(formation.id)
+	_map.click_at(_map.counter_screen_position(enemy.id))
+	assert_true(formation.order != null, "order given")
+	assert_eq(formation.order.destination, enemy.coord)
+	assert_eq(formation.posture, &"advance")
+
+
+func test_left_click_on_an_own_counter_selects_it() -> void:
+	var formation := _own()
+	var other := _enemy()
+	_map.select_formation(other.id)
+	_map.click_at(_map.counter_screen_position(formation.id))
+	assert_eq(_map.selected_formation(), formation.id)
+
+
+func test_right_click_opens_the_ring_on_the_hex() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	_map.select_formation(formation.id)
+	var history := _map.simulation().history.size()
+	assert_true(_map.right_click_at(_map.hex_screen_position(target)))
+	var ring := _map.order_ring()
+	assert_true(ring.is_open())
+	assert_eq(ring.hex(), target)
+	assert_eq(_map.simulation().history.size(), history, "opening gives no command")
+	for i in 3:
+		assert_true(_slot(i)["enabled"], "free hex: march / attack / defend")
+	assert_true(_slot(3)["empty"], "no order, no cancel segment")
+	assert_true(_slot(5)["empty"])
+
+
+func test_ring_slot_issues_that_posture() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	for pair in [[0, &"march"], [1, &"advance"], [2, &"defend"]]:
+		_map.select_formation(formation.id)
+		_map.right_click_at(_map.hex_screen_position(target))
+		_map.order_ring().activate(pair[0])
+		assert_false(_map.order_ring().is_open())
+		assert_eq(formation.posture, pair[1])
+		assert_eq(formation.order.destination, target)
+		assert_eq(_map.selected_formation(), &"", "deselected after the order")
+		formation.order = null
+
+
+func test_ring_keys_pick_a_segment_and_esc_closes() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(target))
+	_key(KEY_ESCAPE)
+	assert_false(_map.order_ring().is_open())
+	assert_eq(_map.selected_formation(), formation.id, "Esc closed the ring only")
+	_map.right_click_at(_map.hex_screen_position(target))
+	_key(KEY_3)
+	assert_eq(formation.posture, &"defend")
+	assert_eq(formation.order.destination, target)
+
+
+func test_left_click_elsewhere_closes_the_ring_without_ordering() -> void:
 	var formation := _own()
 	_map.select_formation(formation.id)
-	_key(KEY_1)
-	assert_eq(formation.posture, &"march")
-	assert_eq(_map.posture_picker().pressed_posture(), &"march")
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	_map.click_at(_map.hex_screen_position(_far_hex(formation, 3)))
+	assert_false(_map.order_ring().is_open())
+	assert_true(formation.order == null)
+	assert_eq(_map.selected_formation(), formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	_map.right_click_at(Vector2(-5000, -5000))  # off the map: closes
+	assert_false(_map.order_ring().is_open())
+
+
+func test_ring_on_an_enemy_hex_enables_only_attack() -> void:
+	var formation := _own()
+	var enemy := _enemy()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(enemy.coord))
+	assert_true(_map.order_ring().is_open())
+	assert_false(_slot(0)["enabled"])
+	assert_eq(_slot(0)["reason"], "Only the Attack posture can target an enemy formation.")
+	assert_true(_slot(1)["enabled"])
+	assert_false(_slot(2)["enabled"])
+	_map.order_ring().activate(0)
+	assert_true(_map.order_ring().is_open(), "a disabled segment does nothing")
+	assert_true(formation.order == null)
 	_key(KEY_2)
+	assert_eq(formation.order.destination, enemy.coord)
 	assert_eq(formation.posture, &"advance")
-	assert_eq(_map.formation_panel().value_text("POSTURE"), "[2] ATTACK")
-	var history := _map.simulation().history.size()
-	_key(KEY_2)
-	assert_eq(_map.simulation().history.size(), history, "same posture: no command")
+
+
+func test_ring_on_an_own_hex_refuses_everything() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(formation.coord))
+	for i in 3:
+		assert_false(_slot(i)["enabled"])
+		assert_true(_slot(i)["reason"] != "")
+
+
+func test_ring_cancel_segment_only_with_an_order() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	formation.order = FormationOrder.new(target)
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation, 3)))
+	assert_false(_slot(3)["empty"])
+	assert_true(_slot(3)["enabled"])
+	assert_eq(_slot(3)["action"], &"cancel")
+	_key(KEY_4)
+	assert_true(formation.order == null)
+	assert_eq(_map.selected_formation(), formation.id, "stays selected after cancelling")
+	assert_false(_map.order_ring().is_open())
+
+
+func test_ring_card_shows_the_route_numbers_of_the_hovered_segment() -> void:
+	var formation := _own()
+	var target := _far_hex(formation, 6)
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(target))
+	var ring := _map.order_ring()
+	ring.ring().hovered = 1
+	ring.ring().slot_hovered.emit(1)
+	assert_true(ring.card().visible)
+	assert_eq(ring.hovered_posture(), &"advance")
+	var model := StaffMapOrderRingModel.build(_map.simulation().state, formation, target)
+	var state := _map.simulation().state
+	var preview := StaffMapRoute.preview_in_posture(state, formation, target, &"advance")
+	var turns: int = preview["turns"]
+	assert_eq(model["details"][1]["effects"][2], {"label": "TURNS", "value": str(turns)})
+
+
+func test_ring_closes_when_the_selection_changes_or_it_is_not_your_turn() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	_map.select_formation(&"")
+	assert_false(_map.order_ring().is_open())
+	var state := _map.simulation().state
+	_map.select_formation(formation.id)
+	var current := state.current_player
+	state.current_player = 1 - current
+	assert_false(_map.right_click_at(_map.hex_screen_position(_far_hex(formation))))
+	state.current_player = current
+
+
+func test_route_preview_follows_the_default_posture() -> void:
+	var formation := _own()
+	var enemy := _enemy()
+	_map.select_formation(formation.id)
+	_map.route_preview().set_hex(_far_hex(formation))
+	_map.route_preview().rebuild()
+	assert_eq(_map.route_preview().shown_posture(), &"march")
+	_map.route_preview().set_hex(enemy.coord)
+	_map.route_preview().rebuild()
+	assert_eq(_map.route_preview().shown_posture(), &"advance")
+	_map.route_preview().set_hex(StaffMapRoutePreview.OFF)
+	_map.route_preview().rebuild()
 
 
 func test_posture_change_keeps_the_order_and_restyles_the_arrow() -> void:
 	var formation := _own()
 	var target := _far_hex(formation)
 	_map.select_formation(formation.id)
-	_key(KEY_1)
 	_map.issue_order(target)
 	assert_true(_map.orders().style_of(formation.id)["dashed"])
-	_key(KEY_3)
+	_map.set_posture(&"defend")
 	assert_eq(formation.order.destination, target)
 	assert_true(_map.orders().style_of(formation.id)["defend_arc"])
 	assert_false(_map.orders().style_of(formation.id)["dashed"])

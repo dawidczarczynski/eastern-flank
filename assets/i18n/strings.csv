@@ -145,7 +145,7 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Click: select / order   1 2 3: posture   Del: cancel   Tab: next   WASD: pan   Wheel: zoom   Q E: tilt   V: flat   G: grid   B: borders   P: politics   C: country   Esc: back,Klik: wybór / rozkaz   1 2 3: postawa   Del: anuluj   Tab: następna   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko   G: siatka   B: granice   P: polityka   C: państwo   Esc: wstecz
+STAFF_MAP_HINT,Click: march / select   Right-click: orders   Del: cancel   Tab: next   WASD: pan   Wheel: zoom   Q E: tilt   V: flat   G: grid   B: borders   P: politics   C: country   Esc: back,Klik: marsz / wybór   PPM: rozkazy   Del: anuluj   Tab: następna   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko   G: siatka   B: granice   P: polityka   C: państwo   Esc: wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
@@ -205,6 +205,19 @@ POSTURE_MARCH,March,Marsz
 POSTURE_ADVANCE,Attack,Atak
 POSTURE_DEFEND,Defend,Obrona
 POSTURE,POSTURE,POSTAWA
+POSTURE_HINT_MARCH,Goes around enemy zones of control.,Omija strefy kontroli wroga.
+POSTURE_HINT_ADVANCE,Enters enemy zones and stops in contact.,Wchodzi w strefy wroga i staje w styku.
+POSTURE_HINT_DEFEND,Goes around enemy zones. Best in defence.,Omija strefy wroga. Najlepsza w obronie.
+ORDER_RING_CANCEL,Cancel,Anuluj
+ORDER_RING_ORDER,order,rozkaz
+ORDER_RING_CANCEL_TITLE,Cancel order,Anuluj rozkaz
+ORDER_RING_CANCEL_HINT,Drops the standing order; the formation stays where it is.,Usuwa obowiązujący rozkaz; formacja zostaje na miejscu.
+ORDER_RING_CHOOSE,Choose an order…,Wybierz rozkaz…
+PER TURN,PER TURN,NA TURĘ
+ROUTE,ROUTE,TRASA
+ENDS,ENDS,KOŃCZY
+TURNS,TURNS,TURY
+HEX,HEX,POLE
 ORDER_NONE,NONE,BRAK
 ORDERS %d / %d,ORDERS %d / %d,ROZKAZY %d / %d
 ORDER_ISSUED,Order given.,Rozkaz wydany.
