@@ -48,6 +48,7 @@ var _gauge: Gauge
 var _companies: VBoxContainer
 var _order_box: VBoxContainer
 var _companies_caption: Label
+var _country_row: Control  # country of origin of a joined ally (TASK-118)
 
 
 func _init() -> void:
@@ -73,6 +74,9 @@ func _init() -> void:
 	column.add_child(_divider())
 	for caption in ["Type", "Side", "STRENGTH", "Location"]:
 		column.add_child(_row(caption))
+	_country_row = _row("Country")
+	_country_row.hide()
+	column.add_child(_country_row)
 	_order_box = VBoxContainer.new()
 	_order_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_order_box.add_theme_constant_override(&"separation", 5)
@@ -127,6 +131,13 @@ func show_formation(
 	_companies_caption.text = tr("COMPANIES").to_upper()
 	_fill_companies(formation)
 	show()
+	reset_size()
+
+
+## Shows the country of origin of a joined ally (translation key of its name); "" hides the row.
+func show_origin(country_name: String) -> void:
+	_country_row.visible = country_name != ""
+	_values["Country"].text = tr(country_name).to_upper()
 	reset_size()
 
 

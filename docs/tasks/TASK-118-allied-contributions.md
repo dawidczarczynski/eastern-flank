@@ -1,6 +1,6 @@
 # TASK-118: Allied contributions – a country that goes to war on its leaning side brings its formations (data per operation)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (allied counters, arrival notice)
 - **Depends on**: TASK-114, TASK-092b
 - **Model**: sonnet
@@ -49,4 +49,10 @@ Section in the "Politics" chapter (started by TASK-113) – which allies can joi
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+**Logic**: `CountrySetup.contribution`, `CountryState.contributed`, `OperationalState.initial_posture`, shared helper `Reinforcements.place`, hooked into `CountryRules.set_stance`; events `formation_joined` / `formation_join_failed` (in ARCHITECTURE.md). `Reinforcements.place` serves the wanted hexes of the whole batch first and only then resolves fallbacks (otherwise A would take B's hex); in the spec example A lands on (3,0).
+
+**Data** (`suwalki_gap.tres`, axial coords, [ASSUMPTION] balance guess): Lithuania (leaning 0, 120): `lt_iron_wolf_1` (40,13) Kaunas, `lt_iron_wolf_2` (46,8) Rukla, `nato_bde_lt` (56,17) Vilnius. Belarus (leaning 1, 110): `by_6_mech_1` (26,45) next to Grodno (24,45 is occupied), `by_6_mech_2` (47,38) Lida, `by_6_tank` (37,41) east of Grodno.
+
+**View**: `StaffMapJoinNotice` (notice + *Show*), `StaffMapCounters.sync_new()`, country tag + pulse on counters, "Country" row in the formation panel; `join:<country>:<side>` token in `tools/screenshot.gd`.
+
+**Limitations**: the origin country is the country of the hex at join time (wrong for TASK-121 off-map arrivals – `formation_joined` should then carry the origin); `formation_join_failed` has no player-visible feedback; the notice is placed when shown and not re-placed on window resize; the TASK-117 replay test is not done (TASK-117 not done); no player-facing trigger yet except the F9 debug panel.

@@ -77,6 +77,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OperationalRoutes` – Routes of formations on the operational map (TASK-092c, GDD "Orders and postures"): the (`operational_routes.gd`)
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
 - `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
+- `Reinforcements` – Puts new formations on the staff map (TASK-118; TASK-121 reuses it for off-map support).… (`reinforcements.gd`)
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 
 ## src/presentation/audio/
@@ -207,6 +208,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapFormationPanel` – Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"), (`staff_map_formation_panel.gd`)
 - `StaffMapFormations` – Pure view rules of the formation counters on the staff map (TASK-092b): own / enemy relat… (`staff_map_formations.gd`)
 - `StaffMapFrontLine` – The front line of the staff map (TASK-093c, look: docs/design/operational_map "Front line… (`staff_map_front_line.gd`)
+- `StaffMapJoinNotice` – Notice "<Country> joins <side> – N formations" of the staff map (TASK-118, HUD v3 "06 Not… (`staff_map_join_notice.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapMoveAnimation` – The cosmetic slide of counters at the end of a move (TASK-092e), pure timing and path mat… (`staff_map_move_animation.gd`)
 - `StaffMapOrders` – The issued orders on the staff map (TASK-092d, look: docs/design/operational_map "Orders"… (`staff_map_orders.gd`)

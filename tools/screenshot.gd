@@ -407,6 +407,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var route_posture := 0
 	var orders: Array = []
 	var end_turn_after := false
+	var joins: Array = []
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -438,6 +439,11 @@ func _apply_staff_map_state(spec: String) -> void:
 				orders.append(parts)
 			"endturn":
 				end_turn_after = true
+			"join":  # join:<country id>:<side> – the country turns belligerent (TASK-118)
+				if parts.size() != 3:
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				joins.append(parts)
 			"grid":
 				map.view().set_grid_visible(true)
 			"country":
@@ -470,6 +476,12 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.select_formation(StringName(order[1]))
 		map.set_posture_number(order[4].to_int())
 		map.issue_order(MapGenerator.offset_to_axial(order[2].to_int(), order[3].to_int()))
+	for join in joins:
+		var state := map.simulation().state
+		for event in CountryRules.set_stance(
+			state, StringName(join[1]), &"belligerent", join[2].to_int(), &"screenshot", -1
+		):
+			map.simulation().event_emitted.emit(event)
 	if end_turn_after:  # the orders run, the slide is skipped, the mover's report is shown
 		var mover := map.simulation().state.current_player
 		map.end_turn()

@@ -73,6 +73,10 @@ var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
 var _picker: StaffMapPosturePicker
 var _toast: Toast
+var _join_notice: StaffMapJoinNotice
+var _origins := {}  # formation id -> country id of origin (joined allies, TASK-118)
+var _join_key := ""  # "<country>|<player>" of the group the notice shows
+var _join_ids: Array = []
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
 var _report: StaffMapTurnReport
@@ -373,6 +377,8 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
 	var own := formation.owner_id == viewer_player
 	_route.set_formation(_simulation.state, formation_id if own else &"")
+	var origin := CountryDefinition.find(origin_country(formation_id))
+	_panel.show_origin(origin.display_name if origin != null else "")
 	_show_order_ui(formation)
 	_place_panel()
 
@@ -711,6 +717,9 @@ func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
 
 
 func _on_operational_event(event: Dictionary) -> void:
+	_add_new_counters()
+	if event.get("type") == &"formation_joined":
+		_on_formation_joined(event)
 	_marks.on_event(_simulation.state, event)
 	_slide.collect(event)
 	if event.get("type") == &"operational_turn_started":
@@ -729,6 +738,75 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_begin_slide()
 		_show_new_report()
+
+
+## Formations that joined (appended to the state) get their counters, a pulse and the country of
+## origin (the country of the hex they appeared on) before any other handler reads the counters.
+func _add_new_counters() -> void:
+	if _counters.counter_count() == _simulation.state.formations.size():
+		return
+	var state := _simulation.state
+	for formation in state.formations:
+		if _counters.counter(formation.id) == null:
+			_origins[formation.id] = state.country_at(formation.coord)
+	_counters.sync_new(_origins)
+
+
+## A new ally appears (TASK-118): the notice "<Country> joins <side> – N formations" counts the
+## group (country + side) up.
+func _on_formation_joined(event: Dictionary) -> void:
+	var state := _simulation.state
+	var id: StringName = event["formation_id"]
+	var player: int = event["player"]
+	var key := "%s|%d" % [event.get("country", &""), player]
+	if key != _join_key or not _join_notice.visible:
+		_join_key = key
+		_join_ids = []
+	_join_ids.append(id)
+	var definition := CountryDefinition.find(StringName(event.get("country", &"")))
+	var side := SideDefinition.find(state.player_sides[player])
+	_join_notice.present(
+		(
+			tr("%s joins %s – %d formations")
+			% [
+				tr(definition.display_name) if definition != null else "?",
+				tr(side.display_name) if side != null else "?",
+				_join_ids.size()
+			]
+		),
+		_join_ids,
+		StaffMapFormations.side_colour(_palette, player)
+	)
+	_place_join_notice()
+
+
+func _place_join_notice() -> void:
+	_join_notice.reset_size()
+	_join_notice.position = Vector2(
+		(_viewport_size().x - _join_notice.size.x) / 2.0, _viewport_size().y - 190.0
+	)
+
+
+## *Show* on the notice: centres the map on the new formations.
+func _on_join_show(ids: Array) -> void:
+	if ids.is_empty():
+		return
+	var sum := Vector2.ZERO
+	for id: StringName in ids:
+		var point: Vector3 = _anchors.get(id, Vector3.ZERO)
+		sum += Vector2(point.x, point.z)
+	# Fully zoomed out the camera is pinned to the theatre centre, so zoom in to a mid level first.
+	_set_zoom(maxf(_zoom, sqrt(_min_zoom * _max_zoom)))
+	_move_camera(sum / ids.size() * StaffMapView.UNIT)
+
+
+## Country of origin of a formation that joined during the operation; &"" for the starting ones.
+func origin_country(formation_id: StringName) -> StringName:
+	return _origins.get(formation_id, &"")
+
+
+func join_notice() -> StaffMapJoinNotice:
+	return _join_notice
 
 
 ## The counters of everything that moved slide to their new hexes (cosmetic: state is final).
@@ -861,6 +939,9 @@ func _build_hud() -> void:
 	_counter_layer.add_child(_picker)
 	_toast = Toast.new()
 	_hud.add_child(_toast)
+	_join_notice = StaffMapJoinNotice.new()
+	_join_notice.show_pressed.connect(_on_join_show)
+	_hud.add_child(_join_notice)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)

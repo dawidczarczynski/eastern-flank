@@ -28,11 +28,32 @@ func build(state: OperationalState, palette: StaffMapPalette, viewer_player: int
 	_palette = palette
 	_viewer = viewer_player
 	for formation in state.formations:
-		var counter := StaffMapCounter.new()
-		counter.setup(formation, viewer_player, palette)
-		add_child(counter)
-		_counters[formation.id] = counter
-		_order.append(formation.id)
+		_add(formation)
+
+
+## Adds counters for formations that joined after build() (TASK-118): they pulse and, when a
+## country of origin is known, carry its ISO tag. Returns the new ids in order.
+func sync_new(origins: Dictionary) -> Array[StringName]:
+	var added: Array[StringName] = []
+	for formation in _state.formations:
+		if _counters.has(formation.id):
+			continue
+		var c := _add(formation)
+		var definition := CountryDefinition.find(StringName(origins.get(formation.id, &"")))
+		if definition != null:
+			c.country_tag = definition.iso_code
+		c.start_pulse()
+		added.append(formation.id)
+	return added
+
+
+func _add(formation: Formation) -> StaffMapCounter:
+	var counter := StaffMapCounter.new()
+	counter.setup(formation, _viewer, _palette)
+	add_child(counter)
+	_counters[formation.id] = counter
+	_order.append(formation.id)
+	return counter
 
 
 ## Formation ids in placement order.

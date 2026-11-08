@@ -38,7 +38,9 @@ static func may_strike(state: OperationalState, player: int, coord: Vector2i) ->
 
 ## The only place that changes a stance. Legal: neutral -> aligned / belligerent S; aligned S ->
 ## belligerent S; aligned S -> neutral. Anything else: push_error, no change, []. `cause` is a tag
-## for the event, `by` the acting player or -1. casus_belli resets, the other flags stay.
+## for the event, `by` the acting player or -1. casus_belli resets, the other flags stay. A country
+## that becomes belligerent on its leaning side brings its contribution once (Reinforcements,
+## TASK-118): the `formation_joined` / `formation_join_failed` events follow the stance event.
 static func set_stance(
 	state: OperationalState,
 	country_id: StringName,
@@ -72,6 +74,15 @@ static func set_stance(
 		"by": by,
 	}
 	events.append(event)
+	if (
+		stance == CountryState.BELLIGERENT
+		and side == country.leaning
+		and not country.contributed
+		and not country.contribution.is_empty()
+	):
+		country.contributed = true
+		var placed := Reinforcements.place(state, country.contribution, side, &"contribution")
+		events.append_array(placed["events"])
 	return events
 
 

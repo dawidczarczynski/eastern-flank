@@ -256,3 +256,5 @@ REPORT_INTERRUPTED_DESTINATION_OCCUPIED,Order dropped: destination taken,Rozkaz 
 REPORT_INTERRUPTED_NO_ROUTE,Order dropped: no route,Rozkaz anulowany: brak drogi
 REPORT_INTERRUPTED_BLOCKED,Order dropped: way blocked,Rozkaz anulowany: droga zablokowana
 REPORT_EMPTY,No orders were carried out.,Nie wykonano żadnych rozkazów.
+%s joins %s – %d formations,%s joins %s – %d formations,%s dołącza do strony %s – formacji: %d
+JOIN_SHOW,Show,Pokaż

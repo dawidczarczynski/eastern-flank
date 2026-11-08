@@ -17,6 +17,8 @@ var front_range: int = FrontLine.DEFAULT_RANGE
 var player_sides: Array[StringName] = []
 ## Lead faction of each player's side (colours, HUD).
 var player_factions: Array[StringName] = []
+## Posture of formations that appear after the start (static, from the definition).
+var initial_posture: StringName = &"defend"
 var first_player: int = 0
 var current_player: int = 0
 var turn: int = 1

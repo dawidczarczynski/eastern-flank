@@ -22,6 +22,10 @@ var casus_belli: Array[bool] = [false, false]
 var breached_by: Array[bool] = [false, false]
 ## Per player: declared hostilities on this country.
 var declared_by: Array[bool] = [false, false]
+## Formations that join on the leaning side (static, from CountrySetup.contribution).
+var contribution: Array[FormationPlacement] = []
+## The contribution has already come (or been lost): it never comes twice.
+var contributed := false
 
 
 static func from_setup(setup: CountrySetup) -> CountryState:
@@ -31,6 +35,7 @@ static func from_setup(setup: CountrySetup) -> CountryState:
 	country.stance = setup.stance
 	country.side = setup.side
 	country.leaning = setup.leaning
+	country.contribution = setup.contribution.duplicate()
 	return country
 
 
@@ -42,4 +47,5 @@ func snapshot() -> Dictionary:
 		"casus_belli": casus_belli.duplicate(),
 		"breached_by": breached_by.duplicate(),
 		"declared_by": declared_by.duplicate(),
+		"contributed": contributed,
 	}

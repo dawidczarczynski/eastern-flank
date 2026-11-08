@@ -392,6 +392,19 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 
 Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or Russia (the Kaliningrad oblast). A warm dash-dot line follows the real state border – along the south edge of the oblast, along the Neman, across the Suwałki Gap and along the Belarusian border – and a very faint, large name (POLSKA / LITWA / BIAŁORUŚ / ROSJA, or the English names) lies over each country. Hexes in the sea or in a large lake belong to none. Pointing at a hex adds a **Country** line to the hex card (a dash for a hex without a country). The line is drawn from the real border (OpenStreetMap), not along the hexes; the hexes only decide which country a hex counts as for the rules. Press **B** to hide or show the borders and the names (on at the start).
 
+### Politics
+
+**Allied contributions.** Two countries lean towards a side and bring troops of their own to it: **Lithuania** leans to NATO and **Belarus** to Russia. A contribution comes once, at the moment the country becomes **belligerent** (goes to war) on the side it leans to; it does not come while the country is neutral or only aligned, and never comes twice. A country that goes to war on the other side brings nothing.
+
+| Country | Joins | Formations | Total strength |
+|---|---|---|---|
+| Lithuania | NATO | 3 battalions (two Iron Wolf battalions and a NATO brigade battalion) | 120 |
+| Belarus | Russia | 3 battalions (two 6th mechanised battalions and a tank battalion) | 110 |
+
+**Where they appear.** The formations stand on the ally's own territory, at their set start hexes, at full strength, with no orders and in the starting posture. If a start hex is taken by another formation or cannot be entered, the formation is placed on the nearest free hex of the same country within 3 hexes. If there is none, that formation is lost: it does not come.
+
+**The join notice.** When allies arrive, a notice appears: "<Country> joins <side> – N formations" (N counts the formations that really appeared), with a **Show** button that moves the camera to them. The new counters pulse with a ring for a moment and carry a small tag with the country's code, so you can tell them apart from the original formations.
+
 ### Turns
 
 The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.

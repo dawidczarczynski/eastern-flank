@@ -27,6 +27,8 @@ const MOVED_DARKEN := 0.4
 const RING_PAD := 5.0
 const RING_DASH := 4.0
 const RING_WIDTH := 1.5
+const PULSE_SECONDS := 1.6
+const PULSE_GROW := 26.0
 
 var formation_id: StringName
 var formation_class: StringName
@@ -63,6 +65,14 @@ var in_contact := false:
 		if in_contact != value:
 			in_contact = value
 			queue_redraw()
+## Country of origin of a joined ally (TASK-118): its ISO code shows as a small tag on the frame.
+var country_tag := "":
+	set(value):
+		if country_tag != value:
+			country_tag = value
+			queue_redraw()
+## Remaining seconds of the "just joined" pulse ring (0 = none).
+var pulse_left := 0.0
 ## Formations in the stack this counter stands for (1 = no badge).
 var stack_count := 1:
 	set(value):
@@ -102,6 +112,21 @@ static func segments_width(scale := 1.0) -> float:
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	set_process(false)
+
+
+## A short expanding amber ring: the formation has just appeared (TASK-118).
+func start_pulse() -> void:
+	pulse_left = PULSE_SECONDS
+	set_process(true)
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	pulse_left = maxf(pulse_left - delta, 0.0)
+	if pulse_left <= 0.0:
+		set_process(false)
+	queue_redraw()
 
 
 func setup(formation: Formation, viewer_player: int, palette: StaffMapPalette) -> void:
@@ -208,6 +233,10 @@ func _draw() -> void:
 	_draw_gauge()
 	if stack_count > 1:
 		_draw_badge(frame)
+	if country_tag != "":
+		_draw_country_tag(frame)
+	if pulse_left > 0.0:
+		_draw_pulse(frame)
 	if has_order and is_own():
 		_draw_order_mark(frame)
 	if selected:
@@ -325,6 +354,40 @@ func _draw_gauge() -> void:
 	var colour := StaffMapFormations.strength_colour(strength, max_strength, _palette)
 	var unlit := Color(_palette.ui_muted, 0.35)
 	draw_segments(self, rect.position, lit_segments(), colour, unlit)
+
+
+## Small country-of-origin tag at the frame's top-left corner (TASK-118).
+func _draw_country_tag(frame: Rect2) -> void:
+	var font := HudTheme.mono(700)
+	var size_px := 8
+	var text_w := font.get_string_size(country_tag, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
+	var box := Rect2(
+		Vector2(frame.position.x - 3.0, frame.position.y - 7.0), Vector2(text_w + 6.0, 11)
+	)
+	draw_rect(box, _palette.label_halo)
+	draw_rect(box, Color(_palette.ui_text, 0.7), false, 1.0)
+	var baseline := box.position.y + (box.size.y + font.get_ascent(size_px)) * 0.5 - 1.5
+	var at := Vector2(box.position.x + 3.0, baseline)
+	draw_string(font, at, country_tag, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, _palette.ui_text)
+
+
+## An amber ring that grows and fades while the formation has just joined.
+func _draw_pulse(frame: Rect2) -> void:
+	var t := 1.0 - pulse_left / PULSE_SECONDS
+	var ring := frame.grow(PULSE_GROW * t)
+	draw_polyline(
+		PackedVector2Array(
+			[
+				ring.position,
+				Vector2(ring.end.x, ring.position.y),
+				ring.end,
+				Vector2(ring.position.x, ring.end.y),
+				ring.position
+			]
+		),
+		Color(_palette.ui_amber, 1.0 - t),
+		2.0
+	)
 
 
 ## Count badge at the frame's top-right corner.

@@ -50,6 +50,7 @@ static func from_definition(
 	state.operation_name = definition.display_name
 	state.start_date = definition.start_date
 	state.front_range = definition.front_range
+	state.initial_posture = definition.initial_posture
 	state.grid = grid
 	for side in definition.sides:
 		state.player_sides.append(side.id)
@@ -93,7 +94,10 @@ static func _problem(
 			var other: StringName = occupied[placement.coord]
 			return "'%s' and '%s' on one tile %s" % [other, placement.id, placement.coord]
 		occupied[placement.coord] = placement.id
-	return _closed_placement_problem(definition, country_map)
+	var closed_error := _closed_placement_problem(definition, country_map)
+	if closed_error != "":
+		return closed_error
+	return _contributions_problem(definition, grid, country_map, ids)
 
 
 ## Coord -> country id of every hex of `map` that belongs to a country (what `from_definition`
@@ -143,6 +147,44 @@ static func _countries_problem(definition: OperationDefinition, country_map: Dic
 	for country_id: StringName in country_map.values():
 		if not seen.has(country_id):
 			return "country '%s' on the map has no setup" % country_id
+	return ""
+
+
+## Contributions (TASK-118): each placement is valid like a start one, belongs to the country's
+## leaning side, lies on its soil and has an id unused anywhere in the operation.
+static func _contributions_problem(
+	definition: OperationDefinition, grid: HexGrid, country_map: Dictionary, ids: Dictionary
+) -> String:
+	for setup in definition.countries:
+		var label := "country '%s'" % setup.country.id
+		if not setup.contribution.is_empty() and setup.leaning == -1:
+			return "%s: a contribution without a leaning" % label
+		for placement in setup.contribution:
+			if placement == null:
+				return "%s: empty contribution placement" % label
+			var error := _contribution_problem(definition, grid, country_map, setup, placement)
+			if error == "" and ids.has(placement.id):
+				error = "duplicate formation id '%s'" % placement.id
+			if error != "":
+				return "%s: contribution '%s': %s" % [label, placement.id, error]
+			ids[placement.id] = true
+	return ""
+
+
+static func _contribution_problem(
+	definition: OperationDefinition,
+	grid: HexGrid,
+	country_map: Dictionary,
+	setup: CountrySetup,
+	placement: FormationPlacement
+) -> String:
+	if placement.player != setup.leaning:
+		return "player %d is not the leaning side %d" % [placement.player, setup.leaning]
+	var error := _placement_problem(definition, grid, placement)
+	if error != "":
+		return error
+	if country_map.get(placement.coord, &"") != setup.country.id:
+		return "%s is not in the country" % placement.coord
 	return ""
 
 

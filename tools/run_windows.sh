@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Runs the game with the Windows build of Godot (from WSL), so it renders on the GPU –
 # under WSLg with an old Mesa the Linux build falls back to software rendering (llvmpipe).
-# Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>]
+# Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]
 #   --quality  force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
 #   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle); a user argument
+#   --scene   open a scene directly: staff_map, battle, menu (as in run.sh)
+#   --side    the side the staff map is viewed as: nato (default) or russia; a user argument
+#   --debug   debug mode: the F9 panel on the staff map; a user argument
 #   --editor  open the editor instead of the game
 #   --import  refresh the class cache with the Linux Godot first (only needed after adding a
 #             class_name without running tools/check.sh)
@@ -22,16 +25,25 @@ fi
 
 editor=()
 user_args=()
+scene_path=()
 for arg in "$@"; do
 	case "$arg" in
 	--editor) editor=(--editor) ;;
-	--quality=* | --scenario=*) user_args+=("$arg") ;;
+	--quality=* | --scenario=* | --side=* | --debug) user_args+=("$arg") ;;
+	--scene=*)
+		case "${arg#--scene=}" in
+		staff_map) scene_path=(res://scenes/operational/staff_map.tscn) ;;
+		battle) scene_path=(res://scenes/battle/battle.tscn) ;;
+		menu) scene_path=(res://scenes/ui/main_menu.tscn) ;;
+		*) echo "Unknown --scene '${arg#--scene=}' (staff_map, battle, menu)" >&2; exit 2 ;;
+		esac
+		;;
 	--import)
 		linux_godot="$(command -v "${GODOT:-godot}" || echo "$HOME/.local/bin/godot")"
 		"$linux_godot" --headless --path . --import >/dev/null 2>&1 || true
 		;;
 	*)
-		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>]" >&2
+		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]" >&2
 		exit 2
 		;;
 	esac
@@ -42,7 +54,7 @@ done
 # from Windows), and `cmd.exe /c start` blocks until Godot exits. The working directory is
 # C: because Windows programs can't start in a WSL (UNC) directory.
 args="'--path','$(wslpath -w "$PWD")'"
-for arg in "${editor[@]}"; do
+for arg in "${editor[@]}" "${scene_path[@]}"; do
 	args+=",'$arg'"
 done
 if [[ ${#user_args[@]} -gt 0 ]]; then
