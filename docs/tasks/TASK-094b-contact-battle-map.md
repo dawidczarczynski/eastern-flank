@@ -1,6 +1,6 @@
 # TASK-094b: Contact (2/4) – tactical map for a contact anywhere on the theatre, deployment and objectives
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/`, importer in `tools/`) + data (`data/maps/`, `data/operational/contact.tres`) + presentation (debug preview)
 - **Depends on**: TASK-094a
 - **Sections**: GDD "Battle hand-off and auto-resolve", Open questions "Tactical maps for contacts anywhere"; ADR 0015, ADR 0018; docs/TOOLS.md (importer)

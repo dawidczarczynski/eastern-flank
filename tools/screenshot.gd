@@ -349,6 +349,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## posture; view as the side to play), e.g.
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
 ## endturn (after the orders: ends the move, skips the slide, TASK-092e),
+## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
+## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
 ## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -408,6 +410,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var orders: Array = []
 	var end_turn_after := false
 	var joins: Array = []
+	var contacts: Array = []
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -444,6 +447,11 @@ func _apply_staff_map_state(spec: String) -> void:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
 					continue
 				joins.append(parts)
+			"contact":
+				if parts.size() != 3:
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				contacts.append(parts)
 			"grid":
 				map.view().set_grid_visible(true)
 			"country":
@@ -482,6 +490,8 @@ func _apply_staff_map_state(spec: String) -> void:
 			state, StringName(join[1]), &"belligerent", join[2].to_int(), &"screenshot", -1
 		):
 			map.simulation().event_emitted.emit(event)
+	for contact in contacts:
+		_start_contact(map, StringName(contact[1]), StringName(contact[2]))
 	if end_turn_after:  # the orders run, the slide is skipped, the mover's report is shown
 		var mover := map.simulation().state.current_player
 		map.end_turn()
@@ -498,6 +508,32 @@ func _apply_staff_map_state(spec: String) -> void:
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
 	map.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+## Moves `attacker_id` next to `defender_id` and lets ContactRules start the battle like the end
+## of a turn would (the events reach the map as real ones).
+func _start_contact(map: StaffMap, attacker_id: StringName, defender_id: StringName) -> void:
+	var state := map.simulation().state
+	var attacker := state.get_formation(attacker_id)
+	var defender := state.get_formation(defender_id)
+	if attacker == null or defender == null:
+		printerr("ERROR: unknown formation in contact:%s:%s" % [attacker_id, defender_id])
+		return
+	for neighbor in Hex.neighbors(defender.coord):
+		if state.formation_at(neighbor) == null:
+			attacker.coord = neighbor
+			break
+	var events: Array[Dictionary] = [
+		{
+			"type": &"formation_halted",
+			"formation_id": attacker.id,
+			"at": attacker.coord,
+			"reason": &"contact",
+		}
+	]
+	ContactRules.start_battles(state, events)
+	for event in events:
+		map.simulation().event_emitted.emit(event)
 
 
 ## Catalog scene: "<unit id>[:<animations joined by +>[:<yaw>,<pitch>,<distance>]]".

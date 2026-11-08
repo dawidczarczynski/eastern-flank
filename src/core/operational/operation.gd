@@ -48,6 +48,7 @@ static func from_definition(
 	var state := OperationalState.new()
 	state.operation_id = definition.id
 	state.operation_name = definition.display_name
+	state.map_id = definition.map_id
 	state.start_date = definition.start_date
 	state.front_range = definition.front_range
 	state.initial_posture = definition.initial_posture

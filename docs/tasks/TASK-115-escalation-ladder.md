@@ -1,6 +1,6 @@
 # TASK-115: Escalation ladder – shared level as data, raise / lower with attribution, ROE by target class, sanctuary gate, allies join at Regional war, calm decay, threshold ends the operation
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (level in the turn bar, notices, end screen)
 - **Depends on**: TASK-114, TASK-094a, TASK-093b (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
 - **Model**: sonnet

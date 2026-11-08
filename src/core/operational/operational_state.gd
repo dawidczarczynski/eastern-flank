@@ -7,6 +7,8 @@ extends RefCounted
 var operation_id: StringName
 ## Display name of the operation (translation key; static, not in the snapshot).
 var operation_name: String
+## Id of the operation's map (ImportedMap); becomes BattleSetup.map_id (static, not in snapshot).
+var map_id: StringName = &""
 ## Calendar date of turn 1 (YYYY-MM-DD, OperationalClock); static, not in the snapshot.
 var start_date: String = ""
 var grid: HexGrid
@@ -30,7 +32,7 @@ var countries: Array[CountryState] = []
 var country_map: Dictionary = {}
 ## Seeded with the campaign seed; battle seeds are drawn from it (ADR 0015 §2).
 var rng := RandomNumberGenerator.new()
-## Contact battles waiting to be fought, FIFO (filled by TASK-094).
+## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
 var pending_battles: Array[BattleSetup] = []
 
 

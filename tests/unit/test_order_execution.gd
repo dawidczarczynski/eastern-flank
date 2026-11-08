@@ -57,6 +57,21 @@ func _of_type(events: Array[Dictionary], type: StringName) -> Array[Dictionary]:
 	return out
 
 
+## Closes the contact battle a halt started (TASK-094a) as a draw so the turns can go on.
+func _resolve_pending(sim: OperationalSimulation, state: OperationalState) -> void:
+	assert_eq(state.pending_battles.size(), 1)
+	var result := BattleResult.new()
+	for company in state.pending_battles[0].companies:
+		var c := BattleResult.Company.new()
+		c.player = company.player
+		c.unit_type = company.unit_type
+		c.ref = company.ref
+		c.strength_start = company.strength
+		c.strength_end = company.strength
+		result.companies.append(c)
+	assert_true(sim.execute(ResolveBattleCommand.new(result)))
+
+
 func _round(sim: OperationalSimulation) -> Array[Dictionary]:
 	var events := _end(sim)
 	events.append_array(_end(sim))
@@ -150,10 +165,12 @@ func test_contact_halts_and_keeps_order() -> void:
 	assert_eq(halted[0]["at"], Vector2i(4, 0))
 	assert_eq(halted[0]["reason"], &"contact")
 	assert_eq(events[0]["type"], &"formation_moved")
+	_resolve_pending(sim, state)
 	_end(sim)
 	events = _end(sim)
 	assert_eq(f.coord, Vector2i(5, 0))
 	assert_eq(_of_type(events, &"formation_halted").size(), 1)
+	_resolve_pending(sim, state)
 	_end(sim)
 	events = _end(sim)
 	assert_eq(f.coord, Vector2i(6, 0))
@@ -343,6 +360,9 @@ func test_replay_is_identical_and_draws_no_rng() -> void:
 	var dicts := _script(first)
 	var rng_before := first.rng.state
 	var events_a := _run(first, dicts)
+	# Execution itself draws nothing; a contact draws one value per battle (TASK-094a), so the
+	# state may only be compared on a run without one.
+	assert_true(_of_type(events_a, &"battle_pending").is_empty(), "script must not make contact")
 	assert_eq(first.rng.state, rng_before)
 	var second := Operation.build(&"suwalki_gap", 7)
 	var events_b := _run(second, dicts)

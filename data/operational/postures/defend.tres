@@ -8,3 +8,4 @@ id = &"defend"
 display_name = "Defend"
 move_percent = 50
 avoids_contact = true
+position_bonus = 1

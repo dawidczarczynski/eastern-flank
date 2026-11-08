@@ -496,6 +496,18 @@ An order stays on the formation: it keeps following it on later turns until one 
 
 **Turn report.** After the turn, press **R** to open (or close) the turn report: one row per order carried out, with what happened to it. Click a row to centre the map on that formation.
 
+### Contact
+
+A **contact** starts a battle. At the end of a turn, after all orders are carried out, every formation that halted because of contact (see **End of turn**) attacks an enemy formation standing next to it. Arriving next to an enemy at the end of an order does not start a battle. Each formation takes part in at most one battle per turn; a formation left out stays halted, keeps its order and is checked again next turn. Right now every contact leads to a battle (a border rule and fog of war come later).
+
+**Sides and conditions.** The formation that halted is the **attacker**; its mission is *Attack* and its goal is the hex it was heading for. The formation it hit is the **defender**: its mission is *Defend*, unless it was in the March posture, when it is *Caught on the march* (mission *Hold out*). The battle takes place on the terrain of the defender's hex. Each side brings the companies of its formation at their current strength, and its posture gives a position bonus for the battle: **Defend +1**, **Advance 0**, **March −1**.
+
+**The contact notice.** When a battle is pending the camera centres on the defender's hex and the map dims. A card appears next to that hex, titled "Attack at hex" (you attack) or "Enemy attack at hex" (the enemy attacks you). It shows both sides (your frame is a rectangle, the enemy's a diamond), with their names, role, posture and strength, the forces as a ratio of attacker to defender strength, the place and the attacker's mission.
+
+**The queue.** If several battles start in one turn, a list on the left shows them (for example `1 OF 2`) with the active one marked. The notice always shows the first; when it is settled, the next appears.
+
+**What you can do.** While a battle is pending you cannot give orders or end the turn. The **Play battle** button (key **B**) is greyed out with the note "Battle scene not hooked up yet": **battles cannot be played or skipped yet**, so in a normal game a contact currently stops the operation. This will be added in a later task. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength and without consequences (losses are not applied yet); the dimming ends and End turn works again.
+
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
 ## 13. Not in the game yet

@@ -29,6 +29,14 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 			if not (id is String and posture is String):
 				return null
 			return SetPostureCommand.new(StringName(id as String), StringName(posture as String))
+		ResolveBattleCommand.TYPE:
+			var result_value: Variant = d.get("result")
+			if not result_value is Dictionary:
+				return null
+			var result := BattleResult.from_dict(result_value as Dictionary)
+			if result == null:
+				return null
+			return ResolveBattleCommand.new(result)
 		_:
 			return null
 

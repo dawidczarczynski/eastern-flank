@@ -37,7 +37,7 @@ Examples (hand-made grids of TASK-092c, formations of type `pl_mech_battalion` �
 Determinism and docs:
 
 - [ ] Operational replay: on `Operation.build("suwalki_gap", 7)`, a scripted sequence over 3 full rounds – a road march, an `advance` that comes into contact, a `defend` order, one `CancelOrderCommand`, one `SetPostureCommand`, one rejected command – is turned into dicts, decoded and executed on a fresh build → identical `snapshot()` and an identical list of emitted events (types and fields).
-- [ ] Nothing in execution draws from `state.rng` (test: `rng_state` unchanged after the scripted run).
+- [ ] Nothing in execution draws from `state.rng` (test: `rng_state` unchanged after the scripted run). *Amended by TASK-094a: execution draws nothing; a contact battle draws one value per battle after it, so the test asserts the scripted run has no `battle_pending` before comparing `rng_state`.*
 - [ ] docs/ARCHITECTURE.md: "Operational events" gets `formation_moved`, `formation_halted`, `formation_order_completed`, `formation_order_interrupted` (with the reasons); "Two layers" describes the execution step of `EndOperationalTurnCommand`.
 
 View (End turn now does something):
@@ -78,7 +78,7 @@ Section "End of turn": orders execute when you end your turn, in the order of ba
 
 ## Implementation notes
 
-- **Logic (done)**: execution inside `EndOperationalTurnCommand.apply`, before `operational_turn_ended`; events `formation_moved` (path excludes `from`), `formation_halted` (contact, order kept), `formation_order_completed`, `formation_order_interrupted` (`destination_occupied` / `no_route` / `blocked`). No `state.rng` draws. Tests in `tests/unit/test_order_execution.gd` (examples, invariants run, replay).
+- **Logic (done)**: execution inside `EndOperationalTurnCommand.apply`, before `operational_turn_ended`; events `formation_moved` (path excludes `from`), `formation_halted` (contact, order kept), `formation_order_completed`, `formation_order_interrupted` (`destination_occupied` / `no_route` / `blocked`). No `state.rng` draws in execution (TASK-094a adds one draw per started battle after it; the determinism test was amended). Tests in `tests/unit/test_order_execution.gd` (examples, invariants run, replay).
 - **Decision**: "destination holds another formation" includes the formation's own hex.
 - **View (done)**: `src/presentation/operational/staff_map_slide.gd`, `staff_map_move_animation.gd` (0.4 s per hex, 2.5 s cap), `staff_map_turn_marks.gd` (moved / in contact / report view-model), `staff_map_turn_report.gd` (key R, click centres and selects). Space or click skips the slide; End turn is disabled while it plays.
 - **Decision**: the report has a fourth row state "On the way" for formations that moved and still have an order (not in the spec).

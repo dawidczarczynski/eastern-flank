@@ -258,3 +258,24 @@ REPORT_INTERRUPTED_BLOCKED,Order dropped: way blocked,Rozkaz anulowany: droga za
 REPORT_EMPTY,No orders were carried out.,Nie wykonano żadnych rozkazów.
 %s joins %s – %d formations,%s joins %s – %d formations,%s dołącza do strony %s – formacji: %d
 JOIN_SHOW,Show,Pokaż
+CONTACT,Contact,Zetknięcie
+CONTACTS,Contacts,Zetknięcia
+CONTACT_TITLE_ATTACK,Attack at hex,Atak na heks
+CONTACT_TITLE_DEFEND,Enemy attack at hex,Atak wroga na heks
+CONTACT_ROLE_ATTACKER,Attacker,Atakujący
+CONTACT_ROLE_DEFENDER,Defender,Obrońca
+CONTACT_ROLE_HOLD_OUT,Caught on the march,Zaskoczony w marszu
+CONTACT_STRENGTH,Strength,Siła
+CONTACT_FORCES,Forces (attacker : defender),Siły (atakujący : obrońca)
+CONTACT_MISSION,Mission,Zadanie
+CONTACT_PLAY,Play battle,Rozegraj bitwę
+CONTACT_PLAY_BLOCKED,Battle scene not hooked up yet,Scena bitwy jeszcze nie jest podłączona
+CONTACT_RESOLVE_DEBUG,Resolve as draw (debug),Rozstrzygnij remisem (debug)
+CONTACT_NOW,Now,Teraz
+CONTACT_NEXT,Next,Następny
+CONTACT_LATER,Later,Później
+MISSION_TASK_ATTACK,Attack,Atak
+MISSION_TASK_DEFEND,Defend,Obrona
+MISSION_TASK_HOLD_OUT,Hold out,Przetrwać
+MISSION_INTENT_MOVE,Advance to hex,Natarcie na heks
+MISSION_INTENT_HOLD,Hold hex,Utrzymać heks

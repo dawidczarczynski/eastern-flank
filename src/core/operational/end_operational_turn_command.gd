@@ -4,8 +4,9 @@ extends OperationalCommand
 ## and `turn` rises when the move returns to `first_player` (both blocs move inside one 12 h
 ## turn). Rejected while a contact battle is waiting to be fought.
 ## Before the turn ends, the current player's formations carry out their orders (TASK-092e): in
-## placement order, each one walks its route as far as its posture's budget allows. Draws nothing
-## from `state.rng`.
+## placement order, each one walks its route as far as its posture's budget allows. Execution
+## draws nothing from `state.rng`; afterwards every formation that halted on contact attacks an
+## adjacent enemy (ContactRules.start_battles, TASK-094a), which draws one value per battle.
 
 const TYPE := "end_operational_turn"
 
@@ -21,6 +22,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	for formation in state.formations:
 		if formation.owner_id == state.current_player and formation.order != null:
 			_execute_order(state, formation, events)
+	ContactRules.start_battles(state, events)
 	events.append({"type": &"operational_turn_ended", "player": state.current_player})
 	_switch_side(state)
 	(

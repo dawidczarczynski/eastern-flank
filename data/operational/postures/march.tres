@@ -8,3 +8,4 @@ id = &"march"
 display_name = "March"
 move_percent = 100
 avoids_contact = true
+position_bonus = -1

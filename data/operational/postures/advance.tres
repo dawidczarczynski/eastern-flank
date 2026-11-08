@@ -8,3 +8,4 @@ id = &"advance"
 display_name = "Advance"
 move_percent = 75
 avoids_contact = false
+position_bonus = 0

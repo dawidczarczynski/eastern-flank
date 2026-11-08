@@ -62,6 +62,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/operational/
 
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
+- `ContactRules` – When and how a contact starts a battle (TASK-094a, GDD "Battle hand-off and auto-resolve"… (`contact_rules.gd`)
 - `CountryRules` – Pure political rules of the operational layer (TASK-114, GDD "Countries and stances"): the (`country_rules.gd`)
 - `CountryState` – Political state of one country in an operation (TASK-114). Changed only through (`country_state.gd`)
 - `EndOperationalTurnCommand` – Ends the current player's move on the staff map (TASK-093b): the other player becomes cur… (`end_operational_turn_command.gd`)
@@ -78,6 +79,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
 - `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
 - `Reinforcements` – Puts new formations on the staff map (TASK-118; TASK-121 reuses it for off-map support).… (`reinforcements.gd`)
+- `ResolveBattleCommand` – Closes the first pending contact battle with its result (TASK-094a, v0): removes it from… (`resolve_battle_command.gd`)
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 
 ## src/presentation/audio/
@@ -199,6 +201,9 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
+- `StaffMapContactNotice` – Contact notice of the staff map (TASK-094a, look: docs/design/operational_map "Panels" → (`staff_map_contact_notice.gd`)
+- `StaffMapContactQueue` – Contact queue of the staff map (TASK-094a, mockup 03 "CONTACTS"): at the left edge one ro… (`staff_map_contact_queue.gd`)
+- `StaffMapContacts` – The contact view of the staff map (TASK-094a): keeps the queue of pending battles from the (`staff_map_contacts.gd`)
 - `StaffMapCounter` – One formation counter of the staff map (TASK-092b, look: docs/design/operational_map (`staff_map_counter.gd`)
 - `StaffMapCounters` – The formation counters of the staff map (TASK-092b) in screen space: one StaffMapCounter… (`staff_map_counters.gd`)
 - `StaffMapCountries` – Pure helpers of the staff map's country layer (TASK-113): the dash-dot pattern cut into a (`staff_map_countries.gd`)

@@ -80,6 +80,7 @@ var _join_ids: Array = []
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
 var _report: StaffMapTurnReport
+var _contacts: StaffMapContacts
 var _marks := StaffMapTurnMarks.new()
 var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
@@ -202,6 +203,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_T:
 				_front.set_tint_visible(not _front.is_tint_visible())
 			KEY_B:
+				if _contacts.is_active():
+					_play_battle()
+					return
 				_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
 			KEY_P:
 				_politics.toggle_tint()
@@ -411,6 +415,7 @@ func set_viewer(player: int) -> void:
 	_counters.apply_marks(_marks)
 	_refresh_orders()
 	_show_new_report()
+	_refresh_contacts()
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
 
@@ -704,6 +709,9 @@ func _layout_counters() -> void:
 		_route_marks.refresh()
 		_orders.refresh_projection()
 		_place_picker()
+	if _contacts != null:
+		_contacts.layout()
+		_place_queue()
 	if _counters == null:
 		return
 	var points := {}
@@ -718,6 +726,7 @@ func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
 
 func _on_operational_event(event: Dictionary) -> void:
 	_add_new_counters()
+	_contacts.on_event(event)
 	if event.get("type") == &"formation_joined":
 		_on_formation_joined(event)
 	_marks.on_event(_simulation.state, event)
@@ -738,6 +747,7 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_begin_slide()
 		_show_new_report()
+	_refresh_contacts()
 
 
 ## Formations that joined (appended to the state) get their counters, a pulse and the country of
@@ -809,6 +819,38 @@ func join_notice() -> StaffMapJoinNotice:
 	return _join_notice
 
 
+## The contact view (TASK-094a): notice, queue, scrim.
+func contacts() -> StaffMapContacts:
+	return _contacts
+
+
+## Shows / updates the contact notice; centres the camera on a battle hex that just became active.
+func _refresh_contacts() -> void:
+	if _contacts == null or _simulation == null:
+		return
+	if _contacts.refresh(_simulation.state, viewer_player, not is_sliding()):
+		_centre_on_hex(_contacts.active_hex())
+	_place_queue()
+
+
+## B on the notice: Play battle; while the battle scene is not hooked up (TASK-094c) it says why.
+func _play_battle() -> void:
+	if not _contacts.notice.press_play():
+		_toast_message(tr("CONTACT_PLAY_BLOCKED"), _palette.ui_alert)
+
+
+## The queue sits at the left edge, under the turn report when that is open.
+func _place_queue() -> void:
+	var queue := _contacts.queue
+	if not queue.visible:
+		return
+	queue.reset_size()
+	var top := 130.0
+	if _report != null and _report.visible:
+		top = _report.position.y + _report.size.y + 12.0
+	queue.position = Vector2(PANEL_MARGIN.x, top)
+
+
 ## The counters of everything that moved slide to their new hexes (cosmetic: state is final).
 func _begin_slide() -> void:
 	skip_slide()
@@ -825,6 +867,7 @@ func _finish_slide() -> void:
 	_refresh_orders()
 	_refresh_turn_bar()
 	_show_new_report()
+	_refresh_contacts()
 
 
 ## Issued orders of the viewed side and the front line; both hidden while the counters slide.
@@ -912,6 +955,13 @@ func _reveal(formation_id: StringName) -> void:
 	_centre_on(formation_id)
 
 
+## Centres the camera on a hex.
+func _centre_on_hex(c: Vector2i) -> void:
+	var w := Hex.to_world(c, 1.0)
+	var point := _view.relief().surface_point(Vector2(w.x, w.z))
+	_move_camera(Vector2(point.x, point.z) * StaffMapView.UNIT)
+
+
 ## Centres the camera on a formation.
 func _centre_on(formation_id: StringName) -> void:
 	if not _anchors.has(formation_id):
@@ -942,6 +992,15 @@ func _build_hud() -> void:
 	_join_notice = StaffMapJoinNotice.new()
 	_join_notice.show_pressed.connect(_on_join_show)
 	_hud.add_child(_join_notice)
+	_contacts = StaffMapContacts.new(
+		_palette,
+		_counter_layer,
+		_hud,
+		_simulation.execute,
+		_screen_of_hex,
+		_viewport_size,
+		OS.get_cmdline_user_args().has("--debug")
+	)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)
