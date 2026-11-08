@@ -8,8 +8,8 @@ Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with 
 ▶ [Watch the teaser on YouTube](https://www.youtube.com/watch?v=7AtP7r6CWlg) – a Homar-K salvo, recorded in the game.
 
 <p align="center">
-  <img src="docs/images/gameplay.png" alt="Gameplay: the Polish force with the tank selected – reach and move path on the hex map" width="49%">
   <img src="docs/images/staff_map.png" alt="Operational map: the Suwałki theatre with planned marches and the order ring open on a hex" width="49%">
+  <img src="docs/images/gameplay.png" alt="Gameplay: the Polish force with the tank selected – reach and move path on the hex map" width="49%">
 </p>
 
 ## Getting started
