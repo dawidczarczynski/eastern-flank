@@ -128,12 +128,9 @@ static func find(map_id: StringName) -> ImportedMap:
 
 ## "" when the data is consistent, otherwise what is wrong.
 func problem() -> String:
-	if width <= 0 or height <= 0 or hex_spacing_m <= 0.0:
-		return "empty map %dx%d, spacing %s m" % [width, height, hex_spacing_m]
-	if terrain_rows.size() != height:
-		return "%d terrain rows, expected %d" % [terrain_rows.size(), height]
-	if elevation.size() != width * height:
-		return "%d elevations, expected %d" % [elevation.size(), width * height]
+	var size_problem := _size_problem()
+	if size_problem != "":
+		return size_problem
 	for row in height:
 		var row_problem := _row_problem(row)
 		if row_problem != "":
@@ -145,6 +142,16 @@ func problem() -> String:
 	var country_problem := _countries_problem()
 	if country_problem != "":
 		return country_problem
+	return ""
+
+
+func _size_problem() -> String:
+	if width <= 0 or height <= 0 or hex_spacing_m <= 0.0:
+		return "empty map %dx%d, spacing %s m" % [width, height, hex_spacing_m]
+	if terrain_rows.size() != height:
+		return "%d terrain rows, expected %d" % [terrain_rows.size(), height]
+	if elevation.size() != width * height:
+		return "%d elevations, expected %d" % [elevation.size(), width * height]
 	return ""
 
 
@@ -166,6 +173,19 @@ func _countries_problem() -> String:
 		return lines_problem
 	if country_rows.is_empty() and countries.is_empty():
 		return ""
+	var codes_problem := _country_codes_problem()
+	if codes_problem != "":
+		return codes_problem
+	if country_rows.size() != height:
+		return "%d country rows, expected %d" % [country_rows.size(), height]
+	for row in height:
+		var row_problem := _country_row_problem(row)
+		if row_problem != "":
+			return row_problem
+	return ""
+
+
+func _country_codes_problem() -> String:
 	var seen := {}
 	for code in countries:
 		if code.length() != 2 or code != code.to_upper() or code.to_lower() == code.to_upper():
@@ -173,20 +193,21 @@ func _countries_problem() -> String:
 		if seen.has(code):
 			return "duplicate country '%s'" % code
 		seen[code] = true
-	if country_rows.size() != height:
-		return "%d country rows, expected %d" % [country_rows.size(), height]
-	for row in height:
-		var line := country_rows[row]
-		if line.length() != width:
-			return "country row %d has %d tiles, expected %d" % [row, line.length(), width]
-		for col in width:
-			var ch := line[col]
-			if ch == ".":
-				continue
-			if not ch.is_valid_int() or ch.to_int() >= countries.size():
-				return "unknown country '%s' in row %d" % [ch, row]
-			if TERRAIN_CHARS[terrain_rows[row][col]] == Terrain.Type.WATER:
-				return "country on water tile (%d, %d)" % [col, row]
+	return ""
+
+
+func _country_row_problem(row: int) -> String:
+	var line := country_rows[row]
+	if line.length() != width:
+		return "country row %d has %d tiles, expected %d" % [row, line.length(), width]
+	for col in width:
+		var ch := line[col]
+		if ch == ".":
+			continue
+		if not ch.is_valid_int() or ch.to_int() >= countries.size():
+			return "unknown country '%s' in row %d" % [ch, row]
+		if TERRAIN_CHARS[terrain_rows[row][col]] == Terrain.Type.WATER:
+			return "country on water tile (%d, %d)" % [col, row]
 	return ""
 
 

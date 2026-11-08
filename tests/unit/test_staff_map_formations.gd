@@ -6,9 +6,9 @@ extends TestCase
 const CSV_PATH := "res://assets/i18n/strings.csv"
 
 static var _map: StaffMap
+static var _previous_locale: String
 
 var _palette: StaffMapPalette
-static var _previous_locale: String
 
 
 func before_all() -> void:

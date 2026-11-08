@@ -41,11 +41,15 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/data/
 
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
+- `CountryDefinition` – A country of an operational map (TASK-114, GDD "Countries and stances"). Instances are ke… (`country_definition.gd`)
+- `CountrySetup` – Start stance of one country in an operation (TASK-114; a sub-resource of OperationDefinit… (`country_setup.gd`)
 - `FactionDefinition` – Static data for a faction (a country). Instances are kept as .tres files in data/factions/ (`faction_definition.gd`)
 - `FormationDefinition` – A formation type of the operational layer (TASK-092b, GDD "Formations"): a battalion-sized (`formation_definition.gd`)
 - `FormationPlacement` – One named formation of an operation at its start hex (a sub-resource of OperationDefiniti… (`formation_placement.gd`)
 - `ImportedMap` – A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018): (`imported_map.gd`)
 - `OperationDefinition` – An operation (TASK-092b): map, the two sides and the start order of battle. Instances are… (`operation_definition.gd`)
+- `OperationalMovement` – Movement costs of the operational layer (TASK-092c, GDD "Movement costs"), kept in (`operational_movement.gd`)
+- `OperationalPosture` – A posture of a formation on the operational map (TASK-092d, GDD "Orders and postures"): h… (`operational_posture.gd`)
 - `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
@@ -57,14 +61,22 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/operational/
 
+- `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
+- `CountryRules` – Pure political rules of the operational layer (TASK-114, GDD "Countries and stances"): the (`country_rules.gd`)
+- `CountryState` – Political state of one country in an operation (TASK-114). Changed only through (`country_state.gd`)
 - `EndOperationalTurnCommand` – Ends the current player's move on the staff map (TASK-093b): the other player becomes cur… (`end_operational_turn_command.gd`)
 - `Formation` – A formation on the operational map at runtime (TASK-092b, GDD "Formations"): a named (`formation.gd`)
+- `FormationOrder` – A standing order of a formation (TASK-092d): move to `destination`. The posture lives on… (`formation_order.gd`)
+- `IssueOrderCommand` – Gives a formation of the current player an order (TASK-092d): go to `destination` in (`issue_order_command.gd`)
 - `Operation` – Builds an OperationalState from an OperationDefinition (TASK-092b). Takes no human-side (`operation.gd`)
 - `OperationalClock` – Calendar of an operation (TASK-093b): `turn` is one 12 h period in which both blocs move. (`operational_clock.gd`)
 - `OperationalCommand` – Base command of the operational layer (ADR 0015 §2) – the only way to change (`operational_command.gd`)
 - `OperationalCommandCodec` – Rebuilds operational commands from their `to_dict()` form (also after a JSON round trip). (`operational_command_codec.gd`)
+- `OperationalOrders` – Checks shared by the order commands (TASK-092d). (`operational_orders.gd`)
+- `OperationalRoutes` – Routes of formations on the operational map (TASK-092c, GDD "Orders and postures"): the (`operational_routes.gd`)
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
 - `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
+- `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 
 ## src/presentation/audio/
 
@@ -188,13 +200,26 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapCounter` – One formation counter of the staff map (TASK-092b, look: docs/design/operational_map (`staff_map_counter.gd`)
 - `StaffMapCounters` – The formation counters of the staff map (TASK-092b) in screen space: one StaffMapCounter… (`staff_map_counters.gd`)
 - `StaffMapCountries` – Pure helpers of the staff map's country layer (TASK-113): the dash-dot pattern cut into a (`staff_map_countries.gd`)
+- `StaffMapCountryCard` – Country card of the staff map (TASK-114, docs/design/operational_map "Panels" – closed-co… (`staff_map_country_card.gd`)
+- `StaffMapCountryLayer` – Country borders (dash-dot along the real border ways) and one faint name per country on t… (`staff_map_country_layer.gd`)
+- `StaffMapCountryMask` – Country coverage raster of the staff map (TASK-114): which country each point of the grou… (`staff_map_country_mask.gd`)
 - `StaffMapFormationPanel` – Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"), (`staff_map_formation_panel.gd`)
 - `StaffMapFormations` – Pure view rules of the formation counters on the staff map (TASK-092b): own / enemy relat… (`staff_map_formations.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
+- `StaffMapOrders` – The issued orders on the staff map (TASK-092d, look: docs/design/operational_map "Orders"… (`staff_map_orders.gd`)
+- `StaffMapPolitics` – The political tint of the staff map (TASK-114): feeds the terrain shader the country cove… (`staff_map_politics.gd`)
+- `StaffMapPoliticsHud` – Everything political on the staff map (TASK-114) behind a few calls, so StaffMap stays sm… (`staff_map_politics_hud.gd`)
+- `StaffMapPoliticsPanel` – Debug politics panel of the staff map (TASK-114, F9, only with --debug): one row per coun… (`staff_map_politics_panel.gd`)
+- `StaffMapPosturePicker` – Posture picker of the staff map (TASK-092d, look: docs/design/operational_map "Orders"): (`staff_map_posture_picker.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
+- `StaffMapRoute` – Route preview maths of the staff map (TASK-092c): the numbers behind the ribbon, stops an… (`staff_map_route.gd`)
+- `StaffMapRouteMarks` – Screen-space markers of the route preview (TASK-092c, look: docs/design/operational_map (`staff_map_route_marks.gd`)
+- `StaffMapRoutePreview` – Route preview of the staff map (TASK-092c): for the selected own formation and the hex un… (`staff_map_route_preview.gd`)
+- `StaffMapRouteRibbon` – The route preview line (TASK-092c): a screen-space ribbon (constant pixel width under zoo… (`staff_map_route_ribbon.gd`)
 - `StaffMapTerrain` – The staff map's terrain from real geography (TASK-126, ADR 0018 "Graphic layers"): the ma… (`staff_map_terrain.gd`)
 - `StaffMapTurnBar` – Turn bar of the staff map (TASK-093b, look: docs/design/operational_map "Turn bar" – the… (`staff_map_turn_bar.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
+- `StanceTint` – How the staff map tints the countries for one viewer (TASK-114): the single view function (`stance_tint.gd`)
 
 ## src/presentation/ui/
 

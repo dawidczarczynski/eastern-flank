@@ -186,7 +186,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
 			KEY_B:
-				_view.set_countries_visible(not _view.countries_visible())
+				_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
 			KEY_P:
 				_politics.toggle_tint()
 			KEY_F9:
@@ -227,7 +227,7 @@ func refresh_texts() -> void:
 		return  # not built yet; _ready calls it again
 	_back.text = "‹ " + tr("Back").to_upper()
 	_hint.text = tr("STAFF_MAP_HINT")
-	_view.refresh_country_names()
+	_view.countries().refresh_names()
 	_refresh_turn_bar()
 	if _panel != null and _panel.visible:
 		select_formation(_panel.formation_id, true)
