@@ -70,6 +70,7 @@ var _turn_bar: StaffMapTurnBar
 var _route: StaffMapRoutePreview
 var _route_marks: StaffMapRouteMarks
 var _orders: StaffMapOrders
+var _front: StaffMapFrontLine
 var _picker: StaffMapPosturePicker
 var _toast: Toast
 var _banner: TurnBanner
@@ -193,6 +194,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				cancel_order()
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
+				_apply_front_view()
+			KEY_T:
+				_front.set_tint_visible(not _front.is_tint_visible())
 			KEY_B:
 				_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
 			KEY_P:
@@ -276,6 +280,11 @@ func formation_panel() -> StaffMapFormationPanel:
 ## The route preview (TASK-092c): read-only, creates no command.
 func route_preview() -> StaffMapRoutePreview:
 	return _route
+
+
+## The front line layer (TASK-093c).
+func front_line() -> StaffMapFrontLine:
+	return _front
 
 
 ## The issued orders layer (TASK-092d).
@@ -650,12 +659,16 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_counters.build(state, _palette, viewer_player)
 	_counters.refresh()  # the order marks, also when the state already holds orders
 	_orders.refresh(state, viewer_player)
+	_front.refresh(state, viewer_player)
+	_apply_front_view()
 	_update_anchors()
 	if OS.get_cmdline_user_args().has("--pending-battle"):
 		state.pending_battles.append(BattleSetup.new())
 
 
 func _build_route_preview() -> void:
+	_front = StaffMapFrontLine.new(_view.relief(), _palette)
+	_view.add_child(_front)
 	var order_ribbon := StaffMapRouteRibbon.new("OrderRibbon")
 	_view.add_child(order_ribbon)
 	var order_marks := StaffMapRouteMarks.new()
@@ -736,9 +749,16 @@ func _finish_slide() -> void:
 	_show_new_report()
 
 
-## Issued orders of the viewed side; hidden while the counters slide.
+## Issued orders of the viewed side and the front line; both hidden while the counters slide.
 func _refresh_orders() -> void:
 	_orders.refresh(_simulation.state, -1 if is_sliding() else viewer_player)
+	_front.refresh(_simulation.state, viewer_player, not is_sliding())
+	_apply_front_view()
+
+
+## The front line follows the camera scale, the zoom level and the grid (exact hex edges at Z2).
+func _apply_front_view() -> void:
+	_front.set_view(_scale(), _view.zoom_level(), _view.grid_visible() and _view.zoom_level() == 2)
 
 
 ## Opens the report panel with the viewed side's last report.
@@ -904,6 +924,8 @@ func _apply_camera() -> void:
 			_palette.zoom_hysteresis
 		)
 	)
+	if _front != null:
+		_apply_front_view()
 
 
 func _on_pitch_changed() -> void:

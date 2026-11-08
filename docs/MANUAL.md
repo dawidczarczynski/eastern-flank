@@ -436,6 +436,10 @@ Strength is the sum of the companies' hit points – the same units that fight w
 
 **Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel.
 
+### Front line
+
+A thick light line with small teeth runs between the two blocs. It is a **display, not a rule**: every land hex within 3 hexes of a formation counts as held by the side of the *nearest* formation (a tie, water and hexes out of reach are held by nobody), and the line follows the border between the two zones. The teeth point towards the enemy as seen by the side you view the map from, so they swap sides when the viewer changes. The line is smoothed; with the grid shown (**G**) at the closest zoom it follows the exact hex edges. It is redrawn after every move and while the counters slide it is hidden. Press **T** to show or hide a very faint blue / red tint of each side's zone (on at the start). There is no line while the blocs are further than 6 hexes apart.
+
 ### Orders
 
 With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. Orders are carried out when you end your turn (see **End of turn**).

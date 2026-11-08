@@ -10,6 +10,9 @@ var operation_name: String
 ## Calendar date of turn 1 (YYYY-MM-DD, OperationalClock); static, not in the snapshot.
 var start_date: String = ""
 var grid: HexGrid
+## Hexes around a formation that belong to its side in the front line (FrontLine; static, not in
+## the snapshot).
+var front_range: int = FrontLine.DEFAULT_RANGE
 ## Side id of each player (SideDefinition.id).
 var player_sides: Array[StringName] = []
 ## Lead faction of each player's side (colours, HUD).

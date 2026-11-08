@@ -49,6 +49,7 @@ static func from_definition(
 	state.operation_id = definition.id
 	state.operation_name = definition.display_name
 	state.start_date = definition.start_date
+	state.front_range = definition.front_range
 	state.grid = grid
 	for side in definition.sides:
 		state.player_sides.append(side.id)

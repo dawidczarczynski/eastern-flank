@@ -1,6 +1,6 @@
 # TASK-093c: Staff map (3/3) – front line, completes the staff map
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (pure helper) + presentation + docs
 - **Depends on**: TASK-092e
 - **Model**: sonnet
@@ -42,4 +42,7 @@ Section "Front line" in the "Operational map" chapter (what the line is and what
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `FrontLine` (`src/core/operational/front_line.gd`): `ownership`, `edges` (polylines, player 0 on the right of travel), `smooth` (midpoints + Chaikin x3), `right_normal`. `front_range` (3) is data: `OperationDefinition.front_range` -> `OperationalState.front_range`. Decision: where a band of tied hexes separates the blocs the line is drawn on the edge towards player 0's zone, so there is always one line (ties stay free).
+- View: `StaffMapFrontLine` (ribbon + casing, teeth as triangles spaced in pixels from the zoom scale, tint mesh at 5 % alpha). `refresh` compares a signature (formations, viewer, hidden) and `set_view` the scale / level / variant, so nothing recomputes per frame; the teeth rebuild on zoom changes. Hidden while counters slide. T = tint, exact edges when G + Z2.
+- Deviations: the pitch is not compensated in the teeth spacing; not measured in-game (no frame timing taken). The start scenario has the blocs far apart, so no line shows until formations approach (6 hexes). Colour of the line is `ui_text`, tint uses the side colours (a side keeps its colour whoever views).
+- Tests: test_front_line.gd (13), test_staff_map_front_line.gd (9). `tools/check.sh` passes.
