@@ -1,6 +1,6 @@
 # TASK-094b: Contact (2/4) – tactical map for a contact anywhere on the theatre, deployment and objectives
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/`, importer in `tools/`) + data (`data/maps/`, `data/operational/contact.tres`) + presentation (debug preview)
 - **Depends on**: TASK-094a
 - **Sections**: GDD "Battle hand-off and auto-resolve", Open questions "Tactical maps for contacts anywhere"; ADR 0015, ADR 0018; docs/TOOLS.md (importer)
@@ -41,4 +41,14 @@ Short note in "Contact": the battlefield is the real terrain around the contact 
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Logic + data done (2026-11-08). View done: `StaffMapContactPreview` (model), `StaffMapContactPanel`, `StaffMapContactDebug` (outline via `StaffMapRouteRibbon`), F9 opens it with the politics panel; `BattleOptions.pending_setup` → `BattleController` builds the state with `Scenario.from_setup`; Esc with nothing selected returns to the main menu; F5 does not save a match for setup battles. Hexes without a fieldable formation get a stand-in. Tests: `test_staff_map_contact_preview.gd`, one scene test in `test_staff_map_contacts.gd`. `battle_controller.gd` carries `gdlint: disable=max-file-lines` (file at the limit; split later). Note for TASK-094c: `ContactMap.build` takes `(setup, attacker_hex, defender_hex)`, not an operational grid. Not verified in the running game; screenshots checked by the agent only.
+
+**Measured** (dev machine, WSL2; details in ADR 0018 amendment "Tactical layer"):
+- (A) chunked layer from the operational cache: offline import 9 min 32 s, peak 1.02 GB; repository +3.32 MB (122 files); cold cut of 4 chunks 25 ms (+0.8 MB), `ContactMap.build` + `Scenario.from_setup` slowest 248 ms / mean 162 ms over 37 contacts.
+- (B) on demand from the cache: 8.5 s per cut (Python, one tile; a corner needs up to 4), Godot `JSON.parse` of one 56 MB tile alone 2.06 s; needs the 1.9 GB cache shipped. Fails both budgets. **A chosen.**
+
+**Core / data**: `TacticalLayer` + `TacticalChunk` (`src/core/data/`, `data/maps/suwalki_tactical/`), `ContactSettings` (`data/operational/contact.tres`: 40 × 30, turn limit 12, spacing 2, `suwalki_theatre` → `suwalki_tactical`), `ContactMap` (`src/core/operational/contact_map.gd`: `build(setup, attacker_hex, defender_hex)`, `build_with(..., theatre, layer, settings)`, `centre_tile`, `region_around`, `attack_direction`, `objective_hex`, `objectives`, `deploy`). `Scenario.from_setup` cuts a layer named by `map_id` with `map_region`; on imported maps / cuts a spawn tile keeps its real terrain unless water / impassable. Importer `--profile=layer` (`tools/import_map.py`, Python tests `TacticalLayerTest`). CREDITS, TOOLS.md, ARCHITECTURE "Two layers" updated. No new commands or events.
+
+**Deviations**: the API takes the two operational hexes (`build(setup, attacker_hex, defender_hex)`), not an operational grid – the pending setup does not carry the hexes, so TASK-094c must pass them (from the `battle_pending` event / formations) or store them. The layer comes from the operational inputs: no FIELDS, only major roads and rivers, GLO-90 relief (hills calibrated to 10 m). The objective is the passable tile nearest the cut's centre (one hex). Companies the player's battle faction cannot field (e.g. a contributed Lithuanian formation under the Polish faction) still fail `from_setup` – a TASK-094a/c issue, not the map.
+
+Tests: `test_contact_map.gd` (hand-made layer: region centred / clamped / even row, cut, elevation, deployment, objectives and their outcome), `test_contact_map_theatre.gd` (shipped layer, 37 contacts of the `suwalki_gap` start incl. a west-edge one within 1.5 s, Suwalki roads, Lake Sniardwy water).

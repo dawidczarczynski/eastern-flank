@@ -41,6 +41,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/data/
 
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
+- `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
 - `CountryDefinition` – A country of an operational map (TASK-114, GDD "Countries and stances"). Instances are ke… (`country_definition.gd`)
 - `CountrySetup` – Start stance of one country in an operation (TASK-114; a sub-resource of OperationDefinit… (`country_setup.gd`)
 - `FactionDefinition` – Static data for a faction (a country). Instances are kept as .tres files in data/factions/ (`faction_definition.gd`)
@@ -53,6 +54,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
+- `TacticalChunk` – One square of a TacticalLayer (TASK-094b, ADR 0018 "Tactical layer"): data/maps/<layer>/ (`tactical_chunk.gd`)
+- `TacticalLayer` – The tactical (250 m hex) terrain of a whole theatre, imported once and cut on demand for a (`tactical_layer.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
 - `TerrainFeatures` – Rule numbers of the linear map features (TASK-108): roads and rivers, stored per tile as… (`terrain_features.gd`)
 - `TerrainGenerationSettings` – Numbers of the elevation/moisture terrain generator (TerrainField, MapGenerator). (`terrain_generation_settings.gd`)
@@ -62,6 +65,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/operational/
 
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
+- `ContactMap` – The tactical map of a contact battle (TASK-094b, GDD "Battle hand-off and auto-resolve"):… (`contact_map.gd`)
 - `ContactRules` – When and how a contact starts a battle (TASK-094a, GDD "Battle hand-off and auto-resolve"… (`contact_rules.gd`)
 - `CountryRules` – Pure political rules of the operational layer (TASK-114, GDD "Countries and stances"): the (`country_rules.gd`)
 - `CountryState` – Political state of one country in an operation (TASK-114). Changed only through (`country_state.gd`)
@@ -201,7 +205,10 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
+- `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)
 - `StaffMapContactNotice` – Contact notice of the staff map (TASK-094a, look: docs/design/operational_map "Panels" → (`staff_map_contact_notice.gd`)
+- `StaffMapContactPanel` – Debug "Contact map" panel of the staff map (TASK-094b, F9, only with --debug), HUD v3 fra… (`staff_map_contact_panel.gd`)
+- `StaffMapContactPreview` – Pure model of the staff map's debug "Contact map" panel (TASK-094b, F9, only with --debug… (`staff_map_contact_preview.gd`)
 - `StaffMapContactQueue` – Contact queue of the staff map (TASK-094a, mockup 03 "CONTACTS"): at the left edge one ro… (`staff_map_contact_queue.gd`)
 - `StaffMapContacts` – The contact view of the staff map (TASK-094a): keeps the queue of pending battles from the (`staff_map_contacts.gd`)
 - `StaffMapCounter` – One formation counter of the staff map (TASK-092b, look: docs/design/operational_map (`staff_map_counter.gd`)

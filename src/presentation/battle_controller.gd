@@ -1,9 +1,11 @@
+# gdlint: disable=max-file-lines
 extends Node3D
 ## Battle scene: connects the simulation (GameSimulation) with the 3D view and player input.
 ## Rule: this script only translates input into commands and events into animations – no game rules.
 
 const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
+const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const BOTTOM_LEFT_MARGIN := 24
 ## Time the vehicle takes to turn towards its target before a volley (seconds at speed 1): a
 ## fixed launcher always turns; a turntable launcher with a limited traverse (Uragan) turns first
@@ -35,6 +37,8 @@ var is_built := false
 ## Scenario to start (Scenario.NAMES); "" = the `--scenario=` user argument, else the default
 ## battle (BattleOptions). The screenshot tool sets it before adding the scene to the tree.
 var scenario_name := ""
+## The setup the battle was started from (BattleOptions.pending_setup, TASK-094b), else null.
+var setup: BattleSetup = null
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
@@ -70,9 +74,14 @@ var _event_serial := 0  # played events so far: the view-local seed of the marks
 func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
-	if scenario_name not in Scenario.NAMES:
+	if setup == null:
+		setup = BattleOptions.take_pending_setup()
+	if setup == null and scenario_name not in Scenario.NAMES:
 		scenario_name = BattleOptions.chosen(OS.get_cmdline_user_args())
-	var state := Scenario.build(scenario_name, MAP_SEED, FactionRegistry.DEFAULT_IDS)
+	var state := _initial_state()
+	if state == null:
+		get_tree().change_scene_to_file.call_deferred(MENU_SCENE)
+		return
 	# The loading screen must actually be presented before the heavy build below blocks the loop:
 	# process_frame fires before the first draw, so wait for a frame to finish drawing.
 	var loading := LoadingScreen.new()
@@ -118,6 +127,15 @@ func _ready() -> void:
 	_refresh_selection_ui()
 	loading.finish()
 	is_built = true
+
+
+## The battle to play: Scenario.from_setup of `setup` when set (scenario_name is then ""), else
+## the scenario.
+func _initial_state() -> GameState:
+	if setup != null:
+		scenario_name = ""
+		return Scenario.from_setup(setup)
+	return Scenario.build(scenario_name, MAP_SEED, FactionRegistry.DEFAULT_IDS)
 
 
 ## The build is split into stages with a drawn frame between them, so the loading screen's
@@ -209,12 +227,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	):  # view setting, like camera keys
 		_map_view.cycle_grid_mode()
 		return
+	if _leave_setup_battle(key):
+		return
 	if not _input_allowed() or _target_ring.handle_key(key.keycode):
 		return
 	if key.keycode == KEY_ENTER:
 		_end_human_turn()
 	elif key.keycode == KEY_ESCAPE:
 		_select(-1)
+
+
+## Esc with nothing selected leaves a battle started from a setup for the main menu (TASK-094b,
+## no campaign to return to yet); also after the game is over.
+func _leave_setup_battle(key: InputEventKey) -> bool:
+	if setup == null or key.keycode != KEY_ESCAPE or _selected_unit_id >= 0:
+		return false
+	if _target_ring.handle_key(key.keycode):
+		return true
+	get_tree().change_scene_to_file(MENU_SCENE)
+	return true
 
 
 ## Screenshot debug hook (tools/screenshot.gd): selects a unit and hovers a tile near it.
@@ -290,7 +321,7 @@ func debug_notice(kind: String) -> void:
 ## Screenshot tool (SCREENSHOT_SHOTS=result:<kind>): the result banner of a battle that ended
 ## as `kind` (DebugResult, a throwaway state; the simulation is not touched).
 func debug_result(kind: String) -> void:
-	var ended := DebugResult.ended_state(scenario_name, MAP_SEED, kind)
+	var ended := DebugResult.ended_state(scenario_name, MAP_SEED, kind, setup)
 	if ended != null:
 		_hud.refresh(ended)
 
@@ -303,6 +334,9 @@ func debug_build_grass() -> void:
 
 ## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.
 func _save_match() -> void:
+	if setup != null:
+		print("Match not saved: a battle from a setup has no scenario to replay")
+		return
 	var record := MatchRecord.from_simulation(_sim, MAP_SEED, scenario_name)
 	if MatchSaver.save(record) == OK:
 		var path := ProjectSettings.globalize_path(MatchSaver.LAST_MATCH_PATH)

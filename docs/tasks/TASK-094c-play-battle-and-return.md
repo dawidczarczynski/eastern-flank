@@ -1,6 +1,6 @@
 # TASK-094c: Contact (3/4) – Play battle: scene transition, commander's briefing, report to staff, return to the staff map
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`Session` autoload, scene flow, briefing, end screen) + core (small: result → command)
 - **Depends on**: TASK-094a, TASK-094b
 - **Sections**: GDD "Player roles", "Battle hand-off and auto-resolve"; ADR 0015 §5 (scene flow); docs/tasks/TASK-086-two-layer-architecture.md

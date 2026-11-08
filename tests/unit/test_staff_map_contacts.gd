@@ -120,3 +120,34 @@ func test_odds_and_mission_text() -> void:
 
 func tr_upper(key: String) -> String:
 	return TranslationServer.translate(key).to_upper()
+
+
+## TASK-094b debug preview: while the contact-map panel is open, two clicks pick the attacker and
+## an adjacent defender hex, the cut is outlined on the relief and "Open battle map" hands over
+## the built setup.
+func test_debug_contact_map_outlines_the_cut_and_opens_it() -> void:
+	var debug := _map.contact_debug()
+	var state := _map.simulation().state
+	var opened: Array[BattleSetup] = []
+	debug.open_battle = func(setup: BattleSetup) -> void: opened.append(setup)
+	debug.toggle(Vector2(16, 130))
+	assert_true(debug.is_open())
+	var formation := state.formations[0]
+	var target := formation.coord
+	for n in Hex.neighbors(formation.coord):
+		if state.grid.has_tile(n) and state.grid.get_terrain(n) != Terrain.Type.WATER:
+			target = n
+			break
+	_map.click_at(_map.hex_screen_position(formation.coord))
+	assert_eq(debug.preview().attacker_hex, formation.coord)
+	assert_eq(_map.selected_formation(), &"", "the click picks, it does not select")
+	_map.click_at(_map.hex_screen_position(target))
+	assert_true(debug.preview().setup != null, debug.preview().problem)
+	assert_true(debug.outline_line().point_count() > 5, "the outline follows the relief")
+	assert_true(debug.panel().open_enabled())
+	debug.panel().press_open()
+	assert_eq(opened.size(), 1)
+	assert_eq(opened[0].map_region, debug.preview().setup.map_region)
+	debug.toggle(Vector2.ZERO)
+	assert_false(debug.is_open())
+	assert_eq(debug.outline_line().point_count(), 0, "closing removes the outline")

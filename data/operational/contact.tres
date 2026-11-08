@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ContactSettings" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/contact_settings.gd" id="1_contact"]
+
+[resource]
+script = ExtResource("1_contact")
+width = 40
+height = 30
+turn_limit = 12
+deploy_spacing = 2
+tactical_layers = {
+&"suwalki_theatre": &"suwalki_tactical"
+}

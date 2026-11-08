@@ -12,13 +12,20 @@ const OUTCOMES := {
 }
 
 
-## The starting state of `scenario_name` ended as `kind` (OUTCOMES) on its last turn (the turn
-## limit, else turn 1); null with an error for an unknown kind.
-static func ended_state(scenario_name: String, seed_value: int, kind: String) -> GameState:
+## The starting state of `scenario_name` (or of `setup` when given, TASK-094b) ended as `kind`
+## (OUTCOMES) on its last turn (the turn limit, else turn 1); null with an error for an unknown
+## kind.
+static func ended_state(
+	scenario_name: String, seed_value: int, kind: String, setup: BattleSetup = null
+) -> GameState:
 	if not OUTCOMES.has(kind):
 		push_error("DebugResult: unknown kind '%s' (%s)" % [kind, ", ".join(OUTCOMES.keys())])
 		return null
-	var state := Scenario.build(scenario_name, seed_value, FactionRegistry.DEFAULT_IDS)
+	var state := (
+		Scenario.from_setup(setup)
+		if setup != null
+		else Scenario.build(scenario_name, seed_value, FactionRegistry.DEFAULT_IDS)
+	)
 	if state == null:
 		return null
 	state.turn = maxi(HudModel.turn_limit_of(state), 1)

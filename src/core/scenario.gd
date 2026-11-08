@@ -209,7 +209,8 @@ static func default_battle_setup(
 	return setup
 
 
-## Starting GameState of `setup`: its map from `map_id` and `seed`, spawn tiles forced to plains,
+## Starting GameState of `setup`: its map from `map_id`, `map_region` and `seed`, spawn tiles
+## forced to plains (`_forces_spawn_terrain`),
 ## company i as unit id i + 1 with HP = its strength, `GameState.rng` seeded with `seed`.
 ## null (with push_error) for an unknown map id or a company that cannot be placed: unknown
 ## player or faction, unit type not in the roster, strength outside 1 … max_hp, a taken or
@@ -217,10 +218,11 @@ static func default_battle_setup(
 ## the map. Objective hexes that are water become plains; owners start at the data's initial
 ## owners (a unit spawning on one does not capture it); `starting_hp` is recorded after spawning.
 ## `conditions[i].command_points` becomes `GameState.command_points_per_turn[i]` (a negative value
-## is an error → null; the first player starts with their points); the other conditions and
-## `map_region` are not read yet (TASK-094, TASK-099).
+## is an error → null; the first player starts with their points); the other conditions are not
+## read yet (TASK-099). `map_region` cuts a tactical layer (TASK-094b); spawn tiles of an imported
+## map keep their terrain unless it is water or impassable.
 static func from_setup(setup: BattleSetup) -> GameState:
-	var grid := _build_map(setup.map_id, setup.seed)
+	var grid := _build_map(setup.map_id, setup.seed, setup.map_region)
 	if grid == null:
 		push_error("Scenario: unknown map '%s'" % setup.map_id)
 		return null
@@ -243,8 +245,7 @@ static func from_setup(setup: BattleSetup) -> GameState:
 		if not grid.has_tile(company.coord) or state.unit_at(company.coord) != null:
 			push_error("Scenario: tile %s is missing or taken" % company.coord)
 			return null
-		# Fields are open ground with the plains rules (TASK-108): an imported map keeps them.
-		if grid.get_terrain(company.coord) != Terrain.Type.FIELDS:
+		if _forces_spawn_terrain(setup, grid, company.coord):
 			MapGenerator.force_terrain(grid, company.coord, Terrain.Type.PLAINS)
 		state.add_unit(company.player, definition, company.coord).hp = company.strength
 	var problem := setup.objectives.problem(state.player_count)
@@ -269,15 +270,31 @@ static func from_setup(setup: BattleSetup) -> GameState:
 	return state
 
 
-## Map of a BattleSetup: the generated river map, or an imported map data/maps/<map_id>.tres
-## (ImportedMap); null for an unknown id.
-static func _build_map(map_id: StringName, seed_value: int) -> HexGrid:
+## Whether a spawn tile is turned into plains: always on the generated map except fields (open
+## ground with the plains rules, TASK-108); on an imported map or a tactical-layer cut only a
+## water or impassable tile (the real terrain under a company stays, TASK-094b).
+static func _forces_spawn_terrain(setup: BattleSetup, grid: HexGrid, c: Vector2i) -> bool:
+	var t := grid.get_terrain(c)
+	if t == Terrain.Type.FIELDS:
+		return false
+	if setup.map_id == BattleSetup.MAP_GENERATED_RIVER:
+		return true
+	return t == Terrain.Type.WATER or Terrain.move_cost(t) == Terrain.IMPASSABLE
+
+
+## Map of a BattleSetup: the generated river map, the cut `region` of a theatre's tactical layer
+## data/maps/<map_id>/layer.tres (TacticalLayer, TASK-094b; an empty region is an error), or an
+## imported map data/maps/<map_id>.tres (ImportedMap); null for an unknown id or a bad region.
+static func _build_map(map_id: StringName, seed_value: int, region := Rect2i()) -> HexGrid:
 	if map_id == BattleSetup.MAP_GENERATED_RIVER:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = seed_value
 		var grid := MapGenerator.generate(MAP_WIDTH, MAP_HEIGHT, rng)
 		_add_river(grid)
 		return grid
+	var layer := TacticalLayer.find(map_id)
+	if layer != null:
+		return layer.region_grid(region)
 	var imported := ImportedMap.find(map_id)
 	return imported.to_grid() if imported != null else null
 

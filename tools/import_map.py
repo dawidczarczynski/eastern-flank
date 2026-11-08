@@ -70,6 +70,13 @@ DEM heights at the lattice points, forest canopy removed, on every `--relief-ste
 cover unfiltered, relief with a fixed adaptive filter rule, zlib level 9), base64 `PackedByteArray`s in the `.tres` (`layer_*` fields). The rules grid
 is computed exactly as without them (`Settings.layers`).
 
+Tactical layer (`--profile=layer`, TASK-094b; ADR 0018 "Tactical layer"): the tactical terrain of a whole theatre for
+contact battles, from the operational inputs (op1 OSM tiles, GLO-90, sea fill): 250 m hexes, a 50 m cover lattice
+(`_scanline_fill_fast`), per hex the cover classes of the `_hex_pattern` points and the DEM at the centre and six
+points `LAYER_DEM_RADIUS_M` around it, the tactical `classify` (hills from `LAYER_HILLS_RELIEF`); never fields (no
+farmland in the inputs). Written into the folder `--out` as `layer.tres` (TacticalLayer) and one zlib-compressed
+`chunk_<cx>_<cy>.tres` (TacticalChunk) per `LAYER_CHUNK` square (`write_layer`).
+
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
 """
@@ -183,6 +190,17 @@ RELIEF_STEP = 2  # relief pixel = 2 x 2 lattice points (500 m): a 250 m hillshad
 RELIEF_FLAT = int(255.0 * math.sin(math.radians(RELIEF_ALTITUDE)) + 0.5)  # 180: the hillshade of flat ground
 
 
+LAYER_SAMPLE_M = 50.0  # tactical layer (TASK-094b): cover lattice of the whole theatre at 250 m hexes
+LAYER_LINE_STEP_M = 20.0
+LAYER_CHUNK = 128  # hexes per chunk side (even, so every chunk starts on an even row)
+LAYER_DEM_RADIUS_M = 110.0  # the six DEM points around a hex centre (GLO-90 pixels are ~90 m)
+LAYER_HILLS_RELIEF = 10.0  # GLO-90 at 7 points: 10 m gives 142 hills on the suwalki.tres area (GLO-30, 15 m: 129)
+LAYER_ELEVATION_OFFSET_M = 100.0  # stored height = round((metres + offset) / step), uint16
+LAYER_ELEVATION_STEP_M = 0.1
+LAYER_TERRAIN_CODES = {"plains": 0, "forest": 1, "hills": 2, "water": 3, "fields": 4, "urban": 5,
+                       "marsh": 6}  # Terrain.Type  # fmt: skip
+
+
 class Profile:
     """What a map scale reads: hex and lattice spacing, DEM, classifier, tag table, line classes, OSM tiling."""
 
@@ -203,8 +221,11 @@ PROFILES = {
     "tactical": Profile("tactical", 250.0, SAMPLE_M, "glo30", _TAG_CLASSES, ROAD_HIGHWAYS, True, LINE_STEP_M, False),
     "operational": Profile("operational", 5000.0, 250.0, "glo90", _OP_TAG_CLASSES, OP_ROAD_HIGHWAYS, False, 50.0, True),
 }
+PROFILES["layer"] = Profile("layer", 250.0, LAYER_SAMPLE_M, "glo90", _OP_TAG_CLASSES, OP_ROAD_HIGHWAYS, False,
+                            LAYER_LINE_STEP_M, True)  # fmt: skip
 TACTICAL = PROFILES["tactical"]
 OPERATIONAL = PROFILES["operational"]
+LAYER = PROFILES["layer"]
 
 
 class Settings:
@@ -222,7 +243,8 @@ class Settings:
         operational = profile is OPERATIONAL
         self.profile = profile
         self.sample_m = sample_m if sample_m is not None else profile.sample_m
-        self.hills_relief = hills_relief if hills_relief is not None else (OP_HILLS_RELIEF if operational else 15.0)
+        default_relief = OP_HILLS_RELIEF if operational else LAYER_HILLS_RELIEF if profile.name == "layer" else 15.0
+        self.hills_relief = hills_relief if hills_relief is not None else default_relief
         self.canopy = canopy
         self.exaggeration = exaggeration
         self.water_share = water_share
@@ -1496,6 +1518,253 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# Tactical layer of a whole theatre (TASK-094b, ADR 0018 "Tactical layer"): 250 m hexes everywhere, in chunks.
+
+
+_RAISE_TABLES = [bytes(max(v, k) for k in range(256)) for v in range(256)]
+
+
+def _scanline_fill_fast(grid: List[bytearray], value: int, rings: List[List[Tuple[float, float]]],
+                        min_e: float, min_n: float, step: float) -> None:  # fmt: skip
+    """`_scanline_fill` with edges bucketed by lattice row and spans raised by slice translation: the same points
+    (half-open edge rule, even-odd), fast enough for a theatre-wide 50 m lattice."""
+    rows = len(grid)
+    cols = len(grid[0]) if rows else 0
+    starts: Dict[int, list] = {}
+    for ring in rings:
+        for k in range(len(ring) - 1):
+            (e1, n1), (e2, n2) = ring[k], ring[k + 1]
+            if n1 == n2:
+                continue
+            lo, hi = (n1, n2) if n1 < n2 else (n2, n1)
+            j0 = max(0, int(math.ceil((lo - min_n) / step)))
+            j1 = min(rows - 1, int(math.ceil((hi - min_n) / step)) - 1)  # n < hi: the half-open rule
+            if j0 <= j1:
+                starts.setdefault(j0, []).append((j1, e1, n1, (e2 - e1) / (n2 - n1)))
+    if not starts:
+        return
+    table = _RAISE_TABLES[value]
+    active: list = []
+    for j in range(min(starts), rows):
+        if j in starts:
+            active.extend(starts.pop(j))
+        if not active:
+            if not starts:
+                break
+            continue
+        n = min_n + j * step
+        xs = []
+        keep = []
+        for edge in active:
+            j1, e1, n1, slope = edge
+            xs.append(e1 + (n - n1) * slope)
+            if j1 > j:
+                keep.append(edge)
+        active = keep
+        xs.sort()
+        row = grid[j]
+        for k in range(0, len(xs) - 1, 2):
+            i0 = max(0, int(math.ceil((xs[k] - min_e) / step)))
+            i1 = min(cols - 1, int(math.floor((xs[k + 1] - min_e) / step)))
+            if i0 <= i1:
+                row[i0 : i1 + 1] = row[i0 : i1 + 1].translate(table)
+
+
+def _hex_pattern(spacing: float, step: float) -> List[Tuple[float, float]]:
+    """Offsets (east, north metres) of a triangular lattice of `step` inside a pointy-top hex of `spacing`
+    (flat-to-flat east-west), the centre included: the cover sample points of one tactical-layer hex."""
+    half_w = spacing / 2.0 - 1e-6
+    radius = spacing / SQRT3 - 1e-6
+    dz = step * SQRT3 / 2.0
+    points = []
+    reach = int(radius / dz) + 1
+    for j in range(-reach, reach + 1):
+        n = j * dz
+        shift = 0.5 if j % 2 else 0.0
+        for i in range(-reach - 1, reach + 2):
+            e = (i + shift) * step
+            if abs(e) < half_w and abs(n) < radius - abs(e) / SQRT3:
+                points.append((e, n))
+    return points
+
+
+def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Settings) -> dict:
+    """Per-hex terrain, road / river links and DEM height (metres) of a theatre-wide tactical layout, as flat
+    row-major arrays (`terrain` LAYER_TERRAIN_CODES, `road`, `river` link masks, `metres`). Same inputs as the
+    operational profile (OSM tiles loaded one at a time, the sea filled from the coastline); per hex the cover
+    classes of `_hex_pattern` points of the `settings.sample_m` lattice and the DEM at the centre and six points
+    LAYER_DEM_RADIUS_M around it give `classify` (the tactical rules) and the height (open points, or all minus
+    the canopy for a forest hex). Nothing per lattice point is kept besides the cover lattice."""
+    step = settings.sample_m
+    min_e, min_n, max_e, max_n = layout.bounds()
+    cols = int(math.floor((max_e - min_e) / step)) + 1
+    rows = int(math.floor((max_n - min_n) / step)) + 1
+    cover = [bytearray(cols) for _ in range(rows)]
+    links: Dict[str, set] = {ROAD: set(), RIVER: set()}
+    coastlines: Dict[int, List[Tuple[float, float]]] = {}
+    sources = osm if isinstance(osm, list) else [osm]
+    for index, source in enumerate(sources):
+        if len(sources) > 1:
+            print("OSM tile %d/%d %s" % (index + 1, len(sources), getattr(source, "name", "")), file=sys.stderr)
+        data = _load_osm(source)
+        for cls, rings in osm_areas(data, settings.profile.tag_classes):
+            projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
+            _scanline_fill_fast(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, step)
+        for kind, line in osm_lines(data, settings.profile):
+            projected_line = [to_utm(lat, lon, zone) for lat, lon in line]
+            links[kind].update(line_links(layout, projected_line, settings.profile.line_step_m))
+        for way_id, line in osm_coastlines(data):
+            coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
+        del data
+    seeds = [to_utm(lat, lon, zone) for lat, lon in settings.sea_seeds]
+    for lat, lon in settings.default_seeds:
+        e, n = to_utm(lat, lon, zone)
+        if min_e <= e <= max_e and min_n <= n <= max_n:
+            seeds.append((e, n))
+    sea_points = 0
+    if seeds:
+        sea_points = fill_sea(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step)
+    width, height = layout.width, layout.height
+    pattern = [((de / step), (dn / step)) for de, dn in _hex_pattern(layout.spacing, step)]
+    ring = [(0.0, 0.0)] + [(LAYER_DEM_RADIUS_M * math.cos(math.radians(30 + 60 * k)),
+                            LAYER_DEM_RADIUS_M * math.sin(math.radians(30 + 60 * k))) for k in range(6)]  # fmt: skip
+    terrain = bytearray(width * height)
+    metres = array("f", bytes(4 * width * height))
+    reliefs = array("f", bytes(4 * width * height))  # open hexes' relief, for tuning --hills-relief
+    closed = {COVER_CLASSES.index(c) for c in "FUW"}
+    n_classes = len(COVER_CLASSES)
+    for row in range(height):
+        if row % 128 == 0:
+            print("layer row %d/%d" % (row, height), file=sys.stderr)
+        for col in range(width):
+            e, n = layout.centre(col, row)
+            fi = (e - min_e) / step + 0.5
+            fj = (n - min_n) / step + 0.5
+            counts = [0] * n_classes
+            for di, dj in pattern:
+                counts[cover[int(fj + dj)][int(fi + di)]] += 1
+            lat, lon = from_utm(e, n, zone)
+            lat_e, lon_e = from_utm(e + 100.0, n, zone)
+            lat_n, lon_n = from_utm(e, n + 100.0, zone)
+            open_heights = []
+            all_heights = []
+            for de, dn in ring:
+                h = dem.sample(lat + ((lat_e - lat) * de + (lat_n - lat) * dn) / 100.0,
+                               lon + ((lon_e - lon) * de + (lon_n - lon) * dn) / 100.0)  # fmt: skip
+                all_heights.append(h)
+                if cover[int(fj + dn / step)][int(fi + de / step)] not in closed:
+                    open_heights.append(h)
+            group = dominant_group(counts)
+            if len(open_heights) >= len(ring) / 4.0:
+                open_heights.sort()
+                mean = sum(open_heights) / len(open_heights)
+                relief = _percentile(open_heights, 0.9) - _percentile(open_heights, 0.1)
+            else:
+                all_heights.sort()
+                mean = sum(all_heights) / len(all_heights) - (settings.canopy if group == FOREST else 0.0)
+                relief = _percentile(all_heights, 0.9) - _percentile(all_heights, 0.1)
+            kind = classify(counts, relief, settings.hills_relief, settings.urban_share, settings.marsh_share)
+            terrain[row * width + col] = LAYER_TERRAIN_CODES[kind]
+            metres[row * width + col] = mean
+            reliefs[row * width + col] = relief
+    del cover
+    masks = {}
+    water = LAYER_TERRAIN_CODES["water"]
+    for kind in (ROAD, RIVER):
+        mask = bytearray(width * height)
+        for a, b in sorted(links[kind]):
+            for src, dst in ((a, b), (b, a)):
+                col, row = layout.offset(*src)
+                if not layout.on_map(col, row) or terrain[row * width + col] == water:
+                    continue
+                mask[row * width + col] |= 1 << HEX_DIRECTIONS.index((dst[0] - src[0], dst[1] - src[1]))
+        masks[kind] = mask
+    return {"terrain": terrain, "road": masks[ROAD], "river": masks[RIVER], "metres": metres, "relief": reliefs,
+            "sea_points": sea_points}  # fmt: skip
+
+
+def layer_chunk_bytes(result: dict, width: int, x0: int, y0: int, w: int, h: int) -> bytes:
+    """One chunk (columns x0 .. x0 + w - 1, rows y0 .. y0 + h - 1), zlib level 9 of the planes: terrain codes,
+    road masks, river masks, then the heights as uint16 (LAYER_ELEVATION_OFFSET_M / _STEP_M) low bytes, high
+    bytes; each plane row-major, row 0 north (TacticalChunk)."""
+    terrain, road, river = bytearray(), bytearray(), bytearray()
+    low, high = bytearray(), bytearray()
+    for row in range(y0, y0 + h):
+        a, b = row * width + x0, row * width + x0 + w
+        terrain += result["terrain"][a:b]
+        road += result["road"][a:b]
+        river += result["river"][a:b]
+        for m in result["metres"][a:b]:
+            v = min(65535, max(0, int(round((m + LAYER_ELEVATION_OFFSET_M) / LAYER_ELEVATION_STEP_M))))
+            low.append(v & 0xFF)
+            high.append(v >> 8)
+    return zlib.compress(bytes(terrain + road + river + low + high), 9)
+
+
+def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, zone: int, result: dict,
+                bbox: Tuple[float, float, float, float], settings: Settings, sources: str) -> int:  # fmt: skip
+    """`<out_dir>/layer.tres` (TacticalLayer) and one `chunk_<cx>_<cy>.tres` (TacticalChunk) per LAYER_CHUNK square;
+    old chunk files are removed first. Returns the total size in bytes."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("chunk_*.tres"):
+        old.unlink()
+    lines = [
+        '[gd_resource type="Resource" script_class="TacticalLayer" load_steps=2 format=3]',
+        "",
+        '[ext_resource type="Script" path="res://src/core/data/tactical_layer.gd" id="1_layer"]',
+        "",
+        "[resource]",
+        'script = ExtResource("1_layer")',
+        "id = &%s" % _string(name),
+        "display_name = %s" % _string(display_name),
+        "width = %d" % layout.width,
+        "height = %d" % layout.height,
+        "chunk_size = %d" % LAYER_CHUNK,
+        "hex_spacing_m = %s" % _f(layout.spacing, 1),
+        "crs = %s" % _string("EPSG:%d" % (32600 + zone)),
+        "origin_easting = %s" % _f(layout.origin_e, 1),
+        "origin_northing = %s" % _f(layout.origin_n, 1),
+        "bbox_wgs84 = PackedFloat64Array(%s)" % ", ".join(_f(v, 5) for v in bbox),
+        "elevation_offset_m = %s" % _f(LAYER_ELEVATION_OFFSET_M, 1),
+        "elevation_step_m = %s" % _f(LAYER_ELEVATION_STEP_M, 2),
+        "land_min = %s" % _f(LAND_MIN, 3),
+        "top_elevation = %s" % _f(TOP_ELEVATION, 3),
+        "water_elevation = %s" % _f(WATER_ELEVATION, 3),
+        "exaggeration = %s" % _f(settings.exaggeration, 3),
+        "sources = %s" % _string(sources),
+        "",
+    ]
+    index = out_dir / "layer.tres"
+    with open(index, "w", encoding="utf-8", newline="\n") as out:
+        out.write("\n".join(lines))
+    total = index.stat().st_size
+    for cy in range(0, layout.height, LAYER_CHUNK):
+        for cx in range(0, layout.width, LAYER_CHUNK):
+            w = min(LAYER_CHUNK, layout.width - cx)
+            h = min(LAYER_CHUNK, layout.height - cy)
+            data = layer_chunk_bytes(result, layout.width, cx, cy, w, h)
+            chunk = [
+                '[gd_resource type="Resource" script_class="TacticalChunk" load_steps=2 format=3]',
+                "",
+                '[ext_resource type="Script" path="res://src/core/data/tactical_chunk.gd" id="1_chunk"]',
+                "",
+                "[resource]",
+                'script = ExtResource("1_chunk")',
+                "column = %d" % cx,
+                "row = %d" % cy,
+                "width = %d" % w,
+                "height = %d" % h,
+                'data = PackedByteArray("%s")' % base64.b64encode(data).decode("ascii"),
+                "",
+            ]
+            path = out_dir / ("chunk_%d_%d.tres" % (cx // LAYER_CHUNK, cy // LAYER_CHUNK))
+            with open(path, "w", encoding="utf-8", newline="\n") as out:
+                out.write("\n".join(chunk))
+            total += path.stat().st_size
+    return total
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Output.
 
 
@@ -1862,12 +2131,23 @@ def run(argv: Sequence[str]) -> Path:
     settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
                         args.urban_share, args.forest_share, args.marsh_share,
                         [_pair(s, ",", float) for s in args.sea_seed],
-                        OP_SEA_SEEDS if profile is OPERATIONAL and not args.sea_seed else (),
+                        OP_SEA_SEEDS if profile in (OPERATIONAL, LAYER) and not args.sea_seed else (),
                         countries, OP_COUNTRIES if profile is OPERATIONAL and not countries else (),
                         relief_z=args.relief_z, relief_step=args.relief_step)  # fmt: skip
-    result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files)
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
+    if profile is LAYER:
+        layer = build_layer(layout, zone, Dem(dem_files), osm, settings)
+        size = write_layer(out, args.name, args.display_name or args.name, layout, zone, layer, map_bbox, settings,
+                           sources)  # fmt: skip
+        counts = [layer["terrain"].count(code) for code in range(len(LAYER_TERRAIN_CODES))]
+        print("Wrote %s: %dx%d hexes of %.0f m in chunks of %d, %s; %d hexes with roads, %d river hexes; %.2f MB; "
+              "%d sea points; inputs %.0f s, import %.0f s" % (out, width, height, hex_m, LAYER_CHUNK, ", ".join(
+                  "%s %d" % (k, counts[v]) for k, v in sorted(LAYER_TERRAIN_CODES.items())),
+                  sum(1 for m in layer["road"] if m), sum(1 for m in layer["river"] if m), size / 1e6,
+                  layer["sea_points"], downloaded - started, time.time() - downloaded))  # fmt: skip
+        return out
+    result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files)
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():

@@ -79,6 +79,7 @@ var _join_key := ""  # "<country>|<player>" of the group the notice shows
 var _join_ids: Array = []
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
+var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
 var _contacts: StaffMapContacts
 var _marks := StaffMapTurnMarks.new()
@@ -209,7 +210,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_P:
 				_politics.toggle_tint()
 			KEY_F9:
-				_politics.toggle_panel()
+				toggle_debug_panels()
 			KEY_C:
 				open_country_card(_card_hex_country())
 			KEY_V:
@@ -1025,6 +1026,34 @@ func _build_hud() -> void:
 		OS.get_cmdline_user_args().has("--debug")
 	)
 	_politics.refresh(viewer_player)
+	if OS.get_cmdline_user_args().has("--debug"):
+		contact_debug()
+
+
+## F9 (--debug): the politics and the contact-map panels open and close together, the contact
+## panel under the politics one.
+func toggle_debug_panels() -> void:
+	if _politics.panel() == null and _contact_debug == null:
+		return
+	var opening := _contact_debug != null and not _contact_debug.is_open()
+	var politics := _politics.panel()
+	if politics != null and politics.visible != opening:
+		_politics.toggle_panel()
+	if _contact_debug != null and opening != _contact_debug.is_open():
+		var top := Vector2(16, 130)
+		if politics != null and politics.visible:
+			top.y += politics.size.y + 12
+		_contact_debug.toggle(top)
+
+
+## The debug contact-map preview (TASK-094b); made on first use (with --debug at build, else for
+## the screenshot tool and tests).
+func contact_debug() -> StaffMapContactDebug:
+	if _contact_debug == null and _view != null:
+		_contact_debug = StaffMapContactDebug.new(
+			_view, _simulation.state, _imported, _palette, _hud
+		)
+	return _contact_debug
 
 
 func _update_limits() -> void:
@@ -1189,6 +1218,8 @@ func click_at(screen: Vector2) -> void:
 		return
 	if _order_ring.is_open():
 		_order_ring.close()
+		return
+	if _contact_debug != null and _contact_debug.click(hex_at_screen(screen)):
 		return
 	var hit := _counters.counter_at(screen)
 	var target := _enemy_of_selected(hit)

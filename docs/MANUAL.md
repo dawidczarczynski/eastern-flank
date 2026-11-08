@@ -515,6 +515,8 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **Sides and conditions.** The formation that halted is the **attacker**; its mission is *Attack* and its goal is the hex it was heading for. The formation it hit is the **defender**: its mission is *Defend*, unless it was in the March posture, when it is *Caught on the march* (mission *Hold out*). The battle takes place on the terrain of the defender's hex. Each side brings the companies of its formation at their current strength, and its posture gives a position bonus for the battle: **Defend +1**, **Advance 0**, **March −1**.
 
+**The battlefield.** The battle is fought on the real terrain around the contact point – roads, rivers, lakes and forest – on an area of about 10 × 7.5 km. The defender holds the objective hex in the centre of the map; the attacker must take it by ending its turn on that hex. The battle lasts at most 12 turns from the first contact. If the limit runs out (a draw), the defender holds.
+
 **The contact notice.** When a battle is pending the camera centres on the defender's hex and the map dims. A card appears next to that hex, titled "Attack at hex" (you attack) or "Enemy attack at hex" (the enemy attacks you). It shows both sides (your frame is a rectangle, the enemy's a diamond), with their names, role, posture and strength, the forces as a ratio of attacker to defender strength, the place and the attacker's mission.
 
 **The queue.** If several battles start in one turn, a list on the left shows them (for example `1 OF 2`) with the active one marked. The notice always shows the first; when it is settled, the next appears.

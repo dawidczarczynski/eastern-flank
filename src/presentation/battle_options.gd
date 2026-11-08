@@ -15,6 +15,16 @@ const LABELS := {
 
 ## Scenario picked in the main menu; "" = none (the `--scenario=` argument or the default applies).
 static var menu_choice := ""
+## A battle to start instead of a scenario (TASK-094b: the staff map's debug "Open battle map");
+## the battle scene takes it once (take_pending_setup), so a later start uses the scenario again.
+static var pending_setup: BattleSetup = null
+
+
+## The pending setup, cleared; null when there is none.
+static func take_pending_setup() -> BattleSetup:
+	var setup := pending_setup
+	pending_setup = null
+	return setup
 
 
 ## The scenario to start: the main menu's choice, else `--scenario=` / the default.

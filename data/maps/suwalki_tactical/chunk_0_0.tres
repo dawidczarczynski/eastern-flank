@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TacticalChunk" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/tactical_chunk.gd" id="1_chunk"]
+
+[resource]
+script = ExtResource("1_chunk")
+column = 0
+row = 0
+width = 128
+height = 128
+data = PackedByteArray("eNrtwTENAAAMA6Am9e9zMiajD9ACAAAAAAAAAAAAAAAAAAAAawEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcgAAAAAAAAAAAAAAAAAAAMBcAQAAAAAAAAAAAAAAAAAAgLkHZb2Ddg==")

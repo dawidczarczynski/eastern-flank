@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="TacticalLayer" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/tactical_layer.gd" id="1_layer"]
+
+[resource]
+script = ExtResource("1_layer")
+id = &"suwalki_tactical"
+display_name = "Suwalki Gap theatre (tactical layer)"
+width = 1370
+height = 1288
+chunk_size = 128
+hex_spacing_m = 250.0
+crs = "EPSG:32634"
+origin_easting = 451969.0
+origin_northing = 6146742.0
+bbox_wgs84 = PackedFloat64Array(20.23834, 52.88051, 25.64914, 55.46576)
+elevation_offset_m = 100.0
+elevation_step_m = 0.10
+land_min = 0.120
+top_elevation = 2.200
+water_elevation = -0.400
+exaggeration = 1.500
+sources = "Elevation: Copernicus GLO-90 DEM, produced using Copernicus WorldDEM-90 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Land cover: (c) OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). See data/maps/CREDITS."

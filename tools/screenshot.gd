@@ -86,14 +86,10 @@ func _initialize() -> void:
 		return
 	var locale := OS.get_environment("SCREENSHOT_LOCALE")
 	_battle = scene.instantiate()
-	var scenario := OS.get_environment("SCREENSHOT_SCENARIO")
-	if scenario != "":
-		if not _is_battle or scenario not in Scenario.NAMES:
-			_fail(
-				"unknown SCREENSHOT_SCENARIO '%s' (%s)" % [scenario, ", ".join(Scenario.NAMES)], 2
-			)
-			return
-		_battle.set("scenario_name", scenario)
+	var battle_problem := _apply_battle_start()
+	if battle_problem != "":
+		_fail(battle_problem, 2)
+		return
 	root.add_child(_battle)
 	if locale != "":
 		TranslationServer.set_locale(locale)
@@ -352,6 +348,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## endturn (after the orders: ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
+## contactmap:<col>:<row>:<col>:<row> (the debug contact-map panel with that attacker / defender
+## hex pair picked and its cut outlined, TASK-094b),
 ## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -393,6 +391,39 @@ func _apply_debug_selection() -> void:
 		_battle.call("debug_hover_unit", hover_id.to_int())
 
 
+## SCREENSHOT_SCENARIO / SCREENSHOT_CONTACT: what the battle scene starts; "" or the problem.
+func _apply_battle_start() -> String:
+	var scenario := OS.get_environment("SCREENSHOT_SCENARIO")
+	if scenario != "":
+		if not _is_battle or scenario not in Scenario.NAMES:
+			return "unknown SCREENSHOT_SCENARIO '%s' (%s)" % [scenario, ", ".join(Scenario.NAMES)]
+		_battle.set("scenario_name", scenario)
+	var contact := OS.get_environment("SCREENSHOT_CONTACT")
+	if contact != "":
+		var setup := _contact_setup(contact) if _is_battle else null
+		if setup == null:
+			return "invalid SCREENSHOT_CONTACT '%s' (<col>:<row>:<col>:<row>)" % contact
+		_battle.set("setup", setup)
+	return ""
+
+
+## SCREENSHOT_CONTACT=<col>:<row>:<col>:<row> (battle scene, TASK-094b): the contact battle of
+## that attacker / defender hex pair of the suwalki_gap start, as the staff map's debug "Open
+## battle map" starts it; null when the hexes are invalid or the cut fails.
+func _contact_setup(spec: String) -> BattleSetup:
+	var parts := spec.split(":")
+	if parts.size() != 4:
+		return null
+	var state := Operation.build(&"suwalki_gap", 1)
+	var preview := StaffMapContactPreview.new(state, ImportedMap.find(state.map_id))
+	var picked := preview.pick_pair(
+		MapGenerator.offset_to_axial(parts[0].to_int(), parts[1].to_int()),
+		MapGenerator.offset_to_axial(parts[2].to_int(), parts[3].to_int())
+	)
+	print("Contact map: ", " | ".join(preview.lines()))
+	return preview.setup if picked else null
+
+
 ## Staff map scene: tokens of SCREENSHOT_STAFF_MAP; processing stops afterwards so that the real
 ## mouse can't pan the camera or move the hover card.
 func _apply_staff_map_state(spec: String) -> void:
@@ -413,6 +444,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var end_turn_after := false
 	var joins: Array = []
 	var contacts: Array = []
+	var contact_map: Array = []
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -459,6 +491,11 @@ func _apply_staff_map_state(spec: String) -> void:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
 					continue
 				contacts.append(parts)
+			"contactmap":
+				if parts.size() != 5:
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				contact_map = parts
 			"grid":
 				map.view().set_grid_visible(true)
 			"country":
@@ -521,6 +558,14 @@ func _apply_staff_map_state(spec: String) -> void:
 			map.order_ring().ring().hovered = ring[3].to_int() - 1
 			map.order_ring().ring().slot_hovered.emit(ring[3].to_int() - 1)
 		map.view().highlight(ring_hex)
+	if not contact_map.is_empty():
+		var debug := map.contact_debug()
+		debug.toggle(Vector2(16, 130))
+		debug.pick_pair(
+			MapGenerator.offset_to_axial(contact_map[1].to_int(), contact_map[2].to_int()),
+			MapGenerator.offset_to_axial(contact_map[3].to_int(), contact_map[4].to_int())
+		)
+		print("Contact map: ", " | ".join(debug.preview().lines()))
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
 	map.process_mode = Node.PROCESS_MODE_DISABLED

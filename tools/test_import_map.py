@@ -1673,6 +1673,97 @@ class OperationalLayersTest(unittest.TestCase):
         self.assertNotIn("layer_", SAMPLE_MAP.read_text(encoding="utf-8"))
 
 
+class TacticalLayerTest(unittest.TestCase):
+    """`--profile=layer` (TASK-094b): the theatre-wide tactical layer in chunks, on the synthetic operational
+    fixture (coast, lake, forest, town, wetland, a primary road and a river)."""
+
+    ARGS = ["--profile=layer", "--center=54.5,22.5", "--size=36x28", "--name=sample_layer",
+            "--sea-seed=%s" % OP_SEED, "--offline", "--cache=%s" % OP_CACHE, "--dem=%s" % OP_DEM_FIXTURE]  # fmt: skip
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+        self._chunk = import_map.LAYER_CHUNK
+        import_map.LAYER_CHUNK = 16  # several chunks on the small sample
+
+    def tearDown(self) -> None:
+        import_map.LAYER_CHUNK = self._chunk
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _import(self, name: str) -> Path:
+        out = self.dir / name
+        import_map.run(self.ARGS + ["--out=%s" % out])
+        return out
+
+    @staticmethod
+    def _planes(path: Path) -> bytes:
+        text = path.read_text(encoding="utf-8")
+        data = text.split('data = PackedByteArray("')[1].split('")')[0]
+        return zlib.decompress(base64.b64decode(data))
+
+    def test_layer_is_byte_identical_and_chunked(self) -> None:
+        a, b = self._import("a"), self._import("b")
+        names = sorted(f.name for f in a.iterdir())
+        self.assertEqual(names, sorted(f.name for f in b.iterdir()))
+        self.assertEqual(names, ["chunk_%d_%d.tres" % (x, y) for x in range(3) for y in range(2)] + ["layer.tres"])
+        for name in names:
+            self.assertEqual((a / name).read_bytes(), (b / name).read_bytes(), name)
+        index = (a / "layer.tres").read_text(encoding="utf-8")
+        for line in ("width = 36", "height = 28", "chunk_size = 16", "hex_spacing_m = 250.0", 'crs = "EPSG:32634"',
+                     "GLO-90", "OpenStreetMap"):  # fmt: skip
+            self.assertIn(line, index)
+        corner = (a / "chunk_2_1.tres").read_text(encoding="utf-8")
+        self.assertIn("column = 32", corner)
+        self.assertIn("row = 16", corner)
+        self.assertIn("width = 4", corner)
+        self.assertIn("height = 12", corner)
+        self.assertEqual(len(self._planes(a / "chunk_2_1.tres")), 5 * 4 * 12)
+
+    def test_layer_classification(self) -> None:
+        out = self._import("c")
+        terrain, roads, rivers = bytearray(), bytearray(), bytearray()
+        for cy in range(2):
+            rows = 16 if cy == 0 else 12
+            planes = [self._planes(out / ("chunk_%d_%d.tres" % (cx, cy))) for cx in range(3)]
+            widths = [16, 16, 4]
+            for r in range(rows):
+                for k, w in enumerate(widths):
+                    n = w * rows
+                    terrain += planes[k][r * w:(r + 1) * w]
+                    roads += planes[k][n + r * w:n + (r + 1) * w]
+                    rivers += planes[k][2 * n + r * w:2 * n + (r + 1) * w]
+        codes = import_map.LAYER_TERRAIN_CODES
+        self.assertEqual(terrain[0], codes["water"], "the sea in the north-west corner")
+        for kind in ("plains", "forest", "water", "urban"):
+            self.assertIn(codes[kind], terrain, kind)
+        self.assertNotIn(codes["fields"], terrain, "no farmland in the operational tiles")
+        self.assertTrue(any(roads), "the primary road")
+        self.assertTrue(any(rivers), "the river")
+        for i, t in enumerate(terrain):
+            if t == codes["water"]:
+                self.assertEqual((roads[i], rivers[i]), (0, 0), "no links on water")
+
+    def test_fast_scanline_fill_matches_the_reference(self) -> None:
+        rings = [[(0.3, 0.2), (17.7, 3.1), (12.2, 14.9), (3.3, 11.0), (0.3, 0.2)],
+                 [(5.0, 5.0), (9.0, 5.5), (8.0, 9.0), (5.0, 5.0)],
+                 [(10.0, -3.0), (25.0, 4.0), (19.0, 21.0), (10.0, -3.0)]]  # fmt: skip
+        slow = [bytearray(20) for _ in range(18)]
+        fast = [bytearray(20) for _ in range(18)]
+        for value, ring_set in ((3, rings[:2]), (5, rings[2:]), (2, rings[:1])):
+            import_map._scanline_fill(slow, value, ring_set, 0.0, 0.0, 1.0)
+            import_map._scanline_fill_fast(fast, value, ring_set, 0.0, 0.0, 1.0)
+        self.assertEqual(slow, fast)
+        self.assertGreater(sum(map(sum, fast)), 0)
+
+    def test_hex_pattern_lies_inside_the_hex(self) -> None:
+        points = import_map._hex_pattern(250.0, 50.0)
+        self.assertIn((0.0, 0.0), points)
+        self.assertTrue(19 <= len(points) <= 25, len(points))
+        layout = import_map.HexLayout(3, 3, 250.0, 0.0, 0.0)
+        centre = layout.centre(1, 1)
+        for de, dn in points:
+            self.assertEqual(layout.tile_at(centre[0] + de, centre[1] + dn), (1, 1))
+
+
 if __name__ == "__main__":
     if "--make-fixtures" in sys.argv:
         make_fixtures()
