@@ -1501,6 +1501,24 @@
     "output": 7304
    }
   },
+  "TASK-093b": {
+   "active_hours": 0.68,
+   "cost": 3.8755,
+   "first": "2026-11-07T20:13:18.989Z",
+   "last": "2026-11-07T20:53:50.035Z",
+   "main_cost": 3.8755,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 8848506,
+    "cache_write": 138765,
+    "input": 164,
+    "output": 46672
+   }
+  },
   "TASK-109": {
    "active_hours": 0.56,
    "cost": 9.2507,
