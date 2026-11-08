@@ -1,6 +1,6 @@
 # TASK-118: Allied contributions – a country that goes to war on its leaning side brings its formations (data per operation)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (allied counters, arrival notice)
 - **Depends on**: TASK-114, TASK-092b
 - **Model**: sonnet

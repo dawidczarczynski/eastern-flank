@@ -1,6 +1,6 @@
 # TASK-114: Countries and stances in the operational state – data, per-hex country, player-relative relation, open / closed hexes, legal stance changes
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stance tints, country card, debug panel)
 - **Depends on**: TASK-113, TASK-092b, TASK-093b
 - **Model**: sonnet
@@ -72,4 +72,6 @@ Section in the "Politics" chapter (started by TASK-113) – the manual's politic
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done (2026-11-08). Core: `CountryDefinition`, `CountrySetup`, `CountryState`, `CountryRules` (relation, may_enter, may_strike, set_stance, `transition_problem` for refusals), `Operation.map_countries`, snapshot `countries`; data in `data/countries/`, start stances in `suwalki_gap.tres`; ADR 0020. View (`src/presentation/operational/`): `StanceTint`, country mask raster (tint follows the drawn border), `staff_map_politics*` (HUD, card, F9 debug panel), shader tint + hatch for closed countries, P / C / F9 / Esc keys.
+
+Deviations: the hex card ignores the mouse, so the card opens by clicking a country name or with **C** over a hex (the hex card got a Stance row instead of a click target); aligned countries are tinted at 60 % of a belligerent one's opacity, hostile = enemy colour at that lighter alpha; country names are not recoloured per stance; the v0 hex look has no tint; the debug panel calls `CountryRules.set_stance` directly and emits the event itself (no command exists). The raster adds ~0.6 s to the staff map build. `staff_map_countries.gd` still has its own ISO name table (TASK-113 leftover). The F9 panel, P toggle and stance changes were not exercised by the agent. `tools/check.sh` lint shows 8 errors in files outside this task (imported_map.gd, staff_map_view.gd, three test files); all 1547 tests pass. Manual: left to the TASK-119 politics chapter.

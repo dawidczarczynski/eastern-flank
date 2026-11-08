@@ -12,6 +12,13 @@ uniform sampler2D water_tex : filter_linear, repeat_disable;
 uniform sampler2D cover_tex : filter_nearest, repeat_disable;
 uniform sampler2D relief_tex : filter_linear, repeat_disable;
 // World rectangles (x, z origin; width, depth) covered by the water / cover and the relief pixels.
+// Political layer (TASK-114): per-country coverage (one channel each, bilinear) over `layer_rect`,
+// the tint (rgb, alpha) of each country and whether it is closed to the viewer (hatched).
+uniform sampler2D country_tex : filter_linear, repeat_disable;
+uniform vec4 country_tint[4];
+uniform vec4 country_closed = vec4(0.0);
+uniform float politics_on = 0.0;
+uniform float hatch_world = 0.16;
 uniform vec4 layer_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform vec4 relief_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
@@ -131,5 +138,17 @@ void fragment() {
 	}
 	colour = mix(colour, water_color.rgb, wet);
 	colour = mix(colour, shore_color.rgb, contour(water, edge_px) * shore_color.a);
+	if (politics_on > 0.5) {
+		vec4 share = texture(country_tex, uv);
+		float land = 1.0 - wet;
+		float hatch = smoothstep(0.35, 0.5, fract((ground.x + ground.y) / hatch_world))
+			* (1.0 - smoothstep(0.5, 0.65, fract((ground.x + ground.y) / hatch_world)));
+		for (int i = 0; i < 4; i++) {
+			float inside = coverage(share[i]) * land;
+			vec4 tint = country_tint[i];
+			colour = mix(colour, tint.rgb, tint.a * inside);
+			colour = mix(colour, tint.rgb, country_closed[i] * hatch * 0.16 * inside);
+		}
+	}
 	ALBEDO = colour;
 }

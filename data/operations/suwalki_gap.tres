@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDefinition" load_steps=30 format=3]
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=40 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
 [ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
@@ -11,6 +11,11 @@
 [ext_resource type="Resource" path="res://data/formations/ru_motor_rifle_battalion.tres" id="9_ru_motor_rifle_battalion"]
 [ext_resource type="Resource" path="res://data/formations/ru_tank_battalion.tres" id="10_ru_tank_battalion"]
 [ext_resource type="Resource" path="res://data/formations/ru_mlrs_battalion.tres" id="11_ru_mlrs_battalion"]
+[ext_resource type="Script" path="res://src/core/data/country_setup.gd" id="12_csetup"]
+[ext_resource type="Resource" path="res://data/countries/poland.tres" id="c_poland"]
+[ext_resource type="Resource" path="res://data/countries/lithuania.tres" id="c_lithuania"]
+[ext_resource type="Resource" path="res://data/countries/belarus.tres" id="c_belarus"]
+[ext_resource type="Resource" path="res://data/countries/russia.tres" id="c_russia"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -174,6 +179,34 @@ player = 1
 definition = ExtResource("11_ru_mlrs_battalion")
 coord = Vector2i(31, 51)
 
+[sub_resource type="Resource" id="Setup_poland"]
+script = ExtResource("12_csetup")
+country = ExtResource("c_poland")
+stance = &"belligerent"
+side = 0
+leaning = 0
+
+[sub_resource type="Resource" id="Setup_lithuania"]
+script = ExtResource("12_csetup")
+country = ExtResource("c_lithuania")
+stance = &"aligned"
+side = 0
+leaning = 0
+
+[sub_resource type="Resource" id="Setup_belarus"]
+script = ExtResource("12_csetup")
+country = ExtResource("c_belarus")
+stance = &"aligned"
+side = 1
+leaning = 1
+
+[sub_resource type="Resource" id="Setup_russia"]
+script = ExtResource("12_csetup")
+country = ExtResource("c_russia")
+stance = &"belligerent"
+side = 1
+leaning = 1
+
 [resource]
 script = ExtResource("3_operation")
 id = &"suwalki_gap"
@@ -181,5 +214,6 @@ display_name = "Suwałki Gap"
 map_id = &"suwalki_theatre"
 sides = Array[ExtResource("1_side")]([ExtResource("4_nato"), ExtResource("5_russia")])
 first_player = 1
+countries = Array[ExtResource("12_csetup")]([SubResource("Setup_poland"), SubResource("Setup_lithuania"), SubResource("Setup_belarus"), SubResource("Setup_russia")])
 start_date = "2027-06-14"
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])

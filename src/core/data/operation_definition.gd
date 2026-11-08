@@ -18,6 +18,8 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var start_date: String = ""
 ## Posture (OperationalPosture id) every formation starts in.
 @export var initial_posture: StringName = &"defend"
+## Start stance of each country on the map (TASK-114).
+@export var countries: Array[CountrySetup] = []
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

@@ -23,7 +23,10 @@ static func build(operation_id: StringName, seed_value: int) -> OperationalState
 ## A state from the given data; `grid` = null loads the definition's map
 ## (ImportedMap.find(map_id).to_grid()). Null with push_error when the data is invalid.
 static func from_definition(
-	definition: OperationDefinition, seed_value: int, grid: HexGrid = null
+	definition: OperationDefinition,
+	seed_value: int,
+	grid: HexGrid = null,
+	country_map: Dictionary = {}
 ) -> OperationalState:
 	if grid == null:
 		var map := ImportedMap.find(definition.map_id)
@@ -33,7 +36,12 @@ static func from_definition(
 		grid = map.to_grid()
 		if grid == null:
 			return null
-	var error := _problem(definition, grid)
+		if country_map.is_empty():
+			country_map = _map_countries(map)
+			if country_map.has(&"error"):
+				push_error("Operation '%s': %s" % [definition.id, country_map[&"error"]])
+				return null
+	var error := _problem(definition, grid, country_map)
 	if error != "":
 		push_error("Operation '%s': %s" % [definition.id, error])
 		return null
@@ -49,18 +57,26 @@ static func from_definition(
 	state.current_player = definition.first_player
 	state.turn = 1
 	state.rng.seed = seed_value
+	state.country_map = country_map
+	for setup in definition.countries:
+		state.countries.append(CountryState.from_setup(setup))
 	for placement in definition.formations:
 		state.formations.append(Formation.from_placement(placement, definition.initial_posture))
 	return state
 
 
 ## "" when the definition is consistent with itself, the map and the faction rosters.
-static func _problem(definition: OperationDefinition, grid: HexGrid) -> String:
+static func _problem(
+	definition: OperationDefinition, grid: HexGrid, country_map: Dictionary
+) -> String:
 	var sides_error := _sides_problem(definition)
 	if sides_error != "":
 		return sides_error
 	if OperationalPosture.find(definition.initial_posture) == null:
 		return "unknown initial posture '%s'" % definition.initial_posture
+	var countries_error := _countries_problem(definition, country_map)
+	if countries_error != "":
+		return countries_error
 	var ids := {}
 	var occupied := {}
 	for placement in definition.formations:
@@ -76,6 +92,72 @@ static func _problem(definition: OperationDefinition, grid: HexGrid) -> String:
 			var other: StringName = occupied[placement.coord]
 			return "'%s' and '%s' on one tile %s" % [other, placement.id, placement.coord]
 		occupied[placement.coord] = placement.id
+	return _closed_placement_problem(definition, country_map)
+
+
+## Coord -> country id of every hex of `map` that belongs to a country (what `from_definition`
+## builds itself when it loads the grid); {} for a map without countries. For callers that pass
+## their own `grid` (the staff map shares one grid with its view).
+static func map_countries(map: ImportedMap) -> Dictionary:
+	var result := _map_countries(map)
+	return {} if result.has(&"error") else result
+
+
+## country id of every hex of the map; a dictionary with the key &"error" when an ISO code of the
+## map has no CountryDefinition.
+static func _map_countries(map: ImportedMap) -> Dictionary:
+	var result := {}
+	var by_iso := {}
+	for code in map.countries:
+		var country := CountryDefinition.find_by_iso(code)
+		if country == null:
+			return {&"error": "map country '%s' has no CountryDefinition" % code}
+		by_iso[code] = country.id
+	for row in map.height:
+		for col in map.width:
+			var coord := MapGenerator.offset_to_axial(col, row)
+			var code := map.country_at(coord)
+			if code != "":
+				result[coord] = by_iso[code]
+	return result
+
+
+static func _countries_problem(definition: OperationDefinition, country_map: Dictionary) -> String:
+	var seen := {}
+	for setup in definition.countries:
+		if setup == null or setup.country == null:
+			return "empty country setup"
+		var id := setup.country.id
+		if seen.has(id):
+			return "duplicate country '%s'" % id
+		seen[id] = true
+		if not CountryState.STANCES.has(setup.stance):
+			return "country '%s': unknown stance '%s'" % [id, setup.stance]
+		if setup.leaning < -1 or setup.leaning > 1:
+			return "country '%s': leaning %d outside -1 .. 1" % [id, setup.leaning]
+		if setup.stance == CountryState.NEUTRAL and setup.side != -1:
+			return "country '%s': neutral with side %d" % [id, setup.side]
+		if setup.stance != CountryState.NEUTRAL and setup.side != 0 and setup.side != 1:
+			return "country '%s': %s with side %d" % [id, setup.stance, setup.side]
+	for country_id: StringName in country_map.values():
+		if not seen.has(country_id):
+			return "country '%s' on the map has no setup" % country_id
+	return ""
+
+
+## A formation may not start on a hex that is closed to its player.
+static func _closed_placement_problem(
+	definition: OperationDefinition, country_map: Dictionary
+) -> String:
+	if definition.countries.is_empty():
+		return ""
+	var probe := OperationalState.new()
+	probe.country_map = country_map
+	for setup in definition.countries:
+		probe.countries.append(CountryState.from_setup(setup))
+	for placement in definition.formations:
+		if not CountryRules.may_enter(probe, placement.player, placement.coord):
+			return "formation '%s' starts on a closed hex %s" % [placement.id, placement.coord]
 	return ""
 
 

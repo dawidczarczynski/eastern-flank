@@ -5,6 +5,13 @@ extends FramedPanel
 
 const WIDTH := 220
 const ROW_SIZE := 12
+## Hex card Stance line: the country's relation to the viewer (CountryRules.relation).
+const RELATION_TEXT := {
+	&"own": "Ally",
+	&"enemy": "Enemy",
+	&"hostile": "Hostile",
+	&"neutral": "Neutral",
+}
 
 var _name_label: Label
 var _values: Array[Label] = []
@@ -39,7 +46,7 @@ func _init() -> void:
 	add_child(column)
 	_name_label = _label(HudTheme.display(700, 1), 20, UiPalette.HUD_TEXT)
 	column.add_child(_name_label)
-	for caption in ["ELEVATION", "Road", "River", "Country"]:
+	for caption in ["ELEVATION", "Road", "River", "Country", "Stance"]:
 		column.add_child(_row(caption))
 	hide()
 	reset_size()
@@ -56,6 +63,11 @@ func show_info(data: Dictionary) -> void:
 	var country: String = data.get("country", "")
 	_values[3].text = (
 		tr(StaffMapCountries.NAMES.get(country, country)).to_upper() if country != "" else "–"
+	)
+	_values[4].text = (
+		tr(RELATION_TEXT.get(data.get("relation", &"none"), "")).to_upper()
+		if country != ""
+		else "–"
 	)
 	show()
 	reset_size()

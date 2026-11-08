@@ -73,6 +73,7 @@ var _orders: StaffMapOrders
 var _picker: StaffMapPosturePicker
 var _toast: Toast
 var _banner: TurnBanner
+var _politics: StaffMapPoliticsHud
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _follow_side := true
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
@@ -169,6 +170,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key != null and key.pressed and not key.echo:
 		match key.keycode:
 			KEY_ESCAPE:
+				if _politics.close_card():
+					return
 				if selected_formation() != &"":
 					select_formation(&"")
 				else:
@@ -184,6 +187,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				_view.set_grid_visible(not _view.grid_visible())
 			KEY_B:
 				_view.set_countries_visible(not _view.countries_visible())
+			KEY_P:
+				_politics.toggle_tint()
+			KEY_F9:
+				_politics.toggle_panel()
+			KEY_C:
+				open_country_card(_card_hex_country())
 			KEY_V:
 				_pitch_target = StaffMapCameraMath.toggle_pitch(_pitch_target, _tilt)
 		return
@@ -225,7 +234,11 @@ func refresh_texts() -> void:
 
 
 func _card_info(c: Vector2i) -> Dictionary:
-	return StaffMapCard.info(_grid, c, _imported.country_at(c) if _imported != null else "")
+	var data := StaffMapCard.info(_grid, c, _imported.country_at(c) if _imported != null else "")
+	data["relation"] = CountryRules.relation(
+		_simulation.state, viewer_player, _simulation.state.country_at(c)
+	)
+	return data
 
 
 func view() -> StaffMapView:
@@ -368,6 +381,8 @@ func set_viewer(player: int) -> void:
 	if _counters == null:
 		return
 	_refresh_turn_bar()
+	if _politics != null:
+		_politics.refresh(player)
 	_counters.set_viewer(player)
 	_counters.refresh()
 	_orders.refresh(_simulation.state, player)
@@ -438,6 +453,32 @@ func debug_hover(c: Vector2i) -> void:
 	_view.highlight(c)
 	_card.show_info(_card_info(c))
 	_place_card(_screen_of_hex(c))
+
+
+## The map point (hex units, x / z) under a screen point.
+func ground_at_screen(screen: Vector2) -> Vector2:
+	var ray := StaffMapCameraMath.screen_ray(screen, _viewport_size(), _target(), _scale(), _pitch)
+	return _view.relief().raycast(ray["origin"], ray["direction"])
+
+
+## Opens the country card of `country_id` (the viewer's relation); no-op for &"".
+func open_country_card(country_id: StringName) -> void:
+	if country_id != &"":
+		_politics.open_card(country_id)
+
+
+## The country card (tests, screenshots).
+func country_card() -> StaffMapCountryCard:
+	return _politics.card()
+
+
+func politics_hud() -> StaffMapPoliticsHud:
+	return _politics
+
+
+func _card_hex_country() -> StringName:
+	var hovered := _view.hovered()
+	return _simulation.state.country_at(hovered) if _view.has_tile(hovered) else &""
 
 
 ## The hex under a screen point (picking against the relief); check has_tile.
@@ -529,7 +570,12 @@ func _build_camera() -> void:
 func _build_operation(definition: OperationDefinition) -> void:
 	var state: OperationalState = null
 	if definition != null:
-		state = Operation.from_definition(definition, seed_value, _grid)
+		state = Operation.from_definition(
+			definition,
+			seed_value,
+			_grid,
+			Operation.map_countries(_imported) if _imported != null else {}
+		)
 	if state == null:
 		push_error("StaffMap: cannot build operation '%s'" % operation_id)
 		state = OperationalState.new()
@@ -596,6 +642,8 @@ func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
 func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_on_turn_started(event)
+	if event.get("type") == &"country_stance_changed":
+		_politics.refresh(viewer_player)
 	_update_anchors()
 	_counters.refresh()
 	_orders.refresh(_simulation.state, viewer_player)
@@ -682,6 +730,16 @@ func _build_hud() -> void:
 	_hint.position = Vector2(16, -40)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_hint)
+	_politics = StaffMapPoliticsHud.new(
+		_view,
+		_imported,
+		_palette,
+		_simulation,
+		_hud,
+		_toast_message,
+		OS.get_cmdline_user_args().has("--debug")
+	)
+	_politics.refresh(viewer_player)
 
 
 func _update_limits() -> void:
@@ -834,6 +892,12 @@ func click_at(screen: Vector2) -> void:
 	if _counters == null:
 		return
 	var hit := _counters.counter_at(screen)
+	if hit == &"":
+		var named := _politics.country_name_at(ground_at_screen(screen))
+		if named != &"":
+			_politics.open_card(named)
+			return
+		_politics.close_card()
 	if hit == &"" and _selected_own() != null:
 		var hex := hex_at_screen(screen)
 		if _view.has_tile(hex):

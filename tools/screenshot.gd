@@ -347,7 +347,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## selected formation to that hex, TASK-092c), posture:<1-3> (posture of the selected formation,
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
 ## posture; view as the side to play), e.g.
-## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
+## country:<id> (the country card, TASK-114), politics (the --debug panel),
+## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
@@ -435,6 +436,10 @@ func _apply_staff_map_state(spec: String) -> void:
 				orders.append(parts)
 			"grid":
 				map.view().set_grid_visible(true)
+			"country":
+				map.open_country_card(StringName(parts[1]) if parts.size() > 1 else &"")
+			"politics":
+				map.politics_hud().toggle_panel()
 			"side":
 				map.set_viewer(parts[1].to_int() if parts.size() > 1 else 0)
 			"select":
