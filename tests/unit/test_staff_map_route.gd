@@ -94,6 +94,15 @@ func test_preview_stops_in_contact() -> void:
 	assert_eq(past["stops"][past["stops"].size() - 1], Vector2i(4, 0))
 
 
+func test_enemy_hex_is_a_target_for_attack_posture() -> void:
+	var state := _row_state(Vector2i(5, 0))
+	var formation := state.get_formation(&"f")
+	var attack := StaffMapRoute.preview(state, formation, Vector2i(5, 0), false, 8)
+	assert_eq(attack["reason"], "")
+	assert_eq(attack["stop"], OperationalRoutes.STOP_CONTACT)
+	assert_eq(attack["stops"][attack["stops"].size() - 1], Vector2i(4, 0))
+
+
 func test_unreachable_reasons() -> void:
 	var state := _row_state(Vector2i(5, 0))
 	var formation := state.get_formation(&"f")
@@ -101,7 +110,7 @@ func test_unreachable_reasons() -> void:
 		StaffMapRoute.preview(state, formation, Vector2i(9, 0), false, 8)["reason"], "ROUTE_WATER"
 	)
 	assert_eq(
-		StaffMapRoute.preview(state, formation, Vector2i(5, 0), false, 8)["reason"], "ROUTE_ENEMY"
+		StaffMapRoute.preview(state, formation, Vector2i(5, 0), true, 8)["reason"], "ROUTE_ENEMY"
 	)
 	assert_eq(
 		StaffMapRoute.preview(state, formation, Vector2i(5, 5), false, 8)["reason"],

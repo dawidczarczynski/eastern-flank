@@ -1,7 +1,8 @@
 class_name IssueOrderCommand
 extends OperationalCommand
 ## Gives a formation of the current player an order (TASK-092d): go to `destination` in
-## `posture`. Replaces any earlier order; the formation does not move now (TASK-092e executes
+## `posture` (an enemy-held destination is an attack order, only for a posture that does not avoid
+## contact). Replaces any earlier order; the formation does not move now (TASK-092e executes
 ## orders at the end of the turn).
 
 const TYPE := "issue_order"
@@ -33,11 +34,25 @@ func validate(state: OperationalState) -> String:
 		or state.grid.move_cost(destination) == Terrain.IMPASSABLE
 	):
 		return "invalid_destination"
-	if state.formation_at(destination) != null:
-		return "occupied"
+	reason = _target_problem(state, formation, data)
+	if reason != "":
+		return reason
 	if OperationalRoutes.plan(state, formation, destination, data.avoids_contact).is_empty():
 		return "no_route"
 	return ""
+
+
+## What is wrong with the destination hex's occupant: an own formation, or an enemy for a posture
+## that avoids contact.
+func _target_problem(
+	state: OperationalState, formation: Formation, data: OperationalPosture
+) -> String:
+	var holder := state.formation_at(destination)
+	if holder == null:
+		return ""
+	if holder.owner_id == formation.owner_id:
+		return "occupied"
+	return "enemy_destination" if data.avoids_contact else ""
 
 
 func apply(state: OperationalState) -> Array[Dictionary]:

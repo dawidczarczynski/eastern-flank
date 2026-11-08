@@ -135,11 +135,13 @@ func test_plan_through_own_not_to_own() -> void:
 	assert_true(OperationalRoutes.plan(state, f, Vector2i(2, 0), false).is_empty())
 
 
-func test_plan_enemy_blocks_and_destination_enemy_empty() -> void:
+func test_plan_enemy_blocks_and_attack_destination() -> void:
 	var state := _state(_row_grid(), {Vector2i(2, 0): 1})
 	var f := state.formations[0]
 	assert_true(OperationalRoutes.plan(state, f, Vector2i(5, 0), false).is_empty())
-	assert_true(OperationalRoutes.plan(state, f, Vector2i(2, 0), false).is_empty())
+	assert_true(OperationalRoutes.plan(state, f, Vector2i(2, 0), true).is_empty())
+	# Attack order: without avoid_contact the route ends on the enemy hex (row blocked behind it).
+	assert_eq(OperationalRoutes.plan(state, f, Vector2i(2, 0), false), _route(1, 2))
 
 
 func test_plan_contact_grid() -> void:

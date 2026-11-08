@@ -1177,11 +1177,17 @@ func _edge_direction() -> Vector2:
 
 
 ## A left click on the map: selects the counter under `screen`; with an own formation selected a
-## click on a hex gives it an order there (and deselects it); elsewhere it deselects.
+## click on a hex gives it an order there (and deselects it); elsewhere it deselects. In a posture
+## that seeks contact (Advance) a click on an enemy counter orders an attack on it.
 func click_at(screen: Vector2) -> void:
 	if _counters == null:
 		return
 	var hit := _counters.counter_at(screen)
+	var target := _attack_target(hit)
+	if target != null:
+		if issue_order(target.coord):
+			select_formation(&"")
+		return
 	if hit == &"":
 		var named := _politics.country_name_at(ground_at_screen(screen))
 		if named != &"":
@@ -1195,6 +1201,19 @@ func click_at(screen: Vector2) -> void:
 				select_formation(&"")  # done with this one; the next click must not re-order it
 			return
 	select_formation(hit)
+
+
+## The enemy formation behind counter `hit` when the selected own formation could attack it
+## (its posture does not avoid contact); null otherwise.
+func _attack_target(hit: StringName) -> Formation:
+	var own := _selected_own()
+	if own == null or hit == &"" or _simulation == null:
+		return null
+	var posture := OperationalPosture.find(own.posture)
+	var other := _simulation.state.get_formation(hit)
+	if posture == null or posture.avoids_contact or other == null:
+		return null
+	return other if other.owner_id != own.owner_id else null
 
 
 func _update_hover() -> void:

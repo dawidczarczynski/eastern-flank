@@ -140,7 +140,9 @@ func test_issue_rejections_in_order() -> void:
 			str(bad)
 		)
 	assert_eq(_reason(state, IssueOrderCommand.new(&"f", Vector2i(6, 0), &"march")), "occupied")
-	assert_eq(_reason(state, IssueOrderCommand.new(&"f", Vector2i(7, 0), &"march")), "occupied")
+	assert_eq(
+		_reason(state, IssueOrderCommand.new(&"f", Vector2i(7, 0), &"march")), "enemy_destination"
+	)
 	assert_eq(_reason(state, IssueOrderCommand.new(&"f", dest, &"march")), "")
 
 

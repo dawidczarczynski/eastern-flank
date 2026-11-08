@@ -215,6 +215,7 @@ ORDER_REJECTED_NOT_YOUR_FORMATION,Not your formation.,To nie twoja formacja.
 ORDER_REJECTED_UNKNOWN_POSTURE,Unknown posture.,Nieznana postawa.
 ORDER_REJECTED_INVALID_DESTINATION,Cannot go there.,Nie można tam dojść.
 ORDER_REJECTED_OCCUPIED,Hex occupied.,Pole zajęte.
+ORDER_REJECTED_ENEMY_DESTINATION,Only the Attack posture can target an enemy formation.,Tylko postawa Atak może obrać formację wroga za cel.
 ORDER_REJECTED_NO_ROUTE,No route in this posture.,Brak drogi w tej postawie.
 ORDER_REJECTED_NO_ORDER,No order to cancel.,Brak rozkazu do anulowania.
 ORDER_REJECTED_SAME_POSTURE,Already in this posture.,Już w tej postawie.
@@ -224,7 +225,7 @@ ROUTE_ARRIVED,ARRIVED,NA MIEJSCU
 ROUTE_CONTACT,CONTACT,KONTAKT
 ROUTE_STALLED,NO PROGRESS,BRAK POSTĘPU
 ROUTE_WATER,WATER – IMPASSABLE,WODA – NIEPRZEJEZDNE
-ROUTE_ENEMY,ENEMY FORMATION,FORMACJA WROGA
+ROUTE_ENEMY,ENEMY – SWITCH TO ATTACK,WRÓG – PRZEŁĄCZ NA ATAK
 ROUTE_OCCUPIED,HEX OCCUPIED,POLE ZAJĘTE
 ROUTE_NO_ROUTE,NO ROUTE,BRAK DROGI
 Stance,Stance,Stanowisko

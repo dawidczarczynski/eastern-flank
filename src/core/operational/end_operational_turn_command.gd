@@ -62,10 +62,11 @@ static func _execute_order(
 	state: OperationalState, formation: Formation, events: Array[Dictionary]
 ) -> void:
 	var destination := formation.order.destination
-	if state.formation_at(destination) != null:
+	var posture := OperationalPosture.find(formation.posture)
+	var holder := state.formation_at(destination)
+	if holder != null and (holder.owner_id == formation.owner_id or posture.avoids_contact):
 		_interrupt(formation, &"destination_occupied", events)
 		return
-	var posture := OperationalPosture.find(formation.posture)
 	var route := OperationalRoutes.plan(state, formation, destination, posture.avoids_contact)
 	if route.is_empty():
 		_interrupt(formation, &"no_route", events)

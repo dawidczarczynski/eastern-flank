@@ -41,9 +41,10 @@ static func chaikin(
 
 
 ## Why `destination` cannot be a route target for `formation`, as a translation key; "" when it
-## can (a route may still not exist, see preview()).
+## can (a route may still not exist, see preview()). An enemy formation is a target only for a
+## posture that does not avoid contact (attack order).
 static func unreachable_reason(
-	state: OperationalState, formation: Formation, destination: Vector2i
+	state: OperationalState, formation: Formation, destination: Vector2i, avoids_contact := true
 ) -> String:
 	var grid := state.grid
 	if destination == formation.coord or not grid.has_tile(destination):
@@ -52,7 +53,9 @@ static func unreachable_reason(
 		return REASON_WATER
 	var other := state.formation_at(destination)
 	if other != null:
-		return REASON_ENEMY if other.owner_id != formation.owner_id else REASON_OCCUPIED
+		if other.owner_id == formation.owner_id:
+			return REASON_OCCUPIED
+		return REASON_ENEMY if avoids_contact else ""
 	return ""
 
 
@@ -74,7 +77,7 @@ static func preview(
 		return {}
 	if movement == null:
 		movement = OperationalMovement.shipped()
-	var reason := unreachable_reason(state, formation, destination)
+	var reason := unreachable_reason(state, formation, destination, avoids_contact)
 	var route: Array[Vector2i] = []
 	if reason == "":
 		route = OperationalRoutes.plan(state, formation, destination, avoids_contact, movement)

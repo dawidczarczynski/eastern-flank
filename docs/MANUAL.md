@@ -462,9 +462,12 @@ With one of your formations selected, point at a hex to see how it would get the
 - a contact battle has to be fought first;
 - not your formation;
 - cannot go there (for example a lake);
-- hex occupied (an enemy formation or another formation stands on the target);
+- hex occupied (another of your formations stands on the target);
+- only the Attack posture can target an enemy formation (March and Defend refuse it);
 - no route in this posture (for example, the way is blocked by enemy zones of control while marching);
 - already in this posture (when you pick the posture it already has).
+
+**Attacking.** Select your formation, press **2** (Attack) and click the enemy counter (or its hex). The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped. In March and Defend a click on an enemy counter selects it, as before.
 
 **Postures.** The formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** and **POINTS**. Choose the posture with keys **1 / 2 / 3**, or with the picker under the counter. The points are what the formation can spend in one turn (for a formation with 8 move points):
 

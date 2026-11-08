@@ -16,7 +16,9 @@ const MAX_FORECAST_TURNS := 99
 ## The full route of `formation` to `destination` (excludes the start, ends with `destination`),
 ## without a move-point limit. Enemy hexes are impassable, other own formations can be passed.
 ## `avoid_contact`: hexes next to an enemy are impassable too, except the destination. Empty when
-## the destination is the start, off the map, impassable, holds any formation, or is unreachable.
+## the destination is the start, off the map, impassable, holds an own formation, holds an enemy
+## while `avoid_contact` is set, or is unreachable. Without `avoid_contact` the destination may
+## hold an enemy formation (attack order): the route ends on its hex, `walk` halts before it.
 static func plan(
 	state: OperationalState,
 	formation: Formation,
@@ -29,7 +31,8 @@ static func plan(
 	var start := formation.coord
 	if destination == start or not grid.has_tile(destination):
 		return route
-	if state.formation_at(destination) != null:
+	var target := state.formation_at(destination)
+	if target != null and (avoid_contact or target.owner_id == formation.owner_id):
 		return route
 	if movement == null:
 		movement = OperationalMovement.shipped()
@@ -44,6 +47,7 @@ static func plan(
 			for n in Hex.neighbors(hex):
 				if n != destination and n != start:
 					blocked[n] = true
+	blocked.erase(destination)  # an enemy destination (attack order) is the route's last hex
 	var parents := _search(grid, movement, start, destination, blocked)
 	if not parents.has(destination):
 		return route
@@ -59,8 +63,8 @@ static func plan(
 ## {steps: hexes entered (ends with end), end, cost, stop}. Steps are taken while their cost fits
 ## the points left; the first step is always taken. `stop`: &"arrived" when the last route hex is
 ## the end, &"contact" when the walk ends in a hex next to an enemy that is not the last route
-## hex, else &"out_of_points". It never ends on another formation: it is cut back to the last
-## free hex.
+## hex or halts before a route hex holding an enemy (attack order; also without moving), else
+## &"out_of_points". It never ends on another formation: it is cut back to the last free hex.
 static func walk(
 	state: OperationalState,
 	formation: Formation,
@@ -76,9 +80,13 @@ static func walk(
 	var costs: Array[int] = []
 	var spent := 0
 	var previous := from
-	var contact_index := -1
+	var contact_index := -2  # index of the step that ended in contact (-1: before the first)
 	for i in route.size():
 		var hex := route[i]
+		var holder := state.formation_at(hex)
+		if holder != null and holder.owner_id != formation.owner_id:
+			contact_index = steps.size() - 1
+			break
 		var step := movement.step_cost(state.grid, previous, hex)
 		if step == Terrain.IMPASSABLE:
 			break
@@ -106,7 +114,7 @@ static func walk(
 	var stop := STOP_OUT_OF_POINTS
 	if not route.is_empty() and end == route[route.size() - 1] and not steps.is_empty():
 		stop = STOP_ARRIVED
-	elif contact_index >= 0 and steps.size() == contact_index + 1:
+	elif contact_index >= -1 and steps.size() == contact_index + 1:
 		stop = STOP_CONTACT
 	return {"steps": steps, "end": end, "cost": cost, "stop": stop}
 
