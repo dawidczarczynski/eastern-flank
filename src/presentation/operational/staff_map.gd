@@ -1,4 +1,4 @@
-# gdlint: disable=max-public-methods
+# gdlint: disable=max-public-methods,max-file-lines
 class_name StaffMap
 extends Node3D
 ## The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark
@@ -74,6 +74,9 @@ var _picker: StaffMapPosturePicker
 var _toast: Toast
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
+var _report: StaffMapTurnReport
+var _marks := StaffMapTurnMarks.new()
+var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _follow_side := true
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
@@ -159,6 +162,7 @@ func _process(delta: float) -> void:
 	_follow_pitch(delta)
 	_pan_by_keys_and_edge(delta)
 	_update_hover()
+	advance_slide(delta)
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
 
@@ -178,6 +182,10 @@ func _unhandled_input(event: InputEvent) -> void:
 					_return_to_menu()
 			KEY_ENTER, KEY_KP_ENTER:
 				end_turn()
+			KEY_SPACE:
+				skip_slide()
+			KEY_R:
+				toggle_report()
 			KEY_1, KEY_2, KEY_3, KEY_KP_1, KEY_KP_2, KEY_KP_3:
 				var first := KEY_KP_1 if key.keycode >= KEY_KP_1 else KEY_1
 				set_posture_number(key.keycode - first + 1)
@@ -385,7 +393,9 @@ func set_viewer(player: int) -> void:
 		_politics.refresh(player)
 	_counters.set_viewer(player)
 	_counters.refresh()
-	_orders.refresh(_simulation.state, player)
+	_counters.apply_marks(_marks)
+	_refresh_orders()
+	_show_new_report()
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
 
@@ -404,9 +414,52 @@ func follows_side() -> bool:
 
 ## Ends the move of the side to play; false when the command is rejected (a battle is pending).
 func end_turn() -> bool:
-	if _simulation == null:
+	if _simulation == null or is_sliding():
 		return false
 	return _simulation.execute(EndOperationalTurnCommand.new())
+
+
+## True while the counters slide along the moves of the last end turn (End turn is off then).
+func is_sliding() -> bool:
+	return _slide.is_playing()
+
+
+## Advances the slide by `delta` seconds (the frame loop calls it; tests drive it by hand).
+func advance_slide(delta: float) -> void:
+	if not _slide.is_playing():
+		return
+	if _slide.advance(delta):
+		_finish_slide()
+		return
+	_slide.override_anchors(_anchors, _view.relief())
+	_layout_counters()
+
+
+## Jumps the counters to their end hexes; the state is final already, so this only ends the show.
+func skip_slide() -> bool:
+	if not _slide.skip():
+		return false
+	_finish_slide()
+	return true
+
+
+## Moved / in-contact marks and the turn report (TASK-092e view-model).
+func turn_marks() -> StaffMapTurnMarks:
+	return _marks
+
+
+func turn_report() -> StaffMapTurnReport:
+	return _report
+
+
+## R: closes the turn report or opens it with the viewed side's last report.
+func toggle_report() -> void:
+	if _report == null:
+		return
+	if _report.visible:
+		_report.close()
+		return
+	_show_report()
 
 
 ## "Follow the side to play" on / off; switching it on views the side to play at once.
@@ -587,6 +640,10 @@ func _build_operation(definition: OperationDefinition) -> void:
 		viewer_player = StaffMapFormations.viewer_from_args(
 			OS.get_cmdline_user_args(), state.player_sides
 		)
+		# Follow on and no explicit --side: start on the side to play (the first turn has no
+		# turn_started event to switch the view).
+		if _follow_side and not _has_side_arg():
+			viewer_player = state.current_player
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
 	_build_route_preview()  # after the counters: its cross and label draw over them
@@ -619,6 +676,7 @@ func _update_anchors() -> void:
 	for formation in _simulation.state.formations:
 		var w := Hex.to_world(formation.coord, 1.0)
 		_anchors[formation.id] = _view.relief().surface_point(Vector2(w.x, w.z))
+	_slide.override_anchors(_anchors, _view.relief())
 
 
 ## Screen-space counters follow the camera; called only when it moved (no per-frame cost).
@@ -640,18 +698,73 @@ func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
 
 
 func _on_operational_event(event: Dictionary) -> void:
+	_marks.on_event(_simulation.state, event)
+	_slide.collect(event)
 	if event.get("type") == &"operational_turn_started":
 		_on_turn_started(event)
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
 	_update_anchors()
 	_counters.refresh()
-	_orders.refresh(_simulation.state, viewer_player)
+	_counters.apply_marks(_marks)
+	_refresh_orders()
 	_route.invalidate()
 	_layout_counters()
 	_refresh_turn_bar()
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
+	if event.get("type") == &"operational_turn_started":
+		_begin_slide()
+		_show_new_report()
+
+
+## The counters of everything that moved slide to their new hexes (cosmetic: state is final).
+func _begin_slide() -> void:
+	skip_slide()
+	if _slide.begin():
+		_refresh_orders()  # the arrows wait until the counters stand
+		_slide.override_anchors(_anchors, _view.relief())
+		_layout_counters()
+		_refresh_turn_bar()
+
+
+func _finish_slide() -> void:
+	_update_anchors()
+	_layout_counters()
+	_refresh_orders()
+	_refresh_turn_bar()
+	_show_new_report()
+
+
+## Issued orders of the viewed side; hidden while the counters slide.
+func _refresh_orders() -> void:
+	_orders.refresh(_simulation.state, -1 if is_sliding() else viewer_player)
+
+
+## Opens the report panel with the viewed side's last report.
+func _show_report() -> void:
+	_report.show_report(_simulation.state, _marks.report_of(viewer_player))
+	_report.show()
+	_report.reset_size()
+	_report.position = Vector2(PANEL_MARGIN.x, 130.0)
+
+
+## Opens the report of the viewed side's last move once, when it is new (not during the slide).
+func _show_new_report() -> void:
+	if _report != null and not is_sliding() and _marks.take_unseen(viewer_player):
+		_show_report()
+
+
+func _on_report_entry(formation_id: StringName, _coord: Vector2i) -> void:
+	select_formation(formation_id)
+	_centre_on(formation_id)
+
+
+func _has_side_arg() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with(StaffMapFormations.SIDE_ARG):
+			return true
+	return false
 
 
 ## The move changed hands: the view follows (if wanted) and the banner names the bloc.
@@ -670,6 +783,7 @@ func _on_turn_started(event: Dictionary) -> void:
 
 func _refresh_turn_bar() -> void:
 	if _turn_bar != null and _simulation != null:
+		_turn_bar.set_busy(is_sliding())
 		_turn_bar.show_state(_simulation.state, _palette, viewer_player, _follow_side)
 		_place_turn_bar()
 		_place_panel()
@@ -697,6 +811,13 @@ func _reveal(formation_id: StringName) -> void:
 	var screen := counter_screen_position(formation_id)
 	if Rect2(Vector2.ZERO, _viewport_size()).grow(-60.0).has_point(screen):
 		return
+	_centre_on(formation_id)
+
+
+## Centres the camera on a formation.
+func _centre_on(formation_id: StringName) -> void:
+	if not _anchors.has(formation_id):
+		return
 	var point: Vector3 = _anchors[formation_id]
 	_move_camera(Vector2(point.x, point.z) * StaffMapView.UNIT)
 
@@ -710,6 +831,9 @@ func _build_hud() -> void:
 	_turn_bar.end_turn_pressed.connect(end_turn)
 	_turn_bar.follow_toggled.connect(set_follow_side)
 	_hud.add_child(_turn_bar)
+	_report = StaffMapTurnReport.new()
+	_report.entry_chosen.connect(_on_report_entry)
+	_hud.add_child(_report)
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
 	_picker = StaffMapPosturePicker.new()
@@ -819,6 +943,10 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 			_dragging = event.pressed
 			if event.button_index != MOUSE_BUTTON_LEFT:
 				return
+			if event.pressed and is_sliding():
+				skip_slide()  # a click only skips the slide
+				_dragging = false
+				return
 			if event.pressed:
 				_press_position = event.position
 				_drag_travel = 0.0
@@ -887,7 +1015,7 @@ func _edge_direction() -> Vector2:
 
 
 ## A left click on the map: selects the counter under `screen`; with an own formation selected a
-## click on a hex gives it an order there; elsewhere it deselects.
+## click on a hex gives it an order there (and deselects it); elsewhere it deselects.
 func click_at(screen: Vector2) -> void:
 	if _counters == null:
 		return
@@ -901,7 +1029,8 @@ func click_at(screen: Vector2) -> void:
 	if hit == &"" and _selected_own() != null:
 		var hex := hex_at_screen(screen)
 		if _view.has_tile(hex):
-			issue_order(hex)
+			if issue_order(hex):
+				select_formation(&"")  # done with this one; the next click must not re-order it
 			return
 	select_formation(hit)
 

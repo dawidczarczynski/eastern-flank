@@ -1,6 +1,6 @@
 # TASK-093c: Staff map (3/3) – front line, completes the staff map
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (pure helper) + presentation + docs
 - **Depends on**: TASK-092e
 - **Model**: sonnet

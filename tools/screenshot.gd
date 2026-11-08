@@ -348,6 +348,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
 ## posture; view as the side to play), e.g.
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
+## endturn (after the orders: ends the move, skips the slide, TASK-092e),
 ## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -405,6 +406,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var show_route := false
 	var route_posture := 0
 	var orders: Array = []
+	var end_turn_after := false
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -434,6 +436,8 @@ func _apply_staff_map_state(spec: String) -> void:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
 					continue
 				orders.append(parts)
+			"endturn":
+				end_turn_after = true
 			"grid":
 				map.view().set_grid_visible(true)
 			"country":
@@ -466,6 +470,11 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.select_formation(StringName(order[1]))
 		map.set_posture_number(order[4].to_int())
 		map.issue_order(MapGenerator.offset_to_axial(order[2].to_int(), order[3].to_int()))
+	if end_turn_after:  # the orders run, the slide is skipped, the mover's report is shown
+		var mover := map.simulation().state.current_player
+		map.end_turn()
+		map.skip_slide()
+		map.set_viewer(mover)
 	if select_id != &"" or not orders.is_empty():
 		map.select_formation(select_id)
 	if route_posture > 0:

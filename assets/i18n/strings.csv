@@ -247,3 +247,12 @@ Closed: neutral country,Closed: neutral country,Zamknięte: kraj neutralny
 Closed: hostile to you,Closed: hostile to you,Zamknięte: wrogi tobie
 Closed: sanctuary until open war,Closed: sanctuary until open war,Zamknięte: sanktuarium do otwartej wojny
 Your own soil,Your own soil,Własne terytorium
+TURN REPORT,Turn report,Raport z tury
+CLOSE,Close,Zamknij
+REPORT_ARRIVED,Arrived,Dotarł
+REPORT_HALTED,Halted on contact,Zatrzymany w zetknięciu
+REPORT_EN_ROUTE,On the way,W drodze
+REPORT_INTERRUPTED_DESTINATION_OCCUPIED,Order dropped: destination taken,Rozkaz anulowany: cel zajęty
+REPORT_INTERRUPTED_NO_ROUTE,Order dropped: no route,Rozkaz anulowany: brak drogi
+REPORT_INTERRUPTED_BLOCKED,Order dropped: way blocked,Rozkaz anulowany: droga zablokowana
+REPORT_EMPTY,No orders were carried out.,Nie wykonano żadnych rozkazów.

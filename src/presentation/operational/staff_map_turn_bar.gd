@@ -30,6 +30,7 @@ var _mover: Label
 var _follow: Button
 var _end_button: EndTurnButton
 var _day := true
+var _busy := false  # the counters are sliding: End turn is off
 
 
 ## Sun (day) or crescent moon (night), drawn.
@@ -124,10 +125,15 @@ func show_state(
 		. to_upper()
 	)
 	var blocker := _end_turn_blocker(state)
-	_end_button.disabled = blocker != ""
-	_end_button.modulate.a = 0.45 if blocker != "" else 1.0
+	_end_button.disabled = blocker != "" or _busy
+	_end_button.modulate.a = 0.45 if _end_button.disabled else 1.0
 	_end_button.tooltip_text = tr("END_TURN_BLOCKED_" + blocker.to_upper()) if blocker != "" else ""
 	reset_size()
+
+
+## Switches End turn off while the counters slide (TASK-092e); takes effect with show_state.
+func set_busy(busy: bool) -> void:
+	_busy = busy
 
 
 func end_button() -> EndTurnButton:

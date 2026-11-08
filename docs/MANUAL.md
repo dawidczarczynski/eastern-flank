@@ -396,7 +396,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.
 
-You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; with **FOLLOW SIDE** on (the default) the view switches to the bloc to move after each End turn, so whoever sits at the screen always sees their own forces as rectangles. Switch the toggle to **FIXED SIDE** to keep looking from one bloc's point of view. `--side=nato` or `--side=russia` picks the bloc you start with. Nothing happens at the end of a turn yet: orders (see **Orders**) are recorded but not carried out, and the enemy playing by itself comes later.
+You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; with **FOLLOW SIDE** on (the default) the view switches to the bloc to move after each End turn, so whoever sits at the screen always sees their own forces as rectangles. Switch the toggle to **FIXED SIDE** to keep looking from one bloc's point of view. `--side=nato` or `--side=russia` picks the bloc you start with. Ending a turn carries out your orders (see **End of turn**); the enemy playing by itself comes later.
 
 ### Formations
 
@@ -438,7 +438,7 @@ Strength is the sum of the companies' hit points – the same units that fight w
 
 ### Orders
 
-With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. **Orders do nothing yet:** nothing moves when you end the turn (execution comes later). For now they only record and show the plan.
+With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. Orders are carried out when you end your turn (see **End of turn**).
 
 **Giving an order.** Choose a posture, then left click the destination hex. The order uses the posture currently chosen for that formation. A short message confirms "Order given", or says why the order was refused:
 
@@ -466,6 +466,18 @@ Changing the posture of a formation that already has an order re-plans the same 
 **Step costs.** Road 1, open ground and towns 2, forest and hills 3, marsh 4. Crossing a river without a bridge costs +2 more. Lakes cannot be crossed. Only one formation can stand in a hex, but you can pass through your own formations. The zone of control is the ring of hexes next to an enemy formation. Unused points are lost at the end of the turn, and a formation can always move at least one hex per turn, even if that costs more than its points.
 
 **Reading the preview.** Before you click, a ribbon runs along the route. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, or no route.
+
+### End of turn
+
+When you press **End turn**, your orders are carried out one formation at a time, in the order of battle. Each formation spends its points for the turn on its route and slides along it. **Space** or a click skips the slide.
+
+An order stays on the formation: it keeps following it on later turns until one of these happens.
+
+- **Arrived** – the formation reaches the destination and the order is done.
+- **Contact** – a formation in the Advance posture comes next to an enemy and halts. It keeps its order.
+- **Dropped** – the order is cancelled and reported when the destination has been taken, no route is left, or the way is blocked by your own formations.
+
+**Turn report.** After the turn, press **R** to open (or close) the turn report: one row per order carried out, with what happened to it. Click a row to centre the map on that formation.
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 

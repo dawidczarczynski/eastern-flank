@@ -1,6 +1,6 @@
 # TASK-094a: Contact (1/4) – contact rule, pending battle with its `BattleSetup`, contact notice on the staff map
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/battle_setup.gd`, `src/core/data/`) + data + presentation (notice, contact queue)
 - **Depends on**: TASK-092e (soft: TASK-093c; TASK-088, TASK-087 are done)
 - **Sections**: GDD "Battle hand-off and auto-resolve", "Player roles"; reference [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Panels" → contact notice); ADR 0015 §3

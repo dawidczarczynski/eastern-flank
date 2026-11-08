@@ -66,6 +66,14 @@ func refresh() -> void:
 		counter(formation.id).has_order = formation.order != null
 
 
+## Moved / in-contact marks (TASK-092e) from the turn view-model.
+func apply_marks(marks: StaffMapTurnMarks) -> void:
+	for formation in _state.formations:
+		var c := counter(formation.id)
+		c.moved = marks.is_moved(formation.id)
+		c.in_contact = marks.in_contact(formation.id)
+
+
 ## Own formation ids in placement order (Tab cycles them).
 func own_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []

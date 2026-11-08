@@ -23,6 +23,10 @@ const BRACKET_ARM := 7.0
 const BRACKET_STROKE := 2.0
 const HOVER_LIGHTEN := 0.2
 const LOW_DARKEN := 0.3
+const MOVED_DARKEN := 0.4
+const RING_PAD := 5.0
+const RING_DASH := 4.0
+const RING_WIDTH := 1.5
 
 var formation_id: StringName
 var formation_class: StringName
@@ -46,6 +50,18 @@ var has_order := false:
 	set(value):
 		if has_order != value:
 			has_order = value
+			queue_redraw()
+## The formation moved this turn (TASK-092e): dimmed fill and an inner frame, own side only.
+var moved := false:
+	set(value):
+		if moved != value:
+			moved = value
+			queue_redraw()
+## The formation is in contact (TASK-092e): a dashed ui.alert ring around the frame.
+var in_contact := false:
+	set(value):
+		if in_contact != value:
+			in_contact = value
 			queue_redraw()
 ## Formations in the stack this counter stands for (1 = no badge).
 var stack_count := 1:
@@ -118,6 +134,11 @@ func lit_segments() -> int:
 	return StaffMapFormations.lit_segments(strength, max_strength)
 
 
+## Drawn as moved (own counters only: the other side's moves are not shown).
+func is_moved() -> bool:
+	return moved and is_own()
+
+
 func is_low() -> bool:
 	return StaffMapFormations.is_low(strength, max_strength)
 
@@ -127,6 +148,8 @@ func fill_colour() -> Color:
 	var colour := StaffMapFormations.side_colour(_palette, owner_id)
 	if is_low():
 		colour = colour.lerp(_palette.map_void, LOW_DARKEN)
+	if is_moved():
+		colour = colour.lerp(_palette.map_void, MOVED_DARKEN)
 	if hovered:
 		colour = colour.lerp(Color.WHITE, HOVER_LIGHTEN)
 	return colour
@@ -175,6 +198,10 @@ func _draw() -> void:
 	var shape := _frame_polygon(frame)
 	draw_colored_polygon(_frame_polygon(frame.grow(1.0)), outline)
 	draw_colored_polygon(shape, fill_colour())
+	if is_moved():
+		_draw_loop(_frame_polygon(frame.grow(-2.5)), Color(ink_colour(), 0.6), 1.0)
+	if in_contact:
+		_draw_ring(frame)
 	_draw_glyph(_glyph_rect(frame))
 	_draw_echelon(frame)
 	_draw_designation(frame)
@@ -329,6 +356,22 @@ func _draw_order_mark(frame: Rect2) -> void:
 		ink,
 		1.5
 	)
+
+
+## A closed polyline of `points` (the first point is repeated at the end).
+func _draw_loop(points: PackedVector2Array, colour: Color, width: float) -> void:
+	var closed := points.duplicate()
+	closed.append(points[0])
+	draw_polyline(closed, colour, width)
+
+
+## The dashed ui.alert ring of a counter in contact, a little outside the frame.
+func _draw_ring(frame: Rect2) -> void:
+	var ring := _frame_polygon(frame.grow(RING_PAD))
+	for i in ring.size():
+		draw_dashed_line(
+			ring[i], ring[(i + 1) % ring.size()], _palette.ui_alert, RING_WIDTH, RING_DASH
+		)
 
 
 func _draw_brackets(rect: Rect2) -> void:

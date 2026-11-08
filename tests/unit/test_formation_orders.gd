@@ -196,7 +196,7 @@ func test_order_survives_a_round() -> void:
 	assert_true(sim.execute(IssueOrderCommand.new(&"f", Vector2i(5, 0), &"march")))
 	assert_true(sim.execute(EndOperationalTurnCommand.new()))
 	assert_true(sim.execute(EndOperationalTurnCommand.new()))
-	assert_eq(state.formations[0].coord, Vector2i.ZERO)
+	assert_eq(state.formations[0].coord, Vector2i(4, 0))
 	assert_eq(state.formations[0].order.destination, Vector2i(5, 0))
 
 

@@ -1,6 +1,6 @@
 # TASK-092e: Order execution – formations carry out their orders over several turns at the end of their side's turn
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`) + presentation (counter movement, report)
 - **Depends on**: TASK-092d, TASK-093b
 - **Model**: sonnet
@@ -78,4 +78,10 @@ Section "End of turn": orders execute when you end your turn, in the order of ba
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- **Logic (done)**: execution inside `EndOperationalTurnCommand.apply`, before `operational_turn_ended`; events `formation_moved` (path excludes `from`), `formation_halted` (contact, order kept), `formation_order_completed`, `formation_order_interrupted` (`destination_occupied` / `no_route` / `blocked`). No `state.rng` draws. Tests in `tests/unit/test_order_execution.gd` (examples, invariants run, replay).
+- **Decision**: "destination holds another formation" includes the formation's own hex.
+- **View (done)**: `src/presentation/operational/staff_map_slide.gd`, `staff_map_move_animation.gd` (0.4 s per hex, 2.5 s cap), `staff_map_turn_marks.gd` (moved / in contact / report view-model), `staff_map_turn_report.gd` (key R, click centres and selects). Space or click skips the slide; End turn is disabled while it plays.
+- **Decision**: the report has a fourth row state "On the way" for formations that moved and still have an order (not in the spec).
+- **Decision**: report rows show the hex coordinate, not a place name (the operational map has no place-name data).
+- **Known limitations**: `staff_map.gd` grew to ~1080 lines (gdlint disable for `max-file-lines` added); split it later. Contact ring and slide feel are not yet seen on screen. The battle-scene README screenshot was not re-rendered because only the staff map changed.
+- **Checks**: `tools/check.sh` passes.
