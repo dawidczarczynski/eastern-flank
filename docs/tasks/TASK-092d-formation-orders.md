@@ -1,6 +1,6 @@
 # TASK-092d: Formation orders – postures as data, issue / cancel order, set posture (commands, codec, snapshot)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (order arrows, posture picker)
 - **Depends on**: TASK-092c, TASK-093b
 - **Model**: sonnet

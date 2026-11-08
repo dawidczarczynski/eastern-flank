@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="OperationalMovement" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/operational_pace.gd" id="1_pace"]
+[ext_resource type="Script" path="res://src/core/data/operational_movement.gd" id="2_move"]
+
+[sub_resource type="Resource" id="Resource_march"]
+script = ExtResource("1_pace")
+id = &"march"
+budget = 8
+avoid_contact = true
+
+[sub_resource type="Resource" id="Resource_advance"]
+script = ExtResource("1_pace")
+id = &"advance"
+budget = 6
+avoid_contact = false
+
+[sub_resource type="Resource" id="Resource_defend"]
+script = ExtResource("1_pace")
+id = &"defend"
+budget = 4
+avoid_contact = true
+
+[resource]
+script = ExtResource("2_move")
+move_costs = PackedInt32Array(2, 3, 3, 0, 2, 2, 4)
+road_cost = 1
+river_extra_cost = 2
+preview_paces = Array[ExtResource("1_pace")]([SubResource("Resource_march"), SubResource("Resource_advance"), SubResource("Resource_defend")])

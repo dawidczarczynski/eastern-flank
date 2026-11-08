@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name StaffMap
 extends Node3D
 ## The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark
@@ -10,9 +11,11 @@ extends Node3D
 ## formations; `--side=nato|russia` picks the viewer (default NATO). Turns (TASK-093b): the turn bar
 ## (top centre) and Enter end the move (EndOperationalTurnCommand); with "follow" on the view
 ## switches to the side to play; `--pending-battle` adds a dummy pending battle (blocks End turn).
+## Route preview (TASK-092c): with an own formation selected the cursor hex shows the route,
+## keys 1 / 2 / 3 switch the pace (StaffMapRoutePreview).
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
-## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the grid, B the country
-## borders and names,
+## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the
+## grid, B the country borders and names,
 ## Esc (nothing selected) / Back returns to the menu. Maths in StaffMapCameraMath, picking in
 ## StaffMapRelief.
 
@@ -59,6 +62,8 @@ var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
 var _panel: StaffMapFormationPanel
 var _turn_bar: StaffMapTurnBar
+var _route: StaffMapRoutePreview
+var _route_marks: StaffMapRouteMarks
 var _banner: TurnBanner
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _follow_side := true
@@ -145,6 +150,8 @@ func _process(delta: float) -> void:
 	_follow_pitch(delta)
 	_pan_by_keys_and_edge(delta)
 	_update_hover()
+	if _route != null:
+		_route.tick(Time.get_ticks_msec())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -160,6 +167,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					_return_to_menu()
 			KEY_ENTER, KEY_KP_ENTER:
 				end_turn()
+			KEY_1, KEY_2, KEY_3, KEY_KP_1, KEY_KP_2, KEY_KP_3:
+				var first := KEY_KP_1 if key.keycode >= KEY_KP_1 else KEY_1
+				set_route_pace(key.keycode - first + 1)
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
 			KEY_B:
@@ -232,6 +242,19 @@ func formation_panel() -> StaffMapFormationPanel:
 	return _panel
 
 
+## The route preview (TASK-092c): read-only, creates no command.
+func route_preview() -> StaffMapRoutePreview:
+	return _route
+
+
+## Switches the route preview to pace `number` (1-based, keys 1 / 2 / 3); the panel follows.
+func set_route_pace(number: int) -> void:
+	if _route == null:
+		return
+	_route.set_pace(StaffMapRoute.pace_for_key(_route.paces(), number, _route.pace_index()))
+	_show_pace_in_panel()
+
+
 func selected_formation() -> StringName:
 	return _counters.selected() if _counters != null else &""
 
@@ -249,8 +272,21 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	_counters.set_selected(formation_id)
 	if formation == null:
 		_panel.hide()
+		_route.set_formation(_simulation.state, &"")
 		return
 	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
+	var own := formation.owner_id == viewer_player
+	_route.set_formation(_simulation.state, formation_id if own else &"")
+	_show_pace_in_panel()
+	_place_panel()
+
+
+func _show_pace_in_panel() -> void:
+	var formation := _simulation.state.get_formation(selected_formation())
+	if formation == null or formation.owner_id != viewer_player or _route.pace() == null:
+		_panel.hide_pace()
+		return
+	_panel.show_pace(_route.pace_index(), _route.pace(), formation.definition.move_points)
 	_place_panel()
 
 
@@ -432,10 +468,20 @@ func _build_operation(definition: OperationDefinition) -> void:
 		)
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
+	_build_route_preview()  # after the counters: its cross and label draw over them
 	_counters.build(state, _palette, viewer_player)
 	_update_anchors()
 	if OS.get_cmdline_user_args().has("--pending-battle"):
 		state.pending_battles.append(BattleSetup.new())
+
+
+func _build_route_preview() -> void:
+	var ribbon := StaffMapRouteRibbon.new()
+	_view.add_child(ribbon)
+	_route_marks = StaffMapRouteMarks.new()
+	_route_marks.set_projector(_project)
+	_counter_layer.add_child(_route_marks)
+	_route = StaffMapRoutePreview.new(ribbon, _route_marks, _view.relief(), _palette)
 
 
 func _update_anchors() -> void:
@@ -447,6 +493,8 @@ func _update_anchors() -> void:
 
 ## Screen-space counters follow the camera; called only when it moved (no per-frame cost).
 func _layout_counters() -> void:
+	if _route_marks != null:
+		_route_marks.refresh()
 	if _counters == null:
 		return
 	var points := {}
@@ -460,6 +508,7 @@ func _on_operational_event(event: Dictionary) -> void:
 		_on_turn_started(event)
 	_update_anchors()
 	_counters.refresh()
+	_route.invalidate()
 	_layout_counters()
 	_refresh_turn_bar()
 	if _panel.visible:
@@ -705,6 +754,7 @@ func _update_hover() -> void:
 	if not _view.has_tile(c):
 		_clear_hover()
 		return
+	_route.set_hex(c)
 	if c != _view.hovered() or not _card.visible:
 		_view.highlight(c)
 		_card.show_info(_card_info(c))
@@ -714,6 +764,8 @@ func _update_hover() -> void:
 
 
 func _clear_hover() -> void:
+	if _route != null:
+		_route.set_hex(StaffMapRoutePreview.OFF)
 	_view.highlight(StaffMapView.NO_HEX)
 	if _counters != null:
 		_counters.set_hovered(&"")

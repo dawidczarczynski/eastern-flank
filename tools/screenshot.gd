@@ -343,7 +343,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## the map's limits; "min"/"max" allowed), focus:<col>:<row> (centre on that hex), grid (G),
 ## hover:<col>:<row> (the hover card), pitch:<degrees> (camera tilt, 0 = flat; default 35,
 ## TASK-125), side:<player> (view as player 0 / 1, TASK-092b), select:<formation id> (formation
-## panel), hovercounter:<formation id> (counter hover), e.g.
+## panel), hovercounter:<formation id> (counter hover), route:<col>:<row> (route preview of the
+## selected formation to that hex, TASK-092c) and pace:<1-3>, e.g.
 ## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -397,6 +398,9 @@ func _apply_staff_map_state(spec: String) -> void:
 	var show_hover := false
 	var select_id := &""
 	var hover_counter := &""
+	var route_hex := Vector2i(-1, -1)
+	var show_route := false
+	var route_pace := 1
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -413,6 +417,14 @@ func _apply_staff_map_state(spec: String) -> void:
 				else:
 					hover = axial
 					show_hover = true
+			"route":
+				if parts.size() != 3 or not parts[1].is_valid_int() or not parts[2].is_valid_int():
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				route_hex = MapGenerator.offset_to_axial(parts[1].to_int(), parts[2].to_int())
+				show_route = true
+			"pace":
+				route_pace = parts[1].to_int() if parts.size() > 1 else 1
 			"grid":
 				map.view().set_grid_visible(true)
 			"side":
@@ -439,6 +451,11 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.debug_hover(hover)
 	if select_id != &"":
 		map.select_formation(select_id)
+	if show_route:
+		map.set_route_pace(route_pace)
+		map.route_preview().set_hex(route_hex)
+		map.route_preview().rebuild()
+		map.view().highlight(route_hex)
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
 	map.process_mode = Node.PROCESS_MODE_DISABLED

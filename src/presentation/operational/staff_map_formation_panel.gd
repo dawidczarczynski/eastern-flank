@@ -45,6 +45,7 @@ var _parent_label: Label
 var _values := {}  # caption -> Label
 var _gauge: Gauge
 var _companies: VBoxContainer
+var _pace_box: VBoxContainer
 var _companies_caption: Label
 
 
@@ -71,6 +72,13 @@ func _init() -> void:
 	column.add_child(_divider())
 	for caption in ["Type", "Side", "STRENGTH", "Location"]:
 		column.add_child(_row(caption))
+	_pace_box = VBoxContainer.new()
+	_pace_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pace_box.add_theme_constant_override(&"separation", 5)
+	for caption in ["PACE", "POINTS"]:
+		_pace_box.add_child(_row(caption))
+	_pace_box.hide()
+	column.add_child(_pace_box)
 	column.add_child(_divider())
 	_companies_caption = _label(HudTheme.mono(600, 1), REF_SIZE, UiPalette.HUD_MUTED)
 	column.add_child(_companies_caption)
@@ -119,6 +127,26 @@ func show_formation(
 	_fill_companies(formation)
 	show()
 	reset_size()
+
+
+## Route preview pace of an own formation (TASK-092c): "[1] MARCH" and the points per turn of the
+## pace against the formation's own move points. Keys 1 / 2 / 3 switch it.
+func show_pace(index: int, pace: OperationalPace, move_points: int) -> void:
+	(_values["PACE"] as Label).text = (
+		"[%d] %s" % [index + 1, tr("PACE_" + String(pace.id).to_upper()).to_upper()]
+	)
+	(_values["POINTS"] as Label).text = "%d / %d" % [pace.budget, move_points]
+	_pace_box.show()
+	reset_size()
+
+
+func hide_pace() -> void:
+	_pace_box.hide()
+	reset_size()
+
+
+func pace_visible() -> bool:
+	return _pace_box.visible
 
 
 func name_text() -> String:

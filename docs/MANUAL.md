@@ -433,6 +433,22 @@ Strength is the sum of the companies' hit points – the same units that fight w
 
 **Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel.
 
+### Routes
+
+With one of your formations selected, point at a hex to see how it would get there. Nothing is ordered yet: the preview only shows the plan and gives no orders.
+
+**Pace.** The formation panel of your own formations (not the enemy's) has two extra rows, **PACE** and **POINTS**. Keys **1 / 2 / 3** choose the pace; the points are what the formation can spend in one turn:
+
+| Key | Pace | Points | Enemy zone of control |
+|---|---|---|---|
+| 1 | March | 8 | the route goes around it |
+| 2 | Advance | 6 | the route may enter it, but the formation stops there ("contact") |
+| 3 | Defend | 4 | the route goes around it |
+
+**Step costs.** Road 1, open ground and towns 2, forest and hills 3, marsh 4. Crossing a river without a bridge costs +2 more. Lakes cannot be crossed. Only one formation can stand in a hex, but you can pass through your own formations. The zone of control is the ring of hexes next to an enemy formation. Unused points are lost at the end of the turn, and a formation can always move at least one hex per turn, even if that costs more than its points.
+
+**Reading the preview.** A ribbon runs along the route. Each **+n** stop marks where the formation will stand after n turns. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, or no route.
+
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
 ## 13. Not in the game yet

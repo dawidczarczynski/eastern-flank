@@ -1,6 +1,6 @@
 # TASK-092c: Operational routes on the map – step costs as data, route planner, one turn's walk, per-turn forecast, route preview
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (route preview)
 - **Depends on**: TASK-092b (view: TASK-093a)
 - **Model**: sonnet
@@ -82,4 +82,7 @@ Section "Routes": step costs (road 1, open ground and towns 2, forest and hills 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Logic: `OperationalMovement` / `OperationalPace` (data/operational/movement.tres, `preview_paces` march 8 avoid / advance 6 enter / defend 4 avoid), static `OperationalRoutes` (plan / walk / forecast) with a bucket-queue Dijkstra and the `HexGrid.path_to` tie rule; `HexGrid` untouched. Plan across the theatre map (87 hexes, no contact avoidance): ~24-30 ms median of 5 (test fails above 90 ms).
+View (src/presentation/operational/): `staff_map_route.gd` (Chaikin x3, preview data, unreachable reason), `staff_map_route_ribbon.gd`, `staff_map_route_marks.gd`, `staff_map_route_preview.gd` (60 ms hover debounce), panel PACE / POINTS rows, keys 1/2/3, EN + PL strings, screenshot tokens `route:<col>:<row>` / `pace:<n>`. Read-only (tested).
+Deviations: route colour = side colour lightened 50 % with dark casing (plain blue looked like rivers); cursor label is its own box, not a hex-card row; pace 2 is named Advance (mockup: Attack); no cross-bar at the arrival stop (target marker instead); no picker widget (TASK-092d).
+Not verified: FPS while scanning, the red cross after the marks were moved above counters. 8 lint errors remain in files outside this task (staff_map_view, imported_map, three test files).
