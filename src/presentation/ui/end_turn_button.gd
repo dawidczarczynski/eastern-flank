@@ -13,6 +13,7 @@ const PAD_RIGHT := 22.0
 const GAP := 12.0
 const HATCH_SIZE := Vector2(10, 26)
 const GLYPH_SIZE := Vector2(9, 8)
+const DETAIL_SIZE := 9
 const HOVER_BRIGHTNESS := 1.12
 const PRESSED_BRIGHTNESS := 0.9
 
@@ -28,6 +29,13 @@ const PRESSED_BRIGHTNESS := 0.9
 @export var caption := "":
 	set(value):
 		caption = value
+		custom_minimum_size = _compute_minimum()
+		queue_redraw()
+
+## Optional second line under the caption in small mono ("ORDERS 2 / 5"); the staff map uses it.
+@export var detail := "":
+	set(value):
+		detail = value
 		custom_minimum_size = _compute_minimum()
 		queue_redraw()
 
@@ -59,7 +67,10 @@ func _font() -> Font:
 
 # Button's native get_minimum_size() shadows the script virtual, so the size is set explicitly.
 func _compute_minimum() -> Vector2:
-	var text_width := _font().get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+	var text_width := maxf(
+		_font().get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x,
+		_detail_width()
+	)
 	var width := PAD_LEFT + HATCH_SIZE.x + GAP + text_width + GAP + GLYPH_SIZE.x + PAD_RIGHT
 	return Vector2(ceilf(width), min_height)
 
@@ -73,6 +84,20 @@ func _draw() -> void:
 	var font := _font()
 	var text_x := PAD_LEFT + HATCH_SIZE.x + GAP
 	var baseline := mid + (font.get_ascent(FONT_SIZE) - font.get_descent(FONT_SIZE)) * 0.5
+	if detail != "":
+		baseline -= 6.0
+		var small := HudTheme.mono(600)
+		var muted := UiPalette.INK
+		muted.a = 0.7
+		draw_string(
+			small,
+			Vector2(text_x, baseline + 14.0),
+			detail,
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			DETAIL_SIZE,
+			muted
+		)
 	draw_string(
 		font,
 		Vector2(text_x, baseline),
@@ -82,12 +107,20 @@ func _draw() -> void:
 		FONT_SIZE,
 		UiPalette.INK
 	)
-	var text_width := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+	var text_width := maxf(
+		font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x, _detail_width()
+	)
 	var glyph_origin := Vector2(text_x + text_width + GAP, mid - GLYPH_SIZE.y * 0.5)
 	var ink := UiPalette.INK
 	ink.a = 0.7
 	for line in HudShapes.enter_glyph(GLYPH_SIZE):
 		draw_polyline(_offset(line, glyph_origin), ink, 1.5)
+
+
+func _detail_width() -> float:
+	if detail == "":
+		return 0.0
+	return HudTheme.mono(600).get_string_size(detail, HORIZONTAL_ALIGNMENT_LEFT, -1, DETAIL_SIZE).x
 
 
 static func _offset(points: PackedVector2Array, by: Vector2) -> PackedVector2Array:

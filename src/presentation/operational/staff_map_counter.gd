@@ -41,6 +41,12 @@ var selected := false:
 		if selected != value:
 			selected = value
 			queue_redraw()
+## The formation has an order (TASK-092d): a small order mark on the frame, own side only.
+var has_order := false:
+	set(value):
+		if has_order != value:
+			has_order = value
+			queue_redraw()
 ## Formations in the stack this counter stands for (1 = no badge).
 var stack_count := 1:
 	set(value):
@@ -175,6 +181,8 @@ func _draw() -> void:
 	_draw_gauge()
 	if stack_count > 1:
 		_draw_badge(frame)
+	if has_order and is_own():
+		_draw_order_mark(frame)
 	if selected:
 		_draw_brackets(body_rect().grow(BRACKET_PAD))
 
@@ -306,6 +314,21 @@ func _draw_badge(frame: Rect2) -> void:
 	var baseline := box.position.y + (box.size.y + font.get_ascent(size_px)) * 0.5 - 1.5
 	var at := Vector2(box.position.x + (box.size.x - text_w) * 0.5, baseline)
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, _palette.ui_amber)
+
+
+## A small amber tab with an arrow at the top-left corner of the frame.
+func _draw_order_mark(frame: Rect2) -> void:
+	var box := Rect2(frame.position + Vector2(-4.0, -6.0), Vector2(11, 11))
+	draw_rect(box.grow(1.0), _palette.label_halo)
+	draw_rect(box, _palette.ui_amber)
+	var c := box.get_center()
+	var ink := Color(0.05, 0.06, 0.05)
+	draw_line(c + Vector2(-3.5, 0.0), c + Vector2(3.0, 0.0), ink, 1.5)
+	draw_polyline(
+		PackedVector2Array([c + Vector2(0.5, -3.0), c + Vector2(3.5, 0.0), c + Vector2(0.5, 3.0)]),
+		ink,
+		1.5
+	)
 
 
 func _draw_brackets(rect: Rect2) -> void:

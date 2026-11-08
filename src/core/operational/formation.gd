@@ -30,9 +30,15 @@ var owner_id: int
 var definition: FormationDefinition
 var coord: Vector2i
 var companies: Array[Company] = []
+## OperationalPosture id.
+var posture: StringName = &"defend"
+## Standing order; null = none.
+var order: FormationOrder = null
 
 
-static func from_placement(placement: FormationPlacement) -> Formation:
+static func from_placement(
+	placement: FormationPlacement, initial_posture: StringName = &"defend"
+) -> Formation:
 	var f := Formation.new()
 	f.id = placement.id
 	f.display_name = placement.display_name
@@ -40,6 +46,7 @@ static func from_placement(placement: FormationPlacement) -> Formation:
 	f.owner_id = placement.player
 	f.definition = placement.definition
 	f.coord = placement.coord
+	f.posture = initial_posture
 	var n := 0
 	for unit in placement.definition.companies:
 		n += 1
@@ -64,7 +71,7 @@ func max_strength() -> int:
 
 
 ## This formation's entry of OperationalState.snapshot() – the one place it is built
-## (TASK-092d adds posture and order here).
+## (posture and order: TASK-092d).
 func snapshot() -> Dictionary:
 	var company_entries: Array = []
 	for company in companies:
@@ -74,4 +81,6 @@ func snapshot() -> Dictionary:
 		"player": owner_id,
 		"coord": [coord.x, coord.y],
 		"companies": company_entries,
+		"posture": String(posture),
+		"order": null if order == null else [order.destination.x, order.destination.y],
 	}

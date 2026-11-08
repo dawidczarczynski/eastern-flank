@@ -11,8 +11,11 @@ extends Node3D
 ## formations; `--side=nato|russia` picks the viewer (default NATO). Turns (TASK-093b): the turn bar
 ## (top centre) and Enter end the move (EndOperationalTurnCommand); with "follow" on the view
 ## switches to the side to play; `--pending-battle` adds a dummy pending battle (blocks End turn).
-## Route preview (TASK-092c): with an own formation selected the cursor hex shows the route,
-## keys 1 / 2 / 3 switch the pace (StaffMapRoutePreview).
+## Orders (TASK-092c / 092d): with an own formation selected the cursor hex shows the route
+## (StaffMapRoutePreview) in the formation's posture, a left click on a hex gives the order
+## (IssueOrderCommand), keys 1 / 2 / 3 or the picker under the counter set the posture
+## (SetPostureCommand), Delete / Backspace / X cancel the order (CancelOrderCommand). The issued
+## orders of the viewed side stay drawn (StaffMapOrders), rejections show in a toast.
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
 ## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the
 ## grid, B the country borders and names,
@@ -30,6 +33,8 @@ const DEFAULT_SEED := 1
 ## A left press released within this many pixels of travel is a click, not a drag.
 const CLICK_SLOP := 5.0
 const PANEL_MARGIN := Vector2(16, 16)
+## Gap between the selected counter and the posture picker under it.
+const PICKER_GAP := 12.0
 ## Viewport size assumed outside the scene tree (headless tests).
 const FALLBACK_VIEWPORT := Vector2(1280, 720)
 
@@ -64,6 +69,9 @@ var _panel: StaffMapFormationPanel
 var _turn_bar: StaffMapTurnBar
 var _route: StaffMapRoutePreview
 var _route_marks: StaffMapRouteMarks
+var _orders: StaffMapOrders
+var _picker: StaffMapPosturePicker
+var _toast: Toast
 var _banner: TurnBanner
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _follow_side := true
@@ -169,7 +177,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				end_turn()
 			KEY_1, KEY_2, KEY_3, KEY_KP_1, KEY_KP_2, KEY_KP_3:
 				var first := KEY_KP_1 if key.keycode >= KEY_KP_1 else KEY_1
-				set_route_pace(key.keycode - first + 1)
+				set_posture_number(key.keycode - first + 1)
+			KEY_DELETE, KEY_BACKSPACE, KEY_X:
+				cancel_order()
 			KEY_G:
 				_view.set_grid_visible(not _view.grid_visible())
 			KEY_B:
@@ -247,12 +257,67 @@ func route_preview() -> StaffMapRoutePreview:
 	return _route
 
 
-## Switches the route preview to pace `number` (1-based, keys 1 / 2 / 3); the panel follows.
-func set_route_pace(number: int) -> void:
-	if _route == null:
-		return
-	_route.set_pace(StaffMapRoute.pace_for_key(_route.paces(), number, _route.pace_index()))
-	_show_pace_in_panel()
+## The issued orders layer (TASK-092d).
+func orders() -> StaffMapOrders:
+	return _orders
+
+
+func posture_picker() -> StaffMapPosturePicker:
+	return _picker
+
+
+func toast() -> Toast:
+	return _toast
+
+
+## Sets the selected own formation's posture to number `number` (1-based, keys 1 / 2 / 3);
+## false when nothing happened.
+func set_posture_number(number: int) -> bool:
+	return set_posture(StaffMapRoute.posture_for_key(number))
+
+
+## SetPostureCommand for the selected own formation; false when there is nothing to change.
+func set_posture(posture: StringName) -> bool:
+	var formation := _selected_own()
+	if formation == null or posture == &"" or formation.posture == posture:
+		return false
+	return _execute(SetPostureCommand.new(formation.id, posture))
+
+
+## IssueOrderCommand: the selected own formation goes to `destination` in its picker posture.
+func issue_order(destination: Vector2i) -> bool:
+	var formation := _selected_own()
+	if formation == null:
+		return false
+	return _execute(IssueOrderCommand.new(formation.id, destination, formation.posture))
+
+
+## CancelOrderCommand for the selected own formation.
+func cancel_order() -> bool:
+	var formation := _selected_own()
+	if formation == null:
+		return false
+	return _execute(CancelOrderCommand.new(formation.id))
+
+
+func _selected_own() -> Formation:
+	if _simulation == null:
+		return null
+	var formation := _simulation.state.get_formation(selected_formation())
+	return formation if formation != null and formation.owner_id == viewer_player else null
+
+
+## Executes `command`; a rejection shows its reason in the toast (command_rejected).
+func _execute(command: OperationalCommand) -> bool:
+	return _simulation.execute(command)
+
+
+func _toast_message(message: String, colour: Color) -> void:
+	_toast.show_message(message, colour)
+	_toast.reset_size()
+	_toast.position = Vector2(
+		(_viewport_size().x - _toast.size.x) / 2.0, _viewport_size().y - 130.0
+	)
 
 
 func selected_formation() -> StringName:
@@ -273,21 +338,28 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	if formation == null:
 		_panel.hide()
 		_route.set_formation(_simulation.state, &"")
+		_picker.hide()
 		return
 	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
 	var own := formation.owner_id == viewer_player
 	_route.set_formation(_simulation.state, formation_id if own else &"")
-	_show_pace_in_panel()
+	_show_order_ui(formation)
 	_place_panel()
 
 
-func _show_pace_in_panel() -> void:
-	var formation := _simulation.state.get_formation(selected_formation())
-	if formation == null or formation.owner_id != viewer_player or _route.pace() == null:
-		_panel.hide_pace()
+## Posture / order rows of the panel and the picker under the counter: own formations only; the
+## picker only while the viewed side is the side to play.
+func _show_order_ui(formation: Formation) -> void:
+	if formation.owner_id != viewer_player:
+		_panel.hide_order()
+		_picker.hide()
 		return
-	_panel.show_pace(_route.pace_index(), _route.pace(), formation.definition.move_points)
-	_place_panel()
+	_panel.show_order(formation)
+	if formation.owner_id == _simulation.state.current_player:
+		_picker.show_posture(formation.posture)
+		_place_picker()
+	else:
+		_picker.hide()
 
 
 ## Views the map as `player` (own / enemy swap); the panel follows.
@@ -297,6 +369,8 @@ func set_viewer(player: int) -> void:
 		return
 	_refresh_turn_bar()
 	_counters.set_viewer(player)
+	_counters.refresh()
+	_orders.refresh(_simulation.state, player)
 	if _panel.visible:
 		select_formation(_panel.formation_id, true)
 
@@ -462,6 +536,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 		state.grid = _grid
 	_simulation = OperationalSimulation.new(state)
 	_simulation.event_emitted.connect(_on_operational_event)
+	_simulation.command_rejected.connect(_on_command_rejected)
 	if viewer_player < 0:
 		viewer_player = StaffMapFormations.viewer_from_args(
 			OS.get_cmdline_user_args(), state.player_sides
@@ -470,12 +545,21 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_counter_layer.add_child(_counters)
 	_build_route_preview()  # after the counters: its cross and label draw over them
 	_counters.build(state, _palette, viewer_player)
+	_counters.refresh()  # the order marks, also when the state already holds orders
+	_orders.refresh(state, viewer_player)
 	_update_anchors()
 	if OS.get_cmdline_user_args().has("--pending-battle"):
 		state.pending_battles.append(BattleSetup.new())
 
 
 func _build_route_preview() -> void:
+	var order_ribbon := StaffMapRouteRibbon.new("OrderRibbon")
+	_view.add_child(order_ribbon)
+	var order_marks := StaffMapRouteMarks.new()
+	order_marks.name = "OrderMarks"
+	order_marks.set_projector(_project)
+	_counter_layer.add_child(order_marks)
+	_orders = StaffMapOrders.new(order_ribbon, order_marks, _view.relief(), _palette)
 	var ribbon := StaffMapRouteRibbon.new()
 	_view.add_child(ribbon)
 	_route_marks = StaffMapRouteMarks.new()
@@ -495,6 +579,8 @@ func _update_anchors() -> void:
 func _layout_counters() -> void:
 	if _route_marks != null:
 		_route_marks.refresh()
+		_orders.refresh_projection()
+		_place_picker()
 	if _counters == null:
 		return
 	var points := {}
@@ -503,11 +589,16 @@ func _layout_counters() -> void:
 	_counters.layout(points)
 
 
+func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
+	_toast_message(tr("ORDER_REJECTED_" + reason.to_upper()), _palette.ui_alert)
+
+
 func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_on_turn_started(event)
 	_update_anchors()
 	_counters.refresh()
+	_orders.refresh(_simulation.state, viewer_player)
 	_route.invalidate()
 	_layout_counters()
 	_refresh_turn_bar()
@@ -573,6 +664,11 @@ func _build_hud() -> void:
 	_hud.add_child(_turn_bar)
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
+	_picker = StaffMapPosturePicker.new()
+	_picker.posture_chosen.connect(set_posture)
+	_counter_layer.add_child(_picker)
+	_toast = Toast.new()
+	_hud.add_child(_toast)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)
@@ -732,10 +828,18 @@ func _edge_direction() -> Vector2:
 	)
 
 
-## A left click on the map: selects the counter under `screen`, or deselects.
+## A left click on the map: selects the counter under `screen`; with an own formation selected a
+## click on a hex gives it an order there; elsewhere it deselects.
 func click_at(screen: Vector2) -> void:
-	if _counters != null:
-		select_formation(_counters.counter_at(screen))
+	if _counters == null:
+		return
+	var hit := _counters.counter_at(screen)
+	if hit == &"" and _selected_own() != null:
+		var hex := hex_at_screen(screen)
+		if _view.has_tile(hex):
+			issue_order(hex)
+			return
+	select_formation(hit)
 
 
 func _update_hover() -> void:
@@ -773,6 +877,18 @@ func _clear_hover() -> void:
 
 
 ## Puts the card next to `screen`, kept inside the window.
+func _place_picker() -> void:
+	if _picker == null or not _picker.visible:
+		return
+	var id := selected_formation()
+	if not _anchors.has(id):
+		return
+	var at := _project(_anchors[id])
+	_picker.position = Vector2(
+		at.x - _picker.size.x / 2.0, at.y + StaffMapCounter.OWN_SIZE.y / 2.0 + PICKER_GAP
+	)
+
+
 func _place_card(screen: Vector2) -> void:
 	var size := _viewport_size()
 	var at := screen + CARD_OFFSET

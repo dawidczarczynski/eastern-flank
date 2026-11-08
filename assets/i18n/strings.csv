@@ -145,7 +145,7 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Click: select   Tab: next   Enter: end turn   WASD: pan   Wheel: zoom   Q E: tilt   V: flat / tilted   G: grid   B: borders   Esc: deselect / back,Klik: wybór   Tab: następna   Enter: koniec tury   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko / skos   G: siatka   B: granice   Esc: odznacz / wstecz
+STAFF_MAP_HINT,Click: select / order   1 2 3: posture   Del: cancel   Tab: next   WASD: pan   Wheel: zoom   Q E: tilt   V: flat   G: grid   B: borders   Esc: back,Klik: wybór / rozkaz   1 2 3: postawa   Del: anuluj   Tab: następna   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko   G: siatka   B: granice   Esc: wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
@@ -200,11 +200,24 @@ END_TURN_BLOCKED_BATTLE_PENDING,A contact battle has to be fought first.,Najpier
 YOUR MOVE,YOUR MOVE,TWÓJ RUCH
 ENEMY MOVE,ENEMY MOVE,RUCH WROGA
 %d FMN,%d FMN,%d FORM.
-PACE,PACE,TEMPO
 POINTS,POINTS,PUNKTY
-PACE_MARCH,March,Marsz
-PACE_ADVANCE,Advance,Natarcie
-PACE_DEFEND,Defend,Obrona
+POSTURE_MARCH,March,Marsz
+POSTURE_ADVANCE,Attack,Atak
+POSTURE_DEFEND,Defend,Obrona
+POSTURE,POSTURE,POSTAWA
+ORDER_NONE,NONE,BRAK
+ORDERS %d / %d,ORDERS %d / %d,ROZKAZY %d / %d
+ORDER_ISSUED,Order given.,Rozkaz wydany.
+ORDER_CANCELLED,Order cancelled.,Rozkaz anulowany.
+ORDER_REJECTED_BATTLE_PENDING,A contact battle has to be fought first.,Najpierw trzeba rozegrać bitwę.
+ORDER_REJECTED_FORMATION_NOT_FOUND,No such formation.,Nie ma takiej formacji.
+ORDER_REJECTED_NOT_YOUR_FORMATION,Not your formation.,To nie twoja formacja.
+ORDER_REJECTED_UNKNOWN_POSTURE,Unknown posture.,Nieznana postawa.
+ORDER_REJECTED_INVALID_DESTINATION,Cannot go there.,Nie można tam dojść.
+ORDER_REJECTED_OCCUPIED,Hex occupied.,Pole zajęte.
+ORDER_REJECTED_NO_ROUTE,No route in this posture.,Brak drogi w tej postawie.
+ORDER_REJECTED_NO_ORDER,No order to cancel.,Brak rozkazu do anulowania.
+ORDER_REJECTED_SAME_POSTURE,Already in this posture.,Już w tej postawie.
 %d PTS,%d PTS,%d PKT
 %d TURNS,%d TURNS,%d TUR
 ROUTE_ARRIVED,ARRIVED,NA MIEJSCU

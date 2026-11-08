@@ -16,6 +16,9 @@ const LABEL_PAD := Vector2(7, 4)
 const LABEL_LIFT := 30.0
 ## Dots are skipped on a route whose projected hexes are closer than this (px).
 const MIN_DOT_SPACING := 5.0
+## Defence arc: radius (px) and half span (rad).
+const ARC_RADIUS := 15.0
+const ARC_SPAN := 1.1
 
 var colour := Color.WHITE
 var ink := Color.BLACK
@@ -25,11 +28,14 @@ var panel := Color(0.07, 0.08, 0.07, 0.92)
 var text_colour := Color.WHITE
 
 var _project := Callable()
-var _dots := PackedVector3Array()
-var _stops: Array[Dictionary] = []  # {at, before, after: Vector3, text}
-var _target := Vector3.ZERO
-var _kind := 0  # 0 nothing, 1 route, 2 unreachable
+## One entry per route: {dots: PackedVector3Array, stops: Array[Dictionary] {at, before, after,
+## text}, target: Vector3, before: Vector3 (the hex before the target), label, colour: Color,
+## style: StaffMapRoute.style()}. The planning preview is a single entry.
+var _routes: Array[Dictionary] = []
+var _unreachable := Vector3.ZERO
+var _kind := 0  # 0 nothing, 1 routes, 2 unreachable
 var _label := ""
+var _alpha := 1.0  # the opacity of the entry being drawn
 var _font: Font
 var _bar_font: Font
 
@@ -47,25 +53,46 @@ func set_projector(project: Callable) -> void:
 	_project = project
 
 
-## Shows a route: `dots` = hex centres on the relief (without the start), `stops` = Array of
-## {at, before, after, text}, `target` = destination, `label` = the cursor label.
+## Shows the planning preview: `dots` = hex centres on the relief (without the start), `stops` =
+## Array of {at, before, after, text}, `target` = destination, `before` = the point before it,
+## `label` = the cursor label, `style` = StaffMapRoute.style(posture, false).
 func show_route(
-	dots: PackedVector3Array, stops: Array[Dictionary], target: Vector3, label: String
+	dots: PackedVector3Array,
+	stops: Array[Dictionary],
+	target: Vector3,
+	label: String,
+	before := Vector3.ZERO,
+	style := {}
 ) -> void:
-	_dots = dots
-	_stops = stops
-	_target = target
 	_label = label
-	_kind = 1
-	show()
+	show_routes(
+		[
+			{
+				"dots": dots,
+				"stops": stops,
+				"target": target,
+				"before": before,
+				"label": label,
+				"colour": colour,
+				"style": style if not style.is_empty() else StaffMapRoute.style(&"advance", false),
+			}
+		]
+	)
+
+
+## Shows many routes at once (the issued orders); see `_routes` for an entry.
+func show_routes(entries: Array[Dictionary]) -> void:
+	_routes = entries
+	_unreachable = Vector3.ZERO
+	_kind = 1 if not entries.is_empty() else 0
+	visible = _kind != 0
 	queue_redraw()
 
 
 ## Shows the red cross and the reason on an unreachable hex.
 func show_unreachable(at: Vector3, label: String) -> void:
-	_dots = PackedVector3Array()
-	_stops = []
-	_target = at
+	_routes = []
+	_unreachable = at
 	_label = label
 	_kind = 2
 	show()
@@ -74,8 +101,7 @@ func show_unreachable(at: Vector3, label: String) -> void:
 
 func clear() -> void:
 	_kind = 0
-	_dots = PackedVector3Array()
-	_stops = []
+	_routes = []
 	_label = ""
 	hide()
 
@@ -88,15 +114,31 @@ func label_text() -> String:
 	return _label
 
 
-func stop_texts() -> PackedStringArray:
+func route_count() -> int:
+	return _routes.size()
+
+
+## Texts of the stop marks of route `index`.
+func stop_texts(index := 0) -> PackedStringArray:
 	var out := PackedStringArray()
-	for stop in _stops:
-		out.append(stop["text"])
+	if index < _routes.size():
+		for stop: Dictionary in _routes[index]["stops"]:
+			out.append(stop["text"])
 	return out
 
 
-func dot_count() -> int:
-	return _dots.size()
+func dot_count(index := 0) -> int:
+	if index >= _routes.size():
+		return 0
+	return (
+		(_routes[index]["dots"] as PackedVector3Array).size()
+		if _routes[index]["style"]["dots"]
+		else 0
+	)
+
+
+func style_of(index := 0) -> Dictionary:
+	return _routes[index]["style"] if index < _routes.size() else {}
 
 
 ## Camera moved: re-project.
@@ -108,41 +150,75 @@ func refresh() -> void:
 func _draw() -> void:
 	if _kind == 0 or not _project.is_valid():
 		return
-	var target: Vector2 = _project.call(_target)
 	if _kind == 2:
-		_draw_cross(target)
-		_draw_label(target, alert)
+		var cross: Vector2 = _project.call(_unreachable)
+		_alpha = 1.0
+		_draw_cross(cross)
+		_draw_label(cross, alert)
 		return
-	_draw_dots()
-	for stop in _stops:
-		_draw_stop(stop)
-	draw_circle(target, TARGET_RADIUS + 2.0, Color(ink, 0.85))
-	draw_arc(target, TARGET_RADIUS, 0.0, TAU, 24, amber, 2.0, true)
-	draw_circle(target, 2.6, amber)
-	_draw_label(target, amber)
+	for route in _routes:
+		_draw_route(route)
 
 
-func _draw_dots() -> void:
+func _draw_route(route: Dictionary) -> void:
+	var style: Dictionary = route["style"]
+	_alpha = style["alpha"]
+	var line_colour: Color = route["colour"]
+	if style["dots"]:
+		_draw_dots(route["dots"], line_colour)
+	for stop: Dictionary in route["stops"]:
+		_draw_stop(stop, line_colour)
+	var target: Vector2 = _project.call(route["target"])
+	var accent: Color = amber if style["amber_target"] else line_colour
+	draw_circle(target, TARGET_RADIUS + 2.0, _c(ink, 0.85))
+	draw_arc(target, TARGET_RADIUS, 0.0, TAU, 24, _c(accent), 2.0, true)
+	draw_circle(target, 2.6, _c(accent))
+	if style["defend_arc"]:
+		_draw_defence_arc(target, _project.call(route["before"]), line_colour)
+	if route["label"] != "":
+		_label = route["label"]
+		_draw_label(target, accent)
+
+
+## The defence arc of a "defend" order: a crescent across the direction of travel in front of the
+## target.
+func _draw_defence_arc(target: Vector2, before: Vector2, line_colour: Color) -> void:
+	var along := target - before
+	var heading := along.angle() if along.length() > 0.5 else -PI / 2.0
+	draw_arc(
+		target, ARC_RADIUS, heading - ARC_SPAN, heading + ARC_SPAN, 16, _c(ink, 0.9), 5.0, true
+	)
+	draw_arc(
+		target, ARC_RADIUS, heading - ARC_SPAN, heading + ARC_SPAN, 16, _c(line_colour), 2.4, true
+	)
+
+
+## Colour `c` with its alpha scaled by the opacity of the route being drawn.
+func _c(c: Color, alpha := 1.0) -> Color:
+	return Color(c, c.a * alpha * _alpha)
+
+
+func _draw_dots(dots: PackedVector3Array, line_colour: Color) -> void:
 	var last := Vector2(-1e6, -1e6)
-	for point in _dots:
+	for point in dots:
 		var p: Vector2 = _project.call(point)
 		if p.distance_to(last) < MIN_DOT_SPACING:
 			continue
 		last = p
-		draw_circle(p, DOT_RADIUS + 1.0, Color(ink, 0.85))
-		draw_circle(p, DOT_RADIUS, colour)
+		draw_circle(p, DOT_RADIUS + 1.0, _c(ink, 0.85))
+		draw_circle(p, DOT_RADIUS, _c(line_colour))
 
 
 ## Cross-bar across the line and "+n" beside it.
-func _draw_stop(stop: Dictionary) -> void:
+func _draw_stop(stop: Dictionary, line_colour: Color) -> void:
 	var at: Vector2 = _project.call(stop["at"])
 	var before: Vector2 = _project.call(stop["before"])
 	var after: Vector2 = _project.call(stop["after"])
 	var along := after - before
 	along = along.normalized() if along.length() > 0.001 else Vector2.RIGHT
 	var across := Vector2(-along.y, along.x)
-	draw_line(at - across * BAR_HALF, at + across * BAR_HALF, ink, BAR_WIDTH + 2.0)
-	draw_line(at - across * BAR_HALF, at + across * BAR_HALF, colour, BAR_WIDTH)
+	draw_line(at - across * BAR_HALF, at + across * BAR_HALF, _c(ink), BAR_WIDTH + 2.0)
+	draw_line(at - across * BAR_HALF, at + across * BAR_HALF, _c(line_colour), BAR_WIDTH)
 	var text: String = stop["text"]
 	var size := _bar_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE)
 	var side := across if across.y <= 0.0 else -across  # the label goes upwards
@@ -150,7 +226,7 @@ func _draw_stop(stop: Dictionary) -> void:
 	var origin := anchor + Vector2(-size.x / 2.0, 0.0 if side.y < -0.3 else size.y * 0.6)
 	if side.y >= -0.3:
 		origin.x = anchor.x if side.x >= 0.0 else anchor.x - size.x
-	_outlined(text, origin, _bar_font, colour)
+	_outlined(text, origin, _bar_font, line_colour)
 
 
 func _draw_cross(at: Vector2) -> void:
@@ -190,6 +266,6 @@ func size_fallback() -> Vector2:
 ## Text with a dark halo (readable over any ground).
 func _outlined(text: String, origin: Vector2, font: Font, fill: Color) -> void:
 	draw_string_outline(
-		font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, 4, Color(ink, 0.9)
+		font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, 4, _c(ink, 0.9)
 	)
-	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, fill)
+	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, _c(fill))

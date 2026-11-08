@@ -348,7 +348,7 @@ The battle has sound; there is no music yet.
 
 ## 12b. Operational map
 
-**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); there are no orders yet (turns: see **Turns** below). **‹ Back** (or Esc when no formation is selected) returns to the menu.
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); orders: see **Orders** below, turns: see **Turns** below. **‹ Back** (or Esc when no formation is selected) returns to the menu.
 
 **Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
@@ -382,6 +382,9 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | End turn | Enter, or the **End turn** button |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
+| Order the selected formation to a hex | Left click on the hex (current posture) |
+| Posture March / Attack / Defend | 1 / 2 / 3, or the picker under the counter |
+| Cancel the order | Delete, Backspace or X |
 | Deselect | Esc, or a click on empty map |
 | Back to the main menu | Esc (nothing selected), or the ‹ Back button |
 
@@ -393,7 +396,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.
 
-You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; with **FOLLOW SIDE** on (the default) the view switches to the bloc to move after each End turn, so whoever sits at the screen always sees their own forces as rectangles. Switch the toggle to **FIXED SIDE** to keep looking from one bloc's point of view. `--side=nato` or `--side=russia` picks the bloc you start with. Nothing happens at the end of a turn yet; orders and the enemy playing by itself come later.
+You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; with **FOLLOW SIDE** on (the default) the view switches to the bloc to move after each End turn, so whoever sits at the screen always sees their own forces as rectangles. Switch the toggle to **FIXED SIDE** to keep looking from one bloc's point of view. `--side=nato` or `--side=russia` picks the bloc you start with. Nothing happens at the end of a turn yet: orders (see **Orders**) are recorded but not carried out, and the enemy playing by itself comes later.
 
 ### Formations
 
@@ -433,21 +436,36 @@ Strength is the sum of the companies' hit points – the same units that fight w
 
 **Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel.
 
-### Routes
+### Orders
 
-With one of your formations selected, point at a hex to see how it would get there. Nothing is ordered yet: the preview only shows the plan and gives no orders.
+With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. **Orders do nothing yet:** nothing moves when you end the turn (execution comes later). For now they only record and show the plan.
 
-**Pace.** The formation panel of your own formations (not the enemy's) has two extra rows, **PACE** and **POINTS**. Keys **1 / 2 / 3** choose the pace; the points are what the formation can spend in one turn:
+**Giving an order.** Choose a posture, then left click the destination hex. The order uses the posture currently chosen for that formation. A short message confirms "Order given", or says why the order was refused:
 
-| Key | Pace | Points | Enemy zone of control |
+- a contact battle has to be fought first;
+- not your formation;
+- cannot go there (for example a lake);
+- hex occupied (an enemy formation or another formation stands on the target);
+- no route in this posture (for example, the way is blocked by enemy zones of control while marching);
+- already in this posture (when you pick the posture it already has).
+
+**Postures.** The formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** and **POINTS**. Choose the posture with keys **1 / 2 / 3**, or with the picker under the counter. The points are what the formation can spend in one turn (for a formation with 8 move points):
+
+| Key | Posture | Points | Enemy zone of control |
 |---|---|---|---|
-| 1 | March | 8 | the route goes around it |
-| 2 | Advance | 6 | the route may enter it, but the formation stops there ("contact") |
-| 3 | Defend | 4 | the route goes around it |
+| 1 | March | 8 (100 %) | the route goes around it |
+| 2 | Attack | 6 (75 %) | the route may enter it, but the formation stops there ("contact") |
+| 3 | Defend | 4 (50 %) | the route goes around it |
+
+Changing the posture of a formation that already has an order re-plans the same destination in the new posture (or refuses, if there is no route that way).
+
+**Cancelling.** With the formation selected, press **Delete**, **Backspace** or **X** to cancel its order. The message "Order cancelled" appears, or "No order to cancel" if it had none.
+
+**Reading the orders.** March orders are drawn as a dashed line, attack orders as a solid line. A defend order is a line that ends in a defence arc at the destination. Each **+n** cross-bar marks where the formation will stand after n turns (the per-turn stops). Orders you have issued are drawn slightly faded (82 % opacity) so they differ from the preview; the enemy's orders are never shown. A counter with an order carries a small amber tab. The **End turn** button shows **ORDERS n / m**: n of your m formations have an order.
 
 **Step costs.** Road 1, open ground and towns 2, forest and hills 3, marsh 4. Crossing a river without a bridge costs +2 more. Lakes cannot be crossed. Only one formation can stand in a hex, but you can pass through your own formations. The zone of control is the ring of hexes next to an enemy formation. Unused points are lost at the end of the turn, and a formation can always move at least one hex per turn, even if that costs more than its points.
 
-**Reading the preview.** A ribbon runs along the route. Each **+n** stop marks where the formation will stand after n turns. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, or no route.
+**Reading the preview.** Before you click, a ribbon runs along the route. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, or no route.
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 

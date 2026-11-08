@@ -13,8 +13,6 @@ static var _default: OperationalMovement
 @export var road_cost: int = 1
 ## Extra cost of entering a river hex without a road link.
 @export var river_extra_cost: int = 2
-## Paces of the route preview, in key order (1 / 2 / 3).
-@export var preview_paces: Array[OperationalPace] = []
 
 
 ## The shipped data/operational/movement.tres, loaded once.
@@ -36,9 +34,6 @@ func problem() -> String:
 		return "road_cost must be at least 1"
 	if river_extra_cost < 0:
 		return "river_extra_cost is negative"
-	for pace in preview_paces:
-		if pace == null or pace.budget < 1:
-			return "preview pace needs a budget of at least 1"
 	return ""
 
 

@@ -1,6 +1,6 @@
 # TASK-092d: Formation orders – postures as data, issue / cancel order, set posture (commands, codec, snapshot)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (order arrows, posture picker)
 - **Depends on**: TASK-092c, TASK-093b
 - **Model**: sonnet
@@ -14,54 +14,54 @@ The player commands formations the operational way: a formation gets an **order*
 
 Postures as data:
 
-- [ ] `OperationalPosture` (Resource, `src/core/data/operational_posture.gd`, one `.tres` per posture in `data/operational/postures/<id>.tres`): `id`, `display_name` (English, translation key), `move_percent` (int, share of the formation's `move_points` spent per turn), `avoids_contact` (bool, passed to `OperationalRoutes.plan`), `problem() -> String` ("" when valid; `move_percent` outside 1 … 100 → problem, test). `OperationalPosture.NAMES` = `[&"march", &"advance", &"defend"]`; `OperationalPosture.find(id)` → the resource or null.
-- [ ] Shipped values **[ASSUMPTION]** (test reads the files): `march` 100 %, avoids contact; `advance` 75 %, does not avoid contact; `defend` 50 %, avoids contact.
-- [ ] `OperationalPosture.budget(move_points) -> int` = `move_points * move_percent / 100` rounded down, at least 1. Examples: 8 → march 8, advance 6, defend 4; 5 at 75 % → 3; 1 at 50 % → 1.
-- [ ] `OperationDefinition.initial_posture` (StringName, default `&"defend"`; `suwalki_gap.tres` uses the default). `Operation.from_definition` rejects an unknown initial posture (`push_error`, null – test).
+- [x] `OperationalPosture` (Resource, `src/core/data/operational_posture.gd`, one `.tres` per posture in `data/operational/postures/<id>.tres`): `id`, `display_name` (English, translation key), `move_percent` (int, share of the formation's `move_points` spent per turn), `avoids_contact` (bool, passed to `OperationalRoutes.plan`), `problem() -> String` ("" when valid; `move_percent` outside 1 … 100 → problem, test). `OperationalPosture.NAMES` = `[&"march", &"advance", &"defend"]`; `OperationalPosture.find(id)` → the resource or null.
+- [x] Shipped values **[ASSUMPTION]** (test reads the files): `march` 100 %, avoids contact; `advance` 75 %, does not avoid contact; `defend` 50 %, avoids contact.
+- [x] `OperationalPosture.budget(move_points) -> int` = `move_points * move_percent / 100` rounded down, at least 1. Examples: 8 → march 8, advance 6, defend 4; 5 at 75 % → 3; 1 at 50 % → 1.
+- [x] `OperationDefinition.initial_posture` (StringName, default `&"defend"`; `suwalki_gap.tres` uses the default). `Operation.from_definition` rejects an unknown initial posture (`push_error`, null – test).
 
 State:
 
-- [ ] `Formation.posture: StringName` (= the operation's `initial_posture` at build) and `Formation.order: FormationOrder` (`RefCounted`, `destination: Vector2i`; null = no order). All formations start without an order.
-- [ ] Snapshot entries gain `posture` (String) and `order` (null, or `[q, r]` of the destination). Test: a fresh `suwalki_gap` build has every formation in `"defend"` with `order` null; the determinism test of TASK-092b still passes.
+- [x] `Formation.posture: StringName` (= the operation's `initial_posture` at build) and `Formation.order: FormationOrder` (`RefCounted`, `destination: Vector2i`; null = no order). All formations start without an order.
+- [x] Snapshot entries gain `posture` (String) and `order` (null, or `[q, r]` of the destination). Test: a fresh `suwalki_gap` build has every formation in `"defend"` with `order` null; the determinism test of TASK-092b still passes.
 
 `IssueOrderCommand(formation_id: StringName, destination: Vector2i, posture: StringName)` – `{"type": "issue_order", "formation_id": "<id>", "destination": [q, r], "posture": "<id>"}`:
 
-- [ ] Rejections in this order (one test each): `battle_pending`, `formation_not_found`, `not_your_formation` (owner ≠ current player), `unknown_posture`, `invalid_destination` (off the map, impassable, or the formation's own hex), `occupied` (any formation, either side, on the destination), `no_route` (`OperationalRoutes.plan(state, formation, destination, posture.avoids_contact)` is empty – e.g. TASK-092c's contact grid: `march` to (6, 0) → `no_route`, `advance` to (6, 0) → accepted).
-- [ ] Apply: `posture` = the given posture, `order` = a new `FormationOrder` (replaces any existing order – issuing twice leaves one order with the second destination); the formation does **not** move; event `formation_order_issued` (`formation_id`, `destination`, `posture`, `forecast` – `OperationalRoutes.forecast` with the posture's budget and `avoids_contact`). Example (plains row of TASK-092c, `move_points` 8): `advance` (budget 6) to (6, 0) → forecast `[(3, 0), (6, 0)]`; `defend` (budget 4) → `[(2, 0), (4, 0), (6, 0)]`.
-- [ ] Orders do nothing yet at the end of a turn (execution is TASK-092e): after a full round the formation is still on its hex and keeps its order (test).
+- [x] Rejections in this order (one test each): `battle_pending`, `formation_not_found`, `not_your_formation` (owner ≠ current player), `unknown_posture`, `invalid_destination` (off the map, impassable, or the formation's own hex), `occupied` (any formation, either side, on the destination), `no_route` (`OperationalRoutes.plan(state, formation, destination, posture.avoids_contact)` is empty – e.g. TASK-092c's contact grid: `march` to (6, 0) → `no_route`, `advance` to (6, 0) → accepted).
+- [x] Apply: `posture` = the given posture, `order` = a new `FormationOrder` (replaces any existing order – issuing twice leaves one order with the second destination); the formation does **not** move; event `formation_order_issued` (`formation_id`, `destination`, `posture`, `forecast` – `OperationalRoutes.forecast` with the posture's budget and `avoids_contact`). Example (plains row of TASK-092c, `move_points` 8): `advance` (budget 6) to (6, 0) → forecast `[(3, 0), (6, 0)]`; `defend` (budget 4) → `[(2, 0), (4, 0), (6, 0)]`.
+- [x] Orders do nothing yet at the end of a turn (execution is TASK-092e): after a full round the formation is still on its hex and keeps its order (test).
 
 `CancelOrderCommand(formation_id)` – `{"type": "cancel_order", "formation_id": "<id>"}`:
 
-- [ ] Rejections in this order: `battle_pending`, `formation_not_found`, `not_your_formation`, `no_order`.
-- [ ] Apply: `order` = null, posture unchanged; event `formation_order_cancelled` (`formation_id`).
+- [x] Rejections in this order: `battle_pending`, `formation_not_found`, `not_your_formation`, `no_order`.
+- [x] Apply: `order` = null, posture unchanged; event `formation_order_cancelled` (`formation_id`).
 
 `SetPostureCommand(formation_id, posture)` – `{"type": "set_posture", "formation_id": "<id>", "posture": "<id>"}`:
 
-- [ ] Rejections in this order: `battle_pending`, `formation_not_found`, `not_your_formation`, `unknown_posture`, `same_posture`.
-- [ ] Apply: `posture` changed, the order (if any) kept unchanged – it is re-planned when it executes (TASK-092e interrupts it with `no_route` if the new posture cannot reach the destination); event `formation_posture_changed` (`formation_id`, `posture`, `previous`). Works without an order (a formation holding its hex in a new posture).
+- [x] Rejections in this order: `battle_pending`, `formation_not_found`, `not_your_formation`, `unknown_posture`, `same_posture`.
+- [x] Apply: `posture` changed, the order (if any) kept unchanged – it is re-planned when it executes (TASK-092e interrupts it with `no_route` if the new posture cannot reach the destination); event `formation_posture_changed` (`formation_id`, `posture`, `previous`). Works without an order (a formation holding its hex in a new posture).
 
 Codec and docs:
 
-- [ ] `OperationalCommandCodec`: round trip of all three commands; null for a non-string `formation_id` or `posture`, a `destination` that is not two integral numbers, a missing field. An unknown posture string decodes (the command rejects it in `validate`), like unknown ids elsewhere.
-- [ ] docs/ARCHITECTURE.md: "Operational events" gets `formation_order_issued`, `formation_order_cancelled`, `formation_posture_changed`; "Two layers" names `OperationalPosture`, `FormationOrder` and the three commands.
+- [x] `OperationalCommandCodec`: round trip of all three commands; null for a non-string `formation_id` or `posture`, a `destination` that is not two integral numbers, a missing field. An unknown posture string decodes (the command rejects it in `validate`), like unknown ids elsewhere.
+- [x] docs/ARCHITECTURE.md: "Operational events" gets `formation_order_issued`, `formation_order_cancelled`, `formation_posture_changed`; "Two layers" names `OperationalPosture`, `FormationOrder` and the three commands.
 
 View (giving and cancelling orders on the staff map):
 
-- [ ] With a formation selected, a **left click on a hex** (Move mode, default for the side to play) sends `IssueOrderCommand` with the posture shown in the picker; the preview of TASK-092c becomes the order: a route arrow with per-turn stop ticks stays drawn after deselecting. Only the **side to play's** formations can be ordered (the other side's panel shows its orders read-only); a rejected command shows its reason in a toast.
-- [ ] Posture picker in the formation panel (keys **1 march / 2 advance / 3 defend**, also changeable on an existing order via `SetPostureCommand`); arrow style per posture (march dashed, advance solid, defend ending in a defence arc); the forecast ticks and "n turns" label update at once when the posture changes. The preview paces of TASK-092c are replaced by the posture numbers (one source of truth).
-- [ ] **Delete / X** cancels the selected formation's order (`CancelOrderCommand`); orders of all formations of the side stay drawn (own side full, enemy orders hidden – fog is TASK-100 – **[ASSUMPTION]**).
-- [ ] The staff map restores the arrows from the state alone (scene rebuilt mid-game shows the same orders – test on the controller).
-- [ ] Translations for postures and rejection reasons.
+- [x] With a formation selected, a **left click on a hex** (Move mode, default for the side to play) sends `IssueOrderCommand` with the posture shown in the picker; the preview of TASK-092c becomes the order: a route arrow with per-turn stop ticks stays drawn after deselecting. Only the **side to play's** formations can be ordered (the other side's panel shows its orders read-only); a rejected command shows its reason in a toast.
+- [x] Posture picker in the formation panel (keys **1 march / 2 advance / 3 defend**, also changeable on an existing order via `SetPostureCommand`); arrow style per posture (march dashed, advance solid, defend ending in a defence arc); the forecast ticks and "n turns" label update at once when the posture changes. The preview paces of TASK-092c are replaced by the posture numbers (one source of truth).
+- [x] **Delete / X** cancels the selected formation's order (`CancelOrderCommand`); orders of all formations of the side stay drawn (own side full, enemy orders hidden – fog is TASK-100 – **[ASSUMPTION]**).
+- [x] The staff map restores the arrows from the state alone (scene rebuilt mid-game shows the same orders – test on the controller).
+- [x] Translations for postures and rejection reasons.
 
 ## Look (Claude Design)
 
 Reference: [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Orders", "Turn bar"). Arrows are px-width ribbons lying on the relief; counters, picker and labels are screen-space; must work under the 2.5D camera of [TASK-125](TASK-125-staff-map-restyle-2-5d.md).
 
-- [ ] Posture picker = three buttons `[1] March  [2] Attack  [3] Defend` **under the selected counter**, keys 1 / 2 / 3, **Backspace (⌫) cancels** the order (alias of Delete / X above). **Conflict:** the reference calls `advance` "Attack"; ids and rules stay (`advance`), the display name is **[ASSUMPTION]** "Attack" in the picker (translation only) – confirm with the human.
-- [ ] Posture = line style (existing criterion: march dashed, advance solid, defend ending in a defence arc – the reference gives no further detail, so these stay); routes smoothed (Chaikin ×3, see TASK-092c); halts as cross-bar with `+n`.
-- [ ] Opacity: planning preview 100 % with hex dots and an amber target; **issued orders 82 % without dots**. Test on the view-model: preview vs issued style flags.
-- [ ] Counter state **"has order"** (a small order mark on the frame) for the side's ordered formations; `ORDERS n / m ↵` on the End turn button (TASK-093b) now shows n ordered of m formations.
-- [ ] Enemy orders stay invisible (as above). **NOT adopted:** the reference's optional thin dotted red "predicted axis" from intel (needs TASK-100).
+- [x] Posture picker = three buttons `[1] March  [2] Attack  [3] Defend` **under the selected counter**, keys 1 / 2 / 3, **Backspace (⌫) cancels** the order (alias of Delete / X above). **Conflict:** the reference calls `advance` "Attack"; ids and rules stay (`advance`), the display name is **[ASSUMPTION]** "Attack" in the picker (translation only) – confirm with the human.
+- [x] Posture = line style (existing criterion: march dashed, advance solid, defend ending in a defence arc – the reference gives no further detail, so these stay); routes smoothed (Chaikin ×3, see TASK-092c); halts as cross-bar with `+n`.
+- [x] Opacity: planning preview 100 % with hex dots and an amber target; **issued orders 82 % without dots**. Test on the view-model: preview vs issued style flags.
+- [x] Counter state **"has order"** (a small order mark on the frame) for the side's ordered formations; `ORDERS n / m ↵` on the End turn button (TASK-093b) now shows n ordered of m formations.
+- [x] Enemy orders stay invisible (as above). **NOT adopted:** the reference's optional thin dotted red "predicted axis" from intel (needs TASK-100).
 
 ## Playtest (for the human)
 
@@ -82,4 +82,10 @@ Section "Orders": giving an order (destination + posture), the three postures wi
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done (logic by gameplay-engineer, view by presentation-engineer). 1524 tests pass; lint shows only errors in another session's files.
+
+- Core: `OperationalPosture` (+3 `.tres`), `FormationOrder`, `Formation.posture/order`, `OperationDefinition.initial_posture`, the three commands sharing `OperationalOrders.formation_problem`, codec, snapshot, events (ARCHITECTURE.md updated).
+- `OperationalPace` and `OperationalMovement.preview_paces` were removed: postures are the single source of pace numbers (`StaffMapRoute.preview_in_posture`).
+- View: click-to-order, picker under the counter (1/2/3; advance shown as "Attack" – [ASSUMPTION], translation only), Delete/Backspace/X cancel, `StaffMapOrders` redraws issued orders from state (82 %, no dots; enemy orders hidden), order tab on counters, `ORDERS n / m` on End turn, toasts for rejections. `tools/screenshot.gd` got `posture:` / `order:` tokens.
+- Deviations: dash length is fixed in hex units (scales with zoom); issued-order target is a side-coloured ring, not amber; picker is not clamped under the turn bar; enemy panel has no read-only order rows. Not covered by tests: the order-tab mark and the 82 % look (playtest only). Defence arc and 82 % opacity were not seen in screenshots.
+- README screenshot not re-run: the staff map is not the battle scene.

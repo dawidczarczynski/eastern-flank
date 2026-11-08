@@ -16,7 +16,6 @@ var _movement: OperationalMovement
 var _state: OperationalState
 var _formation_id: StringName = &""
 var _hex := OFF
-var _pace := 0
 var _dirty := false
 var _last_msec := -DEBOUNCE_MSEC
 var _shown := {}  # the last preview() result (for tests and the panel)
@@ -59,26 +58,6 @@ func set_hex(hex: Vector2i) -> void:
 	_request()
 
 
-func set_pace(index: int) -> void:
-	var count := _movement.preview_paces.size()
-	if count == 0:
-		return
-	_pace = clampi(index, 0, count - 1)
-	_request()
-
-
-func pace_index() -> int:
-	return _pace
-
-
-func pace() -> OperationalPace:
-	return _movement.preview_paces[_pace] if not _movement.preview_paces.is_empty() else null
-
-
-func paces() -> Array[OperationalPace]:
-	return _movement.preview_paces
-
-
 ## The state changed under the preview (turn ended, formation moved): plan again.
 func invalidate() -> void:
 	_request()
@@ -99,7 +78,9 @@ func rebuild(now_msec := Time.get_ticks_msec()) -> void:
 	if formation == null or _hex == OFF or _state == null or not _state.grid.has_tile(_hex):
 		_hide()
 		return
-	var preview := StaffMapRoute.preview(_state, formation, _hex, pace(), _movement)
+	var preview := StaffMapRoute.preview_in_posture(
+		_state, formation, _hex, formation.posture, _movement
+	)
 	_plans += 1
 	if preview.is_empty():
 		_hide()
@@ -147,18 +128,42 @@ static func _tr_static(key: String) -> String:
 
 
 func _show_route(formation: Formation, preview: Dictionary) -> void:
+	var style := StaffMapRoute.style(formation.posture, false)
+	var geometry := geometry_of(_relief, formation, preview, style)
+	_ribbon.show_lines(geometry["lines"], _marks.colour)
+	_marks.show_route(
+		geometry["dots"],
+		geometry["stops"],
+		geometry["target"],
+		label_text(preview),
+		geometry["before"],
+		style
+	)
+
+
+## The drawable geometry of a previewed or issued route of `formation` on `relief`: {lines
+## (Array of PackedVector3Array: the smoothed line, cut into dashes for a dashed style), dots,
+## stops (Array of {at, before, after, text}), target, before (the point before the target)}.
+static func geometry_of(
+	relief: StaffMapRelief, formation: Formation, preview: Dictionary, style: Dictionary
+) -> Dictionary:
 	var route: Array[Vector2i] = preview["route"]
 	var smooth := StaffMapRoute.smoothed_line(formation.coord, route)
-	var line := PackedVector3Array()
-	for p in smooth:
-		line.append(_relief.surface_point(p))
-	_ribbon.show_line(line, _marks.colour)
+	var pieces: Array = [smooth]
+	if style["dashed"]:
+		pieces = StaffMapRoute.dashes(smooth, StaffMapRoute.DASH_ON, StaffMapRoute.DASH_OFF)
+	var lines: Array = []
+	for piece: PackedVector2Array in pieces:
+		var line := PackedVector3Array()
+		for p in piece:
+			line.append(relief.surface_point(p))
+		lines.append(line)
 	var dots := PackedVector3Array()
 	for hex in route:
-		dots.append(_anchor(hex))
-	var stops: Array[Dictionary] = []
+		dots.append(_anchor_at(relief, hex))
 	var hexes: Array[Vector2i] = [formation.coord]
 	hexes.append_array(route)
+	var stops: Array[Dictionary] = []
 	var stop_hexes: Array[Vector2i] = preview["stops"]
 	for i in stop_hexes.size():
 		if i == stop_hexes.size() - 1 and stop_hexes[i] == route[route.size() - 1]:
@@ -170,14 +175,20 @@ func _show_route(formation: Formation, preview: Dictionary) -> void:
 			stops
 			. append(
 				{
-					"at": _anchor(hexes[k]),
-					"before": _anchor(hexes[maxi(k - 1, 0)]),
-					"after": _anchor(hexes[mini(k + 1, hexes.size() - 1)]),
+					"at": _anchor_at(relief, hexes[k]),
+					"before": _anchor_at(relief, hexes[maxi(k - 1, 0)]),
+					"after": _anchor_at(relief, hexes[mini(k + 1, hexes.size() - 1)]),
 					"text": "+%d" % (i + 1),
 				}
 			)
 		)
-	_marks.show_route(dots, stops, _anchor(route[route.size() - 1]), label_text(preview))
+	return {
+		"lines": lines,
+		"dots": dots,
+		"stops": stops,
+		"target": _anchor_at(relief, route[route.size() - 1]),
+		"before": _anchor_at(relief, hexes[maxi(hexes.size() - 2, 0)]),
+	}
 
 
 func _hide() -> void:
@@ -196,4 +207,8 @@ func _formation() -> Formation:
 
 
 func _anchor(hex: Vector2i) -> Vector3:
-	return _relief.surface_point(StaffMapRoute.centre(hex))
+	return _anchor_at(_relief, hex)
+
+
+static func _anchor_at(relief: StaffMapRelief, hex: Vector2i) -> Vector3:
+	return relief.surface_point(StaffMapRoute.centre(hex))

@@ -344,7 +344,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## hover:<col>:<row> (the hover card), pitch:<degrees> (camera tilt, 0 = flat; default 35,
 ## TASK-125), side:<player> (view as player 0 / 1, TASK-092b), select:<formation id> (formation
 ## panel), hovercounter:<formation id> (counter hover), route:<col>:<row> (route preview of the
-## selected formation to that hex, TASK-092c) and pace:<1-3>, e.g.
+## selected formation to that hex, TASK-092c), posture:<1-3> (posture of the selected formation,
+## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
+## posture; view as the side to play), e.g.
 ## SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -400,7 +402,8 @@ func _apply_staff_map_state(spec: String) -> void:
 	var hover_counter := &""
 	var route_hex := Vector2i(-1, -1)
 	var show_route := false
-	var route_pace := 1
+	var route_posture := 0
+	var orders: Array = []
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -423,8 +426,13 @@ func _apply_staff_map_state(spec: String) -> void:
 					continue
 				route_hex = MapGenerator.offset_to_axial(parts[1].to_int(), parts[2].to_int())
 				show_route = true
-			"pace":
-				route_pace = parts[1].to_int() if parts.size() > 1 else 1
+			"posture":
+				route_posture = parts[1].to_int() if parts.size() > 1 else 0
+			"order":
+				if parts.size() != 5:
+					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
+					continue
+				orders.append(parts)
 			"grid":
 				map.view().set_grid_visible(true)
 			"side":
@@ -449,10 +457,15 @@ func _apply_staff_map_state(spec: String) -> void:
 	map.debug_focus(centre, zoom)
 	if show_hover:
 		map.debug_hover(hover)
-	if select_id != &"":
+	for order in orders:
+		map.select_formation(StringName(order[1]))
+		map.set_posture_number(order[4].to_int())
+		map.issue_order(MapGenerator.offset_to_axial(order[2].to_int(), order[3].to_int()))
+	if select_id != &"" or not orders.is_empty():
 		map.select_formation(select_id)
+	if route_posture > 0:
+		map.set_posture_number(route_posture)
 	if show_route:
-		map.set_route_pace(route_pace)
 		map.route_preview().set_hex(route_hex)
 		map.route_preview().rebuild()
 		map.view().highlight(route_hex)

@@ -3,8 +3,9 @@ extends FramedPanel
 ## Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"),
 ## HUD v3 style, on the right edge: name, parent, type, side, strength (5-segment gauge),
 ## location and the companies (ref, unit type, strength). Hostile formations are fully shown
-## (fog is TASK-100) but marked HOSTILE in the tab and the side row. Posture / order rows come with
-## TASK-092d. Stops the mouse, so a click on it never reaches a counter under it.
+## (fog is TASK-100) but marked HOSTILE in the tab and the side row. Own formations also
+## show posture, points and order (TASK-092d). Stops the mouse, so a click on it never reaches a
+## counter under it.
 
 const WIDTH := 300
 const ROW_SIZE := 12
@@ -45,7 +46,7 @@ var _parent_label: Label
 var _values := {}  # caption -> Label
 var _gauge: Gauge
 var _companies: VBoxContainer
-var _pace_box: VBoxContainer
+var _order_box: VBoxContainer
 var _companies_caption: Label
 
 
@@ -72,13 +73,13 @@ func _init() -> void:
 	column.add_child(_divider())
 	for caption in ["Type", "Side", "STRENGTH", "Location"]:
 		column.add_child(_row(caption))
-	_pace_box = VBoxContainer.new()
-	_pace_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pace_box.add_theme_constant_override(&"separation", 5)
-	for caption in ["PACE", "POINTS"]:
-		_pace_box.add_child(_row(caption))
-	_pace_box.hide()
-	column.add_child(_pace_box)
+	_order_box = VBoxContainer.new()
+	_order_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_order_box.add_theme_constant_override(&"separation", 5)
+	for caption in ["POSTURE", "POINTS", "ORDER"]:
+		_order_box.add_child(_row(caption))
+	_order_box.hide()
+	column.add_child(_order_box)
 	column.add_child(_divider())
 	_companies_caption = _label(HudTheme.mono(600, 1), REF_SIZE, UiPalette.HUD_MUTED)
 	column.add_child(_companies_caption)
@@ -129,24 +130,29 @@ func show_formation(
 	reset_size()
 
 
-## Route preview pace of an own formation (TASK-092c): "[1] MARCH" and the points per turn of the
-## pace against the formation's own move points. Keys 1 / 2 / 3 switch it.
-func show_pace(index: int, pace: OperationalPace, move_points: int) -> void:
-	(_values["PACE"] as Label).text = (
-		"[%d] %s" % [index + 1, tr("PACE_" + String(pace.id).to_upper()).to_upper()]
+## Posture and order of an own formation (TASK-092d): "[2] ATTACK", the move points it spends per
+## turn against the formation's own, and the destination of its order. Keys 1 / 2 / 3 change the
+## posture, Delete cancels the order.
+func show_order(formation: Formation) -> void:
+	var posture := OperationalPosture.find(formation.posture)
+	var move_points := formation.definition.move_points
+	(_values["POSTURE"] as Label).text = StaffMapPosturePicker.caption(formation.posture).to_upper()
+	var budget := posture.budget(move_points) if posture != null else move_points
+	(_values["POINTS"] as Label).text = "%d / %d" % [budget, move_points]
+	(_values["ORDER"] as Label).text = (
+		tr("ORDER_NONE") if formation.order == null else _hex_text(formation.order.destination)
 	)
-	(_values["POINTS"] as Label).text = "%d / %d" % [pace.budget, move_points]
-	_pace_box.show()
+	_order_box.show()
 	reset_size()
 
 
-func hide_pace() -> void:
-	_pace_box.hide()
+func hide_order() -> void:
+	_order_box.hide()
 	reset_size()
 
 
-func pace_visible() -> bool:
-	return _pace_box.visible
+func order_visible() -> bool:
+	return _order_box.visible
 
 
 func name_text() -> String:

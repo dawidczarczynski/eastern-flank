@@ -16,8 +16,39 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 	match String(type):
 		EndOperationalTurnCommand.TYPE:
 			return EndOperationalTurnCommand.new()
+		IssueOrderCommand.TYPE:
+			return _issue_order(d)
+		CancelOrderCommand.TYPE:
+			var id: Variant = d.get("formation_id")
+			if not id is String:
+				return null
+			return CancelOrderCommand.new(StringName(id as String))
+		SetPostureCommand.TYPE:
+			var id: Variant = d.get("formation_id")
+			var posture: Variant = d.get("posture")
+			if not (id is String and posture is String):
+				return null
+			return SetPostureCommand.new(StringName(id as String), StringName(posture as String))
 		_:
 			return null
+
+
+static func _issue_order(d: Dictionary) -> OperationalCommand:
+	var id: Variant = d.get("formation_id")
+	var posture: Variant = d.get("posture")
+	var dest: Variant = d.get("destination")
+	if not (id is String and posture is String and dest is Array):
+		return null
+	var pair: Array = dest
+	if pair.size() != 2:
+		return null
+	var q: Variant = to_int_or_null(pair[0])
+	var r: Variant = to_int_or_null(pair[1])
+	if q == null or r == null:
+		return null
+	return IssueOrderCommand.new(
+		StringName(id as String), Vector2i(q as int, r as int), StringName(posture as String)
+	)
 
 
 ## `value` as an int when it is an int or an integral, exactly representable float; else null.

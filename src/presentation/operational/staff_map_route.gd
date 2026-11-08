@@ -10,6 +10,11 @@ const REASON_ENEMY := "ROUTE_ENEMY"
 const REASON_OCCUPIED := "ROUTE_OCCUPIED"
 const REASON_NO_ROUTE := "ROUTE_NO_ROUTE"
 const CHAIKIN_ITERATIONS := 3
+## Opacity of an issued order (the planning preview is opaque).
+const ISSUED_ALPHA := 0.82
+## Dash and gap of a march line, in hex units.
+const DASH_ON := 0.28
+const DASH_OFF := 0.18
 
 
 ## Chaikin corner cutting: every pass replaces each segment by points at 1/4 and 3/4 of it and
@@ -51,7 +56,8 @@ static func unreachable_reason(
 	return ""
 
 
-## The preview of a route of `formation` to `destination` at `pace`: {route, stops, cost, turns,
+## The preview of a route of `formation` to `destination` with `budget` move points per turn
+## (OperationalPosture.budget) and `avoids_contact` (the posture's): {route, stops, cost, turns,
 ## stop, reason}. `route` = hexes entered (empty when unreachable, then `reason` is set), `stops`
 ## = where the formation stands after each of its turns (as OperationalRoutes.forecast), `cost` =
 ## summed step cost of the whole route, `turns` = stops.size(), `stop` = stop reason of the last
@@ -60,7 +66,8 @@ static func preview(
 	state: OperationalState,
 	formation: Formation,
 	destination: Vector2i,
-	pace: OperationalPace,
+	avoids_contact: bool,
+	budget: int,
 	movement: OperationalMovement = null
 ) -> Dictionary:
 	if destination == formation.coord:
@@ -70,7 +77,7 @@ static func preview(
 	var reason := unreachable_reason(state, formation, destination)
 	var route: Array[Vector2i] = []
 	if reason == "":
-		route = OperationalRoutes.plan(state, formation, destination, pace.avoid_contact, movement)
+		route = OperationalRoutes.plan(state, formation, destination, avoids_contact, movement)
 		if route.is_empty():
 			reason = REASON_NO_ROUTE
 	var result := {
@@ -96,9 +103,7 @@ static func preview(
 		if offset >= route.size():
 			break
 		var rest: Array[Vector2i] = route.slice(offset)
-		var walked := OperationalRoutes.walk(
-			state, formation, position, rest, pace.budget, movement
-		)
+		var walked := OperationalRoutes.walk(state, formation, position, rest, budget, movement)
 		var steps: Array[Vector2i] = walked["steps"]
 		if steps.is_empty():
 			break
@@ -131,6 +136,75 @@ static func centre(c: Vector2i) -> Vector2:
 	return Vector2(w.x, w.z)
 
 
-## The pace after pressing key `number` (1-based); `current` when there is no such pace.
-static func pace_for_key(paces: Array[OperationalPace], number: int, current: int) -> int:
-	return number - 1 if number >= 1 and number <= paces.size() else current
+## The posture of key `number` (1-based: march, advance, defend); &"" when there is none.
+static func posture_for_key(number: int) -> StringName:
+	if number < 1 or number > OperationalPosture.NAMES.size():
+		return &""
+	return OperationalPosture.NAMES[number - 1]
+
+
+## The preview of `formation`'s route to `destination` in its posture `posture_id` (the numbers
+## come from the OperationalPosture resource: one source of truth); {} for an unknown posture.
+static func preview_in_posture(
+	state: OperationalState,
+	formation: Formation,
+	destination: Vector2i,
+	posture_id: StringName,
+	movement: OperationalMovement = null
+) -> Dictionary:
+	var posture := OperationalPosture.find(posture_id)
+	if posture == null:
+		return {}
+	return preview(
+		state,
+		formation,
+		destination,
+		posture.avoids_contact,
+		posture.budget(formation.definition.move_points),
+		movement
+	)
+
+
+## How a route is drawn. Posture = line style (march dashed, advance solid, defend ends in a
+## defence arc); a planning preview is opaque with a dot on every hex and an amber target, an
+## issued order is ISSUED_ALPHA without dots (docs/design/operational_map "Orders").
+static func style(posture_id: StringName, issued: bool) -> Dictionary:
+	return {
+		"dashed": posture_id == &"march",
+		"defend_arc": posture_id == &"defend",
+		"alpha": ISSUED_ALPHA if issued else 1.0,
+		"dots": not issued,
+		"amber_target": not issued,
+	}
+
+
+## `points` cut into dashes: `on` units drawn, `off` units skipped, along the line (units of the
+## points). A line shorter than one dash stays whole. Returns Array[PackedVector2Array].
+static func dashes(points: PackedVector2Array, on: float, off: float) -> Array:
+	var out: Array = []
+	if points.size() < 2 or on <= 0.0:
+		return [points]
+	var current := PackedVector2Array([points[0]])
+	var drawing := true
+	var left := on
+	for i in points.size() - 1:
+		var a := points[i]
+		var b := points[i + 1]
+		var length := a.distance_to(b)
+		var done := 0.0
+		while length - done > left:
+			done += left
+			var at := a.lerp(b, done / length)
+			if drawing:
+				current.append(at)
+				out.append(current)
+			else:
+				current = PackedVector2Array([at])
+			drawing = not drawing
+			left = on if drawing else off
+		left -= length - done
+		if drawing:
+			current.append(b)
+	if drawing and current.size() > 1:
+		out.append(current)
+	return out

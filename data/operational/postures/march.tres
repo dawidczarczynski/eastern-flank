@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OperationalPosture" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/operational_posture.gd" id="1_posture"]
+
+[resource]
+script = ExtResource("1_posture")
+id = &"march"
+display_name = "March"
+move_percent = 100
+avoids_contact = true

@@ -50,7 +50,7 @@ static func from_definition(
 	state.turn = 1
 	state.rng.seed = seed_value
 	for placement in definition.formations:
-		state.formations.append(Formation.from_placement(placement))
+		state.formations.append(Formation.from_placement(placement, definition.initial_posture))
 	return state
 
 
@@ -59,6 +59,8 @@ static func _problem(definition: OperationDefinition, grid: HexGrid) -> String:
 	var sides_error := _sides_problem(definition)
 	if sides_error != "":
 		return sides_error
+	if OperationalPosture.find(definition.initial_posture) == null:
+		return "unknown initial posture '%s'" % definition.initial_posture
 	var ids := {}
 	var occupied := {}
 	for placement in definition.formations:

@@ -119,6 +119,10 @@ func show_state(
 	_follow.tooltip_text = tr("FOLLOW_TOOLTIP")
 	_end_button.caption = tr("End turn").to_upper()
 	_end_button.fill = _colour(mover)
+	_end_button.detail = (
+		(tr("ORDERS %d / %d") % [StaffMapOrders.ordered_count(state, mover), _count(state, mover)])
+		. to_upper()
+	)
 	var blocker := _end_turn_blocker(state)
 	_end_button.disabled = blocker != ""
 	_end_button.modulate.a = 0.45 if blocker != "" else 1.0

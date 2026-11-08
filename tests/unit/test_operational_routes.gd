@@ -59,14 +59,6 @@ func test_shipped_data_is_valid() -> void:
 	assert_eq(m.river_extra_cost, 2)
 
 
-func test_preview_paces() -> void:
-	var paces := OperationalMovement.shipped().preview_paces
-	assert_eq(paces.size(), 3)
-	assert_eq([paces[0].id, paces[0].budget, paces[0].avoid_contact], [&"march", 8, true])
-	assert_eq([paces[1].id, paces[1].budget, paces[1].avoid_contact], [&"advance", 6, false])
-	assert_eq([paces[2].id, paces[2].budget, paces[2].avoid_contact], [&"defend", 4, true])
-
-
 func test_problem_cases() -> void:
 	var m := OperationalMovement.shipped().duplicate() as OperationalMovement
 	m.move_costs = PackedInt32Array([2, 3])

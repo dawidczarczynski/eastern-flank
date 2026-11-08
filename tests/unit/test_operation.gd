@@ -118,6 +118,8 @@ func test_snapshot() -> void:
 		"player": 0,
 		"coord": [1, 0],
 		"companies": [["pl_mech_infantry", 10], ["m1a2_sepv3", 10]],
+		"posture": "defend",
+		"order": null,
 	}
 	assert_eq(entries[0], expected)
 	assert_eq(entries[1]["id"], "b1")
@@ -250,8 +252,10 @@ func test_codec_rejects_unknown_and_malformed() -> void:
 ## compares side or faction ids with literals (GDD "Sides").
 func test_operational_code_stays_independent() -> void:
 	var forbidden := RegEx.create_from_string(
-		"\\b(GameState|GameSimulation|Command|CommandCodec|MoveUnitCommand|AttackCommand"
-		+ "|EndTurnCommand)\\b"
+		(
+			"\\b(GameState|GameSimulation|Command|CommandCodec|MoveUnitCommand|AttackCommand"
+			+ "|EndTurnCommand)\\b"
+		)
 	)
 	var literal := RegEx.create_from_string("[\"'](nato|russia|poland)[\"']")
 	var dir := DirAccess.open("res://src/core/operational")

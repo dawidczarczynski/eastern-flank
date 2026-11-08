@@ -1,6 +1,6 @@
 # TASK-092e: Order execution – formations carry out their orders over several turns at the end of their side's turn
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`) + presentation (counter movement, report)
 - **Depends on**: TASK-092d, TASK-093b
 - **Model**: sonnet

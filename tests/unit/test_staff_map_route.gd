@@ -43,13 +43,6 @@ static func _formation(id: StringName, owner: int, coord: Vector2i) -> Formation
 	return f
 
 
-static func _pace(budget: int, avoid: bool) -> OperationalPace:
-	var pace := OperationalPace.new()
-	pace.budget = budget
-	pace.avoid_contact = avoid
-	return pace
-
-
 # --- smoothing ---
 
 
@@ -79,8 +72,7 @@ func test_smoothed_route_starts_and_ends_on_hex_centres() -> void:
 func test_preview_matches_the_forecast() -> void:
 	var state := _row_state()
 	var formation := state.get_formation(&"f")
-	var pace := _pace(8, true)
-	var result := StaffMapRoute.preview(state, formation, Vector2i(6, 0), pace)
+	var result := StaffMapRoute.preview(state, formation, Vector2i(6, 0), true, 8)
 	assert_eq(result["cost"], 12)
 	assert_eq(result["turns"], 2)
 	assert_eq(result["stop"], OperationalRoutes.STOP_ARRIVED)
@@ -91,14 +83,12 @@ func test_preview_matches_the_forecast() -> void:
 
 func test_preview_stops_in_contact() -> void:
 	var state := _row_state(Vector2i(5, 0))
-	var result := StaffMapRoute.preview(
-		state, state.get_formation(&"f"), Vector2i(4, 0), _pace(8, false)
-	)
+	var result := StaffMapRoute.preview(state, state.get_formation(&"f"), Vector2i(4, 0), false, 8)
 	assert_eq(result["stop"], OperationalRoutes.STOP_ARRIVED, "arriving next to an enemy")
 	var through := _row_state(Vector2i(4, 1))
 	through.grid.set_terrain(Vector2i(4, 1), Terrain.Type.PLAINS)
 	var past := StaffMapRoute.preview(
-		through, through.get_formation(&"f"), Vector2i(6, 0), _pace(8, false)
+		through, through.get_formation(&"f"), Vector2i(6, 0), false, 8
 	)
 	assert_eq(past["stop"], OperationalRoutes.STOP_CONTACT)
 	assert_eq(past["stops"][past["stops"].size() - 1], Vector2i(4, 0))
@@ -107,28 +97,27 @@ func test_preview_stops_in_contact() -> void:
 func test_unreachable_reasons() -> void:
 	var state := _row_state(Vector2i(5, 0))
 	var formation := state.get_formation(&"f")
-	var pace := _pace(8, false)
 	assert_eq(
-		StaffMapRoute.preview(state, formation, Vector2i(9, 0), pace)["reason"], "ROUTE_WATER"
+		StaffMapRoute.preview(state, formation, Vector2i(9, 0), false, 8)["reason"], "ROUTE_WATER"
 	)
 	assert_eq(
-		StaffMapRoute.preview(state, formation, Vector2i(5, 0), pace)["reason"], "ROUTE_ENEMY"
+		StaffMapRoute.preview(state, formation, Vector2i(5, 0), false, 8)["reason"], "ROUTE_ENEMY"
 	)
 	assert_eq(
-		StaffMapRoute.preview(state, formation, Vector2i(5, 5), pace)["reason"], "ROUTE_NO_ROUTE"
+		StaffMapRoute.preview(state, formation, Vector2i(5, 5), false, 8)["reason"],
+		"ROUTE_NO_ROUTE"
 	)
-	assert_true(StaffMapRoute.preview(state, formation, Vector2i.ZERO, pace).is_empty())
+	assert_true(StaffMapRoute.preview(state, formation, Vector2i.ZERO, false, 8).is_empty())
 	state.formations.append(_formation(&"mate", 0, Vector2i(2, 0)))
 	assert_eq(
-		StaffMapRoute.preview(state, formation, Vector2i(2, 0), pace)["reason"], "ROUTE_OCCUPIED"
+		StaffMapRoute.preview(state, formation, Vector2i(2, 0), false, 8)["reason"],
+		"ROUTE_OCCUPIED"
 	)
 
 
 func test_label_text() -> void:
 	var state := _row_state()
-	var result := StaffMapRoute.preview(
-		state, state.get_formation(&"f"), Vector2i(6, 0), _pace(8, true)
-	)
+	var result := StaffMapRoute.preview(state, state.get_formation(&"f"), Vector2i(6, 0), true, 8)
 	assert_eq(StaffMapRoutePreview.label_text(result), "12 PTS · 2 TURNS · ARRIVED")
 
 
@@ -144,10 +133,10 @@ func _own_formation() -> Formation:
 
 func _far_hex(formation: Formation) -> Vector2i:
 	var state := _map.simulation().state
-	var pace := _map.route_preview().pace()
+	var posture := OperationalPosture.find(formation.posture)
 	for c: Vector2i in state.grid.coords():
 		if Hex.distance(c, formation.coord) == 4:
-			if not OperationalRoutes.plan(state, formation, c, pace.avoid_contact).is_empty():
+			if not OperationalRoutes.plan(state, formation, c, posture.avoids_contact).is_empty():
 				return c
 	return StaffMapRoutePreview.OFF
 
@@ -165,40 +154,18 @@ func test_hover_shows_the_route_without_a_command() -> void:
 	preview.rebuild()
 	assert_true(not preview.shown().is_empty())
 	assert_eq(preview.shown()["route"].size() > 0, true)
-	for key in [KEY_1, KEY_2, KEY_3, KEY_2]:
-		var event := InputEventKey.new()
-		event.keycode = key
-		event.pressed = true
-		_map._unhandled_input(event)
-	assert_eq(simulation.state.snapshot(), before, "hover and keys leave the state alone")
+	assert_eq(simulation.state.snapshot(), before, "hover leaves the state alone")
 	assert_eq(simulation.history.size(), history, "no command was created")
 
 
-func test_keys_switch_the_pace_and_the_panel() -> void:
-	var formation := _own_formation()
-	_map.select_formation(formation.id)
-	var panel := _map.formation_panel()
-	_map.set_route_pace(1)
-	assert_true(panel.pace_visible())
-	assert_eq(panel.value_text("PACE"), "[1] MARCH")
-	assert_eq(panel.value_text("POINTS"), "8 / %d" % formation.definition.move_points)
-	_map.set_route_pace(3)
-	assert_eq(_map.route_preview().pace_index(), 2)
-	assert_eq(panel.value_text("PACE"), "[3] DEFEND")
-	assert_eq(panel.value_text("POINTS").begins_with("4 /"), true)
-	_map.set_route_pace(7)
-	assert_eq(_map.route_preview().pace_index(), 2, "no such pace: unchanged")
-	_map.set_route_pace(1)
-
-
-func test_hostile_selection_has_no_pace_and_no_preview() -> void:
+func test_hostile_selection_has_no_order_rows_and_no_preview() -> void:
 	var enemy: Formation = null
 	for formation in _map.simulation().state.formations:
 		if formation.owner_id != 0:
 			enemy = formation
 			break
 	_map.select_formation(enemy.id)
-	assert_false(_map.formation_panel().pace_visible())
+	assert_false(_map.formation_panel().order_visible())
 	var preview := _map.route_preview()
 	preview.set_hex(enemy.coord + Vector2i(1, 0))
 	preview.rebuild()

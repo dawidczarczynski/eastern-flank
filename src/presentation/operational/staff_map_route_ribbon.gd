@@ -13,8 +13,8 @@ var _line: MeshInstance3D
 var _vertex_count := 0
 
 
-func _init() -> void:
-	name = "RouteRibbon"
+func _init(p_name := "RouteRibbon") -> void:
+	name = p_name
 	_casing = _node("Casing", Color(0.05, 0.06, 0.05, 0.85), CASING_PX, PRIORITY)
 	_line = _node("Line", Color.WHITE, LINE_PX, PRIORITY + 1)
 	hide()
@@ -22,11 +22,23 @@ func _init() -> void:
 
 ## Shows the line through `points` (3D, already on the relief) in `colour`.
 func show_line(points: PackedVector3Array, colour: Color) -> void:
-	var mesh := StaffMapLines.polylines_mesh([points])
+	show_lines([points], colour)
+
+
+## Shows several polylines (dashes, or the orders of many formations) as one mesh; `opacity`
+## 0 … 1 fades line and casing together.
+func show_lines(lines: Array, colour: Color, opacity := 1.0) -> void:
+	var mesh := StaffMapLines.polylines_mesh(lines)
 	_casing.mesh = mesh
 	_line.mesh = mesh
 	(_line.material_override as ShaderMaterial).set_shader_parameter(&"line_color", colour)
-	_vertex_count = points.size()
+	for node in [_casing, _line]:
+		((node as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter(
+			&"opacity", opacity
+		)
+	_vertex_count = 0
+	for line: PackedVector3Array in lines:
+		_vertex_count += line.size()
 	show()
 
 

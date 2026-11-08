@@ -63,6 +63,7 @@ func set_viewer(viewer_player: int) -> void:
 func refresh() -> void:
 	for formation in _state.formations:
 		counter(formation.id).set_strength(formation.strength(), formation.max_strength())
+		counter(formation.id).has_order = formation.order != null
 
 
 ## Own formation ids in placement order (Tab cycles them).
