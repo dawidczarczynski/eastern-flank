@@ -12,3 +12,9 @@ project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 SCREENSHOT_SELECT_UNIT="${SCREENSHOT_SELECT_UNIT:-2}" \
 	SCREENSHOT_CAMERA="${SCREENSHOT_CAMERA:-2,-40,11}" \
 	"$project_dir/tools/screenshot.sh" "$project_dir/docs/images/gameplay.png" "$@"
+
+# Second shot: the operational staff map (docs/images/staff_map.png) – Russian side to move, three
+# marches planned and the order ring open on a hex. Hex coordinates are column·row as on the hex card.
+SCREENSHOT_SCENE=staff_map \
+	SCREENSHOT_STAFF_MAP="${SCREENSHOT_STAFF_MAP:-side:1,zoom:1.1,focus:42:48,order:ru_tank_2:41:52:1,order:ru_mlrs_2:50:48:1,order:ru_mr_5:43:44:1,select:ru_mr_4,ring:40:46}" \
+	"$project_dir/tools/screenshot.sh" "$project_dir/docs/images/staff_map.png" "$@"

@@ -9,6 +9,8 @@ Turn-based tactical 3D strategy on hexes – Godot 4 (GDScript), developed with 
 
 ![Gameplay: the Polish force with the tank selected – reach and move path on the hex map](docs/images/gameplay.png)
 
+![Operational map: the Suwałki theatre with planned marches and the order ring open on a hex](docs/images/staff_map.png)
+
 ## Getting started
 
 ```bash
