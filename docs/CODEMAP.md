@@ -292,6 +292,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `RingDetailCard` – The 272 px detail card beside the radial ring (docs/design/hud_v3/README.md §04): tab (ac… (`ring_detail_card.gd`)
 - `ScenarioPreview` – Flat top-down preview of a scenario's terrain for the scenario screen (TASK-124): terrain (`scenario_preview.gd`)
 - `ScreenDecor` – Full-screen decoration of the HUD v3 look: vignette, scanlines and amber corner brackets, (`screen_decor.gd`)
+- `SideFlag` – Flat flag of a side (TASK-127) with a 1 px frame in the side colour; drawn from (`side_flag.gd`)
 - `TargetTag` – Compact attack forecast beside the cursor (TASK-089b) while the hovered enemy is a valid… (`target_tag.gd`)
 - `TargetingBar` – Targeting mode bar (HUD v3 "06 Notices"): 16 px amber hatch | amber block with the mode t… (`targeting_bar.gd`)
 - `TerrainPanel` – HUD v3 terrain card (TASK-079, docs/design/hud_v3/README.md "03 Terrain card"), built in… (`terrain_panel.gd`)

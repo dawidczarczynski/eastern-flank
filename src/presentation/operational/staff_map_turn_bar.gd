@@ -183,6 +183,10 @@ func side_meta_text(index: int) -> String:
 	return (_sides[index]["meta"] as Label).text
 
 
+func side_flag(index: int) -> SideFlag:
+	return _sides[index]["flag"]
+
+
 func side_alpha(index: int) -> float:
 	return (_sides[index]["block"] as Control).modulate.a
 
@@ -233,6 +237,7 @@ func _apply_side(index: int, state: OperationalState, player: int, active: bool)
 	badge.ink = StaffMapFormations.side_ink(_palette, player)
 	badge.text = _badge_text(state, player)
 	(side["name"] as Label).text = side_name(state, player).to_upper()
+	(side["flag"] as SideFlag).setup(SideDefinition.find(state.player_sides[player]), colour)
 	var status := tr("WAITING")
 	if active:
 		status = tr("YOUR MOVE") if own else tr("ENEMY MOVE")
@@ -268,7 +273,14 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	if mirrored:
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	texts.add_child(name_label)
+	var name_row := HBoxContainer.new()
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_theme_constant_override(&"separation", 6)
+	name_row.alignment = BoxContainer.ALIGNMENT_END if mirrored else BoxContainer.ALIGNMENT_BEGIN
+	var flag := SideFlag.new()
+	name_row.add_child(flag)
+	name_row.add_child(name_label)
+	texts.add_child(name_row)
 	texts.add_child(meta)
 	if mirrored:
 		row.add_child(texts)
@@ -284,7 +296,9 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 4), true)
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	slot.add_child(bar)
-	return {"block": block, "badge": badge, "name": name_label, "meta": meta, "bar": bar}
+	return {
+		"block": block, "badge": badge, "flag": flag, "name": name_label, "meta": meta, "bar": bar
+	}
 
 
 func _build_centre() -> Control:

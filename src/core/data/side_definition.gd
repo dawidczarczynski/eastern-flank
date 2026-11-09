@@ -12,6 +12,8 @@ const SIDES_DIR := "res://data/sides/"
 @export var lead_faction: StringName
 ## Factions whose formation types the side may field.
 @export var factions: Array[StringName] = []
+## Flag next to the side name in the UI (TASK-127), see assets/flags/README.md.
+@export var flag: Texture2D
 
 
 ## The side data/sides/<side_id>.tres; null when there is none (or the id is not a plain name).

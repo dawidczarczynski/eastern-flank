@@ -15,6 +15,7 @@ const BAR_WIDTH := 80.0
 const LOSS_COLOUR := UiPalette.DISABLED
 
 var _title: Label
+var _title_flag: SideFlag
 var _subtitle: Label
 var _outcome: PanelContainer
 var _outcome_box: HBoxContainer
@@ -69,7 +70,14 @@ func _init() -> void:
 	add_child(column)
 	_title = MenuStyle.label("", HudTheme.display(700, 1), 26, UiPalette.HUD_TEXT)
 	_title.name = "Title"
-	column.add_child(_title)
+	var title_row := HBoxContainer.new()
+	title_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title_row.add_theme_constant_override(&"separation", 10)
+	_title_flag = SideFlag.new(SideFlag.LARGE)
+	_title_flag.name = "TitleFlag"
+	title_row.add_child(_title_flag)
+	title_row.add_child(_title)
+	column.add_child(title_row)
 	_subtitle = MenuStyle.label("", HudTheme.mono(500, 0), 13, UiPalette.HUD_DESC)
 	_subtitle.name = "Subtitle"
 	column.add_child(_subtitle)
@@ -172,6 +180,15 @@ static func outcome_lines(state: OperationalState, result: BattleResult) -> Arra
 	return lines
 
 
+## Players of the `outcome_lines`, in the same order (field holder, then retreating side).
+static func outcome_players(state: OperationalState, result: BattleResult) -> Array[int]:
+	var players: Array[int] = []
+	for player in [result.field_holder, result.retreat]:
+		if player >= 0 and player < state.player_sides.size():
+			players.append(player)
+	return players
+
+
 ## "Strength at start 40 · Strength left 15 · Lost 25 (63%)" (translated) for one row of `sides`.
 static func summary_text(row: Dictionary) -> String:
 	var lost: int = row["before"] - row["after"]
@@ -218,14 +235,28 @@ func present(
 	if report.winner >= 0 and report.winner < state.player_sides.size():
 		title_colour = StaffMapFormations.side_colour(palette, report.winner)
 	_title.add_theme_color_override(&"font_color", title_colour)
+	var winner_side: SideDefinition = null
+	if report.winner >= 0 and report.winner < state.player_sides.size():
+		winner_side = SideDefinition.find(state.player_sides[report.winner])
+	_title_flag.setup(winner_side, title_colour)
 	_subtitle.text = reason_text(report)
 	_clear(_outcome_box)
 	var lines := outcome_lines(state, report)
 	_outcome_count = lines.size()
-	for line in lines:
-		_outcome_box.add_child(
-			MenuStyle.label(line, HudTheme.display(600, 1), 15, UiPalette.NOTE_TEXT)
+	var outcome_players := outcome_players(state, report)
+	for k in lines.size():
+		var line_row := HBoxContainer.new()
+		line_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line_row.add_theme_constant_override(&"separation", 6)
+		var line_flag := SideFlag.new()
+		line_flag.setup(
+			SideDefinition.find(state.player_sides[outcome_players[k]]), UiPalette.NOTE_TEXT
 		)
+		line_row.add_child(line_flag)
+		line_row.add_child(
+			MenuStyle.label(lines[k], HudTheme.display(600, 1), 15, UiPalette.NOTE_TEXT)
+		)
+		_outcome_box.add_child(line_row)
 	_outcome.visible = not lines.is_empty()
 	_side_rows = sides(setup, report)
 	_side_colours.clear()
@@ -249,6 +280,12 @@ func present(
 		var selected_box := MenuStyle.box(colour, colour)
 		tab.add_theme_stylebox_override(&"pressed", selected_box)
 		tab.add_theme_stylebox_override(&"hover_pressed", selected_box)
+		var tab_flag := SideFlag.new()
+		tab_flag.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
+		tab_flag.position = Vector2(8, 0)
+		tab_flag.grow_vertical = Control.GROW_DIRECTION_BOTH
+		tab_flag.setup(SideDefinition.find(state.player_sides[row["player"]]), colour)
+		tab.add_child(tab_flag)
 		tab.pressed.connect(select_side.bind(i))
 		_tabs.add_child(tab)
 		if row["player"] == viewer:
@@ -265,7 +302,12 @@ func select_side(i: int) -> void:
 		return
 	_selected = i
 	for t in _tabs.get_child_count():
-		(_tabs.get_child(t) as Button).set_pressed_no_signal(t == i)
+		var tab := _tabs.get_child(t) as Button
+		tab.set_pressed_no_signal(t == i)
+		(tab.get_node("Flag") as SideFlag).frame_colour = (
+			UiPalette.INK if t == i else _side_colours[t]
+		)
+		tab.get_node("Flag").queue_redraw()
 	var row := _side_rows[i]
 	var colour := _side_colours[i]
 	_summary.text = summary_text(row)
@@ -367,3 +409,11 @@ func close() -> void:
 	if visible:
 		hide()
 		closed.emit()
+
+
+func title_flag() -> SideFlag:
+	return _title_flag
+
+
+func tab_flag(i: int) -> SideFlag:
+	return _tabs.get_child(i).get_node("Flag")

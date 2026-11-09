@@ -84,3 +84,14 @@ func test_snapshot_does_not_depend_on_the_viewer() -> void:
 	var b := JSON.stringify(state.snapshot())
 	_map.set_viewer(0)
 	assert_eq(a, b)
+
+
+func test_turn_bar_shows_side_flags() -> void:
+	_map.set_follow_side(true)
+	_map.set_viewer(0)
+	var state := _map.simulation().state
+	var bar := _map.turn_bar()
+	for i in 2:
+		var side := SideDefinition.find(state.player_sides[i])
+		assert_true(bar.side_flag(i).visible)
+		assert_true(bar.side_flag(i).texture == side.flag)

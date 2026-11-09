@@ -32,6 +32,7 @@ var _play: Button
 var _auto: Button
 var _reason: Label
 var _resolve: Button
+var _role_flags: Array[SideFlag] = []
 
 
 func _init() -> void:
@@ -102,6 +103,10 @@ func present(
 	_resolve.text = tr("CONTACT_RESOLVE_DEBUG").to_upper()
 	show()
 	reset_size()
+
+
+func role_flag(i: int) -> SideFlag:
+	return _role_flags[i]
 
 
 func set_debug(enabled: bool) -> void:
@@ -252,6 +257,7 @@ func _fill_card(
 		("%s · %s" % [tr(side.display_name) if side != null else "?", tr(role)]).to_upper()
 	)
 	_roles[i].add_theme_color_override(&"font_color", colour)
+	_role_flags[i].setup(side, colour)
 	var percent := 100 * formation.strength() / maxi(formation.max_strength(), 1)
 	var posture := TranslationServer.translate(
 		"POSTURE_" + String(setup.conditions[formation.owner_id].posture).to_upper()
@@ -298,8 +304,16 @@ func _build_card() -> Control:
 	_names.append(name_label)
 	var role := MenuStyle.label("", HudTheme.mono(500, 0), 10, UiPalette.HUD_TEXT)
 	role.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(role)
+	var role_row := HBoxContainer.new()
+	role_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	role_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	role_row.add_theme_constant_override(&"separation", 6)
+	var flag := SideFlag.new()
+	role_row.add_child(flag)
+	role_row.add_child(role)
+	column.add_child(role_row)
 	_roles.append(role)
+	_role_flags.append(flag)
 	var strength := MenuStyle.label("", HudTheme.mono(500, 0), 10, UiPalette.HUD_MUTED)
 	strength.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(strength)

@@ -1,6 +1,7 @@
-[gd_resource type="Resource" script_class="SideDefinition" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="SideDefinition" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
+[ext_resource type="Texture2D" path="res://assets/flags/russia.svg" id="2_flag"]
 
 [resource]
 script = ExtResource("1_side")
@@ -8,3 +9,4 @@ id = &"russia"
 display_name = "Russia"
 lead_faction = &"russia"
 factions = Array[StringName]([&"russia"])
+flag = ExtResource("2_flag")
