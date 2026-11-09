@@ -504,7 +504,27 @@ Decided by the human 2026-11-01 (third countries come in through the political g
   | Iranian strike drones (`iran_drones`, TASK-122) | Russia ← Iran | +8 `strike_drone` | level 1–3 | 0 | 2 | – |
   | Allied strike means (`allied_strike_means`, TASK-122) | NATO ← NATO allies | +4 `cruise` | level 2–3 | 0 | 2 | `china_components`, `iran_drones` |
 
-  Means counts are relative to TASK-097's starting stocks (about +50 % of a side's stock of that means) and are re-set when TASK-097 fixes the stocks.
+  Means counts are relative to TASK-097a's starting stocks (about +50 % of a side's stock of that means: Russia / NATO `cruise` 8, Russia `strike_drone` 16) and are re-set if the stocks change.
+
+### Deep strikes
+
+Decided by the human 2026-11-09; specified in [TASK-097a](tasks/TASK-097a-deep-strike-core.md) (rules, data, debug strike) and [TASK-097b](tasks/TASK-097b-deep-strike-view.md) (strike mode). VISION 2.1: a strike is a full, important action, expensive and risky. All numbers **[ASSUMPTION]**, in data (`data/strike/*.tres`, the operation); pure rules in `src/core/operational/` (`StrikeRules`), changes only through `StrikeCommand` and the end-of-round step; same rules for both sides, no side-specific code; later balanced by TASK-103.
+
+- **Means** (data): `cruise`, `ballistic`, `strike_drone` – accuracy %, interceptability %, damage to installations, damage to formations, maximum salvo, **range in hexes**.
+
+  | Means | Accuracy | Interceptability | Installation damage | Formation damage (per hit) | Max salvo | Range |
+  |---|---|---|---|---|---|---|
+  | Cruise missile | 80 % | 100 % | 35 | 2 | 4 | 50 hexes |
+  | Ballistic missile | 70 % | 40 % (hard to intercept) | 45 | 3 | 2 | 80 hexes |
+  | Strike drone | 55 % | 150 % (easy to intercept) | 15 | 1 | 6 | 20 hexes |
+- **Stock**: each side has a stock per means. It only falls by strikes and rises by (1) a small fixed **resupply per round** (data; NATO 1 cruise + 1 drone, Russia 1 cruise + 2 drones), (2) outside support (TASK-122, "Outside support") – always through `StrikeRules.add_stock`. A strike spends stock without knowing where it came from. Starting stock: NATO cruise 8 / ballistic 4 / drones 6, Russia 8 / 6 / 16.
+- **Strikes per turn**: 2 per own turn (data), independent of the one political decision per turn; no other cost.
+- **Targets**: **installations** fixed on hexes (data: airfield, depot, command post `c2`, air-defence site; 7 per side in the Suwałki operation, real places) with integrity 0–100, and enemy **formations**. Which class may be struck depends on the ladder (ROE, "Escalation ladder"); own soil and closed countries (an enemy sanctuary below *Open war*, countries aligned with the enemy) cannot be struck (`EscalationRules.strike_allowed`).
+- **Range**: the target must lie within the means' range of the nearest hex of a country that is **own** to the side (aligned or belligerent on it). No launcher is modelled. Otherwise the strike is rejected `out_of_range`.
+- **Resolution** per missile of the chosen salvo (1 … max salvo, capped by stock), two fixed random draws on the operation's RNG: interception, then hit. Interception chance = the sum of the intact enemy air-defence sites within 4 hexes of the target (40 % × integrity, cap 90 %) × the means' interceptability; a destroyed air-defence site intercepts nothing, so striking it first is SEAD in v1 (coverage zones come with TASK-098). Hit chance = accuracy (+ a reconnaissance modifier, 0 until TASK-100; every target is known until then).
+- **Effects**: a hit takes the means' damage from an installation's integrity (0 = destroyed) or strength points from a formation's strongest company (a formation with no strength left is destroyed). Damage is **lasting**: damaged (not destroyed) installations repair slowly, +5 integrity per round; destroyed ones never recover in v1 (replacement: TASK-105). The remaining integrity is the input of battle conditions (TASK-099): airfields → fire support, depots → ammunition, command posts → command points; a side with no installation of a class loses nothing.
+- **Escalation**: every accepted strike is an incident whatever its result (the launch counts): a strike on an enemy sanctuary breaches it once (+1, "Escalation ladder"), a strike on an **urban** hex adds +1 each. A strike may reach the *Strategic threshold* and then loses the operation for the striker; the view warns before the player confirms. Battles never raise the level.
+- **Fog**: none yet; reconnaissance, known / stale targets and the modifier arrive with TASK-100, air-defence zones and SEAD with TASK-098, a forecast and the strike report with TASK-101, technology unlocks with TASK-104, the AI's use with TASK-102.
 
 ### Strategic options
 

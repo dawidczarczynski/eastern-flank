@@ -2,7 +2,7 @@
 
 - **Status**: blocked
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stock line in the Support tab)
-- **Depends on**: TASK-121, TASK-097
+- **Depends on**: TASK-121, TASK-097a
 - **Model**: sonnet
 - **Topic**: Two-layer game
 - **Tags**: mvp
