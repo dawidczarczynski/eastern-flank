@@ -1,6 +1,6 @@
 # TASK-130: Side and faction flags in the tactical battle turn bar
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: data (`FactionDefinition.flag`, Poland flag asset) + presentation
 - **Depends on**: – (TASK-127 is done: `SideFlag`, `SideDefinition.flag`, `assets/flags/`)
 - **Sections**: none (UI only; look = HUD v3, `docs/design/hud_v3`)
