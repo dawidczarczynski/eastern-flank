@@ -1,6 +1,6 @@
 # TASK-127: Side flags in the UI – a flag next to each side name, first in the battle result notice
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: data (`SideDefinition.flag`, flag assets) + presentation
 - **Depends on**: – (TASK-120 is done: the battle result notice with side tabs exists)
 - **Sections**: none (UI only; look = HUD v3, `docs/design/hud_v3`)
@@ -50,3 +50,5 @@ None (cosmetic); at most one sentence in the staff map UI section of docs/MANUAL
 ## Implementation notes
 
 Done 2026-11-09. `SideDefinition.flag` + `assets/flags/` (NATO = Wikimedia Commons public domain file, per the human's request; Russia = own tricolour; both 4:3, so `SideFlag` presets are 16×12 / 28×21 instead of 3:2). `SideFlag` (`src/presentation/ui/side_flag.gd`) used in the result notice (headline `TitleFlag`, tabs, outcome lines), turn bar (next to the side name) and contact notice (role line). Tests: `tests/unit/test_side_flag.gd`, `test_staff_map_turns.gd`. Not checked visually (no window); the contact notice has no test. README screenshot not re-run (top bar not in it).
+
+Playtested and accepted by the human 2026-11-09. After feedback: flags enlarged, turn bar flags replace the hex badges, NATO flag cropped to the compass star (edge ticks removed), `SideFlag` rasterises the SVG at 2x display size with mipmaps (falls back to the imported texture when the raw SVG is not readable, e.g. in an export).
