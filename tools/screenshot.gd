@@ -235,6 +235,10 @@ func _apply_gallery_state(state: String, argument: String) -> bool:
 			return _apply_target_state(state, argument)
 		"result":
 			_battle.call("debug_result", argument if argument != "" else "victory")
+		"briefing":
+			_battle.call("debug_campaign", "")
+		"report":
+			_battle.call("debug_campaign", argument if argument != "" else "victory")
 		_:
 			return false
 	return true
@@ -321,7 +325,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_NOTICE=<toast|targeting|banner|loading> shows that HUD notice (TASK-080).
 ## SCREENSHOT_SHOTS=<state>[:<unit id>],... captures several HUD states in one run (one PNG each,
 ## <out>_<state>.png): hover:<id>, select:<id>, toast, targeting, banner,
-## result:<victory|defeat|draw> (the held result banner with its reason line),
+## result:<victory|defeat|draw> (the held result banner with its reason line), briefing and
+## report:<victory|defeat|draw> (TASK-094c campaign battle: the commander's briefing on a demo
+## mission, the mission line, the end screen as a report with Report to staff),
 ## tag:<attacker>-<target>, ring:…, ring_attack:…, ring_info:…, ring_blocked:…, ring_own:…
 ## (TASK-089b target tag and unit ring, see _apply_target_state) – e.g.
 ## SCREENSHOT_SHOTS=hover:2,select:2,toast,banner tools/screenshot.sh .screenshots/hud.png
@@ -349,7 +355,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
 ## contactmap:<col>:<row>:<col>:<row> (the debug contact-map panel with that attacker / defender
-## hex pair picked and its cut outlined, TASK-094b),
+## hex pair picked and its cut outlined, TASK-094b), result (after contact:… – resolves the
+## first battle as a demo win of the attacker and shows the short result notice, TASK-094c),
 ## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -445,6 +452,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var joins: Array = []
 	var contacts: Array = []
 	var contact_map: Array = []
+	var show_result := false
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -491,6 +499,8 @@ func _apply_staff_map_state(spec: String) -> void:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
 					continue
 				contacts.append(parts)
+			"result":
+				show_result = true
 			"contactmap":
 				if parts.size() != 5:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
@@ -538,6 +548,8 @@ func _apply_staff_map_state(spec: String) -> void:
 			map.simulation().event_emitted.emit(event)
 	for contact in contacts:
 		_start_contact(map, StringName(contact[1]), StringName(contact[2]))
+	if show_result:
+		map.debug_result_notice()
 	if end_turn_after:  # the orders run, the slide is skipped, the mover's report is shown
 		var mover := map.simulation().state.current_player
 		map.end_turn()

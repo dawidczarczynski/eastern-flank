@@ -77,6 +77,8 @@ CampaignRecord {"version": 1, "scenario": "<operation id>", "seed": S, "factions
 - **Storing only the operational commands and re-running battles on load** – loading would replay every battle (slow) and any tactical rule change would break old saves outright; storing results keeps the operation loadable while verification stays available.
 - **A root scene that swaps child scenes** instead of an autoload – equivalent; the autoload fits the existing `change_scene_to_file` menu flow and keeps `battle.tscn` runnable on its own.
 
+**Amendment (TASK-094c):** `Session` is implemented as a class with static state (like `BattleOptions`), not an autoload `Node`: it survives `change_scene_to_file` identically, needs no `project.godot` entry, works in headless tests and `--script` tools, and a `class_name` cannot share its name with an autoload. The rule stands: it is the only code that changes scene between the two layers and holds everything that must survive the transition.
+
 ## Consequences
 
 - (+) Every operational task builds on known boundaries; the tactical layer stays testable and replayable on its own; `Scenario.default_battle` already runs through `BattleSetup`.

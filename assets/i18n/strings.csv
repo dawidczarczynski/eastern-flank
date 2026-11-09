@@ -283,7 +283,33 @@ CONTACT_STRENGTH,Strength,Siła
 CONTACT_FORCES,Forces (attacker : defender),Siły (atakujący : obrońca)
 CONTACT_MISSION,Mission,Zadanie
 CONTACT_PLAY,Play battle,Rozegraj bitwę
-CONTACT_PLAY_BLOCKED,Battle scene not hooked up yet,Scena bitwy jeszcze nie jest podłączona
+CONTACT_PLAY_FAILED_NO_PENDING_BATTLE,No battle is pending,Brak oczekującej bitwy
+CONTACT_PLAY_FAILED_FORMATION_MISSING,A formation of this battle is missing,Brakuje związku tej bitwy
+CONTACT_PLAY_FAILED_NOT_FIELDABLE,These companies cannot be fielded in a battle yet,Tych kompanii nie można jeszcze wystawić do bitwy
+CONTACT_PLAY_FAILED_MAP_FAILED,The battle map cannot be cut here,Nie można tu wyciąć mapy bitwy
+CONTACT_PLAY_FAILED_NO_CAMPAIGN,No operation to play,Brak operacji do rozegrania
+BATTLE_RESULT,Battle result,Wynik bitwy
+BATTLE_RESULT_DRAW,Draw,Remis
+Victory: %s,Victory: %s,Zwycięstwo: %s
+BATTLE_REASON_ELIMINATED,Side eliminated,Strona rozbita
+BATTLE_REASON_ENEMY_DESTROYED,Forces destroyed,Siły zniszczone
+BATTLE_REASON_OBJECTIVE_TAKEN,Objective taken,Cel zdobyty
+BATTLE_REASON_TURN_LIMIT,Turn limit reached,Osiągnięto limit tur
+CONTINUE,Continue,Dalej
+BRIEFING,Briefing,Odprawa
+BRIEF_COMMANDER,Commander,Dowódca
+BRIEF_INTENT,Intent,Zamiar
+BRIEF_TAKE_COMMAND,Take command,Obejmij dowodzenie
+BRIEF_TAKE,Take the objective: a company of yours on it at the end of your turn wins at once,Zdobądź cel: twoja kompania na nim na koniec twojej tury daje natychmiastowe zwycięstwo
+Hold the objective until the end of turn %d,Hold the objective until the end of turn %d,Utrzymaj cel do końca tury %d
+BRIEF_ELIMINATE,Or destroy every enemy company,Albo zniszcz wszystkie kompanie wroga
+Destroy %d%% of the enemy's strength,Destroy %d%% of the enemy's strength,Zniszcz %d%% siły wroga
+The battle ends after turn %d,The battle ends after turn %d,Bitwa kończy się po turze %d
+BRIEF_SHORT_TAKE,Take the objective,Zdobądź cel
+BRIEF_SHORT_HOLD,Hold the objective,Utrzymaj cel
+%d turns,%d turns,%d tur
+BATTLE_REPORT,Commander's report,Meldunek dowódcy
+REPORT_TO_STAFF,Report to staff,Melduj sztabowi
 CONTACT_RESOLVE_DEBUG,Resolve as draw (debug),Rozstrzygnij remisem (debug)
 CONTACT_NOW,Now,Teraz
 CONTACT_NEXT,Next,Następny

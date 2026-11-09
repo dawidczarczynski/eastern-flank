@@ -3,9 +3,11 @@ extends Control
 ## Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick
 ## ruler, the end-turn module (ready counter + button), the key hints and the turn/result
 ## banner. Reads state only through HudModel; everything ignores the mouse except the end-turn
-## button.
+## button. A campaign battle (TASK-094c) adds a one-line mission reminder under the turn bar and
+## turns the end screen into the commander's report with a Report to staff button.
 
 signal end_turn_pressed
+signal report_pressed
 
 const SHADE_HEIGHT := 120
 const TOAST_BOTTOM := 130
@@ -34,6 +36,8 @@ const END_MODULE_MARGIN := 24
 const HINT_BOTTOM := 92
 const TURN_SIZE := 32
 const TURN_LIMIT_SIZE := 16
+## The Report to staff button sits this far below the screen centre (under the result banner).
+const REPORT_BUTTON_OFFSET := 120
 
 var _human_player := 0
 var _sides: Array[Dictionary] = []  # per player: {block, badge, name, meta, bar, tween}
@@ -54,6 +58,10 @@ var _result_shown := false
 var _prev_turn := -1
 var _prev_player := -1
 var _toast_color := UiPalette.AMBER
+var _mission_line: Label
+var _report_button: Button
+## True in a campaign battle: the result banner reads as a report and offers Report to staff.
+var _report_mode := false
 
 
 func setup(human_player: int) -> void:
@@ -91,6 +99,25 @@ func on_turn_started(state: GameState, turn: int, player: int) -> void:
 		_show_turn_banner(state, turn, player)
 	_prev_turn = turn
 	_prev_player = player
+
+
+## Campaign battle (TASK-094c): `mission` is the one-line reminder under the turn bar; the end
+## screen becomes the commander's report.
+func set_campaign(mission: String) -> void:
+	_report_mode = true
+	if _report_button == null:
+		_build_report_button()
+	_mission_line.text = mission.to_upper()
+	_mission_line.visible = mission != ""
+
+
+func mission_line() -> String:
+	return _mission_line.text if _mission_line.visible else ""
+
+
+## The Report to staff button (shown on the end screen of a campaign battle); null outside one.
+func report_button() -> Button:
+	return _report_button
 
 
 ## The end-turn button (the controller hooks its click and hover sounds to it).
@@ -177,6 +204,9 @@ func _show_result(result: String, state: GameState) -> void:
 	_result_shown = true
 	var turn := HudModel.turn_text(state.turn, HudModel.turn_limit_of(state))
 	var caption := "%s %s" % [tr("TURN"), turn]
+	if _report_mode:
+		caption = "%s // %s" % [tr("BATTLE_REPORT"), caption]
+		_report_button.visible = true
 	# A draw has no winner: faction_color(-1) is the neutral colour.
 	var color := UiPalette.faction_color(state, state.winner)
 	var reason := HudModel.result_reason(state, _human_player)
@@ -192,6 +222,8 @@ func _hide_result() -> void:
 	if _result_shown:
 		_result_shown = false
 		_banner.release()
+		if _report_button != null:
+			_report_button.visible = false
 
 
 ## Toast above the end-turn module; the `>>` takes the colour of the side to move.
@@ -255,6 +287,11 @@ func _build_top_bar() -> void:
 	var ruler := TickRuler.new()
 	ruler.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(ruler)
+	_mission_line = _label_font(HudTheme.mono(500, 1), 10, UiPalette.AMBER)
+	_mission_line.name = "MissionLine"
+	_mission_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_mission_line.visible = false
+	column.add_child(_mission_line)
 
 
 func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
@@ -488,6 +525,22 @@ func _build_notices() -> void:
 	_targeting.offset_top = TARGETING_TOP
 	_targeting.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_targeting)
+
+
+func _build_report_button() -> void:
+	_report_button = MenuStyle.button(tr("REPORT_TO_STAFF") + "  [↵]")
+	_report_button.name = "ReportToStaff"
+	_report_button.focus_mode = Control.FOCUS_NONE
+	_report_button.anchor_left = 0.5
+	_report_button.anchor_right = 0.5
+	_report_button.anchor_top = 0.5
+	_report_button.anchor_bottom = 0.5
+	_report_button.offset_top = REPORT_BUTTON_OFFSET
+	_report_button.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_report_button.custom_minimum_size.x = 260
+	_report_button.pressed.connect(func() -> void: report_pressed.emit())
+	_report_button.visible = false
+	add_child(_report_button)
 
 
 # --- helpers -------------------------------------------------------------------------------

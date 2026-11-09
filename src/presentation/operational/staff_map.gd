@@ -21,7 +21,11 @@ extends Node3D
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
 ## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the
 ## grid, B the country borders and names,
-## Esc (nothing selected) / Back returns to the menu. Maths in StaffMapCameraMath, picking in
+## Esc (nothing selected) / Back returns to the menu.
+## Contacts (TASK-094a / 094c): the notice's Play battle (B) hands the simulation and the view
+## settings to Session and opens the battle scene; coming back (Session.take_simulation) the map
+## is rebuilt around the same simulation, the view restored and the battle's short result shown
+## (StaffMapBattleResult). Maths in StaffMapCameraMath, picking in
 ## StaffMapRelief.
 
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
@@ -52,6 +56,8 @@ var auto_build := true
 var is_built := false
 ## Milliseconds the build took (reported by the screenshot / measure tools).
 var build_ms := 0
+## Opens a scene by path (default: Session.change_scene); tests replace it.
+var open_scene: Callable
 
 var _grid: HexGrid
 var _imported: ImportedMap
@@ -82,6 +88,8 @@ var _politics: StaffMapPoliticsHud
 var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
 var _contacts: StaffMapContacts
+var _result_notice: StaffMapBattleResult
+var _resumed := false  # the simulation came back from a played battle (Session)
 var _marks := StaffMapTurnMarks.new()
 var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
@@ -151,6 +159,8 @@ func build_now() -> bool:
 	_build_operation(definition)
 	_build_camera()
 	_build_hud()
+	if _resumed:
+		_resume()
 	build_ms = Time.get_ticks_msec() - start
 	print("Staff map built in %d ms" % build_ms)
 	is_built = true
@@ -179,7 +189,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
-		if _order_ring.handle_key(key.keycode):  # Esc closes the ring, 1-4 pick a slot
+		# Esc closes the ring, 1-4 pick a slot; Enter / Esc close the result notice.
+		if _order_ring.handle_key(key.keycode) or _close_result_notice(key.keycode):
 			return
 		match key.keycode:
 			KEY_ESCAPE:
@@ -642,7 +653,14 @@ func _build_camera() -> void:
 ## The operational state, its simulation and the counters (TASK-092b).
 func _build_operation(definition: OperationDefinition) -> void:
 	var state: OperationalState = null
-	if definition != null:
+	var resumed := Session.take_simulation(operation_id)
+	_resumed = resumed != null
+	if _resumed:
+		_simulation = resumed
+		state = resumed.state
+		viewer_player = int(Session.view.get("viewer", state.current_player))
+		_follow_side = bool(Session.view.get("follow", _follow_side))
+	elif definition != null:
 		state = Operation.from_definition(
 			definition,
 			seed_value,
@@ -653,7 +671,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 		push_error("StaffMap: cannot build operation '%s'" % operation_id)
 		state = OperationalState.new()
 		state.grid = _grid
-	_simulation = OperationalSimulation.new(state)
+	if not _resumed:
+		_simulation = OperationalSimulation.new(state)
 	_simulation.event_emitted.connect(_on_operational_event)
 	_simulation.command_rejected.connect(_on_command_rejected)
 	if viewer_player < 0:
@@ -673,7 +692,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_front.refresh(state, viewer_player)
 	_apply_front_view()
 	_update_anchors()
-	if OS.get_cmdline_user_args().has("--pending-battle"):
+	if not _resumed and OS.get_cmdline_user_args().has("--pending-battle"):
 		state.pending_battles.append(BattleSetup.new())
 
 
@@ -835,10 +854,121 @@ func _refresh_contacts() -> void:
 	_place_queue()
 
 
-## B on the notice: Play battle; while the battle scene is not hooked up (TASK-094c) it says why.
+## B on the notice: Play battle.
 func _play_battle() -> void:
-	if not _contacts.notice.press_play():
-		_toast_message(tr("CONTACT_PLAY_BLOCKED"), _palette.ui_alert)
+	_contacts.notice.press_play()
+
+
+## Play battle (TASK-094c): hands the simulation, the human's side (the viewer) and the view
+## settings to Session, which cuts the first pending battle's map, then opens the battle scene.
+## False (toast) when the battle cannot be played.
+func play_battle() -> bool:
+	if _simulation == null or is_sliding():
+		return false
+	var problem := Session.play_battle(_simulation, operation_id, viewer_player, view_settings())
+	if problem != "":
+		_toast_message(tr("CONTACT_PLAY_FAILED_" + problem.to_upper()), _palette.ui_alert)
+		return false
+	if open_scene.is_valid():
+		open_scene.call(Session.BATTLE_SCENE)
+	else:
+		Session.change_scene(get_tree() if is_inside_tree() else null, Session.BATTLE_SCENE)
+	return true
+
+
+## What the human set up on the map and gets back after a battle: camera (position, zoom, pitch),
+## viewer and follow, the selection, the grid / front tint / borders toggles and the joined
+## formations' countries of origin.
+func view_settings() -> Dictionary:
+	return {
+		"position": _position,
+		"zoom": _zoom,
+		"pitch": _pitch,
+		"pitch_target": _pitch_target,
+		"tilt": _tilt,
+		"viewer": viewer_player,
+		"follow": _follow_side,
+		"selected": selected_formation(),
+		"grid": _view.grid_visible(),
+		"front_tint": _front.is_tint_visible(),
+		"borders": _view.countries().is_visible_layer(),
+		"origins": _origins.duplicate(),
+	}
+
+
+## Back from a battle: the queue from the state, the view as it was, the battle's result notice.
+func _resume() -> void:
+	_origins = (Session.view.get("origins", {}) as Dictionary).duplicate()
+	for id: StringName in _origins:
+		var origin := CountryDefinition.find(StringName(_origins[id]))
+		var counter := _counters.counter(id)
+		if origin != null and counter != null:
+			counter.country_tag = origin.iso_code
+	_contacts.sync(_simulation.state)
+	_refresh_contacts()
+	_apply_view_settings(Session.view)
+	var report := Session.take_report()
+	if not report.is_empty():
+		_result_notice.present(_simulation.state, report["setup"], report["result"], _palette)
+		_place_result_notice()
+
+
+func _apply_view_settings(settings: Dictionary) -> void:
+	if settings.is_empty():
+		return
+	_pitch = settings["pitch"]
+	_pitch_target = settings["pitch_target"]
+	_tilt = settings["tilt"]
+	_update_limits()
+	_zoom = clampf(settings["zoom"], _min_zoom, _max_zoom)
+	_move_camera(settings["position"])
+	_view.set_grid_visible(settings["grid"])
+	_front.set_tint_visible(settings["front_tint"])
+	_view.countries().set_visible_layer(settings["borders"])
+	_apply_front_view()
+	select_formation(settings["selected"])
+
+
+## Enter / Esc close the battle result notice; true when it did.
+func _close_result_notice(keycode: Key) -> bool:
+	if not _result_notice.visible or keycode not in [KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE]:
+		return false
+	_result_notice.close()
+	return true
+
+
+## Screenshot aid: resolves the first pending battle as a demo win of the attacker (the
+## defender's companies at half strength, the attacker's lose one) and shows the result notice.
+func debug_result_notice() -> void:
+	var state := _simulation.state
+	if state.pending_battles.is_empty():
+		return
+	var setup := state.pending_battles[0]
+	var result := StaffMapContacts.draw_result(setup)
+	result.winner = setup.attacker
+	result.reason = &"objective_taken"
+	result.turns = 7
+	for company in result.companies:
+		var attacking := company.player == setup.attacker
+		company.strength_end = (
+			maxi(company.strength_start - 1, 0)
+			if attacking
+			else floori(company.strength_start / 2.0)
+		)
+	if _simulation.execute(ResolveBattleCommand.new(result)):
+		_result_notice.present(state, setup, result, _palette)
+		_place_result_notice()
+
+
+func result_notice() -> StaffMapBattleResult:
+	return _result_notice
+
+
+func _place_result_notice() -> void:
+	_result_notice.reset_size()
+	_result_notice.position = Vector2(
+		(_viewport_size().x - _result_notice.size.x) / 2.0, _viewport_size().y * 0.3
+	)
 
 
 ## The queue sits at the left edge, under the turn report when that is open.
@@ -1003,6 +1133,9 @@ func _build_hud() -> void:
 		_viewport_size,
 		OS.get_cmdline_user_args().has("--debug")
 	)
+	_contacts.play_requested.connect(play_battle)
+	_result_notice = StaffMapBattleResult.new()
+	_hud.add_child(_result_notice)
 	_back = MenuStyle.button("")
 	_back.position = Vector2(16, 16)
 	_back.pressed.connect(_return_to_menu)

@@ -4,10 +4,11 @@ extends RefCounted
 ## `battle_pending` / `battle_resolved` events, dims the map (scrim under the counters), rings
 ## the battle hex, shows the contact notice next to it and the queue at the left edge. Pure view:
 ## the debug button sends a ResolveBattleCommand through `execute` (an OperationalSimulation
-## facade call supplied by the owner); nothing here changes the state.
+## facade call supplied by the owner); Play battle is forwarded as `play_requested` (the owner
+## hands the campaign to Session, TASK-094c); nothing here changes the state.
 
 signal focus_requested(coord: Vector2i)
-signal play_blocked(reason: String)
+signal play_requested
 
 const SCRIM := Color(5 / 255.0, 7 / 255.0, 5 / 255.0, 0.55)
 const RING_INNER := 44.0
@@ -59,6 +60,7 @@ func _init(
 	notice = StaffMapContactNotice.new()
 	notice.set_debug(debug)
 	notice.resolve_pressed.connect(resolve_as_draw)
+	notice.play_pressed.connect(func() -> void: play_requested.emit())
 	hud.add_child(notice)
 	queue = StaffMapContactQueue.new()
 	hud.add_child(queue)
@@ -98,6 +100,26 @@ func on_event(event: Dictionary) -> void:
 		&"battle_resolved":
 			if not _entries.is_empty():
 				_entries.pop_front()
+
+
+## Rebuilds the queue from the state's pending battles (a staff map coming back from a battle
+## missed their events): attacker / defender from the company refs, the defender's hex.
+func sync(state: OperationalState) -> void:
+	_entries.clear()
+	_key = ""
+	for setup in state.pending_battles:
+		var ids := ContactBattle.formation_ids(setup)
+		var defender := state.get_formation(ids[1])
+		(
+			_entries
+			. append(
+				{
+					"attacker_id": ids[0],
+					"defender_id": ids[1],
+					"at": defender.coord if defender != null else Vector2i.ZERO,
+				}
+			)
+		)
 
 
 ## Axial hex of the battle shown now (the defender's).

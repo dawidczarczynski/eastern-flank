@@ -100,3 +100,49 @@ static func objectives(
 	result.initial_owners = owners
 	result.conditions = conditions
 	return result
+
+
+## A contact on the real theatre (TASK-094c): a player-1 formation whose companies its faction
+## fields is put on a free land hex next to such a player-0 formation and ContactRules starts the
+## battle as the end of a turn would. Returns the events (formation_halted + battle_pending);
+## empty when no pair fits. `skip` pairs are passed over (a second contact uses other formations).
+static func theatre_contact(state: OperationalState, skip := 0) -> Array[Dictionary]:
+	var own: Array[Formation] = []
+	var enemy: Array[Formation] = []
+	for formation in state.formations:
+		if _fieldable(state, formation):
+			(own if formation.owner_id == 0 else enemy).append(formation)
+	if skip >= mini(own.size(), enemy.size()):
+		return []
+	var attacker := enemy[skip]
+	var defender := own[skip]
+	var placed := false
+	for neighbor in Hex.neighbors(defender.coord):
+		if (
+			state.grid.has_tile(neighbor)
+			and state.grid.get_terrain(neighbor) != Terrain.Type.WATER
+			and state.formation_at(neighbor) == null
+		):
+			attacker.coord = neighbor
+			placed = true
+			break
+	if not placed:
+		return []
+	var events: Array[Dictionary] = [
+		{
+			"type": &"formation_halted",
+			"formation_id": attacker.id,
+			"at": attacker.coord,
+			"reason": &"contact",
+		}
+	]
+	ContactRules.start_battles(state, events)
+	return events
+
+
+static func _fieldable(state: OperationalState, formation: Formation) -> bool:
+	var faction := FactionRegistry.get_faction(state.player_factions[formation.owner_id])
+	for company in formation.companies:
+		if faction == null or faction.find_unit(company.unit_type) == null:
+			return false
+	return true

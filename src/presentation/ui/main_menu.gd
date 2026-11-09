@@ -44,6 +44,7 @@ func _ready() -> void:
 	GameSettings.apply_saved(settings_path)
 	_sound = GameSettings.load_sound(settings_path)
 	SoundMix.apply(_sound)
+	Session.abandon()  # the menu is outside any campaign (TASK-094c; saving is TASK-094d)
 	_build()
 	refresh_texts()
 	if is_inside_tree():

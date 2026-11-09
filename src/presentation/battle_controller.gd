@@ -3,7 +3,6 @@ extends Node3D
 ## Battle scene: connects the simulation (GameSimulation) with the 3D view and player input.
 ## Rule: this script only translates input into commands and events into animations – no game rules.
 
-const HUMAN_PLAYER := 0
 const MAP_SEED := 12345
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const BOTTOM_LEFT_MARGIN := 24
@@ -37,8 +36,14 @@ var is_built := false
 ## Scenario to start (Scenario.NAMES); "" = the `--scenario=` user argument, else the default
 ## battle (BattleOptions). The screenshot tool sets it before adding the scene to the tree.
 var scenario_name := ""
-## The setup the battle was started from (BattleOptions.pending_setup, TASK-094b), else null.
+## The setup the battle was started from (Session.battle in a campaign, TASK-094c, or
+## BattleOptions.pending_setup, TASK-094b), else null.
 var setup: BattleSetup = null
+## The player the human commands (0; in a campaign battle the side chosen on the staff map).
+var human_player := 0
+## True in a campaign battle (Session): briefing, mission line, Report to staff.
+var campaign := false
+var _briefing: BattleBriefing
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
@@ -74,6 +79,10 @@ var _event_serial := 0  # played events so far: the view-local seed of the marks
 func _ready() -> void:
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
+	if setup == null and Session.in_battle():
+		setup = Session.battle
+		human_player = Session.human_player
+		campaign = true
 	if setup == null:
 		setup = BattleOptions.take_pending_setup()
 	if setup == null and scenario_name not in Scenario.NAMES:
@@ -127,6 +136,24 @@ func _ready() -> void:
 	_refresh_selection_ui()
 	loading.finish()
 	is_built = true
+	if campaign:
+		_briefing.present(setup, human_player)
+		_place_briefing()
+	else:
+		_start_play()
+
+
+## The briefing is closed (or there was none): the AI moves first when it is its turn.
+func _start_play() -> void:
+	if not _sim.state.is_over() and _sim.state.current_player != human_player:
+		_run_ai_turns()
+	_refresh_hud()
+
+
+func _place_briefing() -> void:
+	_briefing.reset_size()
+	var screen := get_viewport().get_visible_rect().size
+	_briefing.position = ((screen - _briefing.size) / 2.0).floor()
 
 
 ## The battle to play: Scenario.from_setup of `setup` when set (scenario_name is then ""), else
@@ -227,7 +254,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	):  # view setting, like camera keys
 		_map_view.cycle_grid_mode()
 		return
-	if _leave_setup_battle(key):
+	if _campaign_key(key.keycode) or _leave_setup_battle(key):
 		return
 	if not _input_allowed() or _target_ring.handle_key(key.keycode):
 		return
@@ -237,14 +264,39 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select(-1)
 
 
-## Esc with nothing selected leaves a battle started from a setup for the main menu (TASK-094b,
-## no campaign to return to yet); also after the game is over.
+## Esc with nothing selected leaves a battle started from a setup for the main menu (TASK-094b);
+## also after the game is over. A campaign battle is abandoned without a result (TASK-094c
+## [ASSUMPTION]; the pending battle stays in the operation).
 func _leave_setup_battle(key: InputEventKey) -> bool:
 	if setup == null or key.keycode != KEY_ESCAPE or _selected_unit_id >= 0:
 		return false
 	if _target_ring.handle_key(key.keycode):
 		return true
+	if campaign:
+		Session.abandon()
 	get_tree().change_scene_to_file(MENU_SCENE)
+	return true
+
+
+## Keys of a campaign battle: Enter / Esc / Space close the briefing (every other key waits for
+## it), Enter on the end screen reports to the staff. True when the key was used.
+func _campaign_key(keycode: Key) -> bool:
+	if _briefing != null and _briefing.visible:
+		if keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE, KEY_SPACE]:
+			_briefing.close()
+		return true
+	if campaign and _sim.state.is_over() and keycode in [KEY_ENTER, KEY_KP_ENTER]:
+		report_to_staff()
+		return true
+	return false
+
+
+## The end screen's Report to staff (campaign battle, game over): the result goes into the
+## operation (Session.finish_battle -> ResolveBattleCommand) and the staff map comes back.
+func report_to_staff() -> bool:
+	if not campaign or _is_playing_events() or not Session.finish_battle(_sim.state):
+		return false
+	Session.change_scene(get_tree(), Session.STAFF_MAP_SCENE)
 	return true
 
 
@@ -326,6 +378,36 @@ func debug_result(kind: String) -> void:
 		_hud.refresh(ended)
 
 
+## Screenshot tool (SCREENSHOT_SHOTS=briefing / report:<kind>): the campaign battle's briefing
+## and, with `kind`, its end screen (the report banner with Report to staff), on a demo mission
+## for the human (attack the scenario's first objective hex, else the map centre; 12 turns).
+func debug_campaign(kind: String) -> void:
+	var demo := BattleSetup.new()
+	demo.operation_name = _sim.state.operation_name
+	var objective := (
+		_sim.state.objectives.hexes[0]
+		if not _sim.state.objectives.hexes.is_empty()
+		else Vector2i.ZERO
+	)
+	demo.attacker = human_player
+	demo.objectives = ContactMap.objectives(human_player, objective, 12)
+	for player in _sim.state.player_count:
+		var mission := BattleSetup.Mission.new()
+		mission.task = &"attack" if player == human_player else &"defend"
+		mission.intent_key = ContactRules.INTENT_MOVE
+		mission.intent_args = [6, 1]
+		mission.formation_name = "1st Armoured Battalion"
+		demo.missions.append(mission)
+	campaign = true
+	_hud.set_campaign(BattleBriefing.reminder(demo, human_player))
+	if kind == "":
+		_briefing.present(demo, human_player)
+		_place_briefing()
+		return
+	_briefing.close()
+	debug_result(kind)
+
+
 ## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
 func debug_build_grass() -> void:
 	_map_view.set_camera_target(_camera_rig.target())
@@ -361,7 +443,9 @@ func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 func _input_allowed() -> bool:
 	if _is_playing_events():
 		return false
-	return not _sim.state.is_over() and _sim.state.current_player == HUMAN_PLAYER
+	if _briefing != null and _briefing.visible:
+		return false
+	return not _sim.state.is_over() and _sim.state.current_player == human_player
 
 
 func _map_bounds() -> Rect2:
@@ -434,7 +518,7 @@ func _draw_path_preview() -> int:
 		_hovered_hex == null
 		or unit == null
 		or not unit.is_alive()
-		or unit.owner_id != HUMAN_PLAYER
+		or unit.owner_id != human_player
 		or not _input_allowed()
 	):
 		_map_view.clear_path()
@@ -452,7 +536,7 @@ func _draw_path_preview() -> int:
 
 func _on_hex_clicked(coord: Vector2i) -> void:
 	var clicked := _sim.state.unit_at(coord)
-	if clicked != null and clicked.owner_id == HUMAN_PLAYER:
+	if clicked != null and clicked.owner_id == human_player:
 		if clicked.id != _selected_unit_id:
 			_audio.play_ui(&"select_unit")
 		_select(clicked.id)
@@ -470,7 +554,11 @@ func _on_hex_clicked(coord: Vector2i) -> void:
 func _end_human_turn() -> void:
 	_target_ring.close()
 	_sim.execute(EndTurnCommand.new())
-	while not _sim.state.is_over() and _sim.state.current_player != HUMAN_PLAYER:
+	_run_ai_turns()
+
+
+func _run_ai_turns() -> void:
+	while not _sim.state.is_over() and _sim.state.current_player != human_player:
 		_ai.take_turn(_sim)
 
 
@@ -575,10 +663,17 @@ func _build_hud_root() -> void:
 	_hud_root.add_child(ScreenDecor.new())  # above the 3D view, below every HUD panel
 	_hud = BattleHud.new()
 	_hud_root.add_child(_hud)
-	_hud.setup(HUMAN_PLAYER)
+	_hud.setup(human_player)
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
 	_audio.hook_button(_hud.end_button())
+	if campaign:
+		_hud.set_campaign(BattleBriefing.reminder(setup, human_player))
+		_hud.report_pressed.connect(report_to_staff)
+		_audio.hook_button(_hud.report_button())
 	_hud_root.add_child(FpsCounter.new())
+	_briefing = BattleBriefing.new()
+	_briefing.closed.connect(_start_play)
+	_hud_root.add_child(_briefing)
 
 
 ## Bottom-left stack (VBox, bottom-anchored) holding the terrain panel, plus the unit hover
@@ -602,7 +697,7 @@ func _build_bottom_left_stack() -> void:
 	_portraits = PortraitRenderer.new()
 	add_child(_portraits)
 	_portraits.setup(quality)
-	_target_ring.setup(_sim, HUMAN_PLAYER, _hud_root, _unit_views, _portrait_of, _input_allowed)
+	_target_ring.setup(_sim, human_player, _hud_root, _unit_views, _portrait_of, _input_allowed)
 	add_child(_target_ring)
 	_target_ring.attack_ordered.connect(_audio.play_ui.bind(&"attack_order"))
 
@@ -782,7 +877,7 @@ func _play_event(event: Dictionary) -> Tween:
 		&"unit_died":
 			return _on_unit_died(event["unit_id"])
 		&"turn_ended":
-			if event["player"] == HUMAN_PLAYER:
+			if event["player"] == human_player:
 				_select(-1)
 		&"turn_started":
 			_wrecks.on_turn_started()
@@ -1017,10 +1112,10 @@ func _on_queue_drained() -> void:
 
 func _on_command_rejected(command: Command, reason: String) -> void:
 	print("Rejected %s: %s" % [command.get_script().get_global_name(), reason])
-	if _sim.state.current_player == HUMAN_PLAYER:
+	if _sim.state.current_player == human_player:
 		_audio.play_ui(&"rejected")
 	# Only the human's own rejected orders get a toast (the AI never reaches the UI).
-	if REJECT_TOASTS.has(reason) and _sim.state.current_player == HUMAN_PLAYER:
+	if REJECT_TOASTS.has(reason) and _sim.state.current_player == human_player:
 		_hud.show_toast(REJECT_TOASTS[reason])
 
 

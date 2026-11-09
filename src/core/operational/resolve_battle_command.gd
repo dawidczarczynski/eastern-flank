@@ -28,18 +28,12 @@ func validate(state: OperationalState) -> String:
 
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var setup: BattleSetup = state.pending_battles.pop_front()
-	var attacker_id: StringName = &""
-	var defender_id: StringName = &""
-	for company in setup.companies:
-		if company.player == setup.attacker:
-			attacker_id = _formation_of(company)
-		else:
-			defender_id = _formation_of(company)
+	var ids := ContactBattle.formation_ids(setup)
 	return [
 		{
 			"type": &"battle_resolved",
-			"attacker_id": attacker_id,
-			"defender_id": defender_id,
+			"attacker_id": ids[0],
+			"defender_id": ids[1],
 			"winner": result.winner,
 			"reason": result.reason,
 		}
@@ -48,8 +42,3 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 
 func to_dict() -> Dictionary:
 	return {"type": TYPE, "result": result.to_dict() if result != null else {}}
-
-
-## Formation id of a company ref "<formation id>/<n>".
-static func _formation_of(company: BattleSetup.Company) -> StringName:
-	return StringName(company.ref.rsplit("/", true, 1)[0])

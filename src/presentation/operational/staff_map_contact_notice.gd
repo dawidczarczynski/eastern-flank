@@ -4,9 +4,10 @@ extends FramedPanel
 ## contact notice, mockup 03): a card next to the battle hex with the attacker and the defender
 ## as counters (own rectangle / enemy diamond relative to the viewer, StaffMapCounter), names,
 ## role, strength and posture, the odds line (strength totals as 1 : x), place, terrain and the
-## attacker's mission. Buttons: Play battle (off until TASK-094c, the reason shows under it) and,
-## with --debug, Resolve as draw. NOT adopted from the mockup: the 3-band forecast and Auto-resolve
-## (TASK-120). Pure view: the owner (StaffMapContacts) feeds it a BattleSetup and the formations.
+## attacker's mission. Buttons: Play battle (`B`, TASK-094c: the owner opens the battle; a
+## reason under it only when it cannot) and, with --debug, Resolve as draw. NOT adopted from the
+## mockup: the 3-band forecast and Auto-resolve (TASK-120). Pure view: the owner
+## (StaffMapContacts) feeds it a BattleSetup and the formations.
 
 signal play_pressed
 signal resolve_pressed
@@ -93,7 +94,7 @@ func present(
 	_rows["FORCES"].text = "%d : %d" % [totals.x, totals.y]
 	_rows["MISSION"].text = mission_text(setup.missions[setup.attacker]).to_upper()
 	_play.text = tr("CONTACT_PLAY").to_upper() + "  [B]"
-	_reason.text = tr("CONTACT_PLAY_BLOCKED")
+	set_play_problem("")
 	_resolve.text = tr("CONTACT_RESOLVE_DEBUG").to_upper()
 	show()
 	reset_size()
@@ -140,14 +141,20 @@ static func terrain_name(id: StringName) -> String:
 static func mission_text(mission: BattleSetup.Mission) -> String:
 	if mission == null:
 		return "?"
-	var intent := ""
-	if mission.intent_key != "":
-		intent = TranslationServer.translate(mission.intent_key)
-		if mission.intent_args.size() >= 2:
-			var hex := Vector2i(int(mission.intent_args[0]), int(mission.intent_args[1]))
-			intent += " " + hex_text(hex)
+	var intent := intent_text(mission)
 	var task := TranslationServer.translate("MISSION_TASK_" + String(mission.task).to_upper())
 	return "%s · %s" % [task, intent] if intent != "" else task
+
+
+## "Advance to hex 06·01" – the leader's order behind a mission (its intent); "" without one.
+static func intent_text(mission: BattleSetup.Mission) -> String:
+	if mission == null or mission.intent_key == "":
+		return ""
+	var intent := TranslationServer.translate(mission.intent_key)
+	if mission.intent_args.size() >= 2:
+		var hex := Vector2i(int(mission.intent_args[0]), int(mission.intent_args[1]))
+		intent += " " + hex_text(hex)
+	return intent
 
 
 func title_text() -> String:
@@ -192,7 +199,14 @@ func resolve_visible() -> bool:
 	return _resolve.visible and visible
 
 
-## B: true when a battle could start. The button is off until TASK-094c hooks the scene up.
+## Disables Play battle with a reason (translation key) under it; "" enables it again.
+func set_play_problem(key: String) -> void:
+	_play.disabled = key != ""
+	_reason.text = tr(key) if key != "" else ""
+	_reason.visible = key != ""
+
+
+## B: emits play_pressed unless Play battle is disabled; true when it did.
 func press_play() -> bool:
 	if _play.disabled:
 		return false
@@ -325,7 +339,6 @@ func _build_buttons() -> Control:
 	column.add_child(row)
 	_play = MenuStyle.button("")
 	_play.name = "Play"
-	_play.disabled = true
 	_play.focus_mode = Control.FOCUS_NONE
 	_play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_play.pressed.connect(func() -> void: play_pressed.emit())

@@ -34,16 +34,7 @@ static func play(
 		return result
 	var sim := GameSimulation.new(start)
 	var state := sim.state
-	var ai := AiPlayer.new()
-	var max_iterations := max_turns * state.player_count + 1
-	var iterations := 0
-	var errored := false
-	while not state.is_over() and state.turn <= max_turns:
-		iterations += 1
-		if iterations > max_iterations:
-			errored = true
-			break
-		ai.take_turn(sim)
+	var errored := not run(sim, max_turns)
 	var turns := state.turn
 	if errored:
 		result["result"] = "error"
@@ -59,6 +50,22 @@ static func play(
 	result["reason"] = String(state.end_reason)
 	result["commands"] = sim.history.size()
 	return result
+
+
+## Lets an `AiPlayer` play every side of `sim` until the battle is over or `max_turns` is
+## exceeded (also a battle started from a BattleSetup, TASK-094c). False when the AI stopped
+## issuing turns (the guard fired).
+static func run(sim: GameSimulation, max_turns: int) -> bool:
+	var state := sim.state
+	var ai := AiPlayer.new()
+	var max_iterations := max_turns * state.player_count + 1
+	var iterations := 0
+	while not state.is_over() and state.turn <= max_turns:
+		iterations += 1
+		if iterations > max_iterations:
+			return false
+		ai.take_turn(sim)
+	return true
 
 
 ## Aggregates `play` results: per-player wins, draws by the rules, harness limits, errors and

@@ -378,7 +378,9 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Tilt | Ctrl + mouse wheel, or hold Q (flatter) / E (steeper) |
 | Flat / tilted | V |
 | Grid on / off | G |
-| Country borders and names on / off | B |
+| Country borders and names on / off | B (while no battle is pending) |
+| Play the pending battle | B, or **Play battle** on the contact card |
+| Close the battle result card | Enter or Esc, or **Continue** |
 | End turn | Enter, or the **End turn** button |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
@@ -521,7 +523,15 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **The queue.** If several battles start in one turn, a list on the left shows them (for example `1 OF 2`) with the active one marked. The notice always shows the first; when it is settled, the next appears.
 
-**What you can do.** While a battle is pending you cannot give orders or end the turn. The **Play battle** button (key **B**) is greyed out with the note "Battle scene not hooked up yet": **battles cannot be played or skipped yet**, so in a normal game a contact currently stops the operation. This will be added in a later task. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength and without consequences (losses are not applied yet); the dimming ends and End turn works again.
+**What you can do.** While a battle is pending you cannot give orders or end the turn. Press **Play battle** (or **B**) to fight it yourself. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength; the dimming ends and End turn works again. (Auto-resolve comes in a later version.)
+
+**Two roles, one player.** On the staff map you are the **leader** – the government and general staff: you give the formations their orders and decide which battles to fight. In a battle you are the **commander** of the companies on the field: you move and fight them to carry out the mission the leader's order gave you, and you cannot change the forces, the terrain, the objectives or anything on the staff map from there. The result of the battle is your report back to the leader.
+
+**Playing the battle.** The 3D battle opens on the real terrain around the contact, with exactly the companies of the two formations at their current strength (the formation panel on the staff map lists the same ones). You command the side you were viewing on the staff map; the enemy is played by the computer. A **briefing** opens first: the formation you command, your **Mission** – the task (Attack, Defend or Hold out) and the objectives in words (take or hold the objective hex, or destroy every enemy company, and the turn the battle ends) – and the **Intent**, the leader's order behind it (for example "Advance to hex 06·01"). Press **Take command** (or **Enter**) to start. During the battle a line under the turn bar reminds you of the mission.
+
+**How a battle ends.** As any battle: the attacker takes the objective, one side destroys the other, or the turn limit runs out (then the defender holds the field). The end screen is your **commander's report** with the result; press **Report to staff** (or **Enter**).
+
+**Back on the staff map.** The staff map comes back as you left it – the same camera, selection and view settings – and a short **battle result** card shows the winner and, for each formation, its companies' total strength before and after the battle. Press **Continue** (or **Enter**). The battle is closed, the dimming ends and, when no other battle waits, you can end the turn. For now the losses are **only reported**: they are not applied to the formations yet, and nobody retreats (this comes in a later version). A battle you started cannot be switched to auto-resolve. Leaving a battle with **Esc** returns to the main menu and ends the operation without a result.
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 

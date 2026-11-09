@@ -65,6 +65,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/operational/
 
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
+- `ContactBattle` – Playing a pending contact battle (TASK-094c, GDD "Battle hand-off and auto-resolve"): the (`contact_battle.gd`)
 - `ContactMap` – The tactical map of a contact battle (TASK-094b, GDD "Battle hand-off and auto-resolve"):… (`contact_map.gd`)
 - `ContactRules` – When and how a contact starts a battle (TASK-094a, GDD "Battle hand-off and auto-resolve"… (`contact_rules.gd`)
 - `CountryRules` – Pure political rules of the operational layer (TASK-114, GDD "Countries and stances"): the (`country_rules.gd`)
@@ -151,6 +152,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SalvoTrail` – One rocket's smoke trail (TASK-075): a thin camera-facing ribbon through the points the r… (`salvo_trail.gd`)
 - `ScatterChunks` – Bushes and rocks of a MapView as chunked MultiMeshes (TASK-108 performance): one (`scatter_chunks.gd`)
 - `ScatterPlanner` – Pure placement planner for cosmetic scatter: trees on forest/plains tiles, rocks on hills (`scatter_planner.gd`)
+- `Session` – The campaign across scene changes (TASK-094c, ADR 0015 §5): while a contact battle is pla… (`session.gd`)
 - `TargetRingController` – Input and HUD for attacking a target (TASK-089b), kept out of BattleController: (`target_ring_controller.gd`)
 - `TargetRingModel` – Pure model of the unit ring (TASK-089b): RMB on a unit opens the HUD v3 radial ring on it… (`target_ring_model.gd`)
 - `TerrainGround` – The terrain ground of MapView (TASK-055): the ShaderMaterial on assets/shaders/terrain.gd… (`terrain_ground.gd`)
@@ -205,6 +207,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/presentation/operational/
 
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
+- `StaffMapBattleResult` – Short result notice of the staff map (TASK-094c) after "Report to staff": the winner and,… (`staff_map_battle_result.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
 - `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)
@@ -246,6 +249,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/presentation/ui/
 
+- `BattleBriefing` – Commander's briefing at the start of a campaign battle (TASK-094c, GDD "Player roles"): t… (`battle_briefing.gd`)
 - `BattleHud` – Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick (`battle_hud.gd`)
 - `Bracketed` – Tag in amber brackets, "[ TEXT ]": mono 10.5 (rendered at 11) as used for unit and terrai… (`bracketed.gd`)
 - `CrosshairCursor` – The amber crosshair mouse cursor shown over a valid attack target (TASK-089b): a ring wit… (`crosshair_cursor.gd`)
