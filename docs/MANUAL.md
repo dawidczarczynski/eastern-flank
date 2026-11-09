@@ -125,7 +125,7 @@ When a unit is selected, the area it can reach is outlined in your side's colour
 
 An attack is a roll of dice: you know the odds, never the exact result.
 
-1. **Hit number** = attacker's Attack − (defender's Defense + defense bonus of the defender's tile), but at least 1. The attacker's own tile doesn't matter.
+1. **Hit number** = attacker's Attack − (defender's Defense + defense bonus of the defender's tile + the defender's position bonus, if the battle came from the operational map), but at least 1. The attacker's own tile doesn't matter.
 2. The attacker fires **one shot per HP it has right now**. Each shot rolls a die with as many faces as the attacker's **full** HP (a d10 for the squads and the Abrams, a d8 for the T-72B3, a d6 for the rocket launchers).
 3. A roll **at or below the hit number** is a hit. **Damage = number of hits.** The defender loses that many HP (it can't go below 0).
 
@@ -584,7 +584,9 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **The queue.** If several battles start in one turn, a list on the left shows them (for example `1 OF 2`) with the active one marked. The notice always shows the first; when it is settled, the next appears.
 
-**What you can do.** While a battle is pending you cannot give orders or end the turn. Press **Play battle** (or **B**) to fight it yourself. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength; the dimming ends and End turn works again. (Auto-resolve comes in a later version.)
+**What you can do.** While a battle is pending you cannot give orders or end the turn. Press **Play battle** (or **B**) to fight it yourself. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength; the dimming ends and End turn works again.
+
+**Auto-resolve.** Instead of playing, press **Auto-resolve** on the card to let the staff settle the battle at once, with no penalty. It uses the same companies at their current strength, the postures (Defend +1, Advance 0, March −1 to the defender's defense), the defender's terrain and the command points. The companies fire in up to 8 rounds with the same dice as in a played battle. A side that has lost half of its strength breaks, and the other side wins at once; if 8 rounds pass with neither side broken, the defender holds. A battle can be auto-resolved only from the contact card: a battle you started to play cannot be switched to auto-resolve.
 
 **Two roles, one player.** On the staff map you are the **leader** – the government and general staff: you give the formations their orders and decide which battles to fight. In a battle you are the **commander** of the companies on the field: you move and fight them to carry out the mission the leader's order gave you, and you cannot change the forces, the terrain, the objectives or anything on the staff map from there. The result of the battle is your report back to the leader.
 
@@ -592,7 +594,7 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **How a battle ends.** As any battle: the attacker takes the objective, one side destroys the other, or the turn limit runs out (then the defender holds the field). The end screen is your **commander's report** with the result; press **Report to staff** (or **Enter**).
 
-**Back on the staff map.** The staff map comes back as you left it – the same camera, selection and view settings – and a short **battle result** card shows the winner and, for each formation, its companies' total strength before and after the battle. Press **Continue** (or **Enter**). The battle is closed, the dimming ends and, when no other battle waits, you can end the turn. For now the losses are **only reported**: they are not applied to the formations yet, and nobody retreats (this comes in a later version). A battle you started cannot be switched to auto-resolve. Leaving a battle with **Esc** returns to the main menu and ends the operation without a result.
+**Back on the staff map.** The staff map comes back as you left it – the same camera, selection and view settings – and a short **battle result** card shows the winner and, for each formation, its companies' total strength before and after the battle. After an auto-resolve the same card also gives the reason for the result (for example, a side broke or the rounds ran out) and says who holds the field and which side retreats. Press **Continue** (or **Enter**). The battle is closed, the dimming ends and, when no other battle waits, you can end the turn. For now the losses are **only reported**: they are not applied to the formations yet, and no formation actually retreats (this comes in a later version). Leaving a battle with **Esc** returns to the main menu and ends the operation without a result.
 
 ### Saving
 

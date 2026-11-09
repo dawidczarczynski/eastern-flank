@@ -262,3 +262,12 @@ func test_build_by_name() -> void:
 	var objective := Scenario.build("objective_battle", 3, FactionRegistry.DEFAULT_IDS)
 	assert_eq(objective.objectives.turn_limit, 8)
 	assert_true(Scenario.build("atlantis", 3, FactionRegistry.DEFAULT_IDS) == null)
+
+
+func test_from_setup_carries_position_bonus_per_player() -> void:
+	var setup := Scenario.default_battle_setup(1)
+	setup.conditions[0].position_bonus = 1
+	setup.conditions[1].position_bonus = -1
+	var state := Scenario.from_setup(setup)
+	assert_eq(state.position_bonus_per_player, [1, -1] as Array[int])
+	assert_eq(Scenario.default_battle(1).position_bonus_per_player, [0, 0] as Array[int])

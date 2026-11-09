@@ -219,6 +219,16 @@ func _damage_on(terrain: Terrain.Type, attack: int, attacker_terrain := Terrain.
 	return AttackCommand.compute_damage(state, striker, enemy)
 
 
+func test_position_bonus_raises_defender_defense() -> void:
+	var base := _damage_on(Terrain.Type.PLAINS, 5)
+	state.position_bonus_per_player[enemy.owner_id] = 1
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 5), base - 1)
+	state.position_bonus_per_player[enemy.owner_id] = -1
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 5), base + 1)
+	state.position_bonus_per_player[enemy.owner_id] = 9
+	assert_eq(_damage_on(Terrain.Type.PLAINS, 5), 1)
+
+
 func test_compute_damage_attack_four_by_terrain() -> void:
 	assert_eq(_damage_on(Terrain.Type.PLAINS, 4), 2)
 	assert_eq(_damage_on(Terrain.Type.FOREST, 4), 1)

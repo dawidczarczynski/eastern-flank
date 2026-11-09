@@ -956,6 +956,24 @@ func play_battle() -> bool:
 	return true
 
 
+## Auto-resolve (TASK-120): the first pending battle is resolved at once through Session (no
+## battle scene); the staff map stays and shows the short result notice. False (toast) when it
+## cannot be resolved.
+func auto_resolve() -> bool:
+	if _simulation == null or is_sliding():
+		return false
+	var problem := Session.auto_resolve(_simulation, operation_id)
+	if problem != "":
+		_toast_message(tr("CONTACT_AUTO_FAILED"), _palette.ui_alert)
+		return false
+	var report := Session.take_report()
+	_result_notice.present(
+		_simulation.state, report["setup"], report["result"], _palette, viewer_player
+	)
+	_place_result_notice()
+	return true
+
+
 ## What the human set up on the map and gets back after a battle: camera (position, zoom, pitch),
 ## viewer and follow, the selection, the grid / front tint / borders toggles and the joined
 ## formations' countries of origin.
@@ -989,7 +1007,9 @@ func _resume() -> void:
 	_apply_view_settings(Session.view)
 	var report := Session.take_report()
 	if not report.is_empty():
-		_result_notice.present(_simulation.state, report["setup"], report["result"], _palette)
+		_result_notice.present(
+			_simulation.state, report["setup"], report["result"], _palette, viewer_player
+		)
 		_place_result_notice()
 
 
@@ -1035,8 +1055,14 @@ func debug_result_notice() -> void:
 			if attacking
 			else floori(company.strength_start / 2.0)
 		)
+	for company in result.companies:  # one destroyed company, to see that state
+		if company.player != setup.attacker:
+			company.strength_end = 0
+			break
+	result.field_holder = setup.attacker
+	result.retreat = 1 - setup.attacker
 	if _simulation.execute(ResolveBattleCommand.new(result)):
-		_result_notice.present(state, setup, result, _palette)
+		_result_notice.present(state, setup, result, _palette, viewer_player)
 		_place_result_notice()
 
 
@@ -1047,7 +1073,8 @@ func result_notice() -> StaffMapBattleResult:
 func _place_result_notice() -> void:
 	_result_notice.reset_size()
 	_result_notice.position = Vector2(
-		(_viewport_size().x - _result_notice.size.x) / 2.0, _viewport_size().y * 0.3
+		(_viewport_size().x - _result_notice.size.x) / 2.0,
+		maxf((_viewport_size().y - _result_notice.size.y) / 2.0, 8.0)
 	)
 
 
@@ -1228,6 +1255,7 @@ func _build_hud() -> void:
 		OS.get_cmdline_user_args().has("--debug")
 	)
 	_contacts.play_requested.connect(play_battle)
+	_contacts.auto_requested.connect(auto_resolve)
 	_result_notice = StaffMapBattleResult.new()
 	_hud.add_child(_result_notice)
 	_back = MenuStyle.button("")

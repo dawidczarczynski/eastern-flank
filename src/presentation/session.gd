@@ -133,6 +133,33 @@ static func finish_battle(played: GameSimulation) -> bool:
 	return true
 
 
+## Auto-resolve (TASK-120): the first pending battle is resolved at once, without a battle scene –
+## `AutoResolve.resolve` of the pending setup closes it through ResolveBattleCommand and the
+## battle (pending setup, no tactical commands, result) joins the record. "" on success and the
+## result waits in `take_report`; otherwise why not (ContactBattle.problem codes, or
+## `auto_failed` / `rejected`) and nothing changes.
+static func auto_resolve(p_simulation: OperationalSimulation, p_operation_id: StringName) -> String:
+	if p_simulation == null:
+		return "no_campaign"
+	var problem := ContactBattle.problem(p_simulation.state)
+	if problem != "":
+		return problem
+	var setup := p_simulation.state.pending_battles[0]
+	var result := AutoResolve.resolve(setup)
+	if result == null:
+		return "auto_failed"
+	if p_simulation != simulation:
+		battles.clear()
+	simulation = p_simulation
+	operation_id = p_operation_id
+	if not simulation.execute(ResolveBattleCommand.new(result)):
+		return "rejected"
+	battles.append(CampaignRecord.Battle.auto(setup, result))
+	_report_setup = setup
+	_report_result = result
+	return ""
+
+
 ## The simulation for a staff map of `p_operation_id` that is coming back from a battle (once:
 ## the session stays, but a later staff map builds a new operation); null otherwise.
 static func take_simulation(p_operation_id: StringName) -> OperationalSimulation:

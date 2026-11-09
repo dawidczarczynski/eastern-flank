@@ -89,7 +89,8 @@ func test_corrupt_or_missing_files_give_a_message() -> void:
 		(
 			'{"version": 1, "operation": "suwalki_gap", "seed": 1, "human_side": "nato", '
 			+ '"commands": [{"type": "resolve_battle", "result": {"winner": 0, "reason": "x", '
-			+ '"turns": 1, "companies": []}}], "battles": []}'
+			+ '"turns": 1, '
+			+ '"resolution": "played", "field_holder": 0, "retreat": -1, "companies": []}}], "battles": []}'
 		),
 	}
 	var expected := {"garbage": "corrupt", "wrong": "corrupt", "diverging": "replay_failed"}

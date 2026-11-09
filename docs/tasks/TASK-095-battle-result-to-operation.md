@@ -1,6 +1,6 @@
 # TASK-095: Battle result → operation – losses, retreat, readiness, after-action report (completes the vertical slice)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (after-action report)
 - **Depends on**: TASK-094c, TASK-120
 - **Sections**: GDD "Battle hand-off and auto-resolve" (contract: reads only `field_holder` / `retreat` / company strengths, **never `resolution`**), "Operational layer" → "Orders and postures"; reference [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Panels" → after-action report)

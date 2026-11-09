@@ -10,6 +10,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/
 
+- `AutoResolve` – Battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"): the BattleResult… (`auto_resolve.gd`)
 - `BattleReplay` – Tactical side of a campaign record (TASK-094d): a played battle as its BattleSetup + tact… (`battle_replay.gd`)
 - `BattleResult` – What a finished battle hands back to the operational layer – the only channel from a batt… (`battle_result.gd`)
 - `BattleRules` – Victory rules of a battle (TASK-088, ADR 0016) in one place: the commands call these pure (`battle_rules.gd`)
@@ -41,6 +42,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/data/
 
+- `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
 - `CountryDefinition` – A country of an operational map (TASK-114, GDD "Countries and stances"). Instances are ke… (`country_definition.gd`)
@@ -218,7 +220,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/presentation/operational/
 
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
-- `StaffMapBattleResult` – Short result notice of the staff map (TASK-094c) after "Report to staff": the winner and,… (`staff_map_battle_result.gd`)
+- `StaffMapBattleResult` – Result notice of the staff map (TASK-094c, reworked for readability) after "Report to sta… (`staff_map_battle_result.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
 - `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)

@@ -35,6 +35,10 @@ var starting_hp: Array[int] = []
 ## Command points N each player gets at the start of their turn (index = player id); 0 =
 ## unlimited (TASK-091). Static per match (Scenario.from_setup), so not part of snapshot().
 var command_points_per_turn: Array[int] = []
+## Defence bonus of each player's position (BattleSetup.Conditions.position_bonus: defend +1,
+## march -1; index = player id), added to their units' defense in AttackCommand.compute_damage.
+## Static per match (Scenario.from_setup), so not part of snapshot(); 0 by default.
+var position_bonus_per_player: Array[int] = []
 ## Command points the current player has left this turn (meaningless while they are unlimited).
 ## Part of snapshot().
 var command_points: int = 0
@@ -50,6 +54,7 @@ func _init(p_grid: HexGrid, p_player_count: int = 2, seed_value: int = 0) -> voi
 		var defaults := FactionRegistry.DEFAULT_IDS
 		player_factions.append(defaults[player % defaults.size()])
 		command_points_per_turn.append(0)
+		position_bonus_per_player.append(0)
 
 
 ## Whether the battle has ended (winner or draw).

@@ -7,7 +7,7 @@ extends RefCounted
 ## JSON: {"version": 1, "operation": "<id>", "seed": S, "human_side": "<side id>",
 ##        "commands": [<operational command dicts>],
 ##        "battles": [{"setup": <BattleSetup dict>, "commands": [<tactical command dicts>],
-##                     "result": <BattleResult dict>, "resolution": "played"}, ...]}.
+##                     "result": <BattleResult dict>, "resolution": "played" | "auto"}, ...]}.
 ## Battle k belongs to the k-th `resolve_battle` command; a pending (or running) battle has no
 ## entry – replaying the commands puts it back into `pending_battles` with the same setup and seed.
 ## Valid only for the rules and data it was recorded with (ADR 0005). The seed is a JSON number,
@@ -21,11 +21,14 @@ extends RefCounted
 ## setup differs from the recorded one: reason "battle_setup"), "invalid_record" (resolve commands
 ## and battle entries do not pair up, or a resolve command's result is not its entry's result) and,
 ## full replay only, "battle_diverged" (the played battle replayed from its setup and commands
-## ends with another result, a command is rejected or the battle does not end).
+## ends with another result, a command is rejected or the battle does not end; an `auto` entry
+## whose result differs from `AutoResolve.resolve(setup)`). An auto entry (TASK-120) stores the
+## pending setup, `"commands": []` and `"resolution": "auto"`.
 
 const VERSION := 1
 const PLAYED := &"played"
-const RESOLUTIONS: Array[StringName] = [PLAYED]
+const AUTO := &"auto"
+const RESOLUTIONS: Array[StringName] = [PLAYED, AUTO]
 
 
 ## One resolved battle: the setup it was played from (the cut map, ContactBattle.prepare), its
@@ -46,6 +49,14 @@ class Battle:
 		entry.setup = p_setup
 		entry.result = p_result
 		entry.commands = command_dicts.duplicate(true)
+		return entry
+
+	## Entry of an auto-resolved battle (TASK-120): the pending setup, no tactical commands.
+	static func auto(p_setup: BattleSetup, p_result: BattleResult) -> Battle:
+		var entry := Battle.new()
+		entry.setup = p_setup
+		entry.result = p_result
+		entry.resolution = AUTO
 		return entry
 
 	func to_dict() -> Dictionary:
@@ -228,12 +239,29 @@ func _check_battle(
 		return _failure("invalid_record", i, k, "result_differs")
 	if not full:
 		return {}
+	if entry.resolution == AUTO:
+		return _check_auto(state, entry, i, k)
+	return _check_played(state, entry, i, k)
+
+
+func _check_played(state: OperationalState, entry: Battle, i: int, k: int) -> Dictionary:
 	var prepared := ContactBattle.prepare(state)
 	if prepared == null or prepared.to_dict() != entry.setup.to_dict():
 		return _failure("diverged", i, k, "battle_setup")
 	var reason := BattleReplay.problem(entry.setup, entry.commands, entry.result)
 	if reason != "":
 		return _failure("battle_diverged", i, k, reason)
+	return {}
+
+
+## {} when an auto entry equals the pending setup itself (no cut map, no tactical commands) and
+## its result is what AutoResolve computes from it.
+func _check_auto(state: OperationalState, entry: Battle, i: int, k: int) -> Dictionary:
+	if state.pending_battles[0].to_dict() != entry.setup.to_dict():
+		return _failure("diverged", i, k, "battle_setup")
+	var computed := AutoResolve.resolve(entry.setup)
+	if computed == null or computed.to_dict() != entry.result.to_dict():
+		return _failure("battle_diverged", i, k, "result")
 	return {}
 
 

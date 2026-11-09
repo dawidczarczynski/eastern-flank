@@ -5,10 +5,12 @@ extends RefCounted
 ## the battle hex, shows the contact notice next to it and the queue at the left edge. Pure view:
 ## the debug button sends a ResolveBattleCommand through `execute` (an OperationalSimulation
 ## facade call supplied by the owner); Play battle is forwarded as `play_requested` (the owner
-## hands the campaign to Session, TASK-094c); nothing here changes the state.
+## hands the campaign to Session, TASK-094c), likewise Auto-resolve
+## (`auto_requested`, TASK-120); nothing here changes the state.
 
 signal focus_requested(coord: Vector2i)
 signal play_requested
+signal auto_requested
 
 const SCRIM := Color(5 / 255.0, 7 / 255.0, 5 / 255.0, 0.55)
 const RING_INNER := 44.0
@@ -61,6 +63,7 @@ func _init(
 	notice.set_debug(debug)
 	notice.resolve_pressed.connect(resolve_as_draw)
 	notice.play_pressed.connect(func() -> void: play_requested.emit())
+	notice.auto_pressed.connect(func() -> void: auto_requested.emit())
 	hud.add_child(notice)
 	queue = StaffMapContactQueue.new()
 	hud.add_child(queue)
@@ -80,6 +83,7 @@ static func draw_result(setup: BattleSetup) -> BattleResult:
 		reported.strength_start = company.strength
 		reported.strength_end = company.strength
 		result.companies.append(reported)
+	result.settle(setup)
 	return result
 
 

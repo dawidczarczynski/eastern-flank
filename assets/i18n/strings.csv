@@ -283,6 +283,11 @@ CONTACT_STRENGTH,Strength,Siła
 CONTACT_FORCES,Forces (attacker : defender),Siły (atakujący : obrońca)
 CONTACT_MISSION,Mission,Zadanie
 CONTACT_PLAY,Play battle,Rozegraj bitwę
+CONTACT_AUTO,Auto-resolve,Rozstrzygnij automatycznie
+CONTACT_AUTO_FAILED,The battle cannot be auto-resolved,Nie można rozstrzygnąć bitwy automatycznie
+%s holds the field,%s holds the field,%s utrzymuje pole walki
+%s retreats,%s retreats,%s się wycofuje
+BATTLE_REASON_BROKEN,Side broken,Strona załamana
 CONTACT_PLAY_FAILED_NO_PENDING_BATTLE,No battle is pending,Brak oczekującej bitwy
 CONTACT_PLAY_FAILED_FORMATION_MISSING,A formation of this battle is missing,Brakuje związku tej bitwy
 CONTACT_PLAY_FAILED_NOT_FIELDABLE,These companies cannot be fielded in a battle yet,Tych kompanii nie można jeszcze wystawić do bitwy
@@ -290,6 +295,13 @@ CONTACT_PLAY_FAILED_MAP_FAILED,The battle map cannot be cut here,Nie można tu w
 CONTACT_PLAY_FAILED_NO_CAMPAIGN,No operation to play,Brak operacji do rozegrania
 BATTLE_RESULT,Battle result,Wynik bitwy
 BATTLE_RESULT_DRAW,Draw,Remis
+BATTLE_RESULT_DESTROYED,Destroyed,Zniszczona
+Strength at start %d · Strength left %d · Lost %d (%s),Strength at start %d · Strength left %d · Lost %d (%s),Siła na początku %d · Siła pozostała %d · Straty %d (%s)
+BATTLE_RESULT_COL_UNIT,Unit,Pododdział
+BATTLE_RESULT_COL_START,Start,Początek
+BATTLE_RESULT_COL_LEFT,Left,Pozostało
+BATTLE_RESULT_COL_LOST,Lost,Straty
+BATTLE_RESULT_COL_TOTAL,Total,Razem
 Victory: %s,Victory: %s,Zwycięstwo: %s
 BATTLE_REASON_ELIMINATED,Side eliminated,Strona rozbita
 BATTLE_REASON_ENEMY_DESTROYED,Forces destroyed,Siły zniszczone

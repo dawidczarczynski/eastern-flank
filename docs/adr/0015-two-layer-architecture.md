@@ -81,9 +81,13 @@ CampaignRecord {"version": 1, "scenario": "<operation id>", "seed": S, "factions
 
 **Amendment (TASK-094c):** `Session` is implemented as a class with static state (like `BattleOptions`), not an autoload `Node`: it survives `change_scene_to_file` identically, needs no `project.godot` entry, works in headless tests and `--script` tools, and a `class_name` cannot share its name with an autoload. The rule stands: it is the only code that changes scene between the two layers and holds everything that must survive the transition.
 
+**Amendment (TASK-120, 2026-11-09):** battles are *played or auto-resolved* (§2). `AutoResolve.resolve(setup)` (`src/core/auto_resolve.gd`, numbers in `data/battle/auto_resolve.tres`) computes a `BattleResult` from the pending setup alone, with its own `RandomNumberGenerator` seeded from `setup.seed` – it never draws from the operational RNG and changes no state; the result enters the operation only through `ResolveBattleCommand`, which recomputes an `auto` result and rejects a mismatch (`auto_mismatch`). §3: `BattleResult` gains `resolution` (`played` / `auto`), `field_holder` and `retreat`, filled for both kinds by one helper, `BattleResult.settle(setup)`; the consequences (TASK-095) read only those fields and the company strengths, never `resolution`. §4: a `CampaignRecord` battle entry carries `"resolution"`; an `auto` entry stores the pending setup (no cut map) and `"commands": []`, and full verification re-runs `AutoResolve.resolve` on it (`battle_diverged` on a mismatch).
+
 ## Consequences
 
 - (+) Every operational task builds on known boundaries; the tactical layer stays testable and replayable on its own; `Scenario.default_battle` already runs through `BattleSetup`.
 - (+) Deterministic campaigns: one seed, two RNG streams, battle seeds derived inside commands.
 - (−) Two command families and codecs to keep in step with the same conventions.
 - (−) `BattleSetup` / `BattleResult` change whenever a layer needs a new input or output (format changes ripple into `CampaignRecord`; no backward compatibility, as in ADR 0005 / 0009).
+
+Note (TASK-120 follow-up): `BattleSetup.Conditions.position_bonus` is read by both resolvers – `AutoResolve` and the played battle (`GameState.position_bonus_per_player`, added to the target's defense in `AttackCommand.compute_damage`, so forecast, AI scoring and HUD follow).

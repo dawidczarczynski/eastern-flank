@@ -6,10 +6,12 @@ extends FramedPanel
 ## role, strength and posture, the odds line (strength totals as 1 : x), place, terrain and the
 ## attacker's mission. Buttons: Play battle (`B`, TASK-094c: the owner opens the battle; a
 ## reason under it only when it cannot) and, with --debug, Resolve as draw. NOT adopted from the
-## mockup: the 3-band forecast and Auto-resolve (TASK-120). Pure view: the owner
+## mockup: the 3-band forecast. Auto-resolve (TASK-120) sits next to
+## Play battle. Pure view: the owner
 ## (StaffMapContacts) feeds it a BattleSetup and the formations.
 
 signal play_pressed
+signal auto_pressed
 signal resolve_pressed
 
 const WIDTH := 540.0
@@ -27,6 +29,7 @@ var _odds: Label
 var _rows := {}  # row key -> value Label
 var _captions := {}  # row key -> caption Label
 var _play: Button
+var _auto: Button
 var _reason: Label
 var _resolve: Button
 
@@ -94,6 +97,7 @@ func present(
 	_rows["FORCES"].text = "%d : %d" % [totals.x, totals.y]
 	_rows["MISSION"].text = mission_text(setup.missions[setup.attacker]).to_upper()
 	_play.text = tr("CONTACT_PLAY").to_upper() + "  [B]"
+	_auto.text = tr("CONTACT_AUTO").to_upper()
 	set_play_problem("")
 	_resolve.text = tr("CONTACT_RESOLVE_DEBUG").to_upper()
 	show()
@@ -212,6 +216,15 @@ func press_play() -> bool:
 		return false
 	play_pressed.emit()
 	return true
+
+
+## Whether the Auto-resolve button is shown and enabled.
+func auto_enabled() -> bool:
+	return _auto.visible and not _auto.disabled
+
+
+func press_auto() -> void:
+	_auto.pressed.emit()
 
 
 func press_resolve() -> void:
@@ -343,6 +356,12 @@ func _build_buttons() -> Control:
 	_play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_play.pressed.connect(func() -> void: play_pressed.emit())
 	row.add_child(_play)
+	_auto = MenuStyle.button("")
+	_auto.name = "Auto"
+	_auto.focus_mode = Control.FOCUS_NONE
+	_auto.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_auto.pressed.connect(func() -> void: auto_pressed.emit())
+	row.add_child(_auto)
 	_resolve = MenuStyle.button("")
 	_resolve.name = "Resolve"
 	_resolve.focus_mode = Control.FOCUS_NONE

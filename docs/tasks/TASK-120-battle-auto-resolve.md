@@ -1,6 +1,6 @@
 # TASK-120: Battle auto-resolve – the result of a contact battle computed from the same forces, postures, terrain and conditions; shared `BattleResult` outcome fields
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/`, `src/core/data/`) + data + presentation (one button on TASK-094's contact notice)
 - **Depends on**: TASK-094d (split of TASK-094, 2026-11-07: setup fields and notice = 094a, played battle = 094c, `CampaignRecord` = 094d)
 - **Model**: sonnet
@@ -76,4 +76,15 @@ In the operational chapter (written with TASK-093 / TASK-094): at each contact y
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done 2026-11-09.
+
+- Core: `AutoResolveRules` (+ `data/battle/auto_resolve.tres`), `AutoResolve.resolve` (`src/core/auto_resolve.gd`, flat packed arrays, hit table precomputed; 12 v 12 resolves well under 2 ms), `BattleResult` fields `resolution` / `field_holder` / `retreat` + `settle(setup)` (called by `from_battle` and `AutoResolve`), `ResolveBattleCommand` `auto_mismatch`, `CampaignRecord.Battle.auto` (pending setup, no commands; full replay re-runs `AutoResolve`, `battle_diverged`). ADR 0015 and ARCHITECTURE "Two layers" updated. No new event types.
+- Presentation: Auto-resolve button on the contact notice (shown whenever the notice is, i.e. the human always plays a side on the staff map), `Session.auto_resolve(simulation, operation id)`, `StaffMapBattleResult` now also lists company strengths per formation and "X holds the field / X retreats". Strings en + pl (`CONTACT_AUTO`, `CONTACT_AUTO_FAILED`, `BATTLE_REASON_BROKEN`, the two outcome lines).
+- Tests: `test_auto_resolve*.gd` (rules, settle, rejections, exact cases, statistics, determinism + golden mirror seed 7, purity, speed, command check, mixed played / auto record), one staff-map test. Golden = `GOLDEN_MIRROR_7` in `tests/unit/test_auto_resolve.gd`.
+- Decisions: `resolve(setup, rules = null)` (null = shipped file, GDScript cannot default to a resource); an unknown terrain id is also rejected; the terrain defense bonus applies only when `setup.attacker >= 0`; the auto record entry stores the *pending* (uncut) setup because no map is needed. A simulation (AI vs AI) caller helper was not added (TASK-103).
+- Calibration (throwaway script, 50 seeds, same forces on the generated river map with the default deployment tiles, `MatchRunner` AI vs AI, harness limit 60 turns; wins P0 / P1 / draws, mean losses P0 / P1):
+  - crush: auto 50/0/0, 0.8 / 9.0; played 40/0/10, 1.2 / 8.0 (gap 20 points in P0 wins, draws in played = turn limit).
+  - mirror: auto 9/20/21, 19.0 / 18.6; played 10/19/21, 28.4 / 25.8 (shares agree; played bleeds ~9 points more).
+  - fortress: auto 2/47/1, 19.9 / 11.7; played 12/14/24, 27.3 / 26.0 before the follow-up below (gap 33 wins of 50 in the defender's wins).
+- Follow-up (human decision): the tactical layer now reads `position_bonus` too. `Scenario.from_setup` copies `conditions[i].position_bonus` into `GameState.position_bonus_per_player` (static per match like `command_points_per_turn`, not in `snapshot()`, 0 by default so replays and goldens are unchanged) and `AttackCommand.compute_damage` (the one place behind `hit_on`, `CombatForecast`, AI scoring and the HUD) uses defense + defender's position bonus + terrain bonus, as `AutoResolve` does. Re-run calibration (same script, 50 seeds): crush auto 50/0/0, 0.8 / 9.0, played 40/0/10, 1.4 / 8.0; mirror auto 9/20/21, 19.0 / 18.6, played 10/19/21, 28.4 / 25.8; **fortress auto 2/47/1, 19.9 / 11.7, played 5/28/17, 31.0 / 23.5** (defender wins gap 19 of 50 = 38 points of share, down from 33 wins; the rest is draws at the 60-turn harness limit and the AI attacking poorly into hills).
+

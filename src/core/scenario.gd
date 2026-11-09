@@ -218,9 +218,10 @@ static func default_battle_setup(
 ## the map. Objective hexes that are water become plains; owners start at the data's initial
 ## owners (a unit spawning on one does not capture it); `starting_hp` is recorded after spawning.
 ## `conditions[i].command_points` becomes `GameState.command_points_per_turn[i]` (a negative value
-## is an error → null; the first player starts with their points); the other conditions are not
-## read yet (TASK-099). `map_region` cuts a tactical layer (TASK-094b); spawn tiles of an imported
-## map keep their terrain unless it is water or impassable.
+## is an error → null; the first player starts with their points) and
+## `conditions[i].position_bonus` `GameState.position_bonus_per_player[i]`; the other conditions
+## are not read yet (TASK-099). `map_region` cuts a tactical layer (TASK-094b); spawn tiles of an
+## imported map keep their terrain unless it is water or impassable.
 static func from_setup(setup: BattleSetup) -> GameState:
 	var grid := _build_map(setup.map_id, setup.seed, setup.map_region)
 	if grid == null:
@@ -266,6 +267,8 @@ static func from_setup(setup: BattleSetup) -> GameState:
 			return null
 		points.append(side.command_points)
 	state.set_command_points_per_turn(points)
+	for player in mini(setup.conditions.size(), state.player_count):
+		state.position_bonus_per_player[player] = setup.conditions[player].position_bonus
 	state.record_starting_hp()
 	return state
 

@@ -2,8 +2,12 @@ class_name BattleResult
 extends RefCounted
 ## What a finished battle hands back to the operational layer – the only channel from a battle
 ## into the operation (ADR 0015).
-## JSON form (`to_dict`): {"winner", "reason", "turns", "companies": [Company]}.
+## JSON form (`to_dict`): {"winner", "reason", "turns", "resolution", "field_holder", "retreat",
+## "companies": [Company]}.
 ## `from_dict` returns null on anything malformed.
+
+const PLAYED := &"played"
+const AUTO := &"auto"
 
 
 ## Strength of one company at the start and the end of the battle (losses = start - end).
@@ -57,6 +61,14 @@ var winner: int = -1
 var reason: StringName = &""
 ## Turns played (GameState.turn when the battle ended).
 var turns: int = 0
+## &"played" (a tactical battle was fought) or &"auto" (AutoResolve, TASK-120). The consequences
+## (TASK-095) never read it.
+var resolution: StringName = &"played"
+## Player who holds the field afterwards: the winner, on a draw the defender, -1 without an
+## attacker (`settle`).
+var field_holder: int = -1
+## Player whose formation retreats: the loser when it has a company left, else -1 (`settle`).
+var retreat: int = -1
 ## One entry per BattleSetup company, in the same order.
 var companies: Array[Company] = []
 
@@ -68,6 +80,7 @@ static func from_battle(setup: BattleSetup, state: GameState) -> BattleResult:
 	result.winner = state.winner
 	result.reason = state.end_reason
 	result.turns = state.turn
+	result.resolution = PLAYED
 	for i in setup.companies.size():
 		var planned := setup.companies[i]
 		var unit := state.get_unit(i + 1)
@@ -78,7 +91,27 @@ static func from_battle(setup: BattleSetup, state: GameState) -> BattleResult:
 		company.strength_start = planned.strength
 		company.strength_end = maxi(unit.hp, 0) if unit != null else 0
 		result.companies.append(company)
+	result.settle(setup)
 	return result
+
+
+## Fills `field_holder` and `retreat` from `winner`, the companies' `strength_end` and the
+## setup's attacker – the one place the rule exists, for played and auto-resolved battles.
+func settle(setup: BattleSetup) -> void:
+	if winner >= 0:
+		field_holder = winner
+	elif setup.attacker >= 0:
+		field_holder = 1 - setup.attacker
+	else:
+		field_holder = -1
+	retreat = -1
+	if winner < 0:
+		return
+	var loser := 1 - winner
+	for company in companies:
+		if company.player == loser and company.strength_end > 0:
+			retreat = loser
+			return
 
 
 func to_dict() -> Dictionary:
@@ -89,6 +122,9 @@ func to_dict() -> Dictionary:
 		"winner": winner,
 		"reason": String(reason),
 		"turns": turns,
+		"resolution": String(resolution),
+		"field_holder": field_holder,
+		"retreat": retreat,
 		"companies": company_list,
 	}
 
@@ -97,9 +133,16 @@ func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> BattleResult:
 	var winner_value: Variant = CommandCodec.to_int_or_null(d.get("winner"))
 	var turns_value: Variant = CommandCodec.to_int_or_null(d.get("turns"))
+	var holder_value: Variant = CommandCodec.to_int_or_null(d.get("field_holder"))
+	var retreat_value: Variant = CommandCodec.to_int_or_null(d.get("retreat"))
 	var reason_value: Variant = d.get("reason")
+	var resolution_value: Variant = d.get("resolution")
 	var company_list: Variant = d.get("companies")
 	if winner_value == null or turns_value == null or not reason_value is String:
+		return null
+	if holder_value == null or retreat_value == null or not resolution_value is String:
+		return null
+	if not [PLAYED, AUTO].has(StringName(resolution_value as String)):
 		return null
 	if not company_list is Array:
 		return null
@@ -107,6 +150,9 @@ static func from_dict(d: Dictionary) -> BattleResult:
 	result.winner = winner_value
 	result.reason = StringName(reason_value)
 	result.turns = turns_value
+	result.resolution = StringName(resolution_value as String)
+	result.field_holder = holder_value
+	result.retreat = retreat_value
 	for entry: Variant in company_list:
 		var company := Company.from_dict(entry)
 		if company == null:

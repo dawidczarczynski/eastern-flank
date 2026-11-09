@@ -40,10 +40,15 @@ static func tiles_in_range(state: GameState, unit: Unit) -> Array[Vector2i]:
 	return result
 
 
-## Attack margin max(1, attack - (defense + terrain defense bonus of the defender's tile)): the
-## average damage of a full-strength attacker. The attacker's own tile is ignored.
+## Attack margin max(1, attack - (defense + defender's position bonus + terrain defense bonus of
+## the defender's tile)): the average damage of a full-strength attacker. The
+## attacker's own tile is ignored.
 static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
-	var defense := defender.definition.defense + state.grid.defense_bonus(defender.coord)
+	var defense := (
+		defender.definition.defense
+		+ state.position_bonus_per_player[defender.owner_id]
+		+ state.grid.defense_bonus(defender.coord)
+	)
 	return maxi(1, attacker.definition.attack - defense)
 
 

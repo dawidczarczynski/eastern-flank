@@ -1,7 +1,8 @@
 class_name ResolveBattleCommand
 extends OperationalCommand
 ## Closes the first pending contact battle with its result (TASK-094a, v0): removes it from the
-## queue. No consequences yet (TASK-095). The result must belong to that battle.
+## queue. No consequences yet (TASK-095). The result must belong to that battle (`result_mismatch`);
+## an `auto` result must equal `AutoResolve.resolve` of it (`auto_mismatch`, TASK-120).
 
 const TYPE := "resolve_battle"
 
@@ -23,6 +24,12 @@ func validate(state: OperationalState) -> String:
 		var reported := result.companies[i]
 		if reported.ref != planned.ref or reported.strength_start != planned.strength:
 			return "result_mismatch"
+	# An auto result is a pure function of the pending setup (TASK-120): recompute it. A played
+	# result cannot be checked here (the tactical commands live in the campaign record).
+	if result.resolution == BattleResult.AUTO:
+		var expected := AutoResolve.resolve(setup)
+		if expected == null or expected.to_dict() != result.to_dict():
+			return "auto_mismatch"
 	return ""
 
 

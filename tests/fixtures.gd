@@ -146,3 +146,72 @@ static func _fieldable(state: OperationalState, formation: Formation) -> bool:
 		if faction == null or faction.find_unit(company.unit_type) == null:
 			return false
 	return true
+
+
+## A battle setup for the auto-resolve tests (TASK-120). `rows` = [player, unit type, strength];
+## `postures` = [[posture, position bonus], ...] per player; attacker 0, plains, no turn limit,
+## command points 0 unless the caller changes them. Company i has ref "t/<i>".
+static func auto_setup(
+	factions: Array[StringName],
+	rows: Array,
+	postures: Array,
+	terrain: StringName = &"plains",
+	seed_value := 1
+) -> BattleSetup:
+	var setup := BattleSetup.new()
+	setup.seed = seed_value
+	setup.factions = factions
+	setup.attacker = 0
+	setup.terrain = terrain
+	for i in rows.size():
+		var company := BattleSetup.Company.new()
+		company.player = rows[i][0]
+		company.unit_type = rows[i][1]
+		company.strength = rows[i][2]
+		company.ref = "t/%d" % i
+		company.coord = Vector2i(i, 0)
+		setup.companies.append(company)
+	for posture: Array in postures:
+		var side := BattleSetup.Conditions.new()
+		side.posture = posture[0]
+		side.position_bonus = posture[1]
+		setup.conditions.append(side)
+	return setup
+
+
+## The named auto-resolve setups of TASK-120: "salvo", "crush", "mirror", "fortress".
+static func auto_case(kind: String, seed_value := 1) -> BattleSetup:
+	var pl_ru: Array[StringName] = [&"poland", &"russia"]
+	var pl_pl: Array[StringName] = [&"poland", &"poland"]
+	var advance := [&"advance", 0]
+	match kind:
+		"salvo":
+			return auto_setup(
+				pl_ru,
+				[[0, &"homar_k", 3], [0, &"homar_k", 6], [1, &"bm27_uragan", 6]],
+				[advance, [&"march", -1]],
+				&"plains",
+				seed_value
+			)
+		"crush":
+			return auto_setup(
+				pl_ru,
+				[
+					[0, &"m1a2_sepv3", 10],
+					[0, &"m1a2_sepv3", 10],
+					[0, &"m1a2_sepv3", 10],
+					[0, &"pl_mech_infantry", 10],
+					[1, &"ru_motor_rifle", 10],
+				],
+				[advance, [&"defend", 1]],
+				&"plains",
+				seed_value
+			)
+	var rows: Array = []
+	for player in 2:
+		for i in 3:
+			rows.append([player, &"pl_mech_infantry", 10])
+		rows.append([player, &"m1a2_sepv3", 10])
+	if kind == "fortress":
+		return auto_setup(pl_pl, rows, [advance, [&"defend", 1]], &"hills", seed_value)
+	return auto_setup(pl_pl, rows, [advance, advance], &"plains", seed_value)

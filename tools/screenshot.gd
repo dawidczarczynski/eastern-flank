@@ -357,7 +357,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
 ## contactmap:<col>:<row>:<col>:<row> (the debug contact-map panel with that attacker / defender
 ## hex pair picked and its cut outlined, TASK-094b), result (after contact:… – resolves the
-## first battle as a demo win of the attacker and shows the short result notice, TASK-094c),
+## first battle as a demo win of the attacker and shows the short result notice, TASK-094c;
+## resulttab:<0|1> selects that side's tab, 0 = attacker),
 ## e.g. SCREENSHOT_SCENE=staff_map SCREENSHOT_STAFF_MAP=pitch:0,zoom:max,focus:30:20,grid.
 ## SCREENSHOT_SELECT_UNIT=<unit id> selects that unit (reach wash) and hovers a
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
@@ -454,6 +455,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var contacts: Array = []
 	var contact_map: Array = []
 	var show_result := false
+	var result_tab := -1
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -502,6 +504,8 @@ func _apply_staff_map_state(spec: String) -> void:
 				contacts.append(parts)
 			"result":
 				show_result = true
+			"resulttab":
+				result_tab = int(parts[1]) if parts.size() == 2 else 0
 			"contactmap":
 				if parts.size() != 5:
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
@@ -559,6 +563,8 @@ func _apply_staff_map_state(spec: String) -> void:
 		_start_contact(map, StringName(contact[1]), StringName(contact[2]))
 	if show_result:
 		map.debug_result_notice()
+		if result_tab >= 0:
+			map.result_notice().select_side(result_tab)
 	if end_turn_after:  # the orders run, the slide is skipped, the mover's report is shown
 		var mover := map.simulation().state.current_player
 		map.end_turn()
