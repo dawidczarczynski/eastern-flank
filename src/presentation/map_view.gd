@@ -14,6 +14,8 @@ const EXTENT := 6.0
 ## (excluding ~0.3 s once for the detail textures); 4 is the compromise, the normal map
 ## supplies the fine detail.
 const RESOLUTION := 4.0
+## Farmland parcels (TASK-108f) reach this far beyond the playable mesh into the backdrop ring.
+const PARCEL_MARGIN := 2.0
 ## Scenery ring around the playable terrain mesh (TASK-052): width in world units, vertices at
 ## half the playable mesh density, the blend from the off-map margin look to the desaturated
 ## backdrop look over BACKDROP_FADE units from the seam, and that look (value and saturation
@@ -122,6 +124,8 @@ var _mesh_heights := PackedFloat32Array()
 var _backdrop: BackdropMesh
 ## The ground ShaderMaterial shared by the terrain and the backdrop (one per build).
 var _ground_material: ShaderMaterial
+## The baked farmland parcels of this build (FieldParcels), or null on a map without fields.
+var _parcels: ParcelMap
 ## The map terrain the backdrop copies (one per build, after the terrain mesh).
 var _backdrop_types: BackdropTypes
 var _tiles_root := Node3D.new()
@@ -199,6 +203,8 @@ func build(grid: HexGrid) -> void:
 	# Packs the ground textures on worker threads while the mesh is built.
 	TerrainTextures.request(TerrainGround.texture_size(quality))
 	_ground_material = null
+	# Farmland parcels (TASK-108f) over the mesh and the near backdrop; null without fields.
+	_parcels = FieldParcels.bake(grid, hex_size, rect.grow(PARCEL_MARGIN))
 	_tiles_root.add_child(_build_terrain(rect))
 	_tiles_root.add_child(_build_backdrop(rect))
 	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
@@ -208,7 +214,11 @@ func build(grid: HexGrid) -> void:
 	_map_trees = []
 	_backdrop_trees = []
 	if quality.get("foliage", true):
-		_build_scatter(ScatterPlanner.plan(grid, _surface, SCATTER_SEED), "")
+		var plan := ScatterPlanner.plan(grid, _surface, SCATTER_SEED, _parcels)
+		var hedges := ScatterPlanner.plan_hedges(grid, _surface, _parcels)
+		plan["trees"].append_array(hedges["trees"])
+		plan["edge_shrubs"].append_array(hedges["edge_shrubs"])
+		_build_scatter(plan, "")
 		if quality.get("backdrop_scatter", true):
 			_build_backdrop_scatter(rect)
 			_tiles_root.add_child(_build_backdrop_canopy())
@@ -221,7 +231,9 @@ func build(grid: HexGrid) -> void:
 		_surface,
 		CameraMath.map_bounds(centers, hex_size),
 		quality.get("grass_density", 1.0),
-		_grass_color
+		_grass_color,
+		GrassPlanner.INSTANCE_BUDGET,
+		_parcels
 	)
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
@@ -411,6 +423,7 @@ static func _splat(type: int, normal_y: float, v: Vector3, noise: Vector2) -> Pa
 func _terrain_material() -> ShaderMaterial:
 	if _ground_material == null:
 		_ground_material = TerrainGround.material(quality)
+		TerrainGround.set_parcels(_ground_material, _parcels)
 	return _ground_material
 
 
@@ -507,7 +520,7 @@ func _build_backdrop_scatter(inner: Rect2) -> void:
 			var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
 			ring.set_terrain(c, _backdrop_types.nearest_tile_type(border) as Terrain.Type)
 	var surface := BackdropSurface.new(ring, visible_ground_height)
-	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED)
+	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED, _parcels)
 	# Far away: the ground cover is not worth its triangles.
 	plan["ground_cover"] = []
 	# Deterministic per-position thinning (no spatial pattern from the plan order).

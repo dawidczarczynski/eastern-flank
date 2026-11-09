@@ -124,3 +124,26 @@ func test_instance_budget_on_the_default_map() -> void:
 		flowers += GrassPlanner.plan_flowers(chunk, grid, surface, GrassField.SEED, 1.0, {}).size()
 	print("Grass instances on the default map at density 1.0: %d, flowers: %d" % [total, flowers])
 	assert_true(total + flowers <= GrassPlanner.INSTANCE_BUDGET, "budget: %d" % (total + flowers))
+
+
+func test_crop_parcels_thin_the_grass_and_keep_other_positions() -> void:
+	var grid := _disc(Terrain.Type.FIELDS)
+	var parcels := FieldParcels.bake(grid, TerrainField.HEX_SIZE, Rect2(-1.0, -1.0, 6.0, 6.0))
+	var surface := TerrainSurface.new(grid)
+	var plain := GrassPlanner.plan_chunk(CHUNK, grid, surface, SEED, 1.0)
+	var thinned := GrassPlanner.plan_chunk(CHUNK, grid, surface, SEED, 1.0, {}, parcels)
+	assert_true(thinned.size() < plain.size(), "crops remove clumps")
+	var crops := LookPreset.fields()["crops"] as Dictionary
+	var ids := {}
+	for g: Dictionary in plain:
+		ids[g["position"]] = true
+	for g: Dictionary in thinned:
+		assert_true(ids.has(g["position"]), "no new clump positions")
+		var kind := parcels.kind_at(g["position"].x, g["position"].z)
+		if kind in FieldParcels.CROP_KINDS:
+			assert_true(
+				float(crops[FieldParcels.CROPS[kind]]["grass_keep"]) > 0.0,
+				"clump on a crop parcel with grass_keep 0"
+			)
+	var without_parcels := GrassPlanner.plan_chunk(CHUNK, grid, surface, SEED, 1.0, {}, null)
+	assert_eq(without_parcels, plain)

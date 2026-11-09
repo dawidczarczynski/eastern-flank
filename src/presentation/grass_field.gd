@@ -31,6 +31,7 @@ const SHADER := preload("res://assets/shaders/grass.gdshader")
 var chunks_per_frame := 1
 
 var _grid: HexGrid
+var _parcels: ParcelMap
 var _surface: TerrainSurface
 var _density := 0.0
 ## Callable(position: Vector3) -> Color: the linear ground colour under a clump (evaluated once
@@ -66,7 +67,8 @@ func setup(
 	map_rect: Rect2,
 	requested: float,
 	color_of: Callable,
-	budget: int = GrassPlanner.INSTANCE_BUDGET
+	budget: int = GrassPlanner.INSTANCE_BUDGET,
+	parcels: ParcelMap = null
 ) -> void:
 	for child in get_children():
 		remove_child(child)
@@ -74,6 +76,7 @@ func setup(
 	_grid = grid
 	_surface = surface
 	_color_of = color_of
+	_parcels = parcels
 	_chunks.clear()
 	_flower_chunks.clear()
 	_reed_chunks.clear()
@@ -276,12 +279,12 @@ func _chunk_distance(chunk: Vector2i) -> float:
 
 func _build_chunk(chunk: Vector2i) -> MultiMeshInstance3D:
 	var flowers := _without_cleared(
-		GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow)
+		GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow, _parcels)
 	)
 	if not flowers.is_empty():
 		_flower_chunks[chunk] = _build_flowers(chunk, flowers)
 	var clumps := _without_cleared(
-		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow)
+		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow, _parcels)
 	)
 	var reeds := clumps.filter(
 		func(g: Dictionary) -> bool: return g["kind"] == GrassPlanner.Kind.REED

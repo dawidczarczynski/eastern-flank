@@ -84,3 +84,43 @@ static func material(quality: Dictionary) -> ShaderMaterial:
 	material.set_shader_parameter(&"triplanar", quality.get("terrain_triplanar", true))
 	material.set_shader_parameter(&"water_level", TerrainSurface.WATER_SURFACE)
 	return material
+
+
+## Turns the farmland parcels of the shader on with the baked `parcels` (FieldParcels.bake) and
+## the crop colours of LookPreset.fields(), or off for null (a map without fields).
+static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
+	material.set_shader_parameter(&"parcels_on", parcels != null)
+	if parcels == null:
+		return
+	var look := LookPreset.fields()
+	var plant := PackedVector3Array()
+	var furrow := PackedVector3Array()
+	var rows := PackedVector2Array()
+	for k in FieldParcels.CROPS.size():
+		var entry: Dictionary = look["balk"]
+		if k in FieldParcels.CROP_KINDS:
+			entry = look["crops"][FieldParcels.CROPS[k]]
+		plant.append(_linear(entry["plant"]))
+		furrow.append(_linear(entry["furrow"]))
+		rows.append(Vector2(entry.get("spacing_m", 1000.0), entry.get("plant_frac", 1.0)))
+	material.set_shader_parameter(&"parcel_map", parcels.texture())
+	var rect := parcels.rect_units()
+	material.set_shader_parameter(
+		&"parcel_rect",
+		Vector4(rect.position.x, rect.position.y, 1.0 / rect.size.x, 1.0 / rect.size.y)
+	)
+	material.set_shader_parameter(&"metres_per_unit", MapScale.metres_per_unit)
+	material.set_shader_parameter(&"crop_plant", plant)
+	material.set_shader_parameter(&"crop_furrow", furrow)
+	material.set_shader_parameter(&"crop_row", rows)
+	material.set_shader_parameter(&"parcel_brightness", look["parcel_brightness"])
+	material.set_shader_parameter(&"parcel_hue", look["parcel_hue"])
+	material.set_shader_parameter(&"row_fade", Vector2(look["row_fade_from"], look["row_fade_to"]))
+	# Same limit as the grass: ground steeper than GrassPlanner.MAX_SLOPE stays bare.
+	var steep := 1.0 - 1.0 / sqrt(1.0 + GrassPlanner.MAX_SLOPE * GrassPlanner.MAX_SLOPE)
+	material.set_shader_parameter(&"parcel_slope", Vector2(steep * 0.75, steep * 1.3))
+
+
+static func _linear(color: Color) -> Vector3:
+	var c := color.srgb_to_linear()
+	return Vector3(c.r, c.g, c.b)

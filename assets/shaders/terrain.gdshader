@@ -1,4 +1,4 @@
-// Terrain ground (TASK-055): six CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
+// Terrain ground (TASK-055, farmland parcels TASK-108f): six CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
 // dry_grass, dirt, mud, gravel, rock) blended by per-vertex weights – layers 0-3 in COLOR,
 // 4-5 in CUSTOM0.xy (CUSTOM0.zw are free for TASK-035). Layers are sampled in world space
 // (x, z) / layer_repeat; with anti_tiling a second, larger and rotated sample is mixed in by a
@@ -10,6 +10,8 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 
 const int LAYER_COUNT = 6;
 const int ROCK = 5;
+// Farmland parcels (TASK-108f): kinds of FieldParcels.Kind, 9 entries (none, 7 crops, balk).
+const int PARCEL_KINDS = 9;
 // Layers below this weight are not sampled.
 const float WEIGHT_EPSILON = 0.004;
 
@@ -44,6 +46,24 @@ uniform float macro_frequency = 0.08;
 uniform float water_level = 0.0;
 uniform float bed_darkening = 0.6;
 uniform float bed_depth = 0.6;
+
+// Farmland parcel map (FieldParcels.bake, RG8): kind in red, parcel id * 2 + row orientation
+// (1 = rows run along x) in green. parcel_rect = (x, z, 1 / width, 1 / height) in world units.
+// Off (the default battle) when the map has no fields.
+uniform bool parcels_on = false;
+uniform sampler2D parcel_map : filter_nearest, repeat_disable, hint_default_black;
+uniform vec4 parcel_rect = vec4(0.0, 0.0, 1.0, 1.0);
+uniform float metres_per_unit = 144.34;
+// Per kind: plant and furrow colour (linear) and (row spacing in m, plant width fraction).
+uniform vec3 crop_plant[9];
+uniform vec3 crop_furrow[9];
+uniform vec2 crop_row[9];
+uniform float parcel_brightness = 0.12;
+uniform float parcel_hue = 0.07;
+// Rows fade to the average colour as one row spans this many pixels (from .. to).
+uniform vec2 row_fade = vec2(0.3, 0.8);
+// Parcels fade out on ground steeper than this slope (1 - normal.y), from .. to.
+uniform vec2 parcel_slope = vec2(0.08, 0.14);
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -202,6 +222,39 @@ void fragment() {
 	albedo /= total;
 	rough_ao /= total;
 	n = normalize(vec3(n.xy * normal_strength, max(n.z, 1e-3)));
+
+	if (parcels_on) {
+		// World-space derivatives before any divergent branch.
+		vec2 xz_m = xz * metres_per_unit;
+		vec2 fw_m = fwidth(xz_m);
+		vec2 puv = (xz - parcel_rect.xy) * parcel_rect.zw;
+		vec4 pm = textureLod(parcel_map, clamp(puv, vec2(0.0), vec2(0.9999)), 0.0);
+		int kind = int(pm.r * 255.0 + 0.5);
+		if (kind > 0 && kind < PARCEL_KINDS && puv.x >= 0.0 && puv.y >= 0.0 && puv.x < 1.0 && puv.y < 1.0) {
+			float g = pm.g * 255.0 + 0.5;
+			float rows_along_x = mod(floor(g), 2.0);
+			float pid = floor(g * 0.5) / 127.0;
+			float across = mix(xz_m.x, xz_m.y, rows_along_x);
+			float across_px = mix(fw_m.x, fw_m.y, rows_along_x);
+			vec2 row = crop_row[kind];
+			float t = across / row.x;
+			float ft = across_px / row.x;
+			float dist = abs(fract(t) - 0.5) * 2.0;
+			float edge = clamp(ft * 2.0, 0.03, 0.5);
+			float plant = 1.0 - smoothstep(row.y - edge, row.y + edge, dist);
+			plant = mix(plant, row.y, smoothstep(row_fade.x, row_fade.y, ft));
+			vec3 crop = mix(crop_furrow[kind], crop_plant[kind], plant);
+			// Per-parcel brightness / hue variation and a soft patchiness inside the parcel.
+			float hue = (fract(pid * 7.31 + 0.17) * 2.0 - 1.0) * parcel_hue;
+			crop *= (1.0 + (pid * 2.0 - 1.0) * parcel_brightness) * vec3(1.0 + hue, 1.0, 1.0 - hue);
+			crop *= 1.0 + 0.12 * (value_noise(xz * 9.0) - 0.5);
+			// Not on steep, rocky or muddy ground.
+			float cover = 1.0 - smoothstep(parcel_slope.x, parcel_slope.y, 1.0 - wn.y);
+			cover *= 1.0 - smoothstep(0.2, 0.6, w[3]);
+			cover *= 1.0 - smoothstep(0.1, 0.4, w[ROCK]);
+			albedo = mix(albedo, crop, cover);
+		}
+	}
 
 	// Macro brightness, then the per-vertex value / saturation (off-map margin, backdrop).
 	float macro = value_noise(xz * macro_frequency) * 0.65 + value_noise(xz * macro_frequency * 2.7 + 17.0) * 0.35;

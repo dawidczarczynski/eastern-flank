@@ -6,6 +6,8 @@
 - **Model**: sonnet
 - **Topic**: Two-layer game
 
+> **Superseded in part (2026-11-09): the field-strip part (the `FieldParcels` 20-50 m strips, the baked parcel texture, the `ARRAY_CUSTOM0.z` field weight and the field grass thinning, and the `stubble` / `soil` field use) is done by [TASK-108f](TASK-108f-field-parcels-crops.md) with regular parcels and crop variety. This task keeps roads with verges, ribbon widths, `across` attribute, road shader and URBAN farmyards; its acceptance criteria and playtest steps about fields no longer apply, and `FieldParcels` / `MapScale` already exist.**
+
 ## Goal
 
 On a real-terrain map, farmland and roads have their real sizes: fields are a patchwork of real 20–50 m strips (harvested stubble, ploughed soil, green crop), as in the Polish countryside, and roads are real 5 m carriageways with worn verges, not 14 m grey lines. This uses the two splat channels (`ARRAY_CUSTOM0.zw`) reserved since TASK-055. The default battle (no fields, no roads) looks exactly as before. First of four look tasks (108b ground and roads, 108c river and bridges, 108d village buildings, 108e reeds), each with its own frame budget.

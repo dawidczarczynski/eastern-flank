@@ -8,6 +8,87 @@ extends RefCounted
 ## albedo multipliers for ground layers (TerrainGround.LAYER_TINTS order).
 
 const DEFAULT_PRESET := &"muted_summer"
+## Farmland look (TASK-108f): per crop the share of parcels (FieldParcels.CROPS order), the plant
+## and furrow colours (sRGB; the shader mixes them by the row pattern), the row spacing in metres
+## (exaggerated so rows read at the default zoom), the plant width as a fraction of the spacing
+## and the grass clump keep factor on the parcel (GrassPlanner). A preset's "fields" entry is
+## merged over it by fields().
+const FIELDS_DEFAULT := {
+	"crops":
+	{
+		&"wheat":
+		{
+			"share": 0.24,
+			"plant": Color("#b8984a"),
+			"furrow": Color("#a48a46"),
+			"spacing_m": 7.0,
+			"plant_frac": 0.7,
+			"grass_keep": 0.0,
+		},
+		&"maize":
+		{
+			"share": 0.10,
+			"plant": Color("#3f5530"),
+			"furrow": Color("#47472d"),
+			"spacing_m": 10.0,
+			"plant_frac": 0.6,
+			"grass_keep": 0.0,
+		},
+		&"potato":
+		{
+			"share": 0.10,
+			"plant": Color("#5a7a50"),
+			"furrow": Color("#4b6743"),
+			"spacing_m": 8.0,
+			"plant_frac": 0.6,
+			"grass_keep": 0.0,
+		},
+		&"green":
+		{
+			"share": 0.16,
+			"plant": Color("#7a8c4c"),
+			"furrow": Color("#6b7d42"),
+			"spacing_m": 7.0,
+			"plant_frac": 0.7,
+			"grass_keep": 0.0,
+		},
+		&"stubble":
+		{
+			"share": 0.15,
+			"plant": Color("#b3a272"),
+			"furrow": Color("#a39465"),
+			"spacing_m": 8.0,
+			"plant_frac": 0.6,
+			"grass_keep": 0.0,
+		},
+		&"ploughed":
+		{
+			"share": 0.16,
+			"plant": Color("#6a4c34"),
+			"furrow": Color("#53392a"),
+			"spacing_m": 10.0,
+			"plant_frac": 0.5,
+			"grass_keep": 0.0,
+		},
+		&"meadow":
+		{
+			"share": 0.09,
+			"plant": Color("#66803f"),
+			"furrow": Color("#5e7a3b"),
+			"spacing_m": 30.0,
+			"plant_frac": 0.5,
+			"grass_keep": 1.0,
+		},
+	},
+	"balk": {"plant": Color("#4b6230"), "furrow": Color("#4b6230")},
+	# Per-parcel brightness variation (+- fraction) and hue shift (+- fraction of red / blue).
+	"parcel_brightness": 0.14,
+	"parcel_hue": 0.1,
+	# Row stripes fade to the crop's average colour as one row spans this many screen pixels.
+	"row_fade_from": 0.3,
+	"row_fade_to": 0.8,
+}
+
 ## Open-ground vegetation (TASK-070). MEADOW_OFF turns every feature off (the `current` look =
 ## TASK-057/061 output); a preset's "meadow" entry is merged over it by meadow().
 const MEADOW_OFF := {
@@ -354,6 +435,14 @@ static func autumn_share(base: float) -> float:
 static func meadow() -> Dictionary:
 	var merged := MEADOW_OFF.duplicate(true)
 	merged.merge((_active.get("meadow", {}) as Dictionary).duplicate(true), true)
+	return merged
+
+
+## Farmland look values of the active preset (a copy): FIELDS_DEFAULT with the preset's "fields"
+## entry merged in.
+static func fields() -> Dictionary:
+	var merged := FIELDS_DEFAULT.duplicate(true)
+	merged.merge((_active.get("fields", {}) as Dictionary).duplicate(true), true)
 	return merged
 
 

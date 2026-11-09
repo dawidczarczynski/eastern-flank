@@ -63,20 +63,24 @@ static func slope(surface: TerrainSurface, x: float, z: float) -> float:
 ## (graphics quality) scales the count. Every candidate draws the same numbers, so rejected ones
 ## never shift the stream and changing the terrain elsewhere does not move the grass of this
 ## chunk. `meadow` is LookPreset.meadow() (empty = the active one); the kind and the bare-patch
-## thinning use deterministic noises and position hashes, never extra stream draws.
+## thinning use deterministic noises and position hashes, never extra stream draws. `parcels`
+## (TASK-108f) thins the clumps on crop parcels (LookPreset.fields() "grass_keep"), after the
+## draws, so nothing else moves.
 static func plan_chunk(
 	chunk: Vector2i,
 	grid: HexGrid,
 	surface: TerrainSurface,
 	seed_value: int,
 	density: float,
-	meadow: Dictionary = {}
+	meadow: Dictionary = {},
+	parcels: ParcelMap = null
 ) -> Array:
 	var result: Array = []
 	if density <= 0.0:
 		return result
 	if meadow.is_empty():
 		meadow = LookPreset.meadow()
+	var keeps := _parcel_keeps(parcels)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed_value, chunk.x, chunk.y])
 	var origin := Vector2(chunk) * CHUNK_SIZE
@@ -88,7 +92,9 @@ static func plan_chunk(
 		var scale_k := rng.randf()
 		var tint := rng.randf()
 		var accept := rng.randf()
-		var clump := _clump_at(x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow)
+		var clump := _clump_at(
+			x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow, parcels, keeps
+		)
 		if not clump.is_empty():
 			result.append(clump)
 	# Marsh is denser (TASK-108e): the extra candidates come from their own stream and only
@@ -103,7 +109,9 @@ static func plan_chunk(
 			var yaw := extra_rng.randf() * TAU
 			var scale_k := extra_rng.randf()
 			var tint := extra_rng.randf()
-			var clump := _clump_at(x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow)
+			var clump := _clump_at(
+				x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow, parcels, keeps
+			)
 			if not clump.is_empty():
 				result.append(clump)
 	return result
@@ -121,7 +129,9 @@ static func _clump_at(
 	extra: bool,
 	grid: HexGrid,
 	surface: TerrainSurface,
-	meadow: Dictionary
+	meadow: Dictionary,
+	parcels: ParcelMap = null,
+	keeps: PackedFloat32Array = PackedFloat32Array()
 ) -> Dictionary:
 	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	if not grid.has_tile(coord):
@@ -132,6 +142,8 @@ static func _clump_at(
 	var keep := 1.0 if extra else density_of(terrain) / PLAINS_DENSITY
 	if terrain != Terrain.Type.FOREST and meadow["bare_thinning"] > 0.0:
 		keep *= 1.0 - float(meadow["bare_thinning"]) * bare_k(x, z)
+	if parcels != null and not extra:
+		keep *= keeps[parcels.kind_at(x, z)]
 	if accept >= keep:
 		return {}
 	var y := surface.ground_height(x, z)
@@ -150,6 +162,19 @@ static func _clump_at(
 		"kind": kind,
 		"height": kind_height(kind, meadow),
 	}
+
+
+## Grass keep factor per FieldParcels kind (1 for none and the balk), from the look data.
+static func _parcel_keeps(parcels: ParcelMap) -> PackedFloat32Array:
+	var keeps := PackedFloat32Array()
+	keeps.resize(FieldParcels.CROPS.size())
+	keeps.fill(1.0)
+	if parcels == null:
+		return keeps
+	var crops: Dictionary = LookPreset.fields()["crops"]
+	for k in FieldParcels.CROP_KINDS:
+		keeps[k] = float(crops[FieldParcels.CROPS[k]]["grass_keep"])
+	return keeps
 
 
 ## Clumps per world unit² of a terrain type at density 1.0 (0 on water).
@@ -290,7 +315,8 @@ static func plan_flowers(
 	surface: TerrainSurface,
 	seed_value: int,
 	density: float,
-	meadow: Dictionary = {}
+	meadow: Dictionary = {},
+	parcels: ParcelMap = null
 ) -> Array:
 	var result: Array = []
 	if meadow.is_empty():
@@ -325,6 +351,8 @@ static func plan_flowers(
 			continue
 		var centre := Hex.to_world(coord, TerrainField.HEX_SIZE)
 		if Vector2(x - centre.x, z - centre.z).length() < float(meadow["centre_clear"]):
+			continue
+		if parcels != null and parcels.blocks_tall_grass(x, z):
 			continue
 		var cluster_k := TerrainNoise.smooth(
 			meadow["flower_from"], meadow["flower_to"], GroundNoise.flower_k(x, z, meadow)

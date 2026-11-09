@@ -27,8 +27,8 @@ const DIRT_PATCH_MAX := 0.4
 const FOREST_DIRT := 0.6
 ## Real-terrain types (TASK-108, basic look): base layers before the slope / shore rules.
 ## Fields: stubble (dry grass over dirt); urban: yards and lanes (gravel, dirt); marsh: wet meadow.
-const FIELDS_DRY_GRASS := 0.5
-const FIELDS_DIRT := 0.3
+const FIELDS_DRY_GRASS := 0.4
+const FIELDS_DIRT := 0.15
 const URBAN_GRAVEL := 0.5
 const URBAN_DIRT := 0.3
 const MARSH_MUD := 0.45

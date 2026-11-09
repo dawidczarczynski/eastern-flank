@@ -53,17 +53,26 @@ const GROUND_COVER_OPEN := 3
 const GROUND_COVER_SCALE := Vector2(0.7, 1.3)
 ## Scrub clumps on open ground (TASK-070): own RNG stream again.
 const MEADOW_SEED_SALT := 0x3EAD
+## Hedgerow copses on the balks of farmland (TASK-108f): this share of the strips carries one on
+## its long balk, a clump every HEDGE_STEP_M with a gap chance, a tree (else a shrub) by chance.
+const HEDGE_CHANCE := 0.5
+const HEDGE_STEP_M := 40.0
+const HEDGE_GAP_CHANCE := 0.25
+const HEDGE_TREE_CHANCE := 0.3
 const SHRUB := &"shrub"
 const UNDERGROWTH := &"undergrowth"
 
 
+## `parcels` (TASK-108f) removes everything that stands on a farmland parcel.
 ## Returns {"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover",
 ## "meadow_scrub"} (Array[Dictionary] each). Young trees, edge shrubs, ground cover and meadow
 ## scrub are tree dictionaries (as trees, plus "species": TreeMeshes shrub / undergrowth for the
 ## last three) drawn by the TreeField. Meadow scrub follows LookPreset.meadow().
 ## Tree: {position, scale, height_scale, yaw, conifer, k}. Rock: {position, scale, rotation}.
 ## Bush: {position, scale, height_scale, yaw, k}.
-static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dictionary:
+static func plan(
+	grid: HexGrid, surface: TerrainSurface, seed_value: int, parcels: ParcelMap = null
+) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var trees: Array[Dictionary] = []
@@ -116,6 +125,16 @@ static func plan(grid: HexGrid, surface: TerrainSurface, seed_value: int) -> Dic
 		"ground_cover": ground_cover,
 		"meadow_scrub": meadow_scrub,
 	}
+	# Nothing stands on crop, ploughed and meadow parcels (TASK-108f; filtered afterwards, so the
+	# streams above are unchanged).
+	if parcels != null:
+		for key: String in plan:
+			var kept: Array[Dictionary] = []
+			for item: Dictionary in plan[key]:
+				var p: Vector3 = item["position"]
+				if not parcels.blocks_standing(p.x, p.z):
+					kept.append(item)
+			plan[key] = kept
 	# Nothing grows on roads and rivers (filtered afterwards, so the streams above are unchanged).
 	if grid.has_links():
 		for key: String in plan:
@@ -420,3 +439,75 @@ static func _plan_rocks(
 				}
 			)
 		)
+
+
+## Hedgerow trees and shrubs on the balks of some farmland strips (TASK-108f), by position hash
+## (no RNG stream): {"trees": [...], "edge_shrubs": [...]} in the formats of plan(), for the
+## playable map only (the planned ring around it has no parcels of its own).
+static func plan_hedges(grid: HexGrid, surface: TerrainSurface, parcels: ParcelMap) -> Dictionary:
+	var trees: Array[Dictionary] = []
+	var shrubs: Array[Dictionary] = []
+	if parcels == null:
+		return {"trees": trees, "edge_shrubs": shrubs}
+	var scale_m := MapScale.metres_per_unit
+	var size_m := Vector2(parcels.size_px()) * parcels.metres_per_pixel
+	var area := Rect2(parcels.origin_m, size_m)
+	var first := Vector2i((area.position / FieldParcels.BLOCK_M).floor())
+	var last := Vector2i((area.end / FieldParcels.BLOCK_M).floor())
+	for bx in range(first.x, last.x + 1):
+		for bz in range(first.y, last.y + 1):
+			for parcel: Dictionary in FieldParcels.parcels_of_block(bx, bz):
+				var key: int = parcel["key"]
+				var rect: Rect2 = parcel["rect"]
+				if (
+					not rect.intersects(area)
+					or FieldParcels.unit_hash(key, 11, 0, 0) >= HEDGE_CHANCE
+				):
+					continue
+				var along_x: bool = parcel["along_x"]
+				var v0 := rect.position.x if along_x else rect.position.y
+				var v1 := rect.end.x if along_x else rect.end.y
+				var line := (
+					(rect.position.y if along_x else rect.position.x) + 0.5 * FieldParcels.BALK_M
+				)
+				var steps := floori((v1 - v0) / HEDGE_STEP_M)
+				for i in steps:
+					var h1 := FieldParcels.unit_hash(key, 12, i, 1)
+					var h2 := FieldParcels.unit_hash(key, 12, i, 2)
+					var h3 := FieldParcels.unit_hash(key, 12, i, 3)
+					var h4 := FieldParcels.unit_hash(key, 12, i, 4)
+					if h3 < HEDGE_GAP_CHANCE:
+						continue
+					var along := v0 + (i + 0.3 + 0.4 * h1) * HEDGE_STEP_M
+					var across := line + (h2 - 0.5) * 0.6 * FieldParcels.BALK_M
+					var x_m := along if along_x else across
+					var z_m := across if along_x else along
+					if parcels.kind_at_metres(x_m, z_m) != FieldParcels.Kind.BALK:
+						continue
+					var x := x_m / scale_m
+					var z := z_m / scale_m
+					var y := surface.ground_height(x, z)
+					if y < MIN_TREE_GROUND:
+						continue
+					var is_tree := h4 < HEDGE_TREE_CHANCE
+					var s := (0.5 + 0.4 * h1) if is_tree else (0.8 + 0.5 * h2)
+					var tree := {
+						"position": Vector3(x, y - TREE_SINK, z),
+						"scale": s,
+						"height_scale": s * (0.9 + h2 * 0.3),
+						"yaw": h1 * 6.0,
+						"conifer": false,
+						"k": h4,
+					}
+					if is_tree:
+						trees.append(tree)
+					else:
+						tree["species"] = SHRUB
+						shrubs.append(tree)
+	if grid.has_links():
+		var kept_trees: Array[Dictionary] = []
+		kept_trees.assign(FeatureRibbonPlanner.without_ribbons(grid, trees))
+		var kept_shrubs: Array[Dictionary] = []
+		kept_shrubs.assign(FeatureRibbonPlanner.without_ribbons(grid, shrubs))
+		return {"trees": kept_trees, "edge_shrubs": kept_shrubs}
+	return {"trees": trees, "edge_shrubs": shrubs}
