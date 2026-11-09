@@ -1,6 +1,6 @@
 # TASK-097a: Deep strike v1 (1/2, core) – means with range and a per-side stock, installations as targets, resolution (accuracy / interception / rng), ROE and escalation through TASK-115, resupply and repair per round
 
-- **Status**: idea
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (installation markers, hover card, F9 debug strike)
 - **Depends on**: TASK-092b, TASK-115, TASK-093c (soft: TASK-100, TASK-098)
 - **Sections**: GDD "Deep strikes", "Escalation ladder", "Countries and stances", "Outside support"; ARCHITECTURE "Two layers", "Operational events"
