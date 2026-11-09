@@ -1,6 +1,6 @@
 # TASK-094d: Contact (4/4) – `CampaignRecord`, campaign save and Continue, battle replay verification
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, record) + presentation (Save, Continue)
 - **Depends on**: TASK-094c
 - **Sections**: ADR 0015 §4 (campaign save / `CampaignRecord`); GDD "Battle hand-off and auto-resolve"
