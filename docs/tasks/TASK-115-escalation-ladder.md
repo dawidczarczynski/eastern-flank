@@ -1,6 +1,6 @@
 # TASK-115: Escalation ladder – shared level as data, raise / lower with attribution, ROE by target class, sanctuary gate, allies join at Regional war, calm decay, threshold ends the operation
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (level in the turn bar, notices, end screen)
 - **Depends on**: TASK-114, TASK-094a, TASK-093b (re-ordered 2026-11-01: the loop first – the threshold must also stop battles)
 - **Model**: sonnet
@@ -75,4 +75,8 @@ Section in the "Politics" chapter (started by TASK-113) – the five levels with
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Logic: `EscalationLadder` / `EscalationLevel` (`data/operational/escalation.tres`), `EscalationRules` (raise, lower, end_round calm decay, breach, strike_allowed, strike_escalation, on_strike), state fields + snapshot, `operation_over` gate in `OperationalSimulation.execute`, pending battles dropped at the threshold, sanctuary gate in `CountryRules`. raise/lower/breach are plain static functions (not commands), as the spec defines; the debug panel calls them and re-emits their events. 22 tests in `test_escalation*.gd`.
+
+View: escalation chip under the turn bar (5 ticks, green → red), ladder card, change toasts (incl. who joined at Regional war, calm decay), end notice with Back to menu, End turn disabled when the operation is over, Raise / Lower in the F9 panel. Scene test: `test_staff_map_escalation.gd`.
+
+Known limitations: view tests don't yet cover the F9 Raise/Lower buttons, the "joins:" toast and a real calm-decay toast; end notice uses the literal `#e07c5e` (= ui.alert) instead of a palette token; debug panel strings are not translated. README screenshot not re-rendered (staff-map HUD only, battle scene unchanged). Manual: new "The escalation ladder" section; breach/strike triggers are noted as not yet reachable in play (TASK-116 / 097).

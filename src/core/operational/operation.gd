@@ -59,6 +59,8 @@ static func from_definition(
 	state.first_player = definition.first_player
 	state.current_player = definition.first_player
 	state.turn = 1
+	state.escalation_level = definition.initial_escalation
+	state.escalation_floor = definition.initial_escalation
 	state.rng.seed = seed_value
 	state.country_map = country_map
 	for setup in definition.countries:
@@ -72,6 +74,12 @@ static func from_definition(
 static func _problem(
 	definition: OperationDefinition, grid: HexGrid, country_map: Dictionary
 ) -> String:
+	var ladder := EscalationLadder.shipped()
+	if definition.initial_escalation < 0 or definition.initial_escalation > ladder.top() - 1:
+		return (
+			"initial_escalation %d outside 0 .. %d"
+			% [definition.initial_escalation, ladder.top() - 1]
+		)
 	var sides_error := _sides_problem(definition)
 	if sides_error != "":
 		return sides_error

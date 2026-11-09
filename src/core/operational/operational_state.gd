@@ -32,6 +32,23 @@ var countries: Array[CountryState] = []
 var country_map: Dictionary = {}
 ## Seeded with the campaign seed; battle seeds are drawn from it (ADR 0015 §2).
 var rng := RandomNumberGenerator.new()
+## The escalation ladder (static, not in the snapshot; TASK-115).
+var ladder: EscalationLadder = EscalationLadder.shipped()
+## Shared escalation level, index into `ladder.levels` (TASK-115).
+var escalation_level: int = 1
+## The calm decay never goes below this (= the start level).
+var escalation_floor: int = 1
+## Per player: steps of escalation that player caused / de-escalation steps taken.
+var escalation_caused: Array[int] = [0, 0]
+var escalation_deescalated: Array[int] = [0, 0]
+## Per player: turn of the player's latest raise, -1 = never.
+var last_raise_turn: Array[int] = [-1, -1]
+## Consecutive full rounds without a raise (calm decay).
+var calm_rounds: int = 0
+## A raise happened in the running round.
+var raised_this_round: bool = false
+## {} while the operation runs, else {winner: int, reason: StringName}.
+var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
 var pending_battles: Array[BattleSetup] = []
 
@@ -66,7 +83,8 @@ func formation_at(coord: Vector2i) -> Formation:
 
 
 ## JSON-compatible snapshot of the dynamic state (static data – definitions, map – is left out):
-## {turn, current_player, rng_state, countries: [CountryState.snapshot() sorted by id],
+## {turn, current_player, rng_state, escalation, result,
+## countries: [CountryState.snapshot() sorted by id],
 ## formations: [Formation.snapshot() sorted by id]}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
@@ -85,6 +103,16 @@ func snapshot() -> Dictionary:
 		"current_player": current_player,
 		"rng_state": str(rng.state),
 		"formations": entries,
+		"escalation":
+		{
+			"level": escalation_level,
+			"caused": escalation_caused.duplicate(),
+			"deescalated": escalation_deescalated.duplicate(),
+			"last_raise_turn": last_raise_turn.duplicate(),
+			"calm_rounds": calm_rounds,
+			"raised_this_round": raised_this_round,
+		},
+		"result": result.duplicate(),
 	}
 
 

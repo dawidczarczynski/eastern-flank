@@ -9,6 +9,7 @@ extends VBoxContainer
 
 signal end_turn_pressed
 signal follow_toggled(follow: bool)
+signal escalation_pressed
 
 const SIDE_WIDTH := 200.0
 const ACTIVE_ALPHA := 1.0
@@ -28,6 +29,7 @@ var _date_label: Label
 var _icon: DayNightIcon
 var _mover: Label
 var _follow: Button
+var _chip: StaffMapEscalationChip
 var _end_button: EndTurnButton
 var _day := true
 var _busy := false  # the counters are sliding: End turn is off
@@ -90,7 +92,15 @@ func _init() -> void:
 	_follow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_follow.add_theme_font_size_override(&"font_size", 10)
 	_follow.toggled.connect(func(on: bool) -> void: follow_toggled.emit(on))
-	add_child(_follow)
+	var under := HBoxContainer.new()
+	under.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	under.alignment = BoxContainer.ALIGNMENT_CENTER
+	under.add_theme_constant_override(&"separation", 8)
+	add_child(under)
+	under.add_child(_follow)
+	_chip = StaffMapEscalationChip.new()
+	_chip.pressed.connect(func() -> void: escalation_pressed.emit())
+	under.add_child(_chip)
 
 
 ## Fills the bar from `state`; `viewer` picks the side shown on the left and the YOUR / ENEMY
@@ -115,6 +125,7 @@ func show_state(
 	)
 	_mover.text = ("▸ %s" % tr("%s MOVING") % side_name(state, mover)).to_upper()
 	_mover.add_theme_color_override(&"font_color", _colour(mover))
+	_chip.show_state(state, palette)
 	_follow.set_pressed_no_signal(follow)
 	_follow.text = tr("FOLLOW SIDE").to_upper() if follow else tr("FIXED SIDE").to_upper()
 	_follow.tooltip_text = tr("FOLLOW_TOOLTIP")
@@ -134,6 +145,10 @@ func show_state(
 ## Switches End turn off while the counters slide (TASK-092e); takes effect with show_state.
 func set_busy(busy: bool) -> void:
 	_busy = busy
+
+
+func escalation_chip() -> StaffMapEscalationChip:
+	return _chip
 
 
 func end_button() -> EndTurnButton:
@@ -187,6 +202,8 @@ static func _date_text(iso: String) -> String:
 
 
 static func _end_turn_blocker(state: OperationalState) -> String:
+	if not state.result.is_empty():
+		return "operation_over"
 	return EndOperationalTurnCommand.new().validate(state)
 
 

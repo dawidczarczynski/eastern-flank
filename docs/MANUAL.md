@@ -410,6 +410,28 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 **The join notice.** When allies arrive, a notice appears: "<Country> joins <side> – N formations" (N counts the formations that really appeared), with a **Show** button that moves the camera to them. The new counters pulse with a ring for a moment and carry a small tag with the country's code, so you can tell them apart from the original formations.
 
+**The escalation ladder.** The tension between the blocs is one **shared** level with five steps; both sides push it up and it belongs to neither. The operation starts at the first step.
+
+| Level | Name | What may be struck |
+|---|---|---|
+| 1 | Contained clash | formations |
+| 2 | Limited war | formations, air defence, depots |
+| 3 | Open war | formations, air defence, depots, airfields, command posts |
+| 4 | Regional war | the same as Open war |
+| 5 | Strategic threshold | nothing |
+
+A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
+
+**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. *Not yet reachable in play:* ground entry and strikes arrive with later tasks; for now the level can only be changed from the debug panel (F9, `--debug`).
+
+**What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. Nothing else lowers it yet.
+
+**Allies.** When the level first reaches Regional war, allied countries join automatically: aligned countries go to war on their side, and neutral countries that lean to a side become aligned with it.
+
+**The end.** The bloc whose action brings the level to the Strategic threshold loses the operation at once and the other bloc wins; any waiting contact battles are dropped. A full-screen **Operation over** notice names the bloc that crossed the threshold, the defeat and the victory, with a **Back to menu** button.
+
+**On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the levels, what may be struck at the current one and marks the steps where the enemy sanctuary opens, allies join and the operation ends. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
+
 ### Turns
 
 The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.

@@ -15,7 +15,11 @@ func _init(p_state: OperationalState) -> void:
 
 
 func execute(command: OperationalCommand) -> bool:
-	var reason := command.validate(state)
+	var reason := ""
+	if not state.result.is_empty():
+		reason = "operation_over"
+	else:
+		reason = command.validate(state)
 	if reason != "":
 		command_rejected.emit(command, reason)
 		return false

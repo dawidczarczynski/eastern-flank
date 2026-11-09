@@ -20,6 +20,8 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var initial_posture: StringName = &"defend"
 ## Hexes around a formation that belong to its side in the front line (FrontLine).
 @export var front_range: int = 3
+## Escalation level the operation starts at (0 .. ladder top - 1, TASK-115); also the calm floor.
+@export var initial_escalation: int = 1
 ## Start stance of each country on the map (TASK-114).
 @export var countries: Array[CountrySetup] = []
 ## Start formations; their order is the order in which orders execute.

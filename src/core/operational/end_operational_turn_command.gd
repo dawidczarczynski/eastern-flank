@@ -22,9 +22,12 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	for formation in state.formations:
 		if formation.owner_id == state.current_player and formation.order != null:
 			_execute_order(state, formation, events)
-	ContactRules.start_battles(state, events)
+	if state.result.is_empty():
+		ContactRules.start_battles(state, events)
 	events.append({"type": &"operational_turn_ended", "player": state.current_player})
 	_switch_side(state)
+	if state.current_player == state.first_player and state.result.is_empty():
+		events.append_array(EscalationRules.end_round(state))
 	(
 		events
 		. append(

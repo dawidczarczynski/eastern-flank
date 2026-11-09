@@ -38,6 +38,7 @@ func _init(
 		_panel = StaffMapPoliticsPanel.new()
 		_panel.position = Vector2(16, 130)
 		_panel.stance_requested.connect(_on_stance_requested)
+		_panel.escalation_requested.connect(_on_escalation_requested)
 		hud.add_child(_panel)
 
 
@@ -123,3 +124,20 @@ func _on_stance_requested(country_id: StringName, stance: StringName, side: int)
 		return
 	for event in CountryRules.set_stance(state, country_id, stance, side, &"debug", -1):
 		_simulation.event_emitted.emit(event)
+
+
+## The panel's Raise / Lower: the plain EscalationRules functions (the same ones the real
+## decisions use), their events re-emitted on the simulation like a command's.
+func _on_escalation_requested(by: int, raise: bool) -> void:
+	var state := _simulation.state
+	if not state.result.is_empty():
+		_toast.call(TranslationServer.translate("ORDER_REJECTED_OPERATION_OVER"), _palette.ui_alert)
+		return
+	var events: Array[Dictionary] = []
+	if raise:
+		events = EscalationRules.raise(state, by, &"decision")
+	else:
+		events = EscalationRules.lower(state, by, &"stand_down")
+	for event in events:
+		_simulation.event_emitted.emit(event)
+	_panel.show_state(state)

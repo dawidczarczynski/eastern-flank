@@ -6,8 +6,12 @@ extends FramedPanel
 ## illegal transitions. A test handle, not a rule.
 
 signal stance_requested(country_id: StringName, stance: StringName, side: int)
+## Raise / Lower of the escalation level attributed to side `by` (TASK-115).
+signal escalation_requested(by: int, raise: bool)
 
 const WIDTH := 300
+
+var _by := 0
 
 var _rows := {}  # country id -> OptionButton
 var _choices := {}  # country id -> Array of [stance, side] per item
@@ -62,13 +66,45 @@ func show_state(state: OperationalState) -> void:
 		column.add_child(row)
 		_rows[country.id] = picker
 		_choices[country.id] = choices
+	column.add_child(_escalation_row(state))
 	show()
 	reset_size()
+
+
+func _escalation_row(state: OperationalState) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "EscalationRow"
+	var label := Label.new()
+	label.text = "LEVEL %d" % state.escalation_level
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.add_theme_font_size_override(&"font_size", 12)
+	row.add_child(label)
+	var side := OptionButton.new()
+	side.name = "By"
+	side.focus_mode = Control.FOCUS_NONE
+	for player in state.player_sides.size():
+		side.add_item(StaffMapTurnBar.side_name(state, player))
+	side.select(_by)
+	side.item_selected.connect(func(index: int) -> void: _by = index)
+	row.add_child(side)
+	for raise in [true, false]:
+		var button := Button.new()
+		button.name = "Raise" if raise else "Lower"
+		button.text = "Raise" if raise else "Lower"
+		button.focus_mode = Control.FOCUS_NONE
+		button.pressed.connect(func() -> void: escalation_requested.emit(_by, raise))
+		row.add_child(button)
+	return row
 
 
 ## Picks a stance as the dropdown would (tests).
 func pick(country_id: StringName, stance: StringName, side: int) -> void:
 	stance_requested.emit(country_id, stance, side)
+
+
+## Presses Raise / Lower for side `by` as the buttons would (tests).
+func press_escalation(by: int, raise: bool) -> void:
+	escalation_requested.emit(by, raise)
 
 
 func _on_picked(index: int, country_id: StringName) -> void:

@@ -25,7 +25,11 @@ static func may_enter(state: OperationalState, player: int, coord: Vector2i) -> 
 			return true
 		&"enemy":
 			var country := state.get_country(country_id)
-			return not country.definition.sanctuary or country.breached_by[player]
+			return (
+				not country.definition.sanctuary
+				or country.breached_by[player]
+				or state.escalation_level >= state.ladder.sanctuary_open_level
+			)
 	return false
 
 

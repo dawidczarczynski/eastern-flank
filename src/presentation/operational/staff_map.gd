@@ -90,6 +90,7 @@ var _join_key := ""  # "<country>|<player>" of the group the notice shows
 var _join_ids: Array = []
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
+var _escalation: StaffMapEscalationHud
 var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
 var _contacts: StaffMapContacts
@@ -201,7 +202,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		match key.keycode:
 			KEY_ESCAPE:
-				if _politics.close_card():
+				if _politics.close_card() or _escalation.close_card():
 					return
 				if selected_formation() != &"":
 					select_formation(&"")
@@ -768,6 +769,7 @@ func _on_operational_event(event: Dictionary) -> void:
 		_on_turn_started(event)
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
+	_escalation.on_event(event)
 	_update_anchors()
 	_order_ring.follow()  # closes the ring when its formation may no longer be ordered
 	_counters.refresh()
@@ -1098,6 +1100,17 @@ func _refresh_turn_bar() -> void:
 
 func _place_turn_bar() -> void:
 	_turn_bar.position = Vector2((_viewport_size().x - _turn_bar.size.x) / 2.0, 0.0)
+	if _escalation != null:
+		_escalation.place(_viewport_size().x, _turn_bar.size.y)
+
+
+func _toggle_ladder_card() -> void:
+	_escalation.toggle_card()
+	_escalation.place(_viewport_size().x, _turn_bar.size.y)
+
+
+func escalation_hud() -> StaffMapEscalationHud:
+	return _escalation
 
 
 func _place_panel() -> void:
@@ -1144,6 +1157,7 @@ func _build_hud() -> void:
 	_turn_bar = StaffMapTurnBar.new()
 	_turn_bar.end_turn_pressed.connect(end_turn)
 	_turn_bar.follow_toggled.connect(set_follow_side)
+	_turn_bar.escalation_pressed.connect(func() -> void: _toggle_ladder_card())
 	_hud.add_child(_turn_bar)
 	_report = StaffMapTurnReport.new()
 	_report.entry_chosen.connect(_on_report_entry)
@@ -1198,6 +1212,8 @@ func _build_hud() -> void:
 		OS.get_cmdline_user_args().has("--debug")
 	)
 	_politics.refresh(viewer_player)
+	_escalation = StaffMapEscalationHud.new(_simulation, _palette, _hud, _toast_message)
+	_escalation.menu_requested.connect(_return_to_menu)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
 

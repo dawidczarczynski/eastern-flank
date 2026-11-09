@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="EscalationLadder" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/escalation_ladder.gd" id="1_ladder"]
+[ext_resource type="Script" path="res://src/core/data/escalation_level.gd" id="2_level"]
+
+[sub_resource type="Resource" id="Level_contained"]
+script = ExtResource("2_level")
+id = &"contained"
+display_name = "Contained clash"
+strike_classes = Array[StringName]([&"formation"])
+
+[sub_resource type="Resource" id="Level_limited_war"]
+script = ExtResource("2_level")
+id = &"limited_war"
+display_name = "Limited war"
+strike_classes = Array[StringName]([&"formation", &"air_defence", &"depot"])
+
+[sub_resource type="Resource" id="Level_open_war"]
+script = ExtResource("2_level")
+id = &"open_war"
+display_name = "Open war"
+strike_classes = Array[StringName]([&"formation", &"air_defence", &"depot", &"airfield", &"c2"])
+
+[sub_resource type="Resource" id="Level_regional_war"]
+script = ExtResource("2_level")
+id = &"regional_war"
+display_name = "Regional war"
+strike_classes = Array[StringName]([&"formation", &"air_defence", &"depot", &"airfield", &"c2"])
+
+[sub_resource type="Resource" id="Level_strategic_threshold"]
+script = ExtResource("2_level")
+id = &"strategic_threshold"
+display_name = "Strategic threshold"
+strike_classes = Array[StringName]([])
+
+[resource]
+script = ExtResource("1_ladder")
+levels = Array[ExtResource("2_level")]([SubResource("Level_contained"), SubResource("Level_limited_war"), SubResource("Level_open_war"), SubResource("Level_regional_war"), SubResource("Level_strategic_threshold")])
+sanctuary_open_level = 2
+allies_join_level = 3
+calm_rounds = 3
+sanctuary_breach_escalation = 1
+urban_strike_escalation = 1

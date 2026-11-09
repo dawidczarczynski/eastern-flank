@@ -327,3 +327,30 @@ CAMPAIGN_LOAD_CORRUPT,The saved campaign is damaged,Zapis kampanii jest uszkodzo
 CAMPAIGN_LOAD_REPLAY_FAILED,The saved campaign does not fit this version of the game,Zapis kampanii nie pasuje do tej wersji gry
 MENU_CONTINUE,Continue,Kontynuuj
 MENU_CONTINUE_NONE,No saved campaign yet,Brak zapisanej kampanii
+ESC_CHIP_TOOLTIP,Escalation level - click for the ladder,Poziom eskalacji - kliknij po drabinę
+ESC_CARD_TITLE,Escalation ladder,Drabina eskalacji
+ESC_ROE,May strike,Wolno uderzać
+ESC_ROE_NONE,Nothing,Nic
+ESC_CLASS_FORMATION,formations,oddziały
+ESC_CLASS_AIR_DEFENCE,air defence,obronę powietrzną
+ESC_CLASS_DEPOT,depots,składy
+ESC_CLASS_AIRFIELD,airfields,lotniska
+ESC_CLASS_C2,command posts,stanowiska dowodzenia
+ESC_MARK_SANCTUARY,Enemy sanctuary open,Zaplecze wroga otwarte
+ESC_MARK_ALLIES,Allies join,Sojusznicy dołączają
+ESC_MARK_END,Ends the operation,Kończy operację
+Calm: level %d → %d,Calm: level %d → %d,Uspokojenie: poziom %d → %d
+joins: %s,joins: %s,dołączają: %s
+raised by %s,raised by %s,podniesiona przez %s
+%s declared war,%s declared war,%s wypowiada wojnę
+%s called its allies,%s called its allies,%s wzywa sojuszników
+%s entered enemy sanctuary,%s entered enemy sanctuary,%s wkracza na zaplecze wroga
+%s struck a town,%s struck a town,%s uderza w miasto
+%s stood down,%s stood down,%s odstępuje od eskalacji
+ESC_END_TAB,Strategic threshold,Próg strategiczny
+ESC_END_TITLE,Operation over,Operacja zakończona
+%s crossed the %s,%s crossed the %s,%s przekracza: %s
+Defeat: %s,Defeat: %s,Porażka: %s
+ESC_END_MENU,Back to menu,Wróć do menu
+END_TURN_BLOCKED_OPERATION_OVER,The operation is over.,Operacja zakończona.
+ORDER_REJECTED_OPERATION_OVER,The operation is over.,Operacja zakończona.

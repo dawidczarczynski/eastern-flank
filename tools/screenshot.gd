@@ -351,7 +351,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
 ## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
-## endturn (after the orders: ends the move, skips the slide, TASK-092e),
+## escalate:<steps> (raises the escalation level by NATO, TASK-115; the top ends the operation),
+## ladder (the ladder card), endturn (after the orders: ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
 ## contactmap:<col>:<row>:<col>:<row> (the debug contact-map panel with that attacker / defender
@@ -512,6 +513,14 @@ func _apply_staff_map_state(spec: String) -> void:
 				map.open_country_card(StringName(parts[1]) if parts.size() > 1 else &"")
 			"politics":
 				map.politics_hud().toggle_panel()
+			"escalate":
+				var steps := parts[1].to_int() if parts.size() > 1 else 1
+				for event in EscalationRules.raise(
+					map.simulation().state, 0, &"sanctuary_breach", steps
+				):
+					map.simulation().event_emitted.emit(event)
+			"ladder":
+				map.escalation_hud().toggle_card()
 			"side":
 				map.set_viewer(parts[1].to_int() if parts.size() > 1 else 0)
 			"select":
