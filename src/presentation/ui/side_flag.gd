@@ -3,8 +3,10 @@ extends Control
 ## Flat flag of a side (TASK-127) with a 1 px frame in the side colour; drawn from
 ## `SideDefinition.flag`. Hidden and out of the layout when the side has no flag.
 
-const SMALL := Vector2(16, 12)
-const LARGE := Vector2(28, 21)
+const SMALL := Vector2(24, 18)
+const LARGE := Vector2(40, 30)
+## Turn bar: replaces the faction badge.
+const BAR := Vector2(48, 36)
 
 var texture: Texture2D
 var frame_colour := UiPalette.LINE

@@ -1,7 +1,8 @@
 class_name StaffMapTurnBar
 extends VBoxContainer
 ## Turn bar of the staff map (TASK-093b, look: docs/design/operational_map "Turn bar" – the same
-## bar as the battle HUD, so it reuses TurnBarFrame, HexBadge, HatchBar and EndTurnButton):
+## bar as the battle HUD, so it reuses TurnBarFrame, HatchBar and EndTurnButton; a SideFlag
+## stands in place of the faction badge):
 ## the viewed side on the left, TURN n / date / day-night / side moving in the middle, the
 ## opponent on the right (dimmed while waiting), End turn filled in the colour of the side to
 ## move. Under the frame a small "follow side" toggle (the row is shared with the escalation
@@ -211,15 +212,6 @@ static func _end_turn_blocker(state: OperationalState) -> String:
 	return EndOperationalTurnCommand.new().validate(state)
 
 
-## Badge text: a short side name as is (NATO), else the lead faction's short name (RU).
-static func _badge_text(state: OperationalState, player: int) -> String:
-	var shown := side_name(state, player)
-	if shown.length() <= 4:
-		return shown.to_upper()
-	var faction := FactionRegistry.get_faction(state.player_factions[player])
-	return faction.short_name if faction != null else shown.left(2).to_upper()
-
-
 static func _count(state: OperationalState, player: int) -> int:
 	var n := 0
 	for f in state.formations:
@@ -232,10 +224,6 @@ func _apply_side(index: int, state: OperationalState, player: int, active: bool)
 	var side := _sides[index]
 	var colour := _colour(player)
 	var own := player == _viewer
-	var badge: HexBadge = side["badge"]
-	badge.fill = colour
-	badge.ink = StaffMapFormations.side_ink(_palette, player)
-	badge.text = _badge_text(state, player)
 	(side["name"] as Label).text = side_name(state, player).to_upper()
 	(side["flag"] as SideFlag).setup(SideDefinition.find(state.player_sides[player]), colour)
 	var status := tr("WAITING")
@@ -262,8 +250,8 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	row.add_theme_constant_override(&"separation", 10)
 	row.alignment = BoxContainer.ALIGNMENT_END if mirrored else BoxContainer.ALIGNMENT_BEGIN
 	block.add_child(row)
-	var badge := HexBadge.new()
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var flag := SideFlag.new(SideFlag.BAR)
+	flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var texts := VBoxContainer.new()
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texts.add_theme_constant_override(&"separation", 3)
@@ -273,20 +261,13 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	if mirrored:
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	var name_row := HBoxContainer.new()
-	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_row.add_theme_constant_override(&"separation", 6)
-	name_row.alignment = BoxContainer.ALIGNMENT_END if mirrored else BoxContainer.ALIGNMENT_BEGIN
-	var flag := SideFlag.new()
-	name_row.add_child(flag)
-	name_row.add_child(name_label)
-	texts.add_child(name_row)
+	texts.add_child(name_label)
 	texts.add_child(meta)
 	if mirrored:
 		row.add_child(texts)
-		row.add_child(badge)
+		row.add_child(flag)
 	else:
-		row.add_child(badge)
+		row.add_child(flag)
 		row.add_child(texts)
 	# The slot keeps its height when the hatch is hidden on the waiting side.
 	var slot := Control.new()
@@ -296,9 +277,7 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 4), true)
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	slot.add_child(bar)
-	return {
-		"block": block, "badge": badge, "flag": flag, "name": name_label, "meta": meta, "bar": bar
-	}
+	return {"block": block, "flag": flag, "name": name_label, "meta": meta, "bar": bar}
 
 
 func _build_centre() -> Control:

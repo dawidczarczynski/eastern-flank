@@ -272,6 +272,7 @@ func present(
 		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tab.focus_mode = Control.FOCUS_NONE
 		tab.clip_text = true
+		tab.custom_minimum_size.y = 32
 		tab.add_theme_font_size_override(&"font_size", 13)
 		for key in [&"font_color", &"font_hover_color"]:
 			tab.add_theme_color_override(key, colour)
@@ -281,9 +282,12 @@ func present(
 		tab.add_theme_stylebox_override(&"pressed", selected_box)
 		tab.add_theme_stylebox_override(&"hover_pressed", selected_box)
 		var tab_flag := SideFlag.new()
-		tab_flag.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
-		tab_flag.position = Vector2(8, 0)
-		tab_flag.grow_vertical = Control.GROW_DIRECTION_BOTH
+		tab_flag.set_anchor(SIDE_TOP, 0.5)
+		tab_flag.set_anchor(SIDE_BOTTOM, 0.5)
+		tab_flag.offset_left = 10
+		tab_flag.offset_right = 10 + SideFlag.SMALL.x
+		tab_flag.offset_top = -SideFlag.SMALL.y / 2.0
+		tab_flag.offset_bottom = SideFlag.SMALL.y / 2.0
 		tab_flag.setup(SideDefinition.find(state.player_sides[row["player"]]), colour)
 		tab.add_child(tab_flag)
 		tab.pressed.connect(select_side.bind(i))
