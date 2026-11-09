@@ -31,14 +31,22 @@ func _text(path_name: String, side: String) -> String:
 	return ((_find(side) as Node).find_child(path_name, true, false) as Label).text
 
 
+func _visible_flags(side: String) -> int:
+	var count := 0
+	for flag in (_find(side) as Node).find_child("Flags", true, false).get_children():
+		if (flag as SideFlag).visible:
+			count += 1
+	return count
+
+
 func test_both_blocks_show_names_and_counts() -> void:
 	_hud.refresh(_state)
 	assert_eq(_text("Name", "Side0"), _t("Poland").to_upper())
 	assert_eq(_text("Name", "Side1"), _t("Russia").to_upper())
 	assert_eq(_text("Meta", "Side0"), ("%s · %s" % [_t("ACTIVE"), _t("%d UNITS") % 3]).to_upper())
 	assert_eq(_text("Meta", "Side1"), ("%s · %s" % [_t("WAITING"), _t("%d UNITS") % 2]).to_upper())
-	assert_eq(((_find("Side0") as Node).find_child("Badge", true, false) as HexBadge).text, "PL")
-	assert_eq(((_find("Side1") as Node).find_child("Badge", true, false) as HexBadge).text, "RU")
+	assert_eq(_visible_flags("Side0"), 2, "Poland: NATO + Poland")
+	assert_eq(_visible_flags("Side1"), 1, "Russia: one flag")
 	assert_eq((_find("TurnNumber") as Label).text, "01")
 	assert_eq((_find("ActiveSide") as Label).text, _t("Poland").to_upper())
 

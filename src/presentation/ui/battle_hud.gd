@@ -13,6 +13,10 @@ const SHADE_HEIGHT := 120
 const TOAST_BOTTOM := 130
 const TARGETING_TOP := 118
 const SIDE_WIDTH := 236
+## Side flag + faction flag per player (TASK-130); the second is hidden when it repeats the first.
+const FLAGS_PER_SIDE := 2
+const FLAGS_GAP := 4
+const FLAGS_WIDTH := 2 * 32 + FLAGS_GAP
 const ACTIVE_ALPHA := 1.0
 const INACTIVE_ALPHA := 0.6
 const FADE_SECONDS := 0.3
@@ -40,7 +44,7 @@ const TURN_LIMIT_SIZE := 16
 const REPORT_BUTTON_OFFSET := 120
 
 var _human_player := 0
-var _sides: Array[Dictionary] = []  # per player: {block, badge, name, meta, bar, tween}
+var _sides: Array[Dictionary] = []  # per player: {block, flags, name, meta, bar, tween}
 var _turn_label: Label
 var _turn_limit_label: Label  # "/08" after the turn number; hidden without a turn limit
 var _turn_row: HBoxContainer
@@ -165,10 +169,10 @@ func _apply_side(index: int, data: Dictionary) -> void:
 	var bar: HatchBar = side["bar"]
 	bar.color = color
 	bar.visible = active
-	var badge: HexBadge = side["badge"]
-	badge.fill = color
-	badge.ink = data["ink"]
-	badge.text = tr(data["short"] as String)
+	var flags: Array = data["flags"]
+	for i in FLAGS_PER_SIDE:
+		var flag: SideFlag = side["flags"][i]
+		flag.show_texture(flags[i] if i < flags.size() else null, color)
 	(side["name"] as Label).text = tr(data["name"] as String).to_upper()
 	var status := tr("ACTIVE") if active else tr("WAITING")
 	var units := tr("%d UNITS") % data["units"]
@@ -309,9 +313,19 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	row.alignment = BoxContainer.ALIGNMENT_END if mirrored else BoxContainer.ALIGNMENT_BEGIN
 	block.add_child(row)
 
-	var badge := HexBadge.new()
-	badge.name = "Badge"
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var flag_box := HBoxContainer.new()
+	flag_box.name = "Flags"
+	flag_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flag_box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	flag_box.custom_minimum_size.x = FLAGS_WIDTH
+	flag_box.add_theme_constant_override(&"separation", FLAGS_GAP)
+	flag_box.alignment = BoxContainer.ALIGNMENT_END if mirrored else BoxContainer.ALIGNMENT_BEGIN
+	var flags: Array[SideFlag] = []
+	for i in FLAGS_PER_SIDE:
+		var flag := SideFlag.new(SideFlag.PAIR)
+		flag.name = "Flag%d" % i
+		flag_box.add_child(flag)
+		flags.append(flag)
 	var texts := VBoxContainer.new()
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texts.add_theme_constant_override(&"separation", 3)
@@ -324,14 +338,15 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var name_box := _pin_line(name_label, 15)
-	name_box.custom_minimum_size.x = SIDE_WIDTH - 50  # badge 40 + gap 10: the rest of the block
+	# The rest of the block after the flags and a gap of 10.
+	name_box.custom_minimum_size.x = SIDE_WIDTH - FLAGS_WIDTH - 10
 	texts.add_child(name_box)
 	texts.add_child(meta)
 	if mirrored:
 		row.add_child(texts)
-		row.add_child(badge)
+		row.add_child(flag_box)
 	else:
-		row.add_child(badge)
+		row.add_child(flag_box)
 		row.add_child(texts)
 
 	# The bar slot keeps its height when the hatch is hidden on the waiting side.
@@ -346,7 +361,7 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	slot.add_child(bar)
 	return {
 		"block": block,
-		"badge": badge,
+		"flags": flags,
 		"name": name_label,
 		"meta": meta,
 		"bar": bar,

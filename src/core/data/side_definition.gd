@@ -4,6 +4,8 @@ extends Resource
 ## data/sides/<id>.tres. Side differences are data only – no rule asks which side this is.
 
 const SIDES_DIR := "res://data/sides/"
+## Explicit table (exported builds list `.remap` files, not the .tres).
+const IDS: Array[StringName] = [&"nato", &"russia"]
 
 @export var id: StringName
 ## Translation key (English), translated in the UI.
@@ -25,3 +27,12 @@ static func find(side_id: StringName) -> SideDefinition:
 	if not ResourceLoader.exists(path):
 		return null
 	return load(path) as SideDefinition
+
+
+## The side that fields `faction_id`; null when none does.
+static func find_for_faction(faction_id: StringName) -> SideDefinition:
+	for side_id in IDS:
+		var side := find(side_id)
+		if side != null and side.factions.has(faction_id):
+			return side
+	return null

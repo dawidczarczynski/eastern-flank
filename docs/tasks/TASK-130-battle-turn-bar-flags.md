@@ -1,6 +1,6 @@
 # TASK-130: Side and faction flags in the tactical battle turn bar
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: data (`FactionDefinition.flag`, Poland flag asset) + presentation
 - **Depends on**: – (TASK-127 is done: `SideFlag`, `SideDefinition.flag`, `assets/flags/`)
 - **Sections**: none (UI only; look = HUD v3, `docs/design/hud_v3`)
@@ -35,4 +35,7 @@ none (cosmetic)
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `FactionDefinition.flag` (poland.svg new, russia faction reuses russia.svg); `SideDefinition.find_for_faction` (explicit id table `IDS`); `HudModel.flags_of(faction)` = side flag + faction flag, deduped by resource path (Russia: one), `flags` in the top-bar data.
+- `BattleHud`: the `HexBadge` is **replaced** by a `Flags` box with two `SideFlag`s (`SideFlag.PAIR` 32 × 24, frame in the faction colour; second hidden when absent/duplicate), same precedent as the staff map turn bar. `HexBadge` is now unused in `src/` (left in place).
+- Deviation: the hud_v3 mockup has the hexagonal badge; flags are the human's request. Russia's single flag is 32 × 24, not the 48 × 36 of the staff map bar.
+- Tests: `test_side_flag.gd` (lookup, dedup, no-side case, every faction has a flag), `test_battle_hud.gd`. `tools/check.sh`: only failures are in the staff map / operation tests from the unfinished TASK-095 (`OperationalOrders.budget()` missing), none from this task.

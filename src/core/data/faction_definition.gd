@@ -19,6 +19,8 @@ extends Resource
 @export var color: Color = Color.WHITE
 ## Dark text colour drawn on top of `color` (HUD badge).
 @export var ink_color: Color = Color.BLACK
+## Flag of the country (TASK-130), see assets/flags/README.md.
+@export var flag: Texture2D
 ## Three camouflage colours of the faction's units.
 @export var camo: PackedColorArray = PackedColorArray()
 ## Colour of infantry vests.

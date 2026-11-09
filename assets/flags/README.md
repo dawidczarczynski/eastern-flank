@@ -7,3 +7,4 @@ The NATO file's width / height were reduced to 192 x 144 (viewBox unchanged) so 
 
 The viewBox is also cropped to the central 560 x 420 part (the compass star) on purpose: the full flag is unreadable at flag size in the UI.
 The four long tick lines at the edges (the first four sub-paths) were removed, the compass star is untouched.
+- `poland.svg` – own simple bicolour drawing (faction flag, TASK-130); `FactionDefinition.flag`. Russia's faction flag is the same file as its side flag, `russia.svg`.

@@ -45,6 +45,7 @@ static func top_bar_at(
 			"short": UiPalette.faction_short(state, player),
 			"color": UiPalette.faction_color(state, player),
 			"ink": UiPalette.faction_ink(state, player),
+			"flags": flags_of(state.faction_of(player)),
 		}
 		players.append(entry)
 	return {
@@ -54,6 +55,21 @@ static func top_bar_at(
 		"command_points_text": command_points_text(state, current_player),
 		"players": players,
 	}
+
+
+## Flags next to a player's name (TASK-130): their side's flag, then their faction's. One flag when
+## both are the same picture (Russia), only the faction's when no side fields it, none for null.
+static func flags_of(faction: FactionDefinition) -> Array[Texture2D]:
+	var result: Array[Texture2D] = []
+	if faction == null:
+		return result
+	var side := SideDefinition.find_for_faction(faction.id)
+	if side != null and side.flag != null:
+		result.append(side.flag)
+	var own := faction.flag
+	if own != null and (result.is_empty() or result[0].resource_path != own.resource_path):
+		result.append(own)
+	return result
 
 
 ## "C2 2/3" (remaining / per turn) for `player`, "" when they are unlimited. A player other than

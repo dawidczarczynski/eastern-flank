@@ -71,3 +71,32 @@ func test_result_notice_flags() -> void:
 	notice.present(state, _setup(), _result(-1), palette)
 	assert_false(notice.title_flag().visible, "no flag on a draw")
 	notice.free()
+
+
+func test_side_is_found_from_the_faction() -> void:
+	assert_eq(SideDefinition.find_for_faction(&"poland").id, &"nato")
+	assert_eq(SideDefinition.find_for_faction(&"russia").id, &"russia")
+	assert_true(SideDefinition.find_for_faction(&"atlantis") == null, "no side, no crash")
+
+
+func test_every_faction_has_a_flag() -> void:
+	for faction in FactionRegistry.all():
+		assert_true(faction.flag != null, "faction %s has a flag" % faction.id)
+
+
+func test_poland_shows_two_flags_and_russia_one() -> void:
+	var poland := HudModel.flags_of(FactionRegistry.get_faction(&"poland"))
+	assert_eq(poland.size(), 2)
+	assert_true(poland[0] == SideDefinition.find(&"nato").flag)
+	assert_true(poland[1] == FactionRegistry.get_faction(&"poland").flag)
+	assert_eq(HudModel.flags_of(FactionRegistry.get_faction(&"russia")).size(), 1)
+	assert_eq(HudModel.flags_of(null).size(), 0)
+
+
+func test_faction_without_a_side_shows_only_its_own_flag() -> void:
+	var faction := FactionDefinition.new()
+	faction.id = &"atlantis"
+	faction.flag = FactionRegistry.get_faction(&"poland").flag
+	var flags := HudModel.flags_of(faction)
+	assert_eq(flags.size(), 1)
+	assert_true(flags[0] == faction.flag)

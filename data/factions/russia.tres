@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="FactionDefinition" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="FactionDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_mx61n"]
 [ext_resource type="Resource" path="res://data/units/ru_motor_rifle.tres" id="2_squad"]
 [ext_resource type="Resource" path="res://data/units/t72b3.tres" id="3_t72b3"]
 [ext_resource type="Resource" path="res://data/units/bm27_uragan.tres" id="4_uragan"]
 [ext_resource type="Script" path="res://src/core/data/faction_definition.gd" id="5_tgnu3"]
+[ext_resource type="Texture2D" path="res://assets/flags/russia.svg" id="9_flag"]
 
 [resource]
 script = ExtResource("5_tgnu3")
@@ -17,3 +18,4 @@ color = Color(0.84313726, 0.41568628, 0.32156864, 1)
 ink_color = Color(0.16470589, 0.06666667, 0.043137256, 1)
 camo = PackedColorArray(0.30196078, 0.35294118, 0.22745098, 1, 0.1372549, 0.13333333, 0.11372549, 1, 0.54117647, 0.51764706, 0.4, 1)
 vest_color = Color(0.47843137, 0.45098039, 0.32941176, 1)
+flag = ExtResource("9_flag")

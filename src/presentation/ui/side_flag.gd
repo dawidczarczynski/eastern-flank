@@ -7,6 +7,8 @@ const SMALL := Vector2(24, 18)
 const LARGE := Vector2(40, 30)
 ## Turn bar: replaces the faction badge.
 const BAR := Vector2(48, 36)
+## Battle turn bar: one or two per player (side + faction), TASK-130.
+const PAIR := Vector2(32, 24)
 
 ## Flags are rasterised from their SVG at this multiple of the display size (with mipmaps and
 ## linear filtering) – the import's single big raster aliases when scaled down.
@@ -29,7 +31,12 @@ func _init(p_size := SMALL) -> void:
 
 ## Shows `side`'s flag framed in `colour`; hides when there is none.
 func setup(side: SideDefinition, colour := UiPalette.LINE) -> void:
-	texture = side.flag if side != null else null
+	show_texture(side.flag if side != null else null, colour)
+
+
+## Shows `flag` framed in `colour` (a side's or a faction's); hides when it is null.
+func show_texture(flag: Texture2D, colour := UiPalette.LINE) -> void:
+	texture = flag
 	_shown = _bake(texture, custom_minimum_size)
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	frame_colour = colour
