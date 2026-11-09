@@ -12,6 +12,7 @@ signal closed
 const WIDTH := 540.0
 const MAX_LIST_HEIGHT := 260.0
 const BAR_WIDTH := 80.0
+const TAB_FLAG_INSET := 10.0
 const LOSS_COLOUR := UiPalette.DISABLED
 
 var _title: Label
@@ -281,11 +282,16 @@ func present(
 		var selected_box := MenuStyle.box(colour, colour)
 		tab.add_theme_stylebox_override(&"pressed", selected_box)
 		tab.add_theme_stylebox_override(&"hover_pressed", selected_box)
+		# Room for the flag at the left edge, so the text does not touch it.
+		for key in [&"normal", &"hover", &"pressed", &"hover_pressed"]:
+			var box := tab.get_theme_stylebox(key).duplicate() as StyleBox
+			box.content_margin_left = TAB_FLAG_INSET + SideFlag.SMALL.x + 8.0
+			tab.add_theme_stylebox_override(key, box)
 		var tab_flag := SideFlag.new()
 		tab_flag.set_anchor(SIDE_TOP, 0.5)
 		tab_flag.set_anchor(SIDE_BOTTOM, 0.5)
-		tab_flag.offset_left = 10
-		tab_flag.offset_right = 10 + SideFlag.SMALL.x
+		tab_flag.offset_left = TAB_FLAG_INSET
+		tab_flag.offset_right = TAB_FLAG_INSET + SideFlag.SMALL.x
 		tab_flag.offset_top = -SideFlag.SMALL.y / 2.0
 		tab_flag.offset_bottom = SideFlag.SMALL.y / 2.0
 		tab_flag.setup(SideDefinition.find(state.player_sides[row["player"]]), colour)
