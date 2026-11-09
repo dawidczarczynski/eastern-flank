@@ -1,0 +1,120 @@
+{
+ "elements": [
+  {
+   "id": 5036,
+   "lat": 54.5,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5037,
+   "lat": 54.5,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5038,
+   "lat": 54.53,
+   "lon": 22.46,
+   "type": "node"
+  },
+  {
+   "id": 5039,
+   "lat": 54.53,
+   "lon": 22.42,
+   "type": "node"
+  },
+  {
+   "id": 5040,
+   "lat": 54.494,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 5041,
+   "lat": 54.494,
+   "lon": 22.515,
+   "type": "node"
+  },
+  {
+   "id": 5042,
+   "lat": 54.508,
+   "lon": 22.515,
+   "type": "node"
+  },
+  {
+   "id": 5043,
+   "lat": 54.508,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 5048,
+   "lat": 54.476,
+   "lon": 22.44,
+   "type": "node"
+  },
+  {
+   "id": 5049,
+   "lat": 54.476,
+   "lon": 22.455,
+   "type": "node"
+  },
+  {
+   "id": 5050,
+   "lat": 54.486,
+   "lon": 22.455,
+   "type": "node"
+  },
+  {
+   "id": 5051,
+   "lat": 54.486,
+   "lon": 22.44,
+   "type": "node"
+  },
+  {
+   "id": 131,
+   "nodes": [
+    5036,
+    5037,
+    5038,
+    5039,
+    5036
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  },
+  {
+   "id": 132,
+   "nodes": [
+    5040,
+    5041,
+    5042,
+    5043,
+    5040
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  },
+  {
+   "id": 134,
+   "nodes": [
+    5048,
+    5049,
+    5050,
+    5051,
+    5048
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

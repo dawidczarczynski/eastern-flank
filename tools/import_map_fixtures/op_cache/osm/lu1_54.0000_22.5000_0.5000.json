@@ -1,0 +1,44 @@
+{
+ "elements": [
+  {
+   "id": 5040,
+   "lat": 54.494,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 5041,
+   "lat": 54.494,
+   "lon": 22.515,
+   "type": "node"
+  },
+  {
+   "id": 5042,
+   "lat": 54.508,
+   "lon": 22.515,
+   "type": "node"
+  },
+  {
+   "id": 5043,
+   "lat": 54.508,
+   "lon": 22.47,
+   "type": "node"
+  },
+  {
+   "id": 132,
+   "nodes": [
+    5040,
+    5041,
+    5042,
+    5043,
+    5040
+   ],
+   "tags": {
+    "landuse": "farmland"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

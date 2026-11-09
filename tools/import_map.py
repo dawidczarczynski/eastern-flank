@@ -73,8 +73,11 @@ is computed exactly as without them (`Settings.layers`).
 Tactical layer (`--profile=layer`, TASK-094b; ADR 0018 "Tactical layer"): the tactical terrain of a whole theatre for
 contact battles, from the operational inputs (op1 OSM tiles, GLO-90, sea fill): 250 m hexes, a 50 m cover lattice
 (`_scanline_fill_fast`), per hex the cover classes of the `_hex_pattern` points and the DEM at the centre and six
-points `LAYER_DEM_RADIUS_M` around it, the tactical `classify` (hills from `LAYER_HILLS_RELIEF`); never fields (no
-farmland in the inputs). Written into the folder `--out` as `layer.tres` (TacticalLayer) and one zlib-compressed
+points `LAYER_DEM_RADIUS_M` around it, the tactical `classify` (hills from `LAYER_HILLS_RELIEF`). The op1 tiles have
+no farmland or grass, so the layer also reads land-use tiles `<cache>/osm/lu1_<lat>_<lon>_<deg>.json` (`landuse_query`:
+the A / G areas of the tactical tag table, same grid, fetched like the op1 tiles with `LANDUSE_PAUSE_S` between
+downloads): FIELDS where farmland is the largest open class, as in the tactical profile. Written into the folder
+`--out` as `layer.tres` (TacticalLayer) and one zlib-compressed
 `chunk_<cx>_<cy>.tres` (TacticalChunk) per `LAYER_CHUNK` square (`write_layer`).
 
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
@@ -165,6 +168,13 @@ _OP_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
     ("water", {"*": "W"}),
     ("landuse", dict([("reservoir", "W"), ("basin", "W"), ("forest", "F")] + [(v, "U") for v in OP_URBAN_LANDUSE])),
 ]
+# Tactical layer land use (follow-up of TASK-094b): the open cover classes the op1 tiles lack (A fields, G grass),
+# with exactly the tactical tag mapping (`_TAG_CLASSES` restricted to A / G), fetched in their own `lu1` tiles.
+_LANDUSE_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
+    (key, {v: c for v, c in values.items() if c in "AG"}) for key, values in _TAG_CLASSES if key in ("natural", "landuse")
+]
+LANDUSE_QUERY_VERSION = "lu1"
+LANDUSE_PAUSE_S = 5.0  # between two land-use tile downloads: the public Overpass server is shared
 OP_ROAD_HIGHWAYS = ("motorway", "trunk", "primary", "secondary")
 OP_SEA_SEEDS = ((55.30, 20.60), (55.10, 21.05))  # the open Baltic west of the Curonian Spit; the Curonian Lagoon
 OP_QUERY_VERSION = "op1"  # part of the tile file names: a changed query must not reuse old tiles
@@ -524,6 +534,22 @@ def operational_query(south: float, west: float, north: float, east: float) -> s
         '  way["waterway"~"^(river|canal)$"](%s);' % bbox,
         '  way["natural"="coastline"](%s);' % bbox,
         '  way["boundary"="administrative"]["admin_level"="2"](%s);' % bbox,
+        ");",
+        "(._;>;);",
+        "out body;",
+    ])  # fmt: skip
+
+
+def landuse_query(south: float, west: float, north: float, east: float) -> str:
+    """Overpass query of one land-use tile of the tactical layer: the farmland and grass areas (the A / G values of
+    `_LANDUSE_TAG_CLASSES`) that the operational `op1` tiles do not have."""
+    bbox = "%.5f,%.5f,%.5f,%.5f" % (south, west, north, east)
+    tables = dict(_LANDUSE_TAG_CLASSES)
+    return "\n".join([
+        "[out:json][timeout:900];",
+        "(",
+        '  wr["natural"~"^(%s)$"](%s);' % ("|".join(sorted(tables["natural"])), bbox),
+        '  wr["landuse"~"^(%s)$"](%s);' % ("|".join(sorted(tables["landuse"])), bbox),
         ");",
         "(._;>;);",
         "out body;",
@@ -1588,13 +1614,16 @@ def _hex_pattern(spacing: float, step: float) -> List[Tuple[float, float]]:
     return points
 
 
-def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Settings) -> dict:
+def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Settings,
+                landuse: Sequence[object] = ()) -> dict:  # fmt: skip
     """Per-hex terrain, road / river links and DEM height (metres) of a theatre-wide tactical layout, as flat
     row-major arrays (`terrain` LAYER_TERRAIN_CODES, `road`, `river` link masks, `metres`). Same inputs as the
     operational profile (OSM tiles loaded one at a time, the sea filled from the coastline); per hex the cover
     classes of `_hex_pattern` points of the `settings.sample_m` lattice and the DEM at the centre and six points
     LAYER_DEM_RADIUS_M around it give `classify` (the tactical rules) and the height (open points, or all minus
-    the canopy for a forest hex). Nothing per lattice point is kept besides the cover lattice."""
+    the canopy for a forest hex). The `landuse` tiles (`landuse_query`) add the fields and grass areas with
+    `_LANDUSE_TAG_CLASSES`; every point keeps its highest cover class, so the tile order does not matter and fields
+    never cover forest, urban, marsh or water. Nothing per lattice point is kept besides the cover lattice."""
     step = settings.sample_m
     min_e, min_n, max_e, max_n = layout.bounds()
     cols = int(math.floor((max_e - min_e) / step)) + 1
@@ -1602,12 +1631,13 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
     cover = [bytearray(cols) for _ in range(rows)]
     links: Dict[str, set] = {ROAD: set(), RIVER: set()}
     coastlines: Dict[int, List[Tuple[float, float]]] = {}
-    sources = osm if isinstance(osm, list) else [osm]
-    for index, source in enumerate(sources):
+    sources = [(s, settings.profile.tag_classes) for s in (osm if isinstance(osm, list) else [osm])]
+    sources += [(s, _LANDUSE_TAG_CLASSES) for s in landuse]
+    for index, (source, table) in enumerate(sources):
         if len(sources) > 1:
             print("OSM tile %d/%d %s" % (index + 1, len(sources), getattr(source, "name", "")), file=sys.stderr)
         data = _load_osm(source)
-        for cls, rings in osm_areas(data, settings.profile.tag_classes):
+        for cls, rings in osm_areas(data, table):
             projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
             _scanline_fill_fast(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, step)
         for kind, line in osm_lines(data, settings.profile):
@@ -1944,18 +1974,31 @@ def _fetch_border_tile(path: Path, lat: float, lon: float, deg: float) -> None:
     _fetch_answer(path, border_query(lat, lon, lat + deg, lon + deg))
 
 
+def landuse_tile_path(cache: Path, lat: float, lon: float, deg: float) -> Path:
+    return cache / "osm" / ("%s_%.4f_%.4f_%.4f.json" % (LANDUSE_QUERY_VERSION, lat, lon, deg))
+
+
+def _fetch_landuse_tile(path: Path, lat: float, lon: float, deg: float) -> None:
+    _fetch_answer(path, landuse_query(lat, lon, lat + deg, lon + deg))
+
+
 def _cached_tiles(cache: Path, south: float, west: float, north: float, east: float, offline: bool, deg: float,
-                  path_of, fetch, what: str) -> List[Path]:  # fmt: skip
+                  path_of, fetch, what: str, pause_s: float = 0.0) -> List[Path]:  # fmt: skip
     """The cached tile files of the bbox, downloading missing ones one by one (each retried DOWNLOAD_RETRIES times
-    after a pause that doubles each time); finished tiles are never fetched again, so a failed run continues where it stopped."""
+    after a pause that doubles each time, `pause_s` between two downloads); finished tiles are never fetched again,
+    so a failed run continues where it stopped."""
     paths = []
     tiles = osm_tiles(south, west, north, east, deg)
+    fetched = False
     for lat, lon in tiles:
         path = path_of(cache, lat, lon, deg)
         if not path.exists():
             name = "%s tile %.4f N %.4f E (%.4f deg) %s" % (what, lat, lon, deg, path)
             if offline:
                 raise SystemExit("missing %s (run without --offline to download it)" % name)
+            if fetched and pause_s > 0.0:
+                time.sleep(pause_s)
+            fetched = True
             for attempt in range(DOWNLOAD_RETRIES + 1):
                 try:
                     started = time.time()
@@ -1985,6 +2028,14 @@ def border_tile_paths(cache: Path, south: float, west: float, north: float, east
     are never touched."""
     return _cached_tiles(cache, south, west, north, east, offline, deg, border_tile_path, _fetch_border_tile,
                          "OSM border")  # fmt: skip
+
+
+def landuse_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+                       deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
+    """The cached land-use tiles of the tactical layer (`landuse_query`: farmland and grass), same tiling as
+    `osm_tile_paths`, LANDUSE_PAUSE_S between two downloads."""
+    return _cached_tiles(cache, south, west, north, east, offline, deg, landuse_tile_path, _fetch_landuse_tile,
+                         "OSM land-use", LANDUSE_PAUSE_S)  # fmt: skip
 
 
 def parse_countries(values: Sequence[str]) -> List[Tuple[str, float, float]]:
@@ -2117,10 +2168,13 @@ def run(argv: Sequence[str]) -> Path:
     started = time.time()
     dem_files = dem_files or dem_paths(cache, south, west, north, east, args.offline, dem_kind)
     osm: object
+    landuse_files: List[Path] = []
     if args.osm:
         osm = Path(args.osm)
     elif profile.tiled:
         osm = osm_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
+        if profile is LAYER:
+            landuse_files = landuse_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
     else:
         osm = osm_path(cache, south, west, north, east, args.offline)
     border_files = None
@@ -2137,7 +2191,7 @@ def run(argv: Sequence[str]) -> Path:
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
     if profile is LAYER:
-        layer = build_layer(layout, zone, Dem(dem_files), osm, settings)
+        layer = build_layer(layout, zone, Dem(dem_files), osm, settings, landuse_files)
         size = write_layer(out, args.name, args.display_name or args.name, layout, zone, layer, map_bbox, settings,
                            sources)  # fmt: skip
         counts = [layer["terrain"].count(code) for code in range(len(LAYER_TERRAIN_CODES))]

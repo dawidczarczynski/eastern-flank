@@ -66,13 +66,17 @@ and the DEM) and 2026-11-07 (the last 6 OSM tiles, 55.0-55.5 N 23.0-26.0 E):
 
 suwalki_tactical/ (layer.tres + chunk_<cx>_<cy>.tres) - the tactical layer of the whole
 suwalki_theatre area (TASK-094b): 1370x1288 hexes of 250 m, UTM 34N, centre 54.20 N 22.888 E (the
-theatre's centre), in 128 x 128 chunks; contact battles are cut out of it. Made OFFLINE from the
-same cached inputs as suwalki_theatre.tres (the 72 operational OSM tiles "op1_*" - forest, water,
+theatre's centre), in 128 x 128 chunks; contact battles are cut out of it. Made from the same
+cached inputs as suwalki_theatre.tres (the 72 operational OSM tiles "op1_*" - forest, water,
 wetland, urban land use, major roads, rivers, coastline - and the 24 Copernicus GLO-90 tiles, see
-above; no farmland / grass and no minor roads in these inputs). Imported 2026-11-08:
+above; no minor roads in these inputs) plus 72 OSM land-use tiles "lu1_*" of 0.5 x 0.5 degrees
+(52.5-55.5 N, 20.0-26.0 E; Overpass, downloaded 2026-11-08, 891 MB in the cache: farmland, orchards,
+meadows, grass, grassland, heath, scrub - for the fields terrain). Imported 2026-11-08:
   Rebuild: tools/import_map.py --profile=layer --center=54.20,22.888 --size=1370x1288
            --name=suwalki_tactical --display-name="Suwalki Gap theatre (tactical layer)"
-           --out=data/maps/suwalki_tactical --offline
+           --out=data/maps/suwalki_tactical
+  (the committed layer was built with --offline added, after the lu1 tiles were downloaded;
+  a re-download gets today's OpenStreetMap, so the result may differ from the committed files)
 
 The test maps tests/fixtures/maps/sample_map.tres and sample_op_map.tres are built from SYNTHETIC
 fixtures (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.

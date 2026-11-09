@@ -151,6 +151,25 @@ func test_a_contact_on_the_gap_road_keeps_the_roads() -> void:
 	assert_true(types.has(Terrain.Type.URBAN), "the town")
 
 
+## The layer has farmland (the lu1 land-use tiles): the cut around Suwalki is largely fields,
+## and plains stay for the unclassified open land.
+func test_the_cut_around_suwalki_has_fields() -> void:
+	var defender := SUWALKI_HEX + Hex.DIRECTIONS[0]
+	var setup := ContactMap.build(
+		_draft(_state.formations[0], _enemy_of(_state.formations[0])), SUWALKI_HEX, defender
+	)
+	var grid := TacticalLayer.find(setup.map_id).region_grid(setup.map_region)
+	var fields := 0
+	var plains := 0
+	for c in grid.coords():
+		if grid.get_terrain(c) == Terrain.Type.FIELDS:
+			fields += 1
+		elif grid.get_terrain(c) == Terrain.Type.PLAINS:
+			plains += 1
+	assert_true(fields >= 200, "%d fields tiles in the cut around Suwalki" % fields)
+	assert_true(plains > 0, "%d plains tiles in the cut around Suwalki" % plains)
+
+
 func test_a_lake_hex_is_water_in_the_cut() -> void:
 	var theatre := ImportedMap.find(&"suwalki_theatre")
 	assert_eq(_state.grid.get_terrain(SNIARDWY_HEX), Terrain.Type.WATER, "the theatre's lake hex")

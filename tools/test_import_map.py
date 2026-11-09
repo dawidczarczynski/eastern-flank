@@ -195,6 +195,10 @@ def fixture_op_elements() -> dict:
     way(122, box(54.505, 22.566, 54.530, 22.580), {"landuse": "military"})  # not urban at the operational scale
     way(130, box(54.468, 22.500, 54.476, 22.540), {"natural": "wetland"})
     way(131, box(54.500, 22.420, 54.530, 22.460), {"landuse": "farmland"})  # plains, never fields
+    # Fields and a meadow inland between the forest and the coast (the tactical layer's lu1 tiles; operational: plains).
+    way(132, box(54.494, 22.470, 54.508, 22.515), {"landuse": "farmland"})
+    way(133, box(54.509, 22.495, 54.515, 22.515), {"landuse": "meadow"})
+    way(134, box(54.476, 22.440, 54.486, 22.455), {"landuse": "farmland"})  # under the forest: forest wins
     way(140, line([(54.488, 22.40), (54.4885, 22.50), (54.489, 22.60)]), {"highway": "primary", "ref": "S61"})
     way(141, line([(54.530, 22.450), (54.470, 22.455)]), {"highway": "tertiary"})
     way(150, line([(54.540, 22.545), (54.500, 22.520), (54.460, 22.515)]), {"waterway": "river", "name": "Rzeka"})
@@ -267,6 +271,14 @@ def fake_border_overpass(whole: dict, s: float, w: float, n: float, e: float) ->
     return {"version": 0.6, "generator": whole["generator"], "elements": elements}
 
 
+def fake_landuse_overpass(whole: dict, s: float, w: float, n: float, e: float) -> dict:
+    """What Overpass answers for `landuse_query`: the areas with an A / G tag of the land-use table that touch the
+    bbox, with their nodes (`fake_overpass` on the matching elements only)."""
+    keep = [el for el in whole["elements"] if el["type"] == "node"
+            or import_map.cover_class(el.get("tags", {}), import_map._LANDUSE_TAG_CLASSES)]  # fmt: skip
+    return fake_overpass({"generator": whole["generator"], "elements": keep}, s, w, n, e)
+
+
 def write_op_cache(cache: Path, deg: float) -> None:
     """The synthetic operational area cut into `deg` tiles in `cache`/osm, named like the importer's tiles."""
     whole = fixture_op_elements()
@@ -278,6 +290,9 @@ def write_op_cache(cache: Path, deg: float) -> None:
         borders = fake_border_overpass(whole, lat, lon, lat + deg, lon + deg)
         path = import_map.border_tile_path(cache, lat, lon, deg)
         path.write_text(json.dumps(borders, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        landuse = fake_landuse_overpass(whole, lat, lon, lat + deg, lon + deg)
+        path = import_map.landuse_tile_path(cache, lat, lon, deg)
+        path.write_text(json.dumps(landuse, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 COUNTRY_CASES = ("straight", "diagonal", "lake", "gap", "ring")
@@ -1001,7 +1016,7 @@ class OperationalImportTest(unittest.TestCase):
         write_op_cache(cache, import_map.OSM_TILE_DEG)
         committed = sorted(p.name for p in (OP_CACHE / "osm").glob("*.json"))
         self.assertEqual(committed, sorted(p.name for p in (cache / "osm").glob("*.json")))
-        self.assertEqual(len(committed), 8, "the sample lies where four tiles meet: land cover and borders each")
+        self.assertEqual(len(committed), 12, "the sample lies where four tiles meet: land cover, borders, land use")
         for name in committed:
             self.assertEqual((OP_CACHE / "osm" / name).read_text(encoding="utf-8"),
                              (cache / "osm" / name).read_text(encoding="utf-8"), name)  # fmt: skip
@@ -1009,7 +1024,7 @@ class OperationalImportTest(unittest.TestCase):
     def test_one_tile_or_four_tiles_give_the_same_map(self) -> None:
         one = self.dir / "one"
         write_op_cache(one, 1.0)
-        self.assertEqual(len(list((one / "osm").glob("*.json"))), 2, "land cover and borders")
+        self.assertEqual(len(list((one / "osm").glob("*.json"))), 3, "land cover, borders and land use")
         self.assertEqual(self._import("one.tres", one, ("--tile-deg=1.0",)), self._import("four.tres"))
 
     def test_sample_classification(self) -> None:
@@ -1735,12 +1750,36 @@ class TacticalLayerTest(unittest.TestCase):
         self.assertEqual(terrain[0], codes["water"], "the sea in the north-west corner")
         for kind in ("plains", "forest", "water", "urban"):
             self.assertIn(codes[kind], terrain, kind)
-        self.assertNotIn(codes["fields"], terrain, "no farmland in the operational tiles")
+        layout = import_map.HexLayout.centred(36, 28, 250.0, *import_map.to_utm(54.5, 22.5, 34))
+
+        def at(lat: float, lon: float) -> int:
+            col, row = layout.tile_at(*import_map.to_utm(lat, lon, 34))
+            return terrain[row * 36 + col]
+
+        self.assertEqual(at(54.501, 22.4925), codes["fields"], "farmland of the lu1 land-use tiles")
+        self.assertNotEqual(at(54.512, 22.505), codes["fields"], "a meadow is not fields, as in the tactical profile")
+        self.assertEqual(at(54.481, 22.4475), codes["forest"], "farmland under the forest polygon")
+        self.assertGreater(terrain.count(codes["fields"]), 10)
         self.assertTrue(any(roads), "the primary road")
         self.assertTrue(any(rivers), "the river")
         for i, t in enumerate(terrain):
             if t == codes["water"]:
                 self.assertEqual((roads[i], rivers[i]), (0, 0), "no links on water")
+
+    def test_landuse_tiles_are_required_offline_and_read_only_fields_and_grass(self) -> None:
+        cache = self.dir / "cache"
+        shutil.copytree(OP_CACHE, cache)
+        import_map.landuse_tile_path(cache, 54.5, 22.5, 0.5).unlink()
+        with self.assertRaises(SystemExit) as raised:
+            import_map.run(self.ARGS[:-2] + ["--cache=%s" % cache, "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % (self.dir / "x")])
+        self.assertIn("lu1_54.5000_22.5000_0.5000.json", str(raised.exception))
+        query = import_map.landuse_query(54.0, 22.0, 54.5, 22.5)
+        for value in ("farmland", "meadow", "orchard", "grassland"):
+            self.assertIn(value, query)
+        for value in ("forest", "residential", "wetland", "highway", "military"):
+            self.assertNotIn(value, query)
+        self.assertEqual(import_map.cover_class({"landuse": "farmland"}, import_map._LANDUSE_TAG_CLASSES), "A")
+        self.assertEqual(import_map.cover_class({"landuse": "forest"}, import_map._LANDUSE_TAG_CLASSES), None)
 
     def test_fast_scanline_fill_matches_the_reference(self) -> None:
         rings = [[(0.3, 0.2), (17.7, 3.1), (12.2, 14.9), (3.3, 11.0), (0.3, 0.2)],
