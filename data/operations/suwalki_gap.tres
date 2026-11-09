@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDefinition" load_steps=40 format=3]
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=56 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
 [ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
@@ -16,6 +16,8 @@
 [ext_resource type="Resource" path="res://data/countries/lithuania.tres" id="c_lithuania"]
 [ext_resource type="Resource" path="res://data/countries/belarus.tres" id="c_belarus"]
 [ext_resource type="Resource" path="res://data/countries/russia.tres" id="c_russia"]
+
+[ext_resource type="Script" path="res://src/core/data/installation_placement.gd" id="13_install"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -263,6 +265,118 @@ stance = &"belligerent"
 side = 1
 leaning = 1
 
+[sub_resource type="Resource" id="Inst_nato_airfield_olsztyn"]
+script = ExtResource("13_install")
+id = &"nato_airfield_olsztyn"
+display_name = "Olsztyn-Mazury airfield (Szymany)"
+class_id = &"airfield"
+owner = 0
+coord = Vector2i(-17, 50)
+
+[sub_resource type="Resource" id="Inst_nato_airfield_bialystok"]
+script = ExtResource("13_install")
+id = &"nato_airfield_bialystok"
+display_name = "Bialystok airfield (Krywlany)"
+class_id = &"airfield"
+owner = 0
+coord = Vector2i(8, 60)
+
+[sub_resource type="Resource" id="Inst_nato_depot_elk"]
+script = ExtResource("13_install")
+id = &"nato_depot_elk"
+display_name = "Elk depot"
+class_id = &"depot"
+owner = 0
+coord = Vector2i(6, 41)
+
+[sub_resource type="Resource" id="Inst_nato_depot_kaunas"]
+script = ExtResource("13_install")
+id = &"nato_depot_kaunas"
+display_name = "Kaunas depot"
+class_id = &"depot"
+owner = 0
+coord = Vector2i(41, 13)
+
+[sub_resource type="Resource" id="Inst_nato_c2_bialystok"]
+script = ExtResource("13_install")
+id = &"nato_c2_bialystok"
+display_name = "Bialystok command post"
+class_id = &"c2"
+owner = 0
+coord = Vector2i(9, 59)
+
+[sub_resource type="Resource" id="Inst_nato_ad_bialystok"]
+script = ExtResource("13_install")
+id = &"nato_ad_bialystok"
+display_name = "Bialystok air defence"
+class_id = &"air_defence"
+owner = 0
+coord = Vector2i(10, 58)
+
+[sub_resource type="Resource" id="Inst_nato_ad_suwalki"]
+script = ExtResource("13_install")
+id = &"nato_ad_suwalki"
+display_name = "Suwalki air defence"
+class_id = &"air_defence"
+owner = 0
+coord = Vector2i(17, 34)
+
+[sub_resource type="Resource" id="Inst_ru_airfield_chernyakhovsk"]
+script = ExtResource("13_install")
+id = &"ru_airfield_chernyakhovsk"
+display_name = "Chernyakhovsk airfield"
+class_id = &"airfield"
+owner = 1
+coord = Vector2i(8, 22)
+
+[sub_resource type="Resource" id="Inst_ru_airfield_lida"]
+script = ExtResource("13_install")
+id = &"ru_airfield_lida"
+display_name = "Lida airfield"
+class_id = &"airfield"
+owner = 1
+coord = Vector2i(48, 38)
+
+[sub_resource type="Resource" id="Inst_ru_depot_kaliningrad"]
+script = ExtResource("13_install")
+id = &"ru_depot_kaliningrad"
+display_name = "Kaliningrad depot"
+class_id = &"depot"
+owner = 1
+coord = Vector2i(-6, 19)
+
+[sub_resource type="Resource" id="Inst_ru_depot_grodno"]
+script = ExtResource("13_install")
+id = &"ru_depot_grodno"
+display_name = "Grodno depot"
+class_id = &"depot"
+owner = 1
+coord = Vector2i(24, 45)
+
+[sub_resource type="Resource" id="Inst_ru_c2_kaliningrad"]
+script = ExtResource("13_install")
+id = &"ru_c2_kaliningrad"
+display_name = "Kaliningrad command post"
+class_id = &"c2"
+owner = 1
+coord = Vector2i(-7, 19)
+
+[sub_resource type="Resource" id="Inst_ru_ad_kaliningrad"]
+script = ExtResource("13_install")
+id = &"ru_ad_kaliningrad"
+display_name = "Kaliningrad air defence"
+class_id = &"air_defence"
+owner = 1
+coord = Vector2i(-6, 18)
+
+[sub_resource type="Resource" id="Inst_ru_ad_grodno"]
+script = ExtResource("13_install")
+id = &"ru_ad_grodno"
+display_name = "Grodno air defence"
+class_id = &"air_defence"
+owner = 1
+coord = Vector2i(25, 45)
+
 [resource]
 script = ExtResource("3_operation")
 id = &"suwalki_gap"
@@ -274,3 +388,10 @@ initial_escalation = 1
 countries = Array[ExtResource("12_csetup")]([SubResource("Setup_poland"), SubResource("Setup_lithuania"), SubResource("Setup_belarus"), SubResource("Setup_russia")])
 start_date = "2027-06-14"
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
+installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno")])
+strike_stock = Array[Dictionary]([{&"cruise": 8, &"ballistic": 4, &"strike_drone": 6}, {&"cruise": 8, &"ballistic": 6, &"strike_drone": 16}])
+strike_resupply = Array[Dictionary]([{&"cruise": 1, &"strike_drone": 1}, {&"cruise": 1, &"strike_drone": 2}])
+strikes_per_turn = 2
+air_defence_radius = 4
+air_defence_intercept_pct = 40
+repair_per_round = 5

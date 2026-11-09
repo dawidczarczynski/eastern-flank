@@ -28,6 +28,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	_switch_side(state)
 	if state.current_player == state.first_player and state.result.is_empty():
 		events.append_array(EscalationRules.end_round(state))
+		events.append_array(StrikeRules.end_round(state))
 	(
 		events
 		. append(
@@ -125,5 +126,6 @@ static func _execute_order(
 
 static func _switch_side(state: OperationalState) -> void:
 	state.current_player = 1 - state.current_player
+	state.strikes_left = state.strikes_per_turn
 	if state.current_player == state.first_player:
 		state.turn += 1

@@ -29,6 +29,15 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 			if not (id is String and posture is String):
 				return null
 			return SetPostureCommand.new(StringName(id as String), StringName(posture as String))
+		StrikeCommand.TYPE:
+			var means: Variant = d.get("means")
+			var target: Variant = d.get("target")
+			var count: Variant = to_int_or_null(d.get("count"))
+			if not (means is String and target is String) or count == null:
+				return null
+			return StrikeCommand.new(
+				StringName(means as String), StringName(target as String), count as int
+			)
 		ResolveBattleCommand.TYPE:
 			var result_value: Variant = d.get("result")
 			if not result_value is Dictionary:

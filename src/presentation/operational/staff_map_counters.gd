@@ -82,6 +82,7 @@ func set_viewer(viewer_player: int) -> void:
 
 ## Re-reads strengths (after an event; positions come with layout()).
 func refresh() -> void:
+	_drop_removed()
 	for formation in _state.formations:
 		counter(formation.id).set_strength(formation.strength(), formation.max_strength())
 		counter(formation.id).has_order = formation.order != null
@@ -194,3 +195,24 @@ func _apply_layout() -> void:
 	_shown = ordered
 	for id in _shown:
 		move_child(counter(id), -1)
+
+
+## Removes the counters of formations that left the state (destroyed by a strike, TASK-097a).
+func _drop_removed() -> void:
+	if _counters.size() == _state.formations.size():
+		return
+	var alive := {}
+	for formation in _state.formations:
+		alive[formation.id] = true
+	for id in _order.duplicate():
+		if alive.has(id):
+			continue
+		_counters[id].queue_free()
+		_counters.erase(id)
+		_order.erase(id)
+		_points.erase(id)
+		_shown.erase(id)
+		if _hovered == id:
+			_hovered = &""
+		if _selected == id:
+			_selected = &""

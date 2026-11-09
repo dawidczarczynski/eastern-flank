@@ -39,6 +39,8 @@ func _init(
 		_panel.position = Vector2(16, 130)
 		_panel.stance_requested.connect(_on_stance_requested)
 		_panel.escalation_requested.connect(_on_escalation_requested)
+		_panel.strike_requested.connect(_on_strike_requested)
+		_panel.stock_requested.connect(_on_stock_requested)
 		hud.add_child(_panel)
 
 
@@ -141,3 +143,22 @@ func _on_escalation_requested(by: int, raise: bool) -> void:
 	for event in events:
 		_simulation.event_emitted.emit(event)
 	_panel.show_state(state)
+
+
+## The panel's Strike: the real StrikeCommand through the simulation (a rejection shows its code
+## as a toast, StaffMap._on_command_rejected). A negative player is the panel asking for a rebuild.
+func _on_strike_requested(player: int, means: StringName, count: int, target: StringName) -> void:
+	var state := _simulation.state
+	if player < 0:
+		_panel.show_state(state)
+		return
+	if player != state.current_player:
+		_toast.call("wrong_player", _palette.ui_alert)
+		return
+	_simulation.execute(StrikeCommand.new(means, target, count))
+
+
+## The panel's +stock: StrikeRules.add_stock with source `debug`, its events re-emitted.
+func _on_stock_requested(player: int, means: StringName, count: int) -> void:
+	for event in StrikeRules.add_stock(_simulation.state, player, means, count, &"debug"):
+		_simulation.event_emitted.emit(event)

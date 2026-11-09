@@ -422,7 +422,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
 
-**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. *Not yet reachable in play:* ground entry and strikes arrive with later tasks; for now the level can only be changed from the debug panel (F9, `--debug`).
+**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, but can only be launched from the debug panel (F9, `--debug`) for now; ground entry arrives with a later task, and the level can also be changed from the debug panel.
 
 **What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. Nothing else lowers it yet.
 
@@ -431,6 +431,43 @@ A strike is refused if its target is on your own soil, in a country that is clos
 **The end.** The bloc whose action brings the level to the Strategic threshold loses the operation at once and the other bloc wins; any waiting contact battles are dropped. A full-screen **Operation over** notice names the bloc that crossed the threshold, the defeat and the victory, with a **Back to menu** button.
 
 **On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the levels, what may be struck at the current one and marks the steps where the enemy sanctuary opens, allies join and the operation ends. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
+
+### Deep strikes
+
+As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. **Part 1 is in:** the rules and the installation markers. The strike mode on the map (clicking a target, forecast, report) comes later; for now a strike can only be launched from the debug panel (F9, `--debug`, block **Strikes**: pick the player, means, salvo and target, then **Strike**; **+stock** adds missiles for testing).
+
+**Means.** Each side has a stock of three means. A strike spends the missiles it launches whether or not they hit.
+
+| Means | Accuracy | Damage to an installation (per hit) | Damage to a formation (per hit) | Largest salvo | Range |
+|---|---|---|---|---|---|
+| Cruise missile | 80% | 35 | 2 | 4 | 50 hexes |
+| Ballistic missile | 70% | 45 | 3 | 2 | 80 hexes |
+| Strike drone | 55% | 15 | 1 | 6 | 20 hexes |
+
+Accuracy is the chance that a missile that was not intercepted hits. Ballistic missiles are hard to intercept (40% of the normal chance), cruise missiles are normal, drones are easy to intercept (150%).
+
+**Stock and resupply.** Starting stock in "Suwałki Gap": NATO 8 cruise, 4 ballistic, 6 drones; Russia 8 cruise, 6 ballistic, 16 drones. At the end of each full round (after both blocs have moved) each side receives more: NATO 1 cruise and 1 drone; Russia 1 cruise and 2 drones. There is no upper limit.
+
+**Strikes per turn.** Each bloc may make 2 strikes per turn (one strike is one salvo of 1 to the largest salvo at one target). Strikes are separate from the political decisions of the turn. The count is restored when the bloc's turn begins.
+
+**Targets.** You can strike enemy installations that are not yet destroyed, and enemy formations. Installation kinds are airfields, depots, command posts (C2) and air defence; the escalation level decides which kinds may be hit (see the ladder above: formations from level 1, air defence and depots from level 2, airfields and command posts from level 3). A strike is refused with a reason when:
+- the target is unknown, already destroyed, or on your own soil;
+- the country is **closed**: enemy soil (for example Kaliningrad or Belarus for NATO) stays closed until the level reaches Limited war; a country allied with the enemy is likewise closed;
+- the level does not yet allow that kind of target;
+- the target is **out of range**: the range is counted from the nearest hex of your own country or of a country aligned with you or at war on your side (a country that joins you counts from then on);
+- you have too few missiles of that means, a salvo of 0 or above the largest, or no strikes left this turn.
+
+A refused strike costs nothing.
+
+**Interception.** Air defence installations of the target's owner within 4 hexes of the target try to shoot missiles down. Each intact site adds 40% × its integrity; the sum is capped at 90% and then multiplied by the means' interceptability, so one fresh site stops about 40% of cruise missiles, 16% of ballistic ones and 60% of drones. Every missile is rolled separately: first interception, then, if it got through, the hit.
+
+**Escalation.** Every accepted strike is an incident on the ladder. The first strike into a country that is the enemy's sanctuary raises the level by one (once per country and bloc); a strike on a town hex raises it by one each time. This happens **even if all the missiles were intercepted or missed**. A strike may take the level to the Strategic threshold: it is allowed, and your bloc then loses the operation.
+
+**Damage is lasting.** An installation has integrity from 100 to 0. Each hit takes off the means' damage; at 0 it is **destroyed** and stays so. A damaged but not destroyed installation recovers 5 points at the end of each full round (up to 100). A formation hit loses strength from its strongest company; when all its companies reach 0 the formation is destroyed and removed from the map. What a damaged installation does to battles (fire support, ammunition, command points) is not in the game yet.
+
+**Installations in "Suwałki Gap".** Each side has 7. NATO: airfields near Olsztyn and Białystok, depots at Ełk and Kaunas (Lithuania), a command post and air defence at Białystok, air defence at Suwałki. Russia: airfields at Chernyakhovsk and Lida (Belarus), depots at Kaliningrad and Grodno (Belarus), a command post and air defence at Kaliningrad, air defence at Grodno. In practice, at the first level NATO can reach only Russian formations standing in Poland; Kaliningrad targets open at Open war and Belarusian ones at Regional war.
+
+**Installation markers.** The staff map shows every installation of both sides (there is no fog yet) as a small marker in the bloc's colour, with a glyph for its kind (airfield, depot, command post, air defence) and a thin **integrity bar** beneath. A destroyed installation is shown as a grey crossed glyph. Markers update when an installation is hit or repaired. Point at a marker for a card with its name, kind, country, integrity in per cent and what it gives: an airfield – fire support in nearby battles, and similarly for the other kinds.
 
 ### Turns
 

@@ -67,7 +67,31 @@ static func from_definition(
 		state.countries.append(CountryState.from_setup(setup))
 	for placement in definition.formations:
 		state.formations.append(Formation.from_placement(placement, definition.initial_posture))
+	_add_strikes(state, definition)
 	return state
+
+
+static func _add_strikes(state: OperationalState, definition: OperationDefinition) -> void:
+	state.strike_means = StrikeMeansDefinition.shipped()
+	for placement in definition.installations:
+		state.installations.append(Installation.from_placement(placement))
+	for player in 2:
+		if player < definition.strike_stock.size():
+			state.strike_stock[player] = _copy_counts(definition.strike_stock[player])
+		if player < definition.strike_resupply.size():
+			state.strike_resupply[player] = _copy_counts(definition.strike_resupply[player])
+	state.strikes_per_turn = definition.strikes_per_turn
+	state.strikes_left = definition.strikes_per_turn
+	state.air_defence_radius = definition.air_defence_radius
+	state.air_defence_intercept_pct = definition.air_defence_intercept_pct
+	state.repair_per_round = definition.repair_per_round
+
+
+static func _copy_counts(source: Dictionary) -> Dictionary:
+	var result := {}
+	for key: Variant in source:
+		result[StringName(key)] = int(source[key])
+	return result
 
 
 ## "" when the definition is consistent with itself, the map and the faction rosters.
@@ -106,6 +130,9 @@ static func _problem(
 	var closed_error := _closed_placement_problem(definition, country_map)
 	if closed_error != "":
 		return closed_error
+	var strike_error := _strikes_problem(definition, grid)
+	if strike_error != "":
+		return strike_error
 	return _contributions_problem(definition, grid, country_map, ids)
 
 
@@ -210,6 +237,65 @@ static func _closed_placement_problem(
 	for placement in definition.formations:
 		if not CountryRules.may_enter(probe, placement.player, placement.coord):
 			return "formation '%s' starts on a closed hex %s" % [placement.id, placement.coord]
+	return ""
+
+
+## Installations, strike stock / resupply and the strike numbers (TASK-097a).
+static func _strikes_problem(definition: OperationDefinition, grid: HexGrid) -> String:
+	if definition.strikes_per_turn < 1:
+		return "strikes_per_turn %d must be at least 1" % definition.strikes_per_turn
+	if definition.repair_per_round < 0:
+		return "repair_per_round %d is negative" % definition.repair_per_round
+	if definition.air_defence_radius < 0:
+		return "air_defence_radius %d is negative" % definition.air_defence_radius
+	var intercept := definition.air_defence_intercept_pct
+	if intercept < 0 or intercept > 100:
+		return "air_defence_intercept_pct %d outside 0 .. 100" % intercept
+	var counts_error := _counts_problem(definition.strike_stock, definition.strike_resupply)
+	if counts_error != "":
+		return counts_error
+	var ids := {}
+	var occupied := {}
+	for placement in definition.installations:
+		if placement == null:
+			return "empty installation"
+		var error := _installation_problem(definition, grid, placement)
+		if error != "":
+			return "installation '%s': %s" % [placement.id, error]
+		if ids.has(placement.id):
+			return "duplicate installation id '%s'" % placement.id
+		ids[placement.id] = true
+		if occupied.has(placement.coord):
+			var other: StringName = occupied[placement.coord]
+			return "'%s' and '%s' on one tile %s" % [other, placement.id, placement.coord]
+		occupied[placement.coord] = placement.id
+	return ""
+
+
+static func _counts_problem(stock: Array[Dictionary], resupply: Array[Dictionary]) -> String:
+	for entries: Array[Dictionary] in [stock, resupply]:
+		if entries.size() != 0 and entries.size() != 2:
+			return "strike stock / resupply needs 0 or 2 entries, has %d" % entries.size()
+		for entry in entries:
+			for key: Variant in entry:
+				if not StrikeMeansDefinition.SHIPPED.has(StringName(key)):
+					return "unknown strike means '%s'" % key
+				if not entry[key] is int or int(entry[key]) < 0:
+					return "strike count of '%s' is not a non-negative int" % key
+	return ""
+
+
+static func _installation_problem(
+	definition: OperationDefinition, grid: HexGrid, placement: InstallationPlacement
+) -> String:
+	if not Installation.CLASSES.has(placement.class_id):
+		return "unknown class '%s'" % placement.class_id
+	if placement.owner < 0 or placement.owner >= definition.sides.size():
+		return "owner %d out of range" % placement.owner
+	if not grid.has_tile(placement.coord):
+		return "off the map at %s" % placement.coord
+	if grid.move_cost(placement.coord) == Terrain.IMPASSABLE:
+		return "impassable tile %s" % placement.coord
 	return ""
 
 

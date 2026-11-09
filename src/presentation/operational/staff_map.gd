@@ -76,6 +76,9 @@ var _hud: CanvasLayer
 var _simulation: OperationalSimulation
 var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
+var _installations: StaffMapInstallations
+var _installation_card: StaffMapInstallationCard
+var _installation_anchors := {}  # installation id -> point on the relief
 var _panel: StaffMapFormationPanel
 var _turn_bar: StaffMapTurnBar
 var _route: StaffMapRoutePreview
@@ -303,6 +306,14 @@ func simulation() -> OperationalSimulation:
 
 func counters() -> StaffMapCounters:
 	return _counters
+
+
+func installations() -> StaffMapInstallations:
+	return _installations
+
+
+func installation_card() -> StaffMapInstallationCard:
+	return _installation_card
 
 
 func formation_panel() -> StaffMapFormationPanel:
@@ -697,6 +708,9 @@ func _build_operation(definition: OperationDefinition) -> void:
 		# turn_started event to switch the view).
 		if _follow_side and not _has_side_arg():
 			viewer_player = state.current_player
+	_installations = StaffMapInstallations.new()  # under the counters
+	_counter_layer.add_child(_installations)
+	_installations.build(state, _palette)
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
 	_build_route_preview()  # after the counters: its cross and label draw over them
@@ -729,6 +743,10 @@ func _build_route_preview() -> void:
 
 
 func _update_anchors() -> void:
+	_installation_anchors.clear()
+	for installation in _simulation.state.installations:
+		var at := Hex.to_world(installation.coord, 1.0)
+		_installation_anchors[installation.id] = _view.relief().surface_point(Vector2(at.x, at.z))
 	_anchors.clear()
 	for formation in _simulation.state.formations:
 		var w := Hex.to_world(formation.coord, 1.0)
@@ -746,6 +764,11 @@ func _layout_counters() -> void:
 	if _contacts != null:
 		_contacts.layout()
 		_place_queue()
+	if _installations != null:
+		var spots := {}
+		for id: StringName in _installation_anchors:
+			spots[id] = _project(_installation_anchors[id])
+		_installations.layout(spots)
 	if _counters == null:
 		return
 	var points := {}
@@ -754,7 +777,10 @@ func _layout_counters() -> void:
 	_counters.layout(points)
 
 
-func _on_command_rejected(_command: OperationalCommand, reason: String) -> void:
+func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
+	if command is StrikeCommand:  # the rejection code itself (TASK-097a)
+		_toast_message(reason, _palette.ui_alert)
+		return
 	_toast_message(tr("ORDER_REJECTED_" + reason.to_upper()), _palette.ui_alert)
 
 
@@ -770,6 +796,7 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
 	_escalation.on_event(event)
+	_on_strike_event(event)
 	_update_anchors()
 	_order_ring.follow()  # closes the ring when its formation may no longer be ordered
 	_counters.refresh()
@@ -784,6 +811,23 @@ func _on_operational_event(event: Dictionary) -> void:
 		_begin_slide()
 		_show_new_report()
 	_refresh_contacts()
+
+
+## Strike events (TASK-097a): the markers' bars, the result toast and the debug panel's stock line.
+func _on_strike_event(event: Dictionary) -> void:
+	var type: StringName = event.get("type", &"")
+	if type == &"strike_resolved":
+		var state := _simulation.state
+		var destroyed: bool = event["target_destroyed"]
+		_toast_message(
+			StaffMapStrikeText.resolved(state, event),
+			_palette.ui_alert if destroyed else _palette.ui_amber
+		)
+	if type in [&"installation_changed", &"strike_stock_changed", &"strike_launched"]:
+		_installations.refresh()
+		_politics.refresh(viewer_player)
+	elif type == &"strike_resolved":
+		_politics.refresh(viewer_player)
 
 
 ## Formations that joined (appended to the state) get their counters, a pulse and the country of
@@ -1152,6 +1196,8 @@ func _centre_on(formation_id: StringName) -> void:
 func _build_hud() -> void:
 	_card = StaffMapCard.new()
 	_hud.add_child(_card)
+	_installation_card = StaffMapInstallationCard.new()
+	_hud.add_child(_installation_card)
 	_panel = StaffMapFormationPanel.new()
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
@@ -1501,6 +1547,11 @@ func _update_hover() -> void:
 	if not _view.has_tile(c):
 		_clear_hover()
 		return
+	if _hover_installation(mouse):
+		_route.set_hex(StaffMapRoutePreview.OFF)
+		_view.highlight(StaffMapView.NO_HEX)
+		return
+	_installation_card.hide()
 	_route.set_hex(c)
 	if c != _view.hovered() or not _card.visible:
 		_view.highlight(c)
@@ -1520,7 +1571,26 @@ func _hover_ring() -> void:
 	_view.highlight(_order_ring.hex())
 
 
+## Shows the installation card when the cursor is on a marker (and no counter); true then.
+func _hover_installation(mouse: Vector2) -> bool:
+	var id := &""
+	if _counters == null or _counters.counter_at(mouse) == &"":
+		id = _installations.marker_at(mouse)
+	_installations.set_hovered(id)
+	if id == &"":
+		return false
+	_installation_card.show_info(
+		StaffMapInstallations.info(_simulation.state, _simulation.state.get_installation(id))
+	)
+	_card.hide()
+	_place_card(mouse, _installation_card)
+	return true
+
+
 func _clear_hover() -> void:
+	if _installations != null:
+		_installations.set_hovered(&"")
+		_installation_card.hide()
 	if _route != null:
 		_route.set_hex(StaffMapRoutePreview.OFF)
 	_view.highlight(StaffMapView.NO_HEX)
@@ -1530,14 +1600,16 @@ func _clear_hover() -> void:
 
 
 ## Puts the card next to `screen`, kept inside the window.
-func _place_card(screen: Vector2) -> void:
+func _place_card(screen: Vector2, card: Control = null) -> void:
+	if card == null:
+		card = _card
 	var size := _viewport_size()
 	var at := screen + CARD_OFFSET
-	if at.x + _card.size.x > size.x:
-		at.x = screen.x - CARD_OFFSET.x - _card.size.x
-	if at.y + _card.size.y > size.y:
-		at.y = screen.y - CARD_OFFSET.y - _card.size.y
-	_card.position = at
+	if at.x + card.size.x > size.x:
+		at.x = screen.x - CARD_OFFSET.x - card.size.x
+	if at.y + card.size.y > size.y:
+		at.y = screen.y - CARD_OFFSET.y - card.size.y
+	card.position = at
 
 
 func _return_to_menu() -> void:

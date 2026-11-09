@@ -24,6 +24,20 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var initial_escalation: int = 1
 ## Start stance of each country on the map (TASK-114).
 @export var countries: Array[CountrySetup] = []
+## Start installations of both sides (TASK-097a); their order is the setup order.
+@export var installations: Array[InstallationPlacement] = []
+## Starting strike stock per player (index = player): {means id: count}; empty = none.
+@export var strike_stock: Array[Dictionary] = []
+## Stock each player gains per round, per player: {means id: count}.
+@export var strike_resupply: Array[Dictionary] = []
+## Strikes each player may launch per own turn.
+@export var strikes_per_turn: int = 2
+## Hexes around a target in which an air-defence site intercepts.
+@export var air_defence_radius: int = 4
+## Interception chance (%) of one intact air-defence site.
+@export var air_defence_intercept_pct: int = 40
+## Integrity a damaged, not destroyed, installation regains each round.
+@export var repair_per_round: int = 5
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

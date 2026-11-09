@@ -1,6 +1,6 @@
 # TASK-097a: Deep strike v1 (1/2, core) – means with range and a per-side stock, installations as targets, resolution (accuracy / interception / rng), ROE and escalation through TASK-115, resupply and repair per round
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (installation markers, hover card, F9 debug strike)
 - **Depends on**: TASK-092b, TASK-115, TASK-093c (soft: TASK-100, TASK-098)
 - **Sections**: GDD "Deep strikes", "Escalation ladder", "Countries and stances", "Outside support"; ARCHITECTURE "Two layers", "Operational events"
@@ -71,7 +71,7 @@ No mockup for strikes in `docs/design/operational_map`. Reuse the counter frame,
 ## Playtest (for the human)
 
 1. **Operation** (`--debug`): installation glyphs with integrity bars appear for both sides; hover one: card with name, class, country, integrity.
-2. F9 → Strikes: pick NATO, `cruise` ×2, a Russian airfield: rejected `closed_country`; Raise to *Open war*, again: toast "2 hits / 1 intercepted …", the bar drops, the level goes up (sanctuary breach), stock 8 → 6.
+2. F9 → Strikes: pick NATO, `cruise` ×2, a Russian airfield: rejected `closed_country` (level 1; at level 2 *Limited war* an airfield gives `roe_class` – airfields open at level 3); Raise to *Open war* (level 3), again: toast "2 hits / 1 intercepted …", the bar drops, the level goes up (sanctuary breach), stock 8 → 6.
 3. Target far from own soil with `strike_drone`: rejected `out_of_range`; with `cruise`: accepted.
 4. End a full round: stock +resupply, the damaged installation's bar +5; a destroyed one stays grey.
 5. A third strike in one turn: rejected `no_strikes_left`; at level 3 a strike on a town hex ends the operation (end notice).
@@ -87,4 +87,19 @@ Aircraft sorties and other means; reconnaissance and known / stale targets (TASK
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Core, data, docs and view done. Tests: `tests/unit/test_strikes.gd` (data, state, stock, shipped operation), `test_strike_rules.gd` (targets, range, ROE, capability, interception, resolution, round boundary), `test_strike_command.gd` (command, escalation, determinism, codec, scripted replay on `suwalki_gap`).
+
+Decisions and deviations:
+- `Operation.from_definition` checks means ids against the three shipped means; `OperationalState.strike_means` holds them (tests add made-up means there). Strike numbers are static state fields, not in the snapshot.
+- TASK-095 does not exist yet, so `StrikeRules.resolve` removes a destroyed formation from `state.formations` itself. New events `formation_damaged` (a hit that leaves strength) and `formation_destroyed` (documented in ARCHITECTURE).
+- `StrikeRules.find_target(state, player, id)` returns the enemy target dictionary (also a destroyed installation, to report `target_destroyed`); `{}` for unknown / own / unknown-to-player.
+- The scripted replay test is a new test (Russia's urban strike on Elk raises to Open war, NATO strikes Chernyakhovsk, full round) instead of extending the TASK-094d record, whose battle seed would shift.
+- `capability` is an integer mean (rounded down).
+
+Shipped installations (axial `coord`, real map `suwalki_theatre`; place -> hex):
+- NATO: airfield Olsztyn-Mazury (Szymany) (-17, 50); airfield Bialystok (Krywlany) (8, 60); depot Elk (6, 41); depot Kaunas (41, 13, Lithuania); c2 Bialystok (9, 59); air defence Bialystok (10, 58); air defence Suwalki (17, 34).
+- Russia: airfield Chernyakhovsk (8, 22); airfield Lida (48, 38, Belarus); depot Kaliningrad (-6, 19); depot Grodno (24, 45, Belarus); c2 Kaliningrad (-7, 19); air defence Kaliningrad (-6, 18); air defence Grodno (25, 45, Belarus).
+Hexes were computed from the cities' WGS84 position with the map's UTM 34N origin; all lie on land in the right country. Same-city installations sit on neighbouring hexes (one installation per hex).
+
+
+View: `staff_map_installation_marker/_installations/_installation_card/_strike_text.gd`, F9 "STRIKES" block in `staff_map_politics_panel.gd` / `_hud.gd`, tests `test_staff_map_strikes.gd`. Deviations from the look (no mockup): own plate glyphs (plane, crate, pennant, dome) in the counter palette, markers offset 26 px left / 22 px up of the hex centre, destroyed ones stay as grey crossed markers, new texts are plain English (no translation keys), debug Strike works only for the side to move (`wrong_player` otherwise). Counters of formations destroyed by a strike are removed (`StaffMapCounters._drop_removed`). Playtest: `tools/run.sh --scene=staff_map --debug`, steps in the task's Playtest section.

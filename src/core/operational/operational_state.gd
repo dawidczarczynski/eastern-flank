@@ -47,6 +47,21 @@ var last_raise_turn: Array[int] = [-1, -1]
 var calm_rounds: int = 0
 ## A raise happened in the running round.
 var raised_this_round: bool = false
+## Fixed installations of both sides, in setup order (TASK-097a).
+var installations: Array[Installation] = []
+## Per player: {means id: count} (TASK-097a; changed only through StrikeRules.add_stock).
+var strike_stock: Array[Dictionary] = [{}, {}]
+## Strikes the current player may still launch this turn; reset when the turn passes on.
+var strikes_left: int = 2
+## Means by id (static, not in the snapshot; the shipped ones, tests may add more).
+var strike_means: Dictionary = {}
+## Per player: {means id: count} gained at each round boundary (static).
+var strike_resupply: Array[Dictionary] = [{}, {}]
+## Strikes per own turn, air-defence radius / interception %, repair per round (static).
+var strikes_per_turn: int = 2
+var air_defence_radius: int = 4
+var air_defence_intercept_pct: int = 40
+var repair_per_round: int = 5
 ## {} while the operation runs, else {winner: int, reason: StringName}.
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
@@ -58,6 +73,14 @@ func get_formation(formation_id: StringName) -> Formation:
 	for f in formations:
 		if f.id == formation_id:
 			return f
+	return null
+
+
+## The installation with this id; null if there is none.
+func get_installation(installation_id: StringName) -> Installation:
+	for i in installations:
+		if i.id == installation_id:
+			return i
 	return null
 
 
@@ -85,7 +108,8 @@ func formation_at(coord: Vector2i) -> Formation:
 ## JSON-compatible snapshot of the dynamic state (static data – definitions, map – is left out):
 ## {turn, current_player, rng_state, escalation, result,
 ## countries: [CountryState.snapshot() sorted by id],
-## formations: [Formation.snapshot() sorted by id]}.
+## formations: [Formation.snapshot() sorted by id],
+## installations: [Installation.snapshot() sorted by id], strike_stock, strikes_left}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
 	sorted.sort_custom(_id_before)
@@ -97,8 +121,16 @@ func snapshot() -> Dictionary:
 	sorted_countries.sort_custom(_country_id_before)
 	for c: CountryState in sorted_countries:
 		country_entries.append(c.snapshot())
+	var installation_entries: Array = []
+	var sorted_installations := installations.duplicate()
+	sorted_installations.sort_custom(_installation_id_before)
+	for i: Installation in sorted_installations:
+		installation_entries.append(i.snapshot())
 	return {
 		"countries": country_entries,
+		"installations": installation_entries,
+		"strike_stock": [_stock_snapshot(0), _stock_snapshot(1)],
+		"strikes_left": strikes_left,
 		"turn": turn,
 		"current_player": current_player,
 		"rng_state": str(rng.state),
@@ -122,3 +154,17 @@ static func _id_before(a: Formation, b: Formation) -> bool:
 
 static func _country_id_before(a: CountryState, b: CountryState) -> bool:
 	return String(a.id) < String(b.id)
+
+
+static func _installation_id_before(a: Installation, b: Installation) -> bool:
+	return String(a.id) < String(b.id)
+
+
+## One player's stock with String keys in sorted order.
+func _stock_snapshot(player: int) -> Dictionary:
+	var keys: Array = strike_stock[player].keys().map(func(k: Variant) -> String: return String(k))
+	keys.sort()
+	var result := {}
+	for key: String in keys:
+		result[key] = strike_stock[player][StringName(key)]
+	return result
