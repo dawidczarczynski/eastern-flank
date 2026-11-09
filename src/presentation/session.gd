@@ -38,6 +38,7 @@ static var battles: Array[CampaignRecord.Battle] = []
 ## The last played battle and its result until the staff map shows them (take_report).
 static var _report_setup: BattleSetup = null
 static var _report_result: BattleResult = null
+static var _report_events: Array[Dictionary] = []
 ## True from Play until the staff map takes the simulation back.
 static var _away := false
 
@@ -120,7 +121,7 @@ static func finish_battle(played: GameSimulation) -> bool:
 	if not in_battle() or played == null or not played.state.is_over():
 		return false
 	var command := ResolveBattleCommand.new(BattleResult.from_battle(battle, played.state))
-	if not simulation.execute(command):
+	if not _execute_collecting(command):
 		return false
 	battles.append(
 		CampaignRecord.Battle.played(
@@ -152,7 +153,7 @@ static func auto_resolve(p_simulation: OperationalSimulation, p_operation_id: St
 		battles.clear()
 	simulation = p_simulation
 	operation_id = p_operation_id
-	if not simulation.execute(ResolveBattleCommand.new(result)):
+	if not _execute_collecting(ResolveBattleCommand.new(result)):
 		return "rejected"
 	battles.append(CampaignRecord.Battle.auto(setup, result))
 	_report_setup = setup
@@ -169,14 +170,29 @@ static func take_simulation(p_operation_id: StringName) -> OperationalSimulation
 	return simulation
 
 
-## {setup, result} of the battle just reported, once; empty when there is none.
+## {setup, result, events} of the battle just reported, once; empty when there is none. `events`
+## are the operational events of the resolution (retreat, destruction, battle_consequences) for
+## the after-action report (TASK-095).
 static func take_report() -> Dictionary:
 	if _report_result == null:
 		return {}
-	var report := {"setup": _report_setup, "result": _report_result}
+	var report := {"setup": _report_setup, "result": _report_result, "events": _report_events}
 	_report_setup = null
 	_report_result = null
+	_report_events = []
 	return report
+
+
+## Executes `command` on the session's simulation and keeps its events for `take_report`.
+static func _execute_collecting(command: OperationalCommand) -> bool:
+	var collected: Array[Dictionary] = []
+	var collect := func(event: Dictionary) -> void: collected.append(event)
+	simulation.event_emitted.connect(collect)
+	var accepted := simulation.execute(command)
+	simulation.event_emitted.disconnect(collect)
+	if accepted:
+		_report_events = collected
+	return accepted
 
 
 ## Drops the campaign without a result (Esc to the menu from a campaign battle, the main menu).
@@ -190,6 +206,7 @@ static func abandon() -> void:
 	battles = []
 	_report_setup = null
 	_report_result = null
+	_report_events = []
 	_away = false
 
 

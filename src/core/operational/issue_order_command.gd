@@ -64,7 +64,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 		state,
 		formation,
 		destination,
-		data.budget(formation.definition.move_points),
+		OperationalOrders.budget(formation, data),
 		data.avoids_contact
 	)
 	return [

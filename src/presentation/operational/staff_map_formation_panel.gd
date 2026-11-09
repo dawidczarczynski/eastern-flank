@@ -150,7 +150,7 @@ func show_order(formation: Formation) -> void:
 	(_values["POSTURE"] as Label).text = (
 		StaffMapOrderRingModel.caption(formation.posture).to_upper()
 	)
-	var budget := posture.budget(move_points) if posture != null else move_points
+	var budget := OperationalOrders.budget(formation, posture) if posture != null else move_points
 	(_values["POINTS"] as Label).text = "%d / %d" % [budget, move_points]
 	(_values["ORDER"] as Label).text = (
 		tr("ORDER_NONE") if formation.order == null else _hex_text(formation.order.destination)

@@ -34,6 +34,11 @@ var companies: Array[Company] = []
 var posture: StringName = &"defend"
 ## Standing order; null = none.
 var order: FormationOrder = null
+## Readiness 0 … 100 (TASK-095): a battle lowers it, a quiet turn restores it; it scales the
+## order budget (OperationalOrders.budget).
+var readiness: int = 100
+## Fought a battle since the owner's last turn began (decides the readiness recovery).
+var fought: bool = false
 
 
 static func from_placement(
@@ -83,4 +88,6 @@ func snapshot() -> Dictionary:
 		"companies": company_entries,
 		"posture": String(posture),
 		"order": null if order == null else [order.destination.x, order.destination.y],
+		"readiness": readiness,
+		"fought": fought,
 	}

@@ -53,23 +53,83 @@ func test_play_battle_and_return_keeps_state_and_view() -> void:
 	var battle := GameSimulation.new(Scenario.from_setup(Session.battle))
 	assert_true(MatchRunner.run(battle, 40))
 	assert_true(Session.finish_battle(battle), "Report to staff")
+	var after := simulation.state.snapshot()
 
 	var back := _build()
 	assert_true(back.simulation() == simulation, "the same simulation comes back")
-	assert_eq(back.simulation().state.snapshot(), before, "state unchanged by the transition")
+	assert_eq(back.simulation().state.snapshot(), after, "state unchanged by the transition")
+	assert_true(after != before, "the battle changed the operation (TASK-095)")
 	assert_eq(back.view_settings(), settings, "camera, viewer, selection and toggles restored")
 	assert_eq(back.selected_formation(), own.id)
 	assert_false(back.contacts().notice.visible, "the battle is resolved")
 	assert_eq(back.contacts().pending_count(), 0)
 	var notice := back.result_notice()
 	assert_true(notice.visible, "the short result notice shows")
+	_assert_report_matches_state(notice, simulation.state)
 	assert_eq(notice.row_count(), 2, "one tab per formation")
 	assert_true(notice.summary_label().contains("Lost"), notice.summary_label())
 	assert_false(notice.summary_label().contains("→"), "no bare arrows")
 	notice.close()
 	assert_false(notice.visible)
+	back.skip_slide()  # the retreat slide of the report (TASK-095)
 	assert_true(back.end_turn(), "End turn works")
 	back.free()
+
+
+## TASK-095: the after-action block has a line per formation and its "after" strength is the
+## strength the state has now (a destroyed formation is gone and says so).
+func _assert_report_matches_state(notice: StaffMapBattleResult, state: OperationalState) -> void:
+	assert_eq(notice.aftermath_count(), 2, "one after-action line per formation")
+	var surviving := 0
+	for i in 2:
+		var line := notice.aftermath_line(i)
+		assert_true(line.contains("→"), line)
+		if line.contains("DESTROYED"):
+			continue
+		var found := false
+		for formation in state.formations:
+			if line.contains("→ %d" % formation.strength()):
+				found = true
+		assert_true(found, "the line's after strength is a formation's strength: " + line)
+		surviving += 1
+	assert_true(surviving >= 1, "at least one fighter survives")
+
+
+func test_aftermath_rows_from_events() -> void:
+	var setup := BattleSetup.new()
+	setup.attacker = 1
+	for player in 2:
+		var mission := BattleSetup.Mission.new()
+		mission.formation_name = "F%d" % player
+		setup.missions.append(mission)
+	var events: Array = [
+		{
+			"type": &"formation_retreated",
+			"formation_id": &"b",
+			"from": Vector2i(1, 1),
+			"to": Vector2i(1, 2),
+			"blocked": false
+		},
+		{
+			"type": &"battle_consequences",
+			"attacker_id": &"a",
+			"defender_id": &"b",
+			"losses": [7, 3],
+			"strength": [[10, 3], [12, 9]],
+			"readiness": [[100, 90], [100, 85]],
+			"field_holder": 1,
+			"retreat": 0,
+		},
+	]
+	var rows := StaffMapBattleResult.aftermath_rows(setup, events)
+	assert_eq(rows.size(), 2)
+	assert_eq(rows[0]["player"], 1, "attacker first")
+	assert_eq(rows[0]["before"], 12)
+	assert_eq(rows[0]["ready_after"], 85)
+	assert_false(rows[0].has("retreat_to"))
+	assert_eq(rows[1]["player"], 0)
+	assert_eq(rows[1]["lost"], 7)
+	assert_eq(StaffMapBattleResult.aftermath_rows(setup, []), [])
 
 
 ## TASK-120: Auto-resolve closes the battle on the staff map (no scene change) and shows the short
@@ -92,6 +152,7 @@ func test_auto_resolve_stays_on_the_staff_map() -> void:
 	assert_true(notice.visible)
 	assert_eq(notice.row_count(), 2)
 	assert_true(notice.detail_count() >= 2, "company strengths per formation")
+	_assert_report_matches_state(notice, state)
 	assert_eq(Session.battles.size(), 1)
 	assert_eq(Session.battles[0].resolution, &"auto")
 	assert_eq(Session.battles[0].commands.size(), 0)

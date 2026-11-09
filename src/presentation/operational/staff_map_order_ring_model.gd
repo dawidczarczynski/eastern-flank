@@ -112,7 +112,7 @@ static func _posture_detail(
 	reason: String
 ) -> Dictionary:
 	var data := OperationalPosture.find(posture)
-	var budget := data.budget(formation.definition.move_points)
+	var budget := OperationalOrders.budget(formation, data)
 	var detail := _detail(
 		index + 1, _t(_name_key(posture)), _t("POSTURE_HINT_" + String(posture).to_upper())
 	)

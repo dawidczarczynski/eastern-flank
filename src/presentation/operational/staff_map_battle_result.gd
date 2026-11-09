@@ -5,7 +5,10 @@ extends FramedPanel
 ## the field / retreats), then one tab per side (attacker first, side colour + formation name)
 ## with a summary line and a table Unit | Start | Left | Lost (+ bar) with a totals row;
 ## destroyed companies are marked. Continue (Enter) closes it. HUD v3 frame like the contact
-## notice. TASK-095 replaces it with the full after-action report (front, escalation effect).
+## notice. TASK-095: below the outcome strip the after-action block lists per formation strength
+## before -> after (bar), readiness before -> after and the retreat hex (or "destroyed"), and the
+## losses own / enemy, from the `battle_consequences` and `formation_retreated` events. The front
+## and escalation lines are left out until their data exists.
 
 signal closed
 
@@ -20,6 +23,8 @@ var _title_flag: SideFlag
 var _subtitle: Label
 var _outcome: PanelContainer
 var _outcome_box: HBoxContainer
+var _aftermath: VBoxContainer
+var _aftermath_rows := 0
 var _tabs: HBoxContainer
 var _summary: Label
 var _scroll: ScrollContainer
@@ -93,6 +98,11 @@ func _init() -> void:
 	_outcome_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_outcome_box.add_theme_constant_override(&"separation", 24)
 	_outcome.add_child(_outcome_box)
+	_aftermath = VBoxContainer.new()
+	_aftermath.name = "Aftermath"
+	_aftermath.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_aftermath.add_theme_constant_override(&"separation", 4)
+	column.add_child(_aftermath)
 	_tabs = HBoxContainer.new()
 	_tabs.name = "Tabs"
 	_tabs.add_theme_constant_override(&"separation", 6)
@@ -142,6 +152,50 @@ static func sides(setup: BattleSetup, result: BattleResult) -> Array[Dictionary]
 			if company.player == player:
 				row["before"] += company.strength_start
 				row["after"] += company.strength_end
+		rows.append(row)
+	return rows
+
+
+## Per side, attacker first, from the events of one resolution: {player, formation (name key),
+## before, after, ready_before, ready_after, destroyed, retreat_to (Vector2i, only when it
+## retreated), blocked, lost}. Empty without a `battle_consequences` event.
+static func aftermath_rows(setup: BattleSetup, events: Array) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var info := {}
+	var retreats := {}
+	for event: Dictionary in events:
+		if event.get("type") == &"battle_consequences":
+			info = event
+		elif event.get("type") == &"formation_retreated":
+			retreats[event["formation_id"]] = event
+	if info.is_empty():
+		return rows
+	var order: Array[int] = [setup.attacker, 1 - setup.attacker]
+	if setup.attacker < 0:
+		order = [0, 1]
+	for player in order:
+		var strength: Array = info["strength"][player]
+		var ready: Array = info["readiness"][player]
+		var id: StringName = (
+			info["attacker_id"] if player == setup.attacker else info["defender_id"]
+		)
+		var row := {
+			"player": player,
+			"formation": "",
+			"before": strength[0],
+			"after": strength[1],
+			"ready_before": ready[0],
+			"ready_after": ready[1],
+			"destroyed": strength[1] <= 0,
+			"blocked": false,
+			"lost": info["losses"][player],
+		}
+		if player < setup.missions.size():
+			row["formation"] = setup.missions[player].formation_name
+		if retreats.has(id):
+			row["blocked"] = retreats[id]["blocked"]
+			if not retreats[id]["blocked"]:
+				row["retreat_to"] = retreats[id]["to"]
 		rows.append(row)
 	return rows
 
@@ -224,7 +278,8 @@ func present(
 	setup: BattleSetup,
 	report: BattleResult,
 	palette: StaffMapPalette,
-	viewer := -1
+	viewer := -1,
+	events: Array = []
 ) -> void:
 	_state = state
 	_report = report
@@ -259,6 +314,7 @@ func present(
 		)
 		_outcome_box.add_child(line_row)
 	_outcome.visible = not lines.is_empty()
+	_fill_aftermath(state, setup, palette, viewer, events)
 	_side_rows = sides(setup, report)
 	_side_colours.clear()
 	_clear(_tabs)
@@ -304,6 +360,92 @@ func present(
 	_continue.text = tr("CONTINUE").to_upper() + "  [↵]"
 	show()
 	reset_size()
+
+
+func _fill_aftermath(
+	state: OperationalState,
+	setup: BattleSetup,
+	palette: StaffMapPalette,
+	viewer: int,
+	events: Array
+) -> void:
+	_clear(_aftermath)
+	var rows := aftermath_rows(setup, events)
+	_aftermath_rows = rows.size()
+	_aftermath.visible = not rows.is_empty()
+	if rows.is_empty():
+		return
+	for row in rows:
+		var player: int = row["player"]
+		var colour := StaffMapFormations.side_colour(palette, player)
+		var line := HBoxContainer.new()
+		line.name = "Aftermath%d" % player
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.add_theme_constant_override(&"separation", 8)
+		var flag := SideFlag.new()
+		flag.setup(SideDefinition.find(state.player_sides[player]), colour)
+		line.add_child(flag)
+		var name_label := MenuStyle.label(
+			TranslationServer.translate(row["formation"]), HudTheme.display(600, 1), 13, colour
+		)
+		name_label.clip_text = true
+		name_label.custom_minimum_size.x = 200
+		line.add_child(name_label)
+		var bar := StrengthBar.new(70, 8)
+		bar.before = row["before"]
+		bar.after = row["after"]
+		bar.colour = colour
+		line.add_child(bar)
+		line.add_child(
+			MenuStyle.label(
+				"%d → %d" % [row["before"], row["after"]],
+				HudTheme.mono(600, 0),
+				13,
+				UiPalette.HUD_TEXT
+			)
+		)
+		var detail := ""
+		var detail_colour := UiPalette.HUD_DESC
+		if row["destroyed"]:
+			detail = tr("BATTLE_RESULT_DESTROYED").to_upper()
+			detail_colour = LOSS_COLOUR
+		else:
+			detail = (
+				"%s %d → %d" % [tr("READINESS").to_upper(), row["ready_before"], row["ready_after"]]
+			)
+			if row.has("retreat_to"):
+				detail += (
+					" · %s %s"
+					% [tr("BATTLE_RESULT_RETREATED_TO").to_upper(), _hex_text(row["retreat_to"])]
+				)
+			elif row["blocked"]:
+				detail += " · %s" % tr("BATTLE_RESULT_RETREAT_BLOCKED").to_upper()
+		var detail_label := MenuStyle.label(detail, HudTheme.mono(500, 0), 11, detail_colour)
+		detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		line.add_child(detail_label)
+		_aftermath.add_child(line)
+	var own := viewer if viewer >= 0 and viewer < 2 else rows[0]["player"] as int
+	var own_lost: int = 0
+	var enemy_lost: int = 0
+	for row in rows:
+		if row["player"] == own:
+			own_lost = row["lost"]
+		else:
+			enemy_lost = row["lost"]
+	_aftermath.add_child(
+		MenuStyle.label(
+			tr("Losses: own %d · enemy %d") % [own_lost, enemy_lost],
+			HudTheme.mono(500, 0),
+			12,
+			UiPalette.HUD_TEXT
+		)
+	)
+
+
+static func _hex_text(c: Vector2i) -> String:
+	var offset := MapGenerator.axial_to_offset(c)
+	return "%02d·%02d" % [offset.x + 1, offset.y + 1]
 
 
 ## Shows the table of tab `i` (0 = attacker).
@@ -395,6 +537,20 @@ func detail_count() -> int:
 ## Number of outcome lines (holds the field / retreats) in the strip.
 func outcome_count() -> int:
 	return _outcome_count
+
+
+## Number of formation lines of the after-action block (0 without consequence events).
+func aftermath_count() -> int:
+	return _aftermath_rows
+
+
+## Text of the after-action block's line `i` (name, strength, readiness / retreat).
+func aftermath_line(i: int) -> String:
+	var text := ""
+	for child in _aftermath.get_child(i).get_children():
+		if child is Label:
+			text += (child as Label).text + " "
+	return text.strip_edges()
 
 
 ## Number of side tabs (always the two sides).

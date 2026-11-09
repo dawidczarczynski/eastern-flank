@@ -14,6 +14,8 @@ var _time := 0.0
 func collect(event: Dictionary) -> void:
 	if event.get("type") == &"formation_moved":
 		_pending.add_walk(event["formation_id"], event["from"], event["path"])
+	elif event.get("type") == &"formation_retreated" and not event["blocked"]:
+		_pending.add_walk(event["formation_id"], event["from"], [event["to"]])  # TASK-095
 
 
 ## Starts everything collected; false when nothing moved.

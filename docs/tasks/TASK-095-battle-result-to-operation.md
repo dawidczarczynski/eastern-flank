@@ -1,6 +1,6 @@
 # TASK-095: Battle result → operation – losses, retreat, readiness, after-action report (completes the vertical slice)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (after-action report)
 - **Depends on**: TASK-094c, TASK-120
 - **Sections**: GDD "Battle hand-off and auto-resolve" (contract: reads only `field_holder` / `retreat` / company strengths, **never `resolution`**), "Operational layer" → "Orders and postures"; reference [docs/design/operational_map/README.md](../design/operational_map/README.md) ("Panels" → after-action report)
@@ -46,4 +46,5 @@ View – after-action report (replaces the short result notice of TASK-094c / TA
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Core: `BattleConsequences` (losses by company, retreat, readiness) applied by `ResolveBattleCommand.apply`; `AftermathSettings` / `data/operational/aftermath.tres`; `Formation.readiness` / `fought`; single budget helper `OperationalOrders.budget` (forecast, execution, ring, route, panel). Events `battle_consequences` (extra `strength`, `readiness` before/after), `formation_retreated`, `formation_destroyed`, `formation_readiness_changed`. Replay snapshot test in test_auto_resolve_record.
+View: "Aftermath" block in `StaffMapBattleResult` (line per formation, losses own/enemy), session records resolution events (played and auto), retreat slide reuses TASK-092e. Front/escalation lines omitted (no data yet); strength shown with `StrengthBar`, not the 5-segment gauge.

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="AftermathSettings" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/aftermath_settings.gd" id="1_aftermath"]
+
+[resource]
+script = ExtResource("1_aftermath")
+readiness_loss_attacker = 15
+readiness_loss_defender = 10
+readiness_recovery = 10
+readiness_floor = 40

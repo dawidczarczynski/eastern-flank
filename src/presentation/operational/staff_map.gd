@@ -810,6 +810,8 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_begin_slide()
 		_show_new_report()
+	elif event.get("type") == &"battle_consequences":
+		_begin_slide()  # the retreating counter slides back (TASK-095)
 	_refresh_contacts()
 
 
@@ -968,7 +970,12 @@ func auto_resolve() -> bool:
 		return false
 	var report := Session.take_report()
 	_result_notice.present(
-		_simulation.state, report["setup"], report["result"], _palette, viewer_player
+		_simulation.state,
+		report["setup"],
+		report["result"],
+		_palette,
+		viewer_player,
+		report["events"]
 	)
 	_place_result_notice()
 	return true
@@ -1008,9 +1015,17 @@ func _resume() -> void:
 	var report := Session.take_report()
 	if not report.is_empty():
 		_result_notice.present(
-			_simulation.state, report["setup"], report["result"], _palette, viewer_player
+			_simulation.state,
+			report["setup"],
+			report["result"],
+			_palette,
+			viewer_player,
+			report["events"]
 		)
 		_place_result_notice()
+		for event: Dictionary in report["events"]:  # the retreat slides although the map is new
+			_slide.collect(event)
+		_begin_slide()
 
 
 func _apply_view_settings(settings: Dictionary) -> void:
@@ -1061,8 +1076,13 @@ func debug_result_notice() -> void:
 			break
 	result.field_holder = setup.attacker
 	result.retreat = 1 - setup.attacker
-	if _simulation.execute(ResolveBattleCommand.new(result)):
-		_result_notice.present(state, setup, result, _palette, viewer_player)
+	var events: Array[Dictionary] = []
+	var collect := func(event: Dictionary) -> void: events.append(event)
+	_simulation.event_emitted.connect(collect)
+	var accepted := _simulation.execute(ResolveBattleCommand.new(result))
+	_simulation.event_emitted.disconnect(collect)
+	if accepted:
+		_result_notice.present(state, setup, result, _palette, viewer_player, events)
 		_place_result_notice()
 
 

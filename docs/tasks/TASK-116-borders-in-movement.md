@@ -1,6 +1,6 @@
 # TASK-116: Borders in movement and battle – closed countries in routes and orders, sanctuary breach and casus belli while orders execute, route incident forecast, the border rule for contact battles and retreats
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`) + presentation (warnings in the preview, toasts)
 - **Depends on**: TASK-115, TASK-094a, TASK-095, TASK-092d (re-ordered 2026-11-01: the loop first – this task adds the border rule to the finished contact and retreat rules; TASK-092e via TASK-094)
 - **Model**: sonnet

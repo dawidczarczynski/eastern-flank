@@ -1,8 +1,9 @@
 class_name ResolveBattleCommand
 extends OperationalCommand
-## Closes the first pending contact battle with its result (TASK-094a, v0): removes it from the
-## queue. No consequences yet (TASK-095). The result must belong to that battle (`result_mismatch`);
-## an `auto` result must equal `AutoResolve.resolve` of it (`auto_mismatch`, TASK-120).
+## Closes the first pending contact battle with its result (TASK-094a): removes it from the
+## queue and applies the consequences (BattleConsequences, TASK-095). The result must belong to
+## that battle (`result_mismatch`); an `auto` result must equal
+## `AutoResolve.resolve` of it (`auto_mismatch`, TASK-120).
 
 const TYPE := "resolve_battle"
 
@@ -36,7 +37,7 @@ func validate(state: OperationalState) -> String:
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var setup: BattleSetup = state.pending_battles.pop_front()
 	var ids := ContactBattle.formation_ids(setup)
-	return [
+	var events: Array[Dictionary] = [
 		{
 			"type": &"battle_resolved",
 			"attacker_id": ids[0],
@@ -45,6 +46,8 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 			"reason": result.reason,
 		}
 	]
+	events.append_array(BattleConsequences.apply(state, setup, result))
+	return events
 
 
 func to_dict() -> Dictionary:

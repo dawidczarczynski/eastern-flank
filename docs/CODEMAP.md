@@ -42,6 +42,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/data/
 
+- `AftermathSettings` – Numbers of a battle's consequences for the operation (TASK-095, GDD "Battle hand-off and (`aftermath_settings.gd`)
 - `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
@@ -71,6 +72,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/operational/
 
+- `BattleConsequences` – What a finished contact battle does to the operation (TASK-095, GDD "Battle hand-off and (`battle_consequences.gd`)
 - `CampaignRecord` – A whole campaign (TASK-094d, ADR 0015 §4) as operation id + seed + the executed operation… (`campaign_record.gd`)
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
 - `ContactBattle` – Playing a pending contact battle (TASK-094c, GDD "Battle hand-off and auto-resolve"): the (`contact_battle.gd`)
@@ -94,7 +96,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
 - `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
 - `Reinforcements` – Puts new formations on the staff map (TASK-118; TASK-121 reuses it for off-map support).… (`reinforcements.gd`)
-- `ResolveBattleCommand` – Closes the first pending contact battle with its result (TASK-094a, v0): removes it from… (`resolve_battle_command.gd`)
+- `ResolveBattleCommand` – Closes the first pending contact battle with its result (TASK-094a): removes it from the (`resolve_battle_command.gd`)
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 - `StrikeCommand` – A deep strike by the current player (TASK-097a, GDD "Deep strikes"): a salvo of one means… (`strike_command.gd`)
 - `StrikeRules` – Pure deep-strike rules of the operational layer (TASK-097a, GDD "Deep strikes"): the stoc… (`strike_rules.gd`)

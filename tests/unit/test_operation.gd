@@ -120,6 +120,8 @@ func test_snapshot() -> void:
 		"companies": [["pl_mech_infantry", 10], ["m1a2_sepv3", 10]],
 		"posture": "defend",
 		"order": null,
+		"readiness": 100,
+		"fought": false,
 	}
 	assert_eq(entries[0], expected)
 	assert_eq(entries[1]["id"], "b1")

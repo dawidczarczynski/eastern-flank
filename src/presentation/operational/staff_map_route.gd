@@ -163,7 +163,7 @@ static func preview_in_posture(
 		formation,
 		destination,
 		posture.avoids_contact,
-		posture.budget(formation.definition.move_points),
+		OperationalOrders.budget(formation, posture),
 		movement
 	)
 

@@ -302,6 +302,10 @@ BATTLE_RESULT_COL_START,Start,Początek
 BATTLE_RESULT_COL_LEFT,Left,Pozostało
 BATTLE_RESULT_COL_LOST,Lost,Straty
 BATTLE_RESULT_COL_TOTAL,Total,Razem
+READINESS,Readiness,Gotowość
+BATTLE_RESULT_RETREATED_TO,Retreated to,Odwrót na
+BATTLE_RESULT_RETREAT_BLOCKED,Retreat blocked,Odwrót zablokowany
+Losses: own %d · enemy %d,Losses: own %d · enemy %d,Straty: własne %d · wroga %d
 Victory: %s,Victory: %s,Zwycięstwo: %s
 BATTLE_REASON_ELIMINATED,Side eliminated,Strona rozbita
 BATTLE_REASON_ENEMY_DESTROYED,Forces destroyed,Siły zniszczone

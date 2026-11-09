@@ -65,6 +65,9 @@ func test_record_with_played_and_auto_battle() -> void:
 	assert_eq(loaded.battles[1].commands.size(), 0)
 	var replay := loaded.replay(true)
 	assert_true(replay["ok"], "verifies: %s" % [replay])
+	# TASK-095: the consequences of a played and an auto battle replay to the same state
+	assert_eq((replay["simulation"] as OperationalSimulation).state.snapshot(), state.snapshot())
+	assert_eq(loaded.replay(false)["simulation"].state.snapshot(), state.snapshot())
 	var tampered := record.to_dict()
 	tampered["battles"][1]["result"]["companies"][0]["strength_end"] += 1
 	for command: Dictionary in tampered["commands"]:

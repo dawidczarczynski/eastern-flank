@@ -45,7 +45,7 @@ func test_play_report_and_return() -> void:
 	assert_true(Session.take_simulation(&"other_operation") == null)
 	assert_true(Session.take_simulation(OPERATION) == _simulation, "the staff map gets it back")
 	assert_true(Session.take_simulation(OPERATION) == null, "only once")
-	assert_eq(_state.snapshot(), before, "no consequences yet (TASK-095)")
+	assert_true(_state.snapshot() != before, "the consequences changed the operation (TASK-095)")
 	var report := Session.take_report()
 	var result: BattleResult = report["result"]
 	assert_eq(result.winner, battle.state.winner)

@@ -26,6 +26,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 		ContactRules.start_battles(state, events)
 	events.append({"type": &"operational_turn_ended", "player": state.current_player})
 	_switch_side(state)
+	events.append_array(BattleConsequences.recover_readiness(state))
 	if state.current_player == state.first_player and state.result.is_empty():
 		events.append_array(EscalationRules.end_round(state))
 		events.append_array(StrikeRules.end_round(state))
@@ -75,7 +76,7 @@ static func _execute_order(
 	if route.is_empty():
 		_interrupt(formation, &"no_route", events)
 		return
-	var budget := posture.budget(formation.definition.move_points)
+	var budget := OperationalOrders.budget(formation, posture)
 	var walk := OperationalRoutes.walk(state, formation, formation.coord, route, budget)
 	var steps: Array[Vector2i] = walk["steps"]
 	var stop: StringName = walk["stop"]
