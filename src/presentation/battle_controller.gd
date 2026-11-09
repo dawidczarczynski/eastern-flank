@@ -294,7 +294,7 @@ func _campaign_key(keycode: Key) -> bool:
 ## The end screen's Report to staff (campaign battle, game over): the result goes into the
 ## operation (Session.finish_battle -> ResolveBattleCommand) and the staff map comes back.
 func report_to_staff() -> bool:
-	if not campaign or _is_playing_events() or not Session.finish_battle(_sim.state):
+	if not campaign or _is_playing_events() or not Session.finish_battle(_sim):
 		return false
 	Session.change_scene(get_tree(), Session.STAFF_MAP_SCENE)
 	return true

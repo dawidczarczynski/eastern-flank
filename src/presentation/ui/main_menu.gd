@@ -1,7 +1,8 @@
+# gdlint: disable=max-public-methods
 extends Control
-## Main menu (TASK-084, TASK-124): Start scenario, Operation (staff map, TASK-093a), Unit catalog
-## and Settings. The scenario and the settings are separate pages of this scene, each with a Back
-## button (Esc does the same).
+## Main menu (TASK-084, TASK-124): Continue (the latest campaign save, TASK-094d), Start
+## scenario, Operation (staff map, TASK-093a), Unit catalog and Settings. The scenario and the
+## settings are separate pages of this scene, each with a Back button (Esc does the same).
 ## Presentation only: it switches scenes and the UI language (GameSettings stores the choice).
 
 const BATTLE_SCENE := "res://scenes/battle/battle.tscn"
@@ -14,6 +15,11 @@ const TITLE_SIZE := 52
 
 ## Where the language is stored (a test points it at a temp file).
 var settings_path := GameSettings.PATH
+## Where the campaign saves are (a test points it at a temp folder).
+var save_dir := CampaignSaver.DIR
+var _continue: Button  # main page: loads the latest campaign save
+var _continue_note: Label  # why Continue is disabled / why the save did not load
+var _continue_problem := ""  # translation key of the last failed load
 var _scenario_name := BattleOptions.chosen(OS.get_cmdline_user_args())
 var _start: Button  # main page: opens the scenario page
 var _operation: Button  # main page: opens the operational staff map
@@ -44,9 +50,10 @@ func _ready() -> void:
 	GameSettings.apply_saved(settings_path)
 	_sound = GameSettings.load_sound(settings_path)
 	SoundMix.apply(_sound)
-	Session.abandon()  # the menu is outside any campaign (TASK-094c; saving is TASK-094d)
+	Session.abandon()  # the menu is outside any campaign (TASK-094c); Continue loads a save
 	_build()
 	refresh_texts()
+	refresh_continue()
 	if is_inside_tree():
 		_start.grab_focus()
 
@@ -58,6 +65,46 @@ func _notification(what: int) -> void:
 ## Current language button text: "LANGUAGE: ENGLISH".
 func language_text() -> String:
 	return _language.text
+
+
+func continue_button() -> Button:
+	return _continue
+
+
+## The text under Continue ("" when it is enabled and nothing failed).
+func continue_note() -> String:
+	return _continue_note.text if _continue_note.visible else ""
+
+
+## Enables Continue when a campaign save exists; otherwise the note says why not.
+func refresh_continue() -> void:
+	var has_save := CampaignSaver.latest(save_dir) != ""
+	_continue.disabled = not has_save
+	var key := _continue_problem if has_save else "MENU_CONTINUE_NONE"
+	_continue_note.text = tr(key) if key != "" else ""
+	_continue_note.visible = key != ""
+	_continue_note.add_theme_color_override(
+		&"font_color", UiPalette.DISABLED if _continue_problem != "" else UiPalette.HUD_MUTED
+	)
+	_continue.tooltip_text = _continue_note.text
+
+
+## Continue: loads the latest save (validated by its replay) into Session and opens the staff map.
+## False (the note says why, the menu stays) when there is no save or it cannot be loaded.
+func continue_campaign() -> bool:
+	var path := CampaignSaver.latest(save_dir)
+	var loaded := CampaignSaver.load_campaign(path) if path != "" else {}
+	if loaded.is_empty() or loaded["error"] != "":
+		_continue_problem = "CAMPAIGN_LOAD_" + String(loaded.get("error", "unreadable")).to_upper()
+		if not loaded.is_empty():
+			push_warning("Cannot load %s: %s" % [path, loaded["detail"]])
+		refresh_continue()
+		return false
+	_continue_problem = ""
+	Session.resume(loaded["record"], loaded["simulation"])
+	if is_inside_tree():
+		get_tree().change_scene_to_file(STAFF_MAP_SCENE)
+	return true
 
 
 func start_button() -> Button:
@@ -186,6 +233,9 @@ func _build_main(column: VBoxContainer) -> void:
 	hatch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(hatch)
 	column.add_child(_spacer(18.0))
+	_continue = _add_button(column, continue_campaign)
+	_continue_note = MenuStyle.label("", HudTheme.display(600, 2), 13, UiPalette.HUD_MUTED)
+	column.add_child(_continue_note)
 	_start = _add_button(column, show_page.bind("scenario"))
 	_operation = _add_button(column, _on_operation_pressed)
 	_catalog = _add_button(column, _on_catalog_pressed)
@@ -264,6 +314,7 @@ func _spacer(height: float) -> Control:
 ## Sets every text in the current language (also after a language switch).
 func refresh_texts() -> void:
 	_title.text = "EASTERN FLANK"
+	_continue.text = tr("MENU_CONTINUE").to_upper()
 	_start.text = tr("Start scenario").to_upper()
 	_operation.text = tr("Operation").to_upper()
 	_catalog.text = tr("Unit catalog").to_upper()
@@ -304,6 +355,7 @@ func _on_begin_pressed() -> void:
 func _on_language_pressed() -> void:
 	GameSettings.set_locale(GameSettings.next_locale(TranslationServer.get_locale()), settings_path)
 	refresh_texts()
+	refresh_continue()
 
 
 func _on_operation_pressed() -> void:

@@ -298,12 +298,13 @@ In a battle with command points it spends its points on its most valuable action
 
 - Clicks on tiles you can't move to and enemies you can't attack are ignored.
 - While animations are playing or the enemy is moving, clicks and keys (except camera controls, G and F5) are ignored, not queued.
-- **F5** saves a record of the match so far (the moves made, for reporting bugs); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet. Match records saved by earlier versions of the game (before the real Polish and Russian units) can no longer be replayed: they are refused with a clear "unsupported match record version" message instead of replaying a different battle.
+- **F5** in a battle saves a record of the match so far (the moves made, for reporting bugs; it is not a save of the operation, and a battle in progress cannot be saved); the game also does this automatically when the battle ends. There is no way to load a saved match in the game yet. Match records saved by earlier versions of the game (before the real Polish and Russian units) can no longer be replayed: they are refused with a clear "unsupported match record version" message instead of replaying a different battle.
 
 ## 12. Main menu and unit catalog
 
-The game opens in the main menu with four buttons. Every other screen has a **‹ Back** button, and Esc does the same.
+The game opens in the main menu with five buttons. Every other screen has a **‹ Back** button, and Esc does the same.
 
+- **Continue** (top) loads the saved operation (see **Saving** in section 12b). It is greyed out until you have saved one.
 - **Start scenario** opens the scenario screen: the available battles (Iron Shore, Objective battle, Command points battle, Szurpiły Lakes) are listed on the left, and a flat map preview of the selected one (terrain, roads, rivers, and a dot per starting unit) is shown on the right. **Start** starts the selected battle; **Back** returns to the main menu. There is no way back to the menu from a battle; restart the game for that.
 - **Operation** opens the operational map (section 12b).
 - **Unit catalog** opens a viewer where you can look at every unit in the game.
@@ -382,6 +383,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
 | End turn | Enter, or the **End turn** button |
+| Save the operation | F5, or the **SAVE** button |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
 | March the selected formation to a hex | Left click on the hex |
@@ -532,6 +534,16 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 **How a battle ends.** As any battle: the attacker takes the objective, one side destroys the other, or the turn limit runs out (then the defender holds the field). The end screen is your **commander's report** with the result; press **Report to staff** (or **Enter**).
 
 **Back on the staff map.** The staff map comes back as you left it – the same camera, selection and view settings – and a short **battle result** card shows the winner and, for each formation, its companies' total strength before and after the battle. Press **Continue** (or **Enter**). The battle is closed, the dimming ends and, when no other battle waits, you can end the turn. For now the losses are **only reported**: they are not applied to the formations yet, and nobody retreats (this comes in a later version). A battle you started cannot be switched to auto-resolve. Leaving a battle with **Esc** returns to the main menu and ends the operation without a result.
+
+### Saving
+
+**Saving.** Press **F5** or the **SAVE** button on the staff map to save the whole operation: the turn, every formation and its order, the politics, a battle waiting to be fought, and the battles already fought. A "Saved" message confirms it. There is one save slot for the operation "Suwałki Gap": a new save replaces the old one. Saving does not end the turn and you can save as often as you like.
+
+**Continue.** The **Continue** button at the top of the main menu loads the save and opens the staff map exactly where you left off, viewed from the side you were viewing when you saved. When there is no save yet the button is greyed out and says "No saved campaign yet". If the save file is damaged, the message "The saved campaign is damaged" appears and nothing is loaded.
+
+**A pending battle.** If a contact battle was waiting when you saved, it is saved too: after Continue the map is dimmed again and the contact notice comes back, so you can play the battle as before.
+
+**Limits.** A battle in progress cannot be saved: **F5** in the battle scene only writes the match record (section 11), not the operation, so finish the battle (or return to the staff map) first. The view is not saved: the camera position, zoom and tilt, the selection and the display toggles (grid, borders, zone tint, follow or fixed side) start from their defaults after Continue.
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 

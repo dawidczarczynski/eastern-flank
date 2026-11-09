@@ -111,3 +111,36 @@ func test_operation_button_opens_the_staff_map_entry() -> void:
 	assert_eq(_menu.page(), "main")
 	_menu.language_button().pressed.emit()
 	assert_eq(_menu.operation_button().text, "OPERACJA")
+
+
+## TASK-094d: Continue is disabled with a reason without a save, loads the latest campaign into
+## Session (viewer side, pending battle) and reports a corrupt save without leaving the menu.
+func test_continue_follows_the_saves() -> void:
+	var dir := "user://test_menu_campaigns"
+	var path := CampaignSaver.path_for("suwalki_gap", dir)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_menu.save_dir = dir
+	_menu.refresh_continue()
+	assert_true(_menu.continue_button().disabled, "no save yet")
+	assert_eq(_menu.continue_note(), "No saved campaign yet")
+	var simulation := OperationalSimulation.new(Operation.build(&"suwalki_gap", 1))
+	Session.start_campaign(simulation, &"suwalki_gap", 1)
+	assert_true(simulation.execute(EndOperationalTurnCommand.new()))
+	assert_eq(CampaignSaver.save(Session.record(1), path), OK)
+	Session.abandon()
+	_menu.refresh_continue()
+	assert_false(_menu.continue_button().disabled)
+	assert_eq(_menu.continue_button().text, "CONTINUE")
+	assert_true(_menu.continue_campaign(), "the save loads")
+	assert_true(Session.resuming())
+	assert_eq(Session.human_player, 1)
+	assert_eq(Session.simulation.state.snapshot(), simulation.state.snapshot())
+	Session.abandon()
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("{broken")
+	file.close()
+	assert_false(_menu.continue_campaign(), "a corrupt save is rejected")
+	assert_false(Session.resuming())
+	assert_eq(_menu.continue_note(), "The saved campaign is damaged")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dir))

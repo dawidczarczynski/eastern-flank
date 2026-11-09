@@ -10,6 +10,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/
 
+- `BattleReplay` – Tactical side of a campaign record (TASK-094d): a played battle as its BattleSetup + tact… (`battle_replay.gd`)
 - `BattleResult` – What a finished battle hands back to the operational layer – the only channel from a batt… (`battle_result.gd`)
 - `BattleRules` – Victory rules of a battle (TASK-088, ADR 0016) in one place: the commands call these pure (`battle_rules.gd`)
 - `BattleSetup` – Everything a tactical battle starts from – the only channel from the operational layer in… (`battle_setup.gd`)
@@ -64,6 +65,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/core/operational/
 
+- `CampaignRecord` – A whole campaign (TASK-094d, ADR 0015 §4) as operation id + seed + the executed operation… (`campaign_record.gd`)
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
 - `ContactBattle` – Playing a pending contact battle (TASK-094c, GDD "Battle hand-off and auto-resolve"): the (`contact_battle.gd`)
 - `ContactMap` – The tactical map of a contact battle (TASK-094b, GDD "Battle hand-off and auto-resolve"):… (`contact_map.gd`)
@@ -106,6 +108,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `BurntGround` – Scorched ground around a wreck: the planted scatter (bushes, trees, undergrowth, twigs) i… (`burnt_ground.gd`)
 - `CameraMath` – Pure camera formulas (no nodes), shared by CameraRig and tested in tests/unit/. (`camera_math.gd`)
 - `CameraRig` – Strategy camera. WASD/arrows – pan, Q/E – rotate, wheel – zoom, LMB drag – grab pan, (`camera_rig.gd`)
+- `CampaignSaver` – Campaign saves on disk (TASK-094d, ADR 0015 §4): one CampaignRecord JSON per operation in (`campaign_saver.gd`)
 - `ColorGrade` – Colour grade of the battle scene (TASK-051): muted, slightly olive military palette. (`color_grade.gd`)
 - `DebugResult` – Screenshot aid (tools/screenshot.gd, SCREENSHOT_SHOTS=result:<kind>): a throwaway, already (`debug_result.gd`)
 - `DecalTextures` – Procedural albedo+alpha images for the ground decals of TASK-058 (GroundMarksView), cache… (`decal_textures.gd`)
@@ -262,7 +265,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `HudTheme` – Builds the HUD Theme in code (palette, dark translucent panels) and serves the HUD fonts: (`hud_theme.gd`)
 - `KeyCap` – Key hint cap: a 1 px `LINE` border around amber mono text (10 px). "↵" is drawn as a shape (`key_cap.gd`)
 - `LoadingScreen` – Full-screen loading notice (HUD v3 "06 Notices"): `OPERACJA` amber, the operation name at (`loading_screen.gd`)
-- `main_menu` – Main menu (TASK-084, TASK-124): Start scenario, Operation (staff map, TASK-093a), Unit ca… (`main_menu.gd`)
+- `main_menu` – Main menu (TASK-084, TASK-124): Continue (the latest campaign save, TASK-094d), Start (`main_menu.gd`)
 - `MenuStyle` – HUD v3 look of the main menu and the unit catalog widgets (buttons, panels, labels), buil… (`menu_style.gd`)
 - `OperationLabel` – "■ OP. <NAME>" above the terrain card (TASK-079): amber mono text over a thin 150×3 hatch. (`operation_label.gd`)
 - `RadialRing` – HUD v3 radial ring (docs/design/hud_v3/README.md "04 Radial orders menu"): six trapezoid (`radial_ring.gd`)

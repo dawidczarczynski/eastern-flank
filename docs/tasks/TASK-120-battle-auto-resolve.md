@@ -1,6 +1,6 @@
 # TASK-120: Battle auto-resolve – the result of a contact battle computed from the same forces, postures, terrain and conditions; shared `BattleResult` outcome fields
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/`, `src/core/data/`) + data + presentation (one button on TASK-094's contact notice)
 - **Depends on**: TASK-094d (split of TASK-094, 2026-11-07: setup fields and notice = 094a, played battle = 094c, `CampaignRecord` = 094d)
 - **Model**: sonnet

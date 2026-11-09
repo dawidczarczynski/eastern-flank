@@ -1,6 +1,6 @@
 # TASK-094d: Contact (4/4) – `CampaignRecord`, campaign save and Continue, battle replay verification
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, record) + presentation (Save, Continue)
 - **Depends on**: TASK-094c
 - **Sections**: ADR 0015 §4 (campaign save / `CampaignRecord`); GDD "Battle hand-off and auto-resolve"
@@ -41,4 +41,8 @@ View:
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `CampaignRecord` (`src/core/operational/campaign_record.gd`) with strict `to_dict`/`from_dict`, `replay(full := false)` (fast by default; full re-runs each played battle via `BattleReplay`, tampered result -> `battle_diverged`). `BattleReplay` (`src/core/battle_replay.gd`) holds the tactical half because `src/core/operational/` must not name `GameSimulation`/`Command`.
+- `CampaignSaver` (presentation): atomic save (temp + rename) to `user://campaigns/<operation>.json` (one slot per operation), `load_campaign` validates with `from_dict` + fast replay, returns an error code instead of crashing. Fast replay only: a tampered battle entry is not caught on Continue.
+- `Session` records operational commands and played battles (none while a battle runs), `resume()` restores a pending battle. Staff map: F5 / SAVE button + "Saved" toast; main menu: Continue (disabled with a reason).
+- Deviations: signature `replay(full := false)`; record shape differs from ADR 0015 §4 (dated amendment added); Continue restores only the viewer side (no camera/toggles). `CampaignSaver.message()` is only used by tests (menu builds the key itself) - minor cleanup left.
+- F5 in the battle scene still writes the older match record, not the campaign.

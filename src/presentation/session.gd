@@ -12,6 +12,10 @@ extends RefCounted
 ## screen Report to staff -> `finish_battle` (BattleResult.from_battle -> ResolveBattleCommand
 ## through the simulation) -> staff map `take_simulation` / `view` / `take_report`. Esc to the
 ## menu from a campaign battle and the main menu itself `abandon` the session (no result).
+## Saving (TASK-094d): a staff map that builds a new operation calls `start_campaign`; the
+## session keeps the seed and every played battle (`finish_battle`), so `record` gives the whole
+## CampaignRecord (the operational commands are the simulation's history). Continue: `resume`
+## with a loaded record and its replayed simulation, then the staff map takes it.
 
 const STAFF_MAP_SCENE := "res://scenes/operational/staff_map.tscn"
 const BATTLE_SCENE := "res://scenes/battle/battle.tscn"
@@ -27,12 +31,53 @@ static var view: Dictionary = {}
 ## The battle being played (ContactBattle.prepare: the first pending battle, map cut); null when
 ## none is.
 static var battle: BattleSetup = null
+## The campaign seed (Operation.build) and the battles played so far, in resolve order.
+static var seed_value := 0
+static var battles: Array[CampaignRecord.Battle] = []
 
 ## The last played battle and its result until the staff map shows them (take_report).
 static var _report_setup: BattleSetup = null
 static var _report_result: BattleResult = null
 ## True from Play until the staff map takes the simulation back.
 static var _away := false
+
+
+## A staff map built a new operation: it becomes the session's campaign (no battles yet).
+static func start_campaign(
+	p_simulation: OperationalSimulation, p_operation_id: StringName, p_seed: int
+) -> void:
+	abandon()
+	simulation = p_simulation
+	operation_id = p_operation_id
+	seed_value = p_seed
+
+
+## The campaign as a CampaignRecord with the human on `viewer`'s side; null without a campaign or
+## while a battle is being played (a battle in progress cannot be saved).
+static func record(viewer: int) -> CampaignRecord:
+	if simulation == null or battle != null:
+		return null
+	var sides := simulation.state.player_sides
+	var side := sides[viewer] if viewer >= 0 and viewer < sides.size() else &""
+	return CampaignRecord.from_simulation(simulation, seed_value, side, battles)
+
+
+## Continue: `p_simulation` (the replay of `p_record`) waits for the staff map (take_simulation),
+## viewed by the record's side.
+static func resume(p_record: CampaignRecord, p_simulation: OperationalSimulation) -> void:
+	abandon()
+	simulation = p_simulation
+	operation_id = p_record.operation_id
+	seed_value = p_record.seed
+	battles = p_record.battles.duplicate()
+	human_player = maxi(p_record.human_player(p_simulation.state), 0)
+	view = {"viewer": human_player}
+	_away = true
+
+
+## True while a simulation waits for the staff map (after a battle or Continue).
+static func resuming() -> bool:
+	return _away and battle == null and simulation != null
 
 
 ## Hands the campaign over for playing its first pending battle. "" on success; otherwise why
@@ -49,6 +94,8 @@ static func play_battle(
 	var prepared := ContactBattle.prepare(p_simulation.state)
 	if prepared == null:
 		return "map_failed"
+	if p_simulation != simulation:
+		battles.clear()
 	simulation = p_simulation
 	operation_id = p_operation_id
 	human_player = viewer
@@ -65,15 +112,21 @@ static func in_battle() -> bool:
 	return battle != null and simulation != null
 
 
-## The end screen's Report to staff: the result of `state` (the GameState the battle started
-## from `battle`) closes the pending battle through ResolveBattleCommand. False (and nothing
-## changes) when no campaign battle runs, it is not over or the operation rejects the result.
-static func finish_battle(state: GameState) -> bool:
-	if not in_battle() or state == null or not state.is_over():
+## The end screen's Report to staff: the result of `played` (the GameSimulation the battle
+## started from `battle`) closes the pending battle through ResolveBattleCommand and the battle
+## (setup, tactical commands, result) joins the record. False (and nothing changes) when no
+## campaign battle runs, it is not over or the operation rejects the result.
+static func finish_battle(played: GameSimulation) -> bool:
+	if not in_battle() or played == null or not played.state.is_over():
 		return false
-	var command := ResolveBattleCommand.new(BattleResult.from_battle(battle, state))
+	var command := ResolveBattleCommand.new(BattleResult.from_battle(battle, played.state))
 	if not simulation.execute(command):
 		return false
+	battles.append(
+		CampaignRecord.Battle.played(
+			battle, BattleReplay.command_dicts(played.history), command.result
+		)
+	)
 	_report_setup = battle
 	_report_result = command.result
 	battle = null
@@ -106,6 +159,8 @@ static func abandon() -> void:
 	human_player = 0
 	view = {}
 	battle = null
+	seed_value = 0
+	battles = []
 	_report_setup = null
 	_report_result = null
 	_away = false

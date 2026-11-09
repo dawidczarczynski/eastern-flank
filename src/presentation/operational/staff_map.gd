@@ -25,8 +25,10 @@ extends Node3D
 ## Contacts (TASK-094a / 094c): the notice's Play battle (B) hands the simulation and the view
 ## settings to Session and opens the battle scene; coming back (Session.take_simulation) the map
 ## is rebuilt around the same simulation, the view restored and the battle's short result shown
-## (StaffMapBattleResult). Maths in StaffMapCameraMath, picking in
-## StaffMapRelief.
+## (StaffMapBattleResult). Saving (TASK-094d): F5 or the Save button writes the campaign
+## (Session.record -> CampaignSaver, `user://campaigns/<operation>.json`) with a "Saved" toast;
+## Continue on the main menu hands a replayed operation over the same way as a battle return.
+## Maths in StaffMapCameraMath, picking in StaffMapRelief.
 
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
@@ -58,6 +60,8 @@ var is_built := false
 var build_ms := 0
 ## Opens a scene by path (default: Session.change_scene); tests replace it.
 var open_scene: Callable
+## Folder of the campaign saves (a test points it at a temp folder).
+var save_dir := CampaignSaver.DIR
 
 var _grid: HexGrid
 var _imported: ImportedMap
@@ -67,6 +71,7 @@ var _camera: Camera3D
 var _card: StaffMapCard
 var _hint: Label
 var _back: Button
+var _save: Button
 var _hud: CanvasLayer
 var _simulation: OperationalSimulation
 var _counter_layer: CanvasLayer
@@ -118,6 +123,7 @@ func _ready() -> void:
 	_setup()
 	if not auto_build:
 		return
+	_take_session_operation()
 	var definition := OperationDefinition.find(operation_id)
 	if definition != null:
 		map_id = definition.map_id
@@ -140,6 +146,7 @@ func _ready() -> void:
 ## viewport is then FALLBACK_VIEWPORT).
 func build_now() -> bool:
 	_setup()
+	_take_session_operation()
 	var start := Time.get_ticks_msec()
 	var definition := OperationDefinition.find(operation_id)
 	if definition != null:
@@ -222,6 +229,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_politics.toggle_tint()
 			KEY_F9:
 				toggle_debug_panels()
+			KEY_F5:
+				save_campaign()
 			KEY_C:
 				open_country_card(_card_hex_country())
 			KEY_V:
@@ -257,6 +266,9 @@ func refresh_texts() -> void:
 	if _back == null:
 		return  # not built yet; _ready calls it again
 	_back.text = "‹ " + tr("Back").to_upper()
+	_save.text = tr("CAMPAIGN_SAVE").to_upper() + "  F5"
+	_save.reset_size()
+	_save.position = Vector2(_back.position.x + _back.get_combined_minimum_size().x + 8, 16)
 	_hint.text = tr("STAFF_MAP_HINT")
 	_view.countries().refresh_names()
 	_refresh_turn_bar()
@@ -673,6 +685,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 		state.grid = _grid
 	if not _resumed:
 		_simulation = OperationalSimulation.new(state)
+		Session.start_campaign(_simulation, operation_id, seed_value)
 	_simulation.event_emitted.connect(_on_operational_event)
 	_simulation.command_rejected.connect(_on_command_rejected)
 	if viewer_player < 0:
@@ -854,6 +867,27 @@ func _refresh_contacts() -> void:
 	_place_queue()
 
 
+## A campaign waiting in Session (Continue, or back from a battle) names the operation and seed.
+func _take_session_operation() -> void:
+	if Session.resuming():
+		operation_id = Session.operation_id
+		seed_value = Session.seed_value
+
+
+## F5 / Save: writes the campaign (also with a battle pending) to `<save_dir>/<operation>.json`
+## with the viewer as the human's side; "Saved" or the failure in the toast.
+func save_campaign() -> bool:
+	if _simulation == null:
+		return false
+	var record := Session.record(viewer_player)
+	var path := CampaignSaver.path_for(String(operation_id), save_dir)
+	if record == null or CampaignSaver.save(record, path) != OK:
+		_toast_message(tr("CAMPAIGN_SAVE_FAILED"), _palette.ui_alert)
+		return false
+	_toast_message(tr("CAMPAIGN_SAVED"), _palette.ui_amber)
+	return true
+
+
 ## B on the notice: Play battle.
 func _play_battle() -> void:
 	_contacts.notice.press_play()
@@ -914,8 +948,8 @@ func _resume() -> void:
 
 
 func _apply_view_settings(settings: Dictionary) -> void:
-	if settings.is_empty():
-		return
+	if not settings.has("zoom"):
+		return  # Continue only sets the viewer
 	_pitch = settings["pitch"]
 	_pitch_target = settings["pitch_target"]
 	_tilt = settings["tilt"]
@@ -1141,6 +1175,11 @@ func _build_hud() -> void:
 	_back.pressed.connect(_return_to_menu)
 	_back.focus_mode = Control.FOCUS_NONE
 	_hud.add_child(_back)
+	_save = MenuStyle.button("")
+	_save.position = Vector2(16, 16)
+	_save.pressed.connect(save_campaign)
+	_save.focus_mode = Control.FOCUS_NONE
+	_hud.add_child(_save)
 	_hint = MenuStyle.label("", HudTheme.mono(500, 1), 11, UiPalette.HUD_DESC)
 	var plate := MenuStyle.box(UiPalette.PANEL, UiPalette.LINE)
 	plate.set_content_margin_all(7)

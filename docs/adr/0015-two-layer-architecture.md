@@ -61,6 +61,8 @@ CampaignRecord {"version": 1, "scenario": "<operation id>", "seed": S, "factions
 - A single battle stays exportable as a `MatchRecord`; it gains a `"setup"` scenario that embeds the `BattleSetup` dict (format version bump, done in TASK-094 when the first contact battle exists). `"default_battle"` records keep working because the default battle is a setup.
 - As in ADR 0005, records are valid only for the rules and data they were recorded with.
 
+**Amendment (2026-11-09, TASK-094d):** the implemented `CampaignRecord` shape is `{"version": 1, "operation": "<id>", "seed": S, "human_side": "<side id>", "commands": [...], "battles": [{"setup", "commands", "result", "resolution": "played"}]}`: `"operation"` instead of `"scenario"`; no `"factions"` (the operation data fixes them) but the human's side, which never enters the state; each battle entry carries its result (equal to the matching `ResolveBattleCommand`'s, checked on replay) and `resolution` (TASK-120 adds `"auto"`). The stored setup is the one the battle was played from (map cut by `ContactMap`), so full verification compares it with `ContactBattle.prepare` at that point. **No mid-battle save**: a battle in progress is not recorded; a save made with a battle pending restores it from the operational commands (same setup and seed), and the battle is played from the start.
+
 ### 5. Scene flow in presentation
 
 - An autoload `Session` (`src/presentation/session.gd`, a `Node`; autoloads are allowed in presentation only) owns everything that must survive a scene change: the current campaign (operational simulation + `CampaignRecord` being written) or, for a quick battle, just a `BattleSetup`. Scenes are freed on transitions and hold no game state of their own.
