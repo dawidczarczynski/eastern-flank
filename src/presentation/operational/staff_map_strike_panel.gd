@@ -151,10 +151,6 @@ func _build(means: Array[Dictionary]) -> void:
 	_hover.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hover.custom_minimum_size = Vector2(WIDTH - 30, 0)
 	_column.add_child(_hover)
-	var close := MenuStyle.button(tr("CLOSE") + "  [ESC]")
-	close.focus_mode = Control.FOCUS_NONE
-	close.pressed.connect(func() -> void: close_requested.emit())
-	_column.add_child(close)
 
 
 func _stepper(text: String, delta: int) -> Button:

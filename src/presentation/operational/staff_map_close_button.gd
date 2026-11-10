@@ -1,13 +1,13 @@
 class_name StaffMapCloseButton
 extends Button
-## The X of a strike window (TASK-097b): a flat 24 px square with the glyph ✕ (mono 700 13) at the
-## top-right of a frame, 18 px from the right edge and 1 px from the top (the chamfer stays clear).
+## The X of a strike window (TASK-097b): a flat 32 px square with the glyph ✕ (mono 700 18) at the
+## top-right of a frame, 12 px from the right edge, flush with the top (the chamfer stays clear).
 ## `attach` puts it on a FramedPanel without the panel's margin layout stretching it: the button
 ## lives under a Node2D holder (containers only lay out Controls) and follows the panel's size.
 
-const SIZE := 24.0
-const RIGHT := 18.0
-const TOP := 1.0
+const SIZE := 32.0
+const RIGHT := 12.0
+const TOP := 0.0
 
 
 func _init() -> void:
@@ -20,7 +20,7 @@ func _init() -> void:
 	size = Vector2(SIZE, SIZE)
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	add_theme_font_override(&"font", HudTheme.mono(700, 0))
-	add_theme_font_size_override(&"font_size", 13)
+	add_theme_font_size_override(&"font_size", 18)
 	add_theme_color_override(&"font_color", UiPalette.HUD_MUTED)
 	add_theme_color_override(&"font_hover_color", UiPalette.AMBER)
 	add_theme_color_override(&"font_pressed_color", UiPalette.AMBER)
