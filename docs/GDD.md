@@ -284,6 +284,58 @@ Implemented in [TASK-089a](tasks/TASK-089a-company-combat-rolls.md) (core, forec
 - **Determinism**: per attack the attacker rolls exactly `hp` times (even after the target is dead), then – only if the counter happens – the defender rolls exactly its remaining `hp` times; `validate()` and the forecast never use the rng. The replay fixture is regenerated.
 - **Check**: `tools/simulate.sh 200` before/after with `--factions=poland,russia`, `russia,poland` and the mirrors `poland,poland` / `russia,russia` (side bias); target Poland 40–60 % of decided matches, draws ≤ 15 %.
 
+## Unit orders
+
+Decided 2026-11-10 (interview with the human; design task [TASK-081](tasks/TASK-081-unit-orders-rules.md), built in TASK-081a / 081b / 081c, menu in TASK-082). The radial menu of the HUD handoff (docs/design/hud_v3/README.md, section 04) offers six slots per own unit: 1 Move, 2 Blind fire, 3 class order, 4 Resupply, 5 Dig in, 6 Camouflage. **Move** is the existing command. The rest are *orders*: commands that change per-unit state or fire in a special way.
+
+### Rules common to all orders
+
+- **Cost**: every order except Move uses the unit's **once-per-turn action slot**, exactly like an attack: after an order the unit cannot attack, and after an attack it cannot give an order. No action points, no new resource. The command-point rule of TASK-091 applies as for an attack (an order activates the unit; `no_command_points` when the player has none left). Movement stays separate: a unit may move and then give an order. An order sets the unit's remaining movement to 0 (as an attack does), so "order, then move" is not possible; the one exception is **Scoot**, which is itself a move after firing.
+- **Per-unit effect state** (in `Unit`, written into `GameState.snapshot()` only when set, so existing fixtures stay valid): `dug` (bool), `ambush` (bool), `scoot_used` (bool), `slot_order` (the order that used the slot this turn, empty after an attack or none). `camo` and `suppressed` of the design file are added together with the rules that need them (Camouflage, a suppression rule); none exists now. **Smoke** is a property of a hex, not of a unit, and lives in `GameState.smoke_hexes` (coordinate, owner) [ASSUMPTION: the screen outlives its tank].
+- **Clearing**: moving (also a Scoot) clears `dug` and `ambush`; the start of the owner's turn clears `slot_order`, `scoot_used`, `ambush` and the owner's smoke hexes. `dug` lasts until the unit moves.
+- **Class availability** and the numbers are data (`data/orders/*.tres`, `OrderDefinition`: id, allowed unit classes, minimum / maximum range, defence bonus, attack modifier), not constants in code.
+- **Randomness**: orders never touch the rng except through the normal strike roll of Blind fire and of an Ambush reaction.
+- **Commands** (replay and save format, all through `GameSimulation.execute()`): `order_dig_in {unit_id}`, `order_smoke {unit_id, target}`, `order_blind_fire {unit_id, target}`, `order_ambush {unit_id}`, `order_scoot {unit_id, target}`. The `MatchRecord` stores only commands, so its version stays 2: old records replay unchanged.
+- **Events** (added to the ARCHITECTURE table by the tasks): `unit_order_issued {unit_id, order, target}` (first event of an accepted order; `target` = the unit's own hex for orders without a target), `unit_order_cleared {unit_id, order, reason}` (`moved`, `turn_started`, `spent`), `smoke_cleared {coord, owner}`; `unit_attacked` gets two flags, `blind` and `reaction` (false everywhere else).
+- **Rejection codes shared by all orders**: `game_over`, `unit_not_found`, `not_your_unit`, `no_command_points`, `order_not_available` (the unit's class does not have it, or it is not built yet), `already_acted` (the slot is used – by an attack or an order). An attack after an order is rejected with the existing `already_attacked`.
+- **Fog of war** (TASK-007, idea): none exists, so no order depends on it. Blind fire is already defined against a *hex*, so it keeps working when targets can be unseen; Ambush is the natural counter to hidden units; Camouflage waits for fog.
+
+### Per-order table
+
+| Slot | Order | Classes | Cost | Preconditions (reason codes) | Effect | Duration | Ships |
+|---|---|---|---|---|---|---|---|
+| 5 | **Dig in** (*Okopanie*) | infantry, tank (not MLRS) | slot, movement to 0 | not already dug (`already_dug`) | **+2 defence**, adds to the tile bonus and position bonus; the unit cannot move this turn | until the unit moves | 081a |
+| 3 (tank) | **Smoke screen** (*Zasłona dymna*) | tank | slot, movement to 0 | target hex on the map (`invalid_target`), distance 1–2 from the tank (`too_close` at 0, `out_of_range` beyond 2) | the hex blocks **direct-fire line of sight through it** for both sides (a unit standing in it is still seen and may still see; only hexes *between* count, like a forest); indirect fire ignores it; no stacking | until the start of the owner's next turn | 081b |
+| 2 | **Blind fire** (*Ostrzał na oślep*) | all; range tank / infantry **1–2**, MLRS **3–6** | slot, movement to 0 | target hex on the map (`invalid_target`), range (`too_close`, `out_of_range`), an enemy stands there (`no_unit_at_target`; an own unit: `not_an_enemy`) | a normal strike on the unit in the hex **without line-of-sight requirement**, margin **−1** (`base = max(1, attack − defence − tile bonus − 1)`); the usual counter rules apply (a direct-fire defender with no line of sight cannot counter) | instant | 081b |
+| 3 (infantry) | **Ambush** (*Zasadzka*) | infantry | slot, movement to 0 | not already ambushing (`already_ambushing`) | **+1 attack on counterattacks**; a **free first strike** (no counter, normal roll) on every enemy that ends a move on an adjacent hex, once, then the ambush is spent | until the owner's next turn start, a move, or the reaction strike | 081c |
+| 3 (MLRS) | **Scoot** (*Zmiana stanowiska*) | MLRS | **no second slot**: only after the unit fired this turn (attack or blind fire), once per turn | the unit fired (`not_fired`), not yet used (`already_scooted`), destination within **2 movement points** and free (`unreachable`) | moves the MLRS up to 2 hexes' worth of terrain cost after firing, so it can leave the spot it shot from; its movement is then 0 again | instant; the flag clears at the owner's next turn | 081c |
+| 4 | **Resupply** (*Uzupełnienie*) | – | planned: slot | – | needs ammunition and supply (TASK-099) | – | **not built**, slot shown disabled |
+| 6 | **Camouflage** (*Maskowanie*) | – | planned: slot | – | needs fog of war (TASK-007) | – | **not built**, slot shown disabled |
+
+Scoot is the one deliberate exception to "every order uses the slot" [ASSUMPTION]: an MLRS has already spent its slot on firing, so a slot-costing Scoot could never follow a shot and would be a mere move. The human may instead choose "Scoot replaces the shot" (then it would be a plain MLRS move that may follow firing).
+
+### AI use
+
+The AI (TASK-081c) uses: **Dig in** (infantry or tank that holds an objective hex, has not attacked and is not dug yet), **Ambush** (infantry already dug on an objective hex whose slot is still free), **Scoot** (an MLRS that fired from a hex inside an enemy's maximum range moves up to 2 hexes to the reachable hex farthest from the nearest enemy). It does **not** use Smoke or Blind fire (no fog; smoke would need a plan of the enemy's lines). Orders never change the AI's rng use; the 200-match balance check is repeated with the AI using them (target: Poland 40–60 % of decided matches over `poland,russia` and `russia,poland`, draws ≤ 15 %).
+
+### UI texts (for TASK-082; English, Polish in `strings.csv` pl)
+
+| Order | Description | Effect bullets | Cost line | Disabled reasons |
+|---|---|---|---|---|
+| Dig in | Entrench the unit on its hex. | +2 defence while it stays; cannot move this turn; ends when the unit moves | Action of the turn | `already_acted`: "Already acted this turn." `already_dug`: "Already dug in." `order_not_available`: "This unit cannot dig in." |
+| Smoke screen | Lay smoke on a hex up to 2 hexes away. | Blocks direct-fire sight through the hex; indirect fire is unaffected; lasts until your next turn | Action of the turn | `already_acted`; `order_not_available`: "Only tanks lay smoke." |
+| Blind fire | Fire at a hex without seeing the target. | Range 1–2 (MLRS 3–6); no line of sight needed; attack −1 | Action of the turn | `already_acted`; `no_unit_at_target`: "No enemy in that hex." `out_of_range`, `too_close` |
+| Ambush | Wait hidden for the enemy to come close. | +1 attack on counterattacks; free strike on the first enemy that ends next to you; cannot move this turn | Action of the turn | `already_acted`; `already_ambushing`: "Already in ambush." |
+| Scoot | Fire and relocate: move up to 2 after a shot. | Up to 2 movement points of terrain; once per turn; only after firing | Free after firing | `not_fired`: "Fire first." `already_scooted`: "Already relocated." `unreachable`: "No free hex in reach." |
+| Resupply | Restock ammunition. | – | – | "Needs the ammunition rules (not in the game yet)." |
+| Camouflage | Hide the unit from enemy sight. | – | – | "Needs fog of war (not in the game yet)." |
+
+Common reason texts: `no_command_points`: "No command points left." `already_acted`: "Already acted this turn."
+
+### Not decided here
+
+Ammunition, supply and resupply numbers (→ TASK-099); what Camouflage does under fog (TASK-007); suppression as a rule (the `suppressed` state of the design file has no source yet); Smoke against the *owner's* own shots is allowed to block them too [ASSUMPTION] (both sides blind).
+
 ## Operational layer
 
 Specified 2026-11-01 in [TASK-092a](tasks/TASK-092a-operational-map-import.md) (map), [TASK-092b](tasks/TASK-092b-operational-state-formations.md) (state, formations, turns), [TASK-092c](tasks/TASK-092c-move-formation.md) (movement costs and route planning), [TASK-092d](tasks/TASK-092d-formation-orders.md) (orders and postures) and [TASK-092e](tasks/TASK-092e-order-execution.md) (order execution); not implemented yet. Architecture: ADR 0015 (separate `OperationalState` / `OperationalSimulation`, own RNG stream, `BattleSetup` / `BattleResult` as the only channels to battles). Contact → battle is TASK-094, auto-resolve [TASK-120](tasks/TASK-120-battle-auto-resolve.md), battle results → formations TASK-095, the view TASK-093. The political layer (countries, stances, escalation, decisions; added 2026-11-01 after the human's "operational freedom" decision) is specified in [TASK-113](tasks/TASK-113-country-per-hex-import.md) (country per hex), [TASK-114](tasks/TASK-114-country-stances.md) (stances in the state), [TASK-115](tasks/TASK-115-escalation-ladder.md) (escalation ladder), [TASK-116](tasks/TASK-116-borders-in-movement.md) (borders and incidents in movement), [TASK-117](tasks/TASK-117-political-decisions.md) (player decisions) and [TASK-118](tasks/TASK-118-allied-contributions.md) (allies' formations); outside support from off-map third parties in [TASK-121](tasks/TASK-121-outside-support.md) and [TASK-122](tasks/TASK-122-support-strike-means.md); both sides playable as blocs ("Sides"). Numbers marked **[ASSUMPTION]** wait for the human (Open questions → "Operational layer v1", "Political layer v1").
@@ -700,7 +752,7 @@ Seen in the mock-up (`docs/design/v1/game_screen.scene.js`), **not** part of the
 - **Sea coast** on one map edge (the mock-up's land mask) – would need spawn rules that keep both armies on land.
 - **Defense as a percentage** (`+25 %` forest, `+30 %` hills, `+50 %` mountains, `+40 %` urban) instead of the flat bonus of TASK-002 – ties to the "Randomness in combat" question.
 - **Hard/soft attack** (separate attack values against armoured and unarmoured targets) and unit **tags** (armoured, tracked, wheeled, infantry, indirect fire) that drive terrain costs per movement type.
-- **Ammunition** (`ammo / ammoMax`, consumed by attacks; resupply rules unknown).
+- **Ammunition** (`ammo / ammoMax`, consumed by attacks; resupply rules unknown). Decided 2026-11-10: the **Resupply** order is specified in "Unit orders" but not built; ammunition numbers and supply stay open until TASK-099.
 - **Vision range** per unit (2–3 hexes) – ties to fog of war (TASK-007).
 - **Experience ranks**: Recruits → Regulars → Experienced → Veterans (3 pips), gained in combat; effect on stats undecided.
 - **Rocket artillery (MLRS)**: indirect fire at range 3–6, cannot fire after moving, cannot enter mountains, forest costs 3, 6 HP, 2 ammo.
