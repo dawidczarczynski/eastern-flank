@@ -8,11 +8,12 @@ const INTENT_MOVE := "MISSION_INTENT_MOVE"
 const INTENT_HOLD := "MISSION_INTENT_HOLD"
 
 
-## True when `attacker` may fight `defender`. Always true for now.
+## True when `attacker` may fight `defender`: the defender's hex must be open to the attacker
+## (TASK-116 border rule – no battle against a formation in a country closed to the attacker).
 static func battle_allowed(
-	_state: OperationalState, _attacker: Formation, _defender: Formation
+	state: OperationalState, attacker: Formation, defender: Formation
 ) -> bool:
-	return true
+	return CountryRules.may_enter(state, attacker.owner_id, defender.coord)
 
 
 ## Starts the battles of this step's `formation_halted` (reason contact) events, in event order:
@@ -30,6 +31,20 @@ static func start_battles(state: OperationalState, events: Array[Dictionary]) ->
 			continue
 		var defender := _find_defender(state, attacker, engaged)
 		if defender == null:
+			var closed := _border_forbidden(state, attacker, engaged)
+			if closed != null:
+				(
+					events
+					. append(
+						{
+							"type": &"contact_forbidden",
+							"attacker_id": attacker.id,
+							"defender_id": closed.id,
+							"at": closed.coord,
+							"country": state.country_at(closed.coord),
+						}
+					)
+				)
 			continue
 		engaged[attacker.id] = true
 		engaged[defender.id] = true
@@ -52,6 +67,19 @@ static func _find_defender(
 		if other == null or other.owner_id == attacker.owner_id or engaged.has(other.id):
 			continue
 		if battle_allowed(state, attacker, other):
+			return other
+	return null
+
+
+## The first adjacent enemy that only the border rule keeps `attacker` from fighting, else null.
+static func _border_forbidden(
+	state: OperationalState, attacker: Formation, engaged: Dictionary
+) -> Formation:
+	for neighbor in Hex.neighbors(attacker.coord):
+		var other := state.formation_at(neighbor)
+		if other == null or other.owner_id == attacker.owner_id or engaged.has(other.id):
+			continue
+		if not battle_allowed(state, attacker, other):
 			return other
 	return null
 

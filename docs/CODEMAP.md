@@ -224,6 +224,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `PlaceTransliteration` – Latin transcription of Cyrillic place names (Belarusian / Russian), shown under the origi… (`place_transliteration.gd`)
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
 - `StaffMapBattleResult` – Result notice of the staff map (TASK-094c, reworked for readability) after "Report to sta… (`staff_map_battle_result.gd`)
+- `StaffMapBorderPrompt` – One-key confirmation before an order that causes border incidents (TASK-116, design (`staff_map_border_prompt.gd`)
+- `StaffMapBorders` – Pure texts and markers of the border rules on the staff map (TASK-116): why a hex is clos… (`staff_map_borders.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
 - `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)

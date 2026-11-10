@@ -1,6 +1,6 @@
 # TASK-116: Borders in movement and battle – closed countries in routes and orders, sanctuary breach and casus belli while orders execute, route incident forecast, the border rule for contact battles and retreats
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`) + presentation (warnings in the preview, toasts)
 - **Depends on**: TASK-115, TASK-094a, TASK-095, TASK-092d (re-ordered 2026-11-01: the loop first – this task adds the border rule to the finished contact and retreat rules; TASK-092e via TASK-094)
 - **Model**: sonnet
@@ -71,4 +71,10 @@ Section in the "Politics" chapter (started by TASK-113) – formations never ent
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Core: closed hexes in `OperationalRoutes.plan` (set of closed countries, own country exempt), `closed_country` in `IssueOrderCommand` and execution, `EscalationRules.on_steps` (breach, casus belli, `casus_belli_gained`) and `route_incidents`, border check in `ContactRules.battle_allowed` and `BattleConsequences.retreat_hex`. Extras: `contact_forbidden` event (turn report), own-country destination exempt from `closed_country`; a breach processed before casus belli on the same step. View: closed-country cross, incident triangles/labels, Enter/Esc prompt (`StaffMapBorderPrompt`, `StaffMapBorders`), toast, turn-report rows. Tests: `test_borders_movement.gd`, `test_staff_map_borders.gd`; the plan-speed test now asserts 36 ms (median ~20 ms). Manual updated.
+View follows `border_warnings.html` (accepted 2026-11-10): gate bar + tag (breach, red when it ends the operation), CB triangle + plate (casus belli), 360 px confirmation plate with a dimmed map, closed-country cross + reason plate. Seen in staff-map screenshots (`SCREENSHOT_STAFF_MAP=side:0,select:pl_mech_1,route:7:27[,escalate:1|2]`): closed cross + plate, breach tag, ends-operation red tag. Not seen: the confirmation plate, casus belli triangle, toasts and report rows (unit tests only). Deviations: the breach tag sits beside the bar (the route's cost label occupies the space above); the closed-country plate flips below the hex under y 160 px and then covers the last bit of the dashed route; no 'Operation ends – winner' row; no label-on-hover for issued orders. Wording: the sanctuary opens at escalation level 2 = **Open war** (`sanctuary_open_level = 2`); the manual numbers the ladder from 1, the in-game chip from 0.
+Limitations: README screenshot unchanged (battle scene untouched).
+
+### Design decision (2026-11-10)
+
+Border warnings follow `docs/design/operational_map/border_warnings.html` (spec in the operational_map README): escalation = gate bar + tag on the route (red when it ends the operation), casus belli = triangle "CB" + plate, confirmation = plate above the hint line with dimmed map, closed country = cross + two-line plate with the reason "opens at escalation 2 (Open war)". The view was adjusted to this design on 2026-11-10 (see Implementation notes).

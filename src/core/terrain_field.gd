@@ -1,7 +1,7 @@
 class_name TerrainField
 extends RefCounted
 ## Continuous height and moisture of the landscape at any world point (XZ plane).
-## Formulas follow the visual design's `terr` (docs/design/game_screen.scene.js) without
+## Formulas follow the visual design's `terr` (docs/design/v1/game_screen.scene.js) without
 ## the coast mask and rivers; water comes from a separate "lake" noise instead.
 ## The map seed enters only as a world-space `offset`; the noise itself is fixed.
 

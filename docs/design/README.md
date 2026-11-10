@@ -2,11 +2,15 @@
 
 Source: "Ekran Gry" mock-up made in Claude Design (three.js + HTML HUD), extracted from the offline bundle. This is the **target look** of the battle screen. It is a reference, not code to run: port ideas and numbers to Godot, don't copy the web stack.
 
-| File | Contents |
-|---|---|
-| `game_screen.scene.js` | three.js scene: terrain generation (fbm noise, river, cities, roads), terrain vertex colours, hex grid lines, scatter (trees, buildings, rocks), procedural unit models (`makeTank`, `makeInf`, `makeMLRS`), overlays (reach, hover ring, path dots), camera, lighting |
-| `game_screen.template.html` | HUD layout and styles: top faction/turn bar, terrain panel, end-turn button, unit hover popup, turn banner, loading screen |
-| `reference.png` | Screenshot of the mock-up (to be added by the human) |
+| Folder / file | Status | Contents |
+|---|---|---|
+| `hud_v3/` | **current** (battle HUD) | HUD v3 tactical C2 look – spec, tokens, `hud-elementy.html`; supersedes the v1 HUD palette and fonts below |
+| `operational_map/` | **current** (staff map) | Style spec and mock-ups of the operational map |
+| `units/` | **current** (unit catalog) | Unit catalog: classes, mechanisms, per-unit data and reference images (`tools/unit_catalog.sh`) |
+| `v2/` | reference | Second iteration of the battle-screen mock-up: detailed terrain, scatter and unit models (`game_screen.scene.js`, template, `shots/`) |
+| `v1/` | legacy | First "Ekran Gry" mock-up: `game_screen.scene.js` (terrain generation, scatter, `makeTank`/`makeInf`/`makeMLRS`, overlays, camera, lighting) and `game_screen.template.html` (old HUD layout). Source of the palette and scene values below; the source code ports cite it |
+| `showcase/` | reference | Model detail study (2026-10-21) |
+| `proposals/` | proposals | HTML proposals from `/design-ui`, not accepted until the human picks a variant |
 
 UI text in the mock-up is Polish. Per CLAUDE.md, UI strings in code are English; the Polish version comes through Godot translations.
 

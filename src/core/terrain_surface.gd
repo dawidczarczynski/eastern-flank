@@ -70,7 +70,7 @@ func ground_height(x: float, z: float) -> float:
 
 ## First point where the ray from `origin` along `direction` (need not be normalised)
 ## meets `ground_height`, or null if it points up/sideways or misses within the range.
-## Port of the design's pickGround (docs/design/game_screen.scene.js).
+## Port of the design's pickGround (docs/design/v1/game_screen.scene.js).
 func raycast(origin: Vector3, direction: Vector3) -> Variant:
 	if direction.y >= 0.0:
 		return null

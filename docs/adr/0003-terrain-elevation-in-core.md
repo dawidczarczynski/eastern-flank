@@ -5,7 +5,7 @@
 
 ## Context
 
-Random per-tile terrain gave salt-and-pepper maps. The visual design (`docs/design/game_screen.scene.js`) builds a continuous landscape from noise and derives terrain types from height and moisture. The 3D view (TASK-016b) needs a continuous surface to put the mesh, units and overlays on, and replays (TASK-005) must regenerate the same map from the seed.
+Random per-tile terrain gave salt-and-pepper maps. The visual design (`docs/design/v1/game_screen.scene.js`) builds a continuous landscape from noise and derives terrain types from height and moisture. The 3D view (TASK-016b) needs a continuous surface to put the mesh, units and overlays on, and replays (TASK-005) must regenerate the same map from the seed.
 
 ## Decision
 

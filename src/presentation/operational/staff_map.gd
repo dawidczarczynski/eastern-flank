@@ -88,6 +88,7 @@ var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
 var _order_ring: StaffMapOrderRing
 var _toast: Toast
+var _border_prompt: StaffMapBorderPrompt
 var _join_notice: StaffMapJoinNotice
 var _origins := {}  # formation id -> country id of origin (joined allies, TASK-118)
 var _join_key := ""  # "<country>|<player>" of the group the notice shows
@@ -205,7 +206,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
 		# Esc closes the ring, 1-4 pick a slot; Enter / Esc close the result notice.
-		if _order_ring.handle_key(key.keycode) or _close_result_notice(key.keycode):
+		if (
+			_order_ring.handle_key(key.keycode)
+			or _close_result_notice(key.keycode)
+			or _answer_border_prompt(key.keycode)
+		):
 			return
 		match key.keycode:
 			KEY_ESCAPE:
@@ -390,9 +395,37 @@ func _selected_own() -> Formation:
 	return formation if formation != null and formation.owner_id == viewer_player else null
 
 
-## Executes `command`; a rejection shows its reason in the toast (command_rejected).
+## Executes `command`; a rejection shows its reason in the toast (command_rejected). An order
+## whose route causes border incidents (sanctuary breach, casus belli) first asks for Enter / Esc
+## (TASK-116) and returns false until it is confirmed.
 func _execute(command: OperationalCommand) -> bool:
+	var order := command as IssueOrderCommand
+	if order != null and _border_prompt != null:
+		var warnings := StaffMapBorders.order_warnings(_simulation.state, order)
+		if not warnings.is_empty():
+			_border_prompt.ask(order.formation_id, order.destination, order.posture, warnings)
+			return false
 	return _simulation.execute(command)
+
+
+## Enter issues the order waiting in the border prompt, Esc drops it; true when the key was used.
+func _answer_border_prompt(keycode: Key) -> bool:
+	if _border_prompt == null or not _border_prompt.is_open():
+		return false
+	if keycode not in [KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE]:
+		return false
+	var order := _border_prompt.take()
+	if keycode != KEY_ESCAPE:
+		var command := IssueOrderCommand.new(
+			order["formation_id"], order["destination"], order["posture"]
+		)
+		if _simulation.execute(command):
+			select_formation(&"")
+	return true
+
+
+func border_prompt() -> StaffMapBorderPrompt:
+	return _border_prompt
 
 
 func _toast_message(message: String, colour: Color) -> void:
@@ -418,6 +451,8 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	if formation_id == _counters.selected() and not refill:
 		return
 	_order_ring.close()
+	if _border_prompt != null and _border_prompt.pending().get("formation_id") != formation_id:
+		_border_prompt.take()
 	_counters.set_selected(formation_id)
 	if formation == null:
 		_panel.hide()
@@ -804,6 +839,10 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
 	_escalation.on_event(event)
+	if event.get("type") == &"casus_belli_gained":
+		_toast_message(
+			StaffMapBorders.casus_belli_event_text(_simulation.state, event), _palette.ui_amber
+		)
 	_on_strike_event(event)
 	_update_anchors()
 	_order_ring.follow()  # closes the ring when its formation may no longer be ordered
@@ -1270,6 +1309,8 @@ func _build_hud() -> void:
 	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()
 	_hud.add_child(_toast)
+	_border_prompt = StaffMapBorderPrompt.new(_palette)
+	_hud.add_child(_border_prompt)
 	_join_notice = StaffMapJoinNotice.new()
 	_join_notice.show_pressed.connect(_on_join_show)
 	_hud.add_child(_join_notice)

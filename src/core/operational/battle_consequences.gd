@@ -94,8 +94,8 @@ static func apply(
 
 
 ## The hex `formation` falls back to: a passable, free neighbour, outside the enemies' zones of
-## control when another exists, farthest from `enemy` (ties: `Hex.DIRECTIONS` order). Null when
-## there is none.
+## control when another exists, never into a country closed to its owner, farthest from `enemy`
+## (ties: `Hex.DIRECTIONS` order). Null when there is none.
 static func retreat_hex(state: OperationalState, formation: Formation, enemy: Formation) -> Variant:
 	var movement := OperationalMovement.shipped()
 	var zone := {}
@@ -111,6 +111,8 @@ static func retreat_hex(state: OperationalState, formation: Formation, enemy: Fo
 			continue
 		if movement.step_cost(state.grid, formation.coord, hex) == Terrain.IMPASSABLE:
 			continue
+		if not CountryRules.may_enter(state, formation.owner_id, hex):
+			continue  # never into a country closed to the retreating player (TASK-116)
 		var free := not zone.has(hex)
 		var distance := Hex.distance(hex, enemy.coord) if enemy != null else 0
 		if (

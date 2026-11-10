@@ -693,7 +693,7 @@ Each question lists the tasks that depend on the answer.
 
 ### Ideas from the visual design
 
-Seen in the mock-up (`docs/design/game_screen.scene.js`), **not** part of the visual tasks. Each needs a decision before it gets a task.
+Seen in the mock-up (`docs/design/v1/game_screen.scene.js`), **not** part of the visual tasks. Each needs a decision before it gets a task.
 
 - **More terrain types** (fields, urban, roads and rivers adopted with other numbers in TASK-108; mountains still open): *fields* (cost 1, small defense bonus), *mountains* (cost 3, high defense, impassable for wheeled units), *urban* / named cities (cost 1, high defense, buildings scatter), plains vs. fields split. The terrain colouring already shows "mountain" heights as rock/snow on HILLS tiles.
 - **Roads** (cost 1 on any terrain, AI/pathfinding preference) and **rivers** (+1 move cost to enter a river hex without a road, river valley carving in the height field).

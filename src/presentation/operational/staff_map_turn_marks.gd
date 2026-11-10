@@ -39,6 +39,11 @@ func on_event(state: OperationalState, event: Dictionary) -> void:
 			_report(state, id, HALTED, at, event.get("reason", &"contact"))
 		&"formation_order_interrupted":
 			_report(state, id, INTERRUPTED, event["at"], event["reason"])
+		&"contact_forbidden":
+			# The border rule stops the attack (TASK-116): the attacker halts, may not attack into it.
+			var attacker: StringName = event["attacker_id"]
+			var forbidden_at := _coord_of(state, attacker, event["at"])
+			_report(state, attacker, HALTED, forbidden_at, &"forbidden", event["country"])
 		&"operational_turn_started":
 			_on_turn_started(state, event["player"])
 
@@ -51,7 +56,8 @@ func in_contact(formation_id: StringName) -> bool:
 	return _contact.has(formation_id)
 
 
-## Report entries of `owner`'s last move: {id, kind, at (Vector2i), reason}.
+## Report entries of `owner`'s last move: {id, kind, at (Vector2i), reason, country (the closed
+## country of a forbidden contact)}.
 func report_of(owner: int) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	entries.assign(_reports.get(owner, []))
@@ -89,7 +95,12 @@ func _touches_enemy(state: OperationalState, f: Formation) -> bool:
 
 
 func _report(
-	state: OperationalState, id: StringName, kind: StringName, at: Vector2i, reason: StringName
+	state: OperationalState,
+	id: StringName,
+	kind: StringName,
+	at: Vector2i,
+	reason: StringName,
+	country := &""
 ) -> void:
 	var owner := _owner(state, id)
 	if owner < 0:
@@ -99,12 +110,17 @@ func _report(
 		_fresh[owner] = false
 		_unseen[owner] = true
 	var entries: Array = _reports[owner]
-	var entry := {"id": id, "kind": kind, "at": at, "reason": reason}
+	var entry := {"id": id, "kind": kind, "at": at, "reason": reason, "country": country}
 	for i in entries.size():
 		if entries[i]["id"] == id:
 			entries[i] = entry
 			return
 	entries.append(entry)
+
+
+static func _coord_of(state: OperationalState, id: StringName, fallback: Vector2i) -> Vector2i:
+	var f := state.get_formation(id)
+	return f.coord if f != null else fallback
 
 
 static func _owner(state: OperationalState, id: StringName) -> int:

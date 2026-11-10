@@ -9,6 +9,7 @@ const REASON_WATER := "ROUTE_WATER"
 const REASON_ENEMY := "ROUTE_ENEMY"
 const REASON_OCCUPIED := "ROUTE_OCCUPIED"
 const REASON_NO_ROUTE := "ROUTE_NO_ROUTE"
+const REASON_CLOSED := "ROUTE_CLOSED"
 const CHAIKIN_ITERATIONS := 3
 ## Opacity of an issued order (the planning preview is opaque).
 const ISSUED_ALPHA := 0.82
@@ -51,6 +52,8 @@ static func unreachable_reason(
 		return REASON_NO_ROUTE
 	if grid.get_terrain(destination) == Terrain.Type.WATER:
 		return REASON_WATER
+	if OperationalRoutes.destination_closed(state, formation, destination):
+		return REASON_CLOSED  # checked before "occupied", as IssueOrderCommand does (TASK-116)
 	var other := state.formation_at(destination)
 	if other != null:
 		if other.owner_id == formation.owner_id:

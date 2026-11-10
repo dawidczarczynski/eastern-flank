@@ -423,13 +423,15 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
 
-**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, but can only be launched from the debug panel (F9, `--debug`) for now; ground entry arrives with a later task, and the level can also be changed from the debug panel.
+**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, but can only be launched from the debug panel (F9, `--debug`) for now; ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
 
 **What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. Nothing else lowers it yet.
 
 **Allies.** When the level first reaches Regional war, allied countries join automatically: aligned countries go to war on their side, and neutral countries that lean to a side become aligned with it.
 
 **The end.** The bloc whose action brings the level to the Strategic threshold loses the operation at once and the other bloc wins; any waiting contact battles are dropped. A full-screen **Operation over** notice names the bloc that crossed the threshold, the defeat and the victory, with a **Back to menu** button.
+
+**Borders and movement.** A formation cannot enter a country that is closed to its side: a neutral or hostile country. Such an order is refused. **Russia is closed to NATO until Open war**. The first entry of a formation into the enemy sanctuary raises the escalation level by 1. Attacking out of an aligned country gives the enemy a **casus belli** against that country, shown as a toast. Battles themselves never raise the level.
 
 **On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the levels, what may be struck at the current one and marks the steps where the enemy sanctuary opens, allies join and the operation ends. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
 
@@ -453,7 +455,7 @@ Accuracy is the chance that a missile that was not intercepted hits. Ballistic m
 
 **Targets.** You can strike enemy installations that are not yet destroyed, and enemy formations. Installation kinds are airfields, depots, command posts (C2) and air defence; the escalation level decides which kinds may be hit (see the ladder above: formations from level 1, air defence and depots from level 2, airfields and command posts from level 3). A strike is refused with a reason when:
 - the target is unknown, already destroyed, or on your own soil;
-- the country is **closed**: enemy soil (for example Kaliningrad or Belarus for NATO) stays closed until the level reaches Limited war; a country allied with the enemy is likewise closed;
+- the country is **closed**: enemy soil (for example Kaliningrad or Belarus for NATO) stays closed until the level reaches Open war; a country allied with the enemy is likewise closed;
 - the level does not yet allow that kind of target;
 - the target is **out of range**: the range is counted from the nearest hex of your own country or of a country aligned with you or at war on your side (a country that joins you counts from then on);
 - you have too few missiles of that means, a salvo of 0 or above the largest, or no strikes left this turn.
@@ -539,7 +541,8 @@ Hovering a segment shows a card with what the posture does, the route cost, the 
 - hex occupied (another of your formations stands on the target);
 - only the Attack posture can target an enemy formation (March and Defend refuse it);
 - no route in this posture (for example, the way is blocked by enemy zones of control while marching);
-- already in this posture (when you pick the posture it already has).
+- already in this posture (when you pick the posture it already has);
+- the country is closed to you (neutral or hostile; see **Borders and movement** under Politics).
 
 **Attacking.** Select your formation and **left click** the enemy counter (or its hex), or right click the enemy hex and choose 2 ATTACK. The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped.
 
@@ -559,7 +562,7 @@ Giving a new order replaces the old one.
 
 **Step costs.** Road 1, open ground and towns 2, forest and hills 3, marsh 4. Crossing a river without a bridge costs +2 more. Lakes cannot be crossed. Only one formation can stand in a hex, but you can pass through your own formations. The zone of control is the ring of hexes next to an enemy formation. Unused points are lost at the end of the turn, and a formation can always move at least one hex per turn, even if that costs more than its points.
 
-**Reading the preview.** Before you click, a ribbon runs along the route. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, or no route.
+**Reading the preview.** Before you click, a ribbon runs along the route. A label at the target gives the total cost, the number of turns and the reason the route ends there (for example, arrival or contact). If there is no way, a red cross with the reason appears: a lake, an enemy formation on the target hex, a country closed to you, or no route. A route that crosses a closed country shows a red cross there. At the first hex of each incident (entering the enemy sanctuary, or attacking out of an aligned country) the route shows an amber warning triangle with a label. An order with an incident needs confirmation: **Enter** confirms, **Esc** cancels.
 
 ### End of turn
 
@@ -569,7 +572,8 @@ An order stays on the formation: it keeps following it on later turns until one 
 
 - **Arrived** – the formation reaches the destination and the order is done.
 - **Contact** – a formation in the Advance posture comes next to an enemy and halts. It keeps its order.
-- **Dropped** – the order is cancelled and reported when the destination has been taken, no route is left, or the way is blocked by your own formations.
+- **Dropped** – the order is cancelled and reported when the destination has been taken, no route is left, or the way is blocked by your own formations. If a country on the way has become closed, the report says "Order dropped: country closed".
+- **Halted** – a formation that would attack into a country it may not attack into stops, and the report says "Halted – cannot attack into <country>".
 
 **Turn report.** After the turn, press **R** to open (or close) the turn report: one row per order carried out, with what happened to it. Click a row to centre the map on that formation.
 
@@ -601,7 +605,8 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 - **Losses by company.** Every company keeps the strength it ended the battle with. Strength lost in the battle stays lost on the staff map: the formation is weaker in later battles and its strength total drops. A company reduced to 0 is removed from the formation.
 - **Destroyed.** A formation that has no company left is destroyed and disappears from the map.
-- **Retreat.** The side that did not hold the field retreats one hex. It goes to a free, passable neighbouring hex, preferring one outside the enemy zones of control and, among those, the one farthest from the enemy. The formation's order is cancelled (reported as "retreated"). If there is no such hex it stays where it is and the report says the retreat is blocked. The winner stays in place and keeps its order.
+- **Retreat.** The side that did not hold the field retreats one hex. It goes to a free, passable neighbouring hex, preferring one outside the enemy zones of control and, among those, the one farthest from the enemy. The formation's order is cancelled (reported as "retreated"). If there is no such hex it stays where it is and the report says the retreat is blocked. The winner stays in place and keeps its order. A beaten formation never retreats into a country closed to it.
+- **Closed countries.** No battle is fought against a formation standing in a country closed to the attacker; your advance still stops there (contact), but nothing is fought. Battles never raise the escalation level.
 - **Readiness.** Every formation has a readiness of 0–100 %, starting at 100 %. Taking part in a battle costs readiness: **15 points for the attacker, 10 for the defender**, whoever wins. At the start of your next turn, a formation that did not fight since your previous turn began regains **10 points** (up to 100 %); a formation that fought does not recover that turn.
 - **Readiness and movement.** A formation's move points for a turn under an order are its posture's allowance scaled by its readiness, rounded down and never below 1. Readiness never counts as less than **40 %**, so even an exhausted formation moves at least 40 % of the normal distance. The route preview and the carried-out order use the same figure.
 

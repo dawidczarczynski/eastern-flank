@@ -1,7 +1,7 @@
 class_name TerrainNoise
 extends RefCounted
 ## Deterministic 2D noise, an exact port of the visual design's helpers
-## (docs/design/game_screen.scene.js: hash/vnoise/fbm/ridged/smooth).
+## (docs/design/v1/game_screen.scene.js: hash/vnoise/fbm/ridged/smooth).
 ## Ported instead of FastNoiseLite so the output can't change between Godot versions.
 
 

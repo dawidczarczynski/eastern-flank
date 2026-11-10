@@ -67,6 +67,8 @@ func refresh(state: OperationalState, viewer: int) -> void:
 					"stops": geometry["stops"],
 					"target": geometry["target"],
 					"before": geometry["before"],
+					"warnings":
+					StaffMapRoutePreview.warning_marks(state, _relief, formation, preview["route"]),
 					"label": "",
 					"colour": colour,
 					"style": style,

@@ -38,6 +38,8 @@ func _init(
 	marks.amber = palette.ui_amber
 	marks.alert = palette.ui_alert
 	marks.text_colour = palette.ui_text
+	marks.muted = palette.ui_muted
+	marks.panel = palette.map_void
 	marks.ink = Color(0.05, 0.06, 0.05)
 
 
@@ -109,7 +111,16 @@ func rebuild(now_msec := Time.get_ticks_msec()) -> void:
 	_shown = preview
 	if preview["route"].is_empty():
 		_ribbon.clear()
-		_marks.show_unreachable(_anchor(_hex), tr_reason(preview["reason"]))
+		var reason: String = preview["reason"]
+		var closed := (
+			StaffMapBorders.closed_info(_state, formation, _hex)
+			if reason == StaffMapRoute.REASON_CLOSED
+			else {}
+		)
+		if closed.is_empty():
+			_marks.show_unreachable(_anchor(_hex), tr_reason(reason))
+		else:
+			_show_closed(formation, closed)
 		return
 	_show_route(formation, preview)
 
@@ -158,8 +169,45 @@ func _show_route(formation: Formation, preview: Dictionary) -> void:
 		geometry["target"],
 		label_text(preview),
 		geometry["before"],
-		style
+		style,
+		warning_marks(_state, _relief, formation, preview["route"])
 	)
+
+
+## Incident warnings of the previewed route (empty when none): {kind, at, text, ends}.
+func warnings() -> Array[Dictionary]:
+	var formation := _formation()
+	if formation == null or _shown.is_empty() or _shown["route"].is_empty():
+		return []
+	return StaffMapBorders.warnings(_state, formation, _shown["route"])
+
+
+## The warning markers of a route as {at (point on the relief), text, ends} (TASK-116).
+static func warning_marks(
+	state: OperationalState, relief: StaffMapRelief, formation: Formation, route: Array[Vector2i]
+) -> Array[Dictionary]:
+	var marks: Array[Dictionary] = []
+	var hexes: Array[Vector2i] = [formation.coord]
+	hexes.append_array(route)
+	for warning in StaffMapBorders.warnings(state, formation, route):
+		var k := maxi(hexes.find(warning["at"]), 1)
+		(
+			marks
+			. append(
+				{
+					"kind": warning["kind"],
+					"at": _anchor_at(relief, warning["at"]),
+					"before": _anchor_at(relief, hexes[k - 1]),
+					"after": _anchor_at(relief, hexes[mini(k + 1, hexes.size() - 1)]),
+					"text": warning["text"],
+					"chip": warning["chip"],
+					"tag": warning["tag"],
+					"sentence": warning["sentence"],
+					"ends": warning["ends"],
+				}
+			)
+		)
+	return marks
 
 
 ## The drawable geometry of a previewed or issued route of `formation` on `relief`: {lines
@@ -210,6 +258,38 @@ static func geometry_of(
 		"target": _anchor_at(relief, route[route.size() - 1]),
 		"before": _anchor_at(relief, hexes[maxi(hexes.size() - 2, 0)]),
 	}
+
+
+## Closed country: the dashed line up to the border (60 %), the cross in the hex outline and the
+## plate (the hex line from the formation; the planner has no route into a closed hex).
+func _show_closed(formation: Formation, info: Dictionary) -> void:
+	var from := StaffMapRoute.centre(formation.coord)
+	var to := StaffMapRoute.centre(_hex)
+	var steps := maxi(Hex.distance(formation.coord, _hex), 1)
+	var points := PackedVector2Array([from])
+	for i in range(1, steps + 1):
+		var t := float(i) / steps
+		var hex := Hex.from_world(Vector3(lerpf(from.x, to.x, t), 0.0, lerpf(from.y, to.y, t)), 1.0)
+		if _state.country_at(hex) != _state.country_at(formation.coord):
+			break
+		points.append(StaffMapRoute.centre(hex))
+	_ribbon.clear()
+	if points.size() > 1:
+		var lines: Array = []
+		for piece: PackedVector2Array in StaffMapRoute.dashes(
+			points, StaffMapRoute.DASH_ON, StaffMapRoute.DASH_OFF
+		):
+			var line := PackedVector3Array()
+			for p in piece:
+				line.append(_relief.surface_point(p))
+			lines.append(line)
+		_ribbon.show_lines(lines, _marks.colour, 0.6)
+	var corners := PackedVector3Array()
+	var centre := StaffMapRoute.centre(_hex)
+	for k in 6:
+		var angle := deg_to_rad(30.0 + 60.0 * k)
+		corners.append(_relief.surface_point(centre + Vector2(cos(angle), sin(angle))))
+	_marks.show_closed(_anchor(_hex), corners, info["title"], info["reason"])
 
 
 func _hide() -> void:

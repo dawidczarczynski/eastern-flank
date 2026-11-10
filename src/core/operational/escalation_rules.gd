@@ -120,6 +120,105 @@ static func breach(
 	return events
 
 
+## The incidents of a formation that has just entered `steps` (in order, the first from `from`):
+## for each entered hex the first breach of an enemy sanctuary (`breach`), then the casus belli of
+## a step out of an aligned country into an enemy one (`casus_belli_gained`). Stops once the
+## operation has ended. Draws nothing (TASK-116).
+static func on_steps(
+	state: OperationalState, formation: Formation, steps: Array[Vector2i], from: Vector2i
+) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	var player := formation.owner_id
+	var previous := from
+	for hex in steps:
+		events.append_array(breach(state, player, state.country_at(hex), hex, formation.id))
+		if not state.result.is_empty():
+			break
+		var launch := _launch_country(state, player, previous, hex)
+		if launch != null and not launch.casus_belli[1 - player]:
+			launch.casus_belli[1 - player] = true
+			(
+				events
+				. append(
+					{
+						"type": &"casus_belli_gained",
+						"country": launch.id,
+						"player": 1 - player,
+						"formation_id": formation.id,
+						"at": hex,
+					}
+				)
+			)
+		previous = hex
+	return events
+
+
+## The incidents the `route` of `formation` would cause, in order, assuming nothing else changes
+## (pure): `{type: &"sanctuary_breach", country, at, steps, ends_operation}` – the first entry of
+## a not yet breached enemy sanctuary; `ends_operation` when the level plus all steps so far reach
+## the top – and `{type: &"casus_belli", country, for_player, at}` – a step out of an aligned
+## country into an enemy one whose flag is not set yet.
+static func route_incidents(
+	state: OperationalState, formation: Formation, route: Array[Vector2i]
+) -> Array[Dictionary]:
+	var incidents: Array[Dictionary] = []
+	var player := formation.owner_id
+	var breached := {}
+	var flagged := {}
+	var level := state.escalation_level
+	var previous := formation.coord
+	for hex in route:
+		var country_id := state.country_at(hex)
+		if not breached.has(country_id) and _would_breach(state, player, country_id):
+			breached[country_id] = true
+			var steps := state.ladder.sanctuary_breach_escalation
+			level += steps
+			(
+				incidents
+				. append(
+					{
+						"type": &"sanctuary_breach",
+						"country": country_id,
+						"at": hex,
+						"steps": steps,
+						"ends_operation": level >= state.ladder.top(),
+					}
+				)
+			)
+		var launch := _launch_country(state, player, previous, hex)
+		if launch != null and not launch.casus_belli[1 - player] and not flagged.has(launch.id):
+			flagged[launch.id] = true
+			(
+				incidents
+				. append(
+					{
+						"type": &"casus_belli",
+						"country": launch.id,
+						"for_player": 1 - player,
+						"at": hex,
+					}
+				)
+			)
+		previous = hex
+	return incidents
+
+
+## The country `player` launches from with this step: aligned with the player at `from` while
+## `to` lies in a country enemy to the player; else null.
+static func _launch_country(
+	state: OperationalState, player: int, from: Vector2i, to: Vector2i
+) -> CountryState:
+	var country := state.get_country(state.country_at(from))
+	if (
+		country == null
+		or country.stance != CountryState.ALIGNED
+		or country.side != player
+		or CountryRules.relation(state, player, state.country_at(to)) != &"enemy"
+	):
+		return null
+	return country
+
+
 ## "" when `player` may strike a `target_class` target on `coord`, else why not: `own_soil`,
 ## `closed_country` or `roe_class`.
 static func strike_allowed(

@@ -2,7 +2,7 @@
 
 - **Status**: done
 - **Layers**: presentation (pure `CameraMath` helper tested in `tests/unit/`)
-- **Depends on**: nothing hard. Soft: TASK-023 (the new controls hint goes through `tr()`). Reference: `docs/design/game_screen.scene.js` lines 510–518 (camera), 572–614 (input).
+- **Depends on**: nothing hard. Soft: TASK-023 (the new controls hint goes through `tr()`). Reference: `docs/design/v1/game_screen.scene.js` lines 510–518 (camera), 572–614 (input).
 - **Model**: sonnet
 
 ## Goal

@@ -324,4 +324,4 @@ func test_plan_speed_on_theatre_map() -> void:
 	times.sort()
 	print("operational plan median %.1f ms (%d hexes)" % [times[2], route.size()])
 	assert_true(route.size() > 0, "no route across the map")
-	assert_true(times[2] <= 90.0, "plan median %.1f ms" % times[2])
+	assert_true(times[2] <= 36.0, "plan median %.1f ms" % times[2])

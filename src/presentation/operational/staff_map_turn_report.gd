@@ -46,6 +46,13 @@ static func kind_text(kind: StringName, reason: StringName) -> String:
 	return TranslationServer.translate("REPORT_" + String(kind).to_upper())
 
 
+## The words of a report entry; a contact the border rule forbids names the country (TASK-116).
+static func entry_text(entry: Dictionary, state: OperationalState) -> String:
+	if entry["kind"] == StaffMapTurnMarks.HALTED and entry["reason"] == &"forbidden":
+		return StaffMapBorders.forbidden_text(state, entry["country"])
+	return kind_text(entry["kind"], entry["reason"])
+
+
 ## "HEX 12,5" style place text of a coordinate.
 static func place_text(coord: Vector2i) -> String:
 	return TranslationServer.translate("HEX %s") % ("%d,%d" % [coord.x, coord.y])
@@ -69,7 +76,7 @@ func show_report(state: OperationalState, entries: Array[Dictionary]) -> void:
 			"%s  -  %s  -  %s"
 			% [
 				StaffMapFormations.designation(formation.display_name, formation.parent),
-				kind_text(entry["kind"], entry["reason"]).to_upper(),
+				entry_text(entry, state).to_upper(),
 				place_text(entry["at"]),
 			]
 		)

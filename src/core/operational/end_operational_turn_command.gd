@@ -19,9 +19,12 @@ func validate(state: OperationalState) -> String:
 
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
+	var ended_before := not state.result.is_empty()
 	for formation in state.formations:
 		if formation.owner_id == state.current_player and formation.order != null:
 			_execute_order(state, formation, events)
+			if not ended_before and not state.result.is_empty():
+				return events  # the operation ended mid-execution: nothing else happens
 	if state.result.is_empty():
 		ContactRules.start_battles(state, events)
 	events.append({"type": &"operational_turn_ended", "player": state.current_player})
@@ -68,6 +71,9 @@ static func _execute_order(
 ) -> void:
 	var destination := formation.order.destination
 	var posture := OperationalPosture.find(formation.posture)
+	if OperationalRoutes.destination_closed(state, formation, destination):
+		_interrupt(formation, &"closed_country", events)
+		return
 	var holder := state.formation_at(destination)
 	if holder != null and (holder.owner_id == formation.owner_id or posture.avoids_contact):
 		_interrupt(formation, &"destination_occupied", events)
@@ -83,6 +89,7 @@ static func _execute_order(
 	if steps.is_empty() and stop == OperationalRoutes.STOP_OUT_OF_POINTS:
 		_interrupt(formation, &"blocked", events)
 		return
+	var walk_from := formation.coord
 	if not steps.is_empty():
 		var from := formation.coord
 		formation.coord = walk["end"]
@@ -99,6 +106,10 @@ static func _execute_order(
 				}
 			)
 		)
+	if not steps.is_empty():
+		events.append_array(EscalationRules.on_steps(state, formation, steps, walk_from))
+		if not state.result.is_empty() and events.back()["type"] == &"operation_ended":
+			return  # the escalation threshold ended the operation
 	if stop == OperationalRoutes.STOP_ARRIVED:
 		formation.order = null
 		(

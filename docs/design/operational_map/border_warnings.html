@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Border warnings – staff map</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+:root{--void:#0b0d0b;--land:#1d211c;--border:#a9afa1;--own:#5b93d6;--own-ink:#0f1a26;--enemy:#d76a52;
+--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--plate:rgba(11,13,11,.9);--edge:rgba(232,176,74,.45)}
+*{box-sizing:border-box}
+body{margin:0;background:#070807;color:var(--text);font:14px/1.45 "Plex Cond",sans-serif;padding:0 32px 48px;max-width:1440px}
+h1,h2,h3{font-family:"Chakra Petch";font-weight:700;margin:0}
+h1{font-size:26px;margin:18px 0 4px}h2{font-size:20px;margin:40px 0 6px;color:var(--amber)}h3{font-size:15px;margin:0 0 6px}
+.banner{background:var(--alert);color:#1a0a06;font:700 13px "Chakra Petch";letter-spacing:.2em;padding:6px 32px;margin:0 -32px}
+p{max-width:900px;margin:4px 0 10px;color:#c9cfc0}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.var{width:560px}
+.frame{position:relative;width:560px;height:300px;overflow:hidden;border:1px solid #2a2e27;background:var(--land)}
+.frame>svg{position:absolute;inset:0}
+.frame.dim::after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.28)}
+table{border-collapse:collapse;margin:8px 0;font-size:12.5px;width:560px}
+td,th{border-top:1px solid #23271f;padding:3px 8px;text-align:left;vertical-align:top}
+th{font:700 11px "Chakra Petch";letter-spacing:.12em;color:var(--muted)}
+td:first-child{color:var(--muted);width:90px}
+code{font-family:"JetBrains Mono";font-size:11.5px;color:var(--amber)}
+.note{border-left:3px solid var(--amber);padding:4px 10px;background:#12150f;max-width:900px}
+/* plates: chamfered like StaffMapCountryCard */
+.plate{position:absolute;--ec:#6e5627;--pb:rgba(11,13,11,.92);background:var(--ec);padding:6px 11px 7px;z-index:1;
+clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px));white-space:nowrap}
+/* full outline on the chamfers: outer layer = edge colour, inner layer (inset 1px, cut 8.7px) = fill */
+.plate::before{content:"";position:absolute;inset:1px;background:var(--pb);z-index:-1;
+clip-path:polygon(0 0,calc(100% - 8.7px) 0,100% 8.7px,100% 100%,8.7px 100%,0 calc(100% - 8.7px))}
+.t{font:700 12.5px "Chakra Petch";letter-spacing:.04em}
+.m{font:11px "JetBrains Mono";color:var(--muted)}
+.tri{position:absolute;width:26px;height:23px;background:var(--amber);color:var(--own-ink);
+clip-path:polygon(50% 0,100% 100%,0 100%);font:700 11px "JetBrains Mono";text-align:center;padding-top:9px;line-height:14px}
+.tri.end{background:var(--alert)}
+.tri.out{background:none;outline:0}
+.chip{display:inline-block;font:700 11px "JetBrains Mono";background:var(--amber);color:var(--own-ink);padding:0 5px;margin-right:6px}
+.chip.end{background:var(--alert)}
+.key{display:inline-block;font:700 11px "JetBrains Mono";border:1px solid var(--muted);padding:0 6px;margin:0 4px 0 10px;color:var(--text)}
+.x{position:absolute;width:22px;height:22px}
+.x::before,.x::after{content:"";position:absolute;left:10px;top:-2px;width:3px;height:26px;background:var(--alert)}
+.x::before{transform:rotate(45deg)}.x::after{transform:rotate(-45deg)}
+.hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font:11px "JetBrains Mono";color:var(--muted);white-space:nowrap}
+</style></head><body>
+<div class="banner" style="background:var(--amber)">ACCEPTED 2026-11-10 · TASK-116 · decision: marker = <b>B</b> for escalation (gate bar + tag, red when it ends the operation), <b>A</b> for casus belli (triangle + plate); confirmation = <b>A</b>; closed country = <b>A</b>. Other variants are rejected alternatives.</div>
+<h1>Border warnings on the staff map</h1>
+<p>Three elements TASK-116 needs and the mockups in <code>operational_map/</code> do not show: <b>(1)</b> a warning marker + label at the first hex of a route incident, <b>(2)</b> the confirmation before an order that causes an incident, <b>(3)</b> the "closed country" cross with its reason. Each has variants A/B/C; frames are 560×300 crops at 1:1 of the 1440×900 layout, backdrop in the staff-map palette (<code>map.land</code>, <code>border</code> dash-dot, route in <code>ui.amber</code>, own counter 40×26). Everything is screen-space, fixed size at every zoom. Meaning never rests on colour alone: shape + text carry it.</p>
+<p class="note">Wording fix included: Russia opens at <b>escalation 2 = Open war</b> (code level 2 = Open war; the manual numbers levels from 1).</p>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="bg" viewBox="0 0 560 300">
+<rect width="560" height="300" fill="#1d211c"/>
+<polygon points="330,0 560,0 560,300 380,300" fill="#d76a52" fill-opacity=".055"/>
+<line x1="330" y1="0" x2="380" y2="300" stroke="#a9afa1" stroke-width="1.4" stroke-dasharray="10 3 2 3"/>
+<g fill="#363931" fill-opacity=".8"><rect x="470" y="210" width="40" height="26"/><rect x="120" y="60" width="50" height="22"/></g>
+<text x="392" y="60" fill="#d76a52" fill-opacity=".55" font-family="Chakra Petch" font-weight="700" font-size="24" letter-spacing="9">RUSSIA</text>
+<text x="40" y="60" fill="#5b93d6" fill-opacity=".5" font-family="Chakra Petch" font-weight="700" font-size="20" letter-spacing="7">POLAND</text>
+</symbol>
+<symbol id="route" viewBox="0 0 560 300">
+<path d="M90 225 C170 215 230 185 330 160 S 430 120 500 110" fill="none" stroke="#e8b04a" stroke-width="2.4"/>
+<g fill="#e8b04a"><circle cx="140" cy="219" r="2.2"/><circle cx="195" cy="207" r="2.2"/><circle cx="250" cy="190" r="2.2"/><circle cx="300" cy="170" r="2.2"/><circle cx="398" cy="140" r="2.2"/><circle cx="450" cy="125" r="2.2"/></g>
+<circle cx="500" cy="110" r="7" fill="none" stroke="#e8b04a" stroke-width="2"/>
+<rect x="70" y="212" width="40" height="26" fill="#5b93d6"/><rect x="70" y="212" width="40" height="26" fill="none" stroke="#0f1a26" stroke-width="2"/>
+<text x="90" y="230" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#0f1a26">MECH</text>
+</symbol></defs></svg>
+
+<h2>1 · Route warning marker</h2>
+<p>Appears at the <b>first hex of each incident</b> (<code>route_incidents</code>): sanctuary breach (+n escalation), casus belli, and any incident that reaches the top level ("ends the operation"). Shown in the planning preview with a label; on issued orders the marker stays, the label shows on hover.</p>
+<div class="row">
+<div class="var"><h3>A · Triangle + plate (recommended)</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/></svg>
+ <div class="tri" style="left:317px;top:148px">+1</div>
+ <div class="plate" style="left:250px;top:80px"><span class="chip">+1</span><span class="t">Enters Russia: escalation +1</span></div>
+ <div class="tri" style="left:130px;top:190px;font-size:9px">CB</div>
+ <div class="plate" style="left:30px;top:104px;width:215px;white-space:normal"><span class="chip">CB</span><span class="t">NATO attacks out of Lithuania: casus belli for Russia</span></div>
+</div>
+<div class="frame" style="margin-top:8px"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/></svg>
+ <div class="tri end" style="left:437px;top:104px">!</div>
+ <div class="plate" style="left:250px;top:36px;width:280px;white-space:normal;--ec:var(--alert)"><span class="chip end">END</span><span class="t">Enters Russia: escalation +1 – This ends the operation</span></div>
+</div>
+<table><tr><th>Spec</th><th></th></tr>
+<tr><td>Triangle</td><td>26×23 px, fill <code>ui.amber</code>, glyph <code>side.own ink</code> JetBrains Mono 11 bold; <code>ui.alert</code> fill when it ends the operation. Glyph = "+n", "CB", "!" (shape+text, not colour only)</td></tr>
+<tr><td>Plate</td><td>chamfered 9 px (same as country card), bg <code>map.void</code> 90 %, edge amber 45 % (<code>ui.alert</code> when ends), Chakra Petch 12.5 bold, 5/10 px padding; offset 8 px right of the triangle; flips left near the screen edge</td></tr>
+<tr><td>Behaviour</td><td>Preview: all plates visible. Issued order: triangles only, plate on hover. Plates avoid the counter and route (E, W, NE, SW like labels)</td></tr></table></div>
+
+<div class="var"><h3>B · Gate bar on the route + flag tag</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/>
+<line x1="322" y1="138" x2="338" y2="186" stroke="#e8b04a" stroke-width="4"/><line x1="322" y1="138" x2="338" y2="186" stroke="#0b0d0b" stroke-width="1" stroke-dasharray="3 3"/></svg>
+ <div class="plate" style="left:262px;top:104px;padding:2px 8px"><span class="t" style="color:var(--amber)">▲ ESCALATION +1</span></div>
+ <div class="m" style="position:absolute;left:290px;top:196px">Enters Russia</div></div>
+<table><tr><td>Idea</td><td>Border-crossing drawn like the "halt" cross-bar of the orders (amber bar 4 px across the route, black dashes) with a short tag. Closest to the existing order look, least text; the full sentence moves to the confirmation prompt.</td></tr>
+<tr><td>Cost</td><td>Casus belli (no border on the route) needs its own tag; weaker at Z0 where the route is thin.</td></tr></table></div>
+
+<div class="var"><h3>C · Ring only, text in the hint line</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/>
+<circle cx="330" cy="160" r="12" fill="none" stroke="#e8b04a" stroke-width="2.5"/><circle cx="330" cy="160" r="18" fill="none" stroke="#e8b04a" stroke-opacity=".4"/></svg>
+ <div class="hint" style="color:var(--amber)">▲ Enters Russia: escalation +1</div></div>
+<table><tr><td>Idea</td><td>Minimal: pulsing ring (2.5 px amber, 1 s) on the hex, sentence in the bottom hint line. Quietest; hides nothing on the map. Cost: with 2–3 incidents the player must hover each ring to learn which is which.</td></tr></table></div>
+</div>
+
+<h2>2 · Confirmation before an incident order</h2>
+<p>A click that would issue an order with incidents does <b>not</b> execute; the player confirms with <b>Enter</b> or cancels with <b>Esc</b> (TASK-116). Selecting another formation also cancels.</p>
+<div class="row">
+<div class="var"><h3>A · Plate above the hint line, map dimmed 28 % (recommended)</h3>
+<div class="frame dim" style="height:400px"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/></svg>
+ <div class="tri" style="left:317px;top:148px">+1</div>
+ <div class="plate" style="left:100px;top:244px;width:360px;white-space:normal;--ec:var(--amber);--pb:#0b0d0b;z-index:2">
+  <div class="t" style="color:var(--amber);letter-spacing:.14em;font-size:11px;margin-bottom:4px">CONFIRM ORDER · 2 INCIDENTS</div>
+  <div class="t"><span class="chip">+1</span>Enters Russia: escalation +1</div>
+  <div class="t" style="margin-top:3px"><span class="chip">CB</span>NATO attacks out of Lithuania: casus belli for Russia</div>
+  <div style="margin-top:8px"><span class="key" style="margin-left:0;background:var(--amber);color:var(--own-ink);border-color:var(--amber)">↵</span><span class="t">Confirm</span><span class="key">Esc</span><span class="t">Cancel</span></div></div>
+ <div class="hint" style="z-index:2">orders 3/8 · Esc cancel</div></div>
+<table><tr><td>Size</td><td>360 px wide, auto height, centred 24 px above the hint line; bg <code>map.void</code> (opaque), edge <code>ui.amber</code> 1 px, chamfer 9 px</td></tr>
+<tr><td>Rows</td><td>one per incident, same chip + text as the marker plate; header Chakra Petch 11, tracking .14em, <code>ui.amber</code>; if an incident ends the operation the edge and its chip turn <code>ui.alert</code> and a last row "Operation ends – winner: <i>enemy</i>"</td></tr>
+<tr><td>Keys</td><td>Enter chip = filled amber (primary), Esc chip = outline. Map input blocked except Esc/selection; dim 28 %. No timeout</td></tr></table></div>
+
+<div class="var"><h3>B · Callout at the target hex (no dim)</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/>
+<line x1="500" y1="110" x2="500" y2="150" stroke="#e8b04a"/></svg>
+ <div class="plate" style="left:206px;top:150px;width:310px;white-space:normal;--pb:#0b0d0b">
+  <div class="t"><span class="chip">+1</span>Enters Russia: escalation +1</div>
+  <div style="margin-top:6px"><span class="key" style="margin-left:0;background:var(--amber);color:var(--own-ink);border-color:var(--amber)">↵</span><span class="t">Confirm</span><span class="key">Esc</span><span class="t">Cancel</span></div></div></div>
+<table><tr><td>Idea</td><td>Plate hangs off the clicked hex with a leader line, so the question stays next to the thing it is about. Cost: moves with the pan/zoom, can collide with panels and the formation card; harder at the map edge.</td></tr></table></div>
+
+<div class="var"><h3>C · Single-line banner under the turn bar</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><use href="#route"/></svg>
+ <div class="plate" style="left:60px;top:8px;width:440px;--ec:var(--amber);--pb:#0b0d0b"><span class="chip">+1</span><span class="t">Enters Russia: escalation +1</span><span class="key" style="margin-left:14px;background:var(--amber);color:var(--own-ink);border-color:var(--amber)">↵</span><span class="t">Confirm</span><span class="key">Esc</span><span class="t">Cancel</span></div></div>
+<table><tr><td>Idea</td><td>Always in the same place (next to the escalation chip), one line; with several incidents it shows the first plus "+1 more". Cheapest to build, but far from the cursor and easy to miss.</td></tr></table></div>
+</div>
+
+<h2>3 · Closed country cross + reason</h2>
+<p>Shown while planning when the hovered destination lies in a country closed to the selected formation (order is refused). Reasons: <i>sanctuary</i> (enemy, until escalation 2 · Open war), <i>hostile</i>, <i>neutral</i>.</p>
+<div class="row">
+<div class="var"><h3>A · Cross on the hex + two-line plate (recommended)</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/>
+<path d="M90 225 C170 215 230 185 330 160" fill="none" stroke="#e8b04a" stroke-width="2.4" stroke-dasharray="3 5" opacity=".6"/>
+<rect x="70" y="212" width="40" height="26" fill="#5b93d6" stroke="#0f1a26" stroke-width="2"/>
+<polygon points="458,150 480,137 502,150 502,176 480,189 458,176" fill="#e07c5e" fill-opacity=".1" stroke="#e07c5e" stroke-width="1.6"/></svg>
+ <div class="x" style="left:469px;top:152px"></div>
+ <div class="plate" style="left:300px;top:72px;width:235px;white-space:normal;--ec:var(--alert)"><div class="t">RUSSIA <span style="color:var(--alert)">· CLOSED</span></div><div class="m">Sanctuary – opens at escalation 2 (Open war)</div></div></div>
+<table><tr><td>Cross</td><td>two 3 px strokes <code>ui.alert</code>, 22 px, centred on the hovered hex, hex outline 1.6 px <code>ui.alert</code> + 10 % fill. Route preview is dashed 3/5 and 60 % up to the border, nothing beyond</td></tr>
+<tr><td>Plate</td><td>title Chakra Petch 12.5 (country caps + "· CLOSED" in <code>ui.alert</code>), reason JetBrains Mono 11 <code>ui.muted</code>; reasons: "Sanctuary – opens at escalation 2 (Open war)", "Hostile – closed to your side", "Neutral – closed until it joins"</td></tr>
+<tr><td>Position</td><td>above the hex (existing placement); flips below when within 90 px of the top (the turn bar)</td></tr></table></div>
+
+<div class="var"><h3>B · Whole country hatched while a formation is selected</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><defs><pattern id="h" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" stroke="#e07c5e" stroke-opacity=".28" stroke-width="2"/></pattern></defs><use href="#bg"/>
+<polygon points="330,0 560,0 560,300 380,300" fill="url(#h)"/><use href="#route"/></svg>
+ <div class="x" style="left:469px;top:99px"></div>
+ <div class="plate" style="left:395px;top:50px;--ec:var(--alert)"><span class="t">RUSSIA <span style="color:var(--alert)">· CLOSED</span></span></div></div>
+<table><tr><td>Idea</td><td>Closed countries get a 45° hatch (9 px, <code>ui.alert</code> 28 %) as soon as a formation is selected, so the player sees limits <i>before</i> hovering; the hover adds the cross and a short tag, reason in the country card. Hatching is already used for marsh (7×5), so the language fits. Cost: more ink on the map, needs the country polygon mesh.</td></tr></table></div>
+
+<div class="var"><h3>C · One-line pill</h3>
+<div class="frame"><svg viewBox="0 0 560 300" width="560" height="300"><use href="#bg"/><rect x="70" y="212" width="40" height="26" fill="#5b93d6" stroke="#0f1a26" stroke-width="2"/></svg>
+ <div class="x" style="left:469px;top:152px"></div>
+ <div class="plate" style="left:318px;top:112px;--ec:var(--alert);padding:3px 10px"><span class="t">✕ RUSSIA – closed · opens at Open war</span></div></div>
+<table><tr><td>Idea</td><td>Everything in one line; cheapest, closest to the first implementation. Cost: long text for hostile/neutral variants, no room for a second reason.</td></tr></table></div>
+</div>
+
+<h2>Recommendation and open questions</h2>
+<p><b>1A + 2A + 3A</b>: same chamfered plate, chips and amber/alert language as the existing cards, text carries the meaning, confirmation is a clear blocking step. <b>1B</b> is the best alternative if you want less text on the map.</p>
+<ul>
+<li>New tokens: none (all colours are existing <code>StaffMapPalette</code> / HUD v3 values). Only new shape: the 26×23 triangle (the chamfered plate and chips reuse the country-card look).</li>
+<li>Q1: should the confirmation also be required for casus belli alone, or only for sanctuary breach? (Proposed: both – both change the political state.)</li>
+<li>Q2: hatch the closed country when a formation is selected (3B), or only on hover (3A)?</li>
+<li>Godot notes: plate = extend the <code>StaffMapCountryCard</code> panel style (<code>HudShapes.chamfer</code>); triangle = new <code>HudShapes</code> helper; markers on the <code>CanvasLayer</code> of <code>StaffMapRouteMarks</code>; prompt in <code>StaffMapBorderPrompt</code>.</li></ul>
+</body></html>

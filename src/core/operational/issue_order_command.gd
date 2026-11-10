@@ -28,17 +28,27 @@ func validate(state: OperationalState) -> String:
 	if data == null:
 		return "unknown_posture"
 	var formation := state.get_formation(formation_id)
+	reason = _destination_problem(state, formation)
+	if reason != "":
+		return reason
+	reason = _target_problem(state, formation, data)
+	if reason != "":
+		return reason
+	if OperationalRoutes.plan(state, formation, destination, data.avoids_contact).is_empty():
+		return "no_route"
+	return ""
+
+
+## `invalid_destination` or `closed_country` (TASK-116), else "".
+func _destination_problem(state: OperationalState, formation: Formation) -> String:
 	if (
 		destination == formation.coord
 		or not state.grid.has_tile(destination)
 		or state.grid.move_cost(destination) == Terrain.IMPASSABLE
 	):
 		return "invalid_destination"
-	reason = _target_problem(state, formation, data)
-	if reason != "":
-		return reason
-	if OperationalRoutes.plan(state, formation, destination, data.avoids_contact).is_empty():
-		return "no_route"
+	if OperationalRoutes.destination_closed(state, formation, destination):
+		return "closed_country"
 	return ""
 
 

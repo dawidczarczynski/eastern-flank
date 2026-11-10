@@ -2,7 +2,7 @@
 
 - **Status**: done
 - **Layers**: presentation (pure placement planner tested in `tests/unit/`)
-- **Depends on**: **TASK-016b** (surface heights). Reference: `docs/design/game_screen.scene.js` lines 351–392.
+- **Depends on**: **TASK-016b** (surface heights). Reference: `docs/design/v1/game_screen.scene.js` lines 351–392.
 - **Model**: sonnet
 
 ## Goal

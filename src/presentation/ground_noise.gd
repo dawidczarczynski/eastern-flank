@@ -1,7 +1,7 @@
 class_name GroundNoise
 extends RefCounted
 ## Pure low-frequency noises the terrain view derives its ground look from (ported from the
-## design's terrain colouring, docs/design/game_screen.scene.js): the dry/moist macro patches
+## design's terrain colouring, docs/design/v1/game_screen.scene.js): the dry/moist macro patches
 ## (TerrainSplat dry grass) and the jitter that keeps forest ground from following hex outlines.
 
 ## Seeds from the design: macro patches and the jitter offsets in x and z; jitter amplitude.

@@ -48,6 +48,12 @@ static func plan(
 				if n != destination and n != start:
 					blocked[n] = true
 	blocked.erase(destination)  # an enemy destination (attack order) is the route's last hex
+	# Hexes of countries closed to the player (TASK-116) are impassable, the destination too.
+	var closed := closed_countries(state, formation.owner_id, start)
+	if not closed.is_empty():
+		for hex: Vector2i in state.country_map:
+			if closed.has(state.country_map[hex]):
+				blocked[hex] = true
 	var parents := _search(grid, movement, start, destination, blocked)
 	if not parents.has(destination):
 		return route
@@ -57,6 +63,32 @@ static func plan(
 		current = parents[current]
 	route.reverse()
 	return route
+
+
+## The countries (id -> true) closed to `player` (`CountryRules.may_enter` is false), except the
+## one the hex `standing_at` lies in: a formation is never trapped (TASK-116). Entry depends only
+## on the country, so a hex is closed exactly when its country is in the set.
+static func closed_countries(
+	state: OperationalState, player: int, standing_at: Vector2i
+) -> Dictionary:
+	var closed := {}
+	var home := state.country_at(standing_at)
+	for country in state.countries:
+		if country.id == home:
+			continue
+		if not CountryRules.may_enter_country(state, player, country.id):
+			closed[country.id] = true
+	return closed
+
+
+## Whether `destination` lies in a country closed to the formation's owner (and not in the
+## country it stands in).
+static func destination_closed(
+	state: OperationalState, formation: Formation, destination: Vector2i
+) -> bool:
+	if state.country_at(destination) == state.country_at(formation.coord):
+		return false
+	return not CountryRules.may_enter(state, formation.owner_id, destination)
 
 
 ## One turn's movement along `route` from `from` with `budget` points; changes nothing. Returns

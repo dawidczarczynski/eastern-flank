@@ -4,7 +4,7 @@ extends Node3D
 ## layer weights from TerrainSplat drawn by assets/shaders/terrain.gdshader with the
 ## TerrainTextures arrays), a translucent water plane and faint hex grid lines from a HexGrid,
 ## draws the reach wash, attack-target rings, hover ring and path dots (TASK-017).
-## Port of the design's terrain (docs/design/game_screen.scene.js, "terrain mesh").
+## Port of the design's terrain (docs/design/v1/game_screen.scene.js, "terrain mesh").
 
 ## The terrain mesh covers the map bounds plus this margin (world units) on every side.
 const EXTENT := 6.0

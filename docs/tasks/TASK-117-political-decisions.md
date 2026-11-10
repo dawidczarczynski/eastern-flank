@@ -1,6 +1,6 @@
 # TASK-117: Political decisions – Escalate, Stand down, Declare hostilities, Invoke alliance, Demand neutrality (commands, one per turn, cooldown, codec)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (decisions panel)
 - **Depends on**: TASK-116 (view: TASK-093b)
 - **Model**: sonnet

@@ -370,3 +370,21 @@ Defeat: %s,Defeat: %s,Porażka: %s
 ESC_END_MENU,Back to menu,Wróć do menu
 END_TURN_BLOCKED_OPERATION_OVER,The operation is over.,Operacja zakończona.
 ORDER_REJECTED_OPERATION_OVER,The operation is over.,Operacja zakończona.
+ROUTE_CLOSED,CLOSED COUNTRY,KRAJ ZAMKNIĘTY
+CLOSED,CLOSED,ZAMKNIĘTE
+Sanctuary – opens at escalation 2 (Open war),Sanctuary – opens at escalation 2 (Open war),Sanktuarium – otwiera się na eskalacji 2 (Otwarta wojna)
+Hostile – closed to your side,Hostile – closed to your side,Wrogie – zamknięte dla twojej strony
+Neutral – closed until it joins,Neutral – closed until it joins,Neutralne – zamknięte do czasu przystąpienia
+Enters %s: escalation +%d,Enters %s: escalation +%d,Wkracza do: %s – eskalacja +%d
+ESCALATION +%d,ESCALATION +%d,ESKALACJA +%d
+Enters %s,Enters %s,Wkracza do: %s
+CONFIRM ORDER · %d INCIDENTS,CONFIRM ORDER · %d INCIDENTS,POTWIERDŹ ROZKAZ · INCYDENTY: %d
+CONFIRM ORDER · 1 INCIDENT,CONFIRM ORDER · 1 INCIDENT,POTWIERDŹ ROZKAZ · 1 INCYDENT
+Confirm,Confirm,Potwierdź
+Cancel,Cancel,Anuluj
+This ends the operation,This ends the operation,To kończy operację
+%s attacks out of %s: casus belli for %s,%s attacks out of %s: casus belli for %s,%s atakuje z terytorium: %s – casus belli dla: %s
+REPORT_INTERRUPTED_CLOSED_COUNTRY,Order dropped: country closed,Rozkaz anulowany: kraj zamknięty
+Halted – cannot attack into %s,Halted – cannot attack into %s,Zatrzymany – nie wolno atakować: %s
+BORDER_CONFIRM,Enter: confirm   Esc: cancel,Enter: potwierdź   Esc: anuluj
+ORDER_REJECTED_CLOSED_COUNTRY,That country is closed to your forces.,Ten kraj jest zamknięty dla twoich wojsk.

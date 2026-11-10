@@ -1,7 +1,7 @@
 class_name OverlayGeometry
 extends RefCounted
 ## Pure geometry for map overlays (reach wash, rings, path dots, hover pulse).
-## Port of patchGeo / ringGeo / the path curve in docs/design/game_screen.scene.js.
+## Port of patchGeo / ringGeo / the path curve in docs/design/v1/game_screen.scene.js.
 ## Hexes are pointy-top with corners at 60°·i − 30°, like Hex.to_world.
 
 const _SAMPLES_PER_SEGMENT := 32

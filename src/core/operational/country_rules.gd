@@ -19,7 +19,11 @@ static func relation(state: OperationalState, player: int, country_id: StringNam
 
 ## Whether `player` may enter the hex (route through it, stand on it).
 static func may_enter(state: OperationalState, player: int, coord: Vector2i) -> bool:
-	var country_id := state.country_at(coord)
+	return may_enter_country(state, player, state.country_at(coord))
+
+
+## Whether `player` may enter the hexes of a country (the same answer for every hex of it).
+static func may_enter_country(state: OperationalState, player: int, country_id: StringName) -> bool:
 	match relation(state, player, country_id):
 		&"own", &"none":
 			return true

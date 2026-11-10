@@ -29,7 +29,7 @@ Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL
 - Static typing everywhere (`var x: int`, `:=`, return types). The `untyped_declaration` warning is enabled.
 - Tab indentation. Files `snake_case.gd`, classes `PascalCase` via `class_name`. Private members prefixed with `_`.
 - Events are a `Dictionary` with a `"type"` key (StringName, e.g. `&"unit_moved"`) – add new types to the table in docs/ARCHITECTURE.md.
-- **Visual work follows the Claude Design mockups** in `docs/design/` (layout, shapes, colours, fonts, sizes): read the mockup for the component, reuse existing HUD parts from `src/presentation/ui/` (grep CODEMAP) instead of inventing a look, and compare your screenshot with the mockup before reporting; state any deviation and why.
+- **Visual work follows the Claude Design mockups** in `docs/design/` (layout, shapes, colours, fonts, sizes): read the mockup for the component, reuse existing HUD parts from `src/presentation/ui/` (grep CODEMAP) instead of inventing a look, and compare your screenshot with the mockup before reporting; state any deviation and why. **A new element with no mockup and no similar component** (grep `docs/design/` and CODEMAP) is not improvised: run `/design-ui` first and implement only the variant the human picks; minor tweaks to an existing component need no new design.
 - Everything in English: code, identifiers, comments, documentation, commit messages and UI text.
 - Tests: file `tests/unit/test_*.gd`, `extends TestCase`, methods `test_*`, shared data in `tests/fixtures.gd`. A `MapView` build costs ~0.7–3 s: tests that only read one share it via `before_all`/`after_all` and `static var` (`Fixtures.map_view`, `Fixtures.reset_map_view`), see `tests/unit/test_map_view_backdrop.gd`.
 
