@@ -10,12 +10,16 @@ extends RefCounted
 ## "error" is "none" for an empty spec, "invalid_focus" if malformed.
 ## ScreenshotOptions.parse_measure_frames("120") (SCREENSHOT_MEASURE_FRAMES) -> frames to time
 ## after the warm-up (0 = no measurement, capped at MAX_FRAMES).
+## ScreenshotOptions.parse_min_distance("1.5") (SCREENSHOT_MIN_DISTANCE, TASK-110) -> the closest
+## camera distance the debug camera may use (world units, MIN_DISTANCE_FLOOR..CameraMath
+## MIN_DISTANCE), 0.0 for an empty spec, -1.0 if invalid.
 
 const DEFAULT_FRAMES := 10
 const MIN_FRAMES := 1
 const MAX_FRAMES := 600
 const FRAMES_PREFIX := "--frames="
 const QUALITY_PREFIX := "--quality="
+const MIN_DISTANCE_FLOOR := 0.05
 
 
 static func parse(args: PackedStringArray) -> Dictionary:
@@ -85,6 +89,18 @@ static func parse_measure_frames(spec: String) -> int:
 	if not text.is_valid_int() or text.to_int() <= 0:
 		return 0
 	return mini(text.to_int(), MAX_FRAMES)
+
+
+static func parse_min_distance(spec: String) -> float:
+	var text := spec.strip_edges()
+	if text == "":
+		return 0.0
+	if not text.is_valid_float():
+		return -1.0
+	var value := text.to_float()
+	if value < MIN_DISTANCE_FLOOR or value > CameraMath.MIN_DISTANCE:
+		return -1.0
+	return value
 
 
 static func _frames_in_range(frames: int) -> bool:

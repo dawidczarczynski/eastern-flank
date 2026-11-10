@@ -112,3 +112,13 @@ func _home(echo: bool) -> void:
 	key.pressed = true
 	key.echo = echo
 	_rig._unhandled_input(key)
+
+
+func test_min_distance_override_lets_set_view_go_closer() -> void:
+	_rig.set_view(Vector2.ZERO, 0.0, 1.5)
+	assert_eq(_rig.distance(), CameraMath.MIN_DISTANCE, "clamped without the override")
+	_rig.set_min_distance_override(1.0)
+	_rig.set_view(Vector2.ZERO, 0.0, 1.5)
+	assert_eq(_rig.distance(), 1.5)
+	_rig.set_view(Vector2.ZERO, 0.0, 0.5)
+	assert_eq(_rig.distance(), 1.0)

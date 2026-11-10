@@ -307,7 +307,12 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_FOV=<degrees> narrows the camera's field of view (a tele close-up of effects that are
 ## tiny at the closest camera distance, e.g. salvo backblast; the default is the game's fov).
 ## SCREENSHOT_PITCH_OFFSET=<radians> adds a camera tilt offset (needs SCREENSHOT_CAMERA).
-## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic> is applied in _initialize.
+## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic|true> is applied in _initialize (`true`:
+## units, trees, scrub, rocks and grass at 1:1 of MapScale, TASK-110 study).
+## SCREENSHOT_MIN_DISTANCE=<world units, 0.05-7> lets SCREENSHOT_CAMERA / SCREENSHOT_FOCUS go
+## closer than the game's zoom limit (CameraMath.MIN_DISTANCE); below it the camera looks at the
+## ground under the target (TASK-110 real-scale close-ups, e.g. SCREENSHOT_MIN_DISTANCE=1
+## SCREENSHOT_CAMERA=2,-40,1.5).
 ## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
 ## unit's tile (TASK-058), without animation.
@@ -364,6 +369,13 @@ func _fail(message: String, exit_code: int) -> void:
 ## tile two columns right of it (path dots). Runs once the scene's _ready has finished.
 func _apply_debug_selection() -> void:
 	_battle.call("debug_build_grass")
+	var min_distance := ScreenshotOptions.parse_min_distance(
+		OS.get_environment("SCREENSHOT_MIN_DISTANCE")
+	)
+	if min_distance < 0.0:
+		printerr("ERROR: invalid SCREENSHOT_MIN_DISTANCE (expected world units, 0.05-7)")
+	elif min_distance > 0.0:
+		_battle.call("debug_min_camera_distance", min_distance)
 	var camera := ScreenshotOptions.parse_camera(OS.get_environment("SCREENSHOT_CAMERA"))
 	if camera["error"] == "":
 		_battle.call(

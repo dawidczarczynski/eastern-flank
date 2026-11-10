@@ -88,7 +88,7 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 		var backdrop := i >= map_trees.size()
 		var tree: Dictionary = backdrop_trees[i - map_trees.size()] if backdrop else map_trees[i]
 		var pick := TreeSpecies.pick(tree)
-		var transform := tree_transform(tree)
+		var transform := tree_transform(tree, pick["species"], pick["variant"])
 		var p: Vector3 = tree["position"]
 		var chunk := chunk_of(p)
 		var far_only := (
@@ -124,9 +124,10 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 
 
 ## World transform of a planned tree: base at the planted position, scaled by the planned scale
-## and VisualScale.tree_scale() about the base (positions stay the same).
-static func tree_transform(tree: Dictionary) -> Transform3D:
-	var size := VisualScale.tree_scale()
+## and VisualScale.tree_size (tree_scale(), or the species' real height under the `true`
+## preset) about the base (positions stay the same).
+static func tree_transform(tree: Dictionary, species := &"", variant := 0) -> Transform3D:
+	var size := VisualScale.tree_size(species, variant)
 	var s: float = tree["scale"] * size
 	var h: float = tree["height_scale"] * size
 	var basis := Basis(Vector3.UP, tree["yaw"]) * Basis.from_scale(Vector3(s, h, s))

@@ -1,6 +1,7 @@
 extends TestCase
 
 const EPSILON := 1e-4
+const POLAND := preload("res://data/factions/poland.tres")
 
 
 func before_each() -> void:
@@ -64,7 +65,7 @@ func test_default_active_preset_is_balanced() -> void:
 
 
 func test_unit_model_shrinks_proportionally() -> void:
-	var faction := load("res://data/factions/poland.tres") as FactionDefinition
+	var faction := POLAND as FactionDefinition
 	VisualScale.apply(&"current")
 	var root_a := UnitModels.build(&"m1a2_sepv3", 0, faction)
 	var length_a := _length(root_a)
@@ -86,3 +87,47 @@ func test_tree_transform_scales_with_tree_scale() -> void:
 	assert_true(scaled.origin.is_equal_approx(base.origin), "position unchanged")
 	assert_true(absf(scaled.basis.y.length() / base.basis.y.length() - 1.8) < EPSILON)
 	assert_true(absf(scaled.basis.x.length() / base.basis.x.length() - 1.8) < EPSILON)
+
+
+# TASK-110: the `true` preset puts units and scatter at 1:1 of MapScale.
+func test_true_preset_abrams_is_real_length() -> void:
+	var faction := POLAND as FactionDefinition
+	VisualScale.apply(&"true")
+	var root := UnitModels.build(&"m1a2_sepv3", 0, faction)
+	var length := _length(root)
+	root.free()
+	var expected := 9.8 / MapScale.metres_per_unit
+	assert_true(absf(length / expected - 1.0) < 0.02, "Abrams %f vs %f" % [length, expected])
+
+
+func test_true_preset_trees_are_species_height() -> void:
+	VisualScale.apply(&"true")
+	var tree := {"position": Vector3.ZERO, "scale": 1.0, "height_scale": 1.0, "yaw": 0.0, "k": 0.1}
+	for species: StringName in TreeSpecies.all():
+		for variant in TreeMeshes.VARIANTS:
+			var t := TreeField.tree_transform(tree, species, variant)
+			var height := (t * TreeMeshes.lod0(species, variant).get_aabb()).size.y
+			var expected: float = VisualScale.TRUE_HEIGHTS_M[species] / MapScale.metres_per_unit
+			assert_true(
+				absf(height / expected - 1.0) < 0.05,
+				"%s/%d %f vs %f" % [species, variant, height, expected]
+			)
+
+
+func test_true_preset_scatter_is_real_size() -> void:
+	var values := VisualScale.preset(&"true")
+	var m := MapScale.metres_per_unit
+	var bush_height: float = (
+		FoliageMeshes.bush().get_aabb().size.y * ScatterPlanner.BUSH_HEIGHT * values["bush_scale"]
+	)
+	assert_true(absf(bush_height * m / VisualScale.TRUE_HEIGHTS_M[&"bush"] - 1.0) < 0.05)
+	var grass_height: float = GrassField.CARD_HEIGHT * values["grass_scale"]
+	assert_true(absf(grass_height * m / VisualScale.TRUE_HEIGHTS_M[&"grass"] - 1.0) < 0.05)
+	assert_true(values["unit_model_scale"] < 0.1, "units ~12x smaller than balanced")
+
+
+func test_true_preset_leaves_balanced_the_default() -> void:
+	VisualScale.preset(&"true")
+	assert_eq(VisualScale.DEFAULT_PRESET, &"balanced")
+	_check(VisualScale.preset(&"balanced"), 1.1, 1.8, 1.4, 1.0)
+	assert_false(VisualScale.is_true_size())

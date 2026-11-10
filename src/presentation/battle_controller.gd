@@ -341,6 +341,12 @@ func debug_focus_camera(
 	debug_focus_point(Vector2(focus.x, focus.z), yaw, distance)
 
 
+## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_MIN_DISTANCE, TASK-110 study): lets the
+## debug camera go closer than the player's zoom limit.
+func debug_min_camera_distance(distance: float) -> void:
+	_camera_rig.set_min_distance_override(distance)
+
+
 ## Screenshot debug hook (tools/screenshot.gd, SCREENSHOT_FOCUS): points the camera at a world
 ## point (XZ), e.g. the middle of a forest for the frame-time probe.
 func debug_focus_point(target: Vector2, yaw: float, distance: float) -> void:

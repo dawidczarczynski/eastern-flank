@@ -16,6 +16,8 @@ const VEHICLE_MOBILITY: Array[StringName] = [&"wheeled", &"tracked"]
 const VOLLEY_CLASS := &"mlrs"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
+## Model units per metre of a soldier at soldier scale 1 (models/parts/soldier.gd `M`).
+const SOLDIER_METRE := 0.1
 const MAX_WHEELS := 20
 ## Params of the `launcher` mechanism a model doesn't declare (= the defaults in
 ## docs/design/units/mechanisms.json; a test keeps them equal).
@@ -78,9 +80,32 @@ static func build(
 	var seed_key: Variant = definition_id if unit_id == null else unit_id
 	var model := _build_model(definition_id, faction, wear_seed(seed_key))
 	model.name = "Model"
-	model.scale = Vector3.ONE * VisualScale.unit_model_scale()
+	model.scale = Vector3.ONE * model_scale(definition_id)
 	root.add_child(model)
 	return root
+
+
+## Scale of a unit's model: VisualScale.unit_model_scale(), or under the `true` preset (TASK-110)
+## the one that makes this model real-size (its own model units per metre, model_units_per_metre).
+static func model_scale(definition_id: StringName) -> float:
+	if not VisualScale.is_true_size():
+		return VisualScale.unit_model_scale()
+	return 1.0 / (MapScale.metres_per_unit * model_units_per_metre(definition_id))
+
+
+## Model units per real metre of a model built at scale 1: the model file's `K` (vehicles), its
+## soldier scale times the soldier's metre factor (squads, SOLDIER_SCALE x 0.1), or the nominal
+## VisualScale.NOMINAL_MODEL_UNITS_PER_METRE.
+static func model_units_per_metre(definition_id: StringName) -> float:
+	if has_model(definition_id):
+		var script := load(MODEL_PATH % definition_id) as GDScript
+		if script != null:
+			var constants := script.get_script_constant_map()
+			if constants.has(&"K"):
+				return constants[&"K"]
+			if constants.has(&"SOLDIER_SCALE"):
+				return constants[&"SOLDIER_SCALE"] * SOLDIER_METRE
+	return VisualScale.NOMINAL_MODEL_UNITS_PER_METRE
 
 
 ## Whether a model file exists for the unit id.

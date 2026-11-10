@@ -125,3 +125,11 @@ func test_measure_frames_spec() -> void:
 	assert_eq(ScreenshotOptions.parse_measure_frames("x"), 0)
 	assert_eq(ScreenshotOptions.parse_measure_frames("-5"), 0)
 	assert_eq(ScreenshotOptions.parse_measure_frames("100000"), ScreenshotOptions.MAX_FRAMES)
+
+
+func test_min_distance_spec() -> void:
+	assert_eq(ScreenshotOptions.parse_min_distance(""), 0.0)
+	assert_eq(ScreenshotOptions.parse_min_distance("1.5"), 1.5)
+	assert_eq(ScreenshotOptions.parse_min_distance("x"), -1.0)
+	assert_eq(ScreenshotOptions.parse_min_distance("0"), -1.0)
+	assert_eq(ScreenshotOptions.parse_min_distance("12"), -1.0)

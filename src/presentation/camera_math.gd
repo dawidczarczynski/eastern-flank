@@ -70,8 +70,10 @@ static func reset_offset(offset: float, delta: float) -> float:
 
 ## Smallest pitch (radians) that puts the camera at least GROUND_CLEARANCE above `ground_height`,
 ## for a look-at point at `target_height` and distance `d`. Between 0 and straight down.
-static func min_pitch_for_ground(ground_height: float, target_height: float, d: float) -> float:
-	var needed := (ground_height + GROUND_CLEARANCE - target_height) / d
+static func min_pitch_for_ground(
+	ground_height: float, target_height: float, d: float, clearance := GROUND_CLEARANCE
+) -> float:
+	var needed := (ground_height + clearance - target_height) / d
 	return asin(clampf(needed, 0.0, 1.0))
 
 
@@ -143,7 +145,8 @@ static func clamp_target(target: Vector2, bounds: Rect2, margin: float) -> Vecto
 ## Smallest pitch >= the offset curve at which the camera is at least GROUND_CLEARANCE above
 ## `ground_fn(x, z) -> float`. Raising the pitch moves the camera towards the target, so the ground
 ## is re-sampled until it settles; if it does not settle (steep terrain) the camera goes straight
-## above the target, which always clears.
+## above the target, which always clears. `clearance` overrides GROUND_CLEARANCE (the TASK-110
+## close-up study camera, CameraRig.set_min_distance_override).
 static func clear_pitch(
 	ground_fn: Callable,
 	target: Vector2,
@@ -151,12 +154,13 @@ static func clear_pitch(
 	d: float,
 	target_height: float,
 	pitch_offset := 0.0,
+	clearance := GROUND_CLEARANCE,
 ) -> float:
 	var pitch := pitch_with_offset(d, pitch_offset)
 	for i in CLEAR_PITCH_ITERATIONS:
 		var offset := camera_offset_at_pitch(yaw, d, pitch)
 		var ground: float = ground_fn.call(target.x + offset.x, target.y + offset.z)
-		if target_height + offset.y >= ground + GROUND_CLEARANCE - 0.0005:
+		if target_height + offset.y >= ground + clearance - 0.0005:
 			return pitch
-		pitch = maxf(pitch, min_pitch_for_ground(ground, target_height, d))
+		pitch = maxf(pitch, min_pitch_for_ground(ground, target_height, d, clearance))
 	return PI / 2.0
