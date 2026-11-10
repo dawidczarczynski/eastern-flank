@@ -1,6 +1,6 @@
 # TASK-001: Basic melee combat
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: core / ai / presentation
 
 ## Goal

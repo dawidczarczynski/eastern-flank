@@ -8,6 +8,9 @@ or `;` (e.g. `**TASK-044**, TASK-042 (soft: TASK-050)` → TASK-044, TASK-042).
 Every status cell in BACKLOG.md starts with a coloured icon (STATUS_ICONS); --fix adds or corrects it,
 so a status can be written as plain text.
 
+A task file's `- **Status**:` line and its BACKLOG.md row must agree: a mismatch is an error, and --fix
+makes both the further-along status (idea < blocked < ready < in progress < to playtest < done < merged).
+
 Usage: tools/backlog.py          – report inconsistencies, exit 1 if there are any (run by tools/check.sh)
        tools/backlog.py --fix    – rewrite the statuses in BACKLOG.md and the task files' Status lines
        tools/backlog.py --ready  – list the `ready` tasks in priority order (ID, file, title) instead of reading BACKLOG.md
@@ -24,6 +27,7 @@ BACKLOG = TASKS_DIR / "BACKLOG.md"
 TASK_ID = re.compile(r"TASK-\d+[a-z]?")
 LINK = re.compile(r"\[(TASK-\d+[a-z]?)\]\(([^)]+)\)")
 STATUS_LINE = re.compile(r"^(- \*\*Status\*\*: )(ready|blocked)\b", re.MULTILINE)
+ANY_STATUS_LINE = re.compile(r"^- \*\*Status\*\*: (.+?)\s*$", re.MULTILINE)
 SWITCHABLE = ("ready", "blocked")
 # Matched as a prefix of the status text, e.g. "done (superseded by …)" gets the `done` icon.
 STATUS_ICONS = {
@@ -49,6 +53,14 @@ def with_icon(status: str) -> str:
 		if status.startswith(name):
 			return f"{icon} {status}"
 	return status
+
+
+def status_key(text: str) -> str | None:
+	"""The STATUS_ICONS name a status text starts with ("done (superseded)" -> "done"), or None."""
+	for name in sorted(STATUS_ICONS, key=len, reverse=True):
+		if text.startswith(name):
+			return name
+	return None
 
 
 def hard_dependencies(cell: str) -> list[str]:
@@ -114,6 +126,21 @@ def main() -> int:
 	for row in rows:
 		want = expected.get(row["id"])
 		status = row["status"]
+		if want is None and row["file"] and (TASKS_DIR / row["file"]).exists():
+			found = ANY_STATUS_LINE.search((TASKS_DIR / row["file"]).read_text(encoding="utf-8"))
+			file_key = status_key(found.group(1)) if found else None
+			row_key = status_key(status)
+			if file_key and row_key and file_key != row_key and file_key not in SWITCHABLE:
+				order = list(STATUS_ICONS)
+				problems.append(f"{row['id']}: {row['file']} says '{found.group(1)}', BACKLOG.md says '{status}'")
+				if order.index(file_key) > order.index(row_key):
+					status = found.group(1)  # the file is further along: the row follows
+				elif fix:  # the row is further along: the file follows
+					path = TASKS_DIR / row["file"]
+					path.write_text(
+						ANY_STATUS_LINE.sub(lambda m: m.group(0).replace(found.group(1), status), path.read_text(encoding="utf-8"), count=1),
+						encoding="utf-8",
+					)
 		if want is not None and status.split(" ")[0] != want:
 			problems.append(f"{row['id']}: BACKLOG.md says '{status}', expected '{want}'")
 			status = want + status[len(status.split(" ")[0]) :]

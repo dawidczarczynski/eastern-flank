@@ -1,6 +1,6 @@
 # TASK-004: Movement path preview on hover
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: core / presentation
 - **Depends on**: nothing. Optional: TASK-008 (hide the preview while events are playing).
 

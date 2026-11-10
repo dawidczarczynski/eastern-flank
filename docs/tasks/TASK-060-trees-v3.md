@@ -1,6 +1,6 @@
 # TASK-060: Trees v3 – leaf-card crowns with trunks and branches, wind, per-instance variation
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (pure tree mesh builder + leaf/needle textures, pure species/variation picker, chunked `TreeField` node, `assets/shaders/foliage.gdshader`, `map_view.gd` scatter), optional CC0 textures in `assets/third_party/`, tests
 - **Depends on**: **TASK-059**, **TASK-057** (soft: TASK-030 – `MeshKit.lathe`/`rod` for trunks and branches if done by then, otherwise the existing `ModelParts.lathe_mesh` or a local tapered rod; TASK-050 – `foliage`, `wind`, shadows per quality; TASK-053 done – only for the optional CC0 bark/leaf textures)
 - **Model**: opus (leaf-card generation with correct normals for foliage lighting, LOD/visibility ranges per chunk, alpha-scissor shadows, performance)

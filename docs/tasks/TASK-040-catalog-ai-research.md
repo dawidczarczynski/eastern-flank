@@ -1,6 +1,6 @@
 # TASK-040: Unit catalog – AI research and agent jobs from the UI
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: tools (unit catalog, `.claude/skills/`)
 - **Depends on**: TASK-037 (soft: TASK-036 for model jobs)
 - **Model**: sonnet

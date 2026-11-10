@@ -1,6 +1,6 @@
 # TASK-003: Selected unit info panel
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (pure text formatter tested in `tests/unit/`)
 - **Depends on**: TASK-001 (`Unit.has_attacked`). Optional: TASK-008 (refresh after the queue drains).
 

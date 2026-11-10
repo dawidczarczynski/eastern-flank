@@ -1,6 +1,6 @@
 # TASK-037: Unit catalog – local web tool for collecting unit references (`tools/unit_catalog.sh`)
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: tools (Python stdlib server + static HTML/JS UI; catalog logic tested with `unittest`, wired into `tools/check.sh`). No game code changes.
 - **Depends on**: – (can start any time). Data layout: `docs/design/units/README.md`. GDD: "Factions and units".
 - **Model**: sonnet
