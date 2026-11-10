@@ -43,6 +43,11 @@ const BRACKET_STROKE := 2.0
 	set(value):
 		tab_right_text = value
 		queue_redraw()
+## Extra space at the right end of the tab row (room for a close button).
+@export var tab_right_inset := 0.0:
+	set(value):
+		tab_right_inset = value
+		queue_redraw()
 @export var tab_right_color := UiPalette.HUD_MUTED:
 	set(value):
 		tab_right_color = value
@@ -115,7 +120,7 @@ func _draw_tab() -> void:
 			. x
 		)
 		var right_pos := Vector2(
-			size.x - 1.0 - TAB_RIGHT_PADDING - right_width,
+			size.x - 1.0 - TAB_RIGHT_PADDING - tab_right_inset - right_width,
 			(
 				origin.y
 				+ (

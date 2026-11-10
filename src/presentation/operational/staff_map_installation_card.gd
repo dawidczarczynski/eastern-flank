@@ -8,6 +8,7 @@ const ROW_SIZE := 12
 
 var _name_label: Label
 var _gives_label: Label
+var _note_label: Label
 var _values: Array[Label] = []
 
 
@@ -32,6 +33,11 @@ func _init() -> void:
 	_gives_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_gives_label.custom_minimum_size = Vector2(WIDTH - 24, 0)
 	column.add_child(_gives_label)
+	_note_label = _label(HudTheme.mono(600, 0), ROW_SIZE, Color("#e07c5e"))
+	_note_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note_label.custom_minimum_size = Vector2(WIDTH - 24, 0)
+	_note_label.hide()
+	column.add_child(_note_label)
 	hide()
 	reset_size()
 
@@ -43,8 +49,20 @@ func show_info(data: Dictionary) -> void:
 	_values[0].text = tr(data["country"] as String).to_upper() if data["country"] != "" else "–"
 	_values[1].text = "DESTROYED" if data["destroyed"] else "%d %%" % data["integrity"]
 	_gives_label.text = tr(data["gives"] as String)
+	set_note("")
 	show()
 	reset_size()
+
+
+## A line in the alert colour under the facts (the strike mode's reason, TASK-097b); "" hides it.
+func set_note(text: String) -> void:
+	_note_label.text = text
+	_note_label.visible = text != ""
+	reset_size()
+
+
+func note_text() -> String:
+	return _note_label.text if _note_label.visible else ""
 
 
 func name_text() -> String:

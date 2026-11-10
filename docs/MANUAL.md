@@ -424,7 +424,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
 
-**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, but can only be launched from the debug panel (F9, `--debug`) for now; ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
+**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, launched in strike mode (key S); ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
 
 **What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. The **Stand down** decision (below) lowers it too.
 
@@ -452,7 +452,7 @@ A strike is refused if its target is on your own soil, in a country that is clos
 
 ### Deep strikes
 
-As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. **Part 1 is in:** the rules and the installation markers. The strike mode on the map (clicking a target, forecast, report) comes later; for now a strike can only be launched from the debug panel (F9, `--debug`, block **Strikes**: pick the player, means, salvo and target, then **Strike**; **+stock** adds missiles for testing).
+As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. You launch strikes in **strike mode** on the staff map (see below); the debug panel (F9, `--debug`, block **Strikes**) still works for testing, and **+stock** adds missiles. A hit-chance forecast comes later.
 
 **Means.** Each side has a stock of three means. A strike spends the missiles it launches whether or not they hit.
 
@@ -486,6 +486,24 @@ A refused strike costs nothing.
 **Installations in "Suwałki Gap".** Each side has 7. NATO: airfields near Olsztyn and Białystok, depots at Ełk and Kaunas (Lithuania), a command post and air defence at Białystok, air defence at Suwałki. Russia: airfields at Chernyakhovsk and Lida (Belarus), depots at Kaliningrad and Grodno (Belarus), a command post and air defence at Kaliningrad, air defence at Grodno. In practice, at the first level NATO can reach only Russian formations standing in Poland; Kaliningrad targets open at Open war and Belarusian ones at Regional war.
 
 **Installation markers.** The staff map shows every installation of both sides (there is no fog yet) as a small marker in the bloc's colour, with a glyph for its kind (airfield, depot, command post, air defence) and a thin **integrity bar** beneath. A destroyed installation is shown as a grey crossed glyph. Markers update when an installation is hit or repaired. Point at a marker for a card with its name, kind, country, integrity in per cent and what it gives: an airfield – fire support in nearby battles, and similarly for the other kinds.
+
+**Strike mode.** Press **S**, or click **STRIKE [S]** in the turn bar next to the escalation chip, to open strike mode. **Esc** or **CLOSE** leaves it. Strike mode also closes by itself once a strike has been launched (press **S** again for the next one); a rejected strike keeps it open.
+- **Panel.** It lists your means with their stock and range. Pick a means, then set the salvo with the stepper (1 up to the largest salvo, never more than your stock). The panel also shows **Strikes: n/N**, the strikes you still have this turn.
+- **Targets.** Every legal target is marked with a double ring in your side colour. An **amber** target is *conditional*: it becomes legal only after you raise the escalation level (raise-and-strike); the strike then includes an Escalate decision first (for airfields it starts from level 1). Illegal targets are **dimmed**; point at one to see the reason (closed country, level too low, out of range, too few missiles and so on).
+- **Confirm card.** Clicking a legal target opens a card with the means, salvo and target, the escalation lines (what the strike and any needed Escalate raise), and a **red line** when the strike would reach the Strategic threshold. Confirm to launch, or cancel; a cancelled strike costs nothing.
+- **Closing.** The strike panel and the confirm card each have an **X** in the corner; it does the same as Esc or cancel.
+- **Result report.** About 0.4 s after the strike, a **strike result report card** appears on the left, under the turn bar. It shows:
+  - the weapon name and ×N (the salvo) and the target;
+  - one pictogram per missile: a solid disc with ✕ is a **hit**, a ring with a bar is **intercepted**, a dashed ring is a **miss**, with the count of each;
+  - the target's **integrity** (installation) or **strength** (formation), before → after;
+  - the interceptor sites that fired, with counts;
+  - the escalation ticks with the new level, and lines such as "+n sanctuary breach" or "+n urban hex";
+  - your stock of that means before → after, and "strikes left" this turn.
+
+  When the strike takes the level to the Strategic threshold the card has a **red edge** and says "operation ends".
+- **Card behaviour.** After 9 s the card collapses to a small **chip** (pointing at the card or chip pauses the timer). **J** toggles card and chip, **Enter** goes to the next report or collapses the card, **Esc** collapses it, and **◂ ▸** browse the earlier reports. The chip is a compact tab (weapon ×N and a short result such as "2 HIT") placed under the turn bar's button row at the left edge; it never covers other HUD. The **X** on the card or chip dismisses it.
+- **Enemy strikes.** Strikes by the other bloc during its turn appear one after another, 3.5 s each, marked "1/n" on the chip. Their stock is unknown, so it is not shown. All reports are cleared when your next turn begins.
+- **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (the oldest drop first).
 
 ### Turns
 

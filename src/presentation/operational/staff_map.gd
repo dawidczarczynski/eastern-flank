@@ -108,6 +108,7 @@ var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
 var _escalation: StaffMapEscalationHud
 var _decisions: StaffMapDecisionsHud
+var _strike: StaffMapStrikeHud  # strike mode, trail (TASK-097b)
 var _decision_lines: Array[String] = []  # log of the decisions since the last report
 var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
@@ -213,6 +214,8 @@ func _process(delta: float) -> void:
 		_update_hover()
 	_sync_action_bar()
 	advance_slide(delta)
+	if _strike != null:
+		_strike.tick(delta)
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
 
@@ -226,6 +229,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		# the ring, 1-4 pick a slot; Enter / Esc close the result notice.
 		if (
 			(_decisions != null and _decisions.handle_key(key.keycode))
+			or (_strike != null and _strike.handle_key(key.keycode))
+			or (_strike != null and _strike.handle_report_key(key.keycode))
 			or _order_ring.handle_key(key.keycode)
 			or _close_result_notice(key.keycode)
 			or _answer_border_prompt(key.keycode)
@@ -258,6 +263,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					toggle_borders()
 			KEY_N:
 				toggle_place_names()
+			KEY_S:
+				toggle_strike_mode()
 			KEY_P:
 				_politics.toggle_tint()
 			StaffMapDecisionsPanel.OPEN_KEY:
@@ -931,6 +938,8 @@ func _layout_counters() -> void:
 	if _contacts != null:
 		_contacts.layout()
 		_place_queue()
+	if _strike != null:
+		_strike.layout(_viewport_size(), _turn_bar.size.y + PANEL_MARGIN.y / 2.0)
 	if _installations != null:
 		var spots := {}
 		for id: StringName in _installation_anchors:
@@ -1000,16 +1009,10 @@ func _on_operational_event(event: Dictionary) -> void:
 	_refresh_contacts()
 
 
-## Strike events (TASK-097a): the markers' bars, the result toast and the debug panel's stock line.
+## Strike events (TASK-097a): the markers' bars, the result report and the debug panel's stock line.
 func _on_strike_event(event: Dictionary) -> void:
 	var type: StringName = event.get("type", &"")
-	if type == &"strike_resolved":
-		var state := _simulation.state
-		var destroyed: bool = event["target_destroyed"]
-		_toast_message(
-			StaffMapStrikeText.resolved(state, event),
-			_palette.ui_alert if destroyed else _palette.ui_amber
-		)
+	_strike.on_event(event)
 	if type in [&"installation_changed", &"strike_stock_changed", &"strike_launched"]:
 		_installations.refresh()
 		_politics.refresh(viewer_player)
@@ -1398,6 +1401,29 @@ func decisions_hud() -> StaffMapDecisionsHud:
 	return _decisions
 
 
+## Key S / the Strike button: opens or closes the strike mode (TASK-097b); closes the other cards.
+func toggle_strike_mode() -> void:
+	if _strike == null:
+		return
+	if not _strike.is_open():
+		_escalation.close_card()
+		_decisions.close()
+		select_formation(&"")
+	_strike.toggle()
+	_turn_bar.set_strike_open(_strike.is_open())
+
+
+func strike_hud() -> StaffMapStrikeHud:
+	return _strike
+
+
+func _on_strike_open_changed(open: bool) -> void:
+	_turn_bar.set_strike_open(open)
+	if not open:
+		_installation_card.set_note("")
+	_layout_counters()
+
+
 func escalation_hud() -> StaffMapEscalationHud:
 	return _escalation
 
@@ -1501,6 +1527,17 @@ func _build_hud() -> void:
 	_decisions = StaffMapDecisionsHud.new(
 		_simulation, _palette, _hud, func() -> int: return viewer_player
 	)
+	_strike = StaffMapStrikeHud.new(
+		_simulation,
+		_palette,
+		_hud,
+		_counter_layer,
+		_screen_of_hex,
+		func() -> int: return viewer_player,
+		_toast_message
+	)
+	_strike.open_changed.connect(_on_strike_open_changed)
+	_turn_bar.strike_pressed.connect(toggle_strike_mode)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
 
@@ -1658,6 +1695,10 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				_zoom_at(notches, event.position)
 
 
+func _strike_mode_open() -> bool:
+	return _strike != null and _strike.is_open()
+
+
 func _zoom_at(notches: float, cursor: Vector2) -> void:
 	var new_zoom := StaffMapCameraMath.zoom_by(_zoom, notches, _min_zoom, _max_zoom)
 	var size := _viewport_size()
@@ -1679,7 +1720,12 @@ func _pan_by_keys_and_edge(delta: float) -> void:
 			- float(Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT))
 		),
 		(
-			float(Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN))
+			float(
+				(
+					(Input.is_physical_key_pressed(KEY_S) and not _strike_mode_open())
+					or Input.is_physical_key_pressed(KEY_DOWN)
+				)
+			)
 			- float(Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP))
 		)
 	)
@@ -1715,7 +1761,7 @@ func click_at(screen: Vector2) -> void:
 	if _order_ring.is_open():
 		_order_ring.close()
 		return
-	if _contact_debug != null and _contact_debug.click(hex_at_screen(screen)):
+	if _mode_click(screen):
 		return
 	var hit := _counters.counter_at(screen)
 	var target := _enemy_of_selected(hit)
@@ -1803,6 +1849,8 @@ func _update_hover() -> void:
 	if _panel != null and _panel.visible and _panel.get_global_rect().has_point(mouse):
 		_clear_hover()  # the panel covers the map
 		return
+	if _strike != null and _strike.is_open():
+		_strike.set_hover(&"" if _strike.covers(mouse) else _strike_target_at(mouse))
 	if _counters != null:
 		_counters.set_hovered(_counters.counter_at(mouse))
 	var c := hex_at_screen(mouse)
@@ -1831,6 +1879,23 @@ func _hover_ring() -> void:
 	_view.highlight(_order_ring.hex())
 
 
+## A click taken by the debug contact picker or the open strike mode; true then.
+func _mode_click(screen: Vector2) -> bool:
+	if _contact_debug != null and _contact_debug.click(hex_at_screen(screen)):
+		return true
+	if _strike != null and _strike.is_open():
+		_strike.click(_strike_target_at(screen))
+		return true
+	return false
+
+
+## The enemy target under `screen` for the strike mode (counter, marker or hex), or &"".
+func _strike_target_at(screen: Vector2) -> StringName:
+	var marker := _installations.marker_at(screen)
+	var counter := _counters.counter_at(screen)
+	return _strike.target_at(counter, marker, hex_at_screen(screen))
+
+
 ## Shows the installation card when the cursor is on a marker (and no counter); true then.
 func _hover_installation(mouse: Vector2) -> bool:
 	var id := &""
@@ -1842,12 +1907,15 @@ func _hover_installation(mouse: Vector2) -> bool:
 	_installation_card.show_info(
 		StaffMapInstallations.info(_simulation.state, _simulation.state.get_installation(id))
 	)
+	_installation_card.set_note(_strike.hover_note(id) if _strike != null else "")
 	_card.hide()
 	_place_card(mouse, _installation_card)
 	return true
 
 
 func _clear_hover() -> void:
+	if _strike != null:
+		_strike.set_hover(&"")
 	if _installations != null:
 		_installations.set_hovered(&"")
 		_installation_card.hide()

@@ -71,6 +71,11 @@ const SEA := 100
 @export var ui_text := Color("#dfe5d6")
 @export var ui_muted := Color("#8d9585")
 @export var ui_alert := Color("#e07c5e")
+## Strike outcome tokens (strike result report, docs/design/operational_map): hit = ui.amber,
+## intercepted = the water label colour, missed = ui.muted.
+@export var outcome_hit := Color("#e8b04a")
+@export var outcome_intercepted := Color("#6f95ab")
+@export var outcome_miss := Color("#8d9585")
 @export var strength_high := Color("#b9d38a")
 @export var strength_mid := Color("#e2c069")
 @export var label_halo := Color("#111411")

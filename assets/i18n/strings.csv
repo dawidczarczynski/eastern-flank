@@ -478,3 +478,57 @@ Countries list,Countries list,Lista państw
 Event log,Event log,Dziennik zdarzeń
 One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,Jedna decyzja na turę. Decyzja podnosząca poziom prosi o potwierdzenie i pokazuje nowy poziom. Deeskalacja blokuje eskalację na %d tury.
 "1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 wybór karty · lewo / prawo państwo · Enter podejmij, potwierdź · Esc anuluj, zamknij"
+Own territory,Own territory,Własne terytorium
+Out of range of {means},Out of range of {means},Poza zasięgiem: {means}
+Already destroyed,Already destroyed,Już zniszczony
+Unknown target,Unknown target,Nieznany cel
+Closed soil – opens at {level},Closed soil – opens at {level},Zamknięte terytorium – otwiera się na poziomie: {level}
+Closed soil,Closed soil,Zamknięte terytorium
+Not allowed at this level – needs {level},Not allowed at this level – needs {level},Niedozwolone na tym poziomie – wymaga: {level}
+Needs {level} – raise the level first,Needs {level} – raise the level first,Wymaga: {level} – najpierw podnieś poziom
+No strikes left this turn,No strikes left this turn,Brak uderzeń w tej turze
+Out of stock,Out of stock,Brak zapasu
+Bad salvo size,Bad salvo size,Zła wielkość salwy
+Reaches the strategic threshold – you would lose the operation,Reaches the strategic threshold – you would lose the operation,Osiąga próg strategiczny – przegrasz operację
+Strikes: %d/%d,Strikes: %d/%d,Uderzenia: %d/%d
+Breaches %s sanctuary: +%d escalation,Breaches %s sanctuary: +%d escalation,Narusza sanktuarium: %s: +%d eskalacji
+Urban hex: +%d escalation,Urban hex: +%d escalation,Pole miejskie: +%d eskalacji
+Escalation level: %s,Escalation level: %s,Poziom eskalacji: %s
+Escalate to %s (uses this turn's decision),Escalate to %s (uses this turn's decision),Eskaluj do: %s (zużywa decyzję tej tury)
+"Level raised, but the strike failed: %s","Level raised, but the strike failed: %s","Poziom podniesiony, ale uderzenie się nie powiodło: %s"
+CONFIRM STRIKE,CONFIRM STRIKE,POTWIERDŹ UDERZENIE
+Pick a means first,Pick a means first,Najpierw wybierz środek
+"Pick a means, then a target on the map. Esc leaves.","Pick a means, then a target on the map. Esc leaves.","Wybierz środek, potem cel na mapie. Esc wychodzi."
+Click a glowing target. Esc leaves.,Click a glowing target. Esc leaves.,Kliknij świecący cel. Esc wychodzi.
+click to strike,click to strike,"kliknij, by uderzyć"
+STRIKE,STRIKE,UDERZENIE
+STOCK,STOCK,ZAPAS
+RANGE,RANGE,ZASIĘG
+SALVO,SALVO,SALWA
+MEANS,MEANS,ŚRODKI
+"Deep strike: pick a means and a target on the map (key S, Esc leaves)","Deep strike: pick a means and a target on the map (key S, Esc leaves)","Głębokie uderzenie: wybierz środek i cel na mapie (klawisz S, Esc wychodzi)"
+Your strike,Your strike,Twoje uderzenie
+Enemy strike,Enemy strike,Uderzenie wroga
+hit,hit,trafienie
+hits,hits,trafienia
+no hit,no hit,brak trafień
+destroyed,destroyed,zniszczony
+Integrity,Integrity,Integralność
+Intercepted,Intercepted,Przechwycone
+Missed,Missed,Chybione
+Intercepted by,Intercepted by,Przechwycone przez
+Escalation,Escalation,Eskalacja
+No change,No change,Bez zmian
+No damage,No damage,Bez strat
+Destroyed,Destroyed,Zniszczony
+Strikes left,Strikes left,Uderzenia
+unknown,unknown,nieznany
+Operation ends,Operation ends,Operacja kończy się
+Strategic threshold reached,Strategic threshold reached,Osiągnięto próg strategiczny
+Next,Next,Dalej
+Log,Log,Dziennik
+OK,OK,OK
+%d of %d,%d of %d,%d z %d
++%d sanctuary breach,+%d sanctuary breach,+%d naruszenie sanktuarium
++%d urban hex,+%d urban hex,+%d pole miejskie
+Strategic threshold reached – the operation ends,Strategic threshold reached – the operation ends,Osiągnięto próg strategiczny – operacja się kończy

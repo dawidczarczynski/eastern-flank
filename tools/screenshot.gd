@@ -356,6 +356,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
 ## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
+## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
+## card, with fire the strike is made, TASK-097b),
 ## escalate:<steps> (raises the escalation level by NATO, TASK-115; the top ends the operation),
 ## ladder (the ladder card), endturn (after the orders: ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
@@ -537,6 +539,20 @@ func _apply_staff_map_state(spec: String) -> void:
 					map.simulation().event_emitted.emit(event)
 			"ladder":
 				map.escalation_hud().toggle_card()
+			"strike":  # strike:<means>[:<target id>[:fire]] – strike mode, TASK-097b
+				map.toggle_strike_mode()
+				var strike := map.strike_hud()
+				strike.pick_means(StringName(parts[1]) if parts.size() > 1 else &"cruise")
+				if parts.size() > 2:
+					strike.click(StringName(parts[2]))
+					if parts.size() > 3 and parts[3] == "fire":
+						strike.confirm()
+						strike.trail().clock = 1.0  # no frames run: arcs done, effects playing
+						strike.layer().layout()
+						strike.tick(0.5)  # the result report card appears after the burst
+						strike.tick(0.2)
+						if parts.size() > 4 and parts[4] == "chip":
+							strike.tick(10.0)  # the collapsed chip instead of the card
 			"decisions":
 				map.toggle_decisions()
 				var sheet := map.decisions_hud().panel()
