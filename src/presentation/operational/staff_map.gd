@@ -30,6 +30,17 @@ extends Node3D
 ## Continue on the main menu hands a replayed operation over the same way as a battle return.
 ## Maths in StaffMapCameraMath, picking in StaffMapRelief.
 
+## Width of the hex strip slot in the bottom bar.
+const CARD_SLOT_WIDTH := 470
+const ACTION_GRID := &"grid"
+const ACTION_NAMES := &"names"
+const ACTION_BORDERS := &"borders"
+const ACTION_POLITICS := &"politics"
+const ACTION_FLAT := &"flat"
+const ACTION_NEXT := &"next"
+const ACTION_CANCEL := &"cancel"
+const ACTION_REPORT := &"report"
+const ACTION_SAVE := &"save"
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
 const CARD_OFFSET := Vector2(18, 18)
@@ -69,9 +80,8 @@ var _palette: StaffMapPalette
 var _view: StaffMapView
 var _camera: Camera3D
 var _card: StaffMapCard
-var _hint: Label
 var _back: Button
-var _save: Button
+var _bar: ActionBar
 var _hud: CanvasLayer
 var _simulation: OperationalSimulation
 var _counter_layer: CanvasLayer
@@ -195,6 +205,7 @@ func _process(delta: float) -> void:
 	_follow_pitch(delta)
 	_pan_by_keys_and_edge(delta)
 	_update_hover()
+	_sync_action_bar()
 	advance_slide(delta)
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
@@ -229,18 +240,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_DELETE, KEY_BACKSPACE, KEY_X:
 				cancel_order()
 			KEY_G:
-				_view.set_grid_visible(not _view.grid_visible())
-				_apply_front_view()
+				toggle_grid()
 			KEY_T:
-				_front.set_tint_visible(not _front.is_tint_visible())
+				toggle_front_tint()
 			KEY_B:
 				if _contacts.is_active():
 					_play_battle()
 				else:
-					_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
+					toggle_borders()
 			KEY_N:
-				_places.set_enabled(not _places.is_enabled())
-				_layout_places()
+				toggle_place_names()
 			KEY_P:
 				_politics.toggle_tint()
 			KEY_F9:
@@ -250,7 +259,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_C:
 				open_country_card(_card_hex_country())
 			KEY_V:
-				_pitch_target = StaffMapCameraMath.toggle_pitch(_pitch_target, _tilt)
+				toggle_flat_view()
 		return
 	var button := event as InputEventMouseButton
 	if button != null:
@@ -266,15 +275,111 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Tab is read here, before the GUI could take it for focus navigation.
+## The bottom menu of the staff map: the same effects as the keys on the buttons' caps.
+func _build_action_bar() -> void:
+	_bar = ActionBar.new()
+	_bar.add_action(ACTION_GRID, "GRID", "G", true, "TIP_GRID_MAP")
+	_bar.add_action(ACTION_NAMES, "NAMES", "N", true, "TIP_NAMES")
+	_bar.add_action(ACTION_BORDERS, "BORDERS", "B", true, "TIP_BORDERS")
+	_bar.add_action(ACTION_POLITICS, "POLITICS", "P", true, "TIP_POLITICS")
+	_bar.add_action(ACTION_FLAT, "FLAT", "V", true, "TIP_FLAT")
+	_bar.add_separator()
+	_bar.add_action(ACTION_NEXT, "NEXT", "TAB", false, "TIP_NEXT")
+	_bar.add_action(ACTION_CANCEL, "CANCEL", "X", false, "TIP_CANCEL")
+	_bar.add_action(ACTION_REPORT, "REPORT", "R", false, "TIP_REPORT")
+	_bar.add_separator()
+	_bar.add_action(ACTION_SAVE, "SAVE", "F5", false, "TIP_SAVE_OPERATION")
+	_bar.action_pressed.connect(_on_action_pressed)
+	_hud.add_child(_bar)
+	# The hovered hex lives in the left zone (a fixed-width slot, so the bar does not jump).
+	var slot := Control.new()
+	slot.custom_minimum_size = Vector2(CARD_SLOT_WIDTH, 50)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud.remove_child(_card)
+	slot.add_child(_card)
+	_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_bar.add_left(slot)
+	if _turn_bar != null:
+		_bar.add_right(_turn_bar.take_end_button())  # End turn: same place as in the battle
+
+
+func action_bar() -> ActionBar:
+	return _bar
+
+
+func _on_action_pressed(id: StringName) -> void:
+	if not is_built:
+		return
+	match id:
+		ACTION_GRID:
+			toggle_grid()
+		ACTION_NAMES:
+			toggle_place_names()
+		ACTION_BORDERS:
+			toggle_borders()
+		ACTION_POLITICS:
+			_politics.toggle_tint()
+		ACTION_FLAT:
+			toggle_flat_view()
+		ACTION_NEXT:
+			select_next_formation()
+		ACTION_CANCEL:
+			cancel_order()
+		ACTION_REPORT:
+			toggle_report()
+		ACTION_SAVE:
+			save_campaign()
+
+
+## Lights the toggle buttons to match the layers (whatever changed them: a key or a button).
+func _sync_action_bar() -> void:
+	if _bar == null or _politics == null or _places == null:
+		return
+	_bar.set_active(ACTION_GRID, _view.grid_visible())
+	_bar.set_active(ACTION_NAMES, _places.is_enabled())
+	_bar.set_active(ACTION_BORDERS, _view.countries().is_visible_layer())
+	_bar.set_active(ACTION_POLITICS, _politics.tint_enabled())
+	_bar.set_active(ACTION_FLAT, _pitch_target <= 0.5)
+	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
+
+
+func toggle_grid() -> void:
+	_view.set_grid_visible(not _view.grid_visible())
+	_apply_front_view()
+
+
+func toggle_front_tint() -> void:
+	_front.set_tint_visible(not _front.is_tint_visible())
+
+
+func toggle_borders() -> void:
+	_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
+
+
+func toggle_place_names() -> void:
+	_places.set_enabled(not _places.is_enabled())
+	_layout_places()
+
+
+func toggle_flat_view() -> void:
+	_pitch_target = StaffMapCameraMath.toggle_pitch(_pitch_target, _tilt)
+
+
+## Selects the next own formation (Tab).
+func select_next_formation() -> void:
+	if _counters == null:
+		return
+	var next := StaffMapFormations.next_in_cycle(_counters.own_ids(), selected_formation())
+	select_formation(next)
+	_reveal(next)
+
+
 func _input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if not is_built or key == null or not key.pressed or key.keycode != KEY_TAB:
 		return
 	get_viewport().set_input_as_handled()
-	if _counters != null:
-		var next := StaffMapFormations.next_in_cycle(_counters.own_ids(), selected_formation())
-		select_formation(next)
-		_reveal(next)
+	select_next_formation()
 
 
 ## Sets every text in the current language.
@@ -282,10 +387,8 @@ func refresh_texts() -> void:
 	if _back == null:
 		return  # not built yet; _ready calls it again
 	_back.text = "‹ " + tr("Back").to_upper()
-	_save.text = tr("CAMPAIGN_SAVE").to_upper() + "  F5"
-	_save.reset_size()
-	_save.position = Vector2(_back.position.x + _back.get_combined_minimum_size().x + 8, 16)
-	_hint.text = tr("STAFF_MAP_HINT")
+	if _bar != null:
+		_bar.refresh_texts()
 	_view.countries().refresh_names()
 	_refresh_turn_bar()
 	if _panel != null and _panel.visible:
@@ -598,7 +701,6 @@ func debug_hover(c: Vector2i) -> void:
 		return
 	_view.highlight(c)
 	_card.show_info(_card_info(c))
-	_place_card(_screen_of_hex(c))
 
 
 ## The map point (hex units, x / z) under a screen point.
@@ -1309,7 +1411,9 @@ func _build_hud() -> void:
 	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()
 	_hud.add_child(_toast)
-	_border_prompt = StaffMapBorderPrompt.new(_palette)
+	_border_prompt = StaffMapBorderPrompt.new(
+		_palette, float(ActionBar.HEIGHT + ActionBar.NOTICE_GAP)
+	)
 	_hud.add_child(_border_prompt)
 	_join_notice = StaffMapJoinNotice.new()
 	_join_notice.show_pressed.connect(_on_join_show)
@@ -1332,19 +1436,7 @@ func _build_hud() -> void:
 	_back.pressed.connect(_return_to_menu)
 	_back.focus_mode = Control.FOCUS_NONE
 	_hud.add_child(_back)
-	_save = MenuStyle.button("")
-	_save.position = Vector2(16, 16)
-	_save.pressed.connect(save_campaign)
-	_save.focus_mode = Control.FOCUS_NONE
-	_hud.add_child(_save)
-	_hint = MenuStyle.label("", HudTheme.mono(500, 1), 11, UiPalette.HUD_DESC)
-	var plate := MenuStyle.box(UiPalette.PANEL, UiPalette.LINE)
-	plate.set_content_margin_all(7)
-	_hint.add_theme_stylebox_override(&"normal", plate)
-	_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	_hint.position = Vector2(16, -40)
-	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hud.add_child(_hint)
+	_build_action_bar()
 	_politics = StaffMapPoliticsHud.new(
 		_view,
 		_imported,
@@ -1674,9 +1766,7 @@ func _update_hover() -> void:
 	if c != _view.hovered() or not _card.visible:
 		_view.highlight(c)
 		_card.show_info(_card_info(c))
-	if mouse != _last_mouse:
-		_place_card(mouse)
-		_last_mouse = mouse
+	_last_mouse = mouse
 
 
 ## While the order ring is open the route preview shows its hex in the hovered posture.

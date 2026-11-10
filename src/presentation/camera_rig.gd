@@ -78,6 +78,11 @@ func set_pitch_offset(offset: float) -> void:
 	_apply()
 
 
+## Eases the tilt offset back to 0 (the Home key, or the action bar's RESET VIEW).
+func reset_tilt() -> void:
+	_resetting_tilt = true
+
+
 ## True while a pressed mouse button is being dragged (pan / rotate), not for plain clicks.
 func is_dragging() -> bool:
 	return _dragging

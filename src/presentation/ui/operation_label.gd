@@ -1,6 +1,6 @@
 class_name OperationLabel
 extends VBoxContainer
-## "■ OP. <NAME>" above the terrain card (TASK-079): amber mono text over a thin 150×3 hatch.
+## "■ OP. <NAME>" in the bottom bar (TASK-079, TASK-139): amber mono text over a thin 110×3 hatch.
 ## Hidden while the operation name is empty. Ignores the mouse.
 
 var _label: Label
@@ -17,7 +17,7 @@ func _init() -> void:
 	_label.add_theme_font_size_override(&"font_size", 11)
 	_label.add_theme_color_override(&"font_color", UiPalette.AMBER)
 	add_child(_label)
-	var hatch := HatchBar.new(UiPalette.AMBER, Vector2(150, 3))
+	var hatch := HatchBar.new(UiPalette.AMBER, Vector2(110, 3))
 	hatch.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	add_child(hatch)
 	hide()

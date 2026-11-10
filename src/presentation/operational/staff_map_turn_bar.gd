@@ -32,6 +32,7 @@ var _mover: Label
 var _follow: Button
 var _chip: StaffMapEscalationChip
 var _end_button: EndTurnButton
+var _end_divider: ColorRect
 var _day := true
 var _busy := false  # the counters are sliding: End turn is off
 
@@ -79,7 +80,8 @@ func _init() -> void:
 	_sides.append(_build_side(row, false))
 	row.add_child(_build_centre())
 	_sides.append(_build_side(row, true))
-	row.add_child(_divider())
+	_end_divider = _divider()
+	row.add_child(_end_divider)
 	_end_button = EndTurnButton.new()
 	_end_button.name = "EndTurnButton"
 	_end_button.min_height = END_BUTTON_HEIGHT
@@ -150,6 +152,16 @@ func set_busy(busy: bool) -> void:
 
 func escalation_chip() -> StaffMapEscalationChip:
 	return _chip
+
+
+## Hands the End turn button to the bottom bar (TASK-139: same place as in the battle). The bar
+## keeps updating it (caption, side colour, ORDERS detail, disabled), so it stays this object.
+func take_end_button() -> EndTurnButton:
+	_end_button.get_parent().remove_child(_end_button)
+	_end_divider.get_parent().remove_child(_end_divider)
+	_end_divider.queue_free()
+	_end_button.min_height = EndTurnButton.MIN_HEIGHT
+	return _end_button
 
 
 func end_button() -> EndTurnButton:

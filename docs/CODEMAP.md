@@ -227,7 +227,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapBorderPrompt` – One-key confirmation before an order that causes border incidents (TASK-116, design (`staff_map_border_prompt.gd`)
 - `StaffMapBorders` – Pure texts and markers of the border rules on the staff map (TASK-116): why a hex is clos… (`staff_map_borders.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
-- `StaffMapCard` – Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordina… (`staff_map_card.gd`)
+- `StaffMapCard` – Hex strip of the staff map (TASK-093a, TASK-139): the hovered hex in the left zone of the (`staff_map_card.gd`)
 - `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)
 - `StaffMapContactNotice` – Contact notice of the staff map (TASK-094a, look: docs/design/operational_map "Panels" → (`staff_map_contact_notice.gd`)
 - `StaffMapContactPanel` – Debug "Contact map" panel of the staff map (TASK-094b, F9, only with --debug), HUD v3 fra… (`staff_map_contact_panel.gd`)
@@ -278,6 +278,10 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/presentation/ui/
 
+- `ActionBar` – Bottom command bar (docs/design/hud_v3/README.md "07 Bottom command bar"): full width, do… (`action_bar.gd`)
+- `ActionBarButton` – One button of the ActionBar: a square line icon (ActionIcons) on a flat dark box with an… (`action_bar_button.gd`)
+- `ActionIcons` – Pure geometry of the action bar icons (TASK-139): line drawings on a 24 x 24 grid, each a… (`action_icons.gd`)
+- `ActionTooltip` – HUD tooltip of an action bar button (TASK-139): a title in Chakra with the key on a KeyCap (`action_tooltip.gd`)
 - `BattleBriefing` – Commander's briefing at the start of a campaign battle (TASK-094c, GDD "Player roles"): t… (`battle_briefing.gd`)
 - `BattleHud` – Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick (`battle_hud.gd`)
 - `Bracketed` – Tag in amber brackets, "[ TEXT ]": mono 10.5 (rendered at 11) as used for unit and terrai… (`bracketed.gd`)
@@ -293,7 +297,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `LoadingScreen` – Full-screen loading notice (HUD v3 "06 Notices"): `OPERACJA` amber, the operation name at (`loading_screen.gd`)
 - `main_menu` – Main menu (TASK-084, TASK-124): Continue (the latest campaign save, TASK-094d), Start (`main_menu.gd`)
 - `MenuStyle` – HUD v3 look of the main menu and the unit catalog widgets (buttons, panels, labels), buil… (`menu_style.gd`)
-- `OperationLabel` – "■ OP. <NAME>" above the terrain card (TASK-079): amber mono text over a thin 150×3 hatch. (`operation_label.gd`)
+- `OperationLabel` – "■ OP. <NAME>" in the bottom bar (TASK-079, TASK-139): amber mono text over a thin 110×3… (`operation_label.gd`)
 - `RadialRing` – HUD v3 radial ring (docs/design/hud_v3/README.md "04 Radial orders menu"): six trapezoid (`radial_ring.gd`)
 - `ReadyBlocks` – The ready-unit counter of the end-turn module: one 14 x 8 block per living unit, filled in (`ready_blocks.gd`)
 - `RingDetailCard` – The 272 px detail card beside the radial ring (docs/design/hud_v3/README.md §04): tab (ac… (`ring_detail_card.gd`)
@@ -302,7 +306,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SideFlag` – Flat flag of a side (TASK-127) with a 1 px frame in the side colour; drawn from (`side_flag.gd`)
 - `TargetTag` – Compact attack forecast beside the cursor (TASK-089b) while the hovered enemy is a valid… (`target_tag.gd`)
 - `TargetingBar` – Targeting mode bar (HUD v3 "06 Notices"): 16 px amber hatch | amber block with the mode t… (`targeting_bar.gd`)
-- `TerrainPanel` – HUD v3 terrain card (TASK-079, docs/design/hud_v3/README.md "03 Terrain card"), built in… (`terrain_panel.gd`)
+- `TerrainPanel` – Terrain strip in the left zone of the bottom bar (TASK-079, TASK-139, docs/design/hud_v3/ (`terrain_panel.gd`)
 - `TickRuler` – The 300 x 10 tick ruler under the turn bar (61 ticks, 5 px apart, heights 8 / 5 / 3). (`tick_ruler.gd`)
 - `Toast` – Transient message (HUD v3 "06 Notices"): chamfer 8 top-left / bottom-right, `>>` in the a… (`toast.gd`)
 - `TurnBanner` – Turn / result banner (HUD v3 "06 Notices"): a full-width horizontal fade band (`turn_banner.gd`)

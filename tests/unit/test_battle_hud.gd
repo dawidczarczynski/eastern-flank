@@ -96,24 +96,35 @@ func test_only_the_end_button_takes_the_mouse() -> void:
 	_hud.refresh(_state)
 	var offenders: Array[String] = []
 	_collect_mouse_takers(_hud, offenders)
+	for name in ["ActionBar", "grid", "reset_view", "deselect", "save"]:
+		assert_true(offenders.has(name), name)
+	offenders.erase("ActionBar")
+	for name in ["grid", "reset_view", "deselect", "save"]:
+		offenders.erase(name)
 	assert_eq(offenders, ["EndTurnButton"])
 
 
-func test_key_hints_use_real_keys_and_no_raw_keys_in_polish() -> void:
+func test_no_key_hint_panel() -> void:
+	var hud := BattleHud.new()
+	hud.setup(0)
+	assert_true(hud.find_child("KeyHints", true, false) == null)
+	assert_true(hud.find_child("ReadyCounter", true, false) != null)
+	hud.free()
+
+
+func test_action_bar_buttons_are_labelled_and_translated() -> void:
 	var previous := TranslationServer.get_locale()
 	TranslationServer.set_locale("pl")
 	var hud := BattleHud.new()
 	hud.setup(0)
-	var panel := hud.find_child("KeyHints", true, false) as Control
-	assert_true(panel != null)
-	var caps := 0
-	for pair in panel.get_child(0).get_children():
-		caps += 1
-		var label := pair.get_child(1) as Label
-		assert_false(label.text.contains("SELECT") or label.text.contains("END TURN"), label.text)
-	assert_eq(caps, BattleHud.KEY_HINTS.size())
-	var counter := hud.find_child("ReadyCounter", true, false)
-	assert_true(counter != null)
+	var bar := hud.action_bar()
+	assert_eq(bar.ids().size(), 4)
+	assert_eq(bar.button(BattleHud.ACTION_GRID).key_text(), "G")
+	assert_false(bar.button(BattleHud.ACTION_SAVE).label_text().contains("SAVE"))
+	var pressed: Array[StringName] = []
+	hud.action_pressed.connect(func(id: StringName) -> void: pressed.append(id))
+	bar.button(BattleHud.ACTION_DESELECT).pressed.emit()
+	assert_eq(pressed, [BattleHud.ACTION_DESELECT])
 	hud.free()
 	TranslationServer.set_locale(previous)
 
@@ -169,3 +180,34 @@ func test_units_without_points_left_count_as_done() -> void:
 	assert_false(UnitStatus.is_done(_state, first))
 	assert_true(UnitStatus.is_done(_state, second))
 	assert_false(UnitStatus.is_done(_state, _state.units_of(1)[0]))
+
+
+func test_action_icons_exist_for_every_button_and_fit_the_grid() -> void:
+	for id in ActionIcons.IDS:
+		var lines := ActionIcons.polylines(id)
+		assert_true(not lines.is_empty() or ActionIcons.text(id, false) != "", String(id))
+		for line in lines:
+			for p in line:
+				assert_true(
+					(
+						p.x >= 0.0
+						and p.y >= 0.0
+						and p.x <= ActionIcons.GRID
+						and p.y <= ActionIcons.GRID
+					),
+					"%s point %s" % [id, p]
+				)
+	assert_true(ActionIcons.polylines(&"nope").is_empty())
+
+
+func test_action_button_has_tooltip_parts() -> void:
+	var hud := BattleHud.new()
+	hud.setup(0)
+	var b := hud.action_bar().button(BattleHud.ACTION_GRID)
+	assert_eq(b.key_text(), "G")
+	assert_true(b.tip_text() != "" and b.tip_text() != "TIP_GRID_BATTLE")
+	assert_eq(b.tooltip_text, b.label_text())
+	var tip := b._make_custom_tooltip("") as Control
+	assert_true(tip != null)
+	tip.free()
+	hud.free()

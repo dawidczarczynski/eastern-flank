@@ -1,16 +1,23 @@
 class_name BattleHud
 extends Control
 ## Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick
-## ruler, the end-turn module (ready counter + button), the key hints and the turn/result
+## ruler, the end-turn module (ready counter + button), the bottom action bar and the turn/result
 ## banner. Reads state only through HudModel; everything ignores the mouse except the end-turn
 ## button. A campaign battle (TASK-094c) adds a one-line mission reminder under the turn bar and
 ## turns the end screen into the commander's report with a Report to staff button.
 
 signal end_turn_pressed
 signal report_pressed
+## A button of the bottom action bar (ids: ACTION_*).
+signal action_pressed(id: StringName)
+
+const ACTION_GRID := &"grid"
+const ACTION_RESET_VIEW := &"reset_view"
+const ACTION_DESELECT := &"deselect"
+const ACTION_SAVE := &"save"
 
 const SHADE_HEIGHT := 120
-const TOAST_BOTTOM := 130
+const TOAST_BOTTOM := ActionBar.HEIGHT + ActionBar.NOTICE_GAP
 const TARGETING_TOP := 118
 const SIDE_WIDTH := 236
 ## Side flag + faction flag per player (TASK-130); the second is hidden when it repeats the first.
@@ -20,30 +27,13 @@ const FLAGS_WIDTH := 2 * 32 + FLAGS_GAP
 const ACTIVE_ALPHA := 1.0
 const INACTIVE_ALPHA := 0.6
 const FADE_SECONDS := 0.3
-## Key hints (keycap, label), both translation keys (unknown keys show as written). Only keys
-## the game really has; the order keys 1-6 follow with the radial menu (TASK-082).
-const KEY_HINTS: Array[Array] = [
-	["LMB", "SELECT / MOVE / ATTACK"],
-	["RMB", "ROTATE / DESELECT"],
-	["RMB ON UNIT", "UNIT MENU"],
-	["LMB DRAG", "PAN"],
-	["WASD/QE", "CAMERA"],
-	["WHEEL", "ZOOM"],
-	["CTRL+WHEEL/RF", "TILT"],
-	["HOME", "RESET VIEW"],
-	["G", "GRID"],
-	["F5", "SAVE MATCH"],
-	["↵", "END TURN"],
-]
-const HINT_WIDTH := 400
-const END_MODULE_MARGIN := 24
-const HINT_BOTTOM := 92
 const TURN_SIZE := 32
 const TURN_LIMIT_SIZE := 16
 ## The Report to staff button sits this far below the screen centre (under the result banner).
 const REPORT_BUTTON_OFFSET := 120
 
 var _human_player := 0
+var _action_bar: ActionBar
 var _sides: Array[Dictionary] = []  # per player: {block, flags, name, meta, bar, tween}
 var _turn_label: Label
 var _turn_limit_label: Label  # "/08" after the turn number; hidden without a turn limit
@@ -77,7 +67,7 @@ func setup(human_player: int) -> void:
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_build_shade()
 	_build_top_bar()
-	_build_key_hints()
+	_build_action_bar()
 	_build_end_block()
 	_build_notices()
 
@@ -455,31 +445,18 @@ func _divider() -> ColorRect:
 	return line
 
 
-func _build_key_hints() -> void:
-	var panel := FramedPanel.new()
-	panel.name = "KeyHints"
-	panel.chamfers = Vector4(8, 0, 0, 0)
-	panel.fill = UiPalette.PANEL_HINT
-	panel.padding = Vector2(10, 6)
-	_anchor_bottom_right(panel, END_MODULE_MARGIN, HINT_BOTTOM)
-	add_child(panel)
-	var flow := HFlowContainer.new()
-	flow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	flow.alignment = FlowContainer.ALIGNMENT_END
-	flow.add_theme_constant_override(&"h_separation", 12)
-	flow.add_theme_constant_override(&"v_separation", 5)
-	flow.custom_minimum_size.x = HINT_WIDTH
-	panel.add_child(flow)
-	for hint in KEY_HINTS:
-		var pair := HBoxContainer.new()
-		pair.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pair.add_theme_constant_override(&"separation", 5)
-		pair.add_child(KeyCap.new(tr(hint[0] as String).to_upper()))
-		var label := _label_font(HudTheme.mono(500, 0), 10, UiPalette.HUD_TEXT)
-		label.text = tr(hint[1] as String).to_upper()
-		label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		pair.add_child(label)
-		flow.add_child(pair)
+func _build_action_bar() -> void:
+	_action_bar = ActionBar.new()
+	_action_bar.add_action(ACTION_GRID, "GRID", "G", true, "TIP_GRID_BATTLE")
+	_action_bar.add_action(ACTION_RESET_VIEW, "RESET VIEW", "HOME", false, "TIP_RESET_VIEW")
+	_action_bar.add_action(ACTION_DESELECT, "DESELECT", "ESC", false, "TIP_DESELECT")
+	_action_bar.add_action(ACTION_SAVE, "SAVE MATCH", "F5", false, "TIP_SAVE_MATCH")
+	_action_bar.action_pressed.connect(func(id: StringName) -> void: action_pressed.emit(id))
+	add_child(_action_bar)
+
+
+func action_bar() -> ActionBar:
+	return _action_bar
 
 
 func _build_end_block() -> void:
@@ -487,8 +464,7 @@ func _build_end_block() -> void:
 	row.name = "EndTurnBlock"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 6)
-	_anchor_bottom_right(row, END_MODULE_MARGIN, END_MODULE_MARGIN)
-	add_child(row)
+	_action_bar.add_right(row)  # the right zone of the bottom bar
 
 	var counter := FramedPanel.new()
 	counter.name = "ReadyCounter"
@@ -585,15 +561,3 @@ func _label_font(font: Font, size: int, color: Color) -> Label:
 	label.add_theme_font_size_override(&"font_size", size)
 	label.add_theme_color_override(&"font_color", color)
 	return label
-
-
-## Anchors a control's bottom-right corner `right` / `bottom` px from the viewport corner.
-func _anchor_bottom_right(control: Control, right: int, bottom: int) -> void:
-	control.anchor_left = 1.0
-	control.anchor_right = 1.0
-	control.anchor_top = 1.0
-	control.anchor_bottom = 1.0
-	control.offset_right = -right
-	control.offset_bottom = -bottom
-	control.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	control.grow_vertical = Control.GROW_DIRECTION_BEGIN

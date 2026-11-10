@@ -1,11 +1,17 @@
 class_name StaffMapCard
-extends FramedPanel
-## Hover card of the staff map (TASK-093a), HUD v3 style like the terrain card: hex coordinate in
-## the tab, terrain name, elevation and road / river flags. Ignores the mouse.
+extends HBoxContainer
+## Hex strip of the staff map (TASK-093a, TASK-139): the hovered hex in the left zone of the
+## bottom bar (docs/design/hud_v3/README.md "07 Bottom command bar"): tab with the hex
+## coordinate, terrain name, then elevation, road, river, country and stance columns.
+## Ignores the mouse.
 
-const WIDTH := 220
-const ROW_SIZE := 12
-## Hex card Stance line: the country's relation to the viewer (CountryRules.relation).
+const COLUMN_SIZE := 10
+## Fixed column widths (title, then elevation, road, river, country, stance): the strip never
+## changes width with the hovered hex. They add up to the slot in the bottom bar (470 px).
+const TITLE_WIDTH := 90
+const COLUMN_WIDTHS: Array[int] = [62, 44, 44, 76, 84]
+const SEPARATION := 14
+## Relation of the hex's country to the viewer (CountryRules.relation).
 const RELATION_TEXT := {
 	&"own": "Ally",
 	&"enemy": "Enemy",
@@ -13,6 +19,7 @@ const RELATION_TEXT := {
 	&"neutral": "Neutral",
 }
 
+var _tab: Label
 var _name_label: Label
 var _values: Array[Label] = []
 
@@ -33,29 +40,41 @@ static func info(grid: HexGrid, c: Vector2i, country := "") -> Dictionary:
 
 
 func _init() -> void:
-	super()
 	name = "StaffMapCard"
-	custom_minimum_size = Vector2(WIDTH, 0)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	chamfers = Vector4(0, 12, 0, 12)
-	padding = Vector2(12, 10)
-	tab_text = " "
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override(&"separation", 5)
-	add_child(column)
-	_name_label = _label(HudTheme.display(700, 1), 20, UiPalette.HUD_TEXT)
-	column.add_child(_name_label)
-	for caption in ["ELEVATION", "Road", "River", "Country", "Stance"]:
-		column.add_child(_row(caption))
+	add_theme_constant_override(&"separation", SEPARATION)
+	alignment = BoxContainer.ALIGNMENT_BEGIN
+	var title := VBoxContainer.new()
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	title.add_theme_constant_override(&"separation", 1)
+	title.custom_minimum_size.x = TITLE_WIDTH
+	_tab = _label(HudTheme.mono(600, 1), COLUMN_SIZE, UiPalette.INK)
+	var tab_box := PanelContainer.new()
+	tab_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tab_style := StyleBoxFlat.new()
+	tab_style.bg_color = UiPalette.AMBER
+	tab_style.content_margin_left = 8
+	tab_style.content_margin_right = 14
+	tab_style.content_margin_top = 2
+	tab_style.content_margin_bottom = 2
+	tab_box.add_theme_stylebox_override(&"panel", tab_style)
+	tab_box.add_child(_tab)
+	tab_box.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	title.add_child(tab_box)
+	_name_label = _label(HudTheme.display(700, 1), 17, UiPalette.HUD_TEXT)
+	_name_label.clip_text = true
+	title.add_child(_name_label)
+	add_child(title)
+	var captions: Array[String] = ["ELEVATION", "Road", "River", "Country", "Stance"]
+	for i in captions.size():
+		add_child(_column(captions[i], COLUMN_WIDTHS[i]))
 	hide()
-	reset_size()
 
 
-## Fills the card from `info()` and shows it.
+## Fills the strip from `info()` and shows it.
 func show_info(data: Dictionary) -> void:
-	tab_text = tr("TERRAIN").to_upper()
-	tab_right_text = tr("HEX %s") % data["hex"]
+	_tab.text = (tr("HEX %s") % data["hex"]).to_upper()
 	_name_label.text = tr(data["name"] as String).to_upper()
 	_values[0].text = data["elevation"]
 	_values[1].text = _yes_no(data["road"])
@@ -70,7 +89,6 @@ func show_info(data: Dictionary) -> void:
 		else "–"
 	)
 	show()
-	reset_size()
 
 
 func name_text() -> String:
@@ -85,18 +103,19 @@ func _yes_no(value: bool) -> String:
 	return tr("Yes").to_upper() if value else tr("No").to_upper()
 
 
-func _row(caption: String) -> Control:
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var cap := _label(HudTheme.display(400), ROW_SIZE, UiPalette.HUD_MUTED)
+func _column(caption: String, width: int) -> Control:
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_theme_constant_override(&"separation", 2)
+	column.custom_minimum_size.x = width
+	var cap := _label(HudTheme.mono(500, 1), COLUMN_SIZE, UiPalette.HUD_MUTED)
 	cap.text = tr(caption).to_upper()
-	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var value := _label(HudTheme.mono(600), ROW_SIZE, UiPalette.HUD_TEXT)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var value := _label(HudTheme.mono(600), 12, UiPalette.HUD_TEXT)
+	value.clip_text = true
 	_values.append(value)
-	row.add_child(cap)
-	row.add_child(value)
-	return row
+	column.add_child(cap)
+	column.add_child(value)
+	return column
 
 
 func _label(font: Font, size: int, color: Color) -> Label:

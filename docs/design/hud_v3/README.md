@@ -83,6 +83,13 @@ Screen-space overlay centered on the unit's projected position, follows camera e
 - Button: min-height 52, fill = active faction color, chamfer 14 bottom-right, Chakra 15px 700 ls .14em uppercase `Zakończ turę`, left 10×26 dark hatch, `↵` hint. Hover brightness 1.12, active .9.
 - Key hints above (bottom:92): panel rgba(8,11,8,.82) + 1px line border, chamfer 8 tl; keycaps = 1px line border, amber mono 10px.
 
+### 07 Bottom command bar (accepted 2026-11-10, TASK-139; `bottom_bar.html`, variant A)
+Replaces the bottom-left stack, the bottom-right end-turn block and the floating action bar. Full width, docked, 76 px high, fill rgba(8,11,8,.93), 1 px `--line` top edge with a 4 px thin hatch above it; zones divided by 1 px `--line` (padding 0 14).
+- Left: operation label (110×3 hatch) | terrain strip: tab `HEX 07·04`, title 17 px, city, key/value columns MOVE COST / DEF. MOD / ELEVATION (mono 10), `ROUTE 3/5` chip in the faction colour; empty state `HOVER A HEX`. Staff map: the hex card in the same strip (elevation, road, river, country, stance).
+- Centre: icon buttons (38×38, 22 px line icon 1.5 px, 1 px `--line`); hover shows a tooltip (title Chakra 13 + key cap, description Chakra 12 `--desc`, 240 px, chamfer 8 tl/br). Superseded the labelled key-cap buttons of the original proposal (2026-11-10); hover amber .12 fill, on = amber .2 fill + amber label, disabled muted. Battle: GRID G · RESET Home · DESELECT Esc · SAVE F5. Staff map: GRID G · NAMES N · BORDERS B · POLITICS P · FLAT V · NEXT Tab · CANCEL X · REPORT R · SAVE F5. No separate key-hint rows.
+- Right (battle): ready counter + End turn exactly as §05. The staff map keeps End turn in its top turn bar.
+- Toasts and prompts float 18 px above the bar.
+
 ### 06 Notices
 - Targeting bar (top:118 center): 16px amber hatch | amber block `OSTRZAŁ NA OŚLEP` | unit · instruction · keycaps. Border 1px rgba(232,176,74,.6).
 - Toast (bottom:130 center, auto-hide 2.8s): chamfer 8 tl/br, `>>` in faction color + mono 11.5px message.

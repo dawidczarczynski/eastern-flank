@@ -68,6 +68,10 @@ func refresh(viewer: int) -> void:
 		_panel.show_state(state)
 
 
+func tint_enabled() -> bool:
+	return _politics != null and _politics.enabled()
+
+
 func toggle_tint() -> void:
 	if _politics != null:
 		_politics.set_enabled(not _politics.enabled())

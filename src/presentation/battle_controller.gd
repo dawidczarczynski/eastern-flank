@@ -5,7 +5,6 @@ extends Node3D
 
 const MAP_SEED := 12345
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
-const BOTTOM_LEFT_MARGIN := 24
 ## Time the vehicle takes to turn towards its target before a volley (seconds at speed 1): a
 ## fixed launcher always turns; a turntable launcher with a limited traverse (Uragan) turns first
 ## when the target is outside its range (by zero when it isn't, same duration).
@@ -252,7 +251,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		and not (key.ctrl_pressed or key.alt_pressed or key.meta_pressed)
 		and not (is_inside_tree() and get_viewport().gui_get_focus_owner() is LineEdit)
 	):  # view setting, like camera keys
-		_map_view.cycle_grid_mode()
+		_toggle_grid()
 		return
 	if _campaign_key(key.keycode) or _leave_setup_battle(key):
 		return
@@ -506,7 +505,7 @@ func _set_hovered_hex(coord: Variant) -> void:
 func _refresh_path_preview() -> void:
 	var cost := _draw_path_preview()
 	if _hovered_hex == null:
-		_terrain_panel.hide()
+		_terrain_panel.clear()
 		return
 	var unit := _sim.state.get_unit(_selected_unit_id)
 	var moves_left := unit.moves_left if unit != null else 0
@@ -671,6 +670,10 @@ func _build_hud_root() -> void:
 	_hud_root.add_child(_hud)
 	_hud.setup(human_player)
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
+	_hud.action_pressed.connect(_on_action_pressed)
+	_hud.action_bar().set_active(BattleHud.ACTION_GRID, true)  # the grid starts on (auto)
+	for id in _hud.action_bar().ids():
+		_audio.hook_button(_hud.action_bar().button(id))
 	_audio.hook_button(_hud.end_button())
 	if campaign:
 		_hud.set_campaign(BattleBriefing.reminder(setup, human_player))
@@ -682,24 +685,15 @@ func _build_hud_root() -> void:
 	_hud_root.add_child(_briefing)
 
 
-## Bottom-left stack (VBox, bottom-anchored) holding the terrain panel, plus the unit hover
-## card (positioned next to the cursor, drawn above everything else in the HUD).
+## The left zone of the bottom bar: the operation label and the terrain strip (the unit hover
+## card is positioned next to the cursor, drawn above everything else in the HUD).
 func _build_bottom_left_stack() -> void:
-	var stack := VBoxContainer.new()
-	stack.name = "BottomLeftStack"
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stack.alignment = BoxContainer.ALIGNMENT_END
-	stack.set_anchors_and_offsets_preset(
-		Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, BOTTOM_LEFT_MARGIN
-	)
-	stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_hud_root.add_child(stack)
-	stack.add_theme_constant_override(&"separation", 10)
 	var operation := OperationLabel.new()
 	operation.set_operation(_sim.state.operation_name)
-	stack.add_child(operation)
+	_hud.action_bar().add_left(operation)
+	_hud.action_bar().add_left_divider()
 	_terrain_panel = TerrainPanel.new()
-	stack.add_child(_terrain_panel)
+	_hud.action_bar().add_left(_terrain_panel)
 	_portraits = PortraitRenderer.new()
 	add_child(_portraits)
 	_portraits.setup(quality)
@@ -1128,6 +1122,26 @@ func _on_command_rejected(command: Command, reason: String) -> void:
 func _refresh_hud() -> void:
 	_hud.refresh(_sim.state)
 	_hud.set_end_enabled(_input_allowed())
+
+
+func _toggle_grid() -> void:
+	var on := _map_view.cycle_grid_mode()
+	if _hud != null:
+		_hud.action_bar().set_active(BattleHud.ACTION_GRID, on)
+
+
+## The bottom action bar: the same effects as the keys G, Home, Esc and F5.
+func _on_action_pressed(id: StringName) -> void:
+	match id:
+		BattleHud.ACTION_GRID:
+			_toggle_grid()
+		BattleHud.ACTION_RESET_VIEW:
+			_camera_rig.reset_tilt()
+		BattleHud.ACTION_DESELECT:
+			if _input_allowed():
+				_select(-1)
+		BattleHud.ACTION_SAVE:
+			_save_match()
 
 
 func _on_end_turn_pressed() -> void:

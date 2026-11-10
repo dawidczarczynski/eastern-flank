@@ -145,7 +145,7 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Click: march / select   RMB: orders   Del: cancel   Tab: next   WASD: pan   Wheel: zoom   Q E: tilt   V: flat   G: grid   B: borders   N: names   P: politics   C: country   Esc: back,Klik: marsz / wybór   PPM: rozkazy   Del: anuluj   Tab: następna   WASD: przesuw   Kółko: zoom   Q E: nachylenie   V: płasko   G: siatka   B: granice   N: nazwy   P: polityka   C: państwo   Esc: wstecz
+STAFF_MAP_HINT,Click: march / select   RMB: orders   WASD: pan   Wheel: zoom   Q E: tilt   C: country   Esc: back,Klik: marsz / wybór   PPM: rozkazy   WASD: przesuw   Kółko: zoom   Q E: nachylenie   C: państwo   Esc: wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
@@ -370,6 +370,13 @@ Defeat: %s,Defeat: %s,Porażka: %s
 ESC_END_MENU,Back to menu,Wróć do menu
 END_TURN_BLOCKED_OPERATION_OVER,The operation is over.,Operacja zakończona.
 ORDER_REJECTED_OPERATION_OVER,The operation is over.,Operacja zakończona.
+NAMES,Names,Nazwy
+BORDERS,Borders,Granice
+POLITICS,Politics,Polityka
+FLAT,Flat,Płasko
+NEXT,Next,Następna
+SAVE,Save,Zapisz
+DESELECT,Deselect,Odznacz
 ROUTE_CLOSED,CLOSED COUNTRY,KRAJ ZAMKNIĘTY
 CLOSED,CLOSED,ZAMKNIĘTE
 Sanctuary – opens at escalation 2 (Open war),Sanctuary – opens at escalation 2 (Open war),Sanktuarium – otwiera się na eskalacji 2 (Otwarta wojna)
@@ -388,3 +395,19 @@ REPORT_INTERRUPTED_CLOSED_COUNTRY,Order dropped: country closed,Rozkaz anulowany
 Halted – cannot attack into %s,Halted – cannot attack into %s,Zatrzymany – nie wolno atakować: %s
 BORDER_CONFIRM,Enter: confirm   Esc: cancel,Enter: potwierdź   Esc: anuluj
 ORDER_REJECTED_CLOSED_COUNTRY,That country is closed to your forces.,Ten kraj jest zamknięty dla twoich wojsk.
+HOVER A HEX,Hover a hex,Najedź na hex
+DEF. MOD,Def. mod,Mod. obr.
+RESET,Reset,Reset
+TIP_GRID_BATTLE,Shows or hides the hex grid over the battlefield.,Pokazuje lub ukrywa siatkę hexów na polu bitwy.
+TIP_GRID_MAP,Shows or hides a thin helper hex grid over the map.,Pokazuje lub ukrywa cienką pomocniczą siatkę hexów na mapie.
+TIP_RESET_VIEW,Eases the camera tilt back to the default.,Płynnie przywraca domyślne nachylenie kamery.
+TIP_DESELECT,Deselects the unit and closes the unit ring.,Odznacza jednostkę i zamyka menu jednostki.
+TIP_SAVE_MATCH,Saves a record of the match so far (for bug reports).,Zapisuje zapis dotychczasowego meczu (do zgłaszania błędów).
+TIP_SAVE_OPERATION,Saves the operation; Continue in the main menu loads it.,Zapisuje operację; „Kontynuuj” w menu głównym ją wczytuje.
+TIP_NAMES,Shows or hides place names.,Pokazuje lub ukrywa nazwy miejscowości.
+TIP_BORDERS,Shows or hides country borders and names.,Pokazuje lub ukrywa granice i nazwy państw.
+TIP_POLITICS,Tints countries by their stance towards you.,Barwi państwa według ich stosunku do ciebie.
+TIP_FLAT,Switches between the tilted 3D view and the flat 2D view from above (lit = flat).,Przełącza między pochylonym widokiem 3D a płaskim widokiem 2D z góry (podświetlone = płaski).
+TIP_NEXT,Selects your next formation and centres the map on it.,Zaznacza twoją następną formację i centruje na niej mapę.
+TIP_CANCEL,Cancels the order of the selected formation.,Anuluje rozkaz zaznaczonej formacji.
+TIP_REPORT,Opens or closes the report of the last turn.,Otwiera lub zamyka raport z ostatniej tury.

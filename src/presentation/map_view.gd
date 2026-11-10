@@ -856,10 +856,11 @@ func set_camera_distance(distance: float) -> void:
 	_update_grid()
 
 
-## Grid mode auto (fades with zoom) <-> off. A view setting only.
-func cycle_grid_mode() -> void:
+## Grid mode auto (fades with zoom) <-> off. A view setting only. Returns whether the grid is on.
+func cycle_grid_mode() -> bool:
 	_grid_auto = not _grid_auto
 	_update_grid()
+	return _grid_auto
 
 
 func _update_grid() -> void:
