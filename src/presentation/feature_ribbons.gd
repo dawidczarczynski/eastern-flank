@@ -11,12 +11,14 @@ extends RefCounted
 ## worst dip), the largest of all triangles sharing that corner (the mesh is indexed, so shared
 ## corners stay together).
 
+const ROAD_SHADER := preload("res://assets/shaders/road.gdshader")
+
 
 ## The ribbon of `kind` as one flat mesh; `drape` is Callable(points: PackedVector2Array,
 ## lift: float) -> PackedVector3Array (MapView._drape, the terrain mesh height). Null when the
 ## grid has no links of `kind` (generated maps).
 static func build(
-	grid: HexGrid, kind: FeatureRibbonPlanner.Kind, drape: Callable
+	grid: HexGrid, kind: FeatureRibbonPlanner.Kind, drape: Callable, ground: ShaderMaterial = null
 ) -> MeshInstance3D:
 	var indexed := FeatureRibbonPlanner.mesh(grid, kind)
 	var points: PackedVector2Array = indexed["points"]
@@ -32,9 +34,27 @@ static func build(
 	arrays[Mesh.ARRAY_VERTEX] = vertices
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_INDEX] = indices
+	# Across value in UV.y (UV.x stays free for a river flow coordinate), widening direction in
+	# CUSTOM0.xy (road shader).
+	var across: PackedFloat32Array = indexed["across"]
+	var dirs: PackedVector2Array = indexed["across_dirs"]
+	var uvs := PackedVector2Array()
+	var custom := PackedFloat32Array()
+	uvs.resize(across.size())
+	custom.resize(across.size() * 2)
+	for i in across.size():
+		uvs[i] = Vector2(0.0, across[i])
+		custom[2 * i] = dirs[i].x
+		custom[2 * i + 1] = dirs[i].y
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_CUSTOM0] = custom
+	var format := Mesh.ARRAY_CUSTOM_RG_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, material(kind))
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, format)
+	if kind == FeatureRibbonPlanner.Kind.ROAD and ground != null:
+		mesh.surface_set_material(0, road_material(ground))
+	else:
+		mesh.surface_set_material(0, material(kind))
 	var instance := MeshInstance3D.new()
 	instance.name = "Roads" if kind == FeatureRibbonPlanner.Kind.ROAD else "Rivers"
 	instance.mesh = mesh
@@ -87,7 +107,21 @@ static func drape_lifted(
 	return result
 
 
-## Matt grey-brown road; blue-grey river with a slight specular.
+## The road shader fed with the ground textures, repeats and tints of the terrain material
+## `ground` (TerrainGround.material), at the current MapScale.
+static func road_material(ground: ShaderMaterial) -> ShaderMaterial:
+	var result := ShaderMaterial.new()
+	result.shader = ROAD_SHADER
+	for key: StringName in [&"albedo_height", &"layer_repeat", &"layer_tint"]:
+		result.set_shader_parameter(key, ground.get_shader_parameter(key))
+	result.set_shader_parameter(
+		&"half_width", FeatureRibbonPlanner.width(FeatureRibbonPlanner.Kind.ROAD) / 2.0
+	)
+	result.set_shader_parameter(&"carriageway", FeatureRibbonPlanner.carriageway_across())
+	return result
+
+
+## Fallback matt grey-brown road (no ground material); blue-grey river with a slight specular.
 static func material(kind: FeatureRibbonPlanner.Kind) -> StandardMaterial3D:
 	var result := StandardMaterial3D.new()
 	result.cull_mode = BaseMaterial3D.CULL_DISABLED

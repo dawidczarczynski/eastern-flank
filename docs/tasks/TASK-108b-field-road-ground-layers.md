@@ -1,10 +1,12 @@
-# TASK-108b: Real-terrain look v2 – field and soil ground layers, real-size field strips, real-width roads with verges
+# TASK-108b: Real-terrain look v2 – real-width roads with verges
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (new pure `MapScale`, new pure `FieldParcels` + baked parcel texture, `TerrainSplat`, `TerrainTextures`, `TerrainGround`, `assets/shaders/terrain.gdshader`, new road shader, `FeatureRibbonPlanner` widths + mesh attribute, `GrassPlanner` density) + assets (two CC0 ground sets, `credits.json`) + docs (ARCHITECTURE, MANUAL)
 - **Depends on**: TASK-108 (done) (soft: TASK-110 – realistic scale; priority: after the operational core loop 092 → 094 → 095)
 - **Model**: sonnet
 - **Topic**: Two-layer game
+
+> **Split (2026-11-10): this task is now roads only (5 m carriageway + verges, `across` attribute, road shader with 1.5 px minimum width, scatter clearance, MANUAL road text). The `soil` ground layer and URBAN farmyards moved to [TASK-108h](TASK-108h-soil-layer-farmyards.md); `stubble` is not added (fields use TASK-108f). Criteria below about layers 6/7, `TerrainSplat` weights, `CUSTOM0.z/.w`, FieldParcels, grass on fields, field screenshots and farmyards no longer apply.**
 
 > **Superseded in part (2026-11-09): the field-strip part (the `FieldParcels` 20-50 m strips, the baked parcel texture, the `ARRAY_CUSTOM0.z` field weight and the field grass thinning, and the `stubble` / `soil` field use) is done by [TASK-108f](TASK-108f-field-parcels-crops.md) with regular parcels and crop variety. This task keeps roads with verges, ribbon widths, `across` attribute, road shader and URBAN farmyards; its acceptance criteria and playtest steps about fields no longer apply, and `FieldParcels` / `MapScale` already exist.**
 
@@ -88,4 +90,9 @@ On a real-terrain map, farmland and roads have their real sizes: fields are a pa
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Roads part only (see the split note).
+- `FeatureRibbonPlanner`: `ROAD_WIDTH`/`CLEARANCE` replaced by `ROAD_CARRIAGEWAY_M` 5, `ROAD_VERGE_M` 2.5, `ROAD_CLEARANCE_M` 3, `RIVER_CLEARANCE`; `width(kind)`, `road_width()`, `carriageway_across()` (0.5), `clearance(kind)` read `MapScale`; plan and clearance-index caches are keyed on the scale. `mesh()` also returns `across` (per point) and `across_dirs` (unit world XZ widening direction).
+- `FeatureRibbons.build(grid, kind, drape, ground)`: across in `UV.y`, widening direction in `CUSTOM0.xy`; roads get `road_material(ground)` (new `assets/shaders/road.gdshader`, textures/repeats/tints shared with the terrain material); rivers keep the StandardMaterial3D.
+- Road shader: gravel carriageway with two ruts (dirt-darkened), dirt + dry-grass verge, alpha fade 0.6..1.0; vertex shader widens the strip so the carriageway is at least 1.5 px wide (projection-based). Only Compatibility-safe features. There is no `soil` layer (moved to TASK-108h), so ruts and verges use `dirt`.
+- Tests: new `tests/unit/test_road_ribbon_width.gd`; existing ribbon tests use `width()`/`clearance()`.
+- Not verified: Windows frame/build-time measurements (not run), Compatibility compile on real LOW hardware, the widened strip is not re-draped (tiny dips possible only when widened a lot on steep ground).

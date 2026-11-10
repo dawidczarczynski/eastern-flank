@@ -194,7 +194,7 @@ func test_rivers_meander_gently_and_vary_in_width() -> void:
 	assert_true(hi <= FeatureRibbonPlanner.max_half_width(KIND_RIVER) + EPSILON)
 	assert_true(widths[0] < 0.6 * hi, "narrow at the dead-end source")
 	for w in FeatureRibbonPlanner.half_widths(road_grid, KIND_ROAD)[0]:
-		_near(w, FeatureRibbonPlanner.ROAD_WIDTH / 2.0, "roads keep their width")
+		_near(w, FeatureRibbonPlanner.width(KIND_ROAD) / 2.0, "roads keep their width")
 
 
 func test_a_junction_spoke_ends_on_the_through_line_with_a_disc() -> void:
@@ -266,7 +266,9 @@ func test_distance_and_clearance_follow_the_new_geometry() -> void:
 	grid.set_road_links(Vector2i.ZERO, 1 << 0)
 	grid.set_road_links(Vector2i(1, 0), 1 << 3)
 	_near(FeatureRibbonPlanner.distance(grid, KIND_ROAD, 0.5, 0.2), 0.2)
-	var limit := FeatureRibbonPlanner.ROAD_WIDTH / 2.0 + FeatureRibbonPlanner.CLEARANCE
+	var limit := (
+		FeatureRibbonPlanner.width(KIND_ROAD) / 2.0 + FeatureRibbonPlanner.clearance(KIND_ROAD)
+	)
 	assert_false(FeatureRibbonPlanner.is_clear(grid, 1.2, limit - 0.01), "on the far half")
 	assert_true(FeatureRibbonPlanner.is_clear(grid, 1.2, limit + 0.01))
 	assert_true(FeatureRibbonPlanner.distance(grid, KIND_RIVER, 0.5, 0.0) == INF, "no river")
@@ -298,13 +300,18 @@ func _road_grid() -> HexGrid:
 
 
 func _assert_clear_of_ribbons(grid: HexGrid, items: Array, label: String) -> void:
-	var clearance := FeatureRibbonPlanner.CLEARANCE - EPSILON
+	var clearances := {
+		KIND_ROAD: FeatureRibbonPlanner.clearance(KIND_ROAD) - EPSILON,
+		KIND_RIVER: FeatureRibbonPlanner.clearance(KIND_RIVER) - EPSILON,
+	}
 	for item: Dictionary in items:
 		var p: Vector3 = item["position"]
 		var d_road := FeatureRibbonPlanner.edge_distance(grid, KIND_ROAD, p.x, p.z)
 		var d_river := FeatureRibbonPlanner.edge_distance(grid, KIND_RIVER, p.x, p.z)
-		assert_true(d_road >= clearance, "%s %s on the road (%f)" % [label, p, d_road])
-		assert_true(d_river >= clearance, "%s %s on the river (%f)" % [label, p, d_river])
+		assert_true(d_road >= clearances[KIND_ROAD], "%s %s on the road (%f)" % [label, p, d_road])
+		assert_true(
+			d_river >= clearances[KIND_RIVER], "%s %s on the river (%f)" % [label, p, d_river]
+		)
 
 
 func test_scatter_keeps_off_roads_and_rivers() -> void:

@@ -27,7 +27,12 @@ enum Kind { ROAD, RIVER }
 
 ## Centre to side midpoint: half the distance between neighbouring centres (√3/2 · HEX_SIZE).
 const HALF_SEGMENT := Hex.SQRT3 / 2.0 * TerrainField.HEX_SIZE
-const ROAD_WIDTH := 0.10
+## Road look in metres (TASK-108b), converted with MapScale: a 5 m carriageway with a 2.5 m worn
+## verge on each side is a 10 m ribbon.
+const ROAD_CARRIAGEWAY_M := 5.0
+const ROAD_VERGE_M := 2.5
+## Scatter keeps this far (metres) from a road ribbon's edge.
+const ROAD_CLEARANCE_M := 3.0
 const RIVER_WIDTH := 0.15
 ## River width varies by ± this share along its course (low-frequency noise).
 const RIVER_WIDTH_VARIATION := 0.25
@@ -40,8 +45,8 @@ const MEANDER_WAVELENGTH := 1.7
 const MEANDER_SEED := 61.0
 const WIDTH_SEED := 67.0
 const WIDTH_WAVELENGTH := 2.3
-## Trees, rocks, bushes and grass keep this much space beyond a ribbon's half width.
-const CLEARANCE := 0.04
+## Trees, rocks, bushes and grass keep this much space (world units) beyond a river's half width.
+const RIVER_CLEARANCE := 0.04
 const ROAD_COLOR := Color("#8a7f6a")
 const RIVER_COLOR := Color("#3d5a66")
 ## The river catches a little light (slight specular); the road is matt (roughness 1).
@@ -67,6 +72,7 @@ const WALL_MARGIN := 0.06
 static var _plan_cache: Dictionary = {}
 static var _index_grid := 0
 static var _index_version := -1
+static var _index_scale := 0.0
 static var _index: Dictionary = {}
 
 
@@ -76,7 +82,22 @@ static func links(grid: HexGrid, c: Vector2i, kind: Kind) -> int:
 
 ## Nominal width of a ribbon of `kind` (rivers vary around it).
 static func width(kind: Kind) -> float:
-	return ROAD_WIDTH if kind == Kind.ROAD else RIVER_WIDTH
+	return road_width() if kind == Kind.ROAD else RIVER_WIDTH
+
+
+## Whole road ribbon (carriageway plus both verges) in world units.
+static func road_width() -> float:
+	return MapScale.to_units(ROAD_CARRIAGEWAY_M + 2.0 * ROAD_VERGE_M)
+
+
+## Share of the half width (`across`) where the carriageway ends and the verge starts.
+static func carriageway_across() -> float:
+	return ROAD_CARRIAGEWAY_M / (ROAD_CARRIAGEWAY_M + 2.0 * ROAD_VERGE_M)
+
+
+## Space scatter keeps beyond the edge of a ribbon of `kind`, in world units.
+static func clearance(kind: Kind) -> float:
+	return MapScale.to_units(ROAD_CLEARANCE_M) if kind == Kind.ROAD else RIVER_CLEARANCE
 
 
 static func lift(kind: Kind) -> float:
@@ -105,18 +126,23 @@ static func discs(grid: HexGrid, kind: Kind) -> PackedVector3Array:
 
 
 ## Indexed flat mesh of the whole ribbon of `kind`: {points: PackedVector2Array (world XZ),
-## indices: PackedInt32Array (triangles, clockwise seen from above like the terrain)} – one strip
-## per centreline (neighbouring quads share their corner points) plus the discs.
+## indices: PackedInt32Array (triangles, clockwise seen from above like the terrain),
+## across: PackedFloat32Array (-1 / +1 on the two outer edges, 0 on the centreline; discs 0 at the
+## centre and 1 on the rim), across_dirs: PackedVector2Array (unit world direction a vertex moves
+## to widen the ribbon, ZERO on the centreline)} – one strip per centreline (neighbouring quads
+## share their corner points) plus the discs.
 static func mesh(grid: HexGrid, kind: Kind) -> Dictionary:
 	var points := PackedVector2Array()
 	var indices := PackedInt32Array()
+	var across := PackedFloat32Array()
+	var dirs := PackedVector2Array()
 	var all_lines := lines(grid, kind)
 	var widths := half_widths(grid, kind)
 	for i in all_lines.size():
-		_append_strip(points, indices, all_lines[i], widths[i])
+		_append_strip(points, indices, all_lines[i], widths[i], across, dirs)
 	for disc in discs(grid, kind):
-		_append_disc(points, indices, Vector2(disc.x, disc.y), disc.z)
-	return {"points": points, "indices": indices}
+		_append_disc(points, indices, Vector2(disc.x, disc.y), disc.z, across, dirs)
+	return {"points": points, "indices": indices, "across": across, "across_dirs": dirs}
 
 
 ## The same triangles as flat point triples (`mesh` expanded).
@@ -147,7 +173,7 @@ static func is_clear(grid: HexGrid, x: float, z: float) -> bool:
 	if not grid.has_links():
 		return true
 	for kind: Kind in Kind.values():
-		if _nearest(grid, kind, x, z, true) < CLEARANCE:
+		if _nearest(grid, kind, x, z, true) < clearance(kind):
 			return false
 	return true
 
@@ -186,9 +212,14 @@ static func _nearest(grid: HexGrid, kind: Kind, x: float, z: float, to_edge: boo
 ## (as a zero-length segment) registered in the tile of its midpoint and that tile's neighbours
 ## (a point within reach of a piece is always in one of them); cached per grid and links_version.
 static func _clearance_index(grid: HexGrid) -> Dictionary:
-	if grid.get_instance_id() == _index_grid and grid.links_version() == _index_version:
+	if (
+		grid.get_instance_id() == _index_grid
+		and grid.links_version() == _index_version
+		and MapScale.metres_per_unit == _index_scale
+	):
 		return _index
 	_index = {}
+	_index_scale = MapScale.metres_per_unit
 	_index_grid = grid.get_instance_id()
 	_index_version = grid.links_version()
 	for kind: Kind in Kind.values():
@@ -227,7 +258,10 @@ static func _register(tiles: Dictionary, a: Vector2, b: Vector2, half: float) ->
 
 ## {lines, half_widths, discs} of `kind`, cached per grid instance and links_version.
 static func _plan(grid: HexGrid, kind: Kind) -> Dictionary:
-	var key := "%d_%d_%d" % [grid.get_instance_id(), grid.links_version(), kind]
+	var key := (
+		"%d_%d_%d_%f"
+		% [grid.get_instance_id(), grid.links_version(), kind, MapScale.metres_per_unit]
+	)
 	if _plan_cache.has(key):
 		return _plan_cache[key]
 	if _plan_cache.size() > 8:
@@ -307,10 +341,10 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 		for piece: Dictionary in pieces:
 			if piece["kind"] == &"dead":
 				var c := _centre(piece["tile"])
-				result_discs.append(Vector3(c.x, c.y, ROAD_WIDTH / 2.0))
+				result_discs.append(Vector3(c.x, c.y, road_width() / 2.0))
 		for tile: Vector2i in junctions:
 			var m: Vector2 = junctions[tile]
-			result_discs.append(Vector3(m.x, m.y, ROAD_WIDTH / 2.0))
+			result_discs.append(Vector3(m.x, m.y, road_width() / 2.0))
 	return {"lines": result_lines, "half_widths": result_widths, "discs": result_discs}
 
 
@@ -658,7 +692,9 @@ static func _append_strip(
 	points: PackedVector2Array,
 	indices: PackedInt32Array,
 	line: PackedVector2Array,
-	halves: PackedFloat32Array
+	halves: PackedFloat32Array,
+	across: PackedFloat32Array,
+	dirs: PackedVector2Array
 ) -> void:
 	var count := line.size()
 	if count < 2:
@@ -667,9 +703,13 @@ static func _append_strip(
 	var base := points.size()
 	for i in count:
 		var dir := _direction(line, i, closed)
-		var side := Vector2(-dir.y, dir.x) * halves[i]
-		points.append(line[i] + side)  # left: base + 2 i
-		points.append(line[i] - side)  # right: base + 2 i + 1
+		var normal := Vector2(-dir.y, dir.x)
+		points.append(line[i] + normal * halves[i])  # left: base + 2 i
+		points.append(line[i] - normal * halves[i])  # right: base + 2 i + 1
+		across.append(1.0)
+		across.append(-1.0)
+		dirs.append(normal)
+		dirs.append(-normal)
 	for i in count - 1:
 		var l0 := base + 2 * i
 		_append_triangle(points, indices, l0, l0 + 1, l0 + 2)
@@ -688,13 +728,23 @@ static func _append_triangle(
 
 
 static func _append_disc(
-	points: PackedVector2Array, indices: PackedInt32Array, centre: Vector2, radius: float
+	points: PackedVector2Array,
+	indices: PackedInt32Array,
+	centre: Vector2,
+	radius: float,
+	across: PackedFloat32Array,
+	dirs: PackedVector2Array
 ) -> void:
 	var c := points.size()
 	points.append(centre)
+	across.append(0.0)
+	dirs.append(Vector2.ZERO)
 	for k in DISC_SIDES:
 		var a := TAU * k / DISC_SIDES
-		points.append(centre + Vector2(cos(a), sin(a)) * radius)
+		var radial := Vector2(cos(a), sin(a))
+		points.append(centre + radial * radius)
+		across.append(1.0)
+		dirs.append(radial)
 	for k in DISC_SIDES:
 		_append_triangle(points, indices, c, c + 1 + k, c + 1 + (k + 1) % DISC_SIDES)
 

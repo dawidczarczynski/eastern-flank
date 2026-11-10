@@ -208,7 +208,7 @@ func build(grid: HexGrid) -> void:
 	_tiles_root.add_child(_build_terrain(rect))
 	_tiles_root.add_child(_build_backdrop(rect))
 	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
-		var ribbon := FeatureRibbons.build(_grid, kind, _drape)
+		var ribbon := FeatureRibbons.build(_grid, kind, _drape, _terrain_material())
 		if ribbon != null:
 			_tiles_root.add_child(ribbon)
 	_map_trees = []
