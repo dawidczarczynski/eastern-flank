@@ -1,0 +1,39 @@
+{
+ "elements": [
+  {
+   "id": 7001,
+   "lat": 54.5,
+   "lon": 22.5,
+   "tags": {
+    "name": "Miasto",
+    "place": "city",
+    "population": "150000"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7003,
+   "lat": 54.53,
+   "lon": 22.54,
+   "tags": {
+    "name": "Mo\u0144ki",
+    "name:en": "Monki",
+    "place": "town"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7009,
+   "lat": 54.7,
+   "lon": 22.5,
+   "tags": {
+    "name": "Poza Map\u0105",
+    "place": "town",
+    "population": "5000"
+   },
+   "type": "node"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

@@ -293,6 +293,37 @@ def write_op_cache(cache: Path, deg: float) -> None:
         landuse = fake_landuse_overpass(whole, lat, lon, lat + deg, lon + deg)
         path = import_map.landuse_tile_path(cache, lat, lon, deg)
         path.write_text(json.dumps(landuse, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        places = fake_places_overpass(fixture_places_elements(), lat, lon, lat + deg, lon + deg)
+        path = import_map.places_tile_path(cache, lat, lon, deg)
+        path.write_text(json.dumps(places, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def fixture_places_elements() -> list:
+    """Place nodes of the synthetic operational area (54.40-54.60 N, 22.40-22.60 E; map 10x8 hexes of 1 km around
+    54.5 N 22.5 E): a city, two towns, villages above and below the threshold, one without population, one unnamed,
+    a hamlet (never read) and a town with diacritics. Ids are made up, positions are not real places."""
+    def node(node_id: int, lat: float, lon: float, **tags: str) -> dict:
+        return {"type": "node", "id": node_id, "lat": lat, "lon": lon, "tags": tags}
+
+    return [
+        node(7001, 54.500, 22.500, place="city", name="Miasto", population="150000"),
+        node(7002, 54.470, 22.470, place="town", name="Żółć-Ąć", population="9000"),
+        node(7003, 54.530, 22.540, place="town", name="Mońki", **{"name:en": "Monki"}),
+        node(7004, 54.480, 22.560, place="village", name="Duża Wieś", population="1200"),
+        node(7005, 54.520, 22.450, place="village", name="Mała Wieś", population="999"),
+        node(7006, 54.510, 22.460, place="village", name="Bez Liczby"),
+        node(7007, 54.490, 22.520, place="village", population="3000"),
+        node(7008, 54.505, 22.530, place="hamlet", name="Przysiółek", population="5000"),
+        node(7009, 54.700, 22.500, place="town", name="Poza Mapą", population="5000"),  # outside the map
+    ]
+
+
+def fake_places_overpass(whole: list, s: float, w: float, n: float, e: float) -> dict:
+    """What Overpass answers for `places_query`: the named city / town / village nodes inside the bbox."""
+    nodes = [el for el in whole if s <= el["lat"] < n and w <= el["lon"] < e
+             and el["tags"].get("place") in import_map.PLACE_RANKS and el["tags"].get("name")]  # fmt: skip
+    return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)",
+            "elements": sorted(nodes, key=lambda el: el["id"])}  # fmt: skip
 
 
 COUNTRY_CASES = ("straight", "diagonal", "lake", "gap", "ring")
@@ -1016,7 +1047,7 @@ class OperationalImportTest(unittest.TestCase):
         write_op_cache(cache, import_map.OSM_TILE_DEG)
         committed = sorted(p.name for p in (OP_CACHE / "osm").glob("*.json"))
         self.assertEqual(committed, sorted(p.name for p in (cache / "osm").glob("*.json")))
-        self.assertEqual(len(committed), 12, "the sample lies where four tiles meet: land cover, borders, land use")
+        self.assertEqual(len(committed), 16, "the sample lies where four tiles meet: land cover, borders, land use, places")
         for name in committed:
             self.assertEqual((OP_CACHE / "osm" / name).read_text(encoding="utf-8"),
                              (cache / "osm" / name).read_text(encoding="utf-8"), name)  # fmt: skip
@@ -1024,7 +1055,7 @@ class OperationalImportTest(unittest.TestCase):
     def test_one_tile_or_four_tiles_give_the_same_map(self) -> None:
         one = self.dir / "one"
         write_op_cache(one, 1.0)
-        self.assertEqual(len(list((one / "osm").glob("*.json"))), 3, "land cover, borders and land use")
+        self.assertEqual(len(list((one / "osm").glob("*.json"))), 4, "land cover, borders, land use and places")
         self.assertEqual(self._import("one.tres", one, ("--tile-deg=1.0",)), self._import("four.tres"))
 
     def test_sample_classification(self) -> None:
@@ -1165,6 +1196,154 @@ class BorderPolylinesTest(unittest.TestCase):
         self.assertLess(text.index("country_rows ="), text.index("border_lines ="))
         self.assertLess(text.index("border_lines ="), text.index("elevation_m ="))
         self.assertNotIn("border_lines", SAMPLE_MAP.read_text(encoding="utf-8"))
+
+
+def theatre_places_answer() -> dict:
+    """Real names at real positions (hand-written, rounded), as a place-tile answer for the Suwalki theatre."""
+    rows = [  # id, place, name, population, lat, lon
+        (1, "town", "Suwałki", "69000", 54.1118, 22.9309), (2, "city", "Białystok", "295000", 53.1325, 23.1688),
+        (3, "city", "Kaunas", "300000", 54.8985, 23.9036), (4, "city", "Vilnius", "540000", 54.6872, 25.2797),
+        (5, "city", "Kaliningrad", "490000", 54.7104, 20.4522), (6, "city", "Hrodna", "360000", 53.6694, 23.8131),
+        (7, "town", "Mońki", "9500", 53.4026, 22.8056), (8, "town", "Mrągowo", "21000", 53.8648, 21.3045),
+        (9, "village", "Dużawieś", "1500", 54.0500, 22.8000), (10, "village", "Maławieś", "999", 54.0600, 22.9000),
+        (11, "village", "Beztagu", "", 54.0700, 22.9500), (12, "town", "Marijampolė", "36000", 54.5598, 23.3541),
+    ]  # fmt: skip
+    elements = []
+    for node_id, place, name, population, lat, lon in rows:
+        tags = {"place": place, "name": name, "name:en": name + " EN"}
+        if population:
+            tags["population"] = population
+        elements.append({"type": "node", "id": node_id, "lat": lat, "lon": lon, "tags": tags})
+    return {"elements": elements}
+
+
+THEATRE_CENTRE = (54.20, 22.888)
+
+
+def theatre_layout() -> "import_map.HexLayout":
+    e, n = import_map.to_utm(*THEATRE_CENTRE, 34)
+    return import_map.HexLayout.centred(68, 64, 5000.0, e, n)
+
+
+class PlacesTest(unittest.TestCase):
+    def _selected(self, extra: list = ()) -> dict:
+        answer = theatre_places_answer()
+        answer["elements"] += list(extra)
+        found = import_map.osm_places(answer)
+        return {p["name"]: p for p in import_map.select_places(found, theatre_layout(), 34)}
+
+    def test_query_asks_for_named_place_nodes(self) -> None:
+        query = import_map.places_query(54.0, 22.5, 54.5, 23.0)
+        self.assertIn('node["place"~"^(city|town|village)$"]["name"](54.00000,22.50000,54.50000,23.00000);', query)
+
+    def test_golden_cities_and_towns_have_the_right_rank(self) -> None:
+        places = self._selected()
+        expected = {"Suwałki": 1, "Białystok": 0, "Kaunas": 0, "Vilnius": 0, "Kaliningrad": 0, "Hrodna": 0,
+                    "Marijampolė": 1}  # fmt: skip
+        for name, rank in expected.items():
+            self.assertIn(name, places)
+            self.assertEqual(places[name]["rank"], rank, name)
+
+    def test_diacritics_are_kept_and_name_en_is_not_used(self) -> None:
+        places = self._selected()
+        for name in ("Suwałki", "Mońki", "Mrągowo", "Marijampolė"):
+            self.assertIn(name, places)
+        self.assertFalse([n for n in places if n.endswith(" EN")])
+
+    def test_villages_need_a_population_of_a_thousand(self) -> None:
+        places = self._selected()
+        self.assertEqual(places["Dużawieś"]["rank"], 2)
+        self.assertNotIn("Maławieś", places, "999 inhabitants")
+        self.assertNotIn("Beztagu", places, "no population tag")
+
+    def test_unnamed_nodes_and_other_place_kinds_are_not_read(self) -> None:
+        extra = [{"type": "node", "id": 90, "lat": 54.1, "lon": 22.9, "tags": {"place": "city"}},
+                 {"type": "node", "id": 91, "lat": 54.1, "lon": 22.9, "tags": {"place": "hamlet", "name": "Weiler"}},
+                 {"type": "node", "id": 92, "lat": 54.1, "lon": 22.9, "tags": {"name": "Nope"}}]  # fmt: skip
+        places = self._selected(extra)
+        self.assertNotIn("Weiler", places)
+        self.assertNotIn("Nope", places)
+        self.assertEqual(len(places), 10)
+
+    def test_a_place_off_the_map_is_dropped_and_a_node_in_two_tiles_counts_once(self) -> None:
+        answer = theatre_places_answer()
+        answer["elements"].append({"type": "node", "id": 50, "lat": 50.0, "lon": 10.0,
+                                   "tags": {"place": "city", "name": "Berlin-ish"}})  # fmt: skip
+        found = import_map.osm_places(answer) * 2
+        names = [p["name"] for p in import_map.select_places(found, theatre_layout(), 34)]
+        self.assertNotIn("Berlin-ish", names)
+        self.assertEqual(len(names), len(set(names)))
+
+    def test_positions_are_world_units_like_the_border_lines(self) -> None:
+        layout = import_map.HexLayout.centred(10, 8, 1000.0, *import_map.to_utm(54.5, 22.5, 34))
+        e, n = layout.centre(0, 0)
+        lat, lon = import_map.from_utm(e, n, 34)
+        place = {"id": 1, "rank": 0, "name": "Origin", "population": 0, "lat": lat, "lon": lon}
+        got = import_map.select_places([place], layout, 34)[0]
+        self.assertAlmostEqual(got["x"], 0.0, places=4)
+        self.assertAlmostEqual(got["z"], 0.0, places=4)
+        e, n = layout.centre(3, 2)
+        lat, lon = import_map.from_utm(e, n, 34)
+        got = import_map.select_places([dict(place, lat=lat, lon=lon)], layout, 34)[0]
+        self.assertAlmostEqual(got["x"], import_map.SQRT3 * (3 - 1 + 1), places=4)  # q = col - row // 2 = 2, r = 2
+        self.assertAlmostEqual(got["z"], 3.0, places=4)
+
+    def test_the_total_is_capped_by_dropping_the_smallest_villages_only(self) -> None:
+        layout = theatre_layout()
+        base = theatre_places_answer()["elements"]
+        extra = [{"type": "node", "id": 1000 + k, "lat": 54.0 + k * 0.001, "lon": 22.5,
+                  "tags": {"place": "village", "name": "V%04d" % k, "population": str(1000 + k)}}
+                 for k in range(600)]  # fmt: skip
+        found = import_map.osm_places({"elements": base + extra})
+        chosen = import_map.select_places(found, layout, 34)
+        self.assertEqual(len(chosen), import_map.PLACE_MAX_TOTAL)
+        names = {p["name"] for p in chosen}
+        for name in ("Suwałki", "Białystok", "Kaunas", "Vilnius", "Kaliningrad", "Hrodna", "Mońki", "Mrągowo"):
+            self.assertIn(name, names)
+        villages = [p["name"] for p in chosen if p["rank"] == 2]
+        self.assertIn("V0599", villages, "the largest village stays")
+        self.assertNotIn("V0000", villages, "the smallest goes")
+        self.assertEqual(villages[0], "V0599", "largest first")
+
+    def test_order_is_rank_then_population_then_name_then_id(self) -> None:
+        places = [{"id": 3, "rank": 2, "name": "B", "population": 2000, "lat": 54.2, "lon": 22.9},
+                  {"id": 2, "rank": 2, "name": "A", "population": 2000, "lat": 54.2, "lon": 22.9},
+                  {"id": 4, "rank": 2, "name": "C", "population": 5000, "lat": 54.2, "lon": 22.9},
+                  {"id": 1, "rank": 1, "name": "T", "population": 1, "lat": 54.2, "lon": 22.9}]  # fmt: skip
+        got = [p["name"] for p in import_map.select_places(places, theatre_layout(), 34)]
+        self.assertEqual(got, ["T", "C", "A", "B"])
+        self.assertEqual(got, [p["name"] for p in import_map.select_places(places[::-1], theatre_layout(), 34)])
+
+    def test_the_tres_has_places_in_selection_order_and_tactical_has_none(self) -> None:
+        text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
+        arrays = _arrays(text)
+        self.assertEqual(arrays["place_names"], '"Miasto", "Żółć-Ąć", "Mońki", "Duża Wieś"')
+        self.assertEqual(arrays["place_ranks"], "0, 1, 1, 2")
+        self.assertEqual(len(arrays["place_positions"].split(",")), 8)
+        self.assertLess(text.index("border_lines ="), text.index("place_names ="))
+        self.assertLess(text.index("place_ranks ="), text.index("elevation_m ="))
+        self.assertNotIn("place_names", SAMPLE_MAP.read_text(encoding="utf-8"))
+
+    def test_places_tile_missing_offline_is_named(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit) as raised:
+                import_map.places_tile_paths(Path(tmp), 54.45, 22.40, 54.55, 22.60, True, 0.5)
+            self.assertIn("pl1_54.0000_22.0000_0.5000.json", str(raised.exception))
+
+
+class PlacesImportTest(unittest.TestCase):
+    def test_two_imports_are_byte_identical_and_hold_the_places(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            outs = []
+            for k in range(2):
+                out = Path(tmp) / ("m%d.tres" % k)
+                import_map.run(OP_ARGS + ["--offline", "--cache=%s" % OP_CACHE, "--dem=%s" % OP_DEM_FIXTURE,
+                                                      "--out=%s" % out])  # fmt: skip
+                outs.append(out.read_bytes())
+        self.assertEqual(outs[0], outs[1])
+        self.assertIn("Mońki".encode("utf-8"), outs[0])
+        self.assertNotIn(b"Poza Mapa", outs[0])
+        self.assertNotIn(b"Mala Wies", outs[0])
 
 
 class FillCountriesTest(unittest.TestCase):

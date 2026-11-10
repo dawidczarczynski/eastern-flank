@@ -1,0 +1,27 @@
+{
+ "elements": [
+  {
+   "id": 7005,
+   "lat": 54.52,
+   "lon": 22.45,
+   "tags": {
+    "name": "Ma\u0142a Wie\u015b",
+    "place": "village",
+    "population": "999"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7006,
+   "lat": 54.51,
+   "lon": 22.46,
+   "tags": {
+    "name": "Bez Liczby",
+    "place": "village"
+   },
+   "type": "node"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

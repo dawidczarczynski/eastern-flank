@@ -353,7 +353,7 @@ The battle has sound; there is no music yet.
 
 **Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
-**What you see.** Lines keep the same width on screen at every zoom and tilt. The more you zoom in, the more detail fades in: zoomed out you see only the main roads and the large rivers, in the middle range the secondary roads and medium rivers join them, close in also the minor roads and streams.
+**What you see.** Lines keep the same width on screen at every zoom and tilt. The more you zoom in, the more detail fades in: zoomed out you see only the main roads and the large rivers, in the middle range the secondary roads and medium rivers join them, close in also the minor roads and streams. Place names fade in the same way: cities show from far away, towns closer in and large villages only close in; names are written in the local language, so places in Belarus and the Kaliningrad oblast appear in Cyrillic.
 
 | Drawn as | Meaning |
 |---|---|
@@ -379,6 +379,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Tilt | Ctrl + mouse wheel, or hold Q (flatter) / E (steeper) |
 | Flat / tilted | V |
 | Grid on / off | G |
+| Place names on / off | N |
 | Country borders and names on / off | B (while no battle is pending) |
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |

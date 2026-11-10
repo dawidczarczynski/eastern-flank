@@ -20,7 +20,7 @@ extends Node3D
 ## rejections show in a toast.
 ## Camera: drag (left or middle button), WASD / arrows, screen edge pan; wheel zoom around the
 ## cursor; Ctrl + wheel or Q / E pitch, V flat <-> tilted; clamped to the map. G toggles the
-## grid, B the country borders and names,
+## grid, B the country borders and names, N the place names (TASK-112),
 ## Esc (nothing selected) / Back returns to the menu.
 ## Contacts (TASK-094a / 094c): the notice's Play battle (B) hands the simulation and the view
 ## settings to Session and opens the battle scene; coming back (Session.take_simulation) the map
@@ -76,6 +76,7 @@ var _hud: CanvasLayer
 var _simulation: OperationalSimulation
 var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
+var _places: StaffMapPlaceLayer  # place-name labels (TASK-112), N toggles
 var _installations: StaffMapInstallations
 var _installation_card: StaffMapInstallationCard
 var _installation_anchors := {}  # installation id -> point on the relief
@@ -166,6 +167,9 @@ func build_now() -> bool:
 	add_child(_view)
 	_view.build(_grid, _palette, imported.hex_spacing_m, imported)
 	_view.build_countries(imported)
+	_places = StaffMapPlaceLayer.new()  # first child of the counter layer: under everything
+	_counter_layer.add_child(_places)
+	_places.build(imported, _view.relief())
 	_bounds = _view.world_bounds()
 	_build_operation(definition)
 	_build_camera()
@@ -229,6 +233,9 @@ func _unhandled_input(event: InputEvent) -> void:
 					_play_battle()
 				else:
 					_view.countries().set_visible_layer(not _view.countries().is_visible_layer())
+			KEY_N:
+				_places.set_enabled(not _places.is_enabled())
+				_layout_places()
 			KEY_P:
 				_politics.toggle_tint()
 			KEY_F9:
@@ -775,6 +782,7 @@ func _layout_counters() -> void:
 	for id: StringName in _anchors:
 		points[id] = _project(_anchors[id])
 	_counters.layout(points)
+	_layout_places()
 
 
 func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
@@ -1376,8 +1384,29 @@ func _apply_camera() -> void:
 			_palette.zoom_hysteresis
 		)
 	)
+	_layout_places()
 	if _front != null:
 		_apply_front_view()
+
+
+## Place names follow the camera; recomputed only when it (or the zoom level, toggle) changed.
+func _layout_places() -> void:
+	if _places != null and _view != null:
+		_places.layout(
+			_project,
+			_viewport_size(),
+			_places_level(),
+			[_target(), _scale(), _pitch],
+			_counters.screen_rects() if _counters != null else ([] as Array[Rect2])
+		)
+
+
+## Zoom level for the place names: no hysteresis, so zooming in and out switches at the same
+## scroll step (the view's own level keeps its hysteresis for the grid and hatching).
+func _places_level() -> int:
+	return StaffMapCameraMath.zoom_level(
+		_scale() / _km_per_unit, 0, _palette.zoom_level_px_per_km, 0.0
+	)
 
 
 func _on_pitch_changed() -> void:

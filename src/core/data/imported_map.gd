@@ -30,6 +30,10 @@ const MAPS_DIR := "res://data/maps/"
 const LAYER_WATER := &"water"
 const LAYER_COVER := &"cover"
 const LAYER_RELIEF := &"relief"
+## Ranks of `place_ranks` (TASK-112).
+const PLACE_CITY := 0
+const PLACE_TOWN := 1
+const PLACE_VILLAGE := 2
 const LAYERS: Array[StringName] = [LAYER_WATER, LAYER_COVER, LAYER_RELIEF]
 ## Values of the `cover` layer (the importer's COVER_CLASSES index). The operational import does
 ## not download fields or grass, so there OPEN is all open land (mostly fields).
@@ -84,6 +88,14 @@ const RELIEF_FLAT := 180
 ## space), simplified to 0.1 hex. They are never snapped to hexes; the per-hex `country_rows`
 ## are for the rules only. Empty = none (tactical maps, old maps).
 @export var border_lines: Array[PackedVector2Array]
+## Place names for the staff map's labels (TASK-112), three parallel arrays (index = one place), in
+## the importer's order (rank, then population, name, OSM id; a view may rely on it). Names are the
+## local OSM `name` (diacritics kept); positions are world units like `border_lines`; ranks are
+## PLACE_CITY / PLACE_TOWN / PLACE_VILLAGE. Labels are view data only; no rule reads them. Empty =
+## none (tactical maps, older maps). Read them with `place_count()` / `place_at(index)`.
+@export var place_names: PackedStringArray
+@export var place_positions: PackedVector2Array
+@export var place_ranks: PackedInt32Array
 ## Mean DEM height of each tile in metres (row-major), the real data behind `elevation`.
 @export var elevation_m: PackedFloat32Array
 ## Game elevation of each tile (row-major; water below 0, land from land_min up).
@@ -142,7 +154,7 @@ func problem() -> String:
 	var country_problem := _countries_problem()
 	if country_problem != "":
 		return country_problem
-	return ""
+	return _places_problem()
 
 
 func _size_problem() -> String:
@@ -220,6 +232,50 @@ func _border_lines_problem() -> String:
 		for point in line:
 			if not (is_finite(point.x) and is_finite(point.y)):
 				return "border line %d has a non-finite point" % index
+	return ""
+
+
+## Number of place names (TASK-112).
+func place_count() -> int:
+	return place_names.size()
+
+
+## Place `index` as {"name": String, "position": Vector2 (world units), "rank": int (PLACE_*)}.
+func place_at(index: int) -> Dictionary:
+	return {
+		"name": place_names[index], "position": place_positions[index], "rank": place_ranks[index]
+	}
+
+
+## World rectangle (XZ plane, hex size 1, Vector2.x = world x, Vector2.y = world z) that covers all
+## hexes of the map: tile (0, 0) is centred on the origin; the first two rows give the x extremes.
+func hex_world_rect() -> Rect2:
+	var half_width := Hex.SQRT3 / 2.0
+	var max_x := Hex.SQRT3 * (width - 1) + (Hex.SQRT3 / 2.0 if height > 1 else 0.0) + half_width
+	var max_z := 1.5 * (height - 1) + 1.0
+	return Rect2(Vector2(-half_width, -1.0), Vector2(max_x + half_width, max_z + 1.0))
+
+
+## Three arrays of one length; every place has a non-blank name, a rank in 0..2 and a finite
+## position inside the map's rectangle.
+func _places_problem() -> String:
+	var count := place_names.size()
+	if place_positions.size() != count or place_ranks.size() != count:
+		return (
+			"%d place names, %d positions and %d ranks"
+			% [count, place_positions.size(), place_ranks.size()]
+		)
+	var rect := hex_world_rect()
+	for index in count:
+		if place_names[index].strip_edges() == "":
+			return "place %d has an empty name" % index
+		if place_ranks[index] < PLACE_CITY or place_ranks[index] > PLACE_VILLAGE:
+			return "place %d has rank %d, expected 0..2" % [index, place_ranks[index]]
+		var point := place_positions[index]
+		if not (is_finite(point.x) and is_finite(point.y)):
+			return "place %d has a non-finite position" % index
+		if not rect.has_point(point):
+			return "place %d lies outside the map at %s" % [index, point]
 	return ""
 
 

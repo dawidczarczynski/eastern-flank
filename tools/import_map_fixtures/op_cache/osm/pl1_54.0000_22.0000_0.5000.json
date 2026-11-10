@@ -1,0 +1,17 @@
+{
+ "elements": [
+  {
+   "id": 7002,
+   "lat": 54.47,
+   "lon": 22.47,
+   "tags": {
+    "name": "\u017b\u00f3\u0142\u0107-\u0104\u0107",
+    "place": "town",
+    "population": "9000"
+   },
+   "type": "node"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

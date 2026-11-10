@@ -154,6 +154,16 @@ func shown_ids() -> Array[StringName]:
 	return _shown
 
 
+## Screen rects of the counters drawn now (frame plus room for the designation text).
+func screen_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for id in _shown:
+		var c := counter(id)
+		var body := c.body_rect()
+		rects.append(Rect2(c.position + body.position, body.size).grow(18.0))
+	return rects
+
+
 func _apply_layout() -> void:
 	if _points.is_empty():
 		return

@@ -481,3 +481,98 @@ func test_problem_reports_malformed_border_lines() -> void:
 	assert_true(map.problem().contains("non-finite"), "infinite: " + map.problem())
 	map.border_lines = [PackedVector2Array([Vector2(0, 0), Vector2(NAN, 1)])]
 	assert_true(map.problem().contains("non-finite"), "NaN: " + map.problem())
+
+
+# --- TASK-112: place names ---
+
+
+func _places_map() -> ImportedMap:
+	var map := _country_map()
+	map.place_names = PackedStringArray(["Białystok", "Suwałki", "Wieś"])
+	map.place_positions = PackedVector2Array(
+		[Vector2(0.5, 0.5), Vector2(2.0, 1.5), Vector2(3.0, 2.0)]
+	)
+	map.place_ranks = PackedInt32Array([0, 1, 2])
+	return map
+
+
+func test_places_default_to_none_and_old_maps_load_without_them() -> void:
+	var map := _country_map()
+	assert_eq(map.place_count(), 0)
+	assert_eq(map.problem(), "")
+	var sample := _sample()
+	assert_eq(sample.place_count(), 0, "a map .tres written before TASK-112 has no places")
+	assert_eq(sample.problem(), "")
+	var old := load("res://data/maps/suwalki.tres") as ImportedMap
+	assert_eq(old.place_count(), 0)
+	assert_eq(old.problem(), "")
+
+
+func test_place_at_reads_name_position_and_rank() -> void:
+	var map := _places_map()
+	assert_eq(map.problem(), "")
+	assert_eq(map.place_count(), 3)
+	var place := map.place_at(1)
+	assert_eq(place.name, "Suwałki")
+	assert_eq(place.position, Vector2(2.0, 1.5))
+	assert_eq(place.rank, ImportedMap.PLACE_TOWN)
+
+
+func test_places_survive_a_save_and_load_in_order() -> void:
+	var map := _places_map()
+	var path := "user://test_places_roundtrip.tres"
+	assert_eq(ResourceSaver.save(map, path), OK)
+	var loaded := ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as ImportedMap
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	assert_eq(loaded.place_count(), 3)
+	for i in 3:
+		assert_eq(loaded.place_at(i).name, map.place_at(i).name)
+		assert_eq(loaded.place_at(i).position, map.place_at(i).position)
+		assert_eq(loaded.place_at(i).rank, map.place_at(i).rank)
+	assert_eq(loaded.problem(), "")
+
+
+func test_problem_reports_malformed_places() -> void:
+	var map := _places_map()
+	map.place_names[1] = ""
+	assert_true(map.problem().contains("place 1"), "empty name: " + map.problem())
+	map = _places_map()
+	map.place_names[0] = "   "
+	assert_true(map.problem().contains("place 0"), "blank name: " + map.problem())
+	map = _places_map()
+	map.place_ranks[2] = 3
+	assert_true(map.problem().contains("rank"), "rank 3: " + map.problem())
+	map.place_ranks[2] = -1
+	assert_true(map.problem().contains("rank"), "rank -1: " + map.problem())
+	map = _places_map()
+	map.place_positions[0] = Vector2(INF, 1)
+	assert_true(map.problem().contains("non-finite"), "infinite: " + map.problem())
+	map.place_positions[0] = Vector2(NAN, 1)
+	assert_true(map.problem().contains("non-finite"), "NaN: " + map.problem())
+	map = _places_map()
+	map.place_positions[2] = Vector2(50.0, 1.0)
+	assert_true(map.problem().contains("outside the map"), "off the map: " + map.problem())
+	map.place_positions[2] = Vector2(1.0, -5.0)
+	assert_true(map.problem().contains("outside the map"), "north of the map: " + map.problem())
+	map = _places_map()
+	map.place_ranks = PackedInt32Array([0, 1])
+	assert_true(map.problem().contains("3 place names"), "different lengths: " + map.problem())
+
+
+func test_the_operational_sample_has_its_places() -> void:
+	var map := load("res://tests/fixtures/maps/sample_op_map.tres") as ImportedMap
+	assert_eq(map.problem(), "")
+	assert_eq(map.place_count(), 4)
+	assert_eq(map.place_at(0).name, "Miasto")
+	assert_eq(map.place_at(0).rank, ImportedMap.PLACE_CITY)
+	assert_eq(map.place_at(2).name, "Mońki", "diacritics are kept")
+	assert_eq(map.place_at(3).rank, ImportedMap.PLACE_VILLAGE)
+
+
+func test_world_rect_covers_every_hex_centre_and_corner() -> void:
+	var map := _country_map()
+	var rect := map.hex_world_rect()
+	for c in map.to_grid().coords():
+		var p := Hex.to_world(c, 1.0)
+		assert_true(rect.has_point(Vector2(p.x, p.z)), "centre of %s" % c)
+	assert_true(rect.has_point(Vector2(0.0, -1.0)), "the north corner of the first hex")

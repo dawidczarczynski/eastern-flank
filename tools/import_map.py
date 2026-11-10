@@ -60,6 +60,13 @@ fetched like the land-cover tiles, `--offline` fails naming a missing tile). Wri
 The borders are also written as lines for drawing (`border_lines`, `border_polylines`): the ways clipped to the map, chained
 and Douglas-Peucker simplified (0.1 hex), in world units (x east, z south, hex size 1) - never snapped to hexes.
 
+Places (TASK-112, operational only): the named OSM `place=city|town|village` nodes for the staff map's labels, fetched in
+their own tiles `<cache>/osm/pl1_<lat>_<lon>_<deg>.json` (`places_query`; `--offline` fails naming a missing one) and
+written as `place_names` (the local `name` tag, diacritics kept), `place_positions` (world units like `border_lines`)
+and `place_ranks` (0 city, 1 town, 2 village), ordered by rank, then population, name and OSM id (`select_places`).
+Cities and towns are all kept, villages only with `population` >= PLACE_MIN_VILLAGE_POPULATION, and the villages are
+capped so that all places together are at most PLACE_MAX_TOTAL (largest first).
+
 Graphic layers (TASK-126, operational only; GDD "Operational map", map principle): the drawn staff map is not made
 of hexes, so the importer also writes three images of the whole lattice (one pixel per lattice point, `--sample`
 = 250 m, row 0 north): `water` (1-bit: the water class of the lattice - lakes, reservoirs, riverbanks and the sea
@@ -179,6 +186,10 @@ OP_ROAD_HIGHWAYS = ("motorway", "trunk", "primary", "secondary")
 OP_SEA_SEEDS = ((55.30, 20.60), (55.10, 21.05))  # the open Baltic west of the Curonian Spit; the Curonian Lagoon
 OP_QUERY_VERSION = "op1"  # part of the tile file names: a changed query must not reuse old tiles
 BORDER_QUERY_VERSION = "bd1"  # borders-only tile files (TASK-113), next to the `op1` land-cover tiles
+PLACES_QUERY_VERSION = "pl1"  # place-node tile files (TASK-112), next to the `op1` land-cover tiles
+PLACE_RANKS = {"city": 0, "town": 1, "village": 2}  # `place=` value -> rank written in `place_ranks`
+PLACE_MIN_VILLAGE_POPULATION = 1000  # a village needs a `population` tag of at least this to get a label
+PLACE_MAX_TOTAL = 400  # all places together; the smallest villages are dropped first, never a city or a town
 OP_COUNTRIES = (("PL", 54.10, 22.93), ("LT", 54.90, 23.90), ("BY", 53.68, 23.83), ("RU", 54.71, 20.51))
 # Suwalki, Kaunas, Grodno, Kaliningrad: the operational defaults of `--countries` (skipped when off the map)
 NO_COUNTRY = 255
@@ -517,6 +528,16 @@ def border_query(south: float, west: float, north: float, east: float) -> str:
     ])  # fmt: skip
 
 
+def places_query(south: float, west: float, north: float, east: float) -> str:
+    """Overpass query of one place tile (TASK-112): the named `place=city|town|village` nodes of the bbox."""
+    bbox = "%.5f,%.5f,%.5f,%.5f" % (south, west, north, east)
+    return "\n".join([
+        "[out:json][timeout:900];",
+        'node["place"~"^(%s)$"]["name"](%s);' % ("|".join(PLACE_RANKS), bbox),
+        "out body;",
+    ])  # fmt: skip
+
+
 def operational_query(south: float, west: float, north: float, east: float) -> str:
     """Overpass query of one operational tile: only what the operational profile reads (forest, water, wetland,
     urban land use, major roads, rivers and canals) plus the coastline (sea fill) and the country borders
@@ -682,6 +703,53 @@ def osm_borders(osm: dict, all_ways: bool = False) -> Dict[int, List[Tuple[float
         if len(points) >= 2:
             lines[way["id"]] = points
     return lines
+
+
+def _population(tags: Dict[str, str]) -> int:
+    """The `population` tag as a number (digits only, so "1 200" and "1,200" count); 0 when missing or unreadable."""
+    digits = "".join(ch for ch in tags.get("population", "") if ch.isdigit())
+    return int(digits) if digits else 0
+
+
+def osm_places(osm: dict) -> List[dict]:
+    """The named city / town / village nodes of an Overpass answer as dicts `id`, `rank` (PLACE_RANKS), `name` (the
+    local `name` tag unchanged, no `name:en`), `population` (0 = unknown), `lat`, `lon`, sorted by id."""
+    places = []
+    for el in osm.get("elements", []):
+        if el.get("type") != "node":
+            continue
+        tags = el.get("tags", {})
+        name = tags.get("name", "").strip()
+        if tags.get("place") in PLACE_RANKS and name:
+            places.append({"id": el["id"], "rank": PLACE_RANKS[tags["place"]], "name": name,
+                           "population": _population(tags), "lat": el["lat"], "lon": el["lon"]})  # fmt: skip
+    return sorted(places, key=lambda p: p["id"])
+
+
+def select_places(places: Sequence[dict], layout: "HexLayout", zone: int) -> List[dict]:
+    """The places that get a label (TASK-112): each OSM node once, inside the map's rectangle; every city and town,
+    villages only with a population of at least PLACE_MIN_VILLAGE_POPULATION and - to keep the total at most
+    PLACE_MAX_TOTAL - the largest first (then name, then OSM id). Result: dicts `name`, `rank`, `x`, `z` (world units
+    like `border_lines`: x east, z south, hex size 1, tile (0, 0) centre = (0, 0)), ordered by rank, then population
+    (largest first), name and OSM id - the order the file keeps and a view may rely on."""
+    m = layout.metres_per_unit
+    min_e, min_n, max_e, max_n = layout.bounds()
+    unique: Dict[int, dict] = {}
+    for place in places:
+        unique.setdefault(place["id"], place)
+    kept = []
+    for place in unique.values():
+        if place["rank"] == PLACE_RANKS["village"] and place["population"] < PLACE_MIN_VILLAGE_POPULATION:
+            continue
+        e, n = to_utm(place["lat"], place["lon"], zone)
+        if min_e <= e <= max_e and min_n <= n <= max_n:
+            kept.append(dict(place, x=(e - layout.origin_e) / m, z=(layout.origin_n - n) / m))
+    kept.sort(key=lambda p: (p["rank"], -p["population"], p["name"], p["id"]))
+    villages = [p for p in kept if p["rank"] == PLACE_RANKS["village"]]
+    if len(kept) > PLACE_MAX_TOTAL:
+        drop = {p["id"] for p in villages[max(0, PLACE_MAX_TOTAL - (len(kept) - len(villages))):]}
+        kept = [p for p in kept if p["id"] not in drop]
+    return kept
 
 
 def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, List[Tuple[float, float]]]]:
@@ -1395,11 +1463,12 @@ def _load_osm(source: object) -> dict:
 
 
 def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Optional[Settings] = None,
-              borders: object = None) -> dict:  # fmt: skip
+              borders: object = None, places: object = None) -> dict:  # fmt: skip
     """Per-hex terrain, cover and elevation of the layout (see the module docstring). `osm` is one Overpass
     answer (dict or path) or a list of them (OSM tiles, loaded one at a time; areas and lines that appear in several
     tiles give the same result again, `_scanline_fill` and link masks are idempotent). `borders` is a list of
-    borders-only answers (TASK-113) whose ways all count as country borders, added to the tagged border ways of `osm`."""
+    borders-only answers (TASK-113) whose ways all count as country borders, added to the tagged border ways of `osm`.
+    `places` is a list of place-node answers (TASK-112, `places_query`), written as `result["places"]`."""
     settings = settings or Settings()
     profile = settings.profile
     step = settings.sample_m
@@ -1438,6 +1507,9 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     for source in (borders if country_seeds and borders else []):
         for way_id, line in osm_borders(_load_osm(source), True).items():
             border_lines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
+    found_places: List[dict] = []
+    for source in (places or []):
+        found_places += osm_places(_load_osm(source))
     seeds = [to_utm(lat, lon, zone) for lat, lon in settings.sea_seeds]
     for lat, lon in settings.default_seeds:
         e, n = to_utm(lat, lon, zone)
@@ -1540,7 +1612,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         layers = graphic_layers(cover, heights, min_e, min_n, step, settings.canopy, settings.relief_z,
                                 settings.relief_step)  # fmt: skip
     return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points,
-            "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn, "layers": layers}  # fmt: skip
+            "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn, "layers": layers,
+            "places": select_places(found_places, layout, zone)}  # fmt: skip
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -1857,6 +1930,15 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
             lines[at + 2:at + 2] = ["border_lines = Array[PackedVector2Array]([%s])" % ", ".join(
                 "PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(x, 3), _f(z, 3)) for x, z in line)
                 for line in result["border_lines"])]  # fmt: skip
+    if result.get("places"):
+        at = lines.index("elevation_m = PackedFloat32Array(%s)" % ", ".join(metres))
+        places = result["places"]
+        lines[at:at] = [
+            "place_names = PackedStringArray(%s)" % ", ".join(_string(p["name"]) for p in places),
+            "place_positions = PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(p["x"], 3), _f(p["z"], 3))
+                                                                   for p in places),  # fmt: skip
+            "place_ranks = PackedInt32Array(%s)" % ", ".join(str(p["rank"]) for p in places),
+        ]
     layers = result.get("layers")
     if layers:
         at = lines.index("sources = %s" % _string(sources)) + 1
@@ -1974,6 +2056,14 @@ def _fetch_border_tile(path: Path, lat: float, lon: float, deg: float) -> None:
     _fetch_answer(path, border_query(lat, lon, lat + deg, lon + deg))
 
 
+def places_tile_path(cache: Path, lat: float, lon: float, deg: float) -> Path:
+    return cache / "osm" / ("%s_%.4f_%.4f_%.4f.json" % (PLACES_QUERY_VERSION, lat, lon, deg))
+
+
+def _fetch_places_tile(path: Path, lat: float, lon: float, deg: float) -> None:
+    _fetch_answer(path, places_query(lat, lon, lat + deg, lon + deg))
+
+
 def landuse_tile_path(cache: Path, lat: float, lon: float, deg: float) -> Path:
     return cache / "osm" / ("%s_%.4f_%.4f_%.4f.json" % (LANDUSE_QUERY_VERSION, lat, lon, deg))
 
@@ -2028,6 +2118,13 @@ def border_tile_paths(cache: Path, south: float, west: float, north: float, east
     are never touched."""
     return _cached_tiles(cache, south, west, north, east, offline, deg, border_tile_path, _fetch_border_tile,
                          "OSM border")  # fmt: skip
+
+
+def places_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
+                      deg: float = OSM_TILE_DEG) -> List[Path]:  # fmt: skip
+    """The cached place-node tiles of the bbox (TASK-112), same tiling as `osm_tile_paths`."""
+    return _cached_tiles(cache, south, west, north, east, offline, deg, places_tile_path, _fetch_places_tile,
+                         "OSM places")  # fmt: skip
 
 
 def landuse_tile_paths(cache: Path, south: float, west: float, north: float, east: float, offline: bool,
@@ -2181,6 +2278,9 @@ def run(argv: Sequence[str]) -> Path:
     if profile.tiled and not args.osm and (countries or (profile is OPERATIONAL and _countries_on_map(
             OP_COUNTRIES, layout, zone))):  # fmt: skip
         border_files = border_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
+    place_files = None
+    if profile is OPERATIONAL and not args.osm:
+        place_files = places_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
     downloaded = time.time()
     settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
                         args.urban_share, args.forest_share, args.marsh_share,
@@ -2201,7 +2301,7 @@ def run(argv: Sequence[str]) -> Path:
                   sum(1 for m in layer["road"] if m), sum(1 for m in layer["river"] if m), size / 1e6,
                   layer["sea_points"], downloaded - started, time.time() - downloaded))  # fmt: skip
         return out
-    result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files)
+    result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files, place_files)
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():
@@ -2213,6 +2313,9 @@ def run(argv: Sequence[str]) -> Path:
     if result["countries"]:
         owned = [sum(1 for t in result["tiles"].values() if t["country"] == k) for k in range(len(result["countries"]))]
         print("Countries: %s" % ", ".join("%s %d" % (iso, n) for iso, n in zip(result["countries"], owned)))
+    if result.get("places"):
+        ranks = [sum(1 for p in result["places"] if p["rank"] == k) for k in range(len(PLACE_RANKS))]
+        print("Places: %d (%s)" % (len(result["places"]), ", ".join("%s %d" % (k, n) for k, n in zip(PLACE_RANKS, ranks))))
     if result.get("layers"):
         layers = result["layers"]
         print("Graphic layers: %dx%d px of %.0f m, water %d px; file %.2f MB" % (layers["width"], layers["height"],

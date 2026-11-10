@@ -1,0 +1,17 @@
+{
+ "elements": [
+  {
+   "id": 7004,
+   "lat": 54.48,
+   "lon": 22.56,
+   "tags": {
+    "name": "Du\u017ca Wie\u015b",
+    "place": "village",
+    "population": "1200"
+   },
+   "type": "node"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}
