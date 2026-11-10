@@ -19,6 +19,17 @@ static var _default: EscalationLadder
 @export var sanctuary_breach_escalation: int = 1
 ## Steps a strike on an urban hex adds.
 @export var urban_strike_escalation: int = 1
+## Political decisions the current player may take per turn (TASK-117).
+@export var decisions_per_turn: int = 1
+## Steps the Escalate decision / declaring hostilities without a casus belli / invoking an
+## alliance add.
+@export var decision_escalation: int = 1
+@export var declaration_escalation: int = 1
+@export var alliance_escalation: int = 1
+## Turns after Stand down during which the escalating decisions are rejected.
+@export var stand_down_cooldown_turns: int = 2
+## Demand neutrality is rejected above this level.
+@export var demand_neutrality_max_level: int = 2
 
 
 ## The shipped data/operational/escalation.tres, loaded once.
@@ -63,4 +74,18 @@ func _numbers_problem() -> String:
 		return "sanctuary_breach_escalation must not be negative"
 	if urban_strike_escalation < 0:
 		return "urban_strike_escalation must not be negative"
+	return _decisions_problem()
+
+
+func _decisions_problem() -> String:
+	if decisions_per_turn < 1:
+		return "decisions_per_turn must be at least 1"
+	if (
+		decision_escalation < 0
+		or declaration_escalation < 0
+		or alliance_escalation < 0
+		or stand_down_cooldown_turns < 0
+		or demand_neutrality_max_level < 0
+	):
+		return "decision escalation, cooldown and neutrality level must not be negative"
 	return ""

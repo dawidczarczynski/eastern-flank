@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Political decisions – staff map</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+:root{--void:#0b0d0b;--land:#1d211c;--forest:#22302a;--border:#a9afa1;--own:#5b93d6;--own-ink:#0f1a26;--enemy:#d76a52;--enemy-ink:#2a110b;--neutral:#a8a598;
+--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--plate:rgba(11,13,11,.92);--edge:rgba(232,176,74,.45);
+--card:#12150f;--cedge:#2e3329;--scrim:rgba(0,0,0,.62)}
+*{box-sizing:border-box}
+body{margin:0;background:#070807;color:var(--text);font:14px/1.45 "Plex Cond",sans-serif;padding:0 32px 60px;width:1504px}
+h1,h2,h3{font-family:"Chakra Petch";font-weight:700;margin:0}
+h1{font-size:26px;margin:18px 0 4px}h2{font-size:21px;margin:48px 0 6px;color:var(--amber)}h3{font-size:14px;margin:18px 0 6px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.banner{background:var(--amber);color:#1a0f02;font:700 13px "Chakra Petch";letter-spacing:.16em;padding:6px 32px;margin:0 -32px}
+p{max-width:960px;margin:4px 0 10px;color:#c9cfc0}
+code,.mono{font-family:"JetBrains Mono";font-size:11.5px;color:var(--amber)}
+.note{border-left:3px solid var(--amber);padding:4px 10px;background:#12150f;max-width:960px}
+table{border-collapse:collapse;margin:8px 0;font-size:12.5px;width:960px}
+td,th{border-top:1px solid #23271f;padding:3px 8px;text-align:left;vertical-align:top}
+th{font:700 11px "Chakra Petch";letter-spacing:.12em;color:var(--muted)}td:first-child{color:var(--muted);width:150px}
+.row{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.cap{font:11px "JetBrains Mono";color:var(--muted);margin:0 0 4px}
+/* frame = cropped, optionally scaled window onto a 1440x900 stage */
+.win{position:relative;overflow:hidden;border:1px solid #2a2e27;background:var(--land)}
+.win>.sc{position:absolute;left:0;top:0;transform-origin:0 0}
+.stage{position:absolute;left:0;top:0;width:1440px;height:900px;background:var(--land);overflow:hidden}
+.stage>*{position:absolute!important}
+.stage .scrim{inset:0;background:var(--scrim)}
+.stage .dim{inset:0;background:rgba(0,0,0,.28)}
+/* plate: chamfered like StaffMapCountryCard */
+.pl{position:relative;--ec:var(--cedge);--pb:var(--card);background:var(--ec);
+clip-path:polygon(0 0,calc(100% - 9px) 0,100% 9px,100% 100%,9px 100%,0 calc(100% - 9px))}
+.pl::before{content:"";position:absolute;inset:1px;background:var(--pb);z-index:-1;
+clip-path:polygon(0 0,calc(100% - 8.7px) 0,100% 8.7px,100% 100%,8.7px 100%,0 calc(100% - 8.7px))}
+.hud{--pb:var(--plate);--ec:#3a3f33}
+.t{font:700 12.5px "Chakra Petch";letter-spacing:.04em}
+.m{font:11px "JetBrains Mono";color:var(--muted)}
+/* decision card */
+.card{--ec:var(--cedge);--pb:var(--card);padding:7px 12px 7px;display:flex;flex-direction:column;gap:4px}
+.card.warn{--ec:#6e5627}.card.danger{--ec:#8a4a38}.card.conf{--ec:var(--amber)}.card.off .ti,.card.off .ef{color:#9aa292}
+.ch{display:flex;align-items:center;gap:8px}
+.no{font:700 11px "JetBrains Mono";border:1px solid var(--muted);color:var(--text);padding:0 5px}
+.ti{font:700 15px "Chakra Petch";letter-spacing:.03em;flex:1;white-space:nowrap}
+.cost{font:700 11px "JetBrains Mono";padding:1px 6px;border:1px solid var(--muted);color:var(--text);white-space:nowrap}
+.cost.up{border-color:var(--amber);color:var(--amber)}.cost.free{color:var(--muted)}.cost.dn{border-color:var(--own);color:var(--own)}
+.ef{font:500 12.5px "Plex Cond";color:#c9cfc0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pk{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.pk .l{font:700 10px "Chakra Petch";letter-spacing:.14em;color:var(--muted);margin-right:2px}
+.c{font:11px "JetBrains Mono";border:1px solid #4a5043;padding:1px 7px 1px 6px;display:flex;align-items:center;gap:5px;color:var(--text)}
+.c.sel{border-color:var(--amber);background:rgba(232,176,74,.16);color:var(--amber)}
+.c.dis{color:#6d7466;border-style:dashed}
+.rel{display:inline-block;width:11px;height:7px;border:1.5px solid var(--neutral);border-radius:50%}
+.rel.own{border-color:var(--own);border-radius:0}.rel.en{border-color:var(--enemy);border-radius:0;width:8px;height:8px;transform:rotate(45deg);margin:0 1px}
+.foot{display:flex;align-items:center;gap:8px;min-height:26px}
+.why{flex:1;font:500 12px "Plex Cond";display:flex;align-items:center;gap:6px;color:var(--amber)}
+.why.red{color:var(--alert)}.why.ok{color:var(--muted)}
+.tag{font:700 10px "JetBrains Mono";padding:0 5px;border:1px solid currentColor;letter-spacing:.06em;white-space:nowrap}
+.tag.red{background:var(--alert);color:var(--enemy-ink);border-color:var(--alert)}
+.tri{display:inline-block;width:0;height:0;border:5px solid transparent;border-bottom:9px solid currentColor;border-top:0;margin-right:1px}
+.btn{font:700 12px "Chakra Petch";letter-spacing:.14em;padding:4px 14px;border:1px solid var(--amber);background:var(--amber);color:#1a0f02;white-space:nowrap;
+clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.btn.off{background:none;border:1px solid #4a5043;color:#6d7466;box-shadow:inset 0 0 0 1px #4a5043;clip-path:none}
+.btn.ghost{background:none;color:var(--text);border-color:var(--muted)}
+.k{font:700 10px "JetBrains Mono";border:1px solid var(--muted);padding:0 4px;margin-left:5px;color:var(--text);letter-spacing:0}
+.btn .k{border-color:#1a0f02;color:#1a0f02}
+.cf{display:flex;flex-direction:column;gap:6px;border-top:1px dashed #6e5627;padding-top:6px}
+.cf .q{font:700 13px "Chakra Petch";color:var(--text)}.cf .q.red{color:var(--alert)}
+.ticks{display:flex;gap:4px;align-items:center}
+.tk{width:13px;height:9px;border:1px solid var(--muted);transform:skewX(-14deg)}
+.tk.on{background:var(--muted)}.tk.new{border-color:var(--amber);background:repeating-linear-gradient(135deg,var(--amber) 0 2px,transparent 2px 4px)}
+.tk.top{border-color:var(--alert)}.tk.top.new{background:var(--alert)}
+.arr{font:700 11px "JetBrains Mono";color:var(--amber)}
+/* header strip */
+.hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.side{font:700 12px "Chakra Petch";letter-spacing:.14em;display:flex;align-items:center;gap:7px}
+.side i{display:inline-block;width:18px;height:11px;border:2px solid var(--own);background:rgba(91,147,214,.3)}
+.side.en i{width:12px;height:12px;transform:rotate(45deg);border-color:var(--enemy);background:rgba(215,106,82,.3);margin:0 3px}
+.bud{font:700 13px "Chakra Petch";letter-spacing:.1em;display:flex;align-items:center;gap:7px}
+.pip{width:11px;height:11px;border:1.5px solid var(--text);display:inline-block}.pip.f{background:var(--text)}
+.cd{font:700 11px "JetBrains Mono";color:var(--amber);border:1px solid var(--amber);padding:1px 7px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cd .pip{border-color:var(--amber);width:9px;height:9px}.cd .pip.f{background:var(--amber)}
+.xb{width:28px;height:28px;border:1px solid var(--muted);position:relative;flex:none}
+.xb::before,.xb::after{content:"";position:absolute;left:6px;top:12px;width:14px;height:2px;background:var(--text);transform:rotate(45deg)}.xb::after{transform:rotate(-45deg)}
+.res{font:700 12px "Chakra Petch";letter-spacing:.04em;color:var(--amber);display:flex;align-items:center;gap:8px;border:1px solid var(--edge);background:rgba(232,176,74,.1);padding:3px 9px}
+.ck{width:11px;height:6px;border-left:2.5px solid var(--amber);border-bottom:2.5px solid var(--amber);transform:rotate(-45deg);margin-top:-3px}
+.hint{font:11px "JetBrains Mono";color:var(--muted)}
+.grp{font:700 10.5px "Chakra Petch";letter-spacing:.2em;color:var(--muted);margin:2px 0 -2px}
+/* backdrop pieces */
+.cnt{width:40px;height:26px;background:var(--own);color:var(--own-ink);font:700 11px "JetBrains Mono";text-align:center;line-height:26px;clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)}
+.cnt.en{width:38px;height:38px;background:var(--enemy);color:var(--enemy-ink);transform:rotate(45deg);line-height:38px;clip-path:none}
+.cnt.en span{display:block;transform:rotate(-45deg)}
+.cname{font:500 26px "Chakra Petch";letter-spacing:.42em;opacity:.5}
+.bar{height:56px;left:0;right:0;bottom:0;background:#0d100d;border-top:1px solid #2a2e27;display:flex;align-items:center;gap:10px;padding:0 16px;font:700 11px "Chakra Petch";letter-spacing:.1em;color:var(--muted)}
+.bar span{border:1px solid #2a2e27;padding:6px 12px;display:flex;gap:6px;align-items:center}.bar span.on{border-color:var(--amber);color:var(--amber);background:rgba(232,176,74,.1)}
+.bar b{display:inline-block;width:10px;height:10px;background:currentColor;opacity:.7}
+.bar .sp{flex:1;border:0}
+.hand .ti{font-size:13.5px;white-space:normal;line-height:1.15}.hand .cost{font-size:10px}.hand .ef{white-space:normal}.hand .no{align-self:flex-start}
+.var-h{display:flex;gap:14px;align-items:baseline}
+.pend{font:11px "JetBrains Mono";color:var(--muted);border:1px dashed #4a5043;padding:10px;text-align:center}
+</style></head><body>
+<div class="banner">ACCEPTED: variant B (full Politics screen) · 2026-11-10 · TASK-117 · variants A and C are rejected alternatives</div>
+<h1>Political decisions on the staff map</h1>
+<p><b>The need.</b> The five standing decisions of TASK-117 – Escalate, Stand down, Declare hostilities, Invoke alliance (named per side), Demand neutrality – must be readable as <i>choices</i>: what each does in one line, what it costs on the escalation ladder, whether it is available and, if not, <i>why</i>. The current small popup cramps this. Every variant shows, in all states: 5 cards (title, one-line effect, cost, Take), a country picker, a disabled state with reason (amber; red at the threshold), a confirmation showing the new level, the budget (“Decisions 1 of 1”), the stand-down counter, an X button + <code>Esc</code>. It closes by itself when the turn ends (fade 150 ms, no confirmation; an unconfirmed pick is dropped). Decisions are one per turn, so every card dims when the budget is 0.</p>
+<p>Frames are crops of the 1440×900 layout (1:1 unless the caption gives a scale). Backdrop in the staff-map palette. <b>Own = blue, enemy = red from either side’s point of view</b> (Russia sees its own forces blue, as in the accepted mock-ups); only the side name and decision names change. Meaning is carried by shape and text, never colour alone: own = rectangle, enemy = diamond, neutral = circle; <span class="tag">BLOCKED</span> (amber) vs <span class="tag red"><i class="tri"></i>THRESHOLD</span> (red, with triangle); cost chip text “LEVEL +1”.</p>
+<div class="note">States shown in each variant: <b>S1</b> NATO, turn start, level 1 (mixed available / blocked, picker open) · <b>S2</b> confirming Escalate (1 → 2) · <b>S3</b> Russia at level 3: threshold (red), recent escalation, level too high (amber) · <b>S4</b> NATO after taking a decision: result line, budget 0 of 1, stand-down counter 2 turns.</div>
+
+<div id="root"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=(h)=>h;
+const REL={own:'<i class="rel own"></i>',en:'<i class="rel en"></i>',ne:'<i class="rel"></i>'};
+const RT={own:'ALLY',en:'HOSTILE',ne:'NEUTRAL'};
+function ticks(from,to,lvl){let s='<div class="ticks">';for(let i=0;i<5;i++){let c='tk';if(i===4)c+=' top';if(to!==null&&i===to)c+=' new';else if(i<=from)c+=' on';s+='<i class="'+c+'"></i>'}return s+'</div>'}
+function pk(label,items){return '<div class="pk"><span class="l">'+label+'</span>'+items.map(i=>'<span class="c'+(i.s?' sel':'')+(i.d?' dis':'')+'">'+REL[i.r]+i.n+'<span style="color:var(--muted);font-size:9.5px">'+RT[i.r]+'</span></span>').join('')+'</div>'}
+function dd(label,i,open,list){ // compact dropdown for the narrow cards of variant C
+ return '<div class="pk" style="position:relative"><span class="l">'+label+'</span><span class="c sel" style="flex:1;justify-content:space-between"><span style="display:flex;gap:5px;align-items:center">'+REL[i.r]+i.n+'</span><span>'+(open?'▴':'▾')+'</span></span>'+
+ (open?'<div class="pl" style="position:absolute;left:0;right:0;top:26px;z-index:5;padding:5px;display:flex;flex-direction:column;gap:3px;--ec:var(--amber)">'+list.map(x=>'<div class="c'+(x.s?' sel':'')+(x.d?' dis':'')+'" style="justify-content:space-between;border-color:transparent"><span style="display:flex;gap:5px;align-items:center">'+REL[x.r]+x.n+'</span><span style="font-size:9.5px;color:'+(x.d?'var(--amber)':'var(--muted)')+'">'+(x.why||RT[x.r])+'</span></div>').join('')+'</div>':'')+'</div>'}
+function why(kind,text){if(!text)return '<span class="why"></span>';
+ if(kind==='red')return '<span class="why red"><span class="tag red"><i class="tri"></i>THRESHOLD</span>'+text+'</span>';
+ if(kind==='ok')return '<span class="why ok">'+text+'</span>';
+ return '<span class="why"><span class="tag">BLOCKED</span>'+text+'</span>'}
+/* c = {no,title,eff,cost,ct:'up|dn|free',pk,st:'ok|warn|danger|conf',why:[kind,text],conf:{q,red,from,to}} */
+function card(c,narrow){
+ const st=c.st||'ok';let foot;
+ if(st==='conf'){foot='<div class="cf"><div class="q'+(c.conf.red?' red':'')+'">'+c.conf.q+'</div><div class="foot">'+ticks(c.conf.from,c.conf.to)+'<span class="arr">'+c.conf.from+' ▸ '+c.conf.to+'</span><span class="hint" style="flex:1">'+c.conf.name+'</span></div><div class="foot" style="justify-content:flex-end"><span class="btn ghost">CANCEL<span class="k" style="color:var(--text);border-color:var(--muted)">Esc</span></span><span class="btn">CONFIRM<span class="k">↵</span></span></div></div>'}
+ else{const off=st!=='ok';foot='<div class="foot">'+(c.why?why(c.why[0],c.why[1]):'<span class="why ok"></span>')+'<span class="btn'+(off?' off':'')+'">TAKE</span></div>'}
+ return '<div class="pl card '+st+(st==='warn'||st==='danger'?' off':'')+'"><div class="ch"><span class="no">'+c.no+'</span><span class="ti">'+c.title+'</span><span class="cost '+c.ct+'">'+c.cost+'</span></div><div class="ef">'+c.eff+'</div>'+(c.pk||'')+foot+'</div>'}
+function budget(left,cd,lvl,name,side,nolvl){return '<div class="hd" style="gap:8px 12px"><span class="side"><i></i>'+(side||'NATO')+'</span><span class="bud">DECISIONS '+left+' OF 1 '+'<span class="pip'+(left?' f':'')+'"></span></span>'+(nolvl?'':'<span class="bud" style="color:var(--muted);font-weight:500">LEVEL '+lvl+' · '+name.toUpperCase()+'</span>')+(cd?'<span class="cd">STANDING DOWN · '+cd+' TURNS <span class="pip f"></span><span class="pip f"></span></span>':'')+'</div>'}
+/* ---------- backdrop ---------- */
+function stage(o){o=o||{};
+ const lvl=o.lvl??1,names=['Contained clash','Limited war','Open war','Regional war','Strategic threshold'];
+ let s='<div class="stage"><svg width="1440" height="900" style="left:0;top:0"><rect width="1440" height="900" fill="#1d211c"/><path d="M0 300 C220 260 300 350 520 330 S800 250 1000 300 1250 360 1440 330 V520 C1200 540 1000 470 820 500 S400 560 0 520Z" fill="#22302a"/><path d="M0 700 C300 640 600 720 900 680 S1300 620 1440 660" stroke="#46728c" stroke-width="1.8" fill="none"/><path d="M560 120 C600 250 540 330 600 430 S700 640 650 860" stroke="#a9afa1" stroke-width="1.4" stroke-dasharray="9 3 2 3" fill="none"/><path d="M200 150 C260 300 330 400 380 470 S420 620 400 760" stroke="#a9afa1" stroke-width="1.4" stroke-dasharray="9 3 2 3" fill="none"/><path d="M300 600 L420 560 L520 520 L640 500" stroke="#e8b04a" stroke-width="2.4" stroke-dasharray="7 5" fill="none" opacity=".8"/><path d="M0 380 C200 420 380 400 560 440 S820 470 1100 430" stroke="#b4ac98" stroke-width="1.3" fill="none"/></svg>';
+ s+='<div class="cname" style="left:70px;top:420px;color:var(--own)">POLAND</div><div class="cname" style="left:720px;top:600px;color:var(--enemy)">BELARUS</div><div class="cname" style="left:640px;top:170px;color:var(--neutral)">LITHUANIA</div>';
+ s+='<div class="cnt" style="left:300px;top:588px">3×B</div><div class="cnt" style="left:500px;top:507px">2×B</div><div class="cnt en" style="left:840px;top:560px"><span>1×R</span></div><div class="cnt en" style="left:920px;top:700px"><span>2×R</span></div>';
+ s+='<div class="pl hud" style="left:430px;top:8px;width:580px;height:44px;display:flex;align-items:center;gap:14px;padding:0 16px"><span class="side"><i></i>'+(o.en?'RUSSIA':'NATO')+' · 12</span><span class="t">TURN 7</span><span class="m">10 NOV · DAY</span><span class="t" style="color:var(--own)">YOUR MOVE</span><span class="btn" style="margin-left:auto">END TURN<span class="k">↵</span></span></div>';
+ s+='<div class="pl hud" style="left:560px;top:60px;width:320px;height:26px;display:flex;align-items:center;gap:10px;padding:0 14px">'+ticks(lvl,null)+'<span class="t" style="font-size:11px">LEVEL '+lvl+' · '+names[lvl].toUpperCase()+'</span></div>';
+ if(!o.noRight)s+='<div class="pl hud" style="left:1140px;top:100px;width:290px;height:420px;padding:12px"><div class="t">3rd Mech Brigade</div><div class="m">STR 82% · DEFEND · SUPPLY OK</div><div class="m" style="margin-top:10px">subunits · orders · location</div></div>';
+ s+='<div class="bar"><span><b></b>ORDERS<i class="k">O</i></span><span><b></b>LAYERS</span><span class="'+(o.bar?'on':'')+'"><b></b>DECISIONS<i class="k">D</i></span><span><b></b>REPORT</span><span class="sp"></span><span style="color:var(--text)">END TURN ↵</span></div>';
+ return s+(o.inner||'')+'</div>'}
+function win(w,h,x,y,scale,html){scale=scale||1;return '<div class="win" style="width:'+Math.round(w*scale)+'px;height:'+Math.round(h*scale)+'px"><div class="sc" style="transform:scale('+scale+');left:'+(-x*scale)+'px;top:'+(-y*scale)+'px">'+html+'</div></div>'}
+/* ---------- states: card data ---------- */
+const NATO=(over)=>({
+ esc:{no:1,title:'Escalate',eff:'Wider strikes: level 1 → 2',cost:'LEVEL +1',ct:'up'},
+ std:{no:2,title:'Stand down',eff:'De-escalate: level 0, no escalating for 2 turns',cost:'LEVEL −1',ct:'dn',st:'warn',why:['amb','The level is already the lowest'].map((x,i)=>i?x:'amb')},
+ dec:{no:3,title:'Declare hostilities',eff:'Belarus becomes hostile to the enemy, level 1 → 2',cost:'LEVEL +1',ct:'up',pk:pk('TARGET',[{n:'Belarus',r:'ne',s:1},{n:'Russia',r:'en',d:1}])},
+ inv:{no:4,title:'Invoke collective defence',eff:'Lithuania enters the war on your side, level 1 → 2',cost:'LEVEL +1',ct:'up',pk:pk('ALLY',[{n:'Lithuania',r:'own',s:1},{n:'Poland',r:'own',d:1}])},
+ dem:{no:5,title:'Demand neutrality',eff:'Belarus is forced back to neutrality',cost:'FREE',ct:'free',st:'warn',why:['amb','Enemy troops are on its soil'],pk:pk('TARGET',[{n:'Belarus',r:'en',s:1}])}});
+const S1=NATO();
+S1.dec.pk=pk('TARGET',[{n:'Belarus',r:'ne',s:1},{n:'Russia',r:'en',d:1}]);
+const S2=NATO();S2.esc.st='conf';S2.esc.conf={q:'Escalate? Level 1 → 2 (Limited war → Open war)',from:1,to:2,name:'OPEN WAR'};
+['std','dec','inv','dem'].forEach(k=>{S2[k].st='warn';S2[k].why=['amb','Confirm or cancel Escalate first']});
+const S3={ // Russia at level 3
+ esc:{no:1,title:'Escalate',eff:'Wider strikes: level 3 → 4',cost:'LEVEL +1',ct:'up',st:'danger',why:['red','Would cross the threshold']},
+ std:{no:2,title:'Stand down',eff:'De-escalate: level 3 → 2, no escalating for 2 turns',cost:'LEVEL −1',ct:'dn',st:'warn',why:['amb','You escalated last turn']},
+ dec:{no:3,title:'Declare hostilities',eff:'Lithuania becomes hostile to the enemy, level 3 → 4',cost:'LEVEL +1',ct:'up',st:'danger',why:['red','Would cross the threshold'],pk:pk('TARGET',[{n:'Lithuania',r:'en',s:1},{n:'Poland',r:'en',d:1}])},
+ inv:{no:4,title:'Invoke the Union State',eff:'Belarus enters the war on your side, level 3 → 4',cost:'LEVEL +1',ct:'up',st:'danger',why:['red','Would cross the threshold'],pk:pk('ALLY',[{n:'Belarus',r:'own',s:1}])},
+ dem:{no:5,title:'Demand neutrality',eff:'Lithuania is forced back to neutrality',cost:'FREE',ct:'free',st:'warn',why:['amb','The level is too high for an ultimatum'],pk:pk('TARGET',[{n:'Lithuania',r:'en',s:1}])}};
+const S4=NATO();
+S4.esc.eff='Wider strikes: level 0 → 1';S4.dec.eff='Belarus becomes hostile to the enemy, level 0 → 1';S4.inv.eff='Lithuania enters the war on your side, level 0 → 1';S4.std.eff='De-escalate: level 0, no escalating for 2 turns';
+['esc','std','dec','inv','dem'].forEach(k=>{S4[k].st='warn';S4[k].why=['amb','One decision per turn: already taken']});
+S4.std.why=['amb','Standing down? No – you escalated this turn'];S4.std.why=['amb','One decision per turn: already taken'];
+const RES='<div class="res" style="align-self:flex-start"><i class="ck"></i>STAND DOWN TAKEN · LEVEL NOW 0 · CONTAINED CLASH</div>';
+const ST={S1:{d:S1,head:(n)=>budget(1,0,1,'Limited war',0,n)},
+ S2:{d:S2,head:(n)=>budget(1,0,1,'Limited war',0,n)},
+ S3:{d:S3,head:(n)=>budget(1,0,3,'Regional war','RUSSIA',n)},
+ S4:{d:S4,head:(n,nr)=>budget(0,2,0,'Contained clash',0,n)+(nr?'':RES)}};
+const LV={S1:[1,'LIMITED WAR'],S2:[1,'LIMITED WAR'],S3:[3,'REGIONAL WAR'],S4:[0,'CONTAINED CLASH']};
+const keys=['esc','std','dec','inv','dem'];
+/* ---------- variant A: left slide-out ---------- */
+function panelA(s,lvl,en){const d=ST[s].d;
+ let h='<div class="pl hud" style="left:0;top:0;width:430px;height:844px;padding:14px 14px 10px;display:flex;flex-direction:column;gap:5px;clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%);--pb:rgba(11,13,11,.96);--ec:var(--edge)">';
+ h+='<div style="display:flex;align-items:center;gap:10px"><span class="t" style="font-size:18px;letter-spacing:.12em">DECISIONS</span><span class="bud" style="color:var(--muted);font-weight:500;flex:1;justify-content:flex-end;font-size:12px">LEVEL '+LV[s][0]+' · '+LV[s][1]+'</span><span class="xb"></span></div>'+ST[s].head(1);
+ h+='<div class="grp">WIDEN THE WAR</div>';
+ ['esc','dec','inv'].forEach(k=>h+=card(d[k]));
+ h+='<div class="grp">KEEP IT SMALL</div>';['std','dem'].forEach(k=>h+=card(d[k]));
+ h+='</div>';return h}
+/* ---------- variant B: Politics screen ---------- */
+function sheetB(s){const d=ST[s].d;
+ let h='<div class="scrim"></div><div class="pl hud" style="left:70px;top:36px;width:1300px;height:780px;padding:20px 24px;display:flex;flex-direction:column;gap:12px;--pb:rgba(11,13,11,.97);--ec:var(--edge)">';
+ h+='<div style="display:flex;align-items:center;gap:16px"><span class="t" style="font-size:24px;letter-spacing:.18em">POLITICS</span><span style="flex:1"></span>'+(s==='S3'?'':'')+'<span class="hint">Esc · P</span><span class="xb"></span></div>'+ST[s].head();
+ h+='<div style="display:flex;gap:20px;flex:1;min-height:0"><div style="width:800px;display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;align-content:start"><div class="grp">WIDEN THE WAR</div><div class="grp">KEEP IT SMALL</div>';
+ h+='<div style="display:flex;flex-direction:column;gap:10px">'+['esc','dec','inv'].map(k=>card(d[k])).join('')+'</div><div style="display:flex;flex-direction:column;gap:10px">'+['std','dem'].map(k=>card(d[k])).join('')+'<div class="hint" style="padding:6px 2px;line-height:1.5">One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for 2 turns.</div></div></div>';
+ h+='<div style="flex:1;display:flex;flex-direction:column;gap:10px;border-left:1px solid #2a2e27;padding-left:20px"><div class="grp">OVERVIEW · TASK-119 (SKETCH, READ-ONLY)</div><div class="pend" style="height:170px">escalation ladder table<br>0 Contained clash … 4 Strategic threshold<br>caused by each side</div><div class="pend" style="height:150px">countries list<br>stance to you · access · troops</div><div class="pend" style="flex:1">event log<br>political events, decisions of both sides</div></div></div>';
+ return h+'</div>'}
+/* ---------- variant C: hand of cards ---------- */
+function handC(s,open){const d=ST[s].d;
+ let h='<div class="pl hud hand" style="left:20px;top:548px;width:1400px;height:292px;padding:10px 14px;display:flex;flex-direction:column;gap:8px;--pb:rgba(11,13,11,.96);--ec:var(--edge)">';
+ h+='<div style="display:flex;align-items:center;gap:14px"><span class="t" style="font-size:16px;letter-spacing:.14em">DECISIONS</span>'+ST[s].head(0,1)+'<span style="flex:1"></span>'+(s==='S4'?RES:'')+'<span class="xb"></span></div><div style="display:flex;gap:8px;flex:1;align-items:stretch">';
+ keys.forEach(k=>{const c=Object.assign({},d[k]);let cp=c.pk;
+  if(cp&&k==='dec'&&open&&s==='S1')cp=dd('TARGET',{n:'Belarus',r:'ne'},1,[{n:'Belarus',r:'ne',s:1},{n:'Russia',r:'en',d:1,why:'Already at war'}]);
+  else if(cp){const m=cp.match(/<span class="c sel">([\s\S]*?)<span style="color/);cp=dd(k==='inv'?'ALLY':'TARGET',{n:(cp.match(/<span class="c sel">(?:<i[^>]*><\/i>)([^<]*)/)||[0,'—'])[1],r:(cp.match(/class="rel ?(\w*)/)||[0,''])[1]==='own'?'own':(/rel en/.test(cp)?'en':'ne')},0,[])}
+  c.pk=cp;h+='<div style="width:266px;display:flex;flex-direction:column">'+card(c).replace('class="pl card','style="flex:1" class="pl card')+'</div>'});
+ return h+'</div><div class="hint">1–5 pick a card · ←/→ country · ↵ confirm · Esc / D close · closes when the turn ends</div></div>'}
+/* ---------- assemble ---------- */
+const sections=[];
+const specA=`<table><tr><th>Property</th><th>Spec</th></tr>
+<tr><td>Placement</td><td>Panel docked to the <b>left edge</b>, x 0–430, y 0–844 (above the 56 px bottom command bar; turn bar and escalation chip stay free at top centre). Slides in 150 ms (ease-out), map is <b>not dimmed</b> and stays pannable; right-hand formation panel unchanged. Does not cover the selected counter unless the counter is in the left 430 px – then the camera pans it clear (as for the contact notice).</td></tr>
+<tr><td>Plate</td><td>Chamfered <code>hud</code> plate (9 px cut on the bottom-right only), fill <code>map.void</code> 96 %, edge <code>ui.amber</code> 45 %. Cards: <code>ui.card</code> fill, 1 px <code>ui.card.edge</code>, 9 px chamfer; blocked = amber 45 % edge, threshold = <code>ui.alert</code> edge.</td></tr>
+<tr><td>Card (380 × 100–140)</td><td>Row 1: key chip [1–5] · title Chakra Petch 15 bold · cost chip (JetBrains Mono 11 bold: amber “LEVEL +1”, blue “LEVEL −1”, muted “FREE”). Row 2: effect, IBM Plex Sans Condensed 12.5, one line. Row 3 (targeted only): picker chips, mono 11, relation glyph + stance word. Row 4: reason (left) + TAKE (right; filled amber, ink text; disabled = outline <code>ui.muted</code>).</td></tr>
+<tr><td>Picker</td><td>Chips, all valid countries shown, current one amber-outlined + 16 % fill; invalid chips dashed/dim, reason in the tooltip and on the card when no chip is valid. Keys: <code>1–5</code> pick the card, <code>←/→</code> change country, <code>↵</code> take → confirm.</td></tr>
+<tr><td>Reasons</td><td>Amber: tag <code>BLOCKED</code> + the command’s reason text. Red: tag <code>▲ THRESHOLD</code> (filled <code>ui.alert</code>) + text. Same wording as <code>StaffMapDecisionsModel.REASONS</code>.</td></tr>
+<tr><td>Confirmation</td><td>Inline in the card (replaces the foot): question “Escalate? Level 1 → 2 (Limited war → Open war)” Chakra Petch 13, 5-tick ladder with the new tick hatched (red filled when it reaches the top), buttons CANCEL <code>Esc</code> / CONFIRM <code>↵</code>. Other cards dim. No timeout. After Confirm: result line in the header (“ESCALATE TAKEN · LEVEL NOW 2”), toast from TASK-115.</td></tr>
+<tr><td>Budget, cooldown</td><td>“DECISIONS 1 OF 1” + square pip (filled = left); stand-down chip “STANDING DOWN · 2 TURNS” + 2 pips counting down (amber).</td></tr>
+<tr><td>Close</td><td>X button 28 px + <code>Esc</code> + <code>D</code>; auto-closes when the turn ends or a battle interrupts.</td></tr></table>
+<p class="m">Godot notes: extend the existing <code>StaffMapDecisionsPanel</code> (keep the model); anchor LEFT, chamfered plate via <code>HudShapes</code>; cards = existing card style of the formation panel; <code>UiPalette.AMBER</code>, <code>StaffMapPalette.ui_alert</code>. 1 px outline on chamfers as in border warnings.</p>`;
+const specB=`<table><tr><th>Property</th><th>Spec</th></tr>
+<tr><td>Placement</td><td>Full-screen overlay: map dimmed with <code>scrim.screen</code> (62 %), sheet 1300 × 780 centred (x 70, y 36), bottom bar stays visible; opened with <code>D</code> / the Decisions button (a later “Politics” button may share it). Blocks map input while open; Esc, X or turn end close it.</td></tr>
+<tr><td>Layout</td><td>Header: title POLITICS 24 px, side badge, budget, level, stand-down chip, result line, X. Left column 800 px: two groups – <b>WIDEN THE WAR</b> (Escalate, Declare, Invoke) and <b>KEEP IT SMALL</b> (Stand down, Demand neutrality) – cards 394 px wide, same card spec as A. Right column ≈ 400 px is <b>reserved for TASK-119</b> (ladder table, countries list, event log): drawn only as dashed placeholders; until TASK-119 lands it stays empty or hosts a short “How it works” text.</td></tr>
+<tr><td>Cards / states</td><td>Identical to A (same component), so the model and card code are shared between variants.</td></tr>
+<tr><td>Timing</td><td>Fade 150 ms; no input to the map while open; confirmation inline; sheet closes by itself when the turn ends (as the map reacts to <code>operational_turn_ended</code>).</td></tr></table>
+<p class="m">Godot notes: a new <code>CanvasLayer</code> overlay (<code>StaffMapPoliticsScreen</code>) hosting the same card builder; the TASK-119 overview becomes its right <code>VBoxContainer</code>. Needs one scrim token and a modal input rule (dim map must not receive clicks).</p>`;
+const specC=`<table><tr><th>Property</th><th>Spec</th></tr>
+<tr><td>Placement</td><td>“Hand of cards” strip docked above the bottom bar, x 20–1420, y 548–840 (292 px). Map above stays visible and live (not dimmed); only the lower ≈ 33 % of the map is covered, so the player can still see the front while choosing but counters in the bottom strip are hidden until close. Opens upward from the Decisions button. Titles may wrap and the effect line may wrap to two lines at 266 px (C’s main weakness against the “one-line effect” rule).</td></tr>
+<tr><td>Cards</td><td>5 cards 268 px wide side by side (1–5 hot-keys), same card anatomy. Picker is a dropdown (list opens upward, shows each country’s stance word and, for invalid ones, the amber reason). Confirmation expands the card in place.</td></tr>
+<tr><td>Header</td><td>Single line: title, side, budget, level, cooldown, result, key hints, X.</td></tr></table>
+<p class="m">Godot notes: same panel as A anchored bottom-wide; lowest effort after A. Risk: covers the southern part of Suwałki/Kaliningrad scenes.</p>`;
+let out='';
+/* A */
+out+='<h2>Variant A – panel sliding out from the left edge</h2><p>Closest to existing HUD parts (a docked plate like the formation panel, mirrored). The map stays visible and alive, so a decision can be weighed against the front. Narrowest layout: five stacked cards.</p>';
+out+='<h3>Overview (S1 at 0.62)</h3>'+win(1440,900,0,0,.62,stage({bar:1,inner:panelA('S1')}));
+out+='<h3>States – crops 720 × 900, 1:1</h3><div class="row">';
+[['S1','S1 · NATO, turn start (level 1): Escalate / Declare / Invoke available; Stand down + Demand blocked'],['S2','S2 · Confirm Escalate: new level 2, other cards blocked'],['S3','S3 · Russia, level 3: red threshold, amber recent escalation / level too high'],['S4','S4 · NATO after Stand down: result line, 0 of 1, stand-down counter']].forEach(([s,c])=>{
+ out+='<div><p class="cap">'+c+'</p>'+win(720,900,0,0,1,stage({bar:1,lvl:s==='S3'?3:(s==='S4'?0:1),en:s==='S3',inner:panelA(s)}))+'</div>'});
+out+='</div><h3>Spec</h3>'+specA;
+/* B */
+out+='<h2>Variant B – full Politics screen</h2><p>Heaviest and calmest: the whole screen is the political situation; decisions left, TASK-119’s read-only overview right. Best for reading the ladder next to the decision, worst for glancing at the front. One screen to build for both TASK-117 and 119.</p>';
+out+='<p class="cap">S1 · NATO, turn start – 1:1</p>'+win(1440,900,0,0,1,stage({bar:1,noRight:1,inner:sheetB('S1')}));
+[['S2','S2 · confirm Escalate'],['S3','S3 · Russia at level 3 (threshold red)'],['S4','S4 · after the decision, stand-down counter']].forEach(([s,c])=>{out+='<p class="cap" style="margin-top:14px">'+c+' – 0.75</p>'+win(1440,900,0,0,.75,stage({bar:1,noRight:1,lvl:s==='S3'?3:(s==='S4'?0:1),en:s==='S3',inner:sheetB(s)}))});
+out+='<h3>Spec</h3>'+specB;
+/* C */
+out+='<h2>Variant C – hand of cards above the command bar</h2><p>The five decisions as a hand of five cards across the bottom: all options visible at once, nothing hidden behind scrolling, map still alive above. Costs the lower part of the map.</p>';
+[['S1','S1 · NATO, turn start, Declare picker open'],['S2','S2 · Confirm Escalate'],['S3','S3 · Russia, level 3'],['S4','S4 · after the decision']].forEach(([s,c])=>{out+='<p class="cap" style="margin-top:10px">'+c+' – crop of the bottom 380 px, 1:1</p>'+win(1440,380,0,520,1,stage({bar:1,noRight:1,lvl:s==='S3'?3:(s==='S4'?0:1),en:s==='S3',inner:handC(s,1)}))});
+out+='<h3>Spec</h3>'+specC;
+/* tokens + verdict */
+out+='<h2>Recommendation, tokens, open questions</h2><p><b>Recommend A.</b> Reuses a docked plate, keeps the front visible while deciding, and the component is shared with B/C if the human later wants a bigger screen. B is the right home when TASK-119 lands (then A’s “Open politics” link can jump to it); C is a cheaper alternative if left-edge space is wanted for contact queues.</p>';
+out+='<table><tr><th>NEW TOKEN</th><th>Value / reason</th></tr><tr><td>ui.card</td><td><code>#12150f</code> – card fill (already used as note background in the mock-ups, now named)</td></tr><tr><td>ui.card.edge</td><td><code>#2e3329</code> – 1 px card outline when no state colour applies</td></tr><tr><td>scrim.screen</td><td><code>rgba(0,0,0,.62)</code> – full-screen sheet scrim (B only); the accepted 28 % scrim is too light for a modal sheet</td></tr></table>';
+out+='<p class="note"><b>Open questions.</b> (1) Does the left panel pan the map when it would cover the selected counter, or does it simply overlay? (2) B: should <code>D</code> open Decisions with a tab inside Politics, or are “Politics” (overview) and “Decisions” one screen? (3) Is the 1–5 hot-key row acceptable given key D already pans the map (TASK-117 known issue) – suggest rebinding pan or using <code>P</code>? (4) Stand-down cooldown counter counts own turns remaining (2, then 1). (5) Should disabled cards stay in order or sink below available ones? Proposal: stay in order (stable positions).</p>';
+document.getElementById('root').innerHTML=out;
+</script>
+</body></html>

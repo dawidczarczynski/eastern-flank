@@ -426,7 +426,7 @@ A strike is refused if its target is on your own soil, in a country that is clos
 
 **What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, but can only be launched from the debug panel (F9, `--debug`) for now; ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
 
-**What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. Nothing else lowers it yet.
+**What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. The **Stand down** decision (below) lowers it too.
 
 **Allies.** When the level first reaches Regional war, allied countries join automatically: aligned countries go to war on their side, and neutral countries that lean to a side become aligned with it.
 
@@ -435,6 +435,20 @@ A strike is refused if its target is on your own soil, in a country that is clos
 **Borders and movement.** A formation cannot enter a country that is closed to its side: a neutral or hostile country. Such an order is refused. **Russia is closed to NATO until Open war**. The first entry of a formation into the enemy sanctuary raises the escalation level by 1. Attacking out of an aligned country gives the enemy a **casus belli** against that country, shown as a toast. Battles themselves never raise the level.
 
 **On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the levels, what may be struck at the current one and marks the steps where the enemy sanctuary opens, allies join and the operation ends. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
+
+**Political decisions.** Instead of waiting for events, you can choose to widen or narrow the war. There are five decisions, the same for both sides. You may take **one decision per turn** (the count resets when your turn starts); a decision is refused while a contact battle is waiting. Open the **Politics screen** with **H** (High command) or the Decisions button on the bottom command bar; the map is dimmed and idle while it is open. Five cards sit in two groups, *Widen the war* and *Keep it small*. Each shows its key (1-5), its escalation cost (LEVEL +1 / LEVEL -1 / FREE), the effect in one line, the countries you can pick (with their stance to you: ally, hostile or neutral) and a Take button; a card that cannot be used is dimmed and says why (amber BLOCKED, or red THRESHOLD). Press **1-5** to pick a card, **left / right** to change the country, **Enter** to take it. A decision that raises or lowers the level asks you to confirm inside the card and shows the new level on a five-tick ladder; one that would reach the Strategic threshold (which loses the operation for you) says so in red and is refused. The header shows decisions left this turn, the level, the stand-down counter and, after a decision, a result line. The right-hand column is reserved for the read-only politics overview. **Esc** (first cancels a confirmation), **X** or **H** close the screen; it also closes when your turn ends.
+
+| Decision | Effect | Escalation cost | Not available when |
+|---|---|---|---|
+| Escalate | Raises the shared level, which authorises wider strikes | +1 | standing down; the level would reach the threshold |
+| Stand down | Lowers the level by 1 and starts a cooldown | -1 | level is already the lowest; you raised the level this turn or last turn; your troops stand in a country you breached or declared hostilities on |
+| Declare hostilities (pick a country) | A neutral or aligned country that is not yours goes to war against you (you may now enter it) | +1, free if you already hold a casus belli against it | standing down; the country is yours or already at war with you; the level would reach the threshold |
+| Invoke alliance (pick a country) | An aligned country of your bloc goes to war on your side | +1 | not your ally, or already at war; standing down; the level would reach the threshold |
+| Demand neutrality (pick a country) | An ultimatum: a country aligned with the enemy becomes neutral, closed to both sides | none | the country is not hostile to you; it refuses ultimatums; the level is above 2 (Open war or higher); enemy troops stand on its soil |
+
+**Invoke alliance** is named per side: NATO calls it **Invoke collective defence**, Russia **Invoke the Union State**. Declaring hostilities on a neutral country makes it join the other side. **Lithuania refuses ultimatums**: it is a NATO member with allied troops on its soil, so Demand neutrality on it is always greyed out (the other countries accept).
+
+**Stand down and the cooldown.** After you stand down, you cannot take the escalating decisions (Escalate, Declare hostilities, Invoke alliance) for **2 turns**, counted on the panel. Stand down and Demand neutrality stay available. Calm decay does not raise the level again.
 
 ### Deep strikes
 

@@ -1,6 +1,6 @@
 # TASK-117: Political decisions – Escalate, Stand down, Declare hostilities, Invoke alliance, Demand neutrality (commands, one per turn, cooldown, codec)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (decisions panel)
 - **Depends on**: TASK-116 (view: TASK-093b)
 - **Model**: sonnet
@@ -51,6 +51,8 @@ Reference: [docs/design/operational_map/README.md](../design/operational_map/REA
 - [ ] Decision rows follow the reference's decision card layout: title, the **effect in one line**, cost, button; danger (threshold) lines in `ui.alert`. Names per side come from `SideDefinition` (symmetry: no side literal in the view).
 - [ ] **NOT adopted:** the card with an **expiry** and "2–3 options" per event, and the "advisor" line – they belong to event-driven decisions (political events, TASK-106); this panel offers the five standing decisions. The style (card, one-line effect) is reused there later.
 
+**Design decision (human, 2026-11-10):** the small popup is replaced by the **full Politics screen, variant B** of [political_decisions.html](../design/operational_map/political_decisions.html) (spec in the operational_map README, "Politics screen"). Disabled cards keep their position; after Stand down every card shows the first failing reason (`no_decisions_left`); the key D is rebound (it pans the map); the right column holds placeholders for TASK-119; the screen closes on X, Esc and when the turn ends.
+
 ## Playtest (for the human)
 
 1. **Operation** as NATO, press **D**: five decisions. *Escalate* shows "level 1 → 2", *Stand down* is disabled ("level is already the lowest"), *Invoke Article 5* is disabled with the reason.
@@ -70,4 +72,6 @@ Section in the "Politics" chapter (started by TASK-113) – the five decisions f
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `PoliticalDecisionCommand` base (common `battle_pending` / `no_decisions_left`, `political_decision_taken` event) + `EscalateCommand`, `StandDownCommand`, `DeclareHostilitiesCommand`, `InvokeAllianceCommand`, `DemandNeutralityCommand`; codec, replay test (suwalki_gap, first player is Russia so the scripted run is mirrored), ladder fields, `accepts_ultimatum` (copied to `CountryState`), `alliance_decision_name`, `decisions_left` / `stand_down_until` in the snapshot. ARCHITECTURE and MANUAL ("Politics") updated.
+- View: `StaffMapDecisionsModel` (pure view-model, disabled reason = the command's own `validate()` code), panel + HUD, key D / command-bar button, confirmation with new level, decision lines in the turn report.
+- Presentation reworked after playtest feedback into the full **Politics screen (variant B)** of `docs/design/operational_map/political_decisions.html`: opens with **H** or the command-bar button (D pans, P is the political layer), 1–5 / ←→ / Enter, X / Esc / H close it, closes when the turn ends; right column = placeholders for TASK-119. Deviations: sheet size fills the viewport minus margins, the new ladder tick is a translucent fill, closing is instant, the Polish 'Powołaj Państwo Związkowe' may clip at 1280 px. The button is in the bottom command bar (TASK-139).

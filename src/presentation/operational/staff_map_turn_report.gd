@@ -60,7 +60,9 @@ static func place_text(coord: Vector2i) -> String:
 
 ## Fills the rows from `entries` (StaffMapTurnMarks.report_of); formation names come from `state`.
 ## Does not change the visibility.
-func show_report(state: OperationalState, entries: Array[Dictionary]) -> void:
+func show_report(
+	state: OperationalState, entries: Array[Dictionary], decision_lines: Array[String] = []
+) -> void:
 	for row in _rows:
 		row.queue_free()
 	_rows.clear()
@@ -89,7 +91,19 @@ func show_report(state: OperationalState, entries: Array[Dictionary]) -> void:
 		row.pressed.connect(entry_chosen.emit.bind(entry["id"], entry["at"]))
 		_column.add_child(row)
 		_rows.append(row)
-	if entries.is_empty():
+	if not decision_lines.is_empty():
+		var heading := MenuStyle.label(
+			tr("DECISIONS").to_upper(), HudTheme.display(700, 1), ROW_SIZE, UiPalette.AMBER
+		)
+		heading.name = "DecisionsHeading"
+		_column.add_child(heading)
+	for line in decision_lines:
+		var log_label := MenuStyle.label(line, HudTheme.mono(500, 0), ROW_SIZE, UiPalette.HUD_TEXT)
+		log_label.name = "DecisionLog"
+		log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		log_label.custom_minimum_size.x = WIDTH - 28.0
+		_column.add_child(log_label)
+	if entries.is_empty() and decision_lines.is_empty():
 		var empty := MenuStyle.label(
 			tr("REPORT_EMPTY"), HudTheme.mono(500, 0), ROW_SIZE, UiPalette.HUD_MUTED
 		)

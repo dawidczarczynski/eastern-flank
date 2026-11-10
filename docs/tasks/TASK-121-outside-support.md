@@ -1,6 +1,6 @@
 # TASK-121: Outside support – off-map supporters, support packages as data, the *Request support* decision, delayed arrival of formations, responses for the other bloc
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (support tab, arrivals)
 - **Depends on**: TASK-117, TASK-118
 - **Model**: sonnet

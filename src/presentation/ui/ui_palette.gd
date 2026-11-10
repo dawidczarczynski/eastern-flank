@@ -12,6 +12,10 @@ const AMBER := Color("#e8b04a")
 const HUD_TEXT := Color("#dfe5d6")
 const HUD_MUTED := Color("#8d9585")
 const HUD_DESC := Color("#b7bfae")
+## Politics screen (TASK-117): decision card fill and outline, and the dim over the map.
+const CARD := Color("#12150f")
+const CARD_EDGE := Color("#2e3329")
+const SCRIM_SCREEN := Color(0, 0, 0, 0.62)
 ## Text / fills on coloured (faction, amber) surfaces.
 const INK := Color("#0a0c09")
 const DISABLED := Color("#e07c5e")

@@ -24,6 +24,8 @@ var breached_by: Array[bool] = [false, false]
 var declared_by: Array[bool] = [false, false]
 ## Formations that join on the leaning side (static, from CountrySetup.contribution).
 var contribution: Array[FormationPlacement] = []
+## Whether a Demand neutrality ultimatum works on this country (static, from CountrySetup).
+var accepts_ultimatum: bool = true
 ## The contribution has already come (or been lost): it never comes twice.
 var contributed := false
 
@@ -35,6 +37,7 @@ static func from_setup(setup: CountrySetup) -> CountryState:
 	country.stance = setup.stance
 	country.side = setup.side
 	country.leaning = setup.leaning
+	country.accepts_ultimatum = setup.accepts_ultimatum
 	country.contribution = setup.contribution.duplicate()
 	return country
 

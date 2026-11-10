@@ -411,3 +411,70 @@ TIP_FLAT,Switches between the tilted 3D view and the flat 2D view from above (li
 TIP_NEXT,Selects your next formation and centres the map on it.,Zaznacza twoją następną formację i centruje na niej mapę.
 TIP_CANCEL,Cancels the order of the selected formation.,Anuluje rozkaz zaznaczonej formacji.
 TIP_REPORT,Opens or closes the report of the last turn.,Otwiera lub zamyka raport z ostatniej tury.
+TIP_DECISIONS,"Opens or closes the political decisions: escalate, stand down, declare hostilities, invoke an alliance or demand neutrality.","Otwiera lub zamyka decyzje polityczne: eskalacja, deeskalacja, wypowiedzenie wojny, powołanie sojuszu lub żądanie neutralności."
+Decisions,Decisions,Decyzje
+DECISIONS,Decisions,Decyzje
+Decisions: %d of %d,Decisions: %d of %d,Decyzje: %d z %d
+Level %s,Level %s,Poziom %s
+Standing down: %d turns without escalating,Standing down: %d turns without escalating,Deeskalacja: %d tur bez eskalowania
+Take,Take,Podejmij
+Free,Free,Za darmo
+Level +%d,Level +%d,Poziom +%d
+Level -1,Level -1,Poziom -1
+Escalate,Escalate,Eskaluj
+Stand down,Stand down,Deeskaluj
+Declare hostilities,Declare hostilities,Wypowiedz wrogość
+Invoke alliance,Invoke alliance,Powołaj sojusz
+Demand neutrality,Demand neutrality,Żądaj neutralności
+Wider strikes: level %s,Wider strikes: level %s,Szersze uderzenia: poziom %s
+"De-escalate: level %s, no escalating for %d turns","De-escalate: level %s, no escalating for %d turns","Deeskalacja: poziom %s, bez eskalowania przez %d tur"
+"%s becomes hostile to the enemy, level %s","%s becomes hostile to the enemy, level %s","%s staje się wrogie przeciwnikowi, poziom %s"
+"%s becomes hostile to the enemy (casus belli, no level change)","%s becomes hostile to the enemy (casus belli, no level change)","%s staje się wrogie przeciwnikowi (casus belli, bez zmiany poziomu)"
+"%s enters the war on your side, level %s","%s enters the war on your side, level %s","%s przystępuje do wojny po twojej stronie, poziom %s"
+%s is forced back to neutrality,%s is forced back to neutrality,%s wraca do neutralności pod naciskiem
+%s? Level %d → %d (%s),%s? Level %d → %d (%s),%s? Poziom %d → %d (%s)
+– one step from the threshold,– one step from the threshold,– jeden krok od progu
+No neutral or hostile country to declare on,No neutral or hostile country to declare on,Brak państwa neutralnego lub wrogiego do wypowiedzenia
+No aligned ally to call,No aligned ally to call,Brak sojusznika do powołania
+No hostile country to give an ultimatum,No hostile country to give an ultimatum,Brak wrogiego państwa do ultimatum
+Not your turn,Not your turn,Nie twoja tura
+The operation is over,The operation is over,Operacja zakończona
+Resolve the pending battle first,Resolve the pending battle first,Najpierw rozstrzygnij bitwę
+One decision per turn: already taken,One decision per turn: already taken,Jedna decyzja na turę: już podjęta
+Standing down: no escalating decisions yet,Standing down: no escalating decisions yet,Deeskalacja: jeszcze bez decyzji eskalujących
+Would cross the threshold,Would cross the threshold,Przekroczyłoby próg
+The level is already the lowest,The level is already the lowest,Poziom jest już najniższy
+You escalated last turn,You escalated last turn,Eskalowałeś w zeszłej turze
+Your troops are on soil you took,Your troops are on soil you took,Twoje wojska stoją na zajętej ziemi
+No such country,No such country,Nie ma takiego państwa
+Your own country,Your own country,Twoje własne państwo
+Already at war,Already at war,Już w stanie wojny
+Not your ally,Not your ally,To nie twój sojusznik
+Not hostile to you,Not hostile to you,Nie jest wrogie wobec ciebie
+Refuses ultimatums,Refuses ultimatums,Odrzuca ultimata
+The level is too high for an ultimatum,The level is too high for an ultimatum,Poziom za wysoki na ultimatum
+Enemy troops are on its soil,Enemy troops are on its soil,Wojska wroga stoją na jego ziemi
+No country to choose,No country to choose,Brak państwa do wyboru
+Invoke collective defence,Invoke collective defence,Powołaj wspólną obronę
+Invoke the Union State,Invoke the Union State,Powołaj Państwo Związkowe
+Contained clash,Contained clash,Starcie ograniczone
+Limited war,Limited war,Wojna ograniczona
+Regional war,Regional war,Wojna regionalna
+Open war,Open war,Otwarta wojna
+Strategic threshold,Strategic threshold,Próg strategiczny
+Politics,Politics,Polityka
+Widen the war,Widen the war,Rozszerz wojnę
+Keep it small,Keep it small,Utrzymaj ograniczony zasięg
+Decisions %d of %d,Decisions %d of %d,Decyzje %d z %d
+Standing down · %d turns,Standing down · %d turns,Deeskalacja · tury: %d
+%s taken · level now %d · %s,%s taken · level now %d · %s,%s podjęta · poziom teraz %d · %s
+Confirm or cancel %s first,Confirm or cancel %s first,Najpierw potwierdź lub anuluj: %s
+Target,Target,Cel
+Blocked,Blocked,Zablokowane
+Threshold,Threshold,Próg
+Overview · coming with the politics report,Overview · coming with the politics report,"Przegląd · wkrótce, z raportem politycznym"
+Escalation ladder table,Escalation ladder table,Tabela drabiny eskalacji
+Countries list,Countries list,Lista państw
+Event log,Event log,Dziennik zdarzeń
+One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,Jedna decyzja na turę. Decyzja podnosząca poziom prosi o potwierdzenie i pokazuje nowy poziom. Deeskalacja blokuje eskalację na %d tury.
+"1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 wybór karty · lewo / prawo państwo · Enter podejmij, potwierdź · Esc anuluj, zamknij"

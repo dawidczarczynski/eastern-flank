@@ -47,6 +47,11 @@ var last_raise_turn: Array[int] = [-1, -1]
 var calm_rounds: int = 0
 ## A raise happened in the running round.
 var raised_this_round: bool = false
+## Political decisions the current player may still take this turn (TASK-117); reset when the
+## turn passes on.
+var decisions_left: int = 1
+## Per player: the escalating decisions are rejected while `turn` <= this (after Stand down).
+var stand_down_until: Array[int] = [0, 0]
 ## Fixed installations of both sides, in setup order (TASK-097a).
 var installations: Array[Installation] = []
 ## Per player: {means id: count} (TASK-097a; changed only through StrikeRules.add_stock).
@@ -131,6 +136,8 @@ func snapshot() -> Dictionary:
 		"installations": installation_entries,
 		"strike_stock": [_stock_snapshot(0), _stock_snapshot(1)],
 		"strikes_left": strikes_left,
+		"decisions_left": decisions_left,
+		"stand_down_until": stand_down_until.duplicate(),
 		"turn": turn,
 		"current_player": current_player,
 		"rng_state": str(rng.state),

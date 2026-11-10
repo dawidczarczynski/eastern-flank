@@ -9,6 +9,8 @@ extends Resource
 @export var side: int = -1
 ## Side the country goes to when the war widens (-1 = none, 0, 1).
 @export var leaning: int = -1
+## Whether a Demand neutrality ultimatum (TASK-117) can move this country; a data rule, not a side.
+@export var accepts_ultimatum: bool = true
 ## Formations that appear on the map when the country becomes belligerent on its leaning side
 ## (TASK-118). Every placement's `player` is the `leaning`; `coord` lies in this country.
 @export var contribution: Array[FormationPlacement] = []

@@ -248,6 +248,7 @@ country = ExtResource("c_lithuania")
 stance = &"aligned"
 side = 0
 leaning = 0
+accepts_ultimatum = false
 contribution = Array[ExtResource("2_placement")]([SubResource("Resource_lt_iron_wolf_1"), SubResource("Resource_lt_iron_wolf_2"), SubResource("Resource_nato_bde_lt")])
 
 [sub_resource type="Resource" id="Setup_belarus"]

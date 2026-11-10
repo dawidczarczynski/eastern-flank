@@ -537,6 +537,13 @@ func _apply_staff_map_state(spec: String) -> void:
 					map.simulation().event_emitted.emit(event)
 			"ladder":
 				map.escalation_hud().toggle_card()
+			"decisions":
+				map.toggle_decisions()
+				var sheet := map.decisions_hud().panel()
+				if parts.size() > 1 and parts[1] == "confirm":  # card 1 asks its confirmation
+					sheet.handle_key(KEY_1)
+					sheet.handle_key(KEY_ENTER)
+				sheet.finish_fade()
 			"side":
 				map.set_viewer(parts[1].to_int() if parts.size() > 1 else 0)
 			"select":

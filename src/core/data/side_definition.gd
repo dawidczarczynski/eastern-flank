@@ -14,6 +14,8 @@ const IDS: Array[StringName] = [&"nato", &"russia"]
 @export var lead_faction: StringName
 ## Factions whose formation types the side may field.
 @export var factions: Array[StringName] = []
+## Name of the *Invoke alliance* decision for this side (translation key, TASK-117).
+@export var alliance_decision_name: String = ""
 ## Flag next to the side name in the UI (TASK-127), see assets/flags/README.md.
 @export var flag: Texture2D
 

@@ -61,6 +61,7 @@ static func from_definition(
 	state.turn = 1
 	state.escalation_level = definition.initial_escalation
 	state.escalation_floor = definition.initial_escalation
+	state.decisions_left = state.ladder.decisions_per_turn
 	state.rng.seed = seed_value
 	state.country_map = country_map
 	for setup in definition.countries:

@@ -17,6 +17,7 @@ const IDS: Array[StringName] = [
 	&"next",
 	&"cancel",
 	&"report",
+	&"decisions",
 ]
 
 ## Icons drawn as text instead of lines: id -> [text when off, text when on] (the view toggle
@@ -97,6 +98,12 @@ static func polylines(id: StringName) -> Array[PackedVector2Array]:
 			)
 			lines.append(_poly([Vector2(11, 9), Vector2(17, 15)]))
 			lines.append(_poly([Vector2(17, 9), Vector2(11, 15)]))
+		&"decisions":  # balance scales (a political decision weighs a price)
+			lines.append(_poly([Vector2(12, 4), Vector2(12, 20)]))
+			lines.append(_poly([Vector2(7, 20), Vector2(17, 20)]))
+			lines.append(_poly([Vector2(4, 7), Vector2(20, 7)]))
+			lines.append(_poly([Vector2(4, 7), Vector2(2, 13), Vector2(6, 13), Vector2(4, 7)]))
+			lines.append(_poly([Vector2(20, 7), Vector2(18, 13), Vector2(22, 13), Vector2(20, 7)]))
 		&"report":  # sheet with text lines
 			lines.append(
 				_poly(

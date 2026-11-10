@@ -41,6 +41,7 @@ const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
 const ACTION_SAVE := &"save"
+const ACTION_DECISIONS := &"decisions"
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
 const CARD_OFFSET := Vector2(18, 18)
@@ -106,6 +107,8 @@ var _join_ids: Array = []
 var _banner: TurnBanner
 var _politics: StaffMapPoliticsHud
 var _escalation: StaffMapEscalationHud
+var _decisions: StaffMapDecisionsHud
+var _decision_lines: Array[String] = []  # log of the decisions since the last report
 var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
 var _contacts: StaffMapContacts
@@ -201,10 +204,13 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if not is_built:
 		return
-	_pitch_by_keys(delta)
+	var modal := _decisions != null and _decisions.is_open()  # the Politics screen idles the map
+	if not modal:
+		_pitch_by_keys(delta)
 	_follow_pitch(delta)
-	_pan_by_keys_and_edge(delta)
-	_update_hover()
+	if not modal:
+		_pan_by_keys_and_edge(delta)
+		_update_hover()
 	_sync_action_bar()
 	advance_slide(delta)
 	if _route != null:
@@ -216,16 +222,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
-		# Esc closes the ring, 1-4 pick a slot; Enter / Esc close the result notice.
+		# The open Politics screen takes every key (the map below is dimmed and idle); Esc closes
+		# the ring, 1-4 pick a slot; Enter / Esc close the result notice.
 		if (
-			_order_ring.handle_key(key.keycode)
+			(_decisions != null and _decisions.handle_key(key.keycode))
+			or _order_ring.handle_key(key.keycode)
 			or _close_result_notice(key.keycode)
 			or _answer_border_prompt(key.keycode)
 		):
 			return
 		match key.keycode:
 			KEY_ESCAPE:
-				if _politics.close_card() or _escalation.close_card():
+				if _politics.close_card() or _escalation.close_card() or _decisions.close():
 					return
 				if selected_formation() != &"":
 					select_formation(&"")
@@ -252,6 +260,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_place_names()
 			KEY_P:
 				_politics.toggle_tint()
+			StaffMapDecisionsPanel.OPEN_KEY:
+				toggle_decisions()
 			KEY_F9:
 				toggle_debug_panels()
 			KEY_F5:
@@ -261,9 +271,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_V:
 				toggle_flat_view()
 		return
+	if _decisions != null and _decisions.is_open():
+		_dragging = false  # the Politics screen idles the map: no wheel zoom, drag or click
 	var button := event as InputEventMouseButton
 	if button != null:
-		_on_mouse_button(button)
+		if not (_decisions != null and _decisions.is_open()):
+			_on_mouse_button(button)
 		return
 	var motion := event as InputEventMouseMotion
 	if motion != null and _dragging:
@@ -287,6 +300,13 @@ func _build_action_bar() -> void:
 	_bar.add_action(ACTION_NEXT, "NEXT", "TAB", false, "TIP_NEXT")
 	_bar.add_action(ACTION_CANCEL, "CANCEL", "X", false, "TIP_CANCEL")
 	_bar.add_action(ACTION_REPORT, "REPORT", "R", false, "TIP_REPORT")
+	_bar.add_action(
+		ACTION_DECISIONS,
+		"DECISIONS",
+		OS.get_keycode_string(StaffMapDecisionsPanel.OPEN_KEY),
+		true,
+		"TIP_DECISIONS"
+	)
 	_bar.add_separator()
 	_bar.add_action(ACTION_SAVE, "SAVE", "F5", false, "TIP_SAVE_OPERATION")
 	_bar.action_pressed.connect(_on_action_pressed)
@@ -327,6 +347,8 @@ func _on_action_pressed(id: StringName) -> void:
 			cancel_order()
 		ACTION_REPORT:
 			toggle_report()
+		ACTION_DECISIONS:
+			toggle_decisions()
 		ACTION_SAVE:
 			save_campaign()
 
@@ -340,6 +362,7 @@ func _sync_action_bar() -> void:
 	_bar.set_active(ACTION_BORDERS, _view.countries().is_visible_layer())
 	_bar.set_active(ACTION_POLITICS, _politics.tint_enabled())
 	_bar.set_active(ACTION_FLAT, _pitch_target <= 0.5)
+	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
 
 
@@ -926,6 +949,12 @@ func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
 	if command is StrikeCommand:  # the rejection code itself (TASK-097a)
 		_toast_message(reason, _palette.ui_alert)
 		return
+	if command is PoliticalDecisionCommand:
+		_toast_message(
+			TranslationServer.translate(StaffMapDecisionsModel.REASONS.get(reason, reason)),
+			_palette.ui_alert
+		)
+		return
 	_toast_message(tr("ORDER_REJECTED_" + reason.to_upper()), _palette.ui_alert)
 
 
@@ -941,6 +970,11 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"country_stance_changed":
 		_politics.refresh(viewer_player)
 	_escalation.on_event(event)
+	if event.get("type") == &"operational_turn_ended":
+		_decisions.close()
+	if event.get("type") == &"political_decision_taken":
+		_decision_lines.append(StaffMapDecisionsModel.log_text(_simulation.state, event))
+	_decisions.refresh()
 	if event.get("type") == &"casus_belli_gained":
 		_toast_message(
 			StaffMapBorders.casus_belli_event_text(_simulation.state, event), _palette.ui_amber
@@ -959,6 +993,8 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"operational_turn_started":
 		_begin_slide()
 		_show_new_report()
+		if int(event.get("player", -1)) == viewer_player:
+			_decision_lines.clear()  # shown (or not wanted) – the log starts over
 	elif event.get("type") == &"battle_consequences":
 		_begin_slide()  # the retreating counter slides back (TASK-095)
 	_refresh_contacts()
@@ -1292,7 +1328,7 @@ func _apply_front_view() -> void:
 
 ## Opens the report panel with the viewed side's last report.
 func _show_report() -> void:
-	_report.show_report(_simulation.state, _marks.report_of(viewer_player))
+	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
 	_report.show()
 	_report.reset_size()
 	_report.position = Vector2(PANEL_MARGIN.x, 130.0)
@@ -1345,8 +1381,21 @@ func _place_turn_bar() -> void:
 
 
 func _toggle_ladder_card() -> void:
+	_decisions.close()
 	_escalation.toggle_card()
 	_escalation.place(_viewport_size().x, _turn_bar.size.y)
+
+
+## Key H / the Decisions button: the Politics screen (closes the ladder card).
+func toggle_decisions() -> void:
+	if _decisions == null:
+		return
+	_escalation.close_card()
+	_decisions.toggle()
+
+
+func decisions_hud() -> StaffMapDecisionsHud:
+	return _decisions
 
 
 func escalation_hud() -> StaffMapEscalationHud:
@@ -1449,6 +1498,9 @@ func _build_hud() -> void:
 	_politics.refresh(viewer_player)
 	_escalation = StaffMapEscalationHud.new(_simulation, _palette, _hud, _toast_message)
 	_escalation.menu_requested.connect(_return_to_menu)
+	_decisions = StaffMapDecisionsHud.new(
+		_simulation, _palette, _hud, func() -> int: return viewer_player
+	)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
 

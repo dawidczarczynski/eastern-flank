@@ -46,6 +46,25 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 			if result == null:
 				return null
 			return ResolveBattleCommand.new(result)
+		EscalateCommand.TYPE:
+			return EscalateCommand.new()
+		StandDownCommand.TYPE:
+			return StandDownCommand.new()
+		DeclareHostilitiesCommand.TYPE:
+			var country: Variant = d.get("country")
+			if not country is String:
+				return null
+			return DeclareHostilitiesCommand.new(StringName(country as String))
+		InvokeAllianceCommand.TYPE:
+			var country: Variant = d.get("country")
+			if not country is String:
+				return null
+			return InvokeAllianceCommand.new(StringName(country as String))
+		DemandNeutralityCommand.TYPE:
+			var country: Variant = d.get("country")
+			if not country is String:
+				return null
+			return DemandNeutralityCommand.new(StringName(country as String))
 		_:
 			return null
 

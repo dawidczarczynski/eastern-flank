@@ -1,6 +1,6 @@
 # TASK-097b: Deep strike v1 (2/2, view) – strike mode on the staff map: pick means, legal targets, confirm with the escalation warning, result marker
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (staff map); reads state and events only, executes `StrikeCommand` through `OperationalSimulation.execute`
 - **Depends on**: TASK-097a, TASK-117 (the Escalate decision used by "raise and strike")
 - **Sections**: GDD "Deep strikes", "Operational map view"; ARCHITECTURE "Operational events"
