@@ -234,7 +234,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapBorders` – Pure texts and markers of the border rules on the staff map (TASK-116): why a hex is clos… (`staff_map_borders.gd`)
 - `StaffMapCameraMath` – Pure maths of the staff map camera (TASK-093a, tilted in TASK-125): zoom limits, the clam… (`staff_map_camera_math.gd`)
 - `StaffMapCard` – Hex strip of the staff map (TASK-093a, TASK-139): the hovered hex in the left zone of the (`staff_map_card.gd`)
-- `StaffMapCloseButton` – The X of a strike window (TASK-097b): a flat 24 px square with the glyph ✕ (mono 700 13)… (`staff_map_close_button.gd`)
+- `StaffMapCloseButton` – The X of a strike window (TASK-097b): a flat 32 px square with the glyph ✕ (mono 700 18)… (`staff_map_close_button.gd`)
 - `StaffMapContactDebug` – The staff map's debug contact-map preview (TASK-094b, F9 with --debug) behind a few calls… (`staff_map_contact_debug.gd`)
 - `StaffMapContactNotice` – Contact notice of the staff map (TASK-094a, look: docs/design/operational_map "Panels" → (`staff_map_contact_notice.gd`)
 - `StaffMapContactPanel` – Debug "Contact map" panel of the staff map (TASK-094b, F9, only with --debug), HUD v3 fra… (`staff_map_contact_panel.gd`)
