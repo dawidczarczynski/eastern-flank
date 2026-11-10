@@ -1629,6 +1629,80 @@
     "output": 185325
    }
   },
+  "TASK-094c": {
+   "active_hours": 0.81,
+   "cost": 13.6594,
+   "first": "2026-11-09T10:00:58.368Z",
+   "last": "2026-11-09T10:49:45.613Z",
+   "main_cost": 0.5185,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 19904113,
+    "cache_write": 329784,
+    "input": 284,
+    "output": 86946
+   }
+  },
+  "TASK-094d": {
+   "active_hours": 0.96,
+   "cost": 5.7939,
+   "first": "2026-11-09T10:50:44.842Z",
+   "last": "2026-11-09T11:48:37.292Z",
+   "main_cost": 0.5685,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 6716646,
+    "cache_write": 241044,
+    "input": 188,
+    "output": 61970
+   }
+  },
+  "TASK-095": {
+   "active_hours": 0.72,
+   "cost": 3.7489,
+   "first": "2026-11-09T19:44:45.058Z",
+   "last": "2026-11-09T20:28:02.151Z",
+   "main_cost": 0.6964,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 6389263,
+    "cache_write": 265370,
+    "input": 226,
+    "output": 55752
+   }
+  },
+  "TASK-097a": {
+   "active_hours": 1.49,
+   "cost": 5.9992,
+   "first": "2026-11-09T13:32:24.364Z",
+   "last": "2026-11-09T15:01:32.621Z",
+   "main_cost": 1.4315,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 9649368,
+    "cache_write": 370787,
+    "input": 280,
+    "output": 114208
+   }
+  },
   "TASK-109": {
    "active_hours": 0.56,
    "cost": 9.2507,
@@ -1646,6 +1720,24 @@
     "cache_write": 224746,
     "input": 192,
     "output": 97760
+   }
+  },
+  "TASK-112": {
+   "active_hours": 10.44,
+   "cost": 11.8707,
+   "first": "2026-11-09T20:28:13.297Z",
+   "last": "2026-11-10T06:54:28.944Z",
+   "main_cost": 1.8084,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 9187541,
+    "cache_write": 2096926,
+    "input": 328,
+    "output": 83329
    }
   },
   "TASK-113": {
@@ -1684,6 +1776,24 @@
     "output": 81085
    }
   },
+  "TASK-115": {
+   "active_hours": 1.1,
+   "cost": 3.9727,
+   "first": "2026-11-09T11:49:11.254Z",
+   "last": "2026-11-09T12:55:11.439Z",
+   "main_cost": 0.823,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 6373575,
+    "cache_write": 286956,
+    "input": 220,
+    "output": 65593
+   }
+  },
   "TASK-118": {
    "active_hours": 0.63,
    "cost": 3.876,
@@ -1700,6 +1810,24 @@
     "cache_write": 267246,
     "input": 248,
     "output": 60820
+   }
+  },
+  "TASK-120": {
+   "active_hours": 3.57,
+   "cost": 7.9651,
+   "first": "2026-11-09T15:02:43.783Z",
+   "last": "2026-11-09T18:37:09.463Z",
+   "main_cost": 2.032,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 13591621,
+    "cache_write": 617592,
+    "input": 408,
+    "output": 104692
    }
   },
   "TASK-123": {
