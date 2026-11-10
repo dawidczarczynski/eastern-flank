@@ -56,6 +56,23 @@ Taken by the human while reviewing VISION.md; tasks in the backlog section "Two-
 
 - **Roads and rivers** (specified, [TASK-108](tasks/TASK-108-terrain-types-from-real-data.md); real-terrain maps only): each tile stores a 6-bit link mask per feature (a line from its centre across a hex side into the neighbour). **Roads apply per link**: a step from A to B costs 1 when A has a road link towards B, whatever B's terrain (water stays impassable). **Rivers apply per hex**: a tile with a river link is a river hex; entering it costs +1 on top of its terrain, unless the step follows a road link (bridge); leaving is free. Numbers in `data/terrain/features.tres`. Invariant: the most expensive passable step (2 + 1 = 3) never exceeds the smallest unit movement (3), so every unit can enter every passable hex from a full move. Importer: urban when ≥ 20 % of the hex is built-up, marsh when ≥ 25 % is wetland (after water/forest dominance, before hills and fields); rule roads = `highway` motorway … residential (not `track`); rivers = `waterway` river, canal, named stream.
 
+- **Road classes** (decided 2026-11-10 by the human; specified in [TASK-133](tasks/TASK-133-road-classes.md); real-terrain tactical maps – supersedes "every road costs 1"): a road link has a **class** that decides how it looks **and** how fast it is. All numbers below are **[ASSUMPTION] – balancing candidates**, kept in `data/terrain/features.tres`.
+
+  | Class | OSM `highway` (+ `_link`) | Step cost along the link | Look (real width) |
+  |---|---|---|---|
+  | Dirt road | `unclassified` without a paved `surface`; any road class with unpaved `surface`; (option, off by default: `track` with `tracktype` grade1–2) | 1.5 MP, never more than the terrain cost | sandy-brown, 4 m |
+  | Asphalt road | `primary`, `secondary`, `tertiary`, `residential`, `unclassified` with a paved `surface` | 1 MP | dark grey with a centre line, 7 m |
+  | Expressway (*droga ekspresowa*, S-road) | `trunk` | 0.75 MP | two carriageways, 14 m |
+  | Motorway (*autostrada*) | `motorway` | 0.5 MP | two carriageways with a green median and shoulders, 28 m |
+
+  - `surface` paved = `asphalt`, `concrete`, `paved`, `paving_stones`, `sett`, `concrete:plates`; unpaved = `unpaved`, `gravel`, `fine_gravel`, `compacted`, `dirt`, `ground`, `earth`, `grass`, `sand`, `mud`. `surface` is read only for `primary`…`residential`/`unclassified`; `motorway` and `trunk` ignore it. No `surface` tag: `primary`, `secondary`, `tertiary`, `residential` = asphalt, `unclassified` = dirt (rural Poland).
+  - **Rule**: a step from A to B along a road link costs `min(terrain cost of B, class cost)` – a road never makes a step dearer than the open ground. So dirt roads help only through forest, hills, marsh and rivers (cost 2/3 → 1.5), asphalt equals today's rule (1), expressways and motorways are faster than anything else (0.75 / 0.5 – a 3-point unit drives 4 or 6 hexes along them). A river hex entered along a road link keeps the bridge rule (no +1). When ways of different classes share a link, the **highest class** wins. Where a link leaves a hex both neighbours store the same class.
+  - **Fractional costs**: costs and movement points become fixed-point (`move_scale` = 4 in `features.tres`; 1 MP = 4 units; UI shows `1.5 / 3 MP`). The invariant "the dearest passable step ≤ the smallest unit movement" is unchanged (3).
+  - **Weather / seasons**: the GDD has none yet; later a mud rule would hit dirt roads first (hook: the class cost lives in data).
+  - **Pathfinding / AI**: `step_cost` stays the single source, so `reachable`, `path_to`, `MoveUnitCommand` and `AiPlayer` need no logic change and prefer fast roads automatically (cheapest path); no extra road heuristic. No access-point rule: units may enter and leave expressways and motorways at any hex (open question).
+  - **Unit types**: movement types (foot / wheeled / tracked) are not in the game yet, so all units get the same class speeds (a marching rifle squad on a motorway is as fast as a truck – accepted for now, see Open questions).
+  - **Operational layer**: unchanged (roads there are major ones at cost 1); using the class there is a later task.
+
   Terrain numbers (move cost, impassable, defense bonus) and look (colour, height) live in `data/terrain/*.tres` (`TerrainDefinition`), the source of truth; see ADR 0002.
 
 - **Terrain generation** (TASK-016a, implemented): terrain is derived from a deterministic per-hex **elevation** and **moisture** (fbm/ridged value noise ported from the visual design, `TerrainNoise`; the map seed only picks a world-space offset). Elevation = base + rolling hills + ridged mountains (inside a large-scale mask) + fine detail − lakes (a separate noise; there is no sea edge). Classification: elevation below `water_level` → water; above `hills_level` → hills, or forest when moisture > `highland_forest_moisture`; otherwise forest when moisture > `forest_moisture`, else plains. Spawn tiles are forced to plains with their elevation clamped into the land band (`MapGenerator.force_terrain`). The same height field, corrected around forced tiles, is exposed as a continuous surface (`TerrainSurface.height_at` / `ground_height`) for the 3D view. Elevation has **no rule effect** yet (see Open questions).
@@ -180,14 +197,12 @@ Modifiers: infantry +1 guided ATGM organic to the squad (not platoon/company ass
 | Dismounted infantry (dispersion, cover; body armour does not add a band) | 3 |
 | MBT (composite and/or ERA) | 4 |
 
-**Attack range** (catalog: `armament`, `fire_range_km`) – a banded scale, not km per hex, because direct and indirect fire ranges differ by an order of magnitude:
+**Attack range** (catalog: `armament`, `effective_range_m`, `max_range_m`, `min_range_m`; decided 2026-11-10, [TASK-131a](tasks/TASK-131a-realistic-weapon-range-core.md), supersedes the earlier banded scale "direct = 1, indirect 4–6") – real metres, converted with the tactical hex size of 250 m:
 
-| Fire | Range |
-|---|---|
-| Direct fire (rifles, MG, tank guns, squad AT, ATGM ≤ ~5 km) | 1 |
-| Indirect, standard munition < 25 km | 4 |
-| Indirect, 25–60 km | 5 |
-| Indirect, > 60 km (cap) | 6 |
+- `effective_hexes = floor(effective_range_m / 250)` (full effect), `max_hexes = floor(max_range_m / 250)` (last legal hex; hit chance falls linearly to 50 % there), `min_hexes = ceil(min_range_m / 250)`.
+- Each unit has one weapon profile and a fire mode: **direct** (needs line of sight) or **indirect** (ignores it).
+- Values (design values, (?) = to confirm in the catalog): infantry squads 500 / 750 m (2 / 3 hexes); M1A2 SEPv3 2000 / 3500 m (8 / 14); T-72B3 2000 / 3000 m (8 / 12); Uragan 30 / 35 km; Homar-K 70 / 80 km (guided 239 mm rockets, not the 290 km missile); artillery minimum range 750 m = 3 hexes [ASSUMPTION]. Artillery ranges exceed the map (about 30 × 24 hexes), so beyond its minimum it covers the whole battlefield.
+- The "Range" column in the rosters below shows the earlier banded values (direct 1, 5, 6) and is superseded by this rule.
 
 ### First rosters (TASK-039a)
 
@@ -243,7 +258,7 @@ Split `attack` into `attack_soft` (vs. infantry and soft-skinned targets) and `a
 
 Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 
-- **Attack**: a unit may attack one living enemy unit within its `attack_range` (hex distance; 1 = adjacent). Rejection codes: `game_over`, `unit_not_found`, `not_your_unit`, `not_an_enemy`, `already_attacked`, `out_of_range`.
+- **Attack**: a unit may attack one living enemy unit at hex distance between its minimum and maximum range (see "Attack range"; since TASK-131a, metres ÷ 250 m) and, for direct fire, in line of sight. **Line of sight**: forests, buildings (urban) and hills (hex elevation, eye height 2 m) between attacker and target block direct fire; units do not block it [ASSUMPTION]; indirect fire ignores it. Hit chance is full up to the effective range and falls linearly to 50 % at the maximum range (inside the per-element roll, no extra rng draws). Rejection codes: `game_over`, `unit_not_found`, `not_your_unit`, `not_an_enemy`, `already_attacked`, `out_of_range` (beyond maximum), `too_close` (inside minimum), `no_line_of_sight`.
 - **Once per turn**: each unit attacks at most once per turn. Attacking sets the attacker's remaining movement to 0 – a unit can move then attack, but not attack then move. Both are reset at the start of the owner's turn.
 - **Damage** = `max(1, attack − (defense + defense bonus of the defender's tile))` (`AttackCommand.compute_damage`; the attacker's tile doesn't matter) – since TASK-089a this is the **average** damage of a full-strength attacker, rolled per element (see "Per-element rolls" below). Matchups on plains: see "Resulting matchups on plains" under "Stat derivation rules".
 - **Death**: a unit whose HP drops to 0 dies (`unit_died`), is removed from the map and no longer blocks its tile.
@@ -251,8 +266,8 @@ Implemented in TASK-001 and TASK-002 (`AttackCommand`):
 
 Implemented in TASK-010 and TASK-011:
 
-- **Counterattack** (TASK-010): a defender that survives and has the attacker within its own `attack_range` hits back once with the same formula (since TASK-089a: the same roll, with the HP left after the hit); doesn't use the defender's attack for the turn; a unit counters every attack it survives; a counter never triggers another counter and can kill the attacker (and end the game).
-- **Ranged units** (TASK-011): self-propelled rocket artillery with range 5 can attack melee units (range 1) from distance 2 to 5 without being countered. There is **no minimum range**: artillery can also attack at distance 1 (and is then countered), and it counters any attacker within 5 hexes. Range ignores terrain and units (no line of sight).
+- **Counterattack** (TASK-010): a defender that survives and can reach the attacker (distance within its own minimum..maximum range and, for direct fire, line of sight – TASK-131a) hits back once with the same formula (since TASK-089a: the same roll, with the HP left after the hit); doesn't use the defender's attack for the turn; a unit counters every attack it survives; a counter never triggers another counter and can kill the attacker (and end the game).
+- **Ranged units** (TASK-011): rocket artillery out-ranges every direct-fire unit and attacks from outside their reach without being countered. Since TASK-131a (decided 2026-11-10) artillery has a **minimum range of 750 m (3 hexes) [ASSUMPTION]**, which **replaces the earlier "no minimum range" rule**: targets at distance 1–2 cannot be hit (`too_close`) and cannot be countered by it; beyond the minimum its real range exceeds the map, so it covers the whole battlefield. Indirect fire ignores line of sight.
 
 Player-facing description of these rules: docs/MANUAL.md.
 
@@ -633,6 +648,7 @@ Each question lists the tasks that depend on the answer.
   - *Minimum camera distance / close-range pitch (TASK-111)* – **decided 2026-11-10 (human)**: minimum distance **~1.0 world units (≈ 144 m)** (screenshots: tank ≥ 40 px at 1.2, ~95 px at 0.6); at close range the pitch, ground clearance and look-at height scale with the distance as in the prototype (clearance ∝ (d / 7)², look-at on the ground). Marker look: class icon next to today's fixed-pixel tag, anchored to the unit's ground point instead of 90 m above it.
   - *Performance* – plan decided 2026-11-10 ([ADR 0021](adr/0021-real-scale-visuals.md)): real forest density (~2 000 trees per hex) through impostors / canopy shells with distance budgets (TASK-135, relates to TASK-072) and a terrain LOD near the camera (TASK-134); measured frame times in the ADR.
   → TASK-110, TASK-111, then the follow-ups TASK-134 … TASK-138; TASK-108b … 108e use `MapScale` and are right at any scale.
+- **Road classes** (decided 2026-11-10, reverses the "one road look" part of the next item): dirt / asphalt / expressway / motorway differ in look and in speed – table in "Map" → "Road classes", task [TASK-133](tasks/TASK-133-road-classes.md). Open: (1) fractional move points vs. integer-only costs; (2) foot units on fast roads; (3) access points for expressways / motorways; (4) default class of `unclassified` without `surface`; (5) `track` as dirt road; (6) class cost balance after `tools/simulate.sh --scenario=suwalki_battle`.
 - ~~**Buildings and road classes from OSM**~~ – decided 2026-10-31: procedural villages and one road look first; an importer task (`building=*` footprints, road class / `surface`) only if the procedural look is not convincing. Original note (TASK-108b/108d): the importer stores only a dominant class per hex and road link masks, so villages are drawn procedurally inside urban hexes, scattered farmsteads in non-urban hexes are missing, and every road looks the same (gravel). Importing `building=*` footprints (per-hex counts or positions) and the road class / `surface` tag would make both real – a later importer + look task if the procedural look is not enough.
 - **Map size**: the mock-up map is 26×18 hexes; the prototype battle is 12×10. Bigger maps change pacing and AI cost. → scale question above.
 - **Operational layer v1** (2026-11-01, TASK-092a–e; the specs follow the recommended options, marked **[ASSUMPTION]** in "Operational layer" – waiting for the human):

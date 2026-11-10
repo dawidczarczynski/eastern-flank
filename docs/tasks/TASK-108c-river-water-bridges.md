@@ -1,6 +1,6 @@
 # TASK-108c: Real-terrain look v2 – river at real width as flowing water with muddy banks, real-size bridges
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`FeatureRibbonPlanner` real widths, flow coordinate, bank band and bridge sites, `FeatureRibbons`, new `assets/shaders/river.gdshader`, bridge mesh, `GraphicsQuality` switch) + docs (ARCHITECTURE, MANUAL)
 - **Depends on**: TASK-108b (`MapScale`, ribbon `across` attribute in `UV.y`, min on-screen width, ribbon edge fade) (soft: TASK-110; priority: after the operational core loop 092 → 094 → 095)
 - **Model**: sonnet
