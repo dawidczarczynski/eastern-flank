@@ -1,34 +1,65 @@
 class_name StaffMapCounter
 extends Control
-## One formation counter of the staff map (TASK-092b, look: docs/design/operational_map
-## "Counters", style A "HUD"): own = rectangle 40 x 26 px with a cut corner, enemy = diamond
-## 38 x 38 px, filled with the side colour; ink APP-6 branch glyph (mechanised infantry, armour,
-## rocket artillery), echelon mark II above, designation to the right, 5 slanted strength segments
-## below. Fixed screen size: the control's origin is the hex centre on screen, everything is
-## drawn around it. States: hover (brighter), selected (2 px amber corner brackets), low strength
-## (< 50 %: darker fill, ui.alert outline and gauge), stack (count badge). Ignores the mouse –
-## picking is a 2D hit test in StaffMapCounters.
+## One formation counter of the staff map (TASK-092b, TASK-142; look: docs/design/operational_map
+## "Counter and marker tokens", variant D): a thin hexagonal game tile in matte resin. The hexagon
+## base is the same for both sides; on it stands a raised plate that carries the side by shape and
+## colour (own = rectangle with a cut corner, enemy = diamond) with the engraved APP-6 glyph; the
+## echelon mark is engraved above the plate, five strength studs sit under it, the designation
+## to the right. Fixed screen size: the control's origin is the hex centre. `depth` (from the
+## camera pitch, see depth_for_pitch) fades in the wall, the shadow and the vertical squash: 0 is a
+## flat hexagon on a flat map. States: hover (lighter plate + rim), selected (amber brackets),
+## low strength (darker plate, alert studs), moved (darker plate), in contact (ground ring),
+## stack (up to 3 tiles + count badge). Ignores the mouse - picking is a 2D hit test in
+## StaffMapCounters.
 
-const OWN_SIZE := Vector2(40, 26)
-const ENEMY_SIZE := Vector2(38, 38)
-const CUT := 6.0
+const TILE_SCALE := 1.35  # on-screen size of the whole tile
+const RADIUS := 21.0  # hexagon base, flat-top; the same for both sides
+const RECESS_RADIUS := 17.8
+const WALL_DEPTH := 5.0
+const SQUASH_TILTED := 0.8
+const OWN_SIZE := Vector2(24, 16)
+const ENEMY_SIZE := Vector2(23, 23)
+const CUT := 3.6
+const PLATE_Y := -2.5
+const PLATE_RISE := 1.6
 const SEGMENT_SIZE := Vector2(6, 3)
 const SEGMENT_GAP := 1.5
 const SEGMENT_SLANT := 1.5
-const SEGMENT_TOP := 3.0  # gap between frame and gauge
-const GLYPH_WIDTH := 1.5
-const LABEL_SIZE := 10
+const STUD_RADIUS := 2.3
+const STUD_PITCH := 6.2
+const STUD_Y := 12.5
+const ECHELON_Y := -15.8
+const GLYPH_WIDTH := 1.0
+const LABEL_SIZE := 12
 const BRACKET_PAD := 4.0
 const BRACKET_ARM := 7.0
 const BRACKET_STROKE := 2.0
-const HOVER_LIGHTEN := 0.2
+const HOVER_LIGHTEN := 0.15
 const LOW_DARKEN := 0.3
 const MOVED_DARKEN := 0.4
-const RING_PAD := 5.0
-const RING_DASH := 4.0
+const BASE_MUTED := 0.78
+const BASE_VOID := 0.3
+const PLATE_GREY := 0.2
+const WALL_DARKEN := 0.5
+const RECESS_DARKEN := 0.14
+const BEVEL_ALPHA := 0.45
+const ENGRAVE_DARKEN := 0.8
+const EDGE_ALPHA := 0.35
+const RING_RADIUS_X := 27.0
+const RING_RADIUS_Y := 13.0
+const RING_SEGMENTS := 28
+const RING_FLAT_PAD := 5.0
 const RING_WIDTH := 1.5
+const SHADOW_SIZE := Vector2(76, 30)
+const SHADOW_OFFSET := Vector2(6, 3)
+const SHADOW_ALPHA := 0.45
+const STACK_TILES := 3
+const STACK_STEP := 8.0
+const STACK_DARKEN := 0.25
 const PULSE_SECONDS := 1.6
 const PULSE_GROW := 26.0
+
+static var _shadow_texture: GradientTexture2D
 
 var formation_id: StringName
 var formation_class: StringName
@@ -47,25 +78,25 @@ var selected := false:
 		if selected != value:
 			selected = value
 			queue_redraw()
-## The formation has an order (TASK-092d): a small order mark on the frame, own side only.
+## The formation has an order (TASK-092d): a small order mark on the tile, own side only.
 var has_order := false:
 	set(value):
 		if has_order != value:
 			has_order = value
 			queue_redraw()
-## The formation moved this turn (TASK-092e): dimmed fill and an inner frame, own side only.
+## The formation moved this turn (TASK-092e): darker plate, own side only.
 var moved := false:
 	set(value):
 		if moved != value:
 			moved = value
 			queue_redraw()
-## The formation is in contact (TASK-092e): a dashed ui.alert ring around the frame.
+## The formation is in contact (TASK-092e): a dashed ui.alert ring on the ground.
 var in_contact := false:
 	set(value):
 		if in_contact != value:
 			in_contact = value
 			queue_redraw()
-## Country of origin of a joined ally (TASK-118): its ISO code shows as a small tag on the frame.
+## Country of origin of a joined ally (TASK-118): its ISO code shows as a small tag on the tile.
 var country_tag := "":
 	set(value):
 		if country_tag != value:
@@ -79,8 +110,105 @@ var stack_count := 1:
 		if stack_count != value:
 			stack_count = value
 			queue_redraw()
+## 0 = flat map (flat hexagon, no wall / shadow), 1 = tilted map; see depth_for_pitch.
+var depth := 1.0:
+	set(value):
+		if not is_equal_approx(depth, value):
+			depth = value
+			queue_redraw()
 
 var _palette: StaffMapPalette
+
+
+## The tile depth for a camera pitch (degrees): 0 when flat, full from the default tilt up, in
+## between while the camera tilts.
+static func depth_for_pitch(pitch: float) -> float:
+	return clampf(pitch / StaffMapCameraMath.PITCH_DEFAULT, 0.0, 1.0)
+
+
+## Vertical squash of the tile for a depth (the tilted map foreshortens the hexagon).
+static func squash(depth_factor: float) -> float:
+	return lerpf(1.0, SQUASH_TILTED, depth_factor)
+
+
+## Corners of a flat-top hexagon of `radius` around the origin (y down).
+static func hex_points(radius: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for i in 6:
+		var a := TAU * i / 6.0
+		points.append(Vector2(cos(a), sin(a)) * radius)
+	return points
+
+
+## Neutral base colour of a tile (the side colour, muted and darkened).
+static func base_colour(palette: StaffMapPalette, side: Color) -> Color:
+	return side.lerp(palette.ui_muted, BASE_MUTED).lerp(palette.map_void, BASE_VOID)
+
+
+## Wall of a tile: the hull of its top and base outlines.
+static func wall_hull(top: PackedVector2Array, base: PackedVector2Array) -> PackedVector2Array:
+	var points := top.duplicate()
+	points.append_array(base)
+	return Geometry2D.convex_hull(points)
+
+
+## True when `point` is inside the flat-top hexagon of `radius` (no vertical squash).
+static func in_hex(point: Vector2, radius: float) -> bool:
+	var h := radius * sqrt(3.0) * 0.5
+	return absf(point.y) <= h and absf(point.x) <= radius - absf(point.y) / sqrt(3.0)
+
+
+## Draws the hexagonal base (wall, top face, recessed field, bevel, hover rim) around the origin
+## of the canvas' current transform, which must already carry the vertical squash.
+static func draw_base(
+	canvas: CanvasItem,
+	palette: StaffMapPalette,
+	radius: float,
+	base: Color,
+	depth_factor: float,
+	rim: bool
+) -> void:
+	var hex := hex_points(radius)
+	var wall := WALL_DEPTH * depth_factor / (squash(depth_factor) * TILE_SCALE)
+	if wall > 0.05:
+		var lowered := PackedVector2Array()
+		for p in hex:
+			lowered.append(p + Vector2(0, wall))
+		canvas.draw_colored_polygon(wall_hull(hex, lowered), base.lerp(Color.BLACK, WALL_DARKEN))
+	canvas.draw_colored_polygon(hex, base)
+	canvas.draw_colored_polygon(
+		hex_points(radius * RECESS_RADIUS / RADIUS), base.lerp(Color.BLACK, RECESS_DARKEN)
+	)
+	var inner := hex_points(radius - 1.0)
+	for i in 6:
+		var colour := Color(1, 1, 1, BEVEL_ALPHA) if i >= 3 else Color(0, 0, 0, BEVEL_ALPHA)
+		canvas.draw_line(inner[i], inner[(i + 1) % 6], colour, 1.0)
+	if rim:
+		var closed := hex.duplicate()
+		closed.append(hex[0])
+		canvas.draw_polyline(closed, palette.ui_text, 1.2)
+
+
+## The soft ground shadow of a tile (light from the upper left), scaled by `depth_factor`.
+static func draw_shadow(canvas: CanvasItem, size: Vector2, depth_factor: float) -> void:
+	if depth_factor <= 0.01:
+		return
+	if _shadow_texture == null:
+		var gradient := Gradient.new()
+		gradient.colors = PackedColorArray([Color(0, 0, 0, SHADOW_ALPHA), Color(0, 0, 0, 0)])
+		_shadow_texture = GradientTexture2D.new()
+		_shadow_texture.gradient = gradient
+		_shadow_texture.fill = GradientTexture2D.FILL_RADIAL
+		_shadow_texture.fill_from = Vector2(0.5, 0.5)
+		_shadow_texture.fill_to = Vector2(1.0, 0.5)
+		_shadow_texture.width = 64
+		_shadow_texture.height = 32
+	canvas.draw_texture_rect(
+		_shadow_texture,
+		Rect2(SHADOW_OFFSET - size * 0.5, size),
+		false,
+		Color(1, 1, 1, depth_factor)
+	)
 
 
 ## Draws a 5-segment gauge with its top-left corner at `origin` (also used by the panel).
@@ -184,102 +312,146 @@ func ink_colour() -> Color:
 	return StaffMapFormations.side_ink(_palette, owner_id)
 
 
-## True when `local` (relative to the hex centre) hits the frame or the gauge.
+## Height the front tile is lifted by the tiles stacked under it.
+func lift() -> float:
+	return STACK_STEP * (mini(stack_count, STACK_TILES) - 1) * lerpf(0.5, 1.0, depth)
+
+
+## True when `local` (relative to the hex centre) is on the tile, its wall or the stack under it.
 func hits(local: Vector2) -> bool:
-	if is_own():
-		var frame := Rect2(-OWN_SIZE * 0.5, OWN_SIZE)
-		if frame.grow(1.0).has_point(local):
+	var scale_y := squash(depth) * TILE_SCALE
+	var wall := WALL_DEPTH * depth
+	for shift in [wall, 0.0, -lift() * 0.5, -lift()]:
+		if in_hex(Vector2(local.x / TILE_SCALE, (local.y - shift) / scale_y), RADIUS + 1.0):
 			return true
-	else:
-		var half := ENEMY_SIZE * 0.5
-		if absf(local.x) / half.x + absf(local.y) / half.y <= 1.05:
-			return true
-	return _gauge_rect().grow(1.0).has_point(local)
+	return false
 
 
-## Bounds of frame and gauge around the hex centre (the selection brackets frame it).
+## Bounds of tile, wall and studs around the hex centre (the selection brackets frame it).
 func body_rect() -> Rect2:
-	return _frame_rect().merge(_gauge_rect())
+	var h := RADIUS * sqrt(3.0) * 0.5 * squash(depth) * TILE_SCALE
+	var top := -h - lift()
+	return Rect2(
+		-RADIUS * TILE_SCALE, top, RADIUS * TILE_SCALE * 2.0, h * 2.0 + WALL_DEPTH * depth + lift()
+	)
 
 
-func _frame_rect() -> Rect2:
-	var frame_size := OWN_SIZE if is_own() else ENEMY_SIZE
-	return Rect2(-frame_size * 0.5, frame_size)
+## The top face of the front tile: bounding box of the squashed hexagon.
+func _tile_rect() -> Rect2:
+	var h := RADIUS * sqrt(3.0) * 0.5 * squash(depth) * TILE_SCALE
+	return Rect2(-RADIUS * TILE_SCALE, -h - lift(), RADIUS * TILE_SCALE * 2.0, h * 2.0)
 
 
-func _gauge_rect() -> Rect2:
-	var width := segments_width()
-	var top := _frame_rect().end.y + SEGMENT_TOP
-	return Rect2(Vector2(-width * 0.5, top), Vector2(width, SEGMENT_SIZE.y))
+## The plate colour as drawn now: the side colour with the states, a little greyed.
+func _plate_colour() -> Color:
+	return fill_colour().lerp(Color(0.5, 0.5, 0.5), PLATE_GREY)
+
+
+func _base_colour() -> Color:
+	return base_colour(_palette, StaffMapFormations.side_colour(_palette, owner_id))
 
 
 func _draw() -> void:
 	if _palette == null:
 		return
-	var frame := _frame_rect()
-	var outline := _palette.ui_alert if is_low() else _palette.label_halo
-	if hovered:
-		outline = _palette.ui_text
-	var shape := _frame_polygon(frame)
-	draw_colored_polygon(_frame_polygon(frame.grow(1.0)), outline)
-	draw_colored_polygon(shape, fill_colour())
-	if is_moved():
-		_draw_loop(_frame_polygon(frame.grow(-2.5)), Color(ink_colour(), 0.6), 1.0)
+	draw_shadow(self, SHADOW_SIZE, depth)
 	if in_contact:
-		_draw_ring(frame)
-	_draw_glyph(_glyph_rect(frame))
-	_draw_echelon(frame)
-	_draw_designation(frame)
-	_draw_gauge()
+		_draw_ring()
+	var tiles := mini(stack_count, STACK_TILES)
+	var step := STACK_STEP * lerpf(0.5, 1.0, depth)
+	for i in tiles:
+		var front := i == tiles - 1
+		draw_set_transform(
+			Vector2(0, -step * i), 0.0, Vector2(TILE_SCALE, TILE_SCALE * squash(depth))
+		)
+		_draw_tile(front)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var tile := _tile_rect()
+	_draw_designation(tile)
 	if stack_count > 1:
-		_draw_badge(frame)
+		_draw_badge(tile)
 	if country_tag != "":
-		_draw_country_tag(frame)
+		_draw_country_tag(tile)
 	if pulse_left > 0.0:
-		_draw_pulse(frame)
+		_draw_pulse(tile)
 	if has_order and is_own():
-		_draw_order_mark(frame)
+		_draw_order_mark(tile)
 	if selected:
 		_draw_brackets(body_rect().grow(BRACKET_PAD))
 
 
-func _frame_polygon(rect: Rect2) -> PackedVector2Array:
+## One tile in the squashed space (origin = hex centre). Back tiles of a stack show base and plate.
+func _draw_tile(front: bool) -> void:
+	var base := _base_colour()
+	var plate_colour := _plate_colour()
+	if not front:
+		plate_colour = plate_colour.lerp(_palette.map_void, STACK_DARKEN)
+	draw_base(self, _palette, RADIUS, base, depth, front and hovered)
+	var rise := PLATE_RISE * depth / (squash(depth) * TILE_SCALE)
+	var plate := _plate_polygon(Vector2(0, PLATE_Y))
+	if rise > 0.05:
+		draw_colored_polygon(plate, plate_colour.lerp(Color.BLACK, WALL_DARKEN))
+	var top := _plate_polygon(Vector2(0, PLATE_Y - rise))
+	draw_colored_polygon(top, plate_colour)
+	var edge := _plate_top_edge(top)
+	draw_polyline(edge, Color(1, 1, 1, EDGE_ALPHA), 0.8)
+	if not front:
+		return
+	_draw_glyph(_glyph_rect(Vector2(0, PLATE_Y - rise)), plate_colour)
+	_draw_echelon(base)
+	_draw_studs(base)
+
+
+func _plate_polygon(c: Vector2) -> PackedVector2Array:
 	if is_own():
-		var cut := CUT * rect.size.y / OWN_SIZE.y
+		var half := OWN_SIZE * 0.5
 		return PackedVector2Array(
 			[
-				rect.position,
-				Vector2(rect.end.x - cut, rect.position.y),
-				Vector2(rect.end.x, rect.position.y + cut),
-				rect.end,
-				Vector2(rect.position.x, rect.end.y),
+				c + Vector2(-half.x, -half.y),
+				c + Vector2(half.x - CUT, -half.y),
+				c + Vector2(half.x, -half.y + CUT),
+				c + Vector2(half.x, half.y),
+				c + Vector2(-half.x, half.y),
 			]
 		)
-	var c := rect.get_center()
-	var half := rect.size * 0.5
+	var half := ENEMY_SIZE * 0.5
 	return PackedVector2Array(
 		[
 			c + Vector2(0, -half.y),
 			c + Vector2(half.x, 0),
 			c + Vector2(0, half.y),
-			c + Vector2(-half.x, 0),
+			c + Vector2(-half.x, 0)
 		]
 	)
 
 
-## The APP-6 icon area: the frame interior (own) or the rectangle inscribed in the diamond.
-func _glyph_rect(frame: Rect2) -> Rect2:
+## The upper edges of a plate polygon (highlighted by the light from the upper left).
+func _plate_top_edge(plate: PackedVector2Array) -> PackedVector2Array:
 	if is_own():
-		return frame.grow(-1.0)
-	return Rect2(frame.get_center() - Vector2(11, 7.5), Vector2(22, 15))
+		return PackedVector2Array([plate[4], plate[0], plate[1], plate[2]])
+	return PackedVector2Array([plate[3], plate[0], plate[1]])
 
 
-func _draw_glyph(area: Rect2) -> void:
-	var ink := ink_colour()
+## The APP-6 icon area on the plate: its interior (own) or the rectangle inscribed in the diamond.
+func _glyph_rect(c: Vector2) -> Rect2:
+	if is_own():
+		return Rect2(c - OWN_SIZE * 0.5, OWN_SIZE).grow(-1.0)
+	return Rect2(c - Vector2(8.0, 5.6), Vector2(16.0, 11.2))
+
+
+func _engraved_ink(plate_colour: Color) -> Color:
+	return plate_colour.lerp(Color.BLACK, ENGRAVE_DARKEN)
+
+
+func _draw_glyph(area: Rect2, plate_colour: Color) -> void:
+	_draw_glyph_ink(area, _engraved_ink(plate_colour))
+
+
+func _draw_glyph_ink(area: Rect2, ink: Color) -> void:
 	match formation_class:
 		&"mechanised":
 			_draw_cross(area, ink)
-			_draw_oval(area, ink, Vector2(0.5, 0.42))
+			_draw_oval(area, ink, Vector2(0.44, 0.36))
 		&"armoured":
 			_draw_oval(area, ink, Vector2(0.62, 0.5))
 		&"artillery":
@@ -311,59 +483,59 @@ func _draw_oval(area: Rect2, ink: Color, fraction: Vector2) -> void:
 func _draw_rockets(area: Rect2, ink: Color) -> void:
 	var c := area.get_center()
 	var h := area.size.y * 0.32
-	draw_circle(c + Vector2(0, h * 0.35), 2.6, ink)
+	draw_circle(c + Vector2(0, h * 0.35), 1.6, ink)
 	for dx in [-area.size.x * 0.22, area.size.x * 0.22]:
 		var bottom := c + Vector2(dx, h)
 		var tip := c + Vector2(dx, -h)
 		draw_line(bottom, tip, ink, GLYPH_WIDTH, true)
 		draw_polyline(
-			PackedVector2Array([tip + Vector2(-2.5, 3), tip, tip + Vector2(2.5, 3)]),
+			PackedVector2Array([tip + Vector2(-1.5, 1.8), tip, tip + Vector2(1.5, 1.8)]),
 			ink,
 			GLYPH_WIDTH,
 			true
 		)
 
 
-## Echelon mark (battalion = II) above the frame.
-func _draw_echelon(frame: Rect2) -> void:
-	var top := frame.position.y - 2.0
+## Echelon mark (battalion = II) engraved on the base above the plate.
+func _draw_echelon(base: Color) -> void:
 	for dx in [-1.75, 1.75]:
-		var a := Vector2(dx, top - 6.0)
-		var b := Vector2(dx, top)
-		draw_line(a, b, _palette.label_halo, 3.5)
-	for dx in [-1.75, 1.75]:
-		draw_line(Vector2(dx, top - 5.5), Vector2(dx, top - 0.5), _palette.ui_text, 1.5)
+		var a := Vector2(dx, ECHELON_Y - 1.5)
+		var b := Vector2(dx, ECHELON_Y + 1.5)
+		draw_line(a + Vector2(0, 0.7), b + Vector2(0, 0.7), Color(1, 1, 1, EDGE_ALPHA), 1.3)
+		draw_line(a, b, base.lerp(Color.BLACK, 0.6), 1.3)
 
 
-func _draw_designation(frame: Rect2) -> void:
+## Five strength studs on the base under the plate.
+func _draw_studs(base: Color) -> void:
+	var colour := StaffMapFormations.strength_colour(strength, max_strength, _palette)
+	if is_low():
+		colour = _palette.ui_alert
+	var recess := base.lerp(Color.BLACK, 0.55)
+	for i in StaffMapFormations.SEGMENTS:
+		var at := Vector2((i - 2) * STUD_PITCH, STUD_Y)
+		draw_circle(at, STUD_RADIUS + 0.4, base.lerp(Color.BLACK, 0.3))
+		draw_circle(at, STUD_RADIUS, colour if i < lit_segments() else recess)
+
+
+func _draw_designation(tile: Rect2) -> void:
 	if designation == "":
 		return
 	var font := HudTheme.mono(600)
-	var x := frame.end.x + (4.0 if is_own() else 2.0)
+	var x := tile.end.x + 3.0
 	var baseline := (font.get_ascent(LABEL_SIZE) - font.get_descent(LABEL_SIZE)) * 0.5
-	var at := Vector2(x, baseline)
+	var at := Vector2(x, baseline + tile.get_center().y)
 	draw_string_outline(
-		font, at, designation, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, 3, _palette.label_halo
+		font, at, designation, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, 5, _palette.label_halo
 	)
 	draw_string(font, at, designation, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, _palette.ui_text)
 
 
-func _draw_gauge() -> void:
-	var rect := _gauge_rect()
-	draw_rect(rect.grow(1.5), Color(_palette.label_halo, 0.85))
-	var colour := StaffMapFormations.strength_colour(strength, max_strength, _palette)
-	var unlit := Color(_palette.ui_muted, 0.35)
-	draw_segments(self, rect.position, lit_segments(), colour, unlit)
-
-
-## Small country-of-origin tag at the frame's top-left corner (TASK-118).
-func _draw_country_tag(frame: Rect2) -> void:
+## Small country-of-origin tag at the tile's lower-left corner (TASK-118).
+func _draw_country_tag(tile: Rect2) -> void:
 	var font := HudTheme.mono(700)
 	var size_px := 8
 	var text_w := font.get_string_size(country_tag, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
-	var box := Rect2(
-		Vector2(frame.position.x - 3.0, frame.position.y - 7.0), Vector2(text_w + 6.0, 11)
-	)
+	var box := Rect2(Vector2(tile.position.x + 2.0, tile.end.y - 6.0), Vector2(text_w + 6.0, 11))
 	draw_rect(box, _palette.label_halo)
 	draw_rect(box, Color(_palette.ui_text, 0.7), false, 1.0)
 	var baseline := box.position.y + (box.size.y + font.get_ascent(size_px)) * 0.5 - 1.5
@@ -372,9 +544,9 @@ func _draw_country_tag(frame: Rect2) -> void:
 
 
 ## An amber ring that grows and fades while the formation has just joined.
-func _draw_pulse(frame: Rect2) -> void:
+func _draw_pulse(tile: Rect2) -> void:
 	var t := 1.0 - pulse_left / PULSE_SECONDS
-	var ring := frame.grow(PULSE_GROW * t)
+	var ring := tile.grow(PULSE_GROW * t)
 	draw_polyline(
 		PackedVector2Array(
 			[
@@ -390,14 +562,14 @@ func _draw_pulse(frame: Rect2) -> void:
 	)
 
 
-## Count badge at the frame's top-right corner.
-func _draw_badge(frame: Rect2) -> void:
+## Count badge at the tile's upper-right corner.
+func _draw_badge(tile: Rect2) -> void:
 	var font := HudTheme.mono(700)
 	var text := str(stack_count)
 	var size_px := 9
 	var text_w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
 	var box := Rect2(
-		Vector2(frame.end.x - 6.0, frame.position.y - 7.0), Vector2(maxf(text_w + 6.0, 12.0), 12)
+		Vector2(tile.end.x - 10.0, tile.position.y - 7.0), Vector2(maxf(text_w + 6.0, 12.0), 12)
 	)
 	draw_rect(box, _palette.label_halo)
 	draw_rect(box, _palette.ui_amber, false, 1.0)
@@ -406,9 +578,9 @@ func _draw_badge(frame: Rect2) -> void:
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, _palette.ui_amber)
 
 
-## A small amber tab with an arrow at the top-left corner of the frame.
-func _draw_order_mark(frame: Rect2) -> void:
-	var box := Rect2(frame.position + Vector2(-4.0, -6.0), Vector2(11, 11))
+## A small amber tab with an arrow at the tile's upper-left corner.
+func _draw_order_mark(tile: Rect2) -> void:
+	var box := Rect2(tile.position + Vector2(2.0, -6.0), Vector2(11, 11))
 	draw_rect(box.grow(1.0), _palette.label_halo)
 	draw_rect(box, _palette.ui_amber)
 	var c := box.get_center()
@@ -421,19 +593,19 @@ func _draw_order_mark(frame: Rect2) -> void:
 	)
 
 
-## A closed polyline of `points` (the first point is repeated at the end).
-func _draw_loop(points: PackedVector2Array, colour: Color, width: float) -> void:
-	var closed := points.duplicate()
-	closed.append(points[0])
-	draw_polyline(closed, colour, width)
-
-
-## The dashed ui.alert ring of a counter in contact, a little outside the frame.
-func _draw_ring(frame: Rect2) -> void:
-	var ring := _frame_polygon(frame.grow(RING_PAD))
-	for i in ring.size():
-		draw_dashed_line(
-			ring[i], ring[(i + 1) % ring.size()], _palette.ui_alert, RING_WIDTH, RING_DASH
+## The dashed ui.alert ring of a counter in contact, an ellipse on the ground under the tile.
+func _draw_ring() -> void:
+	var radius := Vector2(RING_RADIUS_X, RING_RADIUS_Y) * TILE_SCALE
+	var flat_y := RADIUS * 0.866 * TILE_SCALE + RING_FLAT_PAD
+	radius.y = lerpf(flat_y, radius.y, depth)  # round when the map is flat
+	for i in range(0, RING_SEGMENTS, 2):  # every other segment: a dashed ellipse
+		var a0 := TAU * i / RING_SEGMENTS
+		var a1 := TAU * (i + 1) / RING_SEGMENTS
+		draw_line(
+			Vector2(cos(a0), sin(a0)) * radius,
+			Vector2(cos(a1), sin(a1)) * radius,
+			_palette.ui_alert,
+			RING_WIDTH
 		)
 
 

@@ -98,19 +98,17 @@ func test_swapping_the_viewer_swaps_shape_but_not_colour() -> void:
 	assert_eq(formation.owner_id, 0)
 	var counter := StaffMapCounter.new()
 	counter.setup(formation, 0, _palette)
-	var corner := Vector2(18, 11)  # inside the 40 x 26 rectangle, outside the 38 x 38 diamond
-	var tip := Vector2(0, -18)  # inside the diamond, above the rectangle
+	var near_corner := Vector2(18, 8)  # on the hexagon base, outside both plates
 	assert_true(counter.is_own())
 	assert_eq(counter.fill_colour(), _palette.side_own)
 	assert_eq(counter.ink_colour(), _palette.side_own_ink)
-	assert_true(counter.hits(corner))
-	assert_false(counter.hits(tip))
+	assert_true(counter.hits(near_corner))
+	assert_false(counter.hits(Vector2(40, 0)))
 	counter.set_viewer(formation.owner_id, 1)
 	assert_false(counter.is_own())
 	assert_eq(counter.fill_colour(), _palette.side_own, "NATO stays blue for either viewer")
 	assert_eq(counter.ink_colour(), _palette.side_own_ink)
-	assert_false(counter.hits(corner))
-	assert_true(counter.hits(tip))
+	assert_true(counter.hits(near_corner), "the hexagon base is the same for both sides")
 	var russian := Operation.build(&"suwalki_gap", 1).formations[-1]
 	assert_eq(russian.owner_id, 1)
 	counter.setup(russian, 0, _palette)
@@ -118,6 +116,37 @@ func test_swapping_the_viewer_swaps_shape_but_not_colour() -> void:
 	counter.set_viewer(1, 1)
 	assert_true(counter.is_own())
 	assert_eq(counter.fill_colour(), _palette.side_enemy, "also when it is the viewer's side")
+	counter.free()
+
+
+func test_counter_is_a_hex_tile() -> void:
+	var formation := Operation.build(&"suwalki_gap", 1).formations[0]
+	var counter := StaffMapCounter.new()
+	counter.setup(formation, 0, _palette)
+	var wall_point := Vector2(0, StaffMapCounter.RADIUS * 0.866 * 0.8 + 2.0)  # on the wall
+	assert_true(counter.hits(wall_point), "the wall is part of the pick area")
+	assert_false(counter.hits(Vector2(0, 40)))
+	assert_true(counter.body_rect().size.x >= StaffMapCounter.RADIUS * 2.0)
+	assert_eq(counter.lift(), 0.0, "a single tile is not lifted")
+	counter.stack_count = 3
+	assert_true(counter.lift() > 0.0, "a stack lifts the front tile")
+	assert_true(counter.hits(Vector2(0, -counter.lift() - 10.0)), "the stack is pickable")
+	counter.free()
+
+
+func test_tile_depth_follows_the_camera_pitch() -> void:
+	assert_eq(StaffMapCounter.depth_for_pitch(0.0), 0.0)
+	assert_eq(StaffMapCounter.depth_for_pitch(StaffMapCameraMath.PITCH_DEFAULT), 1.0)
+	assert_eq(StaffMapCounter.depth_for_pitch(50.0), 1.0)
+	assert_true(StaffMapCounter.depth_for_pitch(17.5) > 0.0)
+	assert_eq(StaffMapCounter.squash(0.0), 1.0, "a flat map is a regular hexagon")
+	assert_true(StaffMapCounter.squash(1.0) < 1.0)
+	var counter := StaffMapCounter.new()
+	counter.setup(Operation.build(&"suwalki_gap", 1).formations[0], 0, _palette)
+	counter.depth = 0.0
+	var flat := counter.body_rect()
+	counter.depth = 1.0
+	assert_true(counter.body_rect().size.y < flat.size.y + StaffMapCounter.WALL_DEPTH + 0.01)
 	counter.free()
 
 

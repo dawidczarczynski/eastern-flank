@@ -139,6 +139,7 @@ var _km_per_unit := 1.0
 ## px), as in v0; pitch in degrees.
 var _position := Vector2.ZERO
 var _zoom := 1.0
+var _raised_marker: StringName = &""  # installation drawn above the counters (_pick_counter)
 var _pitch := StaffMapCameraMath.PITCH_DEFAULT
 var _pitch_target := StaffMapCameraMath.PITCH_DEFAULT
 var _tilt := StaffMapCameraMath.PITCH_DEFAULT  # the last tilt, for V
@@ -954,6 +955,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_installations.build(state, _palette)
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
+	_counters.set_depth(StaffMapCounter.depth_for_pitch(_pitch))
+	_installations.set_depth(StaffMapCounter.depth_for_pitch(_pitch))
 	_build_route_preview()  # after the counters: its cross and label draw over them
 	_counters.build(state, _palette, viewer_player)
 	_counters.refresh()  # the order marks, also when the state already holds orders
@@ -1711,6 +1714,11 @@ func _places_level() -> int:
 
 
 func _on_pitch_changed() -> void:
+	var depth := StaffMapCounter.depth_for_pitch(_pitch)
+	if _counters != null:
+		_counters.set_depth(depth)
+	if _installations != null:
+		_installations.set_depth(depth)
 	_update_limits()
 	_set_zoom(_zoom)
 
@@ -1857,7 +1865,7 @@ func click_at(screen: Vector2) -> void:
 		return
 	if _mode_click(screen):
 		return
-	var hit := _counters.counter_at(screen)
+	var hit := _pick_counter(screen)
 	var target := _enemy_of_selected(hit)
 	if target != null:
 		if issue_order(target.coord):
@@ -1946,7 +1954,7 @@ func _update_hover() -> void:
 	if _strike != null and _strike.is_open():
 		_strike.set_hover(&"" if _strike.covers(mouse) else _strike_target_at(mouse))
 	if _counters != null:
-		_counters.set_hovered(_counters.counter_at(mouse))
+		_counters.set_hovered(_pick_counter(mouse))
 	var c := hex_at_screen(mouse)
 	if not _view.has_tile(c):
 		_clear_hover()
@@ -1990,10 +1998,35 @@ func _strike_target_at(screen: Vector2) -> StringName:
 	return _strike.target_at(counter, marker, hex_at_screen(screen))
 
 
+## The counter under `screen`, unless the installation marker there is raised above it.
+## A marker the cursor reaches where no counter covers it comes to the front alone (z_index), and
+## goes back when the cursor reaches a counter outside it, so overlapping tiles can be clicked.
+func _pick_counter(screen: Vector2) -> StringName:
+	var counter := _counters.counter_at(screen)
+	var marker := _installations.marker_at(screen)
+	if marker != &"" and counter == &"":
+		_raise_marker(marker)
+	elif counter != &"" and marker == &"":
+		_raise_marker(&"")
+	if marker != &"" and marker == _raised_marker:
+		return &""
+	return counter
+
+
+func _raise_marker(id: StringName) -> void:
+	if id == _raised_marker:
+		return
+	if _installations.marker(_raised_marker) != null:
+		_installations.marker(_raised_marker).z_index = 0
+	_raised_marker = id
+	if _installations.marker(id) != null:
+		_installations.marker(id).z_index = 1
+
+
 ## Shows the installation card when the cursor is on a marker (and no counter); true then.
 func _hover_installation(mouse: Vector2) -> bool:
 	var id := &""
-	if _counters == null or _counters.counter_at(mouse) == &"":
+	if _counters == null or _pick_counter(mouse) == &"":
 		id = _installations.marker_at(mouse)
 	_installations.set_hovered(id)
 	if id == &"":

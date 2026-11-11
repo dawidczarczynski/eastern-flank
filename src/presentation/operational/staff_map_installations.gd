@@ -26,6 +26,7 @@ var _state: OperationalState
 var _markers := {}  # StringName -> StaffMapInstallationMarker
 var _points := {}  # StringName -> Vector2 (screen, hex centre)
 var _hovered: StringName = &""
+var _depth := 1.0
 
 
 func _init() -> void:
@@ -57,8 +58,16 @@ func build(state: OperationalState, palette: StaffMapPalette) -> void:
 	for installation in state.installations:
 		var marker := StaffMapInstallationMarker.new()
 		marker.setup(installation, palette)
+		marker.depth = _depth
 		add_child(marker)
 		_markers[installation.id] = marker
+
+
+## Slab depth of every marker (0 = flat map, 1 = tilted; StaffMapCounter.depth_for_pitch).
+func set_depth(value: float) -> void:
+	_depth = value
+	for id: StringName in _markers:
+		marker(id).depth = value
 
 
 func marker(installation_id: StringName) -> StaffMapInstallationMarker:
@@ -82,7 +91,9 @@ func layout(points: Dictionary) -> void:
 	_points = points
 	var view_rect := Rect2(-1e5, -1e5, 2e5, 2e5)
 	if is_inside_tree():
-		view_rect = get_viewport_rect().grow(StaffMapInstallationMarker.SIZE.x * 2.0)
+		view_rect = get_viewport_rect().grow(
+			StaffMapInstallationMarker.RADIUS * StaffMapCounter.TILE_SCALE * 2.0
+		)
 	for id: StringName in _markers:
 		var m := marker(id)
 		var at: Vector2 = _points.get(id, Vector2(-1e6, -1e6)) + OFFSET
@@ -92,10 +103,11 @@ func layout(points: Dictionary) -> void:
 
 ## The id of the marker under a screen point, or &"".
 func marker_at(screen: Vector2) -> StringName:
-	for id: StringName in _markers:
-		var m := marker(id)
-		if m.visible and m.hits(screen - m.position):
-			return id
+	var children := get_children()
+	for i in range(children.size() - 1, -1, -1):  # topmost first
+		var m := children[i] as StaffMapInstallationMarker
+		if m != null and m.visible and m.hits(screen - m.position):
+			return m.installation_id
 	return &""
 
 
@@ -107,6 +119,7 @@ func set_hovered(installation_id: StringName) -> void:
 	_hovered = installation_id
 	if _markers.has(installation_id):
 		marker(installation_id).hovered = true
+		move_child(marker(installation_id), -1)  # the pointed-at marker is never covered
 
 
 func hovered() -> StringName:

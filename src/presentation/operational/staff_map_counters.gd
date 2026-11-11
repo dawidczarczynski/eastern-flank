@@ -14,6 +14,7 @@ var _order: Array[StringName] = []  # placement order
 var _points := {}  # StringName -> Vector2 (screen)
 var _shown: Array[StringName] = []  # visible counters, top last
 var _hovered: StringName = &""
+var _depth := 1.0
 var _selected: StringName = &""
 
 
@@ -50,10 +51,18 @@ func sync_new(origins: Dictionary) -> Array[StringName]:
 func _add(formation: Formation) -> StaffMapCounter:
 	var counter := StaffMapCounter.new()
 	counter.setup(formation, _viewer, _palette)
+	counter.depth = _depth
 	add_child(counter)
 	_counters[formation.id] = counter
 	_order.append(formation.id)
 	return counter
+
+
+## Slab depth of every counter (0 = flat map, 1 = tilted; StaffMapCounter.depth_for_pitch).
+func set_depth(value: float) -> void:
+	_depth = value
+	for id: StringName in _counters:
+		counter(id).depth = value
 
 
 ## Formation ids in placement order.
@@ -119,6 +128,7 @@ func set_hovered(formation_id: StringName) -> void:
 	_hovered = formation_id
 	if _counters.has(formation_id):
 		counter(formation_id).hovered = true
+		_restack()
 
 
 func hovered() -> StringName:
@@ -192,19 +202,28 @@ func _apply_layout() -> void:
 		c.position = points[i].round()
 		c.stack_count = counts[leaders[i]]
 		_shown.append(_order[i])
-	# Own counters above enemy ones, the selected one on top.
+	_restack()
+
+
+## Draw and pick order of the shown counters: enemy, own, then the hovered and the selected one
+## on top (so a clicked tile is never covered by its neighbours).
+func _restack() -> void:
 	var ordered: Array[StringName] = []
-	for id in _shown:
-		if not counter(id).is_own() and id != _selected:
-			ordered.append(id)
-	for id in _shown:
-		if counter(id).is_own() and id != _selected:
-			ordered.append(id)
-	if _shown.has(_selected):
-		ordered.append(_selected)
+	for rank in 4:
+		for id in _shown:
+			if _stack_rank(id) == rank:
+				ordered.append(id)
 	_shown = ordered
 	for id in _shown:
 		move_child(counter(id), -1)
+
+
+func _stack_rank(id: StringName) -> int:
+	if id == _selected:
+		return 3
+	if id == _hovered:
+		return 2
+	return 1 if counter(id).is_own() else 0
 
 
 ## Removes the counters of formations that left the state (destroyed by a strike, TASK-097a).

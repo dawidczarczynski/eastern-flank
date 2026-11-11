@@ -134,3 +134,20 @@ func test_destroyed_formation_loses_its_counter() -> void:
 	)
 	assert_eq(_map.counters().counter_count(), before - 1)
 	assert_true(_map.counters().counter(formation.id) == null)
+
+
+func test_a_marker_reached_outside_a_counter_comes_to_the_front() -> void:
+	var counters := _map.counters()
+	var marker := _map.installations().marker(TARGET)
+	var counter := counters.counter(counters.shown_ids()[0])
+	marker.position = Vector2(300, 300)
+	counter.position = marker.position + Vector2(12, 0)  # covers the marker's right part
+	var left_part := marker.position + Vector2(-20, 0)
+	var shared := marker.position + Vector2(6, 0)
+	assert_eq(_map._pick_counter(shared), counter.formation_id, "the counter is on top at first")
+	assert_eq(_map._pick_counter(left_part), &"", "no counter on the free left part")
+	assert_eq(_map._raised_marker, TARGET, "pointing at the marker raises it alone")
+	assert_eq(marker.z_index, 1)
+	assert_eq(_map._pick_counter(shared), &"", "the marker now wins where they overlap")
+	_map._raise_marker(&"")
+	assert_eq(marker.z_index, 0)
