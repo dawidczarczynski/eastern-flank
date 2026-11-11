@@ -152,6 +152,8 @@ Terrain types and movement (TASK-108, [ADR 0019](adr/0019-roads-rivers-real-terr
 | type | fields | emitted by |
 |---|---|---|
 | `unit_moved` | `unit_id`, `from`, `to`, `path` (`Array[Vector2i]`: tiles walked, excludes `from`, ends with `to`) | MoveUnitCommand |
+| `unit_order_issued` | `unit_id`, `order` (StringName, e.g. `&"dig_in"`), `target` (`Vector2i`; the unit's own hex for orders without a target); first event of an accepted order (TASK-081a) | DigInCommand |
+| `unit_order_cleared` | `unit_id`, `order`, `reason` (`&"moved"`; later `turn_started`, `spent`); after `unit_moved` when a dug unit moves | MoveUnitCommand |
 | `turn_ended` | `player` | EndTurnCommand |
 | `turn_started` | `player`, `turn` | EndTurnCommand |
 | `command_points_changed` | `player`, `remaining` (command points left this turn; only for a player with `command_points_per_turn` > 0). Emitted by `GameState.activate` right after the first `unit_moved` / first `unit_attacked` of a unit's first action of the turn (before `unit_died`, `objective_captured`, the counter and `game_over`), and after `turn_started` with the refilled N | MoveUnitCommand, AttackCommand, EndTurnCommand |

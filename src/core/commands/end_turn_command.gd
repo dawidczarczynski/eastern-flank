@@ -26,6 +26,9 @@ func apply(state: GameState) -> Array[Dictionary]:
 		unit.moves_left = unit.definition.move_points
 		unit.has_attacked = false
 		unit.activated = false
+		unit.slot_order = &""
+		unit.scoot_used = false
+		unit.ambush = false
 	events.append({"type": &"turn_started", "player": state.current_player, "turn": state.turn})
 	state.command_points = state.command_points_per_turn[state.current_player]
 	if state.is_command_limited(state.current_player):

@@ -80,13 +80,14 @@ static func range_factor(definition: UnitDefinition, distance: int) -> float:
 
 
 ## Attack margin max(1, attack - (defense + defender's position bonus + terrain defense bonus of
-## the defender's tile)): the average damage of a full-strength attacker. The
+## the defender's tile, + Dig in)): the average damage of a full-strength attacker. The
 ## attacker's own tile is ignored.
 static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
 	var defense := (
 		defender.definition.defense
 		+ state.position_bonus_per_player[defender.owner_id]
 		+ state.grid.defense_bonus(defender.coord)
+		+ OrderRules.defence_bonus(defender)
 	)
 	return maxi(1, attacker.definition.attack - defense)
 

@@ -169,8 +169,8 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-079](TASK-079-hud-v3-terrain-card.md) | HUD v3: terrain card with dotted leaders + operation label (`operation_name` in the scenario) | 🔵 done | **TASK-076** |
 | [TASK-080](TASK-080-hud-v3-notices.md) | HUD v3: turn banner, toast, targeting bar, loading screen | 🔵 done | **TASK-076** (soft: TASK-077, TASK-079) |
 | [TASK-081](TASK-081-unit-orders-rules.md) | Unit orders as rules – umbrella/design: GDD "Unit orders" (dig in, smoke, blind fire, ambush, scoot; resupply and camouflage specified only), split into 081a–c | 🟢 ready | – (soft: TASK-039b) |
-| [TASK-081a](TASK-081a-order-state-and-dig-in.md) | Unit orders (1/3, core): order state in `Unit` + codec, action-slot rule, `OrderDefinition` data, Dig in (+2 defence, infantry/tanks) | 🟢 ready | TASK-089a |
-| [TASK-081b](TASK-081b-smoke-and-blind-fire.md) | Unit orders (2/3, core): Smoke screen (tank, LoS-blocking hex) and Blind fire | 🔴 blocked | TASK-081a, TASK-131a |
+| [TASK-081a](TASK-081a-order-state-and-dig-in.md) | Unit orders (1/3, core): order state in `Unit` + codec, action-slot rule, `OrderDefinition` data, Dig in (+2 defence, infantry/tanks) | 🔵 done | TASK-089a |
+| [TASK-081b](TASK-081b-smoke-and-blind-fire.md) | Unit orders (2/3, core): Smoke screen (tank, LoS-blocking hex) and Blind fire | 🟢 ready | TASK-081a, TASK-131a |
 | [TASK-081c](TASK-081c-ambush-scoot-ai.md) | Unit orders (3/3, core + ai): Ambush reaction strike, Scoot, AI use of orders, dig-in balance check | 🔴 blocked | TASK-081b |
 | [TASK-082](TASK-082-hud-v3-radial-orders-menu.md) | HUD v3: radial orders menu on RMB (geometry, detail card, keys 1–6, targeting mode) | 🔴 blocked | **TASK-076**, **TASK-081** (soft: TASK-080, TASK-078) |
 | [TASK-083](TASK-083-map-view-build-speed.md) | Faster MapView.build: profile and speed up, share builds between tests (test suite is ~90 % MapView builds) | 🔵 done | – |

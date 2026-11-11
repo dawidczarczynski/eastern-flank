@@ -204,7 +204,7 @@ func _objectives_snapshot() -> Array:
 
 
 func _unit_snapshot(u: Unit) -> Dictionary:
-	return {
+	var d := {
 		"id": u.id,
 		"owner": u.owner_id,
 		"definition": String(u.definition.id),
@@ -214,3 +214,13 @@ func _unit_snapshot(u: Unit) -> Dictionary:
 		"has_attacked": u.has_attacked,
 		"activated": u.activated,
 	}
+	# Order state only when set, so snapshots of matches without orders stay unchanged.
+	if u.dug:
+		d["dug"] = true
+	if u.ambush:
+		d["ambush"] = true
+	if u.scoot_used:
+		d["scoot_used"] = true
+	if u.slot_order != &"":
+		d["slot_order"] = String(u.slot_order)
+	return d

@@ -24,6 +24,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `LineOfSight` – Line of sight of direct fire (TASK-131a, GDD "Combat"). Pure and static. (`line_of_sight.gd`)
 - `MapGenerator` – Procedural map generation from elevation and moisture noise (TerrainField). (`map_generator.gd`)
 - `MatchRecord` – A whole match as scenario + seed + executed commands (their `to_dict()` form). (`match_record.gd`)
+- `OrderRules` – Unit orders (TASK-081a, GDD "Unit orders"): which orders a unit has and whether one can be (`order_rules.gd`)
 - `Replay` – Rebuilds a match from a MatchRecord: the scenario's starting state from the seed, then ev… (`replay.gd`)
 - `Scenario` – Battle setups built headless from a seed (shared by the game, replays and AI simulations). (`scenario.gd`)
 - `StaffMapLayers` – Pure map -> draw data for the staff map (TASK-093a, TASK-125). Everything is in "hex unit… (`staff_map_layers.gd`)
@@ -38,6 +39,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `AttackCommand` – Attack on an enemy within range. Per-element rolls (TASK-089a, GDD "Combat"): each streng… (`attack_command.gd`)
 - `Command` – Base command. The only way to change GameState – regardless of whether it is issued by (`command.gd`)
 - `CommandCodec` – Rebuilds commands from their `to_dict()` form (also after a JSON round trip). (`command_codec.gd`)
+- `DigInCommand` – Order Dig in (TASK-081a): the unit entrenches – +2 defence until it moves. Uses the unit's (`dig_in_command.gd`)
 - `EndTurnCommand` – Ends the current player's turn. BattleRules.at_turn_end may end the battle first (take he… (`end_turn_command.gd`)
 - `MoveUnitCommand` (`move_unit_command.gd`)
 
@@ -60,6 +62,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OperationDefinition` – An operation (TASK-092b): map, the two sides and the start order of battle. Instances are… (`operation_definition.gd`)
 - `OperationalMovement` – Movement costs of the operational layer (TASK-092c, GDD "Movement costs"), kept in (`operational_movement.gd`)
 - `OperationalPosture` – A posture of a formation on the operational map (TASK-092d, GDD "Orders and postures"): h… (`operational_posture.gd`)
+- `OrderDefinition` – Numbers and class availability of one unit order (TASK-081a, GDD "Unit orders"), kept in (`order_definition.gd`)
 - `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)

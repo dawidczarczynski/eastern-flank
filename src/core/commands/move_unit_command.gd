@@ -40,6 +40,16 @@ func apply(state: GameState) -> Array[Dictionary]:
 	var events: Array[Dictionary] = [
 		{"type": &"unit_moved", "unit_id": unit_id, "from": from, "to": target, "path": path},
 	]
+	if unit.dug:
+		unit.dug = false
+		events.append(
+			{
+				"type": &"unit_order_cleared",
+				"unit_id": unit_id,
+				"order": &"dig_in",
+				"reason": &"moved"
+			}
+		)
 	# command_points_changed (first activation of a limited player) follows unit_moved directly.
 	events.append_array(state.activate(unit))
 	events.append_array(BattleRules.capture(state, unit))

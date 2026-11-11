@@ -1,6 +1,6 @@
 # TASK-081b: Smoke screen and Blind fire (core)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (+ data `.tres`); no presentation, no AI
 - **Depends on**: TASK-081a, TASK-131a (line of sight and range hexes)
 - **Sections**: GDD "Unit orders", GDD "Combat"; TASK-131a (LoS rules)

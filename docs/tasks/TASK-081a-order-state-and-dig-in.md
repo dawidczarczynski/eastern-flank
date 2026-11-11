@@ -1,6 +1,6 @@
 # TASK-081a: Order state, action-slot rule and Dig in (core)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (+ data `.tres`); no presentation, no AI
 - **Depends on**: TASK-089a (done)
 - **Sections**: GDD "Unit orders", GDD "Combat"; ARCHITECTURE "Events" (via `tools/doc.py architecture`)
@@ -39,4 +39,4 @@ Smoke, Blind fire (081b), Ambush, Scoot, AI use (081c), HUD, localisation string
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Added `OrderDefinition` (+ `data/orders/dig_in.tres`), `OrderRules` (`orders_for`, `defence_bonus`, `availability`; unbuilt orders report `order_not_available`), `DigInCommand`, `Unit.dug/ambush/scoot_used/slot_order` (snapshot keys only when set), the +2 defence in `AttackCommand.compute_damage` (forecast follows), `unit_order_cleared` after `unit_moved` of a dug unit, turn-start clearing in `EndTurnCommand`, codec `order_dig_in`, ARCHITECTURE events. Tests: `tests/unit/test_dig_in.gd` (17). `tools/check.sh` passes. `tools/simulate.sh 200` was not re-run: the AI never digs in and compute_damage is unchanged while `dug` is false.
