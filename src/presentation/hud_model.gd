@@ -114,7 +114,8 @@ static func attack_forecast(
 
 ## The compact attack tag beside the cursor (TASK-089b) while `attacker_id` is selected and
 ## `defender_id` is one of its valid targets, else []. Lines {label, value} like attack_forecast:
-## ATTACK ~4.0 (2–6) · DESTROY <1 % (omitted when impossible) · COUNTER ~0.6 / NO COUNTER.
+## ATTACK ~4.0 (2–6) · DESTROY <1 % (omitted when impossible) · DIST 6 hex (1.5 km) · RANGE -25 %
+## (only beyond the effective range) · COUNTER ~0.6 / NO COUNTER.
 static func attack_tag(state: GameState, attacker_id: int, defender_id: int) -> Array[Dictionary]:
 	var lines: Array[Dictionary] = []
 	var f := _forecast_of(state, attacker_id, defender_id)
@@ -126,6 +127,12 @@ static func attack_tag(state: GameState, attacker_id: int, defender_id: int) -> 
 	var destroy := destroy_chance_text(f.kill_chance)
 	if destroy != "":
 		lines.append(_forecast_line("DESTROY", destroy))
+	var attacker := state.get_unit(attacker_id)
+	var distance := Hex.distance(attacker.coord, state.get_unit(defender_id).coord)
+	lines.append(_forecast_line("DIST", RangeText.distance(distance)))
+	var falloff := RangeText.falloff(AttackCommand.range_factor(attacker.definition, distance))
+	if falloff != "":
+		lines.append(_forecast_line("RANGE", falloff))
 	if f.counter_possible:
 		lines.append(_forecast_line("COUNTER", "~%.1f" % f.counter_expected))
 	else:

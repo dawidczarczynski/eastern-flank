@@ -1,6 +1,6 @@
 # Night run report
 
-Run 2026-11-11 21:19 - 22:39 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
+Run 2026-11-11 21:19 - 23:03 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
 
 | Task | Result | Status | Note |
 |---|---|---|---|
@@ -10,6 +10,7 @@ Run 2026-11-11 21:19 - 22:39 (logs and patches of failed tasks: `/home/dawid/nig
 | TASK-119a | ok | done |  |
 | TASK-121 | failed | in progress | session ended with status 'in progress': I'm waiting for the core-logic agent to finish. Its completion will wake me, so I'm not polling. |
 | TASK-081a | ok | done |  |
+| TASK-128 | ok | done |  |
 
 ## To playtest
 

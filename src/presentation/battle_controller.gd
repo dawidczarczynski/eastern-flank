@@ -23,6 +23,8 @@ const WARM_UP_MAX_MS := 4000
 const REJECT_TOASTS := {
 	"unreachable": "CANNOT REACH THAT TILE",
 	"out_of_range": "TARGET OUT OF RANGE",
+	"no_line_of_sight": "NO LINE OF SIGHT",
+	"too_close": "TARGET TOO CLOSE",
 	"already_attacked": "ALREADY ATTACKED THIS TURN",
 	"not_an_enemy": "NOT AN ENEMY",
 	"no_command_points": "NO COMMAND POINTS LEFT THIS TURN",
@@ -602,7 +604,8 @@ func _refresh_hovered_unit() -> void:
 
 
 ## Shows the attack range of the selected unit, or – with nothing selected – of the hovered unit
-## (own or enemy), when its range is at least 2. Tiles come from AttackCommand.tiles_in_range.
+## (own or enemy), when its range is at least 2: effective and extended band and the hexes out of
+## sight (RangeOverlayModel).
 func _refresh_range_overlay() -> void:
 	var unit := _sim.state.get_unit(_selected_unit_id)
 	if unit == null:
@@ -616,7 +619,8 @@ func _refresh_range_overlay() -> void:
 	):
 		_map_view.clear_attack_range()
 		return
-	_map_view.show_attack_range(AttackCommand.tiles_in_range(_sim.state, unit))
+	var sets := RangeOverlayModel.build(_sim.state, unit)
+	_map_view.show_attack_range(sets["effective"], sets["extended"], sets["blocked"])
 
 
 ## "Done" dimming applies to units that have nothing left to do on their owner's turn.

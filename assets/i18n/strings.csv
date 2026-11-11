@@ -64,7 +64,7 @@ STRENGTH,STRENGTH,SIŁA
 Attack,Attack,Atak
 Defense,Defense,Obrona
 Moves,Moves,Punkty ruchu
-Range,Range,Zasięg (heks)
+Range,Range,Zasięg
 Foot,Foot,Pieszo
 Wheeled,Wheeled,Kołowy
 Tracked,Tracked,Gąsienicowy
@@ -629,3 +629,6 @@ Expected hits %.1f of %d – at least one hit %d%%,Expected hits %.1f of %d – 
 destroyed ~%d%%,destroyed ~%d%%,zniszczony ~%d%%
 Expected integrity %d → %d,Expected integrity %d → %d,Oczekiwana sprawność %d → %d
 Expected loss ~%d strength,Expected loss ~%d strength,Oczekiwana strata ~%d siły
+NO LINE OF SIGHT,NO LINE OF SIGHT,BRAK LINII WIDZENIA
+TARGET TOO CLOSE,TARGET TOO CLOSE,CEL ZA BLISKO
+DIST,DIST,DYST.

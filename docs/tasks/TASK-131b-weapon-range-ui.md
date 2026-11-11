@@ -1,6 +1,6 @@
 # TASK-131b: Weapon range in the battle UI – range overlay, LoS marks, forecast distance, manual
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: presentation
 - **Depends on**: TASK-131a
 - **Sections**: GDD "Combat" (as updated by TASK-131a), TASK-089b (forecast HUD); docs/design mockups (battle HUD, unit popup); `docs/CODEMAP.md` entries for range highlight in `map_view.gd`, `battle_controller.gd`, `unit_popup_model.gd`, `ui/unit_catalog.gd`
@@ -52,4 +52,8 @@ Update docs/MANUAL.md: stats table "Range" column and bullet (metres, effective 
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- New pure `RangeOverlayModel` (effective / extended / blocked sets; blocked is a subset of the other two, so outlines follow distance only), `RangeText` (m/km, `2.0 km (8 hex), max 3.0 km`, DIST, falloff), `RangeOverlayMesh` (geometry; kept out of MapView, which hit the 1000-line lint limit).
+- MapView.show_attack_range(effective, extended, blocked): still two meshes (fill + outline, same draw calls as before); tints are vertex colours, so `ground_overlay.gdshader` now multiplies `COLOR` (sRGB -> linear) into the albedo.
+- Tag: `DIST n hex (x km)` always, `RANGE -25 %` beyond effective range. Ring/toast reasons `NO LINE OF SIGHT`, `TARGET TOO CLOSE` (strings.csv). Popup stat shows short range text; catalog the full line.
+- Deviations from the plan: blocked hexes are a dark wash, not a hatch (no pattern in the overlay shader); "whole map" = max range >= 40 hexes (RangeText.WHOLE_MAP_HEXES). Overlay frame seen in a screenshot (amber outline + paler outer band visible); the dimming of blocked hexes is faint and was not verified against a mockup (no mockup exists for it). FPS with whole-map Homar-K not measured.
+- Manual updated by game-designer; README screenshot refreshed.

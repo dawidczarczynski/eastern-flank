@@ -39,8 +39,10 @@ float scene_world_y(vec2 screen_uv, mat4 inv_proj, mat4 inv_view) {
 }
 
 void fragment() {
-	ALBEDO = albedo.rgb;
-	ALPHA = albedo.a;
+	// COLOR is white unless the mesh has vertex colours (the range overlay mixes tints in one mesh);
+	// they are authored as sRGB like the albedo uniform, so convert them to linear.
+	ALBEDO = albedo.rgb * pow(COLOR.rgb, vec3(2.2));
+	ALPHA = albedo.a * COLOR.a;
 	if (ground_only) {
 		float below = world_pos.y - scene_world_y(SCREEN_UV, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX);
 		ALPHA *= smoothstep(0.5 * ground_band, ground_band, below);

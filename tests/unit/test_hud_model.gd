@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
@@ -188,7 +189,7 @@ func test_forecast_only_for_a_valid_target() -> void:
 	assert_eq(HudModel.attack_forecast(state, attacker.id, victim.id).size(), 3)
 	var far := state.unit_at(Vector2i(3, 0))
 	assert_true(HudModel.attack_forecast(state, attacker.id, far.id).is_empty())  # out of range
-	assert_eq(HudModel.attack_tag(state, attacker.id, victim.id).size(), 3)
+	assert_eq(HudModel.attack_tag(state, attacker.id, victim.id).size(), 4)
 	assert_true(HudModel.attack_tag(state, attacker.id, far.id).is_empty())
 	assert_true(HudModel.attack_tag(state, -1, victim.id).is_empty())
 	var own := state.unit_at(Vector2i(-3, 0))
@@ -201,7 +202,7 @@ func test_forecast_only_for_a_valid_target() -> void:
 func _tag_texts(
 	attacker_def: UnitDefinition, defender_def: UnitDefinition, distance: int = 1
 ) -> Array[String]:
-	var tag_state := GameState.new(Fixtures.plains_grid(7), 2, 1)
+	var tag_state := GameState.new(Fixtures.plains_grid(14), 2, 1)
 	var a := tag_state.add_unit(0, attacker_def, Vector2i(0, 0))
 	var d := tag_state.add_unit(1, defender_def, Vector2i(distance, 0))
 	var texts: Array[String] = []
@@ -211,6 +212,25 @@ func _tag_texts(
 
 
 func test_tag_abrams_on_a_squad_and_homar_on_an_uragan_at_six_hexes() -> void:
-	assert_eq(_tag_texts(ABRAMS, SQUAD), ["ATTACK ~4.0 (2–6)", "DESTROY <1 %", "COUNTER ~0.6"])
-	assert_eq(_tag_texts(HOMAR, URAGAN, 6), ["ATTACK ~5.0 (4–6)", "DESTROY 33 %", "COUNTER ~0.8"])
-	assert_eq(_tag_texts(ABRAMS, URAGAN, 1), ["ATTACK ~5.4 (4–6)", "DESTROY 63 %", "NO COUNTER"])
+	assert_eq(
+		_tag_texts(ABRAMS, SQUAD),
+		["ATTACK ~4.0 (2–6)", "DESTROY <1 %", "DIST 1 hex (250 m)", "COUNTER ~0.6"]
+	)
+	assert_eq(
+		_tag_texts(HOMAR, URAGAN, 6),
+		["ATTACK ~5.0 (4–6)", "DESTROY 33 %", "DIST 6 hex (1.5 km)", "COUNTER ~0.8"]
+	)
+	assert_eq(
+		_tag_texts(ABRAMS, URAGAN, 1),
+		["ATTACK ~5.4 (4–6)", "DESTROY 63 %", "DIST 1 hex (250 m)", "NO COUNTER"]
+	)
+
+
+func test_tag_shows_the_falloff_beyond_the_effective_range() -> void:
+	var t72 := load("res://data/units/t72b3.tres") as UnitDefinition
+	var at6 := _tag_texts(t72, SQUAD, 6)
+	assert_true(at6.has("DIST 6 hex (1.5 km)"))
+	for text in at6:
+		assert_false(text.begins_with("RANGE"), text)
+	assert_true(_tag_texts(t72, SQUAD, 10).has("RANGE -25 %"))
+	assert_true(_tag_texts(t72, SQUAD, 12).has("RANGE -50 %"))

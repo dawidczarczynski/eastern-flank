@@ -42,7 +42,7 @@ func test_fresh_own_infantry() -> void:
 	assert_true(is_equal_approx(_stat(m, "Defense")["fill"], 0.3))
 	assert_eq(_stat(m, "Moves")["value"], "3/3")
 	assert_true(is_equal_approx(_stat(m, "Moves")["fill"], 0.5))
-	assert_eq(_stat(m, "Range")["value"], "3")  # maximum hexes (TASK-131a)
+	assert_eq(_stat(m, "Range")["value"], "500 m (2 hex)")  # TASK-131b
 	assert_true(is_equal_approx(_stat(m, "Range")["fill"], 3.0 / 6.0))
 	assert_eq(m["status"], "Ready")
 	assert_eq(m["status_color"], UiPalette.HP_HIGH)

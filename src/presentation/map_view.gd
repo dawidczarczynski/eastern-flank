@@ -787,21 +787,29 @@ func show_attack_targets(coords: Array[Vector2i]) -> void:
 	)
 
 
-## Marks the tiles a ranged unit can shoot at: a faint tint plus an outline along the outer
-## boundary of the area (edges not shared with another range tile).
-func show_attack_range(coords: Array[Vector2i]) -> void:
-	_set_overlay(
-		_range_fill, coords, RANGE_FILL_SHAPE, Color(RANGE_COLOR, RANGE_FILL_ALPHA), RANGE_FILL_LIFT
-	)
-	_range_line.visible = not coords.is_empty()
-	if coords.is_empty():
+## Marks the tiles a ranged unit can shoot at (RangeOverlayModel sets): tint and outline of the
+## effective range, a paler band for the `extended` range and a dark wash on the `blocked` tiles
+## (RangeOverlayMesh). Two meshes in all, the tints are vertex colours.
+func show_attack_range(
+	effective: Array[Vector2i], extended: Array[Vector2i] = [], blocked: Array[Vector2i] = []
+) -> void:
+	var any := not effective.is_empty() or not extended.is_empty()
+	_range_fill.visible = any
+	_range_line.visible = any
+	if not any:
+		_range_fill.mesh = null
 		_range_line.mesh = null
 		return
-	var edges := OverlayGeometry.boundary_edges(coords, hex_size)
-	var ribbons := OverlayGeometry.edge_ribbons(edges, RANGE_LINE_WIDTH, RANGE_LINE_SEGMENTS)
-	_range_line.mesh = _triangles_mesh(_drape(ribbons, 0.0))
+	var tile_shape := func(c: Vector2i) -> PackedVector3Array:
+		return _tile_shape(c, RANGE_FILL_SHAPE)
+	var fill := RangeOverlayMesh.fill(effective, extended, blocked, tile_shape)
+	_range_fill.mesh = _triangles_mesh(fill[0], fill[1])
+	_range_fill.position.y = RANGE_FILL_LIFT
+	_range_fill.material_override = _overlay_material(Color.WHITE, false)
+	var outline := RangeOverlayMesh.outline(effective, extended, hex_size, _drape)
+	_range_line.mesh = _triangles_mesh(outline[0], outline[1])
 	_range_line.position.y = RANGE_LINE_LIFT
-	_range_line.material_override = _overlay_material(Color(RANGE_COLOR, RANGE_LINE_ALPHA))
+	_range_line.material_override = _overlay_material(Color.WHITE)
 
 
 func clear_attack_range() -> void:
@@ -911,10 +919,14 @@ func _drape(points: PackedVector2Array, lift: float) -> PackedVector3Array:
 	return OverlayGeometry.drape_with(points, _mesh_ground_height, lift)
 
 
-static func _triangles_mesh(vertices: PackedVector3Array) -> ArrayMesh:
+static func _triangles_mesh(
+	vertices: PackedVector3Array, colors := PackedColorArray()
+) -> ArrayMesh:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
+	if not colors.is_empty():
+		arrays[Mesh.ARRAY_COLOR] = colors
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh

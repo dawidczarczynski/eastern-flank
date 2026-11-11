@@ -43,7 +43,9 @@ static func build(
 			unit.moves_left / MOVES_SCALE
 		),
 		_stat(
-			"Range", str(definition.max_hexes()), minf(1.0, definition.max_hexes() / RANGE_SCALE)
+			"Range",
+			RangeText.short_text(definition),
+			minf(1.0, definition.max_hexes() / RANGE_SCALE)
 		),
 	]
 	var status := _status(state, unit, viewer_player)
@@ -66,6 +68,11 @@ static func build(
 		"status": status[0],
 		"status_color": status[1],
 	}
+
+
+## The range line of the unit's card: "2.0 km (8 hex), max 3.0 km" (RangeText.line).
+static func range_text(definition: UnitDefinition) -> String:
+	return RangeText.line(definition)
 
 
 ## The unit's real designation for the line under the name: the label above the unit, unless it

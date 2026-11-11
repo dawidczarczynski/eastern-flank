@@ -26,6 +26,8 @@ const REASON_TEXTS := {
 	"not_an_enemy": "NOT AN ENEMY",
 	"already_attacked": "ALREADY ATTACKED THIS TURN",
 	"out_of_range": "TARGET OUT OF RANGE",
+	"no_line_of_sight": "NO LINE OF SIGHT",
+	"too_close": "TARGET TOO CLOSE",
 }
 const NO_SELECTION := "NO UNIT SELECTED"
 const ATTACK_DESCRIPTION := (
