@@ -18,6 +18,8 @@
 # launches and the explosions of the impacts (AudioDirector, volume from the saved sound settings –
 # a muted game records silence). Convert it with e.g.
 #   ffmpeg -i homar_teaser.avi -c:v libx264 -crf 18 -pix_fmt yuv420p homar_teaser.mp4
+#   --still=<s>   no film: save one frame (<s> seconds after the salvo start, e.g. 4.6) as the PNG `out`
+#                 (use a .png name), no fade or title – the main menu's battle backdrop (tools/menu_backdrop.sh)
 # Exit codes: 0 written, 1 script error or no recording, 124 timeout (20 min), 127 Godot not found.
 set -uo pipefail
 caller_dir="$PWD"
@@ -31,11 +33,13 @@ out=".screenshots/teaser/homar_teaser.avi"
 resolution="1920x1080"
 fps=60
 platform=""
+still=""
 teaser_args=()
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--resolution=*) resolution="${1#*=}" ;;
 	--fps=*) fps="${1#*=}" ;;
+	--still=*) still="${1#*=}" ;;
 	--windows) platform="windows" ;;
 	--linux) platform="linux" ;;
 	--)
@@ -62,6 +66,38 @@ if ! command -v "$GODOT" >/dev/null 2>&1; then
 fi
 # Refresh the class cache (class_name) for --script mode, like tools/render_unit.sh.
 timeout 120 "$GODOT" --headless --path . --import >/dev/null 2>&1
+
+if [[ -n "$still" ]]; then
+	# The salvo only plays under the Movie Maker writer: record the film up to <s> seconds as a PNG
+	# sequence in a temp folder and keep its last frame.
+	frames="$(mktemp -d)"
+	errors="$(mktemp)"
+	output="$(mktemp)"
+	trap 'rm -rf "$frames" "$errors" "$output"' EXIT
+	still_args=(--still="$still")
+	godot_args=(--resolution "$resolution" --fixed-fps "$fps" --script res://tools/teaser.gd)
+	if [[ -n "$godot_win" ]]; then
+		run_windows_godot "$godot_win" 900 "$output" "$errors" "$project_dir" \
+			--write-movie "$(wslpath -w "$frames/f.png")" "${godot_args[@]}" -- "${still_args[@]}" "${teaser_args[@]}"
+	else
+		timeout 900 "$GODOT" --path . --write-movie "$frames/f.png" "${godot_args[@]}" \
+			-- "${still_args[@]}" "${teaser_args[@]}" >"$output" 2>"$errors"
+	fi
+	if grep -qE "SCRIPT ERROR|Parse Error|Failed to load script" "$errors"; then
+		cat "$errors" >&2
+		echo "ERROR: the log contains script errors (see above)." >&2
+		exit 1
+	fi
+	last="$(find "$frames" -name 'f*.png' | sort | tail -1)"
+	if [[ -z "$last" ]]; then
+		cat "$output" "$errors" >&2
+		echo "ERROR: no frame was recorded." >&2
+		exit 1
+	fi
+	cp "$last" "$out"
+	echo "Still saved: $out"
+	exit 0
+fi
 
 errors="$(mktemp)"
 output="$(mktemp)"

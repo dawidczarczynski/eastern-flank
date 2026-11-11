@@ -54,4 +54,4 @@ The agent cannot see the game window. After changes to the visual layer, describ
 2. Update the status in docs/tasks/BACKLOG.md **and** in the task file's `- **Status**:` line, and fill its "Implementation notes" section (`tools/backlog.py` fails when the two statuses differ); after any status change run `tools/backlog.py --fix` (status icons, and unblocked tasks move from `blocked` to `ready`).
 3. If the task is player-facing, docs/MANUAL.md is updated (by `game-designer`).
 4. Record architectural decisions as ADRs in docs/adr/.
-5. If the change is visible in the battle scene (presentation, shaders, HUD, unit models, terrain, scenario), re-run `tools/readme_screenshot.sh`, Read `docs/images/gameplay.png` to check it still looks good, and commit it with the change.
+5. If the change is visible in the battle scene (presentation, shaders, HUD, unit models, terrain, scenario), re-run `tools/readme_screenshot.sh` (it also refreshes the main menu backdrops `assets/menu/*.png`), Read `docs/images/gameplay.png` to check it still looks good, and commit the images with the change.

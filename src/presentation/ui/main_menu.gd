@@ -1,17 +1,20 @@
 # gdlint: disable=max-public-methods
 extends Control
-## Main menu (TASK-084, TASK-124): Continue (the latest campaign save, TASK-094d), Start
-## scenario, Operation (staff map, TASK-093a), Unit catalog and Settings. The scenario and the
-## settings are separate pages of this scene, each with a Back button (Esc does the same).
+## Main menu (TASK-084, TASK-124; layout of docs/design/operational_map/main_menu.html, variant A:
+## logo and menu on the right over MenuBackdrop – the staff map breaking into the battle): Continue
+## (the latest campaign save, TASK-094d), Start scenario, Operation (staff map, TASK-093a), Unit
+## catalog and Settings. The scenario and the settings are separate pages of this scene, each with
+## a Back button (Esc does the same).
 ## Presentation only: it switches scenes and the UI language (GameSettings stores the choice).
 
 const BATTLE_SCENE := "res://scenes/battle/battle.tscn"
 const CATALOG_SCENE := "res://scenes/ui/unit_catalog.tscn"
 const STAFF_MAP_SCENE := "res://scenes/operational/staff_map.tscn"
 const BUTTON_WIDTH := 340.0
+const EDGE_MARGIN := 64.0  # gap between the menu column and the screen edge
+const LOGO := preload("res://assets/branding/logo_light.png")
 const SCENARIO_WIDTH := 860.0
 const PREVIEW_SIZE := Vector2(480, 340)
-const TITLE_SIZE := 52
 
 ## Where the language is stored (a test points it at a temp file).
 var settings_path := GameSettings.PATH
@@ -25,7 +28,7 @@ var _start: Button  # main page: opens the scenario page
 var _operation: Button  # main page: opens the operational staff map
 var _catalog: Button
 var _settings: Button
-var _title: Label
+var _backdrop: MenuBackdrop
 var _main_page: Control
 var _scenario_page: Control
 var _settings_page: Control
@@ -200,39 +203,75 @@ func _build() -> void:
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
+	_backdrop = MenuBackdrop.new()
+	add_child(_backdrop)
 	add_child(ScreenDecor.new())
-	_main_page = _page(BUTTON_WIDTH)
-	_build_main(_main_page.get_child(0))
-	_scenario_page = _page(SCENARIO_WIDTH)
-	_build_scenarios(_scenario_page.get_child(0))
-	_settings_page = _page(BUTTON_WIDTH)
-	_build_settings(_settings_page.get_child(0))
+	var main_column := _column(BUTTON_WIDTH)
+	_main_page = main_column.get_parent()
+	_build_main(main_column)
+	var scenario_column := _column(SCENARIO_WIDTH)
+	_scenario_page = scenario_column.get_parent()
+	_build_scenarios(scenario_column)
+	var settings_column := _column(BUTTON_WIDTH)
+	_settings_page = settings_column.get_parent()
+	_build_settings(settings_column)
 	var audio := AudioDirector.create(self, null, null, 1.0)
 	audio.settings = _sound  # the menu edits this dictionary: clicks follow mute and volume
 	audio.hook_tree(self)
 	show_page("main")
 
 
-## A centred page holding one column of `width`; returns the page (the column is its child 0).
-func _page(width: float) -> Control:
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(centre)
+## A page: a column of `width` on the right of the screen over a gradient that fades the backdrop
+## into the panel colour (docs/design/operational_map/main_menu.html, variant A). Returns the
+## column; its
+## parent is the page (shown / hidden by show_page).
+func _column(width: float) -> VBoxContainer:
+	var page := Control.new()
+	page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(page)
+	var shade := TextureRect.new()
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color(UiPalette.PANEL_STRONG, 0.0), UiPalette.PANEL_STRONG])
+	gradient.offsets = PackedFloat32Array([0.0, 0.26])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0, 0)
+	texture.fill_to = Vector2(1, 0)
+	shade.texture = texture
+	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	shade.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	shade.offset_left = -(width + EDGE_MARGIN + 96.0)
+	shade.offset_right = 0.0
+	page.add_child(shade)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 12)
-	column.custom_minimum_size = Vector2(width, 0)
-	centre.add_child(column)
-	return centre
+	column.add_theme_constant_override(&"separation", 8)
+	column.anchor_left = 1.0
+	column.anchor_right = 1.0
+	column.anchor_top = 0.5
+	column.anchor_bottom = 0.5
+	column.offset_left = -(width + EDGE_MARGIN)
+	column.offset_right = -EDGE_MARGIN
+	column.grow_vertical = Control.GROW_DIRECTION_BOTH
+	page.add_child(column)
+	return column
 
 
 func _build_main(column: VBoxContainer) -> void:
-	_title = MenuStyle.label("", HudTheme.display(700, 4), TITLE_SIZE, UiPalette.HUD_TEXT)
-	column.add_child(_title)
+	var logo := TextureRect.new()
+	logo.texture = LOGO
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+	logo.custom_minimum_size = Vector2(
+		BUTTON_WIDTH, BUTTON_WIDTH * LOGO.get_height() / LOGO.get_width()
+	)
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(logo)
 	var hatch := HatchBar.new(UiPalette.AMBER, Vector2(BUTTON_WIDTH, 6), true)
 	hatch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(hatch)
-	column.add_child(_spacer(18.0))
+	column.add_child(_spacer(26.0))
 	_continue = _add_button(column, continue_campaign)
 	_continue_note = MenuStyle.label("", HudTheme.display(600, 2), 13, UiPalette.HUD_MUTED)
 	column.add_child(_continue_note)
@@ -254,7 +293,7 @@ func _build_scenarios(column: VBoxContainer) -> void:
 	row.add_child(list)
 	var group := ButtonGroup.new()
 	for scenario_name in Scenario.NAMES:
-		var b := MenuStyle.button("", true)
+		var b := MenuStyle.plate("", true)
 		b.button_group = group
 		b.pressed.connect(_select_scenario.bind(scenario_name))
 		list.add_child(b)
@@ -286,7 +325,7 @@ func _build_settings(column: VBoxContainer) -> void:
 
 
 func _add_button(parent: Control, handler: Callable) -> Button:
-	var b := MenuStyle.button("")
+	var b := MenuStyle.plate("")
 	b.pressed.connect(handler)
 	parent.add_child(b)
 	return b
@@ -313,7 +352,7 @@ func _spacer(height: float) -> Control:
 
 ## Sets every text in the current language (also after a language switch).
 func refresh_texts() -> void:
-	_title.text = "EASTERN FLANK"
+	_backdrop.refresh_texts()
 	_continue.text = tr("MENU_CONTINUE").to_upper()
 	_start.text = tr("Start scenario").to_upper()
 	_operation.text = tr("Operation").to_upper()

@@ -227,6 +227,10 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `vehicle_frame` – Real-vehicle measurements -> model space for the detailed models: `x` metres from the hull (`vehicle_frame.gd`)
 - `WheeledRunningGear` – Shared wheeled running gear for the truck models (TASK-073), the wheeled counterpart of (`wheeled_running_gear.gd`)
 
+## src/presentation/models/weapons/
+
+- `jassm_er` – AGM-158B JASSM-ER (TASK-144): procedural turntable model for the strike panel's model car… (`jassm_er.gd`)
+
 ## src/presentation/operational/
 
 - `PlaceTransliteration` – Latin transcription of Cyrillic place names (Belarusian / Russian), shown under the origi… (`place_transliteration.gd`)
@@ -314,6 +318,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `BattleBriefing` – Commander's briefing at the start of a campaign battle (TASK-094c, GDD "Player roles"): t… (`battle_briefing.gd`)
 - `BattleHud` – Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick (`battle_hud.gd`)
 - `Bracketed` – Tag in amber brackets, "[ TEXT ]": mono 10.5 (rendered at 11) as used for unit and terrai… (`bracketed.gd`)
+- `ChamferBox` – Flat box with two opposite chamfered corners (top-right and bottom-left), the plate of th… (`chamfer_box.gd`)
 - `CrosshairCursor` – The amber crosshair mouse cursor shown over a valid attack target (TASK-089b): a ring wit… (`crosshair_cursor.gd`)
 - `EndTurnButton` – HUD v3 end-turn button: faction-coloured fill with a 14 px chamfer bottom-right, a dark h… (`end_turn_button.gd`)
 - `FpsCounter` – Frames-per-second readout in the top-right corner, refreshed a few times a second, with t… (`fps_counter.gd`)
@@ -324,7 +329,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `HudTheme` – Builds the HUD Theme in code (palette, dark translucent panels) and serves the HUD fonts: (`hud_theme.gd`)
 - `KeyCap` – Key hint cap: a 1 px `LINE` border around amber mono text (10 px). "↵" is drawn as a shape (`key_cap.gd`)
 - `LoadingScreen` – Full-screen loading notice (HUD v3 "06 Notices"): `OPERACJA` amber, the operation name at (`loading_screen.gd`)
-- `main_menu` – Main menu (TASK-084, TASK-124): Continue (the latest campaign save, TASK-094d), Start (`main_menu.gd`)
+- `main_menu` – Main menu (TASK-084, TASK-124; layout of docs/design/operational_map/main_menu.html, vari… (`main_menu.gd`)
+- `MenuBackdrop` – Main menu background (docs/design/operational_map/main_menu.html, variant A "Fracture"):… (`menu_backdrop.gd`)
 - `MenuStyle` – HUD v3 look of the main menu and the unit catalog widgets (buttons, panels, labels), buil… (`menu_style.gd`)
 - `OperationLabel` – "■ OP. <NAME>" in the bottom bar (TASK-079, TASK-139): amber mono text over a thin 110×3… (`operation_label.gd`)
 - `RadialRing` – HUD v3 radial ring (docs/design/hud_v3/README.md "04 Radial orders menu"): six trapezoid (`radial_ring.gd`)

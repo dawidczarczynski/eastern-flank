@@ -53,6 +53,39 @@ static func button(text: String, toggle := false) -> Button:
 	return b
 
 
+## Main menu item (variant A of docs/design/operational_map/main_menu.html): the HUD button with
+## chamfered top-right / bottom-left corners; hover adds a 4 px amber bar on the left.
+static func plate(text: String, toggle := false) -> Button:
+	var b := button(text, toggle)
+	b.add_theme_stylebox_override(&"normal", _plate(UiPalette.PANEL, Color(UiPalette.AMBER, 0.34)))
+	var hover := _plate(Color(UiPalette.AMBER, 0.12), Color(UiPalette.AMBER, 0.9))
+	hover.accent = UiPalette.AMBER
+	b.add_theme_stylebox_override(&"hover", hover)
+	b.add_theme_stylebox_override(&"pressed", _plate(UiPalette.AMBER, UiPalette.AMBER))
+	b.add_theme_stylebox_override(
+		&"hover_pressed", _plate(Color(UiPalette.AMBER, 0.9), UiPalette.AMBER)
+	)
+	var focus := _plate(Color(0, 0, 0, 0), UiPalette.AMBER)
+	focus.border_width = 2.0
+	b.add_theme_stylebox_override(&"focus", focus)
+	b.add_theme_stylebox_override(
+		&"disabled", _plate(Color(UiPalette.PANEL, 0.5), Color(UiPalette.HUD_MUTED, 0.25))
+	)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return b
+
+
+static func _plate(fill: Color, border: Color) -> ChamferBox:
+	var style := ChamferBox.new()
+	style.fill = fill
+	style.border = border
+	style.content_margin_left = 20
+	style.content_margin_right = 14
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
+
+
 ## Dark translucent panel with an amber border.
 static func panel() -> PanelContainer:
 	var p := PanelContainer.new()

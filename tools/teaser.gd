@@ -5,7 +5,9 @@ extends SceneTree
 ## exactly 1 / fps seconds, so the video is smooth however slow the render is.
 ## Manually: godot --path . --resolution 1920x1080 --write-movie out.avi --fixed-fps 60
 ##   --script res://tools/teaser.gd -- [--attacker=4] [--target=6] [--seconds=17]
-##   [--spin=<pitch deg>,<distance>,<focus blend>]
+##   [--spin=<pitch deg>,<distance>,<focus blend>] [--still=<seconds>]
+## --still=<seconds> stops the film that many seconds after the salvo start (no fade, no title):
+## its last frame is the main menu's battle backdrop (tools/teaser.sh --still keeps that frame).
 ##
 ## Sound: the game's own (AudioDirector) is recorded into the .avi (see _start).
 ##
@@ -75,6 +77,7 @@ var _attacker := 4
 var _target := 6
 var _seconds := 17.0
 var _spin := PackedFloat64Array()
+var _still := -1.0  # --still: the film second to save as a PNG (-1 = record the film)
 var _time := -PRE_ROLL
 var _started := false
 var _fired := false
@@ -90,6 +93,8 @@ func _initialize() -> void:
 			_target = arg.get_slice("=", 1).to_int()
 		elif arg.begins_with("--seconds="):
 			_seconds = arg.get_slice("=", 1).to_float()
+		elif arg.begins_with("--still="):
+			_still = arg.get_slice("=", 1).to_float()
 		elif arg.begins_with("--spin="):
 			_spin = arg.get_slice("=", 1).split_floats(",")
 	root.gui_disable_input = true
@@ -115,12 +120,15 @@ func _process(delta: float) -> bool:
 	_time += delta
 	_place_camera(_time)
 	_update_overlay(_time)
-	if _time >= _seconds - PRE_ROLL:
+	if _still < 0.0 and _time >= _seconds - PRE_ROLL:
 		quit(0)
 		return true
 	if _spin.is_empty() and _time >= 0.0 and not _fired:
 		_fired = true
 		_fire()
+	if _still >= 0.0 and _time >= _still:
+		quit(0)  # tools/teaser.sh keeps the last frame the movie writer wrote
+		return true
 	return false
 
 
@@ -146,7 +154,8 @@ func _start() -> void:
 	var middle := (_launcher_at + _target_at) * 0.5
 	_battle.call("debug_focus_point", Vector2(middle.x, middle.z), 0.0, 20.0)  # builds the grass
 	_camera.make_current()
-	_build_title()
+	if _still < 0.0:
+		_build_title()
 
 
 ## The battle's volley playback of an attack that leaves the target at 0 HP (its HP bar steps
@@ -256,7 +265,7 @@ func _label(text: String, font: Font, size: float) -> Label:
 
 
 func _update_overlay(t: float) -> void:
-	if not _spin.is_empty():
+	if not _spin.is_empty() or _still >= 0.0:
 		_black.color.a = 0.0
 		return
 	var end := _seconds - PRE_ROLL

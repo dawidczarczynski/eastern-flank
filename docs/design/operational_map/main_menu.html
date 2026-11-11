@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Main menu</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf)}
+@font-face{font-family:"Chakra Petch";font-weight:600;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf)}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:"JetBrains Mono";src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:"Plex Cond";src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Regular.ttf)}
+:root{--bg:#0a0c09;--panel:rgba(8,11,8,.86);--panel-strong:rgba(8,11,8,.93);--line:rgba(232,176,74,.34);--amber:#e8b04a;--amber-border:rgba(232,176,74,.6);
+--text:#dfe5d6;--muted:#8d9585;--ink:#0a0c09;--disabled:#e07c5e;--scrim:rgba(0,0,0,.62);--note-bg:rgba(232,176,74,.10);--note-text:#f0c66e}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.45 "Plex Cond",sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:0 0 60px}
+.banner{background:var(--amber);color:var(--ink);font:700 14px "Chakra Petch";letter-spacing:.2em;padding:10px 24px}
+h1,h2,h3{font-family:"Chakra Petch";letter-spacing:.06em;margin:0}
+section{padding:28px 24px 0}
+h2{font-size:22px;color:var(--amber);margin:28px 0 10px}
+p,li{max-width:980px;color:#b7bfae}
+table{border-collapse:collapse;margin:12px 0;font-size:13px}
+td,th{border:1px solid #2e3329;padding:5px 10px;text-align:left;vertical-align:top}
+th{font:600 12px "Chakra Petch";letter-spacing:.12em;color:var(--amber);background:#12150f}
+code,.mono{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--note-text)}
+.note{background:var(--note-bg);border-left:3px solid var(--amber);padding:8px 12px;max-width:980px}
+/* ---------- frame ---------- */
+.fz{width:1296px;height:810px;margin:12px 0}
+.frame{position:relative;width:1440px;height:900px;overflow:hidden;background:var(--bg);zoom:.9;font-family:"Chakra Petch"}
+.frame>*{position:absolute}
+.map{inset:0;width:1440px;height:900px;object-fit:cover;filter:brightness(.5) saturate(.65) blur(1.5px)}
+.scrim{inset:0;background:var(--scrim)}
+.vig{inset:0;background:radial-gradient(ellipse at 35% 50%,transparent 40%,rgba(0,0,0,.55) 100%)}
+.tac{inset:0;width:1440px;height:900px;object-fit:cover;filter:brightness(.82) saturate(.9)}
+.edge{inset:0;pointer-events:none}
+.brk{inset:14px;border:0;pointer-events:none}
+.brk i{position:absolute;width:26px;height:26px;border:0 solid var(--line)}
+.brk i:nth-child(1){left:0;top:0;border-width:2px 0 0 2px}.brk i:nth-child(2){right:0;top:0;border-width:2px 2px 0 0}
+.brk i:nth-child(3){left:0;bottom:0;border-width:0 0 2px 2px}.brk i:nth-child(4){right:0;bottom:0;border-width:0 2px 2px 0}
+.cap{font:500 11px "JetBrains Mono";letter-spacing:.12em;color:var(--amber);background:var(--panel);border:1px solid var(--line);padding:4px 9px}
+/* ---------- menu column ---------- */
+.col{top:0;right:0;width:500px;height:900px;background:linear-gradient(90deg,rgba(8,11,8,0),var(--panel-strong) 26%);padding:0 64px 0 96px;display:flex;flex-direction:column;justify-content:center}
+.col.flat{background:linear-gradient(90deg,rgba(8,11,8,0),rgba(8,11,8,.8) 40%)}
+.logo{width:340px;display:block;margin-bottom:14px}
+.hatch{height:6px;width:340px;background:repeating-linear-gradient(115deg,var(--amber) 0 7px,transparent 7px 13px);margin-bottom:6px}
+.tag{font:500 11px "JetBrains Mono";letter-spacing:.2em;color:var(--muted);margin:0 0 34px}
+.item{position:relative;display:flex;align-items:center;height:52px;width:340px;margin-bottom:8px;padding:0 16px 0 18px;font:600 16px "Chakra Petch";letter-spacing:.16em;color:var(--text);background:var(--panel);border:1px solid var(--line);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+.item b{font:500 11px "JetBrains Mono";color:var(--muted);letter-spacing:.1em;width:34px}
+.item s{margin-left:auto;text-decoration:none;color:var(--muted);font-size:18px}
+.item.hover{background:rgba(232,176,74,.12);border-color:rgba(232,176,74,.9);color:var(--amber);box-shadow:inset 4px 0 0 var(--amber)}
+.item.hover s,.item.hover b{color:var(--amber)}
+.item.focus{outline:2px solid var(--amber);outline-offset:-2px;color:var(--amber)}
+.item.press{background:var(--amber);color:var(--ink);border-color:var(--amber)}.item.press b,.item.press s{color:var(--ink)}
+.item.off{color:var(--muted);background:rgba(8,11,8,.5);border-color:rgba(141,149,133,.25)}
+.note2{font:500 12px "Chakra Petch";letter-spacing:.1em;color:var(--muted);margin:-2px 0 10px 2px}
+.list .item.line{background:none;border:0;border-bottom:1px solid rgba(235,232,223,.10);clip-path:none;height:56px;width:360px;margin:0}
+.list .item.line.hover{background:linear-gradient(90deg,rgba(232,176,74,.16),transparent);box-shadow:inset 3px 0 0 var(--amber)}
+.foot{position:absolute;left:96px;bottom:34px;font:500 11px "JetBrains Mono";letter-spacing:.14em;color:var(--muted);display:flex;gap:22px}
+.keys{font:500 11px "JetBrains Mono";color:var(--muted);letter-spacing:.1em;margin-top:18px}
+.keys span{border:1px solid var(--line);color:var(--amber);padding:1px 6px;margin-right:6px}
+/* scenario page */
+.col.wide{width:760px;padding-left:96px}
+.h{font:700 28px "Chakra Petch";letter-spacing:.14em;margin-bottom:16px}
+.srow{display:flex;gap:16px}.slist{width:260px}.slist .item{width:260px;font-size:14px;letter-spacing:.1em}
+.prev{flex:1;height:250px;border:1px solid var(--line);background:#0e130d;position:relative;overflow:hidden}
+.prev img{width:100%;height:100%;object-fit:cover;filter:brightness(.8)}
+.prev span{position:absolute;left:8px;bottom:8px}
+.btnrow{display:flex;gap:12px;margin-top:10px}.btnrow .item{width:170px}
+.slider{height:24px;width:340px;display:flex;align-items:center;margin-bottom:10px}.slider i{height:4px;flex:1;background:rgba(141,149,133,.15);position:relative}.slider i:after{content:"";position:absolute;left:0;top:0;height:4px;width:70%;background:var(--amber)}
+.lbl{font:600 13px "Chakra Petch";letter-spacing:.12em;margin:6px 0 0}
+.small{zoom:.62;margin:8px 8px 8px 0;display:inline-block}
+.sf{display:inline-block;width:893px;height:420px;margin:6px 10px 0 0;vertical-align:top}
+</style></head><body><div class="wrap">
+<div class="banner">Main menu – variant A "Fracture" accepted 2026-11-11 (B hex lens and C rift rejected) · restyle of TASK-084 / TASK-124</div>
+<section>
+<h1 style="font-size:34px">Main menu – menu on the right, staff map breaking into the battle on the left</h1>
+<h2>The need</h2>
+<p>Today the main menu (<code>main_menu.gd</code>) is a centred column of buttons on a flat <code>BG_APP</code> field with the text title “EASTERN FLANK”. The human wants a modern title screen that uses the real logo (<code>assets/branding/logo_light.png</code>, light letters + blue / red wings – blue = own, red = enemy, matching the counter colour rule), the menu on the <b>right</b>, and on the <b>left</b> a darkened staff map that is <b>broken open</b> to show a zoom into a tactical battle – one picture that says “operational layer above, tactical layer below”.</p>
+<ul><li>Items: Continue (disabled without a save, note why), Start scenario, Operation, Unit catalog, Settings. Pages Scenario and Settings stay, each with Back (Esc).</li>
+<li>States: normal, hover, keyboard focus, pressed, disabled (Continue + note), failed load note.</li>
+<li>Must not hide: the logo, all five items, the Continue note. Background is decoration only: <code>mouse_filter = IGNORE</code>, never captures focus.</li>
+<li>Background images here are the existing <code>docs/images/staff_map.png</code> and <code>suwalki_battle.png</code> (Poland is the demo scenario). In game: pre-rendered stills of the two scenes saved as assets (cheap, no second 3D scene → 60 FPS safe), optionally a slow 1.5 % Ken-Burns drift on each layer. Language-neutral: the staff-map still must be rendered without HUD text; the stills here include HUD only because they are screenshots.</li></ul>
+<p class="note">Shared by all variants: dimming = <code>SCRIM_SCREEN</code> rgba(0,0,0,.62) + vignette <code>VIGNETTE_EDGE</code>; screen brackets and scanlines from <code>ScreenDecor</code>; right column gradient from transparent to <code>PANEL_STRONG</code>; buttons keep the <code>MenuStyle.button</code> colours (hover amber 12 % fill + amber border, pressed amber fill + <code>INK</code> text, focus 2 px amber ring, disabled <code>HUD_MUTED</code>). <b>NEW TOKEN: none.</b> New: a 9–12 px chamfer on the item (as the country card / notice frames) and a 4 px amber hover bar.</p>
+
+<h2>Variant A – “Fracture” (recommended)</h2>
+<p>The dimmed staff map fills the screen. A jagged shard – the “crack” – opens in its lower left and is filled with the <b>undimmed</b> tactical battle. A hex marker on the map with two dashed amber zoom lines funnels into the shard, so the eye reads “this hex → this fight”. Menu items are chamfered plates, numbered 01–05.</p>
+<div class="fz"><div class="frame">
+<img class="map" src="../../images/staff_map.png" alt=""><div class="scrim"></div>
+<img class="tac" src="../../images/suwalki_battle.png" alt="" style="clip-path:polygon(0 380px,170px 340px,240px 410px,430px 370px,500px 470px,690px 440px,740px 560px,930px 600px,960px 740px,820px 800px,870px 900px,0 900px)">
+<div class="vig"></div>
+<svg class="edge" viewBox="0 0 1440 900" width="1440" height="900"><polygon points="0,380 170,340 240,410 430,370 500,470 690,440 740,560 930,600 960,740 820,800 870,900 0,900" fill="none" stroke="#e8b04a" stroke-opacity=".7" stroke-width="2" stroke-linejoin="bevel"/>
+<polygon points="0,380 170,340 240,410 430,370 500,470 690,440 740,560 930,600 960,740 820,800 870,900 0,900" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="10" style="filter:blur(6px)" transform="translate(0,-4)"/>
+<g stroke="#e8b04a" stroke-opacity=".5" stroke-dasharray="6 6" fill="none"><path d="M312 215 L170 340"/><path d="M342 220 L430 370"/></g>
+<polygon points="327,170 349,182 349,208 327,220 305,208 305,182" fill="rgba(232,176,74,.14)" stroke="#e8b04a" stroke-width="2"/></svg>
+<div class="cap" style="left:44px;top:60px">OPERATIONAL · STAFF MAP</div>
+<div class="cap" style="left:44px;bottom:48px">TACTICAL · SUWAŁKI GAP</div>
+<div class="brk"><i></i><i></i><i></i><i></i></div>
+<div class="col">
+<img class="logo" src="../../../assets/branding/logo_light.png" alt="Eastern Flank"><div class="hatch"></div><p class="tag">TURN-BASED STRATEGY · 2027</p>
+<div class="item off"><b>01</b>CONTINUE<s>›</s></div><div class="note2">No campaign save yet</div>
+<div class="item hover"><b>02</b>START SCENARIO<s>›</s></div>
+<div class="item"><b>03</b>OPERATION<s>›</s></div>
+<div class="item"><b>04</b>UNIT CATALOG<s>›</s></div>
+<div class="item"><b>05</b>SETTINGS<s>›</s></div>
+<div class="keys"><span>↑↓</span>SELECT <span>↵</span>OPEN</div></div>
+<div class="foot"><span>v0.9 · DEV BUILD</span><span>EN · PL</span></div>
+</div></div>
+<p><b>Item states</b> (same plate, 340×52): </p>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;font-family:'Chakra Petch'">
+<div class="item"><b>03</b>NORMAL<s>›</s></div><div class="item hover"><b>03</b>HOVER<s>›</s></div><div class="item focus"><b>03</b>FOCUS (KEY)<s>›</s></div><div class="item press"><b>03</b>PRESSED<s>›</s></div><div class="item off"><b>01</b>DISABLED<s>›</s></div></div>
+<p><b>Pages</b> – the column widens leftwards over the map (the crack stays visible), content swaps; Esc / Back returns. Scenario page: list + preview as today (preview 380×250), Back + Start in one row. Settings: same column width as the main page.</p>
+<div class="sf"><div class="small"><div class="frame" style="zoom:inherit">
+<img class="map" src="../../images/staff_map.png" alt=""><div class="scrim"></div>
+<img class="tac" src="../../images/suwalki_battle.png" alt="" style="clip-path:polygon(0 380px,170px 340px,240px 410px,430px 370px,500px 470px,690px 440px,740px 560px,930px 600px,960px 740px,820px 800px,870px 900px,0 900px)"><div class="vig"></div>
+<div class="col wide" style="justify-content:center;background:linear-gradient(90deg,rgba(8,11,8,0),var(--panel-strong) 18%)">
+<img class="logo" src="../../../assets/branding/logo_light.png" style="width:170px;margin-bottom:12px" alt=""><div class="h">START SCENARIO</div>
+<div class="srow"><div class="slist"><div class="item hover" style="color:var(--amber)">SUWAŁKI GAP</div><div class="item">BALTIC COAST</div><div class="item">SZURPIŁY LAKES</div></div>
+<div class="prev"><img src="../../images/suwalki_battle.png" alt=""><span class="cap">SUWAŁKI GAP · 4 v 5 UNITS</span></div></div>
+<div class="btnrow"><div class="item">‹ BACK</div><div class="item hover">START</div></div></div></div></div></div><div class="sf"><div class="small"><div class="frame" style="zoom:inherit">
+<img class="map" src="../../images/staff_map.png" alt=""><div class="scrim"></div>
+<img class="tac" src="../../images/suwalki_battle.png" alt="" style="clip-path:polygon(0 380px,170px 340px,240px 410px,430px 370px,500px 470px,690px 440px,740px 560px,930px 600px,960px 740px,820px 800px,870px 900px,0 900px)"><div class="vig"></div>
+<div class="col"><img class="logo" src="../../../assets/branding/logo_light.png" style="width:170px" alt=""><div class="h" style="margin-top:6px">SETTINGS</div>
+<div class="item"><b>01</b>LANGUAGE: ENGLISH<s>›</s></div><div class="item"><b>02</b>SOUND: ON<s>›</s></div>
+<div class="lbl">MASTER VOLUME: 70%</div><div class="slider"><i></i></div><div class="lbl">AMBIENT VOLUME: 70%</div><div class="slider"><i></i></div>
+<div class="item hover" style="margin-top:12px">‹ BACK</div></div></div></div></div>
+<table><tr><th>Part</th><th>Spec (1440×900)</th></tr>
+<tr><td>Menu column</td><td>x 940–1440, gradient transparent → <code>PANEL_STRONG</code> at 26 %; padding 96 left / 64 right; content vertically centred; 340 px wide items (as today’s <code>BUTTON_WIDTH</code>)</td></tr>
+<tr><td>Logo</td><td><code>logo_light.png</code> 340×101, then 6 px <code>HatchBar</code> (<code>AMBER</code>, 340 px, as today), tagline JetBrains Mono 11 px, tracking .2em, <code>HUD_MUTED</code></td></tr>
+<tr><td>Item</td><td>340×52, gap 8, chamfer 12 px (top-right and bottom-left corners), 1 px <code>LINE</code>, fill <code>PANEL</code>; index JetBrains Mono 11 px <code>HUD_MUTED</code>; label Chakra Petch 600 16 px, tracking .16em, <code>HUD_TEXT</code>; chevron right</td></tr>
+<tr><td>Hover / focus</td><td>amber 12 % fill, <code>AMBER</code> 90 % border, 4 px inner left bar, text <code>AMBER</code>; transition 120 ms. Focus ring 2 px <code>AMBER</code>. Pressed: <code>AMBER</code> fill, <code>INK</code> text</td></tr>
+<tr><td>Staff map layer</td><td>full-bleed still, brightness .5, saturation .65, 1.5 px blur, + <code>SCRIM_SCREEN</code>, + vignette</td></tr>
+<tr><td>Shard</td><td>polygon of 12 points (jagged, no curves), tactical still at brightness .82 (the only bright area), 2 px <code>AMBER</code> 70 % bevelled outline, soft black drop shadow; ≈ 45 % of the width, bottom-left</td></tr>
+<tr><td>Zoom funnel</td><td>hex marker 44 px (flat-sided, <code>AMBER</code> 2 px, 14 % fill) + two 1.5 px dashed lines <code>AMBER</code> 50 % to the shard</td></tr>
+<tr><td>Captions</td><td>JetBrains Mono 11 px, <code>AMBER</code>, plate <code>PANEL</code> + <code>LINE</code></td></tr>
+<tr><td>Motion</td><td>on load: map fades in 400 ms, shard “opens” (clip scales from the hex, 500 ms), column slides 24 px from the right; idle: 60 s linear 1.5 % drift on both stills (off at 5 FPS background)</td></tr></table>
+<p class="mono">Godot notes: rebuild <code>main_menu.gd _build()</code> as <code>TextureRect</code> map + <code>TextureRect</code> shard with a <code>Polygon2D</code>/<code>clip_children</code> mask (or a pre-masked PNG with alpha) + a <code>Line2D</code> outline; column = existing <code>MenuStyle</code> buttons with a new chamfered <code>StyleBoxFlat</code> variant (same as <code>StaffMapWindow</code> chamfers) and <code>HatchBar</code>; <code>ScreenDecor</code> stays. Item numbers are optional labels, not translation keys.</p>
+
+<h2>Variant B – “Hex lens”</h2>
+<p>Hexagon is the game’s grid, so the tactical zoom is a <b>large hexagonal lens</b> centred left; around it the staff map with concentric fading hex rings (a radar / zoom-in feel). Menu is a borderless list with hairline dividers – calmer, more editorial; the hex lens is the hero.</p>
+<div class="fz"><div class="frame">
+<img class="map" src="../../images/staff_map.png" alt=""><div class="scrim"></div>
+<img class="tac" src="../../images/suwalki_battle.png" alt="" style="clip-path:polygon(220px 470px,350px 245px,610px 245px,740px 470px,610px 695px,350px 695px)">
+<div class="vig"></div>
+<svg class="edge" viewBox="0 0 1440 900" width="1440" height="900" fill="none" stroke="#e8b04a"><polygon points="220,470 350,245 610,245 740,470 610,695 350,695" stroke-width="2.5" stroke-opacity=".8"/>
+<polygon points="170,470 322,207 638,207 790,470 638,733 322,733" stroke-width="1.5" stroke-opacity=".4"/><polygon points="115,470 290,167 670,167 845,470 670,773 290,773" stroke-width="1" stroke-opacity=".22" stroke-dasharray="8 8"/>
+<polygon points="55,470 258,118 702,118 905,470 702,822 258,822" stroke-width="1" stroke-opacity=".1" stroke-dasharray="8 8"/></svg>
+<div class="cap" style="left:350px;top:208px;transform:translateX(0)">OPERATIONAL · STAFF MAP ↑ ZOOM</div><div class="cap" style="left:385px;top:712px">TACTICAL · SUWAŁKI GAP</div>
+<div class="brk"><i></i><i></i><i></i><i></i></div>
+<div class="col flat list">
+<img class="logo" src="../../../assets/branding/logo_light.png" alt="Eastern Flank"><div class="hatch"></div><p class="tag" style="margin-bottom:26px">TURN-BASED STRATEGY · 2027</p>
+<div class="item line off"><b>01</b>CONTINUE<s>›</s></div>
+<div class="item line hover"><b>02</b>START SCENARIO<s>›</s></div><div class="item line"><b>03</b>OPERATION<s>›</s></div><div class="item line"><b>04</b>UNIT CATALOG<s>›</s></div><div class="item line"><b>05</b>SETTINGS<s>›</s></div>
+<div class="keys"><span>↑↓</span>SELECT <span>↵</span>OPEN</div></div>
+<div class="foot"><span>v0.9 · DEV BUILD</span><span>EN · PL</span></div></div></div>
+<table><tr><th>Part</th><th>Spec</th></tr><tr><td>Lens</td><td>regular hexagon, circumradius 260 px, centre (480, 470); tactical still inside (brightness .82); 2.5 px <code>AMBER</code> 80 % outline + two dashed rings 40 % / 22 % / 10 % (radius ×1.17, ×1.35, ×1.55)</td></tr>
+<tr><td>List</td><td>360×56 rows, no plate, 1 px divider <code>DIVIDER</code>, hover = left amber 3 px bar + 16 % amber gradient to the right; same fonts as A</td></tr>
+<tr><td>Trade-off</td><td>Strong hex identity but the staff map is mostly covered by rings and the lens (≈ 35 % visible); fewer chamfers, so less like the HUD plates. “Hexes are mechanics only” (memory): the hex here is a UI frame, not map geometry – acceptable but check you agree.</td></tr></table>
+
+<h2>Variant C – “Rift” (minimal)</h2>
+<p>No frames, no captions. The staff map is full-bleed; one long diagonal rift runs from the left edge to the lower middle, and everything below it is the tactical battle. The logo is larger (420 px) and the menu is plain text lines with a sliding amber marker – the quietest, cheapest to build (one polygon mask, one line).</p>
+<div class="fz"><div class="frame">
+<img class="map" src="../../images/staff_map.png" alt=""><div class="scrim"></div>
+<img class="tac" src="../../images/suwalki_battle.png" alt="" style="clip-path:polygon(0 520px,160px 505px,250px 545px,430px 560px,520px 620px,700px 640px,790px 720px,940px 760px,1010px 900px,0 900px)"><div class="vig"></div>
+<svg class="edge" viewBox="0 0 1440 900" width="1440" height="900"><polyline points="0,520 160,505 250,545 430,560 520,620 700,640 790,720 940,760 1010,900" fill="none" stroke="#e8b04a" stroke-opacity=".75" stroke-width="2" stroke-linejoin="bevel"/></svg>
+<div class="brk"><i></i><i></i><i></i><i></i></div>
+<div class="col flat list" style="width:520px">
+<img class="logo" src="../../../assets/branding/logo_light.png" style="width:380px;margin-bottom:18px" alt=""><p class="tag" style="margin-bottom:30px">TURN-BASED STRATEGY · 2027</p>
+<div class="item line off" style="width:380px"><b></b>CONTINUE</div><div class="item line hover" style="width:380px"><b></b>START SCENARIO</div><div class="item line" style="width:380px"><b></b>OPERATION</div><div class="item line" style="width:380px"><b></b>UNIT CATALOG</div><div class="item line" style="width:380px"><b></b>SETTINGS</div></div>
+<div class="foot"><span>v0.9 · DEV BUILD</span></div></div></div>
+<table><tr><th>Part</th><th>Spec</th></tr><tr><td>Rift</td><td>one 9-point polyline, 2 px <code>AMBER</code> 75 %; area under it = tactical still; above = dimmed map. No captions, no funnel</td></tr><tr><td>Menu</td><td>text lines 380×56, hover marker as B; no numbering</td></tr><tr><td>Trade-off</td><td>Cleanest and cheapest; weakest “zoom” cue (no pointer from a map spot to the battle).</td></tr></table>
+
+<h2>Recommendation and open questions</h2>
+<ul><li><b>A</b>: the funnel from a map hex to the shard states the concept without text, and its plates reuse the HUD chamfer language. B is prettier but hides the map; C is the budget option.</li>
+<li>Stills vs. live: I assume pre-rendered stills (no 60 FPS risk). A live staff-map render behind the menu would break headless tests and load time.</li>
+<li>Does the main menu keep Start scenario and Operation as separate items? (kept as today)</li>
+<li>Hot-seat / sides: the logo’s blue-left / red-right wings are decorative here; no side is implied.</li></ul>
+</section></div></body></html>

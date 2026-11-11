@@ -18,3 +18,6 @@ SCREENSHOT_SELECT_UNIT="${SCREENSHOT_SELECT_UNIT:-2}" \
 SCREENSHOT_SCENE=staff_map \
 	SCREENSHOT_STAFF_MAP="${SCREENSHOT_STAFF_MAP:-side:1,zoom:1.1,focus:42:48,order:ru_tank_2:41:52:1,order:ru_mlrs_2:50:48:1,order:ru_mr_5:43:44:1,select:ru_mr_4,ring:40:46}" \
 	"$project_dir/tools/screenshot.sh" "$project_dir/docs/images/staff_map.png" "$@"
+
+# Third and fourth: the main menu backdrops (assets/menu/, tools/menu_backdrop.sh).
+"$project_dir/tools/menu_backdrop.sh"

@@ -11,7 +11,7 @@ const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
 const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
 const STAFF_MAP_SCENE_PATH := "res://scenes/operational/staff_map.tscn"
 const USAGE := "Usage: tools/screenshot.sh [out.png] [--frames=N]"
-const EXPECTED_SIZE := Vector2i(1280, 720)
+const DEFAULT_RESOLUTION := "1280x720"  # SCREENSHOT_RESOLUTION (tools/screenshot.sh) overrides it
 const GALLERY_SETTLE_FRAMES := 4
 
 var _output := ""
@@ -277,8 +277,9 @@ func _grab_and_save(path: String) -> bool:
 	if image == null or image.is_empty():
 		_fail("could not read the viewport texture", 1)
 		return false
-	if image.get_size() != EXPECTED_SIZE:
-		_fail("screenshot is %s, expected %s" % [image.get_size(), EXPECTED_SIZE], 1)
+	var expected := _expected_size()
+	if image.get_size() != expected:
+		_fail("screenshot is %s, expected %s" % [image.get_size(), expected], 1)
 		return false
 	if ScreenshotImage.is_blank(image):
 		_fail("blank screenshot", 1)
@@ -290,6 +291,12 @@ func _grab_and_save(path: String) -> bool:
 		return false
 	print("Screenshot saved: ", path)
 	return true
+
+
+func _expected_size() -> Vector2i:
+	var spec := OS.get_environment("SCREENSHOT_RESOLUTION")
+	var parts := (spec if spec != "" else DEFAULT_RESOLUTION).split("x")
+	return Vector2i(parts[0].to_int(), parts[1].to_int()) if parts.size() == 2 else Vector2i.ZERO
 
 
 func _fail(message: String, exit_code: int) -> void:
@@ -355,6 +362,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
 ## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
+## nohud (hides the whole HUD, the map and counters stay: the main menu backdrop),
 ## country:<id> (the country card, TASK-114), options (the map options window),
 ## politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
@@ -477,6 +485,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var contact_map: Array = []
 	var show_result := false
 	var result_tab := -1
+	var no_hud := false
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -568,7 +577,7 @@ func _apply_staff_map_state(spec: String) -> void:
 			"strike":  # strike:<means>[:<target id>[:fire]] – strike mode, TASK-097b
 				map.toggle_strike_mode()
 				var strike := map.strike_hud()
-				strike.pick_means(StringName(parts[1]) if parts.size() > 1 else &"cruise")
+				strike.pick_means(StringName(parts[1]) if parts.size() > 1 else &"jassm_er")
 				if parts.size() > 2:
 					strike.click(StringName(parts[2]))
 					if parts.size() > 3 and parts[3] == "fire":
@@ -593,6 +602,8 @@ func _apply_staff_map_state(spec: String) -> void:
 				select_id = StringName(parts[1]) if parts.size() > 1 else &""
 			"hovercounter":
 				hover_counter = StringName(parts[1]) if parts.size() > 1 else &""
+			"nohud":
+				no_hud = true
 			"pitch":
 				if parts.size() != 2 or not parts[1].is_valid_float():
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)
@@ -657,6 +668,8 @@ func _apply_staff_map_state(spec: String) -> void:
 		print("Contact map: ", " | ".join(debug.preview().lines()))
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
+	if no_hud:  # the counters, front and map stay: a backdrop (tools/menu_backdrop.sh)
+		(map.get("_hud") as CanvasLayer).visible = false
 	map.process_mode = Node.PROCESS_MODE_DISABLED
 
 
