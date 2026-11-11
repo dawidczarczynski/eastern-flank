@@ -32,3 +32,4 @@ docs/design/units/units/*/*.webp
 
 # Devtools hub service logs (tools/devtools.sh)
 .devtools/
+.check.out
