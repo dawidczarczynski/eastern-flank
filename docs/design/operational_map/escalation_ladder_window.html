@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Escalation ladder window</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+:root{--void:#0b0d0b;--land:#1d211c;--forest:#22302a;--own:#5b93d6;--enemy:#d76a52;--enemy-ink:#2a110b;--ink:#0a0c09;
+--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--desc:#b7bfae;--alert:#e07c5e;--calm:#b9d38a;--plate:rgba(8,11,8,.93);
+--card:#12150f;--cedge:#2e3329;--line:rgba(232,176,74,.34);--scrim:rgba(0,0,0,.62)}
+*{box-sizing:border-box}
+body{margin:0;background:#070807;color:var(--text);font:14px/1.45 "Plex Cond",sans-serif;padding:0 32px 60px;width:1504px}
+h1,h2,h3{font-family:"Chakra Petch";font-weight:700;margin:0}
+h1{font-size:26px;margin:18px 0 4px}h2{font-size:21px;margin:44px 0 6px;color:var(--amber)}h3{font-size:13px;margin:16px 0 6px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.banner{background:var(--amber);color:#1a0f02;font:700 13px "Chakra Petch";letter-spacing:.16em;padding:6px 32px;margin:0 -32px}
+p{max-width:980px;margin:4px 0 10px;color:#c9cfc0}
+code,.mono{font-family:"JetBrains Mono";font-size:11.5px;color:var(--amber)}
+table{border-collapse:collapse;margin:8px 0;font-size:12.5px;width:980px}
+td,th{border-top:1px solid #23271f;padding:3px 8px;text-align:left;vertical-align:top}td:first-child{color:var(--muted);width:150px}
+.row{display:flex;flex-wrap:wrap;gap:20px}.cap{font:11px "JetBrains Mono";color:var(--muted);margin:0 0 4px}
+.win{position:relative;overflow:hidden;border:1px solid #2a2e27;width:893px;height:558px}
+.sc{position:absolute;left:0;top:0;width:1440px;height:900px;transform:scale(.62);transform-origin:0 0;background:var(--land);overflow:hidden}
+.sc>*{position:absolute}
+/* chamfered plate like StaffMapCountryCard / LadderCard: --cut sets the corner */
+.pl{--cut:12px;--ec:var(--cedge);--pb:var(--plate);background:var(--ec);
+clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)))}
+.pl>.in{position:absolute;inset:1px;background:var(--pb);
+clip-path:polygon(0 0,calc(100% - var(--cut) + .3px) 0,100% calc(var(--cut) - .3px),100% 100%,calc(var(--cut) - .3px) 100%,0 calc(100% - var(--cut) + .3px))}
+.pl>.in>*{position:absolute}
+.tab{left:0;top:0;height:30px;padding:0 16px;display:flex;align-items:center;font:700 12px "Chakra Petch";letter-spacing:.16em;color:var(--ink);clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%)}
+.xb{width:28px;height:28px;border:1px solid var(--muted);right:14px;top:8px}
+.xb::before,.xb::after{content:"";position:absolute;left:6px;top:12px;width:14px;height:2px;background:var(--text);transform:rotate(45deg)}.xb::after{transform:rotate(-45deg)}
+.hint{font:11px "JetBrains Mono";color:var(--muted)}.hint b{color:var(--text);border:1px solid var(--muted);padding:0 4px;font-weight:700}
+.chip{display:inline-block;font:700 10px "JetBrains Mono";padding:1px 6px;border:1px solid currentColor;letter-spacing:.05em;white-space:nowrap}
+.chip.fill{color:var(--ink)!important}
+.nm{font:700 14px "Chakra Petch";letter-spacing:.05em;text-transform:uppercase}
+.m{font:11px "JetBrains Mono";color:var(--muted)}
+.gauge{position:relative;height:10px;background:#23271f}.gauge i{position:absolute;left:0;top:0;bottom:0}.gauge u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text)}
+.w>*{position:absolute}.bk{inset:0;background:var(--land);overflow:hidden}
+</style></head><body>
+<div class="banner">ACCEPTED 2026-11-11: variant B (horizontal axis + tick matrix) · A and C rejected · TASK-143</div>
+<h1>Escalation ladder window – scale / axis</h1>
+
+<h2>The need</h2>
+<p>The current ladder card (460 px, one text column, 7 near-identical rows, Polish text wrapping, ROE lines like “Free to strike: units, air defence, depots”) is hard to scan: nothing tells you <i>where on the scale</i> you are, what is <i>new</i> at each level, or how far the top is. It should be a larger window that draws the seven levels (0–6) as an <b>axis</b>.</p>
+<p><b>Shows</b> (all existing data, read-only): level number + name · where the shared level is now · what may be struck per level (5 target classes: Formations, Air defence, Depots, Airfields, Command posts) · markers where they start: <i>enemy sanctuary soil opens</i> (2), <i>allies join</i> (3), <i>ceiling of ordinary play</i> (5), <i>nuclear attack ends the operation – nobody wins</i> (6) · per side: strength, readiness, collapse threshold ≤ 50 % and a red COLLAPSE tag.</p>
+<p><b>Behaviour (required, same for all variants):</b> X button top-right (28 px, same as the politics screen) · <code>Esc</code> closes · a click outside the window closes · opening it closes every other staff-map window (report, country card, decisions, strike panels, contact notice) and vice versa the other windows already replace it (“one window at a time”) · map dimmed with <code>scrim.screen</code>, no input reaches the map while open · fade 150 ms · opened from the escalation chip (click) – hint “click the chip again / Esc” · no timeout. Meaning is carried by shape and text, not only colour: reached = filled node, current = diamond + “NOW” tag, above current = hollow node, ▲ CAP, ✕ END.</p>
+<p><b>States per frame:</b> left = start of operation (level 1, both sides healthy), right = late game (level 5, Russia in collapse, hover on the level 6 node showing its condition). Nodes colour = existing <code>StaffMapEscalation.level_colour</code> (calm green → <code>ui.alert</code>).</p>
+
+<div id="out"></div>
+
+<script>
+const LV=[
+ {n:'Contained clash',roe:[1,0,0,0,0]},
+ {n:'Limited war',roe:[1,1,1,0,0],tag:'START'},
+ {n:'Open war',roe:[1,1,1,1,1],ev:'SANCTUARY OPENS',evt:'Enemy sanctuary soil opens to ground entry and strikes'},
+ {n:'Regional war',roe:[1,1,1,1,1],ev:'ALLIES JOIN',evt:'Aligned countries turn belligerent'},
+ {n:'General war',roe:[1,1,1,1,1]},
+ {n:'Strategic alert',roe:[1,1,1,1,1],ev:'▲ CAP',evt:'Highest level ordinary play reaches'},
+ {n:'Nuclear attack',roe:[0,0,0,0,0],ev:'✕ END',evt:'Ends the operation – nobody wins',end:1}];
+const CL=['Formations','Air defence','Depots','Airfields','Command posts'];
+const mix=(t)=>{const a=[185,211,138],b=[224,124,94];return 'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*t))+')'};
+const col=l=>mix(l/6);
+const newAt=(l,c)=>LV[l].roe[c]&&(l==0||!LV[l-1].roe[c]);
+function node(l,cur,x,y,big){const c=col(l),s=big?22:14;
+ if(l==cur)return `<div style="left:${x-s/2-4}px;top:${y-s/2-4}px;width:${s+8}px;height:${s+8}px;background:${c};transform:rotate(45deg);outline:2px solid var(--text);outline-offset:3px"></div>`;
+ if(l<cur)return `<div style="left:${x-s/2}px;top:${y-s/2}px;width:${s}px;height:${s}px;border-radius:50%;background:${c}"></div>`;
+ return `<div style="left:${x-s/2}px;top:${y-s/2}px;width:${s}px;height:${s}px;border-radius:50%;border:2px solid ${c};background:var(--void)${LV[l].end?';border-radius:0;transform:rotate(45deg)':''}"></div>`}
+function strips(st,x,y,w,cols){ // collapse strip per side
+ return st.map((s,i)=>{const own=i==0,c=own?'var(--own)':'var(--enemy)',hot=s.p<=50,gc=hot?'var(--alert)':(s.p<75?'#e2c069':'#b9d38a');
+ return `<div style="left:${x+(cols?i*(w/2):0)}px;top:${y+(cols?0:i*54)}px;width:${w/(cols?2:1)-14}px">
+ <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><span style="width:${own?14:11}px;height:${own?9:11}px;background:${c};${own?'':'transform:rotate(45deg)'}"></span><span class="nm" style="font-size:12px">${s.name}</span><span class="m" style="margin-left:auto">strength ${s.p} % · readiness ${s.r}</span>${hot?'<span class="chip fill" style="background:var(--alert);border-color:var(--alert)">▲ COLLAPSE</span>':''}</div>
+ <div class="gauge"><i style="width:${s.p}%;background:${gc}"></i><u style="left:50%"></u></div>
+ <div class="m" style="font-size:10px;margin-top:2px;padding-left:calc(50% - 40px)">collapse at ≤ 50 %</div></div>`}).join('')}
+function frame(inner,cur,tip){return `<div class="sc"><div class="bk">
+ <div style="left:420px;top:8px;width:600px;height:34px;background:var(--void);border:1px solid #3a3f33"></div>
+ <div style="left:430px;top:48px;width:230px;height:26px;background:var(--void);border:1px solid #3a3f33;font:700 12px 'Chakra Petch';padding:3px 10px;color:var(--text)">${cur} · ${LV[cur].n.toUpperCase()}</div>
+ <div style="left:90px;top:300px;font:700 46px 'Chakra Petch';letter-spacing:.42em;color:rgba(91,147,214,.25)">POLAND</div>
+ <div style="left:900px;top:240px;font:700 46px 'Chakra Petch';letter-spacing:.42em;color:rgba(215,106,82,.25)">BELARUS</div>
+ <div style="left:200px;top:560px;width:900px;height:3px;background:rgba(215,106,82,.5)"></div></div>
+ <div style="inset:0;background:var(--scrim)"></div>${inner}</div>`}
+const S1=[{name:'NATO',p:100,r:100},{name:'Russia',p:100,r:100}];
+const S2=[{name:'NATO',p:71,r:64},{name:'Russia',p:46,r:31}];
+
+/* ---- Variant A: vertical axis sheet (all coordinates plate-local) ---- */
+function head(cur,w,sub){return `<div class="tab" style="background:${col(cur)}">ESCALATION LADDER</div><div class="m" style="left:200px;top:8px;font-size:12px">${sub}</div><div class="xb"></div><div style="left:0;top:34px;width:${w}px;height:1px;background:var(--line)"></div>`}
+function A(cur,st){const X=118,Y0=100,H=74,yy=l=>Y0+H*(6-l);let h='';
+ h+=`<div style="left:${X}px;top:${yy(5)}px;width:3px;height:${H*5}px;background:linear-gradient(${col(5)},var(--calm));opacity:.3"></div>`;
+ h+=`<div style="left:${X}px;top:${yy(cur)}px;width:3px;height:${H*cur}px;background:linear-gradient(${col(cur)},var(--calm))"></div>`;
+ h+=`<div style="left:${X}px;top:${yy(6)}px;width:3px;height:${H}px;background:repeating-linear-gradient(var(--alert) 0 6px,transparent 6px 12px)"></div>`;
+ for(let l=6;l>=0;l--){const y=yy(l),c=col(l),isC=l==cur;
+  if(isC)h+=`<div style="left:20px;top:${y-32}px;width:938px;height:64px;border:1px solid var(--amber);background:rgba(232,176,74,.08)"></div>`;
+  h+=`<div style="left:24px;top:${y-22}px;width:60px;text-align:right;font:700 40px/44px 'Chakra Petch';color:${l>cur?'#5a6153':c}">${l}</div>`;
+  h+=node(l,cur,X,y,1);
+  h+=`<div style="left:160px;top:${y-24}px;width:260px"><div class="nm" style="font-size:16px;color:${l>cur?'var(--desc)':'var(--text)'}">${LV[l].n}</div><div style="margin-top:3px">${isC?'<span class="chip fill" style="background:var(--amber);border-color:var(--amber)">◆ NOW</span> ':''}${LV[l].tag&&!isC?`<span class="chip" style="color:var(--muted)">${LV[l].tag}</span> `:''}${LV[l].ev?`<span class="chip" style="color:${LV[l].end?'var(--alert)':'var(--amber)'}">${LV[l].ev}</span>`:''}</div></div>`;
+  if(LV[l].end)h+=`<div style="left:430px;top:${y-22}px;width:500px;font:500 13px/1.35 'Plex Cond';color:var(--alert)">Russia uses a nuclear weapon – only from 5, only Russia, only while Russia is in collapse.<br>Ends the operation – nobody wins.</div>`;
+  else{let c2='';CL.forEach((n,k)=>{if(LV[l].roe[k])c2+=`<span class="chip" style="color:${newAt(l,k)?'var(--amber)':'var(--muted)'};margin:0 4px 3px 0">${newAt(l,k)?'+ ':''}${n.toUpperCase()}</span>`});
+   h+=`<div style="left:430px;top:${y-26}px;width:520px"><div class="m" style="font-size:10px;letter-spacing:.14em">MAY STRIKE</div>${c2}${LV[l].evt?`<div style="font:500 12px 'Plex Cond';color:var(--amber)">${LV[l].evt}</div>`:''}</div>`}}
+ const pl=`<div class="pl" style="left:230px;top:60px;width:980px;height:780px;--ec:#3a3f33"><div class="in">${head(cur,978,`Shared by both sides · level ${cur} of 6 · ordinary play stops at 5`)}
+ <div class="w" style="left:0;top:0;width:978px;height:600px">${h}</div>
+ <div style="left:0;top:604px;width:978px;height:1px;background:var(--line)"></div>
+ ${strips(st,24,624,930,true)}
+ <div class="hint" style="left:24px;top:730px;width:930px"><b>Esc</b> close · click outside closes · click a level for its details</div></div></div>`;
+ return frame(pl,cur)}
+/* ---- Variant B: horizontal axis + strike matrix ---- */
+function B(cur,st,tip){const X0=150,CW=160,Y=170,R0=210;let h='';
+ h+=`<div style="left:${X0+CW/2}px;top:${Y-1}px;width:${CW*6}px;height:3px;background:linear-gradient(90deg,var(--calm),${col(6)});opacity:.3"></div>`;
+ h+=`<div style="left:${X0+CW/2}px;top:${Y-1}px;width:${CW*cur}px;height:3px;background:linear-gradient(90deg,var(--calm),${col(cur)})"></div>`;
+ h+=`<div style="left:${X0+CW*5.5}px;top:${Y-1}px;width:${CW}px;height:3px;background:repeating-linear-gradient(90deg,var(--alert) 0 6px,transparent 6px 12px)"></div>`;
+ for(let l=0;l<=6;l++){const cx=X0+CW*l+CW/2,c=col(l),isC=l==cur;
+  if(isC)h+=`<div style="left:${X0+CW*l+3}px;top:44px;width:${CW-6}px;height:440px;border:1px solid var(--amber);background:rgba(232,176,74,.07)"></div>`;
+  h+=`<div style="left:${X0+CW*l}px;top:50px;width:${CW}px;text-align:center;font:700 44px/48px 'Chakra Petch';color:${l>cur?'#5a6153':c}">${l}</div>`;
+  h+=`<div class="nm" style="left:${X0+CW*l+6}px;top:100px;width:${CW-12}px;text-align:center;font-size:13px;color:${l>cur?'var(--desc)':'var(--text)'}">${LV[l].n}</div>`;
+  if(isC)h+=`<div style="left:${X0+CW*l}px;top:124px;width:${CW}px;text-align:center"><span class="chip fill" style="background:var(--amber);border-color:var(--amber)">◆ NOW</span></div>`;
+  else if(LV[l].tag)h+=`<div style="left:${X0+CW*l}px;top:124px;width:${CW}px;text-align:center"><span class="chip" style="color:var(--muted)">${LV[l].tag}</span></div>`;
+  h+=node(l,cur,cx,Y,1);
+  CL.forEach((n,k)=>{const y=R0+k*34,ok=LV[l].roe[k],nw=newAt(l,k);
+   h+=`<div style="left:${X0+CW*l+20}px;top:${y}px;width:${CW-40}px;height:26px;display:flex;align-items:center;justify-content:center;${ok?`background:${col(l)}22;border:1px solid ${nw?'var(--amber)':'#3a3f33'};color:${nw?'var(--amber)':'var(--text)'}`:'color:#4a5043;border:1px dashed #2e3329'};font:700 ${ok?17:11}px 'JetBrains Mono'">${ok?(nw?'✓ <span style=\"font-size:10px;margin-left:5px;letter-spacing:.06em\">NEW</span>':'✓'):(LV[l].end?'':'—')}</div>`});
+  if(LV[l].ev)h+=`<div style="left:${X0+CW*l+6}px;top:${R0+5*34+14}px;width:${CW-12}px;text-align:center"><span class="chip ${LV[l].end?'fill':''}" style="color:${LV[l].end?'var(--ink)':'var(--amber)'};${LV[l].end?'background:var(--alert);border-color:var(--alert)':''}">${LV[l].ev}</span><div style="font:500 11.5px/1.3 'Plex Cond';color:${LV[l].end?'var(--alert)':'var(--desc)'};margin-top:5px">${LV[l].evt}</div></div>`}
+ CL.forEach((n,k)=>h+=`<div class="m" style="left:24px;top:${R0+4+k*34}px;color:var(--desc)">${n.toUpperCase()}</div>`);
+ h+=`<div class="m" style="left:24px;top:${Y-8}px;font-size:10px;letter-spacing:.14em">SCALE</div><div class="m" style="left:24px;top:${R0-20}px;font-size:10px;letter-spacing:.14em">MAY STRIKE</div><div class="m" style="left:24px;top:${R0+5*34+14}px;font-size:10px;letter-spacing:.14em">TRIGGERS</div>`;
+ const hov=tip?`<div class="pl hud" style="left:${60+X0+CW*6-110}px;top:${90+Y+30}px;width:260px;height:84px;--cut:9px;--ec:var(--alert)"><div class="in"><div class="nm" style="left:10px;top:7px;font-size:12px;color:var(--alert)">Requires all of</div><div style="left:10px;top:28px;font:500 12px/1.4 'Plex Cond';color:var(--desc);width:238px">level 5 · Russia in collapse · Russia's own decision</div></div></div>`:'';
+ const pl=`<div class="pl" style="left:60px;top:90px;width:1320px;height:660px;--ec:#3a3f33"><div class="in">${head(cur,1318,`Shared by both sides · level ${cur} of 6 · ordinary play stops at 5`)}
+ <div class="w" style="left:0;top:0;width:1318px;height:500px">${h}</div>
+ <div style="left:0;top:500px;width:1318px;height:1px;background:var(--line)"></div>
+ ${strips(st,34,522,1250,true)}
+ <div class="hint" style="left:34px;top:610px">←/→ level · <b>Esc</b> close · click outside closes</div></div></div>${hov}`;
+ return frame(pl,cur)}
+/* ---- Variant C: compact left-edge column ---- */
+function C(cur,st){let h='';
+ h+=`<div style="left:75px;top:76px;width:2px;height:300px;background:linear-gradient(${col(6)},var(--calm));opacity:.3"></div>`;
+ for(let l=6;l>=0;l--){const y=76+(6-l)*50,isC=l==cur;
+  if(isC)h+=`<div style="left:8px;top:${y-23}px;width:480px;height:46px;border:1px solid var(--amber);background:rgba(232,176,74,.08)"></div>`;
+  h+=`<div style="left:16px;top:${y-14}px;width:34px;text-align:right;font:700 24px/28px 'Chakra Petch';color:${l>cur?'#5a6153':col(l)}">${l}</div>`;
+  h+=node(l,cur,76,y,0);
+  h+=`<div class="nm" style="left:104px;top:${y-19}px;font-size:13px;white-space:nowrap;color:${l>cur?'var(--desc)':'var(--text)'}">${LV[l].n}${isC?' <span class="chip fill" style="background:var(--amber);border-color:var(--amber);margin-left:4px">◆ NOW</span>':''}</div>`;
+  let pips='';CL.forEach((n,k)=>pips+=`<span style="display:inline-block;width:14px;height:6px;margin-right:3px;${LV[l].roe[k]?`background:${col(l)}`:'border:1px dashed #4a5043'}"></span>`);
+  h+=`<div style="left:104px;top:${y+3}px;font:500 11px 'Plex Cond';color:var(--desc);white-space:nowrap">${LV[l].end?'<span style="color:var(--alert)">Ends the operation – nobody wins</span>':pips+(LV[l].ev?` <span style="color:var(--amber);margin-left:6px">${LV[l].ev}</span>`:'')}</div>`}
+ const pl=`<div class="pl" style="left:16px;top:110px;width:500px;height:650px;--ec:#3a3f33"><div class="in">${head(cur,498,'')}
+ <div class="w" style="left:0;top:0;width:498px;height:440px">${h}</div>
+ <div style="left:0;top:450px;width:498px;height:1px;background:var(--line)"></div>
+ ${strips(st,16,470,466,false)}
+ <div class="hint" style="left:16px;top:590px">pips = strike classes · <b>Esc</b> close</div></div></div>`;
+ return frame(pl,cur)}
+
+function sect(id,title,desc,fn,spec){let o=`<h2>${title}</h2><p>${desc}</p><div class="row"><div><div class="cap">Level 1 · both sides healthy</div><div class="win">${fn(1,S1)}</div></div><div><div class="cap">Level 5 · Russia in collapse${fn===B?' · hover on level 6':''}</div><div class="win">${fn(5,S2,1)}</div></div></div>${spec}`;return o}
+const T=(rows)=>'<h3>Spec</h3><table>'+rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')+'</table>';
+const COMMON=[['Close','X 28 px (top-right, 14/8 px inset, glyph 14×2 px) · <code>Esc</code> · click on the scrim · opening this window closes every other staff-map window · fade 150 ms'],
+['Plate','chamfers 0,12,0,12 (as <code>StaffMapLadderCard</code>), fill <code>PANEL_STRONG</code>, 1 px edge <code>#3a3f33</code>; tab Chakra Petch 700 12 px, tracking .16em, on <code>level_colour(current)</code>'],
+['Node colours','<code>StaffMapEscalation.level_colour</code> (calm <code>#b9d38a</code> → <code>ui.alert</code>); reached = filled disc, current = diamond with 2 px <code>ui.text</code> ring + ◆ NOW chip, above = hollow disc, level 6 = hollow diamond, dashed lead-in (gate)'],
+['Strike classes','chips JetBrains Mono 700 10 px; <code>ui.amber</code> and “+” where newly allowed, <code>ui.muted</code> where inherited'],
+['Collapse strips','gauge 10 px, fill <code>#b9d38a</code> ≥ 75 % / <code>#e2c069</code> ≥ 50 % / <code>ui.alert</code> below, white tick at the 50 % threshold, chip “▲ COLLAPSE” (<code>ui.alert</code> fill, <code>INK</code> text); side marker = rectangle (own) / diamond (enemy)'],
+['New tokens','none (<code>ui.card</code>, <code>scrim.screen</code> already accepted with the politics screen)']];
+document.getElementById('out').innerHTML=
+sect('a','Variant A – vertical thermometer (closest to the existing card)','Seven rows on a vertical axis, 0 at the bottom, 6 at the top (higher = hotter). Big level numbers, node on the axis, name + chips on the right, strike classes as chips per row, trigger notes in amber. The current row is a framed band. Most text per level, least “at a glance”.',A,T([['Size / placement','980 × 820 centred (x 230, y 40 at 1440×900); rows 74 px; collapse strips two columns in the footer'],...COMMON,['Godot notes','extend <code>StaffMapLadderCard</code> → a full overlay like the politics sheet (<code>StaffMapDecisionParts</code> for chips, <code>FramedPanel</code> for the plate); one <code>StaffMapLadderAxis</code> control draws the axis and nodes in <code>_draw</code>']]))+
+sect('b','Variant B – horizontal axis with strike matrix (recommended)','The scale runs left → right like a dial: seven columns, the axis and nodes in the middle, big level numbers above, a <b>matrix of strike classes</b> below (rows = 5 classes, tick ✓ = allowed, ✓ NEW (amber frame) = newly unlocked, dashed = not allowed) and trigger chips (sanctuary, allies, cap, end) at the bottom of each column. The whole ladder reads in one glance: what changes between two levels is the column difference. The nuclear column is separated by a dashed gate. Hover on a node shows its condition.',B,T([['Size / placement','1320 × 690 centred (x 60, y 90); columns 165 px, left label column 150 px; collapse strips in two columns at the bottom'],['Keys','← / → move a focus ring across the levels (shows the same tooltip as hover), <code>Esc</code>'],...COMMON,['Godot notes','new overlay in the style of the politics sheet; matrix cells are <code>ColorRect</code> + <code>Label</code> in a <code>GridContainer</code> (8 × 5 + header rows); the axis line and nodes one custom-draw control above the grid so columns stay aligned']]))+
+sect('c','Variant C – compact left-edge column (minimal)','Same one-window-at-a-time slot as the report / country card on the left edge, 500 px wide. A vertical axis, one name per level, strike classes as five pips, trigger as one amber word. Least change from today, but still gives the axis and nodes.',C,T([['Size / placement','500 × 650 at x 16, y 110 (under the turn-bar row); map dimmed 28 % instead of the full scrim – the map stays visible on the right, still closes on click outside'],...COMMON,['Godot notes','smallest change: re-skin <code>StaffMapLadderCard</code> rows (axis + node column + pips); no new overlay type']]))+
+`<h2>Recommendation</h2><p><b>B – accepted 2026-11-11.</b> A scale is read horizontally, the strike matrix makes “what changes at each level” visible without reading text, and 1320 px gives Polish and English names room without wrapping. A is the fallback if the matrix feels too “spreadsheet”; C only if you want the map visible while reading.</p>
+<h3>Open questions</h3><p>1) Should clicking a level node also show a longer description (rules text)? (frames show hover only). 2) Should the history of the level (turn graph of the last N turns, who raised it) be on the axis later? Not in this proposal – needs rules data (<code>caused[side]</code>).</p>`;
+</script></body></html>

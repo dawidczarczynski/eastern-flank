@@ -1,7 +1,7 @@
 class_name StaffMapEscalation
 extends RefCounted
 ## Pure texts and colours of the escalation ladder on the staff map (TASK-115): the chip, the
-## toast of a change, the ladder card's rules-of-engagement line and collapse strips, and the end
+## toast of a change, the ladder window's collapse strips, and the end
 ## notice. Everything
 ## is read from `state.ladder` (data) and translated; nothing here changes the state.
 
@@ -84,11 +84,15 @@ static func end_lines(state: OperationalState, event: Dictionary) -> Array[Strin
 	return lines
 
 
-## The collapse strip of the ladder card for `player` (TASK-140): {text, collapse}, text "Russia ·
+## The collapse strip of the ladder window for `player` (TASK-140): {name, strength, readiness,
+## text, collapse}, text "Russia ·
 ## strength 72 % · readiness 80 · collapse at ≤ 50 %" from CollapseRules, `collapse` lights the red
 ## COLLAPSE tag.
 static func collapse_strip(state: OperationalState, player: int) -> Dictionary:
 	return {
+		"name": StaffMapTurnBar.side_name(state, player),
+		"strength": CollapseRules.strength_pct(state, player),
+		"readiness": CollapseRules.avg_readiness(state, player),
 		"text":
 		(
 			TranslationServer.translate("%s · strength %d %% · readiness %d · collapse at ≤ %d %%")

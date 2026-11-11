@@ -363,7 +363,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## TASK-140), nuclear:<player> (that player's nuclear attack: the end notice, TASK-140),
 ## turn:<player> (hands the turn to that player in the state, a still-image shortcut),
 ## decisions[:confirm[:<card key 1-6>]] (the Politics screen, optionally with the
-## confirmation of that card, default 1), ladder (the ladder card), endturn (after the orders:
+## confirmation of that card, default 1), ladder[:<level>] (the ladder window, TASK-143, with
+## the tooltip of that level), endturn (after the orders:
 ## ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
@@ -542,8 +543,12 @@ func _apply_staff_map_state(spec: String) -> void:
 					map.simulation().state, 0, &"sanctuary_breach", steps
 				):
 					map.simulation().event_emitted.emit(event)
-			"ladder":
+			"ladder":  # ladder[:<focus level>] – the ladder window, optionally with a level's tooltip
 				map.escalation_hud().toggle_card()
+				var window := map.escalation_hud().card()
+				window.finish_fade()
+				if parts.size() > 1:
+					window.move_focus(parts[1].to_int() - map.simulation().state.escalation_level)
 			"nuclear":
 				var user := parts[1].to_int() if parts.size() > 1 else 1
 				for event in EscalationRules.nuclear_use(map.simulation().state, user):

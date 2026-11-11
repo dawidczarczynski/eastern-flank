@@ -33,6 +33,8 @@ extends Node3D
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
 enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG }
+## (The ladder window is a full-screen overlay: opening it closes all of them, see
+## `_close_other_windows`; opening any of them closes it.)
 
 ## Width of the hex strip slot in the bottom bar.
 const CARD_SLOT_WIDTH := 470
@@ -208,7 +210,7 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if not is_built:
 		return
-	var modal := _decisions != null and _decisions.is_open()  # the Politics screen idles the map
+	var modal := _modal_open()  # the Politics screen / ladder window idle the map
 	if not modal:
 		_pitch_by_keys(delta)
 	_follow_pitch(delta)
@@ -232,6 +234,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		# the ring, 1-4 pick a slot; Enter / Esc close the result notice.
 		if (
 			(_decisions != null and _decisions.handle_key(key.keycode))
+			or (_escalation != null and _escalation.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_report_key(key.keycode))
 			or _order_ring.handle_key(key.keycode)
@@ -281,11 +284,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_V:
 				toggle_flat_view()
 		return
-	if _decisions != null and _decisions.is_open():
+	if _modal_open():
 		_dragging = false  # the Politics screen idles the map: no wheel zoom, drag or click
 	var button := event as InputEventMouseButton
 	if button != null:
-		if not (_decisions != null and _decisions.is_open()):
+		if not _modal_open():
 			_on_mouse_button(button)
 		return
 	var motion := event as InputEventMouseMotion
@@ -738,6 +741,7 @@ func open_country_card(country_id: StringName) -> void:
 
 
 func _claim_left_dock(owner: LeftWindow) -> void:
+	_escalation.close_card()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
 	if owner != LeftWindow.COUNTRY_CARD:
@@ -1384,14 +1388,28 @@ func _refresh_turn_bar() -> void:
 
 func _place_turn_bar() -> void:
 	_turn_bar.position = Vector2((_viewport_size().x - _turn_bar.size.x) / 2.0, 0.0)
-	if _escalation != null:
-		_escalation.place(_viewport_size().x, _turn_bar.size.y)
 
 
 func _toggle_ladder_card() -> void:
-	_decisions.close()
 	_escalation.toggle_card()
-	_escalation.place(_viewport_size().x, _turn_bar.size.y)
+
+
+## True while a full-screen window (Politics screen, ladder window) dims the map.
+func _modal_open() -> bool:
+	return (
+		(_decisions != null and _decisions.is_open())
+		or (_escalation != null and _escalation.card().visible)
+	)
+
+
+## The ladder window opens: every other staff-map window closes.
+func _close_other_windows() -> void:
+	_decisions.close()
+	if _strike != null:
+		_strike.reports().suspend()
+		_strike.close()
+	_politics.close_card()
+	_close_debug_panels()
 
 
 ## Key H / the Decisions button: the Politics screen (closes the ladder card).
@@ -1530,6 +1548,7 @@ func _build_hud() -> void:
 	_escalation.menu_requested.connect(_return_to_menu)
 	_decisions = StaffMapDecisionsHud.new(
 		_simulation, _palette, _hud, func() -> int: return viewer_player
+	_escalation.ladder_opening.connect(_close_other_windows)
 	)
 	_strike = StaffMapStrikeHud.new(
 		_simulation,

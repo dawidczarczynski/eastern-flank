@@ -39,9 +39,8 @@ func test_raise_stops_at_cap_and_nuclear_use_ends_the_operation() -> void:
 	chip.pressed.emit()
 	var card := _map.escalation_hud().card()
 	assert_true(card.visible, "card opens")
-	assert_eq(card.row_texts().size(), state.ladder.levels.size())
-	assert_true(card.row_texts()[0].contains("NUCLEAR ATTACK"), str(card.row_texts()))
-	assert_true(card.row_texts()[0].contains("Nothing"), str(card.row_texts()))
+	assert_eq(card.columns().size(), state.ladder.levels.size())
+	assert_eq(card.columns()[6]["name"], "Nuclear attack")
 	assert_true(_map.escalation_hud().close_card(), "closes")
 	# One step: a toast with the cause and the chip follows.
 	_emit(EscalationRules.raise(state, 0, &"decision"))
@@ -85,22 +84,6 @@ func test_chip_has_seven_ticks_lit_up_to_the_level() -> void:
 	chip.show_state(state, StaffMapPalette.new())
 	assert_eq(chip.lit_ticks(), 6)
 	chip.free()
-
-
-func test_ladder_card_names_the_top_level_nuclear_attack_and_shows_the_strips() -> void:
-	var state := Operation.build(&"suwalki_gap", 7)
-	var card := StaffMapLadderCard.new()
-	card.show_state(state, StaffMapPalette.new())
-	assert_eq(card.row_texts().size(), 7)
-	assert_true(card.row_texts()[0].contains("6 · NUCLEAR ATTACK"), str(card.row_texts()))
-	assert_eq(card.strip_texts().size(), 2)
-	assert_true(card.strip_texts()[1].begins_with("Russia"), str(card.strip_texts()))
-	assert_false(card.collapse_tagged(1))
-	state.formations = state.formations.filter(func(f: Formation) -> bool: return f.owner_id != 1)
-	card.show_state(state, StaffMapPalette.new())
-	assert_true(card.collapse_tagged(1), "collapse tag lit")
-	assert_false(card.collapse_tagged(0))
-	card.free()
 
 
 func test_collapse_strip_text_and_flag() -> void:

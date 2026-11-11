@@ -355,6 +355,25 @@ ESC_MARK_ALLIES,Allies join,Sojusznicy dołączają
 ESC_MARK_END,Ends the operation,Kończy operację
 ESC_MARK_CAP,Highest level for incidents and decisions,Najwyższy poziom dla incydentów i decyzji
 ESC_COLLAPSE,Collapse,Rozpad
+ESC_CHIP_SANCTUARY,Sanctuary opens,Sanktuarium otwarte
+ESC_CHIP_ALLIES,Allies join,Sojusznicy dołączają
+ESC_CHIP_CAP,Cap,Pułap
+ESC_CHIP_END,End,Koniec
+ESC_ROW_FORMATION,Formations,Oddziały
+ESC_ROW_AIR_DEFENCE,Air defence,Obrona powietrzna
+ESC_ROW_DEPOT,Depots,Składy
+ESC_ROW_AIRFIELD,Airfields,Lotniska
+ESC_ROW_C2,Command posts,Stanowiska dowodzenia
+ESC_WIN_NOW,Now,Teraz
+ESC_WIN_NEW,New,Nowe
+ESC_WIN_SCALE,Scale,Skala
+ESC_WIN_TRIGGERS,Triggers,Wyzwalacze
+Shared by both sides · level %d of %d · ordinary play stops at %d,Shared by both sides · level %d of %d · ordinary play stops at %d,Wspólny dla obu stron · poziom %d z %d · zwykła rozgrywka kończy się na %d
+ESC_WIN_HINT,←/→ level · Esc close · click outside closes,←/→ poziom · Esc zamyka · kliknięcie poza oknem zamyka
+ESC_WIN_REQUIRES,Requires all of,Wymaga łącznie
+level %d · %s in collapse · %s's own decision,level %d · %s in collapse · %s's own decision,poziom %d · %s w rozpadzie · własna decyzja: %s
+strength %d %% · readiness %d,strength %d %% · readiness %d,siła %d %% · gotowość %d
+collapse at ≤ %d %%,collapse at ≤ %d %%,rozpad przy ≤ %d %%
 "%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · siła %d %% · gotowość %d · rozpad przy ≤ %d %%"
 Calm: level %d → %d,Calm: level %d → %d,Uspokojenie: poziom %d → %d
 joins: %s,joins: %s,dołączają: %s

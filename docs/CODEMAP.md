@@ -264,7 +264,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapInstallationMarker` – One installation marker of the staff map (TASK-097a): a small chamfered plate in the side (`staff_map_installation_marker.gd`)
 - `StaffMapInstallations` – The installation markers of the staff map (TASK-097a) in screen space, one (`staff_map_installations.gd`)
 - `StaffMapJoinNotice` – Notice "<Country> joins <side> – N formations" of the staff map (TASK-118, HUD v3 "06 Not… (`staff_map_join_notice.gd`)
-- `StaffMapLadderCard` – Ladder card of the staff map (TASK-115, opened from the escalation chip): the levels of t… (`staff_map_ladder_card.gd`)
+- `StaffMapLadderWindow` – Escalation ladder window of the staff map (TASK-143, docs/design/operational_map/ (`staff_map_ladder_window.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapMoveAnimation` – The cosmetic slide of counters at the end of a move (TASK-092e), pure timing and path mat… (`staff_map_move_animation.gd`)
 - `StaffMapNuclearPictogram` – Flat pictogram of a mushroom cloud (TASK-140) above the operation-over notice, after the… (`staff_map_nuclear_pictogram.gd`)
