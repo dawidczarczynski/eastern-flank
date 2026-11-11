@@ -1,12 +1,11 @@
 class_name StaffMapCountryCard
-extends FramedPanel
+extends StaffMapWindow
 ## Country card of the staff map (TASK-114, docs/design/operational_map "Panels" – closed-country
 ## card): the country's stance seen from the viewer, its leaning, whether it is a sanctuary and
 ## what it allows the viewer – may enter, may strike – with the reason when not. Opened by a click
 ## on a country name (or C on the hovered hex), closed by Esc / the next click elsewhere.
 ## `info` is pure and tested; the card only shows it. Stances are read, never changed.
 
-const WIDTH := 250
 const ROW_SIZE := 12
 
 var _name_label: Label
@@ -82,11 +81,6 @@ static func _closed_reason(relation: StringName) -> String:
 func _init() -> void:
 	super()
 	name = "StaffMapCountryCard"
-	custom_minimum_size = Vector2(WIDTH, 0)
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	chamfers = Vector4(0, 12, 0, 12)
-	padding = Vector2(12, 10)
-	tab_text = " "
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override(&"separation", 5)
@@ -145,16 +139,8 @@ func _row(caption: String) -> Control:
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override(&"separation", 1)
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var cap := _label(HudTheme.display(400), ROW_SIZE, UiPalette.HUD_MUTED)
-	cap.text = tr(caption).to_upper()
-	cap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var value := _label(HudTheme.mono(600), ROW_SIZE, UiPalette.HUD_TEXT)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_values.append(value)
-	row.add_child(cap)
-	row.add_child(value)
+	var row := StaffMapWindow.info_row(tr(caption).to_upper())
+	_values.append(StaffMapWindow.row_value(row))
 	box.add_child(row)
 	if caption.begins_with("May"):
 		var reason := _label(HudTheme.mono(400), 10, UiPalette.HUD_MUTED)

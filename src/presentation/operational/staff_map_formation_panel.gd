@@ -1,5 +1,5 @@
 class_name StaffMapFormationPanel
-extends FramedPanel
+extends StaffMapWindow
 ## Formation panel of the staff map (TASK-092b, look: docs/design/operational_map "Panels"),
 ## HUD v3 style, on the right edge: name, parent, type, side, strength (5-segment gauge),
 ## location and the companies (ref, unit type, strength). Hostile formations are fully shown
@@ -52,14 +52,9 @@ var _country_row: Control  # country of origin of a joined ally (TASK-118)
 
 
 func _init() -> void:
-	super()
+	super(" ", WIDTH)
 	name = "FormationPanel"
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	custom_minimum_size = Vector2(WIDTH, 0)
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	chamfers = Vector4(0, 12, 0, 12)
-	padding = Vector2(14, 12)
-	tab_text = " "
+	dock_side = StaffMapWindow.Dock.RIGHT
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override(&"separation", 5)
@@ -108,6 +103,7 @@ func show_formation(
 	tab_text = tr("FORMATION").to_upper()
 	tab_right_text = tr("HOSTILE") if hostile else tr("OWN")
 	tab_right_color = side_colour
+	tab_color = side_colour
 	line_color = Color(side_colour, 0.45) if hostile else UiPalette.LINE
 	_name_label.text = tr(formation.display_name).to_upper()
 	_parent_label.text = tr(formation.parent)

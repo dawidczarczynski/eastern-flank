@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bottom bar windows – unified frame (proposal)</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:400;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Regular.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:600;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";font-weight:100 800;src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+:root{--bg:#0a0c09;--panel:rgba(8,11,8,.93);--line:rgba(232,176,74,.34);--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--own:#5b8fd1;--enemy:#c4543f;--map:#161a13}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:13px "Chakra Petch",sans-serif}
+.banner{background:var(--alert);color:#0a0c09;font:700 12px "Chakra Petch";letter-spacing:.12em;padding:6px 16px}
+h1{font:700 22px "Chakra Petch";margin:18px 16px 4px}
+h2{font:700 15px "Chakra Petch";margin:28px 16px 6px;color:var(--amber);letter-spacing:.06em}
+p,li{max-width:980px;margin:4px 16px;color:var(--muted);line-height:1.5}
+li{margin-left:36px}
+table{border-collapse:collapse;margin:8px 16px;font:12px "JetBrains Mono"}
+td,th{border:1px solid #2e3329;padding:4px 10px;text-align:left;vertical-align:top}th{color:var(--amber)}
+.frame{position:relative;width:1440px;height:560px;margin:8px 16px;overflow:hidden;
+ background:radial-gradient(ellipse at 55% 45%,#1d231a,#11140f 70%);border:1px solid #2e3329}
+.frame:before{content:"";position:absolute;inset:0;background:
+ repeating-linear-gradient(60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px),
+ repeating-linear-gradient(-60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px)}
+.turn{position:absolute;left:50%;top:0;transform:translateX(-50%);width:420px;height:64px;background:var(--panel);border:1px solid var(--line);font:700 12px "Chakra Petch";padding:8px 14px;color:var(--muted)}
+.bar{position:absolute;left:0;right:0;bottom:0;height:76px;background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:6px}
+.bb{width:38px;height:38px;border:1px solid transparent;display:grid;place-items:center;color:var(--text);font:700 10px "JetBrains Mono"}
+.bb.on{background:rgba(232,176,74,.12);border-color:rgba(232,176,74,.45);color:var(--amber)}
+.sep{width:1px;height:22px;background:var(--line);margin:0 8px}
+/* ---- the shared window frame ---- */
+.win{position:absolute;background:var(--panel);width:var(--w,330px);
+ clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));
+ padding:0}
+.win:before{content:"";position:absolute;inset:0;background:var(--line);z-index:-1}
+.wi{background:var(--panel);margin:1px;
+ clip-path:polygon(0 0,calc(100% - 15.4px) 0,100% 15.4px,100% 100%,15.4px 100%,0 calc(100% - 15.4px))}
+.tab{height:32px;display:flex;align-items:center;padding:0 10px;font:700 11px "Chakra Petch";letter-spacing:.12em;color:#0a0c09;background:var(--amber);width:max-content;max-width:calc(100% - 50px)}
+.x{position:absolute;right:12px;top:0;width:32px;height:32px;display:grid;place-items:center;font:700 18px "JetBrains Mono";color:var(--muted)}
+.body{padding:10px 12px 12px}
+.row{display:flex;align-items:center;height:36px;border:1px solid rgba(232,176,74,.2);margin-top:4px;padding:0 10px;gap:10px;font:700 12px "Chakra Petch";letter-spacing:.08em}
+.row .k{margin-left:auto;font:600 10px "JetBrains Mono";color:var(--muted);border:1px solid #3a3f33;padding:1px 6px}
+.row .st{width:14px;height:14px;border:1px solid var(--muted);display:grid;place-items:center;font-size:11px;color:transparent}
+.row.on{background:rgba(232,176,74,.12);border-color:rgba(232,176,74,.6)}
+.row.on .st{border-color:var(--amber);color:var(--amber)}
+.row .v{margin-left:auto;font:600 10px "JetBrains Mono";color:var(--muted)}
+.row.on .v{color:var(--amber)}
+.row .k+.v,.row .v+.k{margin-left:8px}
+.hint{font:11px "JetBrains Mono";color:var(--muted);padding:8px 12px;border-top:1px solid #2e3329}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px}.grid2 .row{margin:0;height:56px;flex-direction:column;justify-content:center;align-items:flex-start;gap:2px}
+.ghost{position:absolute;background:rgba(8,11,8,.5);border:1px dashed #3a3f33;color:#5a6153;font:11px "JetBrains Mono";padding:6px 10px}
+.note{position:absolute;font:11px "JetBrains Mono";color:var(--amber)}
+.link{position:absolute;width:0;height:0}
+</style></head><body>
+<div class="banner" style="background:#b9d38a">ACCEPTED 2026-11-11 · variant A · variants B and C rejected</div>
+<h1>Bottom bar windows – one window frame</h1>
+
+<h2>1 · THE NEED</h2>
+<p>Every window opened from the bottom bar (and the turn bar) looks a bit different today. This proposal fixes <b>one window component</b> and shows the new <b>Map options</b> window in it. No new tokens, no new shapes – it is the frame the accepted <i>Strike result report</i> already uses.</p>
+<p><b>Audit of today's windows</b></p>
+<table>
+<tr><th>Window</th><th>Opened by</th><th>Frame today</th><th>Width</th><th>Position</th><th>Close</th></tr>
+<tr><td>Strike result report</td><td>auto / J</td><td>FramedPanel, chamfers 0,16,0,16, tab on side colour</td><td>420</td><td>x16 y110</td><td>X 32 px, Esc</td></tr>
+<tr><td>Strike panel / confirm</td><td>STRIKE / S</td><td>FramedPanel + tab</td><td>330</td><td>left edge</td><td>X, Esc</td></tr>
+<tr><td>Country card</td><td>C</td><td>own look</td><td>250</td><td>left edge</td><td>Esc only</td></tr>
+<tr><td>Formation panel</td><td>select</td><td>own look</td><td>300</td><td>right edge</td><td>deselect</td></tr>
+<tr><td>Map options (my first cut)</td><td>MAP OPTIONS</td><td><b>plain StyleBoxFlat, no chamfer, no tab, no X</b></td><td>240</td><td>above the button</td><td>button, Esc</td></tr>
+<tr><td>Decisions / Ladder</td><td>H / chip</td><td>full overlay, scrim, plate chamfers 0,12,0,12</td><td>sheet</td><td>centred</td><td>X 28, Esc, scrim</td></tr>
+</table>
+<p><b>Rule proposed for all windows (class <code>StaffMapWindow</code>, wraps FramedPanel + StaffMapCloseButton):</b></p>
+<ul>
+<li><b>Docked panel</b> (everything that is not a full overlay): left edge, x 16 / y 110, width tier <b>330</b> (default) or <b>420</b> (reports), height by content; one at a time (existing <code>LeftWindow</code> enum gets OPTIONS).</li>
+<li>Frame: fill <code>PANEL_STRONG</code>, 1 px <code>LINE</code>, chamfers 0,16,0,16; tab (Chakra Petch 700 11, tracking 1) on <code>ui.amber</code> (side colour only for side-owned content); X 32 px top-right; Esc closes; opening one closes the others.</li>
+<li><b>Full overlay</b> (Decisions, Ladder) keeps scrim + plate but gets the same tab, X and edge so it reads as the same family.</li>
+<li>Content rows: one <b>toggle row</b> (36 px, state box + label + key cap) and one <b>info row</b> (label left, mono value right) – used by options, strike panel and country card.</li>
+<li>A window opened from a bar button lights that button (<code>set_active</code>) and the button closes it again.</li>
+</ul>
+
+<h2>2 · VARIANT A – docked left panel (recommended)</h2>
+<p>Options open in the same slot as the report / strike panel. Identical to every other bar window; nothing floats above buttons, so it never collides with toasts. States shown: all layers on / mixed.</p>
+<div class="frame">
+ <div class="turn">TURN 07 · BLUE MOVING</div>
+ <div class="win" style="left:16px;top:110px"><div class="wi">
+  <div class="tab">MAP OPTIONS</div><div class="x">✕</div>
+  <div class="body">
+   <div class="row on"><span class="st">✓</span>GRID<span class="v">ON</span><span class="k">G</span></div>
+   <div class="row on"><span class="st">✓</span>PLACE NAMES<span class="v">ON</span><span class="k">N</span></div>
+   <div class="row"><span class="st">✓</span>BORDERS<span class="v">OFF</span><span class="k">B</span></div>
+   <div class="row on"><span class="st">✓</span>POLITICAL TINT<span class="v">ON</span><span class="k">P</span></div>
+   <div class="row"><span class="st">✓</span>VIEW · 3D<span class="v">TILTED</span><span class="k">V</span></div>
+  </div>
+  <div class="hint">Esc or ✕ closes</div>
+ </div></div>
+ <div class="bar"><span class="bb on">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+</div>
+<table>
+<tr><th>Property</th><th>Spec</th></tr>
+<tr><td>Size / place</td><td>330 × ≈ 262 px at x 16, y 110 (1440×900); never over the turn bar row, the route or the selected counter (map keeps panning behind it)</td></tr>
+<tr><td>Row</td><td>36 px, gap 4, 1 px <code>LINE</code> 60 %; on = <code>ui.amber</code> 12 % fill + amber 1 px edge; state box 14 px with ✓ (shape, not colour, carries on/off) and the word ON/OFF in mono 10; key cap mono 600 10 in a <code>#3a3f33</code> box</td></tr>
+<tr><td>Fonts</td><td>tab Chakra 700 11 · row label Chakra 700 12 tracking 1 · value/key JetBrains Mono 600 10</td></tr>
+<tr><td>Behaviour</td><td>no scrim, map stays live; opens/closes with the MAP button (lit while open), Esc, ✕; click on the map does <b>not</b> close it (toggling layers while looking at the map is the use case); fade 150 ms</td></tr>
+</table>
+<p>Godot notes: new <code>StaffMapWindow</code> (FramedPanel chamfers (0,16,0,16), <code>StaffMapCloseButton.attach</code>, tab) – the options window, strike panel, country card and report become thin content builders inside it. Reuse <code>_claim_left_dock</code>.</p>
+
+<h2>3 · VARIANT B – popover above its button</h2>
+<p>Same frame, but anchored above the MAP button (like a menu). Closer to the button, but it floats over the map centre, collides with toasts (NOTICE_GAP) and breaks the "all windows on the left" rule.</p>
+<div class="frame">
+ <div class="turn">TURN 07 · BLUE MOVING</div>
+ <div class="win" style="left:560px;bottom:88px;--w:300px"><div class="wi">
+  <div class="tab">MAP OPTIONS</div><div class="x">✕</div>
+  <div class="body">
+   <div class="row on"><span class="st">✓</span>GRID<span class="v">ON</span><span class="k">G</span></div>
+   <div class="row on"><span class="st">✓</span>PLACE NAMES<span class="v">ON</span><span class="k">N</span></div>
+   <div class="row"><span class="st">✓</span>BORDERS<span class="v">OFF</span><span class="k">B</span></div>
+   <div class="row on"><span class="st">✓</span>POLITICAL TINT<span class="v">ON</span><span class="k">P</span></div>
+   <div class="row"><span class="st">✓</span>VIEW · 3D<span class="v">TILTED</span><span class="k">V</span></div>
+  </div>
+ </div></div>
+ <div class="bar"><span class="bb on">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+</div>
+
+<h2>4 · VARIANT C – docked, compact tiles</h2>
+<p>Docked like A (330 px) but a 2-column tile grid: shorter (≈ 190 px), less map covered; each tile has label + key + ON/OFF. Harder to scan, no room for the longer view-mode text.</p>
+<div class="frame">
+ <div class="turn">TURN 07 · BLUE MOVING</div>
+ <div class="win" style="left:16px;top:110px"><div class="wi">
+  <div class="tab">MAP OPTIONS</div><div class="x">✕</div>
+  <div class="body"><div class="grid2">
+   <div class="row on">GRID<span class="v" style="margin:0">ON · G</span></div>
+   <div class="row on">NAMES<span class="v" style="margin:0">ON · N</span></div>
+   <div class="row">BORDERS<span class="v" style="margin:0">OFF · B</span></div>
+   <div class="row on">POLITICS<span class="v" style="margin:0">ON · P</span></div>
+   <div class="row">VIEW 3D<span class="v" style="margin:0">TILTED · V</span></div>
+  </div></div>
+ </div></div>
+ <div class="bar"><span class="bb on">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+</div>
+
+<h2>5 · DECISIONS</h2>
+<ul>
+<li>Variant A accepted. Two kinds of windows: <b>full-screen</b> (Decisions, Ladder – unchanged) and <b>docked</b> (everything else, one shared <code>StaffMapWindow</code>).</li>
+<li>A click on the map closes every docked window (left dock and right dock).</li>
+<li><b>Formation panel</b> = the same frame docked on the <b>right</b> edge (mirror of the left dock: x = screen width − 16 − 300, y 110, 300 px), tab in the side colour, X deselects; it is selection-driven, so a click on empty map deselects and closes it. It does not take part in the one-window-at-a-time rule of the left dock.</li>
+</ul>
+</body></html>

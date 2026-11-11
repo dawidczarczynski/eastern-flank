@@ -355,7 +355,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
 ## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
-## country:<id> (the country card, TASK-114), politics (the --debug panel),
+## country:<id> (the country card, TASK-114), options (the map options window),
+## politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
 ## card, with fire the strike is made, TASK-097b),
 ## escalate:<steps> (raises the escalation level by NATO, TASK-115; stops at the cap, TASK-140),
@@ -537,6 +538,8 @@ func _apply_staff_map_state(spec: String) -> void:
 				map.open_country_card(StringName(parts[1]) if parts.size() > 1 else &"")
 			"politics":
 				map.politics_hud().toggle_panel()
+			"options":  # the map options window
+				map.toggle_options()
 			"escalate":
 				var steps := parts[1].to_int() if parts.size() > 1 else 1
 				for event in EscalationRules.raise(

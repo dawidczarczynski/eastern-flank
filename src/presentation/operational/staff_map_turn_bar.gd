@@ -5,12 +5,11 @@ extends VBoxContainer
 ## stands in place of the faction badge):
 ## the viewed side on the left, TURN n / date / day-night / side moving in the middle, the
 ## opponent on the right (dimmed while waiting), End turn filled in the colour of the side to
-## move. Under the frame the escalation chip (TASK-115) and the strike button.
+## move. Under the frame the escalation chip (TASK-115).
 ## Reads the OperationalState only; the buttons just emit signals.
 
 signal end_turn_pressed
 signal escalation_pressed
-signal strike_pressed
 
 const SIDE_WIDTH := 200.0
 const ACTIVE_ALPHA := 1.0
@@ -30,7 +29,6 @@ var _date_label: Label
 var _icon: DayNightIcon
 var _mover: Label
 var _chip: StaffMapEscalationChip
-var _strike_button: Button
 var _end_button: EndTurnButton
 var _end_divider: ColorRect
 var _day := true
@@ -96,13 +94,6 @@ func _init() -> void:
 	_chip = StaffMapEscalationChip.new()
 	_chip.pressed.connect(func() -> void: escalation_pressed.emit())
 	under.add_child(_chip)
-	_strike_button = MenuStyle.button("", true)
-	_strike_button.name = "StrikeButton"
-	_strike_button.focus_mode = Control.FOCUS_NONE
-	_strike_button.custom_minimum_size = Vector2(0, 24)
-	_strike_button.add_theme_font_size_override(&"font_size", 10)
-	_strike_button.toggled.connect(func(_on: bool) -> void: strike_pressed.emit())
-	under.add_child(_strike_button)
 
 
 ## Fills the bar from `state`; `viewer` picks the side shown on the left and the YOUR / ENEMY
@@ -126,10 +117,6 @@ func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) 
 	_mover.text = ("▸ %s" % tr("%s MOVING") % side_name(state, mover)).to_upper()
 	_mover.add_theme_color_override(&"font_color", _colour(mover))
 	_chip.show_state(state, palette)
-	_strike_button.text = tr("STRIKE").to_upper() + "  [S]"
-	_strike_button.tooltip_text = tr(
-		"Deep strike: pick a means and a target on the map (key S, Esc leaves)"
-	)
 	_end_button.caption = tr("End turn").to_upper()
 	_end_button.fill = _colour(mover)
 	_end_button.detail = (
@@ -150,15 +137,6 @@ func set_busy(busy: bool) -> void:
 
 func escalation_chip() -> StaffMapEscalationChip:
 	return _chip
-
-
-## The Strike button next to the chip (TASK-097b); lit while the strike mode is open.
-func strike_button() -> Button:
-	return _strike_button
-
-
-func set_strike_open(open: bool) -> void:
-	_strike_button.set_pressed_no_signal(open)
 
 
 ## Hands the End turn button to the bottom bar (TASK-139: same place as in the battle). The bar

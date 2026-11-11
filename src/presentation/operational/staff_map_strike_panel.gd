@@ -1,5 +1,5 @@
 class_name StaffMapStrikePanel
-extends FramedPanel
+extends StaffMapWindow
 ## The strike mode panel of the staff map (TASK-097b): the means with stock and range (a toggle
 ## each, greyed at stock 0), the salvo stepper, "Strikes: n/N", a hint and the line about the
 ## hovered target. Look: the contact notice frame (HUD v3 "Panels"; no strike mockup exists).
@@ -7,10 +7,8 @@ extends FramedPanel
 
 signal means_picked(id: StringName)
 signal salvo_stepped(delta: int)
-signal close_requested
 
 const WIDTH := 330.0
-const ALERT := Color("#e07c5e")
 
 var _rows := {}  # means id -> Button
 var _column: VBoxContainer
@@ -25,18 +23,10 @@ var _hover: Label
 func _init() -> void:
 	super()
 	name = "StrikePanel"
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	custom_minimum_size = Vector2(WIDTH, 0)
-	chamfers = Vector4(0, 16, 0, 16)
-	padding = Vector2(14, 12)
-	tab_color = ALERT
-	line_color = Color(ALERT, 0.45)
 	_column = VBoxContainer.new()
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_theme_constant_override(&"separation", 8)
 	add_child(_column)
-	StaffMapCloseButton.attach(self).pressed.connect(func() -> void: close_requested.emit())
 	hide()
 
 

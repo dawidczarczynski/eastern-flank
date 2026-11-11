@@ -18,6 +18,8 @@ const IDS: Array[StringName] = [
 	&"cancel",
 	&"report",
 	&"decisions",
+	&"strike",
+	&"map_options",
 ]
 
 ## Icons drawn as text instead of lines: id -> [text when off, text when on] (the view toggle
@@ -104,6 +106,20 @@ static func polylines(id: StringName) -> Array[PackedVector2Array]:
 			lines.append(_poly([Vector2(4, 7), Vector2(20, 7)]))
 			lines.append(_poly([Vector2(4, 7), Vector2(2, 13), Vector2(6, 13), Vector2(4, 7)]))
 			lines.append(_poly([Vector2(20, 7), Vector2(18, 13), Vector2(22, 13), Vector2(20, 7)]))
+		&"strike":  # crosshair
+			lines.append(_arc(Vector2(12, 12), 7.0, 0.0, 360.0))
+			lines.append(_poly([Vector2(12, 2), Vector2(12, 8)]))
+			lines.append(_poly([Vector2(12, 16), Vector2(12, 22)]))
+			lines.append(_poly([Vector2(2, 12), Vector2(8, 12)]))
+			lines.append(_poly([Vector2(16, 12), Vector2(22, 12)]))
+		&"map_options":  # stacked layers
+			lines.append(
+				_poly(
+					[Vector2(12, 3), Vector2(21, 8), Vector2(12, 13), Vector2(3, 8), Vector2(12, 3)]
+				)
+			)
+			lines.append(_poly([Vector2(3, 12), Vector2(12, 17), Vector2(21, 12)]))
+			lines.append(_poly([Vector2(3, 16), Vector2(12, 21), Vector2(21, 16)]))
 		&"report":  # sheet with text lines
 			lines.append(
 				_poly(

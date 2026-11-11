@@ -1,5 +1,5 @@
 class_name StaffMapStrikeConfirm
-extends FramedPanel
+extends StaffMapWindow
 ## The confirm card of a strike on the staff map (TASK-097b): the target, "means × salvo", the
 ## optional first line "Escalate to ..." of raise-and-strike, the escalation lines (the danger line
 ## in red) and Confirm / Cancel. Look: the contact notice frame. Pure view: StaffMapStrikeHud feeds
@@ -22,13 +22,8 @@ var _cancel: Button
 func _init() -> void:
 	super()
 	name = "StrikeConfirm"
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	custom_minimum_size = Vector2(WIDTH, 0)
-	chamfers = Vector4(0, 16, 0, 16)
 	padding = Vector2(16, 14)
-	tab_color = ALERT
-	line_color = Color(ALERT, 0.45)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override(&"separation", 8)
@@ -65,7 +60,7 @@ func _init() -> void:
 	_cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cancel.pressed.connect(func() -> void: cancelled.emit())
 	row.add_child(_cancel)
-	StaffMapCloseButton.attach(self).pressed.connect(func() -> void: cancelled.emit())
+	close_requested.connect(func() -> void: cancelled.emit())
 	hide()
 
 

@@ -74,11 +74,13 @@ func test_s_opens_the_mode_and_esc_leaves() -> void:
 	assert_true(hud.panel().means_button(&"cruise") != null)
 	assert_true(hud.panel().means_button(&"cruise").text.contains("8"), "stock shown")
 	assert_true(hud.panel().means_button(&"cruise").text.contains("50"), "range shown")
-	assert_true(_map.turn_bar().strike_button().button_pressed, "the button is lit")
+	assert_true(
+		_map.action_bar().button(StaffMap.ACTION_STRIKE).button_pressed, "the button is lit"
+	)
 	assert_true(hud.handle_key(KEY_ESCAPE))
 	assert_false(hud.is_open())
 	assert_false(hud.panel().visible)
-	assert_false(_map.turn_bar().strike_button().button_pressed)
+	assert_false(_map.action_bar().button(StaffMap.ACTION_STRIKE).button_pressed)
 
 
 func test_cannot_open_when_not_your_turn_or_battle_pending_or_over() -> void:

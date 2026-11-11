@@ -562,3 +562,13 @@ OK,OK,OK
 +%d sanctuary breach,+%d sanctuary breach,+%d naruszenie sanktuarium
 +%d urban hex,+%d urban hex,+%d pole miejskie
 Strategic threshold reached – the operation ends,Strategic threshold reached – the operation ends,Osiągnięto próg strategiczny – operacja się kończy
+MAP OPTIONS,Map options,Opcje mapy
+TIP_MAP_OPTIONS,"Opens or closes the map options: grid, names, borders, politics tint and the flat view.","Otwiera lub zamyka opcje mapy: siatkę, nazwy, granice, odcień polityczny i widok płaski."
+TIP_STRIKE,"Deep strike: pick a means and a target on the map (Esc leaves).","Uderzenie w głąb: wybierz środek i cel na mapie (Esc wychodzi)."
+Esc or ✕ closes,Esc or ✕ closes,Esc lub ✕ zamyka
+ON,ON,WŁ.
+OFF,OFF,WYŁ.
+VIEW,View,Widok
+TILTED,Tilted,Pochylony
+PLACE NAMES,Place names,Nazwy miejsc
+POLITICAL TINT,Political tint,Odcień polityczny

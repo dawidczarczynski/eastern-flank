@@ -389,7 +389,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Next own formation | Tab |
 | March the selected formation to a hex | Left click on the hex |
 | Attack an enemy formation | Left click on its counter or hex |
-| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons grid (G), place names (N), borders (B), politics (P), flat view (V), next formation (Tab), cancel order (X), turn report (R), save (F5) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle; saving the operation is only here |
+| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons **map options** (opens a window with five toggle rows – grid G, place names N, borders B, political tint P, flat view V – each showing ON / OFF and its key; the map stays live behind it), **strike** (S, lit while strike mode is open), next formation (Tab), cancel order (X), turn report (R), save (F5) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle; saving the operation is only here |
 | Order ring (March / Attack / Defend / Cancel) | Right click on the hex; 1-4 pick a segment, Esc closes |
 | Cancel the order | Delete, Backspace or X |
 | Deselect | Esc, or a click on empty map |
@@ -496,7 +496,7 @@ A refused strike costs nothing.
 
 **Installation markers.** The staff map shows every installation of both sides (there is no fog yet) as a small marker in the bloc's colour, with a glyph for its kind (airfield, depot, command post, air defence) and a thin **integrity bar** beneath. A destroyed installation is shown as a grey crossed glyph. Markers update when an installation is hit or repaired. Point at a marker for a card with its name, kind, country, integrity in per cent and what it gives: an airfield – fire support in nearby battles, and similarly for the other kinds.
 
-**Strike mode.** Press **S**, or click **STRIKE [S]** in the turn bar next to the escalation chip, to open strike mode. **Esc** or the **✕** in the panel corner leaves it. Strike mode also closes by itself once a strike has been launched (press **S** again for the next one); a rejected strike keeps it open.
+**Strike mode.** Press **S**, or click the **STRIKE** button on the bottom bar, to open strike mode. **Esc** or the **✕** in the panel corner leaves it. Strike mode also closes by itself once a strike has been launched (press **S** again for the next one); a rejected strike keeps it open.
 - **Panel.** It lists your means with their stock and range. Pick a means, then set the salvo with the stepper (1 up to the largest salvo, never more than your stock). The panel also shows **Strikes: n/N**, the strikes you still have this turn.
 - **Targets.** Every legal target is marked with a double ring in your side colour. An **amber** target is *conditional*: it becomes legal only after you raise the escalation level (raise-and-strike); the strike then includes an Escalate decision first (for airfields it starts from level 1). Illegal targets are **dimmed**; point at one to see the reason (closed country, level too low, out of range, too few missiles and so on).
 - **Confirm card.** Clicking a legal target opens a card with the means, salvo and target, the escalation lines (what the strike and any needed Escalate raise, or "Already at the highest level – no further escalation" at level 5). Confirm to launch, or cancel; a cancelled strike costs nothing.
@@ -555,7 +555,9 @@ Pointing at a counter brightens it; the hex card keeps working underneath.
 
 Strength is the sum of the companies' hit points – the same units that fight when a battle starts.
 
-**Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel.
+**Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel. The panel has an **✕** in its corner that does the same.
+
+**Docked windows.** The map options, the country card, strike reports and the formation panel share one frame: a tab, an ✕ in the corner, the same dark plate. Left-edge windows come one at a time (opening one closes the other); the formation panel sits on the right edge. A click on the map, **Esc** or the ✕ closes them, and the bottom-bar button that opened a window stays lit while it is open.
 
 ### Front line
 

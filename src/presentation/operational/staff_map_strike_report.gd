@@ -1,5 +1,5 @@
 class_name StaffMapStrikeReport
-extends FramedPanel
+extends StaffMapWindow
 ## The strike result report card (TASK-097b, variant A of docs/design/operational_map/
 ## strike-result-report.html): the contact-notice frame with a side-coloured tab, the weapon, the
 ## target, one pictogram per missile (disc with a cross = hit, ring with a bar = intercepted,
@@ -7,8 +7,6 @@ extends FramedPanel
 ## ticks and lines and, for own strikes, stock and strikes left. Pure view: StaffMapStrikeReports
 ## feeds it with StaffMapStrikeText.report_model(); everything is drawn in code and only rebuilt in
 ## `present`, so an idle card costs nothing per frame.
-
-signal close_requested
 
 const WIDTH := 420.0
 const INK := Color("#0a0c09")
@@ -18,38 +16,26 @@ const SKEW := 0.364  # tan(20 degrees): the slanted segments of the counter / ch
 
 var _palette: StaffMapPalette
 var _column: VBoxContainer
-var _close: StaffMapCloseButton
 var _marker: Control
 var _name_text := ""
 var _footer_text := ""
 
 
 func _init(palette: StaffMapPalette = null) -> void:
-	super()
+	super(" ", WIDTH)
 	_palette = palette if palette != null else StaffMapPalette.new()
 	name = "StrikeReport"
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	custom_minimum_size = Vector2(WIDTH, 0)
-	chamfers = Vector4(0, 16, 0, 16)
-	fill = UiPalette.PANEL_STRONG
 	padding = Vector2(16, 12)
 	_column = VBoxContainer.new()
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_theme_constant_override(&"separation", 3)
 	add_child(_column)
-	_close = StaffMapCloseButton.attach(self)
-	_close.pressed.connect(func() -> void: close_requested.emit())
 	_marker = Control.new()
 	_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_marker.custom_minimum_size = Vector2(14, 14)
 	_marker.size = Vector2(14, 14)
 	_close.get_parent().add_child(_marker)
 	hide()
-
-
-func close_button() -> StaffMapCloseButton:
-	return _close
 
 
 func name_text() -> String:

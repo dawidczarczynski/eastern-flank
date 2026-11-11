@@ -32,7 +32,7 @@ extends Node3D
 
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
-enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG }
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS }
 ## (The ladder window is a full-screen overlay: opening it closes all of them, see
 ## `_close_other_windows`; opening any of them closes it.)
 
@@ -48,6 +48,8 @@ const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
 const ACTION_SAVE := &"save"
 const ACTION_DECISIONS := &"decisions"
+const ACTION_STRIKE := &"strike"
+const ACTION_MAP_OPTIONS := &"map_options"
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
 const CARD_OFFSET := Vector2(18, 18)
@@ -88,6 +90,7 @@ var _view: StaffMapView
 var _camera: Camera3D
 var _card: StaffMapCard
 var _back: Button
+var _options: StaffMapOptionsWindow  # map layer toggles under the MAP button
 var _bar: ActionBar
 var _hud: CanvasLayer
 var _simulation: OperationalSimulation
@@ -244,7 +247,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		match key.keycode:
 			KEY_ESCAPE:
-				if _politics.close_card() or _escalation.close_card() or _decisions.close():
+				if (
+					_close_options_key()
+					or _politics.close_card()
+					or _escalation.close_card()
+					or _decisions.close()
+				):
 					return
 				if selected_formation() != &"":
 					select_formation(&"")
@@ -304,11 +312,7 @@ func _unhandled_input(event: InputEvent) -> void:
 ## The bottom menu of the staff map: the same effects as the keys on the buttons' caps.
 func _build_action_bar() -> void:
 	_bar = ActionBar.new()
-	_bar.add_action(ACTION_GRID, "GRID", "G", true, "TIP_GRID_MAP")
-	_bar.add_action(ACTION_NAMES, "NAMES", "N", true, "TIP_NAMES")
-	_bar.add_action(ACTION_BORDERS, "BORDERS", "B", true, "TIP_BORDERS")
-	_bar.add_action(ACTION_POLITICS, "POLITICS", "P", true, "TIP_POLITICS")
-	_bar.add_action(ACTION_FLAT, "FLAT", "V", true, "TIP_FLAT")
+	_bar.add_action(ACTION_MAP_OPTIONS, "MAP OPTIONS", "", true, "TIP_MAP_OPTIONS")
 	_bar.add_separator()
 	_bar.add_action(ACTION_NEXT, "NEXT", "TAB", false, "TIP_NEXT")
 	_bar.add_action(ACTION_CANCEL, "CANCEL", "X", false, "TIP_CANCEL")
@@ -320,10 +324,12 @@ func _build_action_bar() -> void:
 		true,
 		"TIP_DECISIONS"
 	)
+	_bar.add_action(ACTION_STRIKE, "STRIKE", "S", true, "TIP_STRIKE")
 	_bar.add_separator()
 	_bar.add_action(ACTION_SAVE, "SAVE", "F5", false, "TIP_SAVE_OPERATION")
 	_bar.action_pressed.connect(_on_action_pressed)
 	_hud.add_child(_bar)
+	_build_options_window()
 	# The hovered hex lives in the left zone (a fixed-width slot, so the bar does not jump).
 	var slot := Control.new()
 	slot.custom_minimum_size = Vector2(CARD_SLOT_WIDTH, 50)
@@ -340,10 +346,53 @@ func action_bar() -> ActionBar:
 	return _bar
 
 
+## The map options window (grid, names, borders, politics, flat view) opened by the MAP button.
+func _build_options_window() -> void:
+	_options = StaffMapOptionsWindow.new()
+	_options.add_option(ACTION_GRID, tr("GRID"), "G")
+	_options.add_option(ACTION_NAMES, tr("PLACE NAMES"), "N")
+	_options.add_option(ACTION_BORDERS, tr("BORDERS"), "B")
+	_options.add_option(ACTION_POLITICS, tr("POLITICAL TINT"), "P")
+	_options.add_option(ACTION_FLAT, tr("VIEW"), "V", tr("FLAT"), tr("TILTED"))
+	_options.option_toggled.connect(_on_action_pressed)
+	_options.close_requested.connect(close_options)
+	_hud.add_child(_options)
+
+
+func options_window() -> StaffMapOptionsWindow:
+	return _options
+
+
+func toggle_options() -> void:
+	if _options.is_open():
+		close_options()
+		return
+	_claim_left_dock(LeftWindow.OPTIONS)
+	_options.open(_viewport_size().x)
+	_sync_action_bar()
+
+
+func _close_options_key() -> bool:
+	if not _options.is_open():
+		return false
+	close_options()
+	return true
+
+
+## Closes the map options window (X, Esc, the bar button).
+func close_options() -> void:
+	_options.close()
+	_sync_action_bar()
+
+
 func _on_action_pressed(id: StringName) -> void:
 	if not is_built:
 		return
 	match id:
+		ACTION_MAP_OPTIONS:
+			toggle_options()
+		ACTION_STRIKE:
+			toggle_strike_mode()
 		ACTION_GRID:
 			toggle_grid()
 		ACTION_NAMES:
@@ -370,11 +419,13 @@ func _on_action_pressed(id: StringName) -> void:
 func _sync_action_bar() -> void:
 	if _bar == null or _politics == null or _places == null:
 		return
-	_bar.set_active(ACTION_GRID, _view.grid_visible())
-	_bar.set_active(ACTION_NAMES, _places.is_enabled())
-	_bar.set_active(ACTION_BORDERS, _view.countries().is_visible_layer())
-	_bar.set_active(ACTION_POLITICS, _politics.tint_enabled())
-	_bar.set_active(ACTION_FLAT, _pitch_target <= 0.5)
+	_options.set_active(ACTION_GRID, _view.grid_visible())
+	_options.set_active(ACTION_NAMES, _places.is_enabled())
+	_options.set_active(ACTION_BORDERS, _view.countries().is_visible_layer())
+	_options.set_active(ACTION_POLITICS, _politics.tint_enabled())
+	_options.set_active(ACTION_FLAT, _pitch_target <= 0.5)
+	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
+	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
 
@@ -742,6 +793,10 @@ func open_country_card(country_id: StringName) -> void:
 
 func _claim_left_dock(owner: LeftWindow) -> void:
 	_escalation.close_card()
+	if owner != LeftWindow.OPTIONS and _options != null and _options.close():
+		_sync_action_bar()
+	if owner == LeftWindow.OPTIONS and _report != null:
+		_report.close()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
 	if owner != LeftWindow.COUNTRY_CARD:
@@ -1406,6 +1461,7 @@ func _modal_open() -> bool:
 func _close_other_windows() -> void:
 	_decisions.close()
 	if _strike != null:
+	_options.close()
 		_strike.reports().suspend()
 		_strike.close()
 	_politics.close_card()
@@ -1433,7 +1489,7 @@ func toggle_strike_mode() -> void:
 		_decisions.close()
 		select_formation(&"")
 	_strike.toggle()
-	_turn_bar.set_strike_open(_strike.is_open())
+	_sync_action_bar()
 
 
 func strike_hud() -> StaffMapStrikeHud:
@@ -1441,7 +1497,7 @@ func strike_hud() -> StaffMapStrikeHud:
 
 
 func _on_strike_open_changed(open: bool) -> void:
-	_turn_bar.set_strike_open(open)
+	_sync_action_bar()
 	if not open:
 		_installation_card.set_note("")
 	_layout_counters()
@@ -1454,12 +1510,7 @@ func escalation_hud() -> StaffMapEscalationHud:
 func _place_panel() -> void:
 	if _panel == null:
 		return
-	_panel.reset_size()
-	# Below the turn bar (the bar is as wide as the middle of the screen).
-	var top := PANEL_MARGIN.y
-	if _turn_bar != null:
-		top = _turn_bar.size.y + PANEL_MARGIN.y / 2.0
-	_panel.position = Vector2(_viewport_size().x - PANEL_MARGIN.x - _panel.size.x, top)
+	_panel.dock(_viewport_size().x)  # right dock, under the turn bar row
 
 
 ## Centres the camera on a formation whose counter is off screen (Tab).
@@ -1495,6 +1546,7 @@ func _build_hud() -> void:
 	_panel = StaffMapFormationPanel.new()
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
+	_panel.close_requested.connect(func() -> void: select_formation(&""))
 	_turn_bar.end_turn_pressed.connect(end_turn)
 	_turn_bar.escalation_pressed.connect(func() -> void: _toggle_ladder_card())
 	_hud.add_child(_turn_bar)
@@ -1561,7 +1613,6 @@ func _build_hud() -> void:
 	)
 	_strike.open_changed.connect(_on_strike_open_changed)
 	_strike.reports().shown.connect(func() -> void: _claim_left_dock(LeftWindow.REPORT))
-	_turn_bar.strike_pressed.connect(toggle_strike_mode)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
 
@@ -1699,6 +1750,8 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				_dragging = false
 				return
 			if event.pressed:
+				close_docked_windows()
+			if event.pressed:
 				_press_position = event.position
 				_drag_travel = 0.0
 			elif (
@@ -1728,6 +1781,19 @@ func _strike_mode_open() -> bool:
 func _zoom_at(notches: float, cursor: Vector2) -> void:
 	var new_zoom := StaffMapCameraMath.zoom_by(_zoom, notches, _min_zoom, _max_zoom)
 	var size := _viewport_size()
+## A click on the map closes every docked window (left dock and the strike report card; the
+## formation panel follows the selection, which `click_at` clears on an empty hex).
+func close_docked_windows() -> void:
+	var closed := _options.close()
+	closed = _politics.close_card() or closed
+	if _report != null and _report.visible:
+		_report.close()
+	if _strike != null and _strike.reports().card_visible():
+		_strike.reports().collapse()
+	if closed:
+		_sync_action_bar()
+
+
 	var moved := StaffMapCameraMath.zoom_about(
 		_position,
 		_zoom,
