@@ -1519,6 +1519,13 @@ func escalation_hud() -> StaffMapEscalationHud:
 	return _escalation
 
 
+## Screen rect of the visible formation panel (the order card keeps clear of it), empty if hidden.
+func _panel_rect() -> Rect2:
+	if _panel == null or not _panel.visible:
+		return Rect2()
+	return _panel.get_global_rect()
+
+
 func _place_panel() -> void:
 	if _panel == null:
 		return
@@ -1567,7 +1574,9 @@ func _build_hud() -> void:
 	_hud.add_child(_report)
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
-	_order_ring = StaffMapOrderRing.new(_hud, _execute, _screen_of_hex, _viewport_size, _can_order)
+	_order_ring = StaffMapOrderRing.new(
+		_hud, _execute, _screen_of_hex, _viewport_size, _can_order, _panel_rect
+	)
 	_order_ring.ordered.connect(_on_ring_ordered)
 	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()

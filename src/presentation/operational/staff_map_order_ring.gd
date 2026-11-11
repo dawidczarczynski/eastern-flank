@@ -18,6 +18,7 @@ var _execute: Callable  # (OperationalCommand) -> bool
 var _screen_of_hex: Callable  # (Vector2i) -> Vector2
 var _viewport: Callable  # () -> Vector2
 var _still_valid: Callable  # (StringName) -> bool: may that formation still be ordered?
+var _avoid: Callable  # () -> Rect2: docked panel the card must not cover (empty = none)
 
 
 func _init(
@@ -25,12 +26,14 @@ func _init(
 	execute: Callable,
 	screen_of_hex: Callable,
 	viewport: Callable,
-	still_valid: Callable
+	still_valid: Callable,
+	avoid := Callable()
 ) -> void:
 	_execute = execute
 	_screen_of_hex = screen_of_hex
 	_viewport = viewport
 	_still_valid = still_valid
+	_avoid = avoid
 	_ring = RadialRing.new()
 	_ring.name = "OrderRing"
 	_ring.hide()
@@ -152,10 +155,15 @@ func follow() -> void:
 		close()
 		return
 	var viewport: Vector2 = _viewport.call()
-	var center := RadialRingGeometry.clamp_center(_screen_of_hex.call(_model["hex"]), viewport)
+	var avoid: Rect2 = _avoid.call() if _avoid.is_valid() else Rect2()
+	var center := RadialRingGeometry.clamp_center_avoiding(
+		_screen_of_hex.call(_model["hex"]), viewport, avoid
+	)
 	_ring.set_center(center)
 	if _card.visible:
-		_card.position = RadialRingGeometry.card_position(center, viewport, _card.card_size())
+		_card.position = RadialRingGeometry.card_position_avoiding(
+			center, viewport, _card.card_size(), avoid
+		)
 
 
 func _on_slot_hovered(_slot: int) -> void:

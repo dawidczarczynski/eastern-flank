@@ -74,6 +74,41 @@ func test_card_sits_right_of_the_ring_and_flips_near_the_edge() -> void:
 	assert_eq(low.y, 720.0 - 300.0 - RadialRingGeometry.EDGE)
 
 
+func test_card_keeps_clear_of_a_docked_panel() -> void:
+	var card := Vector2(272, 300)
+	for viewport in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		var panel := Rect2(viewport.x - 300, 60, 288, 420)
+		for cx in [200.0, 600.0, viewport.x - 400, viewport.x - 250, viewport.x - 200]:
+			for cy in [200.0, 360.0, 600.0]:
+				var pos := RadialRingGeometry.card_position_avoiding(
+					Vector2(cx, cy), viewport, card, panel
+				)
+				assert_false(Rect2(pos, card).intersects(panel), "%s %s,%s" % [viewport, cx, cy])
+				assert_true(Rect2(Vector2.ZERO, viewport).encloses(Rect2(pos, card)))
+	# Without a panel it is the plain placement.
+	var plain := RadialRingGeometry.card_position(Vector2(400, 360), Vector2(1280, 720), card)
+	assert_eq(
+		RadialRingGeometry.card_position_avoiding(
+			Vector2(400, 360), Vector2(1280, 720), card, Rect2()
+		),
+		plain
+	)
+
+
+func test_ring_keeps_clear_of_a_docked_panel() -> void:
+	for viewport in [Vector2(1280, 720), Vector2(1920, 1080)]:
+		var panel := Rect2(viewport.x - 300, 60, 288, 420)
+		var half := RadialRingGeometry.SIZE * 0.5
+		for cx in [300.0, viewport.x - 400, viewport.x - 150, viewport.x]:
+			var c := RadialRingGeometry.clamp_center_avoiding(Vector2(cx, 300), viewport, panel)
+			var ring := Rect2(c - Vector2(half, half), Vector2(half * 2, half * 2))
+			assert_false(ring.intersects(panel), "%s %s" % [viewport, cx])
+	assert_eq(
+		RadialRingGeometry.clamp_center_avoiding(Vector2(400, 300), Vector2(1280, 720), Rect2()),
+		Vector2(400, 300)
+	)
+
+
 func test_target_tag_sits_below_right_of_the_cursor_and_flips_near_the_edges() -> void:
 	var viewport := Vector2(1280, 720)
 	var tag := Vector2(150, 60)

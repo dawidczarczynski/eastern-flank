@@ -1,6 +1,6 @@
 # TASK-129: Staff map – order ring card overlaps the formation card
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: –
 - **Sections**: docs/design/operational_map (cards, order ring), docs/design/hud_v3/README.md §04
@@ -31,4 +31,4 @@ none
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+`RadialRingGeometry.card_position_avoiding` (pure, tested in test_radial_ring_geometry.gd at 1280×720 and 1920×1080, ring at many positions incl. right edge) keeps the order card off a given rect: right side, then left, then above/below the rect. `StaffMapOrderRing` takes an optional `avoid` callable; `StaffMap._panel_rect()` supplies the docked formation panel rect. No visual redesign, no mockup deviation. `docs/images/staff_map.png` regenerated: the order card now sits left of the ring, both cards readable.

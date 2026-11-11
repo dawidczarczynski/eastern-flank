@@ -103,3 +103,48 @@ static func card_position(center: Vector2, viewport: Vector2, card: Vector2) -> 
 		x = center.x - CARD_OFFSET - card.x
 	var y := clampf(center.y - card.y * 0.5, EDGE, maxf(EDGE, viewport.y - card.y - EDGE))
 	return Vector2(x, y)
+
+
+## `clamp_center`, and the ring also keeps clear of `avoid` (a docked panel): when its square would
+## overlap the panel it moves left of it (right of it for a panel on the left half); if that does
+## not fit on screen the plain clamp stays.
+static func clamp_center_avoiding(projected: Vector2, viewport: Vector2, avoid: Rect2) -> Vector2:
+	var center := clamp_center(projected, viewport)
+	var half := SIZE * 0.5
+	if (
+		not avoid.has_area()
+		or not Rect2(center - Vector2(half, half), Vector2(SIZE, SIZE)).intersects(avoid)
+	):
+		return center
+	var x := avoid.position.x - half - EDGE
+	if avoid.get_center().x < viewport.x * 0.5:
+		x = avoid.end.x + half + EDGE
+	if x < half or x > viewport.x - half:
+		return center
+	return Vector2(x, center.y)
+
+
+## Like `card_position`, but the card never overlaps `avoid` (a docked panel): it tries the right
+## side, then the left, then the same two sides moved above / below `avoid`; when nothing fits it
+## stays on the left. An empty `avoid` behaves exactly like `card_position`.
+static func card_position_avoiding(
+	center: Vector2, viewport: Vector2, card: Vector2, avoid: Rect2
+) -> Vector2:
+	var preferred := card_position(center, viewport, card)
+	if not avoid.has_area() or not Rect2(preferred, card).intersects(avoid):
+		return preferred
+	var xs: Array[float] = [center.x + CARD_OFFSET, center.x - CARD_OFFSET - card.x]
+	var max_x := viewport.x - card.x - EDGE
+	var max_y := maxf(EDGE, viewport.y - card.y - EDGE)
+	for x in xs:
+		x = clampf(x, EDGE, maxf(EDGE, max_x))
+		if not Rect2(Vector2(x, preferred.y), card).intersects(avoid):
+			return Vector2(x, preferred.y)
+	for y in [avoid.position.y - card.y - EDGE, avoid.end.y + EDGE]:
+		if y < EDGE or y > max_y:
+			continue
+		for x in xs:
+			x = clampf(x, EDGE, maxf(EDGE, max_x))
+			if not Rect2(Vector2(x, y), card).intersects(avoid):
+				return Vector2(x, y)
+	return Vector2(clampf(xs[1], EDGE, maxf(EDGE, max_x)), preferred.y)
