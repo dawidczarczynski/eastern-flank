@@ -44,16 +44,33 @@ static func infantry() -> UnitDefinition:
 	return definition
 
 
-## Unit definition with custom combat stats (3 move points).
+## Unit definition with custom combat stats (3 move points), direct fire reaching `range_hexes`
+## hexes at full effect (effective = maximum range, no falloff, no minimum).
 static func fighter(
-	attack: int, defense: int, max_hp: int = 10, attack_range: int = 1
+	attack: int, defense: int, max_hp: int = 10, range_hexes: int = 1
 ) -> UnitDefinition:
 	var definition := infantry()
 	definition.id = &"test_fighter"
 	definition.attack = attack
 	definition.defense = defense
 	definition.max_hp = max_hp
-	definition.attack_range = attack_range
+	set_range(definition, range_hexes, range_hexes)
+	return definition
+
+
+## Sets `definition`'s weapon range in hexes (TASK-131a): effective / maximum / minimum hexes
+## and the fire mode. Returns the definition.
+static func set_range(
+	definition: UnitDefinition,
+	effective_hexes: int,
+	max_hexes: int,
+	min_hexes: int = 0,
+	fire_mode: StringName = UnitDefinition.FIRE_DIRECT
+) -> UnitDefinition:
+	definition.effective_range_m = effective_hexes * UnitDefinition.HEX_METRES
+	definition.max_range_m = max_hexes * UnitDefinition.HEX_METRES
+	definition.min_range_m = min_hexes * UnitDefinition.HEX_METRES
+	definition.fire_mode = fire_mode
 	return definition
 
 
@@ -78,7 +95,6 @@ static func generic_tank() -> UnitDefinition:
 	definition.move_points = 5
 	definition.attack = 5
 	definition.defense = 2
-	definition.attack_range = 1
 	return definition
 
 

@@ -69,7 +69,7 @@ func test_default_battle_is_its_setup() -> void:
 
 func test_default_setup_has_full_strength_scenario_companies() -> void:
 	var setup := Scenario.default_battle_setup(12345)
-	assert_eq(setup.companies.size(), 9)
+	assert_eq(setup.companies.size(), 10)
 	assert_eq(setup.conditions.size(), 2)
 	assert_eq(setup.objectives.to_dict(), BattleObjectives.default_objectives().to_dict())
 	var state := Scenario.from_setup(setup)

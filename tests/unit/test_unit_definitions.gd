@@ -3,14 +3,24 @@ extends TestCase
 
 const Fixtures := preload("res://tests/fixtures.gd")
 const UNITS_DIR := "res://data/units"
-## id -> [display_name, short_name, unit_class, mobility, max_hp, move, attack, defense, range]
+## id -> [display_name, short_name, unit_class, mobility, max_hp, move, attack, defense]
 const TABLE := {
-	&"m1a2_sepv3": ["M1A2 SEPv3 Abrams", "M1A2", &"tank", &"tracked", 10, 5, 7, 4, 1],
-	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4, 1],
-	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1, 6],
-	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1, 5],
-	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3, 1],
-	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3, 1],
+	&"m1a2_sepv3": ["M1A2 SEPv3 Abrams", "M1A2", &"tank", &"tracked", 10, 5, 7, 4],
+	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4],
+	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1],
+	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1],
+	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
+	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
+}
+
+## id -> [fire mode, effective m, max m, min m, effective hexes, max hexes, min hexes] (TASK-131a)
+const RANGES := {
+	&"m1a2_sepv3": [&"direct", 2000, 3500, 0, 8, 14, 0],
+	&"t72b3": [&"direct", 2000, 3000, 0, 8, 12, 0],
+	&"homar_k": [&"indirect", 70000, 80000, 750, 280, 320, 3],
+	&"bm27_uragan": [&"indirect", 30000, 35000, 750, 120, 140, 3],
+	&"pl_mech_infantry": [&"direct", 500, 750, 0, 2, 3, 0],
+	&"ru_motor_rifle": [&"direct", 500, 750, 0, 2, 3, 0],
 }
 
 
@@ -56,11 +66,45 @@ func test_definitions_match_the_table() -> void:
 				d.move_points,
 				d.attack,
 				d.defense,
-				d.attack_range
 			],
 			TABLE[id],
 			String(id)
 		)
+
+
+func test_ranges_match_the_table() -> void:
+	for id: StringName in RANGES:
+		var d := _unit(id)
+		assert_eq(
+			[
+				d.fire_mode,
+				d.effective_range_m,
+				d.max_range_m,
+				d.min_range_m,
+				d.effective_hexes(),
+				d.max_hexes(),
+				d.min_hexes(),
+			],
+			RANGES[id],
+			String(id)
+		)
+
+
+func test_attack_range_property_is_gone() -> void:
+	var names: Array[String] = []
+	for property in UnitDefinition.new().get_property_list():
+		names.append(String(property["name"]))
+	assert_false("attack_range" in names)
+
+
+func test_hex_conversion_rounds_minimum_up_and_ranges_down() -> void:
+	var d := UnitDefinition.new()
+	d.effective_range_m = 749
+	d.max_range_m = 1000
+	d.min_range_m = 251
+	assert_eq([d.effective_hexes(), d.max_hexes(), d.min_hexes()], [2, 4, 2])
+	d.min_range_m = 0
+	assert_eq(d.min_hexes(), 0)
 
 
 func test_short_names_fit_the_label() -> void:

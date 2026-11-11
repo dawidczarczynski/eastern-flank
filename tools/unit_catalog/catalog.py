@@ -36,7 +36,8 @@ STATUSES = ("draft", "ready_for_model", "modeled", "in_game")
 UNIT_KEY_ORDER = [
     "id", "real_name", "variant_note", "class", "mobility", "operators", "in_service",
     "country_of_origin", "crew", "weight_t", "armament", "protection", "speed_road_kmh",
-    "speed_offroad_kmh", "range_km", "fire_range_km", "notes", "dimensions",
+    "speed_offroad_kmh", "range_km", "fire_range_km", "effective_range_m", "max_range_m", "min_range_m", "notes",
+    "dimensions",
     "silhouette_features", "details", "skip", "camo_note", "mechanisms", "images", "image_candidates", "provenance", "status",
     "feedback", "updated", "revision",
 ]  # fmt: skip
@@ -46,7 +47,9 @@ IMAGE_KEYS = ["file", "view", "source_url", "license", "note"]
 CLASS_KEYS = ["id", "label", "mobility", "required_views", "default_mechanisms"]
 FACTION_KEY_ORDER = ["id", "name", "iso_code", "color", "camo", "vest_color", "notes"]
 
-NUMERIC_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km"]
+# Weapon ranges in metres (TASK-131a): the game's unit data copies them (data/units/*.tres).
+RANGE_FIELDS = ["effective_range_m", "max_range_m", "min_range_m"]
+NUMERIC_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km", *RANGE_FIELDS]
 STRING_FIELDS = [
     "real_name", "variant_note", "in_service", "country_of_origin", "protection", "notes",
     "camo_note", "feedback", "updated",
@@ -57,8 +60,8 @@ STRING_LIST_FIELDS = ["silhouette_features", "details", "skip"]
 # stay with the human. Each filled field gets a `provenance` entry until the human verifies it.
 RESEARCH_FIELDS = [
     "variant_note", "in_service", "country_of_origin", "operators", "crew", "weight_t", "armament.main",
-    "armament.secondary", "protection", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km", "notes",
-    "dimensions.hull_length", "dimensions.overall_length", "dimensions.width", "dimensions.height",
+    "armament.secondary", "protection", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km", *RANGE_FIELDS,
+    "notes", "dimensions.hull_length", "dimensions.overall_length", "dimensions.width", "dimensions.height",
     "silhouette_features", "details", "skip", "camo_note",
 ]  # fmt: skip
 # Unverified AI values in these fields block `ready_for_model` - the model is built from them.

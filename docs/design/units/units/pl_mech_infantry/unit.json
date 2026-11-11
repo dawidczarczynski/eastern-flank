@@ -15,6 +15,8 @@
     "secondary": "UKM-2000 7.62 mm GPMG; Pallad / GPBO-40 40 mm underbarrel grenade launcher; RPG-7 (being replaced by Carl Gustaf M4 84 mm), M72 EC LAW"
   },
   "protection": "Hełm wz. 2005 aramid helmet (PASGT-like shape; high-cut HP-05 and HBT-02 being fielded); KKZ-01 plate carrier (Gryf plate carrier, older OLV / KWM-02 vests)",
+  "effective_range_m": 500,
+  "max_range_m": 750,
   "notes": "Dimensions are for one soldier in full kit. crew = 8 is the dismount capacity of the KTO Rosomak troop compartment, not a published table of organisation.",
   "dimensions": {
     "height": 1.82
@@ -114,6 +116,14 @@
       "source": "https://en.wikipedia.org/wiki/List_of_equipment_of_the_Polish_Land_Forces",
       "verified": true
     },
+    "effective_range_m": {
+      "source": "https://en.wikipedia.org/wiki/MSBS_Grot – practical engagement range of the squad rifles and MG (about 500 m), design value of TASK-131a",
+      "verified": true
+    },
+    "max_range_m": {
+      "source": "(?) design value of TASK-131a: longest range with a realistic hit chance of squad MG / RPG-7 / Carl Gustaf fire (https://en.wikipedia.org/wiki/Carl_Gustaf_8.4_cm_recoilless_rifle) – to confirm",
+      "verified": false
+    },
     "notes": {
       "source": "https://mil.in.ua/en/articles/rosomak-modern-polish-apc-in-service-with-the-armed-forces-of-ukraine/",
       "verified": true
@@ -140,6 +150,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-10-24",
-  "revision": 18
+  "updated": "2026-11-11",
+  "revision": 19
 }

@@ -40,6 +40,37 @@ func test_every_unit_matches_its_catalog_entry() -> void:
 	assert_true(checked > 0, "at least one unit checked")
 
 
+## Weapon ranges in metres (TASK-131a): the catalog's effective / maximum / minimum range, each
+## with a provenance source, are the game data's.
+func test_every_unit_range_matches_its_catalog_entry() -> void:
+	var checked := 0
+	for file in DirAccess.get_files_at(UNITS_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var definition := load(UNITS_DIR.path_join(file)) as UnitDefinition
+		var entry := _catalog_entry(definition.id)
+		if entry.is_empty():
+			continue
+		checked += 1
+		var provenance: Dictionary = entry.get("provenance", {})
+		var expected := {
+			"effective_range_m": definition.effective_range_m,
+			"max_range_m": definition.max_range_m,
+			"min_range_m": definition.min_range_m,
+		}
+		for key: String in expected:
+			var value := int(entry.get(key, 0))
+			assert_eq(value, expected[key], "%s %s" % [definition.id, key])
+			if value != 0:
+				var source: Dictionary = provenance.get(key, {})
+				assert_false(
+					String(source.get("source", "")).is_empty(),
+					"%s %s source" % [definition.id, key]
+				)
+				assert_true(source.has("verified"), "%s %s verified" % [definition.id, key])
+	assert_true(checked > 0, "at least one unit checked")
+
+
 ## Faction colours and camouflage palettes (data/factions/*.tres) are the catalog's
 ## (docs/design/units/factions/<id>.json).
 func test_every_faction_matches_its_catalog_palette() -> void:

@@ -25,6 +25,9 @@
     "speed_offroad_kmh": {"type": "number", "minimum": 0},
     "range_km": {"type": "number", "minimum": 0},
     "fire_range_km": {"type": "number", "minimum": 0},
+    "effective_range_m": {"type": "number", "minimum": 0},
+    "max_range_m": {"type": "number", "minimum": 0},
+    "min_range_m": {"type": "number", "minimum": 0},
     "notes": {"type": "string"},
     "dimensions": {
       "type": "object",

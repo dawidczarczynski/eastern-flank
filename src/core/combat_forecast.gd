@@ -11,6 +11,15 @@ const HIGH_QUANTILE := 0.90
 ## Tolerance of the percentile comparison (the cumulative sums are floats).
 const _EPSILON := 1e-9
 
+## Hex distance between the two units (TASK-131a).
+var distance: int
+## Share of the attacker's full hit chance left at that distance (AttackCommand.range_factor).
+var range_factor: float
+## The attacker sees the defender (LineOfSight; indirect fire doesn't need it).
+var line_of_sight: bool
+## Why the attack itself is illegal from where the attacker stands: AttackCommand.fire_problem
+## ("" = it can fire; the same codes as AttackCommand.validate).
+var problem: String
 ## Attacker strength rolling (its current HP).
 var shots: int
 ## A roll <= hit_on hits.
@@ -24,7 +33,8 @@ var damage_low: int
 var damage_high: int
 ## P(hits >= defender hp).
 var kill_chance: float
-## The defender has the attacker within its attack range (a battle end by objectives ignored).
+## The defender can fire back at the attacker: range and, for direct fire, line of sight
+## (a battle end by objectives ignored).
 var counter_possible: bool
 ## E[min(counter hits, attacker hp)] over every outcome of the first strike (0 without counter).
 var counter_expected: float
@@ -36,19 +46,30 @@ var attacker_loss_chance: float
 
 
 static func compute(state: GameState, attacker: Unit, defender: Unit) -> CombatForecast:
+	return compute_at(state, attacker, defender, attacker.coord)
+
+
+## compute as if the attacker stood on `from` (the AI weighs firing positions; TASK-131a).
+static func compute_at(
+	state: GameState, attacker: Unit, defender: Unit, from: Vector2i
+) -> CombatForecast:
 	var f := CombatForecast.new()
+	f.distance = Hex.distance(from, defender.coord)
+	f.range_factor = AttackCommand.range_factor(attacker.definition, f.distance)
+	f.line_of_sight = LineOfSight.visible(state.grid, from, defender.coord)
+	f.problem = AttackCommand.fire_problem(state, attacker.definition, from, defender.coord)
 	f.shots = attacker.hp
 	f.die = attacker.definition.max_hp
-	f.hit_on = AttackCommand.hit_on(state, attacker, defender)
+	f.hit_on = AttackCommand.hit_on_at(state, attacker, defender, f.distance)
 	var damage := _capped(binomial(f.shots, float(f.hit_on) / f.die), defender.hp)
 	f.expected_damage = mean(damage)
 	f.damage_low = percentile(damage, LOW_QUANTILE)
 	f.damage_high = percentile(damage, HIGH_QUANTILE)
 	f.kill_chance = damage[defender.hp]
 	f.counter_possible = (
-		Hex.distance(defender.coord, attacker.coord) <= defender.definition.attack_range
+		AttackCommand.fire_problem(state, defender.definition, defender.coord, from) == ""
 	)
-	var counter := _counter_damage(state, attacker, defender, damage, f.counter_possible)
+	var counter := _counter_damage(state, attacker, defender, damage, f)
 	f.counter_expected = mean(counter)
 	f.counter_low = percentile(counter, LOW_QUANTILE)
 	f.counter_high = percentile(counter, HIGH_QUANTILE)
@@ -98,15 +119,16 @@ static func _capped(distribution: PackedFloat64Array, cap: int) -> PackedFloat64
 ## Counter damage to the attacker (0 … attacker hp) mixed over the first strike's `damage`
 ## distribution: the defender rolls the HP it has left; a destroyed defender doesn't counter.
 static func _counter_damage(
-	state: GameState, attacker: Unit, defender: Unit, damage: PackedFloat64Array, possible: bool
+	state: GameState, attacker: Unit, defender: Unit, damage: PackedFloat64Array, f: CombatForecast
 ) -> PackedFloat64Array:
 	var result := PackedFloat64Array()
 	result.resize(attacker.hp + 1)
 	result.fill(0.0)
-	if not possible:
+	if not f.counter_possible:
 		result[0] = 1.0
 		return result
-	var p := float(AttackCommand.hit_on(state, defender, attacker)) / defender.definition.max_hp
+	var hit := AttackCommand.hit_on_at(state, defender, attacker, f.distance)
+	var p := float(hit) / defender.definition.max_hp
 	for k in damage.size():
 		var left := defender.hp - k
 		if left <= 0:

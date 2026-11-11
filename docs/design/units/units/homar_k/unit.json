@@ -18,6 +18,9 @@
   "speed_road_kmh": 85,
   "range_km": 650,
   "fire_range_km": 290,
+  "effective_range_m": 70000,
+  "max_range_m": 80000,
+  "min_range_m": 750,
   "notes": "Poland ordered 290 launchers (executive contracts for 218 in Nov 2022 and 72 in Apr 2024); deliveries from 2023, first to the 18th Artillery Regiment in Nowa Dęba.",
   "dimensions": {
     "hull_length": 11,
@@ -123,6 +126,18 @@
       "source": "https://motoryzacja.interia.pl/wiadomosci/news-tak-wyglada-najgrozniejszy-jelcz-w-historii-nazywa-sie-homar,nId,6949065",
       "verified": true
     },
+    "effective_range_m": {
+      "source": "(?) design value of TASK-131a: effective range of the CGR-080 guided rockets below their 80 km maximum (https://en.wikipedia.org/wiki/K239_Chunmoo) – to confirm",
+      "verified": false
+    },
+    "max_range_m": {
+      "source": "https://en.wikipedia.org/wiki/K239_Chunmoo – 239 mm CGR-080 guided rockets, about 80 km (the 290 km CTM-290 missile is not standard equipment)",
+      "verified": true
+    },
+    "min_range_m": {
+      "source": "human decision 2026-11-10 (TASK-131a) [ASSUMPTION]: 750 m = 3 hexes keeps \"cannot fire at an adjacent or next-but-one hex\" on 7.5 km battle maps; real MLRS minima are several km",
+      "verified": true
+    },
     "notes": {
       "source": "https://pl.wikipedia.org/wiki/K239_Chunmoo",
       "verified": true
@@ -165,6 +180,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-10-21",
-  "revision": 21
+  "updated": "2026-11-11",
+  "revision": 22
 }

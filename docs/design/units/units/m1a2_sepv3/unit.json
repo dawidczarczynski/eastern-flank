@@ -18,6 +18,8 @@
   "protection": "Composite armour with a new hull and turret armour package against IEDs; optional reactive and slat armour; M250 smoke grenade dischargers on both sides of the turret",
   "speed_road_kmh": 68,
   "range_km": 425,
+  "effective_range_m": 2000,
+  "max_range_m": 3500,
   "notes": "Honeywell AGT1500 gas turbine, 1,500 hp; under-armour auxiliary power unit (small exhaust at rear left of hull) is the easiest external SEPv3 identifier",
   "dimensions": {
     "hull_length": 7.93,
@@ -145,6 +147,14 @@
       "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
       "verified": true
     },
+    "effective_range_m": {
+      "source": "https://en.wikipedia.org/wiki/M1_Abrams – 120 mm M256 practical engagement range about 2 km, design value of TASK-131a",
+      "verified": true
+    },
+    "max_range_m": {
+      "source": "(?) design value of TASK-131a: fire control / sight limit with M829A3 APFSDS (https://en.wikipedia.org/wiki/M829) – to confirm",
+      "verified": false
+    },
     "notes": {
       "source": "https://www.armyrecognition.com/military-products/army/main-battle-tanks/main-battle-tanks/m1a2-sep-v3-main-battle-tank-technical-data-sheet-specifications-pictures-video-11710154",
       "verified": true
@@ -195,6 +205,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-10-24",
-  "revision": 21
+  "updated": "2026-11-11",
+  "revision": 22
 }

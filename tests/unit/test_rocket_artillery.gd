@@ -42,34 +42,42 @@ func _check(r: Array, countered: bool, message := "") -> void:
 	assert_eq(attacker.hp, maxi(0, attacker.definition.max_hp - counter_damage), message)
 
 
-func test_homar_k_hits_a_squad_at_distance_2_and_6_without_counter() -> void:
-	for distance in [2, 6]:
+## The squad (maximum range 3 hexes) cannot reach the launcher at 4 or 6 (TASK-131a).
+func test_homar_k_hits_a_squad_at_distance_4_and_6_without_counter() -> void:
+	for distance in [4, 6]:
 		_check(_setup(HOMAR, SQUAD, distance), false, "distance %d" % distance)
 
 
-func test_uragan_adjacent_to_a_squad_is_countered() -> void:
-	_check(_setup(URAGAN, SQUAD, 1), true)
+func test_uragan_at_a_squads_maximum_range_is_countered() -> void:
+	_check(_setup(URAGAN, SQUAD, 3), true)
 
 
+## Rocket artillery counters a tank at 3 hexes (its minimum range).
 func test_tank_attacks_an_mlrs_and_is_countered() -> void:
-	_check(_setup(T72B3, URAGAN, 1, SURVIVING_SEED), true)
+	_check(_setup(T72B3, URAGAN, 3, SURVIVING_SEED), true)
 
 
-func test_homar_k_outranges_the_uragan() -> void:
-	_check(_setup(HOMAR, URAGAN, 6), false, "the Uragan (range 5) cannot counter at 6")
-	_check(_setup(HOMAR, URAGAN, 5), true, "countered within 5")
+## Inside its minimum range the launcher cannot hit back.
+func test_tank_next_to_an_mlrs_is_not_countered() -> void:
+	_check(_setup(T72B3, URAGAN, 1, SURVIVING_SEED), false)
 
 
-func test_mlrs_cannot_attack_beyond_its_range() -> void:
+## Both launchers cover the whole battlefield beyond their minimum range (TASK-131a), so they
+## counter each other.
+func test_artillery_duel_is_countered() -> void:
+	_check(_setup(HOMAR, URAGAN, 6), true, "the Uragan counters at 6")
+
+
+func test_mlrs_cannot_attack_within_its_minimum_range() -> void:
 	var state := GameState.new(Fixtures.plains_grid(7), 2, 1)
 	var uragan := state.add_unit(0, URAGAN, Vector2i(0, 0))
 	var homar := state.add_unit(0, HOMAR, Vector2i(0, 1))
-	var near := state.add_unit(1, SQUAD, Vector2i(6, 0))
+	var near := state.add_unit(1, SQUAD, Vector2i(2, 0))
 	var far := state.add_unit(1, SQUAD, Vector2i(7, 0))
-	assert_eq(AttackCommand.new(uragan.id, near.id).validate(state), "out_of_range")
-	assert_eq(AttackCommand.new(homar.id, near.id).validate(state), "")
+	assert_eq(AttackCommand.new(uragan.id, near.id).validate(state), "too_close")
+	assert_eq(AttackCommand.new(uragan.id, far.id).validate(state), "")
 	assert_eq(Hex.distance(homar.coord, far.coord), 7)
-	assert_eq(AttackCommand.new(homar.id, far.id).validate(state), "out_of_range")
+	assert_eq(AttackCommand.new(homar.id, far.id).validate(state), "")
 
 
 ## Rocket volleys follow the unit class, so every MLRS fires one, whatever its id.

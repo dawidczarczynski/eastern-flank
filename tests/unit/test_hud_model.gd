@@ -154,12 +154,19 @@ func test_forecast_abrams_on_a_squad() -> void:
 
 func test_forecast_abrams_on_an_uragan() -> void:
 	assert_eq(
-		_forecast_texts(ABRAMS, URAGAN), ["DAMAGE 5.4 (4–6)", "DESTROY 63 %", "COUNTER 0.2 (0–1)"]
+		_forecast_texts(ABRAMS, URAGAN, 3),
+		["DAMAGE 5.4 (4–6)", "DESTROY 63 %", "COUNTER 0.2 (0–1)"]
+	)
+	assert_eq(
+		_forecast_texts(ABRAMS, URAGAN, 1), ["DAMAGE 5.4 (4–6)", "DESTROY 63 %", "NO COUNTER"]
 	)
 
 
 func test_forecast_homar_on_an_uragan_at_six_hexes() -> void:
-	assert_eq(_forecast_texts(HOMAR, URAGAN, 6), ["DAMAGE 5.0 (4–6)", "DESTROY 33 %", "NO COUNTER"])
+	# Both launchers cover the battlefield beyond 3 hexes (TASK-131a): the Uragan counters.
+	assert_eq(
+		_forecast_texts(HOMAR, URAGAN, 6), ["DAMAGE 5.0 (4–6)", "DESTROY 33 %", "COUNTER 0.8 (0–2)"]
+	)
 
 
 func test_forecast_hides_a_zero_destroy_chance() -> void:
@@ -205,4 +212,5 @@ func _tag_texts(
 
 func test_tag_abrams_on_a_squad_and_homar_on_an_uragan_at_six_hexes() -> void:
 	assert_eq(_tag_texts(ABRAMS, SQUAD), ["ATTACK ~4.0 (2–6)", "DESTROY <1 %", "COUNTER ~0.6"])
-	assert_eq(_tag_texts(HOMAR, URAGAN, 6), ["ATTACK ~5.0 (4–6)", "DESTROY 33 %", "NO COUNTER"])
+	assert_eq(_tag_texts(HOMAR, URAGAN, 6), ["ATTACK ~5.0 (4–6)", "DESTROY 33 %", "COUNTER ~0.8"])
+	assert_eq(_tag_texts(ABRAMS, URAGAN, 1), ["ATTACK ~5.4 (4–6)", "DESTROY 63 %", "NO COUNTER"])

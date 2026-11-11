@@ -165,7 +165,7 @@ func test_snapshot_contents() -> void:
 	assert_eq(snap["winner"], -1)
 	assert_eq(snap["rng_state"], str(state.rng.state))
 	var units: Array = snap["units"]
-	assert_eq(units.size(), 9)
+	assert_eq(units.size(), 10)
 	for i in units.size():
 		assert_eq(units[i]["id"], i + 1)
 	var first := state.get_unit(1)

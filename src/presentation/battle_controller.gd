@@ -610,7 +610,7 @@ func _refresh_range_overlay() -> void:
 	if (
 		unit == null
 		or not unit.is_alive()
-		or unit.definition.attack_range < 2
+		or unit.definition.max_hexes() < 2
 		or _is_playing_events()
 		or _sim.state.is_over()
 	):
@@ -1037,7 +1037,8 @@ func _add_impact_marks(event: Dictionary, target: UnitView, shooter: UnitView) -
 	var distance := Hex.distance(
 		Hex.from_world(shooter.global_position, _map_view.hex_size), target_coord
 	)
-	var range_tiles := attacker.definition.attack_range
+	# GroundMarks craters only indirect fire (TASK-131a: tanks now fire over many hexes too).
+	var range_tiles := attacker.definition.max_hexes() if attacker.definition.is_indirect() else 1
 	var counter: bool = event.get("counter", false)
 	var center := _map_view.tile_top_position(target_coord)
 	var marks := GroundMarks.craters(_event_serial, center, range_tiles, distance, counter)

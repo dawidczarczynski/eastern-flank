@@ -427,7 +427,7 @@ async function jobScreen(jobId) {
 }
 
 // ---------------------------------------------------------------- unit editor
-const NUM_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km"];
+const NUM_FIELDS = ["weight_t", "speed_road_kmh", "speed_offroad_kmh", "range_km", "fire_range_km", "effective_range_m", "max_range_m", "min_range_m"];
 const DIM_FIELDS = ["hull_length", "overall_length", "width", "height"];
 // Unverified AI values in these fields block ready_for_model (mirrors catalog.MODEL_CRITICAL_FIELDS).
 const MODEL_CRITICAL = ["dimensions.hull_length", "dimensions.width", "dimensions.height", "silhouette_features"];
@@ -641,6 +641,9 @@ async function unitScreen(id) {
       ...vehicleOnly(field("Weight (t)", numIn(u, "weight_t"), false, "weight_t"),
         field("Speed road (km/h)", numIn(u, "speed_road_kmh"), false, "speed_road_kmh"), field("Speed off-road (km/h)", numIn(u, "speed_offroad_kmh"), false, "speed_offroad_kmh"),
         field("Range (km)", numIn(u, "range_km"), false, "range_km"), field("Fire range (km, artillery)", numIn(u, "fire_range_km"), false, "fire_range_km")),
+      field("Effective fire range (m)", numIn(u, "effective_range_m"), false, "effective_range_m"),
+      field("Maximum fire range (m)", numIn(u, "max_range_m"), false, "max_range_m"),
+      field("Minimum fire range (m, artillery)", numIn(u, "min_range_m"), false, "min_range_m"),
       field(foot ? "Main armament (service rifle)" : "Main armament", textIn(u.armament, "main"), false, "armament.main"),
       field(foot ? "Secondary armament (MG, grenade launchers, AT weapons)" : "Secondary armament", textIn(u.armament, "secondary"), false, "armament.secondary"),
       field(foot ? "Protection (helmet, body armour)" : "Protection", areaIn(u, "protection", "", 2), true, "protection"), field("Notes", areaIn(u, "notes", "", 3), true, "notes"));

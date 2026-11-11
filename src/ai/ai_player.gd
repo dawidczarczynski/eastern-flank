@@ -1,8 +1,14 @@
 class_name AiPlayer
 extends RefCounted
-## Simple AI: every unit moves as close as possible to the nearest enemy, attacks the enemy in
-## range with the best expected result (_best_target: CombatForecast expected damage + KILL_BONUS x
-## kill chance - expected counter; TASK-089a), then the AI ends the turn.
+## Simple AI: every unit moves to a firing position (_firing_destination), attacks the enemy it
+## can hit with the best expected result (_best_target: CombatForecast expected damage +
+## KILL_BONUS x kill chance - expected counter; TASK-089a), then the AI ends the turn.
+## Firing positions (TASK-131a, weapon ranges and line of sight): of the reachable hexes (and the
+## current one) from which the unit can hit an enemy, it prefers one outside every enemy's reach
+## (AttackCommand.fire_problem from where the enemy stands), then the best target score from
+## there, then the largest distance to the nearest enemy (it stays at the longest range that
+## keeps the full hit chance), then its current hex, then the lowest (y, x). When no reachable
+## hex can hit anything, it heads for the nearest hex (hex distance, ties lowest (y, x)) that can.
 ## Objectives (TASK-088): when the player has TAKE_HEXES / HOLD_HEXES conditions, their hexes are
 ## goals. A unit standing on one stays there (it still attacks); otherwise, when the nearest goal
 ## not occupied by an own unit is not farther than the nearest enemy, the unit moves as close to
@@ -16,6 +22,8 @@ const _INF := 1 << 30
 const KILL_BONUS := 2.0
 ## Target scores closer than this count as equal (_best_target falls back to HP, then id).
 const _SCORE_EPSILON := 1e-9
+## Firing positions compare target scores rounded to this step (_firing_value).
+const _SCORE_PRECISION := 1e-6
 ## Action scores used to spend limited command points (_action_score).
 const _ATTACK_SCORE := 100
 const _KILL_SCORE := 100
@@ -73,7 +81,10 @@ func _action_score(state: GameState, unit: Unit, goals: Array[Vector2i]) -> int:
 	for other: Unit in state.units.values():
 		if other.owner_id == unit.owner_id or not other.is_alive():
 			continue
-		if Hex.distance(from, other.coord) > unit.definition.attack_range:
+		if AttackCommand.fire_problem(state, unit.definition, from, other.coord) != "":
+			continue
+		var faces := AttackCommand.hit_on_at(state, unit, other, Hex.distance(from, other.coord))
+		if faces <= 0:
 			continue
 		var damage := mini(AttackCommand.compute_damage(state, unit, other), other.hp)
 		var score := _ATTACK_SCORE + damage + (_KILL_SCORE if damage >= other.hp else 0)
@@ -94,8 +105,7 @@ func _destination(state: GameState, unit: Unit, goals: Array[Vector2i]) -> Varia
 			return _closest_to(state, unit, goal)
 	if enemy == null:
 		return null
-	var reach := state.grid.reachable(unit.coord, unit.moves_left, state.occupied())
-	return _best_destination(unit, enemy, reach)
+	return _firing_destination(state, unit)
 
 
 ## Hexes of the player's TAKE_HEXES and HOLD_HEXES conditions, in condition order, no duplicates.
@@ -138,28 +148,121 @@ func _closest_to(state: GameState, unit: Unit, goal: Vector2i) -> Vector2i:
 	return best
 
 
-## Reachable tile (or the current one) closest to the ideal distance from the enemy: the unit's
-## attack range. Melee units (range 1) therefore close in as far as possible. Ties prefer
-## d <= range, then the current tile, then the iteration order of `reach`.
-func _best_destination(unit: Unit, enemy: Unit, reach: Dictionary) -> Vector2i:
-	var attack_range := unit.definition.attack_range
-	var best := unit.coord
-	var best_dist := Hex.distance(best, enemy.coord)
+## Where `unit` moves to fire (see the class comment): the best reachable firing hex, or – when
+## none can hit an enemy – the reachable hex closest to the nearest hex that can.
+func _firing_destination(state: GameState, unit: Unit) -> Vector2i:
+	var enemies := _enemies(state, unit)
+	var reach := state.grid.reachable(unit.coord, unit.moves_left, state.occupied())
+	var candidates: Array[Vector2i] = [unit.coord]
 	for c: Vector2i in reach.keys():
-		var d := Hex.distance(c, enemy.coord)
-		if _is_better(d, best_dist, attack_range):
+		candidates.append(c)
+	var forecasts := {}
+	var best: Variant = null
+	var best_key: Array = []
+	for c in candidates:
+		var value: Variant = _firing_value(state, unit, c, enemies, forecasts)
+		if value == null:
+			continue
+		var key := [
+			1 if _is_safe(state, c, enemies) else 0,
+			value,
+			_nearest_distance(c, enemies),
+			1 if c == unit.coord else 0,
+			-c.y,
+			-c.x,
+		]
+		if best == null or _key_greater(key, best_key):
 			best = c
-			best_dist = d
+			best_key = key
+	if best != null:
+		return best
+	var goal: Variant = _nearest_firing_hex(state, unit, enemies)
+	if goal == null:
+		return unit.coord
+	return _closest_to(state, unit, goal)
+
+
+## Living enemies of `unit`'s owner, by id.
+func _enemies(state: GameState, unit: Unit) -> Array[Unit]:
+	var result: Array[Unit] = []
+	for other: Unit in state.units.values():
+		if other.owner_id != unit.owner_id and other.is_alive():
+			result.append(other)
+	result.sort_custom(func(a: Unit, b: Unit) -> bool: return a.id < b.id)
+	return result
+
+
+## The best target_score `unit` would get firing from `from` (at enemies it can hit with a
+## non-zero chance); null when it can hit none. `forecasts` caches the score per enemy, distance
+## and counter possibility (all the forecast depends on during one decision).
+func _firing_value(
+	state: GameState, unit: Unit, from: Vector2i, enemies: Array[Unit], forecasts: Dictionary
+) -> Variant:
+	var best: Variant = null
+	for enemy in enemies:
+		if AttackCommand.fire_problem(state, unit.definition, from, enemy.coord) != "":
+			continue
+		var d := Hex.distance(from, enemy.coord)
+		if AttackCommand.hit_on_at(state, unit, enemy, d) <= 0:
+			continue
+		var counter := AttackCommand.fire_problem(state, enemy.definition, enemy.coord, from) == ""
+		var cache_key := Vector3i(enemy.id, d, 1 if counter else 0)
+		if not forecasts.has(cache_key):
+			forecasts[cache_key] = _snap(
+				target_score(CombatForecast.compute_at(state, unit, enemy, from))
+			)
+		var score: float = forecasts[cache_key]
+		if best == null or score > best:
+			best = score
 	return best
 
 
-## Whether distance `d` beats `best_d` (strictly) for a unit with the given attack range.
-func _is_better(d: int, best_d: int, attack_range: int) -> bool:
-	var score := absi(d - attack_range)
-	var best_score := absi(best_d - attack_range)
-	if score != best_score:
-		return score < best_score
-	return d <= attack_range and best_d > attack_range
+## A score rounded to _SCORE_PRECISION steps so that equal forecasts compare equal.
+static func _snap(score: float) -> float:
+	return roundf(score / _SCORE_PRECISION) * _SCORE_PRECISION
+
+
+## True when no enemy can fire at `c` from where it stands (range, line of sight).
+func _is_safe(state: GameState, c: Vector2i, enemies: Array[Unit]) -> bool:
+	for enemy in enemies:
+		if AttackCommand.fire_problem(state, enemy.definition, enemy.coord, c) == "":
+			return false
+	return true
+
+
+func _nearest_distance(c: Vector2i, enemies: Array[Unit]) -> int:
+	var best := _INF
+	for enemy in enemies:
+		best = mini(best, Hex.distance(c, enemy.coord))
+	return best
+
+
+## Whether sort key `a` beats `b` (element-wise, first difference decides; equal = false).
+static func _key_greater(a: Array, b: Array) -> bool:
+	for i in a.size():
+		if a[i] != b[i]:
+			return a[i] > b[i]
+	return false
+
+
+## The nearest passable, free hex (hex distance from `unit`, ties lowest (y, x)) from which the
+## unit could hit an enemy; null when there is none on the map.
+func _nearest_firing_hex(state: GameState, unit: Unit, enemies: Array[Unit]) -> Variant:
+	var occupied := state.occupied()
+	var keyed: Array = []
+	for c in state.grid.coords():
+		if not occupied.has(c) and state.grid.move_cost(c) != Terrain.IMPASSABLE:
+			keyed.append([Hex.distance(unit.coord, c), c.y, c.x, c])
+	keyed.sort()
+	for entry: Array in keyed:
+		var c: Vector2i = entry[3]
+		for enemy in enemies:
+			if (
+				AttackCommand.fire_problem(state, unit.definition, c, enemy.coord) == ""
+				and AttackCommand.hit_on_at(state, unit, enemy, Hex.distance(c, enemy.coord)) > 0
+			):
+				return c
+	return null
 
 
 func _nearest_enemy(state: GameState, unit: Unit) -> Unit:
@@ -176,14 +279,18 @@ func _nearest_enemy(state: GameState, unit: Unit) -> Unit:
 
 
 ## Valid target with the highest target_score; ties: the lowest hp, then the lowest unit id.
-## Null when nothing is in range.
+## Targets it cannot hurt (no die face hits, e.g. a squad at its maximum range against a tank)
+## are skipped. Null when nothing is in range.
 func _best_target(state: GameState, unit: Unit) -> Unit:
 	var best: Unit = null
 	var best_score := 0.0
 	# valid_targets is ascending, so keeping the first of equals keeps the lowest id.
 	for id: int in AttackCommand.valid_targets(state, unit.id):
 		var other := state.get_unit(id)
-		var score := target_score(AttackCommand.forecast(state, unit, other))
+		var forecast := AttackCommand.forecast(state, unit, other)
+		if forecast.hit_on <= 0:
+			continue
+		var score := target_score(forecast)
 		# Scores within _SCORE_EPSILON tie: forecasts summed over different HP differ in the last bits.
 		var tie := absf(score - best_score) <= _SCORE_EPSILON
 		if best == null or (score > best_score and not tie) or (tie and other.hp < best.hp):

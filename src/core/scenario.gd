@@ -4,8 +4,8 @@ extends RefCounted
 
 const MAP_WIDTH := 12
 const MAP_HEIGHT := 10
-## Spawn slots per player, as offset [column, rows in fill order]: units with attack range 1 take
-## the front slots, the others the back slots.
+## Spawn slots per player, as offset [column, rows in fill order]: direct-fire units take the
+## front slots, indirect-fire units (artillery) the back slots.
 const FRONT_SLOTS := [[1, [3, 5, 7, 1, 9]], [MAP_WIDTH - 2, [2, 4, 6, 8, 0]]]
 const BACK_SLOTS := [[0, [5, 3, 7]], [MAP_WIDTH - 1, [4, 2, 6]]]
 ## A river between the armies: its offset column for each row (north to south, consecutive
@@ -77,7 +77,7 @@ static func suwalki_battle(
 
 ## The default forces on the imported Suwalki map (SUWALKI_MAP_ID): player 0 deploys in the west,
 ## player 1 in the east, each company on a real plains or fields tile (`_deployment_tiles`);
-## range-1 units near the front column, the others near the back column. Objectives =
+## direct-fire units near the front column, indirect-fire units near the back column. Objectives =
 ## default_objectives(); the seed only seeds GameState.rng (the map is fixed). Units that find no
 ## tile are skipped with push_error.
 static func suwalki_battle_setup(
@@ -101,9 +101,7 @@ static func suwalki_battle_setup(
 			push_error("Scenario: player %d has an unknown faction" % player)
 			continue
 		for definition: UnitDefinition in faction.default_force:
-			var column := (
-				SUWALKI_FRONT_COLUMN if definition.attack_range == 1 else SUWALKI_BACK_COLUMN
-			)
+			var column := SUWALKI_BACK_COLUMN if definition.is_indirect() else SUWALKI_FRONT_COLUMN
 			if player == 1:
 				column = map.width - 1 - column
 			var tiles := _deployment_tiles(grid, map.width, map.height, column, taken)
@@ -165,9 +163,9 @@ static func objective_battle_setup(
 ## The default battle as a BattleSetup (ADR 0015); objectives = default_objectives().
 ## `factions` = faction id of player 0 and player 1 (FactionRegistry). Each player gets their
 ## faction's `default_force` in list order (unit ids follow it); factions don't change the map.
-## Range-1 units take FRONT_SLOTS, the others BACK_SLOTS. A unit not in its owner's roster, or
-## one beyond the free slots, is skipped with push_error (its slot stays used; since TASK-086 the
-## tile of a roster-skipped unit is no longer forced to plains).
+## Direct-fire units take FRONT_SLOTS, indirect-fire units BACK_SLOTS. A unit not in its owner's
+## roster, or one beyond the free slots, is skipped with push_error (its slot stays used; since
+## TASK-086 the tile of a roster-skipped unit is no longer forced to plains).
 static func default_battle_setup(
 	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
 ) -> BattleSetup:
@@ -184,7 +182,7 @@ static func default_battle_setup(
 			continue
 		var used := {true: 0, false: 0}  # front? -> slots taken
 		for definition: UnitDefinition in faction.default_force:
-			var front := definition.attack_range == 1
+			var front := not definition.is_indirect()
 			var slots: Array = (FRONT_SLOTS if front else BACK_SLOTS)[player]
 			var rows: Array = slots[1]
 			if used[front] >= rows.size():

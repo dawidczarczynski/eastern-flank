@@ -139,16 +139,6 @@ func test_ai_ranged_unit_at_range_2_does_not_move() -> void:
 	assert_true(enemy.hp < 10)
 
 
-func test_ranged_destination_tie_prefers_inside_range_then_current_tile() -> void:
-	var ai := AiPlayer.new()
-	# Range 2: d=1 and d=3 both score 1; the tile inside range wins.
-	assert_true(ai._is_better(1, 3, 2))
-	assert_false(ai._is_better(3, 1, 2))
-	# Equal distance never replaces the current best (current tile kept).
-	assert_false(ai._is_better(1, 1, 2))
-	assert_false(ai._is_better(3, 3, 2))
-
-
 func test_ai_rocket_artillery_moves_away_from_adjacent_enemy_and_fires_uncountered() -> void:
 	var state := GameState.new(Fixtures.plains_grid(6), 2, 1)
 	var enemy := state.add_unit(0, SQUAD, Vector2i(1, 0))

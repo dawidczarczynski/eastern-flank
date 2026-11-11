@@ -35,7 +35,7 @@ func _open_ground(t: Terrain.Type) -> bool:
 
 func test_default_forces_on_distinct_plains_tiles_in_their_halves() -> void:
 	assert_eq(_state.units_of(0).size(), 4)
-	assert_eq(_state.units_of(1).size(), 5)
+	assert_eq(_state.units_of(1).size(), 6)
 	var map := ImportedMap.find(Scenario.SUWALKI_MAP_ID)
 	var seen := {}
 	for unit: Unit in _state.units.values():

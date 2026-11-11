@@ -108,7 +108,14 @@ func test_default_forces() -> void:
 	)
 	assert_eq(
 		_ids(russia.default_force),
-		[&"ru_motor_rifle", &"t72b3", &"ru_motor_rifle", &"t72b3", &"bm27_uragan"]
+		[
+			&"ru_motor_rifle",
+			&"t72b3",
+			&"ru_motor_rifle",
+			&"ru_motor_rifle",
+			&"ru_motor_rifle",
+			&"bm27_uragan",
+		]
 	)
 	for faction in FactionRegistry.all():
 		for entry: UnitDefinition in faction.default_force:

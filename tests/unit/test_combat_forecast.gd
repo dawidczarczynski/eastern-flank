@@ -55,7 +55,7 @@ func test_squad_on_an_abrams() -> void:
 func test_abrams_on_an_mlrs() -> void:
 	for mlrs: UnitDefinition in [HOMAR, URAGAN]:
 		before_each()
-		var f := _forecast(ABRAMS, mlrs)
+		var f := _forecast(ABRAMS, mlrs, 3)  # at its minimum range the launcher counters
 		_near(f.expected_damage, 5.398, 1e-3)
 		assert_eq(f.damage_low, 4)
 		assert_eq(f.damage_high, 6)
@@ -73,14 +73,15 @@ func test_abrams_on_a_t72b3() -> void:
 	_near(f.counter_expected, 1.25, 1e-3)
 
 
-func test_homar_on_an_uragan_at_six_has_no_counter() -> void:
-	var f := _forecast(HOMAR, URAGAN, 6)
+## Inside the launcher's minimum range (3 hexes, TASK-131a) there is no counter.
+func test_abrams_next_to_an_uragan_has_no_counter() -> void:
+	var f := _forecast(ABRAMS, URAGAN, 1)
 	assert_false(f.counter_possible)
 	_near(f.counter_expected, 0.0, 1e-12)
 	assert_eq(f.counter_low, 0)
 	assert_eq(f.counter_high, 0)
 	_near(f.attacker_loss_chance, 0.0, 1e-12)
-	_near(f.kill_chance, 0.3349, 1e-4)
+	_near(f.kill_chance, 0.6331, 1e-4)
 
 
 func test_expected_damage_follows_the_attackers_strength() -> void:

@@ -2,11 +2,12 @@
 extends TestCase
 
 
-func test_default_battle_has_four_polish_and_five_russian_units() -> void:
+## Russia since TASK-131a: 4 squads, 1 T-72B3, 1 Uragan (GDD "Balance of the default battle").
+func test_default_battle_has_four_polish_and_six_russian_units() -> void:
 	var state := Scenario.default_battle(12345)
-	assert_eq(state.units.size(), 9)
+	assert_eq(state.units.size(), 10)
 	assert_eq(state.units_of(0).size(), 4)
-	assert_eq(state.units_of(1).size(), 5)
+	assert_eq(state.units_of(1).size(), 6)
 
 
 func test_default_battle_has_one_rocket_artillery_per_player() -> void:
@@ -78,7 +79,7 @@ func test_default_battle_with_swapped_factions() -> void:
 	var state := Scenario.default_battle(12345, [&"russia", &"poland"])
 	assert_eq(state.faction_of(0).id, &"russia")
 	assert_eq(state.faction_of(1).id, &"poland")
-	assert_eq(state.units_of(0).size(), 5)
+	assert_eq(state.units_of(0).size(), 6)
 	assert_eq(state.units_of(1).size(), 4)
 
 
@@ -102,8 +103,9 @@ func test_default_force_fills_the_slots_in_order() -> void:
 		[5, 1, &"ru_motor_rifle", 10, 2],
 		[6, 1, &"t72b3", 10, 4],
 		[7, 1, &"ru_motor_rifle", 10, 6],
-		[8, 1, &"t72b3", 10, 8],
-		[9, 1, &"bm27_uragan", 11, 4],
+		[8, 1, &"ru_motor_rifle", 10, 8],
+		[9, 1, &"ru_motor_rifle", 10, 0],
+		[10, 1, &"bm27_uragan", 11, 4],
 	]
 	assert_eq(_layout(state), expected)
 	for unit: Unit in state.units.values():
@@ -116,12 +118,13 @@ func test_swapped_factions_take_the_other_players_slots() -> void:
 		[1, 0, &"ru_motor_rifle", 1, 3],
 		[2, 0, &"t72b3", 1, 5],
 		[3, 0, &"ru_motor_rifle", 1, 7],
-		[4, 0, &"t72b3", 1, 1],
-		[5, 0, &"bm27_uragan", 0, 5],
-		[6, 1, &"pl_mech_infantry", 10, 2],
-		[7, 1, &"m1a2_sepv3", 10, 4],
-		[8, 1, &"pl_mech_infantry", 10, 6],
-		[9, 1, &"homar_k", 11, 4],
+		[4, 0, &"ru_motor_rifle", 1, 1],
+		[5, 0, &"ru_motor_rifle", 1, 9],
+		[6, 0, &"bm27_uragan", 0, 5],
+		[7, 1, &"pl_mech_infantry", 10, 2],
+		[8, 1, &"m1a2_sepv3", 10, 4],
+		[9, 1, &"pl_mech_infantry", 10, 6],
+		[10, 1, &"homar_k", 11, 4],
 	]
 	assert_eq(_layout(state), expected)
 	for unit: Unit in state.units.values():

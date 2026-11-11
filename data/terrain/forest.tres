@@ -10,3 +10,4 @@ move_cost = 2
 impassable = false
 defense_bonus = 1
 default_elevation = 0.25
+los_obstacle_m = 20.0

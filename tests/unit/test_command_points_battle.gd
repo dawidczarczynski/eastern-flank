@@ -60,8 +60,10 @@ func test_ai_prefers_a_kill_and_spends_no_more_than_it_has() -> void:
 	var game := GameState.new(Fixtures.plains_grid(4), 2, 1)
 	var wounded := game.add_unit(0, Fixtures.infantry(), Vector2i(0, 0))
 	wounded.hp = 2
-	var healthy := game.add_unit(0, Fixtures.infantry(), Vector2i(0, 2))
-	var first := game.add_unit(1, Fixtures.infantry(), Vector2i(0, 3))  # hits the healthy unit
+	# Armoured so that hitting it is worth less than the kill (TASK-131a: the AI picks its firing
+	# position by target score, not by the nearest enemy).
+	var healthy := game.add_unit(0, Fixtures.fighter(4, 200), Vector2i(0, 2))
+	var first := game.add_unit(1, Fixtures.fighter(1, 2), Vector2i(0, 3))  # only scratches
 	var killer := game.add_unit(1, Fixtures.sure_fighter(10), Vector2i(1, 0))  # kills the wounded one
 	game.set_command_points_per_turn([0, 1] as Array[int])
 	var play := GameSimulation.new(game)

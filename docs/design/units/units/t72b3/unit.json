@@ -18,6 +18,8 @@
   "protection": "Combined multilayer armour with Kontakt-5 explosive reactive armour on the turret and hull front; 80 mm hull sides behind rubber-fabric side screens",
   "speed_road_kmh": 65,
   "range_km": 500,
+  "effective_range_m": 2000,
+  "max_range_m": 3000,
   "dimensions": {
     "hull_length": 6.86,
     "overall_length": 9.53,
@@ -140,6 +142,14 @@
       "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
       "verified": true
     },
+    "effective_range_m": {
+      "source": "https://en.wikipedia.org/wiki/T-72 – 125 mm 2A46M-5 practical engagement range about 2 km with standard APFSDS, design value of TASK-131a",
+      "verified": true
+    },
+    "max_range_m": {
+      "source": "(?) design value of TASK-131a: Sosna-U sight limit with standard APFSDS (no Refleks missile, https://en.wikipedia.org/wiki/T-72) – to confirm",
+      "verified": false
+    },
     "dimensions.hull_length": {
       "source": "https://ru.wikipedia.org/wiki/Т-72Б3",
       "verified": true
@@ -187,6 +197,6 @@
   },
   "status": "modeled",
   "feedback": "brakuje zasobnika na tyle wieży, osłona boku kadłuba ma zły kształt - brakuje skosu z tyłu, ten czarny wizjer na wieży (chyba Sosna) powinien być okrągły a nie kwadratowy. Wieża powinna mieć więcej szczegółów\n",
-  "updated": "2026-10-24",
-  "revision": 26
+  "updated": "2026-11-11",
+  "revision": 27
 }

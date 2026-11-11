@@ -342,7 +342,7 @@ func _rebuild_info() -> void:
 	_add_fact("Attack", str(d.attack))
 	_add_fact("Defense", str(d.defense))
 	_add_fact("Moves", str(d.move_points))
-	_add_fact("Range", str(d.attack_range))
+	_add_fact("Range", "%d hexes" % d.max_hexes())
 	var size := _stage.model_size_m()
 	_add_fact("Model size", "%.1f × %.1f × %.1f m" % [size.x, size.z, size.y])
 

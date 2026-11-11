@@ -13,6 +13,9 @@ const DIRECTIONS: Array[Vector2i] = [
 	Vector2i(0, 1),
 ]
 
+## Offset of Hex.line's points (q, r; s = -q - r gets the rest) that breaks ties between hexes.
+const LINE_NUDGE := Vector2(1e-6, 2e-6)
+
 
 static func neighbors(c: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -25,6 +28,26 @@ static func neighbors(c: Vector2i) -> Array[Vector2i]:
 static func distance(a: Vector2i, b: Vector2i) -> int:
 	var d := a - b
 	return (absi(d.x) + absi(d.y) + absi(d.x + d.y)) / 2
+
+
+## Hexes on the straight line from `a` to `b`, both included, in order (cube lerp at
+## distance + 1 evenly spaced points). Points exactly between two hexes are nudged by a fixed
+## LINE_NUDGE, so the result is deterministic; line(b, a) may differ from line(a, b) reversed
+## at such ties (LineOfSight orders its endpoints).
+static func line(a: Vector2i, b: Vector2i) -> Array[Vector2i]:
+	var n := distance(a, b)
+	var result: Array[Vector2i] = [a]
+	if n == 0:
+		return result
+	var aq := a.x + LINE_NUDGE.x
+	var ar := a.y + LINE_NUDGE.y
+	var bq := b.x + LINE_NUDGE.x
+	var br := b.y + LINE_NUDGE.y
+	for i in range(1, n):
+		var t := float(i) / n
+		result.append(_round(lerpf(aq, bq, t), lerpf(ar, br, t)))
+	result.append(b)
+	return result
 
 
 ## Tile center in world space (XZ plane). `size` = distance from center to a corner.

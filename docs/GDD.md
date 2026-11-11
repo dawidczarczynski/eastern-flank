@@ -231,8 +231,8 @@ Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to 
 
 ### Balance of the default battle
 
-- **Composition by faction** (quality vs. mass): Poland 2 × Mechanised Infantry Squad, 1 × M1A2 SEPv3, 1 × Homar-K (4 units, 36 HP); Russia 2 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan (5 units, 42 HP). The second T-72B3 compensates the Abrams; nothing compensates the Homar-K's range on purpose (it is the guided-rocket advantage) – the simulation decides whether that needs more Russian units.
-- The composition is balance data: an ordered `default_force` list in each faction's `.tres`, not code. Spawn slots: units with range 1 fill the front column, others the back column, in list order (exact slots in TASK-039a).
+- **Composition by faction** (quality vs. mass): Poland 2 × Mechanised Infantry Squad, 1 × M1A2 SEPv3, 1 × Homar-K (4 units, 36 HP); Russia 2 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan (5 units, 42 HP) until TASK-131a; since then 4 × Motor Rifle Squad, 1 × T-72B3, 1 × 9K57 Uragan (6 units, 54 HP; tuning ladder, see Measured below). The second T-72B3 compensates the Abrams; nothing compensates the Homar-K's range on purpose (it is the guided-rocket advantage) – the simulation decides whether that needs more Russian units.
+- The composition is balance data: an ordered `default_force` list in each faction's `.tres`, not code. Spawn slots: direct-fire units fill the front column, indirect-fire units (artillery) the back column, in list order (exact slots in TASK-039a; since TASK-131a by fire mode instead of range 1 – the same split). With the real ranges no enemy pair starts within the 8-hex effective range of the tank guns (front columns 9+ hexes apart on the default battle, more on suwalki_battle; `test_spawn_distance.gd`).
 - **Verification**: the AI-vs-AI simulation already shows a side bias with mirrored armies (TASK-012: player 1 won 59 % vs 34 %), so balance is measured with **both side assignments**: `tools/simulate.sh 200` (Poland = player 0) and `tools/simulate.sh 200 --factions=russia,poland`. Target: Poland's share of the decided matches over both runs together is 40–60 %, no errors, draws ≤ 15 % per run.
 - **Measured** (TASK-039a, 2026-10-20, seeds 1..200, 50 turns, compositions above, no ladder step needed): Poland as player 0 won 90, Russia 104, 6 draws; Russia as player 0 won 80, Poland 115, 5 draws → Poland 205 of 389 decided matches = **52.7 %**, errors 0, draws 3.0 % / 2.5 %. The player-1 side bias persists in both assignments.
 - **Measured with per-element rolls** (TASK-089a, 2026-10-30, seeds 1..200, 50-turn harness limit). Columns: P0 wins / P1 wins / draws by the rules / matches cut by the harness / average length of decided matches (turns).
@@ -248,6 +248,17 @@ Consequences to watch: tanks dominate infantry (infantry deals the minimum 1 to 
   | objective russia,poland | 73 / 53 / 74 / 0 / 6.8 | 48 / 62 / 90 / 0 / 7.0 | 42 / 61 / 97 / 0 / 6.9 |
 
   Default battle with the shipped rules: Poland **53.1 %**, inside the 40–60 % target (master before the change was at 65.6 %, outside it); draws (all harness cuts) 3.5–8 % per run, within ≤ 15 %. Matches got about one turn longer, as expected (battered companies deal less). The player-1 side bias persists in the mirrors (P0 41–43 % of decided matches). **objective_battle draws are far above 15 %** (42 % and 49 % with the shipped AI, all by the turn limit) – they already were before this change (46 % and 37 %); not caused by the rolls, open in the objective battle balance question (Open questions → Victory condition).
+- **Measured with realistic weapon ranges** (TASK-131a, 2026-11-11, seeds 1..200, 50-turn harness limit; columns as above). With the shipped composition (2 squads + 2 T-72B3 + Uragan) Poland fell to **33.1 %** (poland,russia 101 / 98 / 0 / 1 / 8.4; russia,poland 169 / 31 / 0 / 0 / 7.5; mirrors P0 72.0 % / 73.5 %). Ladder step "Russia > 60 %" (second T-72B3 → Motor Rifle Squad) overshot to Poland 65.2 % (100 seeds: 90 / 8 / 0 / 2 and 61 / 39 / 0 / 0); the next step "Poland > 60 %" (one more Motor Rifle Squad) landed in the band. **Shipped Russian force since TASK-131a: 4 × Motor Rifle Squad, 1 × T-72B3, 1 × 9K57 Uragan (6 units, 54 HP)**; stats unchanged.
+
+  | Run | P0 / P1 / draws / harness cuts / avg turns (decided) |
+  |---|---|
+  | default poland,russia | 154 / 44 / 0 / 2 / 10.4 |
+  | default russia,poland | 147 / 53 / 0 / 0 / 9.8 |
+  | **Poland's share of decided (both runs)** | 207/398 = **52.0 %** |
+  | default poland,poland (P0 share) | 144 / 56 / 0 / 0 / 7.8 (72.0 %) |
+  | default russia,russia (P0 share) | 158 / 39 / 0 / 3 / 11.6 (80.2 %) |
+
+  Errors 0, draws (harness cuts) ≤ 1.5 % per run. **The side bias flipped and grew: player 0 now wins 72–80 % of the mirrors** (was 41–43 %): the side moving first gets its tanks to 8 hexes and fires before the enemy can answer (spawn front columns are 9 hexes apart, inside the tanks' 12–14-hex maximum range). Open for the human: wider spawn distance (bigger default map) or an AI/deployment change, not a stat change.
 - **Tuning ladder** if the target is missed (stats stay untouched; one step at a time, re-run both): Poland > 60 % → add a third Motor Rifle Squad; still > 60 % → add a third T-72B3. Russia > 60 % → replace the second T-72B3 with a Motor Rifle Squad; still > 60 % → mirrored counts (2 squads, 1 tank, 1 MLRS each). If no step lands in the band, record the results and ask the human (a rule change is needed, not a count change).
 
 ### Option, not adopted: hard/soft attack

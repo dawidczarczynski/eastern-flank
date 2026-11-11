@@ -12,3 +12,6 @@ extends Resource
 ## Elevation of a tile of this type when the map has no generated elevation
 ## (hand-made/test grids). Generated maps store per-tile elevation in HexGrid.
 @export var default_elevation: float = 0.2
+## Height in metres of what stands on the tile above its ground (trees, buildings) for the line
+## of sight of direct fire (TASK-131a, LineOfSight); 0 = open.
+@export var los_obstacle_m: float = 0.0

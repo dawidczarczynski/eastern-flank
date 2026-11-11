@@ -42,7 +42,9 @@ static func build(
 			"%d/%d" % [unit.moves_left, definition.move_points],
 			unit.moves_left / MOVES_SCALE
 		),
-		_stat("Range", str(definition.attack_range), definition.attack_range / RANGE_SCALE),
+		_stat(
+			"Range", str(definition.max_hexes()), minf(1.0, definition.max_hexes() / RANGE_SCALE)
+		),
 	]
 	var status := _status(state, unit, viewer_player)
 	var faction_color := UiPalette.faction_color(state, unit.owner_id)

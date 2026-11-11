@@ -7,16 +7,16 @@ const SQUAD := preload("res://data/units/pl_mech_infantry.tres")
 var state: GameState
 var abrams: Unit
 var squad: Unit  # enemy, adjacent
-var far: Unit  # enemy, out of range
+var far: Unit  # enemy, beyond the Abrams' 14-hex maximum range (TASK-131a)
 var own: Unit
 
 
 func before_each() -> void:
-	state = GameState.new(Fixtures.plains_grid(5), 2, 1)
+	state = GameState.new(Fixtures.plains_grid(15), 2, 1)
 	abrams = state.add_unit(0, ABRAMS, Vector2i(0, 0))
 	own = state.add_unit(0, SQUAD, Vector2i(-2, 0))
 	squad = state.add_unit(1, SQUAD, Vector2i(1, 0))
-	far = state.add_unit(1, SQUAD, Vector2i(4, 0))
+	far = state.add_unit(1, SQUAD, Vector2i(15, 0))
 
 
 func _attack_slot(attacker_id: int, target_id: int) -> Dictionary:
