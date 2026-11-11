@@ -42,18 +42,19 @@ func test_end_turn_flow() -> void:
 	assert_true(_map.turn_banner().title_text().contains("NATO"), _map.turn_banner().title_text())
 	assert_true(_map.end_turn())
 	assert_eq(state.turn, start_turn + 1)
-	assert_eq(_map.viewer_player, 0, "the view never switches by itself")
+	assert_eq(_map.viewer_player, 1, "Russia to move: the view follows the side to play")
 	assert_false(bar.is_day_shown())
 	assert_eq(bar.date_text(), "14 JUN 2027 · 18:00–06:00")
 	assert_eq(bar.turn_text(), "02")
 	_map.set_viewer(0)
 
 
-func test_the_view_keeps_its_side() -> void:
+func test_the_view_follows_the_side_to_play() -> void:
 	_map.set_viewer(0)
-	_map.end_turn()
-	_map.end_turn()
-	assert_eq(_map.viewer_player, 0)
+	var state := _map.simulation().state
+	for i in 4:
+		_map.end_turn()
+		assert_eq(_map.viewer_player, state.current_player, "hot-seat: orders for the mover")
 	_map.set_viewer(0)
 
 

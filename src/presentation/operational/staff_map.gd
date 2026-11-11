@@ -1420,6 +1420,8 @@ func _on_turn_started(event: Dictionary) -> void:
 	var state := _simulation.state
 	var colour := StaffMapFormations.side_colour(_palette, player)
 	_banner.show_timed(
+	if player != viewer_player:
+		set_viewer(player)  # hot-seat (no AI yet): the human orders whichever bloc is to move
 		"%s %02d" % [tr("TURN"), state.turn],
 		(tr("%s to move") % StaffMapTurnBar.side_name(state, player)).to_upper(),
 		colour

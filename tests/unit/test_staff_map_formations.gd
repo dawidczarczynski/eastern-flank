@@ -189,3 +189,12 @@ func test_scene_viewer_swap() -> void:
 	assert_eq(_map.counters().own_ids().size(), 10)
 	_map.set_viewer(0)
 	assert_eq(_map.counters().own_ids().size(), 8)
+
+
+func test_view_follows_the_side_to_play() -> void:
+	var state := _map.simulation().state
+	var mover := state.current_player
+	_map.set_viewer(mover)
+	_map.call(&"_on_turn_started", {"type": &"operational_turn_started", "player": 1 - mover})
+	assert_eq(_map.viewer_player, 1 - mover, "hot-seat: the view moves to the bloc to play")
+	_map.set_viewer(mover)
