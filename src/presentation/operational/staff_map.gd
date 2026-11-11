@@ -30,6 +30,10 @@ extends Node3D
 ## Continue on the main menu hands a replayed operation over the same way as a battle return.
 ## Maths in StaffMapCameraMath, picking in StaffMapRelief.
 
+## The windows that share the left edge of the screen: only one is open at a time, opening one
+## closes the others (a strike report is only hidden – J brings it back).
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG }
+
 ## Width of the hex strip slot in the bottom bar.
 const CARD_SLOT_WIDTH := 470
 const ACTION_GRID := &"grid"
@@ -742,7 +746,25 @@ func ground_at_screen(screen: Vector2) -> Vector2:
 ## Opens the country card of `country_id` (the viewer's relation); no-op for &"".
 func open_country_card(country_id: StringName) -> void:
 	if country_id != &"":
+		_claim_left_dock(LeftWindow.COUNTRY_CARD)
 		_politics.open_card(country_id)
+
+
+func _claim_left_dock(owner: LeftWindow) -> void:
+	if owner != LeftWindow.REPORT and _strike != null:
+		_strike.reports().suspend()
+	if owner != LeftWindow.COUNTRY_CARD:
+		_politics.close_card()
+	if owner != LeftWindow.DEBUG:
+		_close_debug_panels()
+
+
+func _close_debug_panels() -> void:
+	var politics := _politics.panel()
+	if politics != null and politics.visible:
+		_politics.toggle_panel()
+	if _contact_debug != null and _contact_debug.is_open():
+		_contact_debug.toggle(Vector2.ZERO)
 
 
 ## The country card (tests, screenshots).
@@ -1537,6 +1559,7 @@ func _build_hud() -> void:
 		_toast_message
 	)
 	_strike.open_changed.connect(_on_strike_open_changed)
+	_strike.reports().shown.connect(func() -> void: _claim_left_dock(LeftWindow.REPORT))
 	_turn_bar.strike_pressed.connect(toggle_strike_mode)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
@@ -1548,6 +1571,8 @@ func toggle_debug_panels() -> void:
 	if _politics.panel() == null and _contact_debug == null:
 		return
 	var opening := _contact_debug != null and not _contact_debug.is_open()
+	if opening:
+		_claim_left_dock(LeftWindow.DEBUG)
 	var politics := _politics.panel()
 	if politics != null and politics.visible != opening:
 		_politics.toggle_panel()
@@ -1772,7 +1797,7 @@ func click_at(screen: Vector2) -> void:
 	if hit == &"":
 		var named := _politics.country_name_at(ground_at_screen(screen))
 		if named != &"":
-			_politics.open_card(named)
+			open_country_card(named)
 			return
 		_politics.close_card()
 	if hit == &"" and _selected_own() != null:

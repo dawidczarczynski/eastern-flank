@@ -8,6 +8,8 @@ extends RefCounted
 ## Enter next or collapse, Esc collapse, ◂ ▸ browse; X (card or chip) dismisses the report.
 ## `tick` is a no-op while nothing is timed, so an idle HUD costs nothing.
 
+signal shown  ## the card is (re)shown – the left dock hands it the place
+
 enum Mode { NONE, CARD, CHIP }
 
 const OWN_SECONDS := 9.0
@@ -167,6 +169,18 @@ func advance() -> void:
 		collapse()
 
 
+## Hides the card and the chip without dropping the reports (another left-dock window opened);
+## J brings the card back.
+func suspend() -> void:
+	if _items.is_empty():
+		return
+	_delay = 0.0
+	_hover = false
+	_mode = Mode.CHIP
+	_card.hide()
+	_chip.hide()
+
+
 func collapse() -> void:
 	if _items.is_empty():
 		return
@@ -232,6 +246,7 @@ func _show(item_index: int, timeout: float) -> void:
 	_fade = 0.0
 	_card.modulate.a = 0.0
 	_place()
+	shown.emit()
 
 
 func _expire() -> void:
