@@ -1,6 +1,6 @@
-// Terrain ground (TASK-055, farmland parcels TASK-108f): six CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
-// dry_grass, dirt, mud, gravel, rock) blended by per-vertex weights – layers 0-3 in COLOR,
-// 4-5 in CUSTOM0.xy (CUSTOM0.zw are free for TASK-035). Layers are sampled in world space
+// Terrain ground (TASK-055, farmland parcels TASK-108f): seven CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
+// dry_grass, dirt, mud, gravel, rock, soil) blended by per-vertex weights – layers 0-3 in COLOR,
+// 4-6 in CUSTOM0.xyz (CUSTOM0.w is free for TASK-035). Layers are sampled in world space
 // (x, z) / layer_repeat; with anti_tiling a second, larger and rotated sample is mixed in by a
 // low-frequency noise; weights are sharpened by the layer heights (height blending); with
 // triplanar the rock layer is projected on three axes on steep slopes. UV2 carries the
@@ -8,7 +8,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 
-const int LAYER_COUNT = 6;
+const int LAYER_COUNT = 7;
 const int ROCK = 5;
 // Farmland parcels (TASK-108f): kinds of FieldParcels.Kind, 9 entries (none, 7 crops, balk).
 const int PARCEL_KINDS = 9;
@@ -19,8 +19,8 @@ uniform sampler2DArray albedo_height : source_color, filter_linear_mipmap_anisot
 uniform sampler2DArray normal_maps : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray roughness_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 // World units per texture repeat, and a linear albedo tint, per layer.
-uniform float layer_repeat[6];
-uniform vec3 layer_tint[6];
+uniform float layer_repeat[7];
+uniform vec3 layer_tint[7];
 // Second sample: repeat * far_scale, rotated by far_rotation (radians), mixed by a noise of
 // this frequency (per world unit).
 uniform bool anti_tiling = true;
@@ -68,7 +68,7 @@ uniform vec2 parcel_slope = vec2(0.08, 0.14);
 varying vec3 world_pos;
 varying vec3 world_normal;
 varying vec4 weights_a;
-varying vec2 weights_b;
+varying vec3 weights_b;
 varying vec2 vertex_tint;
 
 float hash12(vec2 p) {
@@ -92,7 +92,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	weights_a = COLOR;
-	weights_b = CUSTOM0.xy;
+	weights_b = CUSTOM0.xyz;
 	vertex_tint = UV2;
 }
 
@@ -166,7 +166,7 @@ void fragment() {
 	vec3 dpx = dFdx(world_pos);
 	vec3 dpy = dFdy(world_pos);
 	vec3 wn = normalize(world_normal);
-	float w[6] = float[6](weights_a.r, weights_a.g, weights_a.b, weights_a.a, weights_b.x, weights_b.y);
+	float w[7] = float[7](weights_a.r, weights_a.g, weights_a.b, weights_a.a, weights_b.x, weights_b.y, weights_b.z);
 	float far_mix = 0.0;
 	if (anti_tiling) {
 		far_mix = smoothstep(0.3, 0.7, value_noise(xz * anti_tiling_frequency));
@@ -176,9 +176,9 @@ void fragment() {
 		tri = smoothstep(triplanar_slope - triplanar_band, triplanar_slope + triplanar_band, 1.0 - wn.y);
 	}
 
-	vec4 ah[6];
-	vec3 nt[6];
-	vec2 ra[6];
+	vec4 ah[7];
+	vec3 nt[7];
+	vec2 ra[7];
 	float best = -1.0;
 	for (int i = 0; i < LAYER_COUNT; i++) {
 		ah[i] = vec4(0.0);

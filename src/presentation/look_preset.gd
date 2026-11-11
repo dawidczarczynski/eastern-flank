@@ -269,6 +269,7 @@ const PRESETS := {
 			Vector3(1.0, 0.98, 0.92),
 			Vector3(0.95, 0.97, 1.02),
 			Vector3(1.0, 1.1, 1.25),
+			Vector3(0.9, 0.82, 0.7),
 		],
 		"leaf_colors":
 		{
@@ -310,6 +311,7 @@ const PRESETS := {
 			Vector3(1.0, 0.97, 0.9),
 			Vector3(0.95, 0.97, 1.02),
 			Vector3(1.0, 1.1, 1.25),
+			Vector3(0.9, 0.82, 0.7),
 		],
 		"leaf_colors":
 		{
@@ -351,6 +353,7 @@ const PRESETS := {
 			Vector3(1.0, 0.98, 0.92),
 			Vector3(0.95, 0.97, 1.02),
 			Vector3(1.0, 1.1, 1.25),
+			Vector3(0.9, 0.82, 0.7),
 		],
 		"leaf_colors":
 		{

@@ -56,7 +56,10 @@ func test_terrain_material_is_the_splat_shader_with_three_layer_arrays() -> void
 		assert_true(array != null, "%s is a Texture2DArray" % param)
 		if array != null:
 			assert_eq(array.get_layers(), TerrainSplat.LAYER_COUNT, "%s layers" % param)
-	assert_eq((material.get_shader_parameter(&"layer_repeat") as PackedFloat32Array).size(), 6)
+	assert_eq(
+		(material.get_shader_parameter(&"layer_repeat") as PackedFloat32Array).size(),
+		TerrainSplat.LAYER_COUNT
+	)
 
 
 func test_terrain_vertices_carry_weights_summing_to_one() -> void:

@@ -1,6 +1,6 @@
 # Night run report
 
-Run 2026-11-11 21:19 - 23:03 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
+Run 2026-11-11 21:19 - 23:35 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
 
 | Task | Result | Status | Note |
 |---|---|---|---|
@@ -11,6 +11,8 @@ Run 2026-11-11 21:19 - 23:03 (logs and patches of failed tasks: `/home/dawid/nig
 | TASK-121 | failed | in progress | session ended with status 'in progress': I'm waiting for the core-logic agent to finish. Its completion will wake me, so I'm not polling. |
 | TASK-081a | ok | done |  |
 | TASK-128 | ok | done |  |
+| TASK-131b | ok | to playtest |  |
+| TASK-146 | failed | ready | session ended with status 'ready': TASK-146 is blocked, so I wrote no code. The status stays `ready`, and the blocker is in the task's "Implementation notes".  The mockup check failed. `docs/design/operational_map/strike_panel.html` has no  |
 
 ## To playtest
 
@@ -23,4 +25,13 @@ Run 2026-11-11 21:19 - 23:03 (logs and patches of failed tasks: `/home/dawid/nig
 5. Pick a weapon whose stock is lower than the salvo: the card shows the capped count; a target out of range shows no forecast rows.
 6. Confirm a few strikes: the real results scatter around the forecast (it is an average, not a promise).
 7. `--side=russia`: the same against Polish targets.
+
+### TASK-131b: Weapon range in the battle UI – range overlay, LoS marks, forecast distance, manual
+
+1. Start the default battle, select a T-72B3: an outline appears out to 8 hexes, a paler band to 12 hexes; forest and hill hexes behind blockers are dimmed.
+2. Select Homar-K: the whole map is outlined except a small hole of 2 hexes around the unit.
+3. Hover an enemy at 10 hexes with the tank selected: tag shows `DIST` and `-25 %`.
+4. Hover an enemy hidden behind a forest: no crosshair; RMB says no line of sight.
+5. Open the unit card and the catalog: ranges in km / m shown, same as the manual.
+6. Watch the frame rate with Homar-K selected (60 FPS).
 

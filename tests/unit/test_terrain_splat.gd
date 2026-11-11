@@ -126,7 +126,8 @@ func test_real_terrain_types_have_their_own_base_layers() -> void:
 	var fields := _weights(Terrain.Type.FIELDS, 0.0, 0.3)
 	assert_true(fields[TerrainSplat.DRY_GRASS] >= 0.4, "fields stubble %s" % fields)
 	var urban := _weights(Terrain.Type.URBAN, 0.0, 0.3)
-	assert_true(urban[TerrainSplat.GRAVEL] >= 0.4, "urban gravel %s" % urban)
+	assert_true(urban[TerrainSplat.GRAVEL] >= 0.35, "urban gravel %s" % urban)
+	assert_true(urban[TerrainSplat.SOIL] >= 0.25, "urban soil %s" % urban)
 	var marsh := _weights(Terrain.Type.MARSH, 0.0, 0.3)
 	assert_true(marsh[TerrainSplat.MUD] >= 0.35, "marsh mud %s" % marsh)
 	assert_true(marsh[TerrainSplat.GRASS] >= 0.3, "marsh grass %s" % marsh)
@@ -136,3 +137,36 @@ func test_slope_rock_applies_on_real_terrain_types_too() -> void:
 	for t: int in [Terrain.Type.FIELDS, Terrain.Type.URBAN, Terrain.Type.MARSH]:
 		var w := _weights(t, 0.7, 0.3)
 		assert_true(w[TerrainSplat.ROCK] > 0.9, "type %d: rock %s" % [t, w])
+
+
+func test_soil_is_only_on_urban_farmyards() -> void:
+	assert_eq(TerrainSplat.LAYER_COUNT, 7)
+	assert_eq(TerrainTextures.LAYERS[TerrainSplat.SOIL], "soil")
+	for terrain: int in [-1] + Terrain.Type.values():
+		if terrain == Terrain.Type.URBAN:
+			continue
+		for slope: float in [0.0, 0.3, 0.7]:
+			var w := _weights(terrain, slope, 0.3, 0.9, 0.9)
+			assert_eq(w[TerrainSplat.SOIL], 0.0, "type %d slope %.1f" % [terrain, slope])
+
+
+func test_add_surface_stores_soil_in_custom0_z() -> void:
+	var layers := TerrainSplat.LAYER_COUNT
+	var weights := PackedFloat32Array()
+	weights.resize(3 * layers)
+	for v in 3:
+		weights[v * layers + 4] = 0.1
+		weights[v * layers + 5] = 0.2
+		weights[v * layers + TerrainSplat.SOIL] = 0.3
+		weights[v * layers] = 0.4
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.BACK])
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array([Vector3.UP, Vector3.UP, Vector3.UP])
+	var mesh := ArrayMesh.new()
+	TerrainGround.add_surface(mesh, arrays, weights)
+	var custom := PackedFloat32Array(mesh.surface_get_arrays(0)[Mesh.ARRAY_CUSTOM0])
+	for v in 3:
+		assert_true(absf(custom[v * 4] - 0.1) < 1e-6, "x")
+		assert_true(absf(custom[v * 4 + 1] - 0.2) < 1e-6, "y")
+		assert_true(absf(custom[v * 4 + 2] - 0.3) < 1e-6, "z")

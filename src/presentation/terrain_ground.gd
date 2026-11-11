@@ -7,8 +7,8 @@ extends RefCounted
 const SHADER := preload("res://assets/shaders/terrain.gdshader")
 ## Ground texture repeat: the layers' real-world size (TerrainTextures.SOURCE_METRES) at the
 ## game scale (METRES_PER_UNIT), enlarged by REPEAT_SCALE so the texture still reads at the
-## default zoom (repeats: grass 0.73, dry grass / dirt / gravel 1.04, mud 0.68, rock 0.78
-## world units).
+## default zoom (repeats: grass 0.73, dry grass / dirt / gravel 1.04, mud 0.68, rock 0.78,
+## soil 1.56 world units).
 const METRES_PER_UNIT := 7.7
 const REPEAT_SCALE := 4.0
 ## Texture array size when no quality switches are set (GraphicsQuality "terrain_texture_size").
@@ -23,14 +23,15 @@ const LAYER_TINTS: Array[Vector3] = [
 	Vector3(1.0, 1.0, 1.0),
 	Vector3(0.9, 0.97, 1.05),
 	Vector3(1.0, 1.15, 1.3),
+	Vector3(0.85, 0.85, 0.8),
 ]
 ## Added to each 8-bit colour level so the truncating conversion keeps the intended level.
 const COLOR_QUANT_BIAS := 0.25
 
 
 ## Adds the triangle surface of `arrays` with the per-vertex ground weights `weights`
-## (TerrainSplat.LAYER_COUNT per vertex): layers 0-3 in ARRAY_COLOR, 4-5 in ARRAY_CUSTOM0
-## (RGBA float; z and w stay free for TASK-035).
+## (TerrainSplat.LAYER_COUNT per vertex): layers 0-3 in ARRAY_COLOR, 4-6 in ARRAY_CUSTOM0
+## (RGBA float: x = layer 4, y = layer 5, z = layer 6 soil; w stays free for TASK-035).
 static func add_surface(mesh: ArrayMesh, arrays: Array, weights: PackedFloat32Array) -> void:
 	var layers := TerrainSplat.LAYER_COUNT
 	var count := weights.size() / layers
@@ -53,6 +54,7 @@ static func add_surface(mesh: ArrayMesh, arrays: Array, weights: PackedFloat32Ar
 		colors[v] = Color(q[0], q[1], q[2], q[3])
 		custom[v * 4] = weights[o + 4]
 		custom[v * 4 + 1] = weights[o + 5]
+		custom[v * 4 + 2] = weights[o + TerrainSplat.SOIL]
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_CUSTOM0] = custom
 	var format := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT

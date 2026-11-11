@@ -1,19 +1,19 @@
 class_name TerrainTextures
 extends RefCounted
-## The six CC0 ground layers of the terrain shader (TASK-055, credits in
+## The seven CC0 ground layers of the terrain shader (TASK-055, credits in
 ## assets/third_party/credits.json), packed into three Texture2DArrays with one layer each, in
 ## TerrainSplat order: `albedo_height` (RGB albedo, height in alpha), `normal` (OpenGL normal
 ## map) and `roughness_ao` (R roughness, G ambient occlusion). Packing decodes and merges
-## 30 images, so `request(size)` starts it on the WorkerThreadPool (MapView calls it before
+## 35 images, so `request(size)` starts it on the WorkerThreadPool (MapView calls it before
 ## building the terrain mesh, which hides the cost) and `arrays(size)` waits for it and caches
 ## the result per size for the rest of the run.
 ## Usage: TerrainTextures.request(1024); ...; var maps := TerrainTextures.arrays(1024)
 
 const ROOT := "res://assets/third_party/textures/ground/"
 ## Folder per layer, in TerrainSplat layer order.
-const LAYERS: Array[String] = ["grass", "dry_grass", "dirt", "mud", "gravel", "rock"]
+const LAYERS: Array[String] = ["grass", "dry_grass", "dirt", "mud", "gravel", "rock", "soil"]
 ## Real-world size of one texture repeat in metres (from the sources, see credits.json).
-const SOURCE_METRES: Array[float] = [1.4, 2.0, 2.0, 1.3, 2.0, 1.5]
+const SOURCE_METRES: Array[float] = [1.4, 2.0, 2.0, 1.3, 2.0, 1.5, 3.0]
 
 ## size -> {"albedo_height", "normal", "roughness_ao": Texture2DArray}
 static var _cache: Dictionary = {}

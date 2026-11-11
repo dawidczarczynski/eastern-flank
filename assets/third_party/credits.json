@@ -102,6 +102,23 @@
 		"notes": "TASK-055 terrain layer 5 (rock, steep slopes and high ground). 1k JPG, 1.5 x 1.5 m. Renamed from rock_05_{diff,nor_gl,rough,ao,disp}_1k.jpg."
 	},
 	{
+		"id": "ground_soil",
+		"kind": "textures",
+		"title": "Park Dirt",
+		"author": "Christopher Melani (Poly Haven)",
+		"source_url": "https://polyhaven.com/a/park_dirt",
+		"license": "CC0-1.0",
+		"downloaded": "2026-11-11",
+		"files": [
+			"textures/ground/soil/albedo.jpg",
+			"textures/ground/soil/normal_gl.jpg",
+			"textures/ground/soil/roughness.jpg",
+			"textures/ground/soil/ao.jpg",
+			"textures/ground/soil/height.jpg"
+		],
+		"notes": "TASK-108h terrain layer 6 (soil, bare farm soil of village farmyards). 1k JPG, 3 x 3 m. Renamed from park_dirt_{diff,nor_gl,rough,ao,disp}_1k.jpg."
+	},
+	{
 		"id": "sky_kloofendal_38d",
 		"kind": "hdri",
 		"title": "Kloofendal 38d Partly Cloudy (Pure Sky)",

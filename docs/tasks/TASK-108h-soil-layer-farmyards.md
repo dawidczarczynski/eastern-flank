@@ -1,6 +1,6 @@
 # TASK-108h: Real-terrain look v2 – `soil` ground layer and URBAN farmyards
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: presentation (`TerrainSplat`, `TerrainTextures`, `TerrainGround`, `assets/shaders/terrain.gdshader`) + assets (one CC0 ground set, `credits.json`) + docs (MANUAL)
 - **Depends on**: TASK-108 (done) (split from TASK-108b, 2026-11-10)
 - **Model**: sonnet
@@ -35,4 +35,6 @@ Villages look like farmyards: gravel, bare soil and grass mixed. Needs a new gro
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- New layer 6 `soil` = Poly Haven "Park Dirt" (CC0, 1k, 3 m repeat) in `assets/third_party/textures/ground/soil/`, credited as `ground_soil`. `LAYER_COUNT` = 7, `TerrainSplat.SOIL`, tints (base + the 3 look presets), shader arrays/varyings grow to 7 (soil in `CUSTOM0.z`, `.w` free), `TerrainGround.add_surface` stores it. URBAN base: gravel 0.40, soil 0.30, grass 0.30 (dirt 0 there). Layer-skip threshold 0.004 already existed in the shader. LOW uses the same layers at 512² via the existing texture size switch.
+- Tests: new splat tests (soil only on URBAN, `CUSTOM0.z` storage), `test_map_view_detail` uses `LAYER_COUNT`. `tools/check.sh` passes. MANUAL §10 updated; README screenshot refreshed.
+- NOT done: GPU frame-time before/after (budget +0.3 / +0.2 ms) was not measured, and the Suwałki screenshot showed no village close enough to judge the farmyard look - the human must check both.

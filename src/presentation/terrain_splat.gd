@@ -1,12 +1,12 @@
 class_name TerrainSplat
 extends RefCounted
-## Pure per-vertex ground layer weights for the terrain shader (TASK-055): which of the six
+## Pure per-vertex ground layer weights for the terrain shader (TASK-055): which of the seven
 ## CC0 ground materials (TerrainTextures.LAYERS) show at a vertex, from its tile's terrain
-## type, slope, height and two noises. The mesh stores layers 0-3 in ARRAY_COLOR and 4-5 in
+## type, slope, height and two noises. The mesh stores layers 0-3 in ARRAY_COLOR and 4-6 in
 ## ARRAY_CUSTOM0; assets/shaders/terrain.gdshader blends them.
 ## Usage: TerrainSplat.weights(Terrain.Type.HILLS, 1.0 - normal.y, y, 0.0, moisture, macro)
 
-const LAYER_COUNT := 6
+const LAYER_COUNT := 7
 ## Layer indices (same order as the texture arrays).
 const GRASS := 0
 const DRY_GRASS := 1
@@ -14,6 +14,7 @@ const DIRT := 2
 const MUD := 3
 const GRAVEL := 4
 const ROCK := 5
+const SOIL := 6
 
 ## Plains: dry grass over the macro noise range (the former vertex-colour dry patches)...
 const DRY_FROM := 0.55
@@ -26,11 +27,11 @@ const DIRT_PATCH_MAX := 0.4
 ## Forest floor: dirt (needles, leaf litter) with some grass; trees come from the scatter.
 const FOREST_DIRT := 0.6
 ## Real-terrain types (TASK-108, basic look): base layers before the slope / shore rules.
-## Fields: stubble (dry grass over dirt); urban: yards and lanes (gravel, dirt); marsh: wet meadow.
+## Fields: stubble (dry grass over dirt); urban: farmyards (gravel, soil, grass); marsh: wet meadow.
 const FIELDS_DRY_GRASS := 0.4
 const FIELDS_DIRT := 0.15
-const URBAN_GRAVEL := 0.5
-const URBAN_DIRT := 0.3
+const URBAN_GRAVEL := 0.4
+const URBAN_SOIL := 0.3
 const MARSH_MUD := 0.45
 ## Rock by slope (1 - normal.y) on all land, and on high ground (as the old rock colouring).
 const ROCK_SLOPE_FROM := 0.22
@@ -46,7 +47,7 @@ const SHORE_MUD_MAX := 0.7
 const SHORE_DIRT_MAX := 0.25
 
 
-## Six weights summing to 1. `terrain` is a Terrain.Type, or -1 off the map (plains rules).
+## Seven weights summing to 1. `terrain` is a Terrain.Type, or -1 off the map (plains rules).
 ## `slope` = 1 - normal.y, `height` the vertex height, `moisture` a fine noise in [0, 1]
 ## (> DIRT_PATCH_FROM: dirt patches on plains), `macro` the large-scale dry/moist noise in
 ## [0, 1] (> DRY_FROM: dry grass).
@@ -69,8 +70,8 @@ static func weights(
 		w[GRASS] = 1.0 - FIELDS_DRY_GRASS - FIELDS_DIRT
 	elif terrain == Terrain.Type.URBAN:
 		w[GRAVEL] = URBAN_GRAVEL
-		w[DIRT] = URBAN_DIRT
-		w[GRASS] = 1.0 - URBAN_GRAVEL - URBAN_DIRT
+		w[SOIL] = URBAN_SOIL
+		w[GRASS] = 1.0 - URBAN_GRAVEL - URBAN_SOIL
 	elif terrain == Terrain.Type.MARSH:
 		w[MUD] = MARSH_MUD
 		w[GRASS] = 1.0 - MARSH_MUD
