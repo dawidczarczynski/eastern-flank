@@ -258,7 +258,7 @@ static func resolve(
 	for site in interceptors(state, player, means_id, coord):
 		interceptor_ids.append(site["id"])
 	var p_intercept := interception_chance(state, player, means_id, coord)
-	var p_hit := clampi(means.accuracy_pct + recon_modifier(state, player, target), 0, 100)
+	var p_hit := hit_chance(state, player, means, target)
 	var intercepted := 0
 	var hits := 0
 	for i in count:
@@ -310,6 +310,91 @@ static func resolve(
 	return events
 
 
+## The hit chance (%, 0 - 100) of a missile that was not intercepted: accuracy plus the
+## reconnaissance modifier. Shared by `resolve` and `forecast`.
+static func hit_chance(
+	state: OperationalState, player: int, means: StrikeMeansDefinition, target: Dictionary
+) -> int:
+	return clampi(means.accuracy_pct + recon_modifier(state, player, target), 0, 100)
+
+
+## The company strengths after `hits` hits of `damage` each: every hit takes `damage` from the
+## strongest company (ties: lowest index), floor 0. Pure; shared by `resolve` and `forecast`.
+static func strengths_after_hits(strengths: Array[int], hits: int, damage: int) -> Array[int]:
+	var result := strengths.duplicate()
+	for i in hits:
+		var strongest := 0
+		for j in result.size():
+			if result[j] > result[strongest]:
+				strongest = j
+		result[strongest] = maxi(0, result[strongest] - damage)
+	return result
+
+
+## Exact forecast of a salvo (TASK-101), no randomness and no state change; {} for an unknown
+## weapon, a weapon of the other side, an unknown target, a target the strike may not hit
+## (`target_problem`) or no stock. Otherwise {count (effective salvo), p_intercept, p_hit (%),
+## p_hit_missile (0 - 1), expected_hits, p_at_least_one, kind, p_destroyed and, for an
+## installation, integrity_before / expected_integrity_after, for a formation strength_before /
+## expected_strength_lost}. The hits are binomial(count, p_hit_missile).
+static func forecast(
+	state: OperationalState, player: int, means_id: StringName, salvo: int, target_id: StringName
+) -> Dictionary:
+	var means: StrikeMeansDefinition = state.strike_means.get(means_id)
+	if means == null or not means.usable_by(player):
+		return {}
+	var available := stock(state, player, means_id)
+	if available < 1 or target_problem(state, player, target_id, means_id) != "":
+		return {}
+	var target := find_target(state, player, target_id)
+	var count := clampi(salvo, 1, mini(means.max_salvo, available))
+	var p_intercept := interception_chance(state, player, means_id, target["coord"])
+	var p_hit := hit_chance(state, player, means, target)
+	var p := (1.0 - minf(p_intercept, 100.0) / 100.0) * p_hit / 100.0
+	var result := {
+		"count": count,
+		"p_intercept": p_intercept,
+		"p_hit": p_hit,
+		"p_hit_missile": p,
+		"expected_hits": count * p,
+		"p_at_least_one": 1.0 - pow(1.0 - p, count),
+		"kind": target["kind"],
+		"p_destroyed": 0.0,
+	}
+	var expected := 0.0
+	var destroyed := 0.0
+	var binomial := 1.0  # C(count, k)
+	var strengths: Array[int] = []
+	var before := 0
+	if target["kind"] == &"installation":
+		before = state.get_installation(target_id).integrity
+		result["integrity_before"] = before
+	else:
+		for company in state.get_formation(target_id).companies:
+			strengths.append(company.strength)
+			before += company.strength
+		result["strength_before"] = before
+	for k in count + 1:
+		var weight := binomial * pow(p, k) * pow(1.0 - p, count - k)
+		var after := 0
+		if target["kind"] == &"installation":
+			after = maxi(0, before - k * means.damage)
+		else:
+			after = 0
+			for value in strengths_after_hits(strengths, k, means.formation_damage):
+				after += value
+		expected += weight * (after if target["kind"] == &"installation" else before - after)
+		if after <= 0:
+			destroyed += weight
+		binomial = binomial * (count - k) / (k + 1)
+	result["p_destroyed"] = destroyed
+	if target["kind"] == &"installation":
+		result["expected_integrity_after"] = expected
+	else:
+		result["expected_strength_lost"] = expected
+	return result
+
+
 ## A hit silences the site for `rounds` (a refresh, never added to): `installation_suppressed`.
 static func _suppress(installation: Installation, rounds: int) -> Dictionary:
 	var before := installation.suppressed_rounds
@@ -348,12 +433,12 @@ static func _damage_formation(
 	state: OperationalState, formation: Formation, hits: int, means: StrikeMeansDefinition
 ) -> Dictionary:
 	var before := formation.strength()
-	for i in hits:
-		var strongest: Formation.Company = formation.companies[0]
-		for company in formation.companies:
-			if company.strength > strongest.strength:
-				strongest = company
-		strongest.strength = maxi(0, strongest.strength - means.formation_damage)
+	var strengths: Array[int] = []
+	for company in formation.companies:
+		strengths.append(company.strength)
+	var left := strengths_after_hits(strengths, hits, means.formation_damage)
+	for i in formation.companies.size():
+		formation.companies[i].strength = left[i]
 	var after := formation.strength()
 	var destroyed := after <= 0
 	var event := {

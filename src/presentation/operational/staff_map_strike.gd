@@ -265,7 +265,8 @@ static func _t(key: String) -> String:
 
 
 ## The confirm card: {title, means_line ("3 × JASSM-ER"), salvo_line (with "on <target>"),
-## raise_line, lines, danger, odds (StaffMapAirDefence.odds)}. `title` is the target's
+## raise_line, lines, danger, odds (StaffMapAirDefence.odds), forecast_rows
+## (StaffMapStrikeText.forecast_rows)}. `title` is the target's
 ## name; `raise_line` is "" unless `raised`; `danger` when a line is a danger line.
 static func confirm_model(
 	state: OperationalState,
@@ -296,6 +297,10 @@ static func confirm_model(
 		"lines": lines,
 		"danger": danger,
 		"odds": StaffMapAirDefence.odds_for_target(state, player, means_id, target_id),
+		"forecast_rows":
+		StaffMapStrikeText.forecast_rows(
+			StrikeRules.forecast(state, player, means_id, salvo, target_id)
+		),
 	}
 
 

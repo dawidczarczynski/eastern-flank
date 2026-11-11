@@ -625,3 +625,7 @@ Suppressed for %d rounds,Suppressed for %d rounds,Stłumiona na rund: %d
 Suppressed for 1 round,Suppressed for 1 round,Stłumiona na 1 rundę
 AIR DEFENCE COVER,AIR DEFENCE COVER,ZASIĘG OBRONY PPA
 AT TARGET,AT TARGET,NA CELU
+Expected hits %.1f of %d – at least one hit %d%%,Expected hits %.1f of %d – at least one hit %d%%,Oczekiwane trafienia %.1f z %d – co najmniej jedno trafienie %d%%
+destroyed ~%d%%,destroyed ~%d%%,zniszczony ~%d%%
+Expected integrity %d → %d,Expected integrity %d → %d,Oczekiwana sprawność %d → %d
+Expected loss ~%d strength,Expected loss ~%d strength,Oczekiwana strata ~%d siły

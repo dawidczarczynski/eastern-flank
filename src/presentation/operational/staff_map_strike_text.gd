@@ -15,6 +15,64 @@ static func salvo_line(means_name: String, salvo: int, target_name := "") -> Str
 	return line
 
 
+## The forecast rows of the confirm card (TASK-101) for a StrikeRules.forecast(): the hits row
+## "Expected hits 1.8 of 4 – at least one hit 97%" and the target row ("Expected integrity
+## 100 → 41, destroyed ~12%" / "Expected loss ~3 strength"). [] for an empty forecast.
+static func forecast_rows(forecast: Dictionary) -> Array[String]:
+	var rows: Array[String] = []
+	if forecast.is_empty():
+		return rows
+	(
+		rows
+		. append(
+			(
+				_t("Expected hits %.1f of %d – at least one hit %d%%")
+				% [
+					float(forecast["expected_hits"]),
+					int(forecast["count"]),
+					forecast_percent(float(forecast["p_at_least_one"])),
+				]
+			)
+		)
+	)
+	var tail := ""
+	if float(forecast["p_destroyed"]) > 0.0:
+		tail = ", " + _t("destroyed ~%d%%") % forecast_percent(float(forecast["p_destroyed"]))
+	if forecast["kind"] == &"installation":
+		(
+			rows
+			. append(
+				(
+					(
+						_t("Expected integrity %d → %d")
+						% [
+							int(forecast["integrity_before"]),
+							roundi(float(forecast["expected_integrity_after"])),
+						]
+					)
+					+ tail
+				)
+			)
+		)
+	else:
+		rows.append(
+			(
+				_t("Expected loss ~%d strength") % roundi(float(forecast["expected_strength_lost"]))
+				+ tail
+			)
+		)
+	return rows
+
+
+## A probability as a whole percent: 0 only for exactly 0 and 100 only for exactly 1, else 1 - 99.
+static func forecast_percent(probability: float) -> int:
+	if probability <= 0.0:
+		return 0
+	if probability >= 1.0:
+		return 100
+	return clampi(roundi(probability * 100.0), 1, 99)
+
+
 ## The toast of a `strike_resolved` event.
 static func resolved(state: OperationalState, event: Dictionary) -> String:
 	var means: StrikeMeansDefinition = state.strike_means.get(event["means"])

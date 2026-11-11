@@ -257,6 +257,46 @@ func test_confirm_card_shows_the_odds_and_updates_with_the_weapon() -> void:
 	hud.cancel()
 
 
+func test_confirm_card_shows_the_forecast_and_follows_the_salvo() -> void:
+	var state := _map.simulation().state
+	var hud := _open()
+	var card := hud.confirm_card()
+	hud.click(LIDA)
+	var one := StrikeRules.forecast(state, 0, WEAPON, 1, LIDA)
+	assert_eq(card.forecast_texts(), StaffMapStrikeText.forecast_rows(one))
+	assert_eq(card.forecast_texts().size(), 2)
+	assert_true(card.forecast_texts()[0].begins_with("Expected hits "))
+	assert_true(card.forecast_texts()[1].begins_with("Expected integrity 100"))
+	hud.cancel()
+	hud.step_salvo(2)
+	hud.click(LIDA)
+	var three := StrikeRules.forecast(state, 0, WEAPON, 3, LIDA)
+	assert_eq(card.forecast_texts(), StaffMapStrikeText.forecast_rows(three))
+	assert_true(card.forecast_texts()[0].contains(" of 3 "))
+	hud.cancel()
+	state.strike_stock[0][WEAPON] = 2
+	hud.refresh()
+	hud.click(LIDA)
+	assert_true(card.forecast_texts()[0].contains(" of 2 "), "capped by the stock")
+	hud.cancel()
+	var formation := &""
+	for target in StrikeRules.targets(state, 0):
+		if (
+			target["kind"] == &"formation"
+			and StrikeRules.target_problem(state, 0, target["id"], WEAPON) == ""
+		):
+			formation = target["id"]
+			break
+	if formation != &"":
+		hud.click(formation)
+		assert_true(card.forecast_texts()[1].begins_with("Expected loss"))
+		hud.cancel()
+	state.escalation_level = 0
+	hud.click(LIDA)
+	assert_false(hud.is_confirming())
+	assert_true(card.forecast_texts().is_empty() or not card.visible)
+
+
 func test_confirm_card_says_suppressed() -> void:
 	var state := _map.simulation().state
 	for installation in state.installations:

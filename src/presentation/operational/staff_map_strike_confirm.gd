@@ -16,6 +16,7 @@ var _means: Label
 var _raise: Label
 var _lines: VBoxContainer
 var _odds: StaffMapOddsRow
+var _forecast: VBoxContainer
 var _confirm: Button
 var _cancel: Button
 
@@ -47,6 +48,11 @@ func _init() -> void:
 	column.add_child(_lines)
 	_odds = StaffMapOddsRow.new()
 	column.add_child(_odds)
+	_forecast = VBoxContainer.new()
+	_forecast.name = "Forecast"
+	_forecast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_forecast.add_theme_constant_override(&"separation", 2)
+	column.add_child(_forecast)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 10)
@@ -89,6 +95,14 @@ func present(model: Dictionary) -> void:
 		label.custom_minimum_size = Vector2(WIDTH - 34, 0)
 		_lines.add_child(label)
 	_odds.show_odds(model.get("odds", {}))
+	for child in _forecast.get_children():
+		_forecast.remove_child(child)
+		child.queue_free()
+	for text: String in model.get("forecast_rows", []):
+		var row := MenuStyle.label(text, HudTheme.mono(600, 0), 11, UiPalette.HUD_TEXT)
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.custom_minimum_size = Vector2(WIDTH - 34, 0)
+		_forecast.add_child(row)
 	_confirm.text = (tr("CONFIRM") + "  [ENTER]").to_upper()
 	_cancel.text = (tr("CANCEL") + "  [ESC]").to_upper()
 	show()
@@ -114,6 +128,15 @@ func odds_kind() -> StringName:
 
 func odds_row() -> StaffMapOddsRow:
 	return _odds
+
+
+## The forecast rows as shown (TASK-101), in order; [] without a forecast.
+func forecast_texts() -> Array[String]:
+	var texts: Array[String] = []
+	for child in _forecast.get_children():
+		if not child.is_queued_for_deletion():
+			texts.append((child as Label).text)
+	return texts
 
 
 func raise_text() -> String:

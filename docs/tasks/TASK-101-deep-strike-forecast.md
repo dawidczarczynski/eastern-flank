@@ -1,6 +1,6 @@
 # TASK-101: Deep strike forecast – expected hits and damage of a planned salvo in the confirm card
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: core (pure `StrikeRules.forecast`), presentation (staff map: odds row extension, pure text model)
 - **Depends on**: TASK-097b, TASK-098a, TASK-098b (all done; soft: TASK-100 – reconnaissance modifier)
 - **Sections**: GDD "Deep strikes"; ARCHITECTURE "Operational events" (no new event); TASK-098b notes (`StaffMapOddsRow`, `StaffMapAirDefence`), TASK-089a (how `CombatForecast` is done)
@@ -62,4 +62,8 @@ A distribution bar or histogram (needs `/design-ui`; follow-up); reconnaissance 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `StrikeRules.forecast` (exact binomial, no RNG, no state change) plus shared helpers `hit_chance` and `strengths_after_hits` (the resolution's formation damage now uses it). Tests: `test_strike_forecast.gd` (incl. forecast = resolution for every shipped weapon).
+- View: `StaffMapStrikeText.forecast_rows` (pure text, `test_staff_map_strike_forecast.gd`), `confirm_model["forecast_rows"]`, a `Forecast` label box under the odds row of `StaffMapStrikeConfirm` (scene test in `test_staff_map_air_defence_view.gd`). Strings added to `strings.csv` (en, pl); MANUAL "Strike forecast".
+- Deviation: the rows are plain mono 11 labels in the card's text colour, not bordered `StaffMapOddsRow` boxes (that row has a shield glyph that does not fit). Not compared with a screenshot (no render done).
+- Salvo is fixed while the card is open; the salvo changes in the panel and the card is rebuilt on the next click, so "live" means on re-opening.
+- The optional "AT TARGET" chip hits row was skipped (chip is 24 px, single-line).
