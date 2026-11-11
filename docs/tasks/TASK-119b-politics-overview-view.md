@@ -1,6 +1,6 @@
 # TASK-119b: Politics overview (view, manual)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation, docs
 - **Depends on**: hard TASK-119a; soft TASK-121 (support summary block), TASK-112 (place names)
 - **Topic**: Two-layer game

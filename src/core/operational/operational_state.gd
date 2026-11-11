@@ -82,6 +82,8 @@ var repair_per_round: int = 5
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
 var pending_battles: Array[BattleSetup] = []
+## Short history of political changes, effects only (TASK-119a); filled by OperationalSimulation.
+var political_log := PoliticalLog.new()
 
 
 ## The formation with this id; null if there is none.
@@ -166,6 +168,7 @@ func snapshot() -> Dictionary:
 			"urban_escalated": urban_escalated.duplicate(),
 		},
 		"result": result.duplicate(),
+		"political_log": political_log.to_dict()["entries"],
 	}
 
 

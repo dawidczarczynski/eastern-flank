@@ -1,6 +1,6 @@
 # TASK-119a: Political log (core)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core
 - **Depends on**: hard TASK-117 (done), TASK-115, TASK-114 (done); soft TASK-121, TASK-118 (log those kinds only once their events exist: `formation_joined` with a package `source`)
 - **Topic**: Two-layer game
@@ -46,4 +46,4 @@ none (the visible part is written by TASK-119b).
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+`PoliticalLog` (+ `Entry`) in `src/core/operational/political_log.gd`; `OperationalState.political_log` (in `snapshot()` as an array of entry dicts); `OperationalSimulation.execute` feeds every event of an accepted command to `on_event`. Kinds: stance_changed, level_changed, decision, sanctuary_breach, contribution. Cap 60, strict `from_dict` (null on malformed; missing = empty). Tests: `tests/unit/test_political_log.gd`. Support kinds (`support_arrived`) deliberately absent until TASK-121 events exist. No snapshot loader exists in code, so "old save without `political_log`" is covered by `PoliticalLog.from_dict({})`. Replay determinism is covered by running the same commands twice (replay uses `execute`).

@@ -104,6 +104,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OperationalSimulation` – Operational logic facade (ADR 0015 §2): accepts operational commands, validates them, app… (`operational_simulation.gd`)
 - `OperationalState` – Full state of an operation (ADR 0015, TASK-092b). Changed only by OperationalCommands thr… (`operational_state.gd`)
 - `PoliticalDecisionCommand` – Base of the five political decisions (TASK-117, GDD "Political decisions"): the issuer is… (`political_decision_command.gd`)
+- `PoliticalLog` – Short deterministic history of political changes (TASK-119a): stance, level, decisions, (`political_log.gd`)
 - `Reinforcements` – Puts new formations on the staff map (TASK-118; TASK-121 reuses it for off-map support).… (`reinforcements.gd`)
 - `ResolveBattleCommand` – Closes the first pending contact battle with its result (TASK-094a): removes it from the (`resolve_battle_command.gd`)
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
