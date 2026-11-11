@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; ATACMS (MGM-140 (M39 / M57)), TASK-141a. Tactical ballistic missile fired from HIMARS, bought by Poland.
+; Real range 300 km / 5 km per hex = 60 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"atacms"
+display_name = "ATACMS"
+accuracy_pct = 80
+interceptability_pct = 45
+damage = 35
+formation_damage = 3
+max_salvo = 4
+range_hexes = 60
+weapon_class = &"ballistic"
+side = 0
+platform = "truck launcher (HIMARS)"
+designation = "MGM-140 (M39 / M57)"

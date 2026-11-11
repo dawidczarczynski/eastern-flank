@@ -1,6 +1,7 @@
 extends TestCase
 ## Installation markers, strike toasts and the F9 Strikes block on the staff map (TASK-097a).
 
+const Fixtures := preload("res://tests/fixtures.gd")
 const TARGET := &"ru_airfield_chernyakhovsk"  # owner 1
 
 static var _map: StaffMap
@@ -16,6 +17,7 @@ func before_all() -> void:
 	_map.viewer_player = 0
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
+	Fixtures.add_generic_strike_means(_map.simulation().state)  # code-built `cruise`, either side
 	# The F9 panel exists only with --debug: make the same hud with it on.
 	var layer := CanvasLayer.new()
 	_map.add_child(layer)

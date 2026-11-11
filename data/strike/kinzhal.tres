@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Kinzhal (Kh-47M2), TASK-141a. Air-launched aeroballistic missile in Russian service, used in Ukraine. Range above the map: 'anywhere on the operation map'.
+; Real range 2000 km / 5 km per hex = 400 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"kinzhal"
+display_name = "Kinzhal"
+accuracy_pct = 75
+interceptability_pct = 25
+damage = 45
+formation_damage = 3
+max_salvo = 2
+range_hexes = 400
+weapon_class = &"aeroballistic"
+side = 1
+platform = "fighter-launched (MiG-31K)"
+designation = "Kh-47M2"

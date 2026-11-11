@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Kh-101 (Kh-101), TASK-141a. Stealthy air-launched cruise missile in Russian service, used in Ukraine. Range above the map: 'anywhere on the operation map'.
+; Real range 2500 km / 5 km per hex = 500 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"kh101"
+display_name = "Kh-101"
+accuracy_pct = 85
+interceptability_pct = 80
+damage = 40
+formation_damage = 2
+max_salvo = 12
+range_hexes = 500
+weapon_class = &"cruise"
+side = 1
+platform = "bomber-launched (Tu-95MS / Tu-160)"
+designation = "Kh-101"

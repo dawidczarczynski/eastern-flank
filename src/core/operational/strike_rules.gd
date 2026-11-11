@@ -18,11 +18,17 @@ static func stock(state: OperationalState, player: int, means_id: StringName) ->
 
 
 ## Adds `count` of a means to the stock (the only way it grows) and returns `strike_stock_changed`.
-## [] for an unknown means or a count <= 0. `source`: resupply, debug, a package id ...
+## [] for an unknown means, a count <= 0 or a weapon of the other side (TASK-141a, with a
+## warning: no grant gives a side the other side's weapon). `source`: resupply, debug, a package
+## id ...
 static func add_stock(
 	state: OperationalState, player: int, means_id: StringName, count: int, source: StringName
 ) -> Array[Dictionary]:
 	if count <= 0 or not state.strike_means.has(means_id) or (player != 0 and player != 1):
+		return []
+	var means: StrikeMeansDefinition = state.strike_means[means_id]
+	if not means.usable_by(player):
+		push_warning("strike means '%s' cannot be given to player %d" % [means_id, player])
 		return []
 	return [_change_stock(state, player, means_id, count, source)]
 

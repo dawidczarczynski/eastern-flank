@@ -1,11 +1,31 @@
 class_name StrikeMeansDefinition
 extends Resource
-## A means of deep strike (TASK-097a, GDD "Deep strikes"): cruise missile, ballistic missile,
-## strike drone. Kept as data/strike/<id>.tres; every number is an [ASSUMPTION] balanced later.
+## A means of deep strike (TASK-097a, TASK-141a, GDD "Deep strikes"): one real named weapon
+## (Iskander-M, JASSM-ER ...). Kept as data/strike/<id>.tres; range is the real one / 5 km,
+## the other numbers are [ASSUMPTION]s balanced later (TASK-103).
 
 const DIR := "res://data/strike/"
-## Means shipped in data/strike/.
-const SHIPPED: Array[StringName] = [&"cruise", &"ballistic", &"strike_drone"]
+## Means shipped in data/strike/ (Russia, then NATO).
+const SHIPPED: Array[StringName] = [
+	&"iskander_m",
+	&"kinzhal",
+	&"kalibr",
+	&"kh101",
+	&"geran_2",
+	&"jassm_er",
+	&"storm_shadow",
+	&"atacms",
+	&"prsm",
+	&"homar_k",
+	&"warmate",
+	&"tomahawk",
+]
+## The weapon classes: a label for the view and the manual only, no rule reads it.
+const WEAPON_CLASSES: Array[StringName] = [
+	&"cruise", &"ballistic", &"aeroballistic", &"rocket", &"drone", &"loitering"
+]
+## `side` of a weapon usable by either side (test data only in v1).
+const ANY_SIDE := -1
 
 @export var id: StringName
 ## Translation key (English), translated in the UI.
@@ -22,6 +42,15 @@ const SHIPPED: Array[StringName] = [&"cruise", &"ballistic", &"strike_drone"]
 @export var max_salvo: int = 4
 ## Range in hexes, measured from the nearest hex of the side's own or aligned countries.
 @export var range_hexes: int = 50
+## One of WEAPON_CLASSES (view and manual only).
+@export var weapon_class: StringName = &"cruise"
+## The player that may hold the weapon (0 NATO, 1 Russia) or ANY_SIDE. Checked where stock enters
+## (Operation.from_definition, StrikeRules.add_stock) through `usable_by`.
+@export_range(-1, 1) var side: int = ANY_SIDE
+## Launch platform as short text, e.g. "truck launcher" (view only; launchers come with TASK-098).
+@export var platform: String = ""
+## NATO / manufacturer designation, e.g. "9M723" (view only).
+@export var designation: String = ""
 
 
 ## The means data/strike/<means_id>.tres; null when there is none.
@@ -43,6 +72,11 @@ static func shipped() -> Dictionary:
 	return result
 
 
+## Whether `player` may hold this weapon in its stock.
+func usable_by(player: int) -> bool:
+	return side == ANY_SIDE or side == player
+
+
 ## "" when the data is valid, otherwise the first problem found.
 func problem() -> String:
 	if id == &"":
@@ -55,4 +89,13 @@ func problem() -> String:
 		return "damage and formation_damage must be positive"
 	if max_salvo < 1 or range_hexes < 1:
 		return "max_salvo and range_hexes must be at least 1"
+	return _label_problem()
+
+
+## The weapon class and side (TASK-141a); "" when valid.
+func _label_problem() -> String:
+	if not WEAPON_CLASSES.has(weapon_class):
+		return "unknown weapon_class '%s'" % weapon_class
+	if side < ANY_SIDE or side > 1:
+		return "side %d outside -1 .. 1" % side
 	return ""

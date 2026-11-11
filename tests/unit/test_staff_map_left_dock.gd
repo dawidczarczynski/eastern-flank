@@ -2,6 +2,8 @@ extends TestCase
 ## The left edge of the staff map holds one window at a time: opening the country card, the
 ## debug panels or a strike report closes the others.
 
+const Fixtures := preload("res://tests/fixtures.gd")
+
 static var _map: StaffMap
 static var _previous_locale: String
 
@@ -14,6 +16,7 @@ func before_all() -> void:
 	_map.viewer_player = 0
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
+	Fixtures.add_generic_strike_means(_map.simulation().state)  # code-built `cruise`
 	_map.simulation().state.air_defence_intercept_pct = 0
 
 

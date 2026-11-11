@@ -1,6 +1,6 @@
 # TASK-141a: Deep strikes with real named weapons (1/2, core + data): Iskander-M, Kalibr, Kh-101, Geran-2, JASSM-ER, ATACMS / PrSM, Homar-K … replace the generic means
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/data/`, `src/core/operational/`) + data (`data/strike/`, `data/operations/suwalki_gap.tres`) + tests
 - **Depends on**: TASK-097a (done)
 - **Sections**: GDD "Deep strikes" (table of weapons), "Outside support" (means grants); TASK-097a, TASK-122 task files
@@ -62,4 +62,11 @@ The view (TASK-141b); launchers, platforms, ships and aircraft as units; a techn
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `StrikeMeansDefinition` (src/core/data/strike_means_definition.gd): new `weapon_class` (`WEAPON_CLASSES`), `side` (`ANY_SIDE` = -1 default), `platform`, `designation`, `usable_by(player)`; `problem()` checks class and side (split into `_label_problem` for the max-returns lint). `SHIPPED` lists the 12 weapons.
+- Data: `data/strike/cruise.tres`, `ballistic.tres`, `strike_drone.tres` deleted; 12 new files with the table's numbers and the plausibility notes as `;` comments. `range_hexes` = real km / 5, except Storm Shadow at **110** as in the table (560 / 5 = 112; the table's rounded value wins, noted in its file).
+- Side rule: `Operation._counts_problem` rejects stock / resupply of the other side's weapon (index of the entry = player); `StrikeRules.add_stock` returns `[]` with `push_warning`. `StrikeCommand` unchanged (`out_of_stock`).
+- `suwalki_gap.tres`: stock and resupply per the table (resupply lists only the non-zero entries: NATO jassm_er / homar_k / warmate 1, Russia kh101 1, geran_2 2).
+- **Deviation – grants:** `MeansGrant` / `SupportPackage` do not exist yet (TASK-121 / TASK-122 not done), so the grant rejection in `Operation.from_definition` and the three shipped packages cannot be built here. They are written into TASK-122's file as its own criteria (with the new ids everywhere in that file); `add_stock` already refuses the other side's weapon, which is the path every grant takes.
+- Tests: `Fixtures.strike_means`, `Fixtures.generic_strike_means()` and `Fixtures.add_generic_strike_means(state)` build `cruise` / `ballistic` / `strike_drone` in code with the old numbers (side -1) – the rule tests (`test_strike_rules`, `test_strike_command`, `test_strikes`) and the staff-map tests (`test_staff_map_strike_mode`, `test_staff_map_strikes`, `test_staff_map_left_dock`) use them. New: shipped table (each row equals its .tres), old ids gone, `usable_by`, definition side rejections (stock and resupply, both directions), `add_stock` rejection, mirror strike (player 0 vs 1, same result and rng), 2 draws per missile with a named weapon, NATO striking with `iskander_m` is `out_of_stock`, a campaign record with an old id replays to `diverged` / `unknown_means`. The scripted replay test strikes with `kalibr` / `atacms` / `kalibr`.
+- Fixtures regenerated: none – no committed replay or snapshot fixture carried an old id (`tests/fixtures/replays/default_battle_12345.json` is tactical only); records in tests are built at run time.
+- Outside core: `tools/screenshot.gd` strike mode defaults to `jassm_er`; a doc comment in `staff_map_politics_panel.gd`. The view (names, per-side filtering of the means list) is TASK-141b – the strike panel currently lists all 12 weapons for either side, with stock 0 for the other side's.

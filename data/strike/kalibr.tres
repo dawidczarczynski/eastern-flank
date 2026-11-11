@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Kalibr (3M14), TASK-141a. Land-attack cruise missile of the Baltic Fleet corvettes, used in Ukraine. Range above the map: 'anywhere on the operation map'.
+; Real range 1500 km / 5 km per hex = 300 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"kalibr"
+display_name = "Kalibr"
+accuracy_pct = 80
+interceptability_pct = 100
+damage = 35
+formation_damage = 2
+max_salvo = 12
+range_hexes = 300
+weapon_class = &"cruise"
+side = 1
+platform = "ship / coastal launcher"
+designation = "3M14"

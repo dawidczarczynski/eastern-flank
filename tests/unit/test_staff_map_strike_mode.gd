@@ -1,6 +1,9 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## The strike mode on the staff map (TASK-097b): S, means, targets, confirm card, raise-and-strike,
 ## result, trail, and the mode for the second side. Reads the shipped Suwalki operation.
+
+const Fixtures := preload("res://tests/fixtures.gd")
 
 static var _map: StaffMap
 static var _previous_locale: String
@@ -15,6 +18,7 @@ func before_all() -> void:
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
 	var state := _map.simulation().state
+	Fixtures.add_generic_strike_means(state)  # code-built `cruise` / `strike_drone`, either side
 	state.air_defence_intercept_pct = 0
 	for id: StringName in state.strike_means.keys():  # copies: the shipped data stays as is
 		var means: StrikeMeansDefinition = state.strike_means[id].duplicate()
@@ -72,8 +76,8 @@ func test_s_opens_the_mode_and_esc_leaves() -> void:
 	assert_true(hud.panel().visible)
 	assert_eq(hud.panel().strikes_line(), "STRIKES: 2/2")
 	assert_true(hud.panel().means_button(&"cruise") != null)
-	assert_true(hud.panel().means_button(&"cruise").text.contains("8"), "stock shown")
-	assert_true(hud.panel().means_button(&"cruise").text.contains("50"), "range shown")
+	assert_true(hud.panel().row_text(&"cruise").contains("8"), "stock shown")
+	assert_true(hud.panel().row_text(&"cruise").contains("50"), "range shown")
 	assert_true(
 		_map.action_bar().button(StaffMap.ACTION_STRIKE).button_pressed, "the button is lit"
 	)
@@ -147,6 +151,18 @@ func test_closed_target_cannot_be_confirmed() -> void:
 	assert_eq(StrikeRules.stock(state, 0, &"cruise"), 8, "nothing changed")
 
 
+func test_salvo_slider_sets_the_salvo_within_the_limit() -> void:
+	var hud := _open(&"cruise")
+	hud.set_salvo(3)
+	assert_eq(hud.salvo(), 3)
+	assert_eq(hud.panel().salvo_text(), "3")
+	assert_true(hud.panel().hint_text().begins_with("3 × "), hud.panel().hint_text())
+	hud.set_salvo(99)
+	assert_eq(hud.salvo(), StaffMapStrike.salvo_max(_map.simulation().state, 0, &"cruise"))
+	hud.set_salvo(0)
+	assert_eq(hud.salvo(), 1)
+
+
 func test_confirm_strikes_and_updates_the_view() -> void:
 	var state := _map.simulation().state
 	state.escalation_level = 2
@@ -157,7 +173,7 @@ func test_confirm_strikes_and_updates_the_view() -> void:
 	hud.click(airfield)
 	assert_true(hud.is_confirming())
 	var card := hud.confirm_card()
-	assert_eq(card.means_text(), "CRUISE MISSILE × 2")
+	assert_eq(card.means_text(), "2 × CRUISE MISSILE")
 	assert_eq(card.raise_text(), "")
 	assert_true(card.line_texts()[0].contains("sanctuary: +1 escalation"), str(card.line_texts()))
 	hud.cancel()
@@ -171,7 +187,7 @@ func test_confirm_strikes_and_updates_the_view() -> void:
 	assert_eq(StrikeRules.stock(state, 0, &"cruise"), 6)
 	assert_false(hud.is_open(), "the made strike closed the mode")
 	assert_true(hud.toggle(), "S opens it again")
-	assert_true(hud.panel().means_button(&"cruise").text.contains("6"), "stock line follows")
+	assert_true(hud.panel().row_text(&"cruise").contains("6"), "stock line follows")
 	assert_eq(hud.panel().strikes_line(), "STRIKES: 1/2")
 	assert_eq(state.escalation_level, 3, "the sanctuary breach")
 	var reports := hud.reports()

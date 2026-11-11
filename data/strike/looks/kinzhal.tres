@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StrikeWeaponLook" load_steps=2 format=3]
+
+; kinzhal, TASK-141b. Aeroballistic: fastest, white-hot trail. All values are [ASSUMPTION]s tuned in play.
+
+[ext_resource type="Script" path="res://src/presentation/operational/strike_weapon_look.gd" id="1_look"]
+
+[resource]
+script = ExtResource("1_look")
+glyph = &"ballistic"
+trail_color = Color(1.0, 1.0, 1.0, 0.75)
+speed_hexes_per_s = 260.0
+arc_height = 0.25
+wobble = 0.0
+trail_length = 0.25
+dotted = false
+warhead = &"heavy_blast"
+burst_scale = 1.3

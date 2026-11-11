@@ -108,7 +108,6 @@ func test_interception_chance() -> void:
 	var op := Strikes._definition()
 	op.installations.append(Strikes._placement(&"ad1", &"air_defence", 1, Vector2i(7, 0)))
 	var state := Strikes._state(op)
-	state.strike_means[&"cruise"] = StrikeMeansDefinition.find(&"cruise")
 	assert_eq(_intercept(state, &"cruise"), 40)
 	assert_eq(_intercept(state, &"ballistic"), 16)
 	assert_eq(_intercept(state, &"strike_drone"), 60)
@@ -217,11 +216,11 @@ func test_resupply_and_repair_at_round_boundary() -> void:
 	sim.event_emitted.connect(func(e: Dictionary) -> void: seen.append(e))
 	var rng_before := state.rng.state
 	assert_true(sim.execute(EndOperationalTurnCommand.new()))
-	assert_eq(StrikeRules.stock(state, 1, &"strike_drone"), 16, "half a round: nothing yet")
+	assert_eq(StrikeRules.stock(state, 1, &"geran_2"), 16, "half a round: nothing yet")
 	assert_true(sim.execute(EndOperationalTurnCommand.new()))
-	assert_eq(StrikeRules.stock(state, 0, &"cruise"), 9)
-	assert_eq(StrikeRules.stock(state, 1, &"cruise"), 9)
-	assert_eq(StrikeRules.stock(state, 1, &"strike_drone"), 18)
+	assert_eq(StrikeRules.stock(state, 0, &"jassm_er"), 9)
+	assert_eq(StrikeRules.stock(state, 1, &"kalibr"), 9)
+	assert_eq(StrikeRules.stock(state, 1, &"geran_2"), 18)
 	assert_eq(state.get_installation(&"hurt").integrity, 65)
 	assert_eq(state.get_installation(&"dead").integrity, 0)
 	assert_eq(state.get_installation(&"almost").integrity, 100)
@@ -238,7 +237,7 @@ func test_resupply_and_repair_at_round_boundary() -> void:
 		. filter(func(e: Dictionary) -> bool: return e["type"] == &"strike_stock_changed")
 		. map(func(e: Dictionary) -> Variant: return "%d%s" % [e["player"], e["means"]])
 	)
-	assert_eq(sources, ["0cruise", "1cruise", "1strike_drone"])
+	assert_eq(sources, ["0jassm_er", "1kalibr", "1geran_2"])
 
 
 func test_strikes_left_reset_for_next_player() -> void:
@@ -246,3 +245,40 @@ func test_strikes_left_reset_for_next_player() -> void:
 	state.strikes_left = 0
 	assert_true(OperationalSimulation.new(state).execute(EndOperationalTurnCommand.new()))
 	assert_eq(state.strikes_left, 2)
+
+
+# --- mirror (TASK-141a: no rule names a side) ---
+
+
+## The same weapon-neutral strike for player 0 and player 1 on mirrored targets gives the same
+## result and draws the same numbers.
+func test_mirrored_strike_gives_the_same_result() -> void:
+	var results: Array = []
+	for player in 2:
+		var state := Strikes._state()
+		var target_id := &"a1" if player == 0 else &"pl_air"
+		var target := StrikeRules.find_target(state, player, target_id)
+		var rng_before := state.rng.state
+		var events := StrikeRules.resolve(state, player, &"cruise", target, 3)
+		var resolved := events[0].duplicate()
+		resolved.erase("player")
+		resolved.erase("target")
+		results.append([resolved, state.get_installation(target_id).integrity])
+		var reference := RandomNumberGenerator.new()
+		reference.state = rng_before
+		for i in 6:
+			reference.randi_range(1, 100)
+		assert_eq(state.rng.state, reference.state, "2 draws per missile, player %d" % player)
+	assert_eq(results[0], results[1])
+
+
+## A strike with a named shipped weapon draws exactly 2 numbers per missile.
+func test_named_weapon_draws_two_per_missile() -> void:
+	var state := Strikes._state()
+	var target := StrikeRules.find_target(state, 1, &"pl_air")
+	var reference := RandomNumberGenerator.new()
+	reference.state = state.rng.state
+	for i in 4:
+		reference.randi_range(1, 100)
+	StrikeRules.resolve(state, 1, &"iskander_m", target, 2)
+	assert_eq(state.rng.state, reference.state)

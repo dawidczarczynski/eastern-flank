@@ -295,11 +295,11 @@ func test_scripted_strike_sequence_replays_identically() -> void:
 	# Russia moves first: a strike on the urban Elk depot raises the level to Open war, which
 	# opens Kaliningrad and Chernyakhovsk to NATO; a full round brings resupply and repair.
 	var script: Array[OperationalCommand] = [
-		StrikeCommand.new(&"cruise", &"nato_depot_elk", 2),
+		StrikeCommand.new(&"kalibr", &"nato_depot_elk", 2),
 		EndOperationalTurnCommand.new(),
-		StrikeCommand.new(&"ballistic", &"ru_airfield_chernyakhovsk", 2),
+		StrikeCommand.new(&"atacms", &"ru_airfield_chernyakhovsk", 2),
 		EndOperationalTurnCommand.new(),
-		StrikeCommand.new(&"cruise", &"pl_tank_2", 2),
+		StrikeCommand.new(&"kalibr", &"pl_tank_2", 2),
 		EndOperationalTurnCommand.new(),
 		EndOperationalTurnCommand.new(),
 	]
@@ -314,3 +314,34 @@ func test_scripted_strike_sequence_replays_identically() -> void:
 	assert_true(types.has(&"strike_resolved"))
 	assert_true(types.has(&"installation_changed"))
 	assert_eq(state.escalation_level >= 2, true)
+
+
+## TASK-141a: no legacy aliases – a saved operation that strikes with an old generic id (or any
+## unknown means) does not load: its replay stops at that command with `unknown_means`.
+func test_record_with_an_old_means_id_is_rejected() -> void:
+	var seed_value := 7
+	var sim := _sim(Operation.build(&"suwalki_gap", seed_value))
+	assert_true(sim.execute(StrikeCommand.new(&"kalibr", &"nato_depot_elk", 2)))
+	var record := CampaignRecord.from_simulation(sim, seed_value, &"russia", [])
+	assert_true(CampaignRecord.from_json(record.to_json()).replay()["ok"])
+	for old_id in ["cruise", "ballistic", "strike_drone"]:
+		var text := record.to_json().replace('"kalibr"', '"%s"' % old_id)
+		var replay := CampaignRecord.from_json(text).replay()
+		assert_false(replay["ok"], old_id)
+		assert_eq(replay["error"], "diverged", old_id)
+		assert_eq(replay["index"], 0, old_id)
+		assert_eq(replay["reason"], "unknown_means", old_id)
+
+
+## A NATO player holds no Russian weapon: striking with one is out of stock.
+func test_strike_with_the_other_sides_weapon_is_out_of_stock() -> void:
+	var state := Operation.build(&"suwalki_gap", 7)
+	state.current_player = 0
+	state.escalation_level = 3
+	var sim := _sim(state)
+	var reasons := _reasons(sim)
+	assert_false(sim.execute(StrikeCommand.new(&"iskander_m", &"ru_airfield_chernyakhovsk", 1)))
+	assert_eq(reasons, ["out_of_stock"])
+	var stock_before := StrikeRules.stock(state, 0, &"jassm_er")
+	assert_true(sim.execute(StrikeCommand.new(&"jassm_er", &"ru_airfield_chernyakhovsk", 2)))
+	assert_eq(StrikeRules.stock(state, 0, &"jassm_er"), stock_before - 2)

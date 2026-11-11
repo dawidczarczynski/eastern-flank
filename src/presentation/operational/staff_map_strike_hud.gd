@@ -62,7 +62,7 @@ func _init(
 	_toast = toast
 	_panel = StaffMapStrikePanel.new()
 	_panel.means_picked.connect(pick_means)
-	_panel.salvo_stepped.connect(step_salvo)
+	_panel.salvo_set.connect(set_salvo)
 	_panel.close_requested.connect(close)
 	hud.add_child(_panel)
 	_confirm = StaffMapStrikeConfirm.new()
@@ -158,6 +158,15 @@ func pick_means(id: StringName) -> void:
 	refresh()
 
 
+## The salvo slider (1 .. the largest legal salvo of the picked means).
+func set_salvo(count: int) -> void:
+	if _means == &"":
+		return
+	var limit := StaffMapStrike.salvo_max(_simulation.state, _viewer.call(), _means)
+	_salvo = clampi(count, 1, maxi(limit, 1))
+	refresh()
+
+
 func step_salvo(delta: int) -> void:
 	if _means == &"":
 		return
@@ -181,6 +190,11 @@ func refresh() -> void:
 		_means = &""
 		_confirm.hide()
 	_salvo = clampi(_salvo, 1, maxi(limit, 1))
+	_panel.set_side(
+		StaffMapTurnBar.side_name(state, viewer),
+		StaffMapFormations.side_colour(_palette, viewer),
+		_palette.outcome_intercepted
+	)
 	_panel.show_state(
 		StaffMapStrike.means_list(state, viewer),
 		_means,
@@ -417,7 +431,10 @@ func _t(key: String) -> String:
 func _hint() -> String:
 	if _means == &"":
 		return _t("Pick a means, then a target on the map. Esc leaves.")
-	return _t("Click a glowing target. Esc leaves.")
+	var means: StrikeMeansDefinition = _simulation.state.strike_means.get(_means)
+	var weapon := _t(means.display_name) if means != null else ""
+	var line := StaffMapStrikeText.salvo_line(weapon, _salvo)
+	return "%s – %s" % [line, _t("Click a glowing target. Esc leaves.")]
 
 
 func _update_hover_line() -> void:

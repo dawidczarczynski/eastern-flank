@@ -281,12 +281,17 @@ static func _counts_problem(stock: Array[Dictionary], resupply: Array[Dictionary
 	for entries: Array[Dictionary] in [stock, resupply]:
 		if entries.size() != 0 and entries.size() != 2:
 			return "strike stock / resupply needs 0 or 2 entries, has %d" % entries.size()
-		for entry in entries:
+		for player in entries.size():
+			var entry := entries[player]
 			for key: Variant in entry:
 				if not StrikeMeansDefinition.SHIPPED.has(StringName(key)):
 					return "unknown strike means '%s'" % key
 				if not entry[key] is int or int(entry[key]) < 0:
 					return "strike count of '%s' is not a non-negative int" % key
+				if not StrikeMeansDefinition.find(StringName(key)).usable_by(player):
+					return (
+						"strike means '%s' belongs to the other side of player %d" % [key, player]
+					)
 	return ""
 
 

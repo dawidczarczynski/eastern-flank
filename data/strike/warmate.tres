@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Warmate (WB Warmate), TASK-141a. Polish loitering munition (WB Group), in Polish service but short-ranged.
+; Real range 50 km / 5 km per hex = 10 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"warmate"
+display_name = "Warmate"
+accuracy_pct = 60
+interceptability_pct = 130
+damage = 8
+formation_damage = 1
+max_salvo = 20
+range_hexes = 10
+weapon_class = &"loitering"
+side = 0
+platform = "tube launcher"
+designation = "WB Warmate"

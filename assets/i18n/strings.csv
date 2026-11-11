@@ -581,3 +581,36 @@ Progress since the last save will be lost. Save before leaving?,Progress since t
 Leave the operation and return to the main menu?,Leave the operation and return to the main menu?,Wyjść z operacji i wrócić do menu głównego?
 Operational · Staff map,Operational · Staff map,Operacyjna · Mapa sztabowa
 Tactical · Suwałki Gap,Tactical · Suwałki Gap,Taktyczna · Przesmyk suwalski
+easy to intercept,easy to intercept,łatwy do przechwycenia
+easy,easy,łatwy
+hard to intercept,hard to intercept,trudny do przechwycenia
+hard,hard,trudny
+normal,normal,przeciętny
+Arrives only from allies,Arrives only from allies,Dociera tylko od sojuszników
+Arrives only from allies (support package),Arrives only from allies (support package),Dociera tylko od sojuszników (pakiet wsparcia)
+ALLIES ONLY,ALLIES ONLY,TYLKO OD SOJUSZNIKÓW
+ALLIES,ALLIES,SOJUSZNICY
+on,on,na
+Cruise,Cruise,Manewrujący
+Ballistic,Ballistic,Balistyczny
+Aeroballistic,Aeroballistic,Aerobalistyczny
+Rocket,Rocket,Rakieta
+Drone,Drone,Dron
+Loitering,Loitering,Krążący
+ACCURACY,ACCURACY,CELNOŚĆ
+INTERCEPT,INTERCEPT,PRZECHWYCENIE
+intercepted,intercepted,przechwycone
+miss,miss,pudło
+misses,misses,pudła
+integrity %d → %d,integrity %d → %d,integralność %d → %d
+strength %d → %d,strength %d → %d,siła %d → %d
+bomber-launched (Tu-95MS / Tu-160),bomber-launched (Tu-95MS / Tu-160),z bombowca (Tu-95MS / Tu-160)
+fighter-launched (F-16 Block 52+),fighter-launched (F-16 Block 52+),z myśliwca (F-16 Block 52+)
+fighter-launched (MiG-31K),fighter-launched (MiG-31K),z myśliwca (MiG-31K)
+fighter-launched (allied),fighter-launched (allied),z myśliwca (sojuszniczego)
+ship / coastal launcher,ship / coastal launcher,okręt / wyrzutnia nadbrzeżna
+ship / submarine-launched (US Navy),ship / submarine-launched (US Navy),z okrętu / okrętu podwodnego (US Navy)
+truck launcher (HIMARS),truck launcher (HIMARS),wyrzutnia na ciężarówce (HIMARS)
+truck launcher (K239 Chunmoo),truck launcher (K239 Chunmoo),wyrzutnia na ciężarówce (K239 Chunmoo)
+truck launcher,truck launcher,wyrzutnia na ciężarówce
+tube launcher,tube launcher,wyrzutnia tubowa

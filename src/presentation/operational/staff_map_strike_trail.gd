@@ -7,16 +7,19 @@ extends RefCounted
 ## CountryRules and the installations' coordinates. Nothing is drawn here.
 
 ## Kept strikes (all missiles of a strike are shown); the oldest strike goes first.
-const MAX_STRIKES := 6
+const MAX_STRIKES := 8
 const MAX_TRACES := MAX_STRIKES
+## Flight time of a trace without a weapon look (the weapon's look gives the real one).
 const ARC_SECONDS := 0.6
-const STAGGER_SECONDS := 0.13
+const STAGGER_SECONDS := StaffMapStrikeFlight.STAGGER_SECONDS
 const EFFECT_SECONDS := 1.2
 const DESTROYED_SECONDS := 2.0
 ## Pixel distance range a missed missile lands beside the target.
 const MISS_MIN_PX := 20.0
 const MISS_MAX_PX := 34.0
-const STOP_FRACTION := 0.72
+const STOP_FRACTION := StaffMapStrikeFlight.STOP_FRACTION
+## The launch point is searched at this share of the weapon's range from the target.
+const STANDOFF_SHARE := 0.9
 ## Outcome of a strike for the burst marker colour.
 const HIT := &"hit"
 const INTERCEPTED := &"intercepted"
@@ -26,11 +29,12 @@ const MISSED := &"missed"
 ## leaves no trace. Always true until reconnaissance exists.
 var is_visible: Callable = func(_coord: Vector2i, _player: int) -> bool: return true
 ## One trace per missile, oldest first: {strike, player, means, from, to, outcome, start, offset,
-## bow, lateral, stop (Vector2i, intercepted only, absent when no site), marks: [{coord, count}]
-## (only on the first missile of a strike)}. `start` is the clock time the missile leaves.
+## bow, lateral, look (StrikeWeaponLook), duration (s), seed, stop (Vector2i, intercepted only,
+## absent when no site), marks: [{coord, count}] and more (missiles of the salvo not drawn; both
+## only on the first missile of a strike)}. `start` is the clock time the missile leaves.
 var traces: Array[Dictionary] = []
 ## One impact / airburst / dust effect per missile: {strike, coord, outcome, player, class_id,
-## start (clock time of the impact), seed, offset, destroyed, stop (as in traces)}.
+## start (clock time of the impact), seed, offset, destroyed, look, stop (as in traces)}.
 var bursts: Array[Dictionary] = []
 ## Seconds since the first trace, advanced by the layer; arcs and effects are functions of it.
 var clock := 0.0
@@ -63,6 +67,43 @@ static func origin(state: OperationalState, player: int, target: Vector2i) -> Ve
 			best = hex
 			best_distance = distance
 	return best
+
+
+## Where the missiles of a strike are launched from: a safe standoff point. Of the own hexes
+## within `range_hexes` of `target`, the one whose distance is closest to STANDOFF_SHARE of the
+## range (so a long-range weapon, with no own hex that far, fires from the farthest own hex in
+## range); ties go to the smaller x, then y. When no own hex is within range it is the nearest own
+## (border) hex, `origin()`; `target` itself when nothing is own.
+static func launch_origin(
+	state: OperationalState, player: int, target: Vector2i, range_hexes: int
+) -> Vector2i:
+	var border := origin(state, player, target)
+	if not _is_own(state, player, border):
+		return target
+	var wanted := range_hexes * STANDOFF_SHARE
+	var best := border
+	var best_gap := INF
+	for hex: Vector2i in state.country_map:
+		if not _is_own(state, player, hex):
+			continue
+		var distance := Hex.distance(hex, target)
+		if distance > range_hexes:
+			continue
+		var gap := absf(distance - wanted)
+		if (
+			gap < best_gap
+			or (gap == best_gap and (hex.x < best.x or (hex.x == best.x and hex.y < best.y)))
+		):
+			best = hex
+			best_gap = gap
+	return best
+
+
+static func _is_own(state: OperationalState, player: int, hex: Vector2i) -> bool:
+	return (
+		state.country_map.has(hex)
+		and CountryRules.relation(state, player, state.country_map[hex]) == &"own"
+	)
 
 
 ## The intact air-defence sites of `owner` within the state's air-defence radius of `coord`:
@@ -134,7 +175,7 @@ static func unit(seed_value: int) -> float:
 static func variation(seed_value: int, index: int) -> Dictionary:
 	var s := seed_value * 31 + index * 7919
 	return {
-		"delay": index * STAGGER_SECONDS + unit(s + 1) * 0.06,
+		"delay": StaffMapStrikeFlight.stagger(index),
 		"bow": 0.8 + unit(s + 2) * 0.5,
 		"lateral": (unit(s + 3) - 0.5) * 0.16,
 	}
@@ -189,7 +230,8 @@ func strike_count() -> int:
 
 ## Arc progress 0..1 of a trace at the current clock.
 func progress(trace: Dictionary) -> float:
-	return clampf((clock - float(trace["start"])) / ARC_SECONDS, 0.0, 1.0)
+	var duration: float = trace.get("duration", ARC_SECONDS)
+	return clampf((clock - float(trace["start"])) / duration, 0.0, 1.0)
 
 
 ## Seconds since a burst's impact (negative before it), at the current clock.
@@ -216,23 +258,35 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 	var to: Vector2i = launched["coord"]
 	if not is_visible.call(to, player):
 		return false
-	var outcomes := missile_outcomes(event)
+	var all_outcomes := missile_outcomes(event)
+	var outcomes: Array[StringName] = []
+	for index in StaffMapStrikeFlight.drawn_indices(all_outcomes.size()):
+		outcomes.append(all_outcomes[index])
+	var look := StrikeWeaponLook.for_means(event["means"])
 	var sites: Array[Dictionary] = []
 	if int(event["intercepted"]) > 0:
 		sites = interceptors_before(state, event, to)
 	var assigned: Array[int] = []
 	assigned.resize(sites.size())
 	assigned.fill(0)
-	var from := origin(state, player, to)
+	var means: StrikeMeansDefinition = state.strike_means.get(event["means"])
+	var from := (
+		launch_origin(state, player, to, means.range_hexes)
+		if means != null
+		else origin(state, player, to)
+	)
 	_strike_seq += 1
 	var base := to.x * 977 + to.y * 131 + _strike_seq * 53
 	var first_trace := {}
 	var last_hit := outcomes.rfind(HIT)
+	if last_hit < 0:
+		last_hit = outcomes.size() - 1
+	var duration := look.duration(Hex.distance(from, to))
 	var intercept_index := 0
 	for i in outcomes.size():
 		var result: StringName = outcomes[i]
-		var look := variation(base, i)
-		var start := clock + float(look["delay"])
+		var variance := variation(base, i)
+		var start := clock + float(variance["delay"])
 		var trace := {
 			"strike": _strike_seq,
 			"player": player,
@@ -243,9 +297,13 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 			"class_id": launched.get("class_id", &""),
 			"start": start,
 			"offset": Vector2.ZERO,
-			"bow": look["bow"],
-			"lateral": look["lateral"],
+			"bow": variance["bow"],
+			"lateral": variance["lateral"],
+			"look": look,
+			"duration": duration,
+			"seed": base + i * 17,
 			"marks": [],
+			"more": 0,
 		}
 		var burst := {
 			"strike": _strike_seq,
@@ -253,8 +311,11 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 			"outcome": result,
 			"player": player,
 			"class_id": launched.get("class_id", &""),
-			"start": start + ARC_SECONDS,
+			"start": start + duration,
 			"seed": base + i * 17,
+			"look": look,
+			"warhead": look.warhead,
+			"burst_scale": look.burst_scale,
 			"offset": Vector2.ZERO,
 			"destroyed": bool(event.get("target_destroyed", false)) and i == last_hit,
 		}
@@ -284,6 +345,7 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 		bursts.append(burst)
 		_busy_until = maxf(_busy_until, float(burst["start"]) + effect_seconds(burst))
 	first_trace["marks"] = _marks(sites, assigned)
+	first_trace["more"] = StaffMapStrikeFlight.hidden_count(all_outcomes.size())
 	_trim()
 	return true
 

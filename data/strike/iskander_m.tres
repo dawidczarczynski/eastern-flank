@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Iskander-M (9M723), TASK-141a. Russian quasi-ballistic missile; Kaliningrad hosts Iskander-M brigades, used in Ukraine.
+; Real range 500 km / 5 km per hex = 100 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"iskander_m"
+display_name = "Iskander-M"
+accuracy_pct = 80
+interceptability_pct = 40
+damage = 45
+formation_damage = 3
+max_salvo = 3
+range_hexes = 100
+weapon_class = &"ballistic"
+side = 1
+platform = "truck launcher"
+designation = "9M723"

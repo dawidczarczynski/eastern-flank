@@ -1,6 +1,6 @@
 # TASK-141b: Deep strikes with real named weapons (2/2, view): weapon list with glyphs, a weapon-specific trace for every missile
 
-- **Status**: blocked
+- **Status**: done
 - **Layers**: presentation (staff map strike mode) + data (`data/strike/looks/`) + tests
 - **Depends on**: TASK-141a, TASK-097b
 - **Sections**: GDD "Deep strikes", TASK-097b task file (strike panel, confirm card, trail)
@@ -22,6 +22,8 @@ Look data (not in the core resource): new `StrikeWeaponLook` resource in `src/pr
 - [ ] 60 FPS: the layer draws with the existing single `CanvasItem` (no node per missile; ≤ 6 polylines + heads per trace); a scene smoke test that a 4-missile Kalibr salvo and a 6-missile Geran-2 salvo create the expected number of drawn heads and no extra nodes.
 - [ ] A weapon without a look in a hand-made test state does not break the view (the default look).
 
+**Design decision (2026-11-11, playtest: the old panel is unreadable):** the strike panel follows `docs/design/operational_map/strike_panel.html` (**variant A**, spec in the operational_map README "Strike panel"): 420 px docked window, row 46 px (glyph tile, name, designation · class · km, stock), stock 0 greyed with "ALLIES ONLY", a detail card under the list (model viewport 388×140 + RANGE / SALVO / ACCURACY / INTERCEPT chips + platform line), then the salvo stepper. The viewport shows the turntable model from TASK-144 (`WeaponModels.build`) and the class glyph at 96 px while a weapon has no model. This replaces the panel row layout and hover card described above; the other criteria (looks, traces) are unchanged. Also add TASK-144 as a soft dependency.
+
 ## Playtest (for the human)
 
 1. NATO (`--debug`, F9 +stock): S – the list shows JASSM-ER, Homar-K, ATACMS, PrSM, Warmate with glyphs, ranges in km, stock; Storm Shadow and Tomahawk are listed greyed with stock 0 until allies deliver them (F9 grant). `--side=russia`: Iskander-M, Kinzhal, Kalibr, Kh-101, Geran-2 only.
@@ -42,4 +44,21 @@ Sound (TASK-123), 3D missile models, launch effects at the launcher (no launcher
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Done 2026-11-11 (presentation; not yet playtested by the human).
+
+- **Look data**: `StrikeWeaponLook` (`src/presentation/operational/strike_weapon_look.gd`) + `data/strike/looks/<means_id>.tres` for all 12 weapons (hand-written, no uid); `for_means(id)` falls back to a default look. Fields as in the task plus `dotted` (drones / loitering draw dotted traces). `trail_color` is a *shade*: the striker's side colour is mixed towards its RGB by its alpha (alpha 0 = plain side colour), so no new palette. Speeds / arcs are [ASSUMPTION]s: ballistic arc 0.40 at ~160 hexes/s, Kinzhal 0.25 at 260, cruise 0.03 at ~80, Geran-2 / Warmate 0.02 at 40 - 45 with wobble 0.6, Homar-K 0.20 at 110; durations clamp 0.3 – 2.0 s, so on a short strike all weapons hit the 0.3 s floor - judge the differences on long shots.
+- **Pure helpers**: `StaffMapStrikeFlight` (curve point / apex, wobble, stagger 0.08 s, drawn indices for a big salvo, stop point of an intercepted missile, heading); `StaffMapStrike.means_list` (side filter, stock > 0 first, range descending, id; `enabled`, km, "whole map" above 120 hexes, interceptability words) and `StaffMapStrikeText.salvo_line`.
+- **Trail / layer**: every trace carries its `look`, `duration`, `seed`; bursts carry `warhead` and `burst_scale` (`StaffMapStrikeFx`: heavy blast = second shockwave, small = flash without smoke, cluster = bomblets). At most 6 missiles of a strike are drawn, the first trace holds `more` (the layer draws "+n" at the target). `MAX_STRIKES` is now 8. `StaffMapStrikeLayer.heads()` gives the missiles in flight (one glyph head each, `StaffMapWeaponGlyph.draw_glyph`); still one CanvasItem, no node per missile. Faint traces are the same curve at progress 1, so they keep the arc. The old `StaffMapStrikeLayer.arc_points` is gone (replaced by `StaffMapStrikeFlight.points`).
+- **Panel (variant A)**: `StaffMapStrikePanel` is now the 420 px window with `StaffMapStrikeRow` rows (46 px), `StaffMapWeaponCard` (388 x 140 stage with `WeaponTurntable` or the 96 px class glyph, four chips, platform line), stepper and strikes line; the tab reads "STRIKE · <SIDE>" in the side colour; the X comes from `StaffMapWindow`. Greyed rows (stock 0) show "ALLIES ONLY" and are not pickable (a click shows "Arrives only from allies"). The detail card follows hover, then the picked weapon, then the first row.
+- **Texts**: confirm card `means_line` is now "3 × JASSM-ER" (plus `salvo_line` "3 × JASSM-ER on <target>" in the model); the panel hint starts with the salvo line; toast and "Out of range of <weapon>" already used `display_name` (now covered by tests).
+- **Tests**: `test_strike_weapon_look`, `test_staff_map_strike_flight`, `test_staff_map_strike_panel` (list model, texts, panel, card, layer heads smoke test), additions in `test_staff_map_strike_model`.
+- **Deviations from the mockup**: chip INTERCEPT shows the short word (HARD / NORMAL / EASY), the long phrase ("hard to intercept") is the platform line's tooltip; the key caps 1 – 7 on the right of a row are not built; the stage floor is a flat ellipse instead of a radial gradient; the panel stays docked on the right (as before), not at x 16; glyphs are my drawn outlines (not the mockup's SVGs). "WHOLE MAP" starts above 120 hexes as the README says, so JASSM-ER (185 hexes) reads "WHOLE MAP" while the mockup table shows 925 km.
+- **Not done / open**: the report card header already shows the designation (141a). README / menu screenshots not re-rendered (the battle scene is unchanged). docs/MANUAL.md "Deep strikes" chapter still to be extended by game-designer.
+
+### Playtest round (2026-11-11)
+
+- Range is always km (hexes x 5); the "WHOLE MAP" / "all map" texts and `WHOLE_MAP_HEXES` are gone.
+- Polish: platform lines, the strike toast words (intercepted / hit / miss / destroyed / integrity / strength, "on"), the card words and class names are in `assets/i18n/strings.csv`; the card translates `platform`.
+- Launch origin (final rule): `StaffMapStrikeTrail.launch_origin(state, player, target, range_hexes)` (pure) = a safe standoff point: the own hex within the weapon's range whose distance to the target is closest to 90 % of `range_hexes` (`STANDOFF_SHARE`; ties lowest x, then y); a long-range weapon with no own hex that far fires from the farthest own hex in range; no own hex in range falls back to the border hex (`origin`). `LAUNCH_DEPTH` is gone. TASK-147 must move this rule (not the border hex) to the core.
+- Stock / max salvo / resupply raised (start stock in `data/operations/suwalki_gap.tres`, max salvo in `data/strike/*.tres`): NATO stock JASSM-ER 24, ATACMS 12, PrSM 8, Homar-K 36, Warmate 40 (resupply 4 / 6 / 6 for JASSM-ER / Homar-K / Warmate); Russia Iskander-M 18, Kinzhal 6, Kalibr 20, Kh-101 20 (+3), Geran-2 80 (+8). Max salvo: Iskander-M 3, Kinzhal 2, Kalibr 12, Kh-101 12, Geran-2 24, JASSM-ER 12, Storm Shadow 9, ATACMS 4, PrSM 3, Homar-K 24, Warmate 20, Tomahawk 9. Storm Shadow / Tomahawk stay at 0 until allies deliver.
+- Salvo control is an `HSlider` (integer, 1 .. max salvo, amber on card-edge track) with the count beside it; `StaffMapStrikePanel.salvo_set` -> `StaffMapStrikeHud.set_salvo`.

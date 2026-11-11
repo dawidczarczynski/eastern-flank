@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Homar-K (CGR-080 (K239 / K263)), TASK-141a. Guided rockets of the Korean K239 Chunmoo bought by Poland.
+; Real range 290 km / 5 km per hex = 58 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"homar_k"
+display_name = "Homar-K"
+accuracy_pct = 70
+interceptability_pct = 90
+damage = 20
+formation_damage = 2
+max_salvo = 24
+range_hexes = 58
+weapon_class = &"rocket"
+side = 0
+platform = "truck launcher (K239 Chunmoo)"
+designation = "CGR-080 (K239 / K263)"

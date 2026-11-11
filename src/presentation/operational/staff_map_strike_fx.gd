@@ -5,6 +5,9 @@ extends RefCounted
 ## explosions, c2 flash, air-defence spark ring, formation dust), a small airburst for an
 ## intercepted missile, a dust puff for a miss, and the scorch a destroyed target keeps. Everything
 ## is a function of the burst's age and seed, drawn on the layer's canvas with a few primitives.
+## The weapon's warhead (StrikeWeaponLook, TASK-141b) shapes a hit: `blast` the standard burst,
+## `heavy_blast` bigger with a second shockwave, `small` a short flash without smoke, `cluster`
+## several bomblets around the target; the burst's `burst_scale` scales it.
 
 const FIRE := Color(1.0, 0.62, 0.18)
 const FIRE_CORE := Color(1.0, 0.92, 0.65)
@@ -35,11 +38,13 @@ static func _hit(
 ) -> void:
 	var destroyed: bool = burst["destroyed"]
 	var class_id: StringName = burst["class_id"]
+	var warhead: StringName = burst.get("warhead", &"blast")
 	var size := 1.0
 	if destroyed:
 		size = 1.6
 	elif class_id == &"formation":
 		size = 0.8
+	size *= float(burst.get("burst_scale", 1.0))
 	var t := clampf(age / StaffMapStrikeTrail.effect_seconds(burst), 0.0, 1.0)
 	_scorch(canvas, at, minf(age * 6.0, 1.0), destroyed)
 	if t >= 1.0:
@@ -68,8 +73,46 @@ static func _hit(
 			1.5,
 			true
 		)
+	match warhead:
+		&"heavy_blast":
+			var second := clampf(t * 2.0 - 0.15, 0.0, 1.0)
+			canvas.draw_arc(
+				at,
+				10.0 + 36.0 * size * second,
+				0.0,
+				TAU,
+				32,
+				Color(FIRE_CORE, 0.7 * (1.0 - second)),
+				2.5,
+				true
+			)
+		&"cluster":
+			_bomblets(canvas, t, at, seed_value, size)
+		&"small":
+			return
 	_class_detail(canvas, class_id, t, at, seed_value, size)
 	_smoke(canvas, t, at, seed_value, size)
+
+
+## The submunitions of a cluster warhead: five small fireballs around the target, one after another.
+static func _bomblets(
+	canvas: CanvasItem, t: float, at: Vector2, seed_value: int, size: float
+) -> void:
+	for k in 5:
+		var phase := (t - 0.04 * k) / 0.3
+		if phase < 0.0 or phase > 1.0:
+			continue
+		var spot := (
+			at
+			+ (
+				Vector2.from_angle(StaffMapStrikeTrail.unit(seed_value + 40 + k) * TAU)
+				* (8.0 + 12.0 * StaffMapStrikeTrail.unit(seed_value + 50 + k))
+				* size
+			)
+		)
+		var flare := sin(phase * PI)
+		canvas.draw_circle(spot, 5.0 * size * flare, Color(FIRE, 0.85 * flare))
+		canvas.draw_circle(spot, 2.2 * size * flare, Color(FIRE_CORE, flare))
 
 
 ## What makes a class recognisable: airfield debris streaks along the runway, depot secondary

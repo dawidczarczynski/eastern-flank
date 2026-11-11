@@ -201,7 +201,7 @@ func _strikes_block(state: OperationalState) -> Control:
 	return block
 
 
-## "cruise 8 · ballistic 4 · strike_drone 6 · strikes left 2" for the stock line.
+## "atacms 4 · jassm_er 6 · ... · strikes left 2" for the stock line.
 static func stock_text(state: OperationalState, player: int) -> String:
 	var ids: Array = state.strike_means.keys()
 	ids.sort()

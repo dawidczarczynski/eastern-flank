@@ -1,0 +1,50 @@
+{
+  "id": "jassm_er",
+  "real_name": "AGM-158B JASSM-ER",
+  "variant_note": "Extended-range JASSM: same external dimensions as the AGM-158A (USAF), turbofan instead of turbojet and a larger fuel volume. Kept out of docs/design/units/units/ because the unit catalog schema (tools/unit_catalog/unit.schema.json) only allows classes from classes.json and mobility tracked/wheeled/foot.",
+  "class": "strike_weapon",
+  "mobility": "air_launched",
+  "operators": [
+    "poland"
+  ],
+  "in_service": "2014-present",
+  "country_of_origin": "United States (Lockheed Martin)",
+  "weight_t": 1.2,
+  "armament": {
+    "main": "WDU-42/B (J-1000) 450 kg penetrating blast-fragmentation warhead"
+  },
+  "range_km": 925,
+  "notes": "Stealthy air-launched cruise missile; Poland's F-16C/D Block 52+ carry it. Wings, fin and intake scoop fold while carried and deploy after release; the model shows the deployed flight shape. No reference image stored yet: the compare loop used the agent's knowledge of published photographs (Commons category 'AGM-158 JASSM'); the human may add a side / top view as side_1.png / top_1.png.",
+  "dimensions": {
+    "overall_length": 4.27,
+    "width": 2.4,
+    "height": 0.75,
+    "body_width": 0.55,
+    "body_height": 0.45,
+    "sources": [
+      "https://en.wikipedia.org/wiki/AGM-158_JASSM (length 4.287 m, width 550 mm (B: 635 mm), height 450 mm, span 2.7 m for the B)",
+      "https://missilethreat.csis.org/missile/jassm/ (4.26 m long, 0.55 m wide, 0.45 m high, 2.7 m extended span)",
+      "https://armyrecognition.com/military-products/army/missiles/cruise-missiles/jassm-agm-158 (span 2.4 m)",
+      "width = deployed span 2.4 m as in TASK-144 (sources disagree: 2.4 vs 2.7 m); height = body 0.45 m + deployed fin, estimated from photographs (uncertain)"
+    ]
+  },
+  "silhouette_features": [
+    "Faceted, box-like stealth body with a trapezoid section: flat belly, chines low on the sides, narrower flat top",
+    "Flat, chined wedge nose: the top slopes down to a low tip, seeker window on the upper nose",
+    "Small swept wing mounted on top of the body just aft of the middle (deployed after release)",
+    "Single swept vertical fin on top of the tail",
+    "Air intake scoop under the rear half of the body, short tapered boat tail with the exhaust"
+  ],
+  "details": [
+    "Dark imaging infrared seeker window on the nose",
+    "Dark exhaust at the tail"
+  ],
+  "skip": [
+    "Panel lines, lugs, data-link antennas",
+    "Folded carriage configuration (the turntable shows the flight shape)"
+  ],
+  "camo_note": "Matte olive-grey / grey radar-absorbent finish, no national markings visible at turntable scale.",
+  "images": [],
+  "status": "modeled",
+  "feedback": ""
+}

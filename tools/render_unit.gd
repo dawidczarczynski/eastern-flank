@@ -136,13 +136,7 @@ func _print_result(out: String) -> void:
 
 
 func _build_scene() -> void:
-	var faction := FactionRegistry.get_faction(StringName(_options["faction"]))
-	var model_root := UnitModels.build(StringName(_options["unit_id"]), 0, faction)
-	_model = model_root.get_node("Model") as Node3D
-	_model.scale = Vector3.ONE  # model space: 1 unit = 10 m
-	if _options["pose"] == "fire":
-		UnitModels.pose_launcher(_model, 0.0, UnitModels.launcher_elevation(_model))
-		UnitModels.pose_deployables(_model, 1.0)
+	var model_root := _build_model()
 	root.add_child(model_root)
 	_aabb = _visible_aabb(model_root)  # root yaw is 0: the model faces +X
 
@@ -179,6 +173,19 @@ func _build_scene() -> void:
 	_camera = Camera3D.new()
 	_camera.current = true
 	root.add_child(_camera)
+
+
+## The model wrapped in its root (not in the tree yet), facing +X in model space (1 unit = 10 m);
+## sets `_model` (the node whose meshes the stats count). Overridden by tools/render_weapon.gd.
+func _build_model() -> Node3D:
+	var faction := FactionRegistry.get_faction(StringName(_options["faction"]))
+	var model_root := UnitModels.build(StringName(_options["unit_id"]), 0, faction)
+	_model = model_root.get_node("Model") as Node3D
+	_model.scale = Vector3.ONE  # model space: 1 unit = 10 m
+	if _options["pose"] == "fire":
+		UnitModels.pose_launcher(_model, 0.0, UnitModels.launcher_elevation(_model))
+		UnitModels.pose_deployables(_model, 1.0)
+	return model_root
 
 
 ## Sky ambient as a plain colour (the pre-HDRI mean of the old procedural zenith and horizon

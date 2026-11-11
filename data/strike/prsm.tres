@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; PrSM (PrSM Increment 1), TASK-141a. Precision Strike Missile, successor of ATACMS, for Polish HIMARS.
+; Real range 500 km / 5 km per hex = 100 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"prsm"
+display_name = "PrSM"
+accuracy_pct = 85
+interceptability_pct = 40
+damage = 40
+formation_damage = 3
+max_salvo = 3
+range_hexes = 100
+weapon_class = &"ballistic"
+side = 0
+platform = "truck launcher (HIMARS)"
+designation = "PrSM Increment 1"

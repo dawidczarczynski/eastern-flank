@@ -203,7 +203,8 @@ func test_incident_at_the_cap_reads_no_further_escalation() -> void:
 func test_confirm_model_with_raise() -> void:
 	var state := _state(1)
 	var plain := StaffMapStrike.confirm_model(state, 0, A1, &"sure", 2, false)
-	assert_eq(plain["means_line"], "sure × 2")
+	assert_eq(plain["means_line"], "2 × sure")
+	assert_eq(plain["salvo_line"], "2 × sure on a1")
 	assert_eq(plain["raise_line"], "")
 	var raised := StaffMapStrike.confirm_model(state, 0, A1, &"sure", 2, true)
 	assert_eq(raised["raise_line"], "Escalate to Open war (uses this turn's decision)")
@@ -363,7 +364,7 @@ func test_animation_runs_until_the_last_effect_ends() -> void:
 	var state := _state(2)
 	var trail := StaffMapStrikeTrail.new()
 	_feed(trail, state, A1, 0)
-	trail.clock = 0.3
+	trail.clock = 0.2
 	assert_true(trail.animating())
 	assert_true(trail.progress(trail.traces[0]) < 1.0)
 	trail.clock = 5.0
@@ -385,18 +386,72 @@ func test_enemy_strikes_leave_traces_and_unseen_ones_none() -> void:
 	assert_eq(trail.trace_count(), 2, "fog: nothing drawn")
 
 
-func test_arc_points_grow_with_progress() -> void:
-	var from := Vector2(0, 100)
-	var to := Vector2(300, 100)
-	var full := StaffMapStrikeLayer.arc_points(from, to, 24, 1.0)
-	assert_eq(full.size(), 25)
-	assert_eq(full[0], from)
-	assert_true(full[24].is_equal_approx(to))
-	assert_true(full[12].y < 100.0, "bowed upward on screen")
-	assert_eq(StaffMapStrikeLayer.arc_points(from, to, 24, 0.0).size(), 1)
-	assert_eq(StaffMapStrikeLayer.arc_points(from, to, 24, 0.5).size(), 13)
-	var tall := StaffMapStrikeLayer.arc_points(from, to, 24, 1.0, 1.3, 0.1)
-	assert_true(tall[12].y < full[12].y or tall[12] != full[12], "bow / lateral change the arc")
+func _feed_means(
+	trail: StaffMapStrikeTrail, state: OperationalState, means: StringName, count: int, hits: int
+) -> void:
+	var coord := state.get_installation(A1).coord
+	trail.on_event(state, 0, _launched(A1, coord))
+	var event := _resolved(A1, 0, hits)
+	event["means"] = means
+	event["count"] = count
+	event["misses"] = count - hits
+	trail.on_event(state, 0, event)
+
+
+func test_traces_take_the_weapon_look_duration_and_warhead() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed_means(trail, state, &"iskander_m", 2, 2)
+	var look := StrikeWeaponLook.for_means(&"iskander_m")
+	var trace := trail.traces[0]
+	var distance := Hex.distance(trace["from"], trace["to"])
+	assert_eq(trace["look"], look)
+	assert_eq(trace["duration"], look.duration(distance))
+	assert_eq(
+		trail.bursts[0]["start"], trace["start"] + trace["duration"], "impact after the flight"
+	)
+	assert_eq(trail.bursts[0]["warhead"], &"heavy_blast")
+	assert_eq(trail.bursts[0]["burst_scale"], look.burst_scale)
+	trail.clock = trace["start"] + trace["duration"] / 2.0
+	assert_true(absf(trail.progress(trace) - 0.5) < 0.001, "progress follows the weapon's duration")
+
+
+func test_unknown_weapon_uses_the_default_look() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed_means(trail, state, &"sure", 2, 2)
+	assert_eq(trail.traces[0]["look"].glyph, StrikeWeaponLook.new().glyph)
+	assert_eq(trail.bursts[0]["warhead"], &"blast")
+
+
+func test_missiles_of_a_salvo_are_staggered_by_eighty_milliseconds() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed_means(trail, state, &"kalibr", 4, 4)
+	assert_eq(trail.trace_count(), 4)
+	for i in 3:
+		var gap: float = trail.traces[i + 1]["start"] - trail.traces[i]["start"]
+		assert_true(absf(gap - StaffMapStrikeFlight.STAGGER_SECONDS) < 0.0001, "gap %f" % gap)
+
+
+func test_a_big_salvo_draws_six_missiles_and_counts_the_rest() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed_means(trail, state, &"geran_2", 16, 10)
+	assert_eq(trail.trace_count(), StaffMapStrikeFlight.MAX_DRAWN)
+	assert_eq(trail.burst_count(), StaffMapStrikeFlight.MAX_DRAWN)
+	assert_eq(trail.traces[0]["more"], 10)
+	assert_eq(trail.traces[1]["more"], 0)
+	assert_eq(trail.strike_count(), 1)
+
+
+func test_trail_keeps_at_most_eight_strikes() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	for i in 10:
+		_feed_means(trail, state, &"kalibr", 2, 2)
+	assert_eq(StaffMapStrikeTrail.MAX_STRIKES, 8)
+	assert_eq(trail.strike_count(), 8)
 
 
 func test_toast_text_of_a_strike() -> void:
@@ -409,4 +464,61 @@ func test_toast_text_of_a_strike() -> void:
 	assert_eq(
 		StaffMapStrikeText.resolved(state, event),
 		"sure ×2 on a1: 1 intercepted, 1 hit – integrity 100 → 65"
+	)
+
+
+func _own_hexes(state: OperationalState, player: int) -> Array[Vector2i]:
+	var list: Array[Vector2i] = []
+	for hex: Vector2i in state.country_map:
+		if CountryRules.relation(state, player, state.country_map[hex]) == &"own":
+			list.append(hex)
+	return list
+
+
+func test_launch_origin_is_a_standoff_point_at_ninety_percent_of_the_range() -> void:
+	var state := _state(2)
+	var target := Vector2i(7, 0)
+	var border := StaffMapStrikeTrail.origin(state, 0, target)
+	var nearest := Hex.distance(border, target)
+	for range_hexes in [nearest, nearest + 2, nearest + 3, 6]:
+		var launch := StaffMapStrikeTrail.launch_origin(state, 0, target, range_hexes)
+		var distance := Hex.distance(launch, target)
+		assert_true(distance <= range_hexes, "in range (%d)" % range_hexes)
+		assert_true(distance >= nearest)
+		var gap := absf(distance - range_hexes * 0.9)
+		for hex in _own_hexes(state, 0):
+			var other := Hex.distance(hex, target)
+			if other <= range_hexes:
+				assert_true(absf(other - range_hexes * 0.9) >= gap - 0.0001, "closest to 90 %")
+	assert_eq(
+		StaffMapStrikeTrail.launch_origin(state, 0, target, nearest), border, "range = border"
+	)
+
+
+func test_launch_origin_long_range_takes_the_farthest_own_hex_and_short_range_the_border() -> void:
+	var state := _state(2)
+	var target := Vector2i(7, 0)
+	var farthest := 0
+	for hex in _own_hexes(state, 0):
+		farthest = maxi(farthest, Hex.distance(hex, target))
+	var far := StaffMapStrikeTrail.launch_origin(state, 0, target, 500)
+	assert_eq(Hex.distance(far, target), farthest, "no own hex that far: the farthest one")
+	assert_eq(
+		StaffMapStrikeTrail.launch_origin(state, 0, target, 1),
+		StaffMapStrikeTrail.origin(state, 0, target),
+		"out of range from every own hex: the border hex"
+	)
+	assert_eq(
+		StaffMapStrikeTrail.launch_origin(state, 0, target, 500), far, "deterministic tie-break"
+	)
+
+
+func test_strike_traces_start_at_the_launch_origin() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed_means(trail, state, &"sure", 2, 2)
+	var coord := state.get_installation(A1).coord
+	var range_hexes: int = state.strike_means[&"sure"].range_hexes
+	assert_eq(
+		trail.traces[0]["from"], StaffMapStrikeTrail.launch_origin(state, 0, coord, range_hexes)
 	)

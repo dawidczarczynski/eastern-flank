@@ -29,7 +29,7 @@ func test_every_window_shares_the_frame() -> void:
 
 func test_width_tiers() -> void:
 	assert_eq(StaffMapOptionsWindow.new().custom_minimum_size.x, StaffMapWindow.WIDTH_DEFAULT)
-	assert_eq(StaffMapStrikePanel.new().custom_minimum_size.x, StaffMapWindow.WIDTH_DEFAULT)
+	assert_eq(StaffMapStrikePanel.new().custom_minimum_size.x, StaffMapWindow.WIDTH_REPORT)
 	assert_eq(StaffMapCountryCard.new().custom_minimum_size.x, StaffMapWindow.WIDTH_DEFAULT)
 	assert_eq(StaffMapStrikeReport.new().custom_minimum_size.x, StaffMapWindow.WIDTH_REPORT)
 

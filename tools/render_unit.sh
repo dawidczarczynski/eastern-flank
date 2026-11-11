@@ -3,10 +3,15 @@
 # writes per-view PNGs and a sheet: 2 x 2 views (side, front, top orthographic at the same scale;
 # three_quarter perspective) with the reference image next to them – lets the unit-modeler agent
 # compare a model with the real unit.
-# Usage: tools/render_unit.sh <unit_id> [--faction=<id>] [--views=side,front,top,three_quarter]
+# Usage: tools/render_unit.sh [--weapon] <unit_id> [--faction=<id>] [--views=side,front,top,three_quarter]
 #                             [--reference=path] [--out=sheet.png] [--pose=rest|fire]
 #                             [--windows | --linux]
 #   unit_id      model file src/presentation/models/<unit_id>.gd
+#   --weapon     render a strike weapon model instead (TASK-144): <unit_id> is a strike means id
+#                with a model in WeaponModels (src/presentation/models/weapons/), the catalog entry
+#                is docs/design/units/weapons/<id>/unit.json, the default sheet
+#                .screenshots/units/<id>_sheet.png; --faction is ignored and --pose must be rest
+#                (tools/render_weapon.gd)
 #   --faction    camo to render (default: first of the catalog entry's operators that is a faction in
 #                data/factions/, else poland)
 #   --views      comma separated, any of side,front,top,three_quarter (default: all four)
@@ -41,11 +46,13 @@ source tools/windows_godot.sh
 # --windows / --linux pick the Godot build; --reference= and --out= values are made absolute
 # (relative to the caller); everything else is validated by tools/render_unit_options.gd.
 platform=""
+script="res://tools/render_unit.gd"
 args=()
 for arg in "$@"; do
 	case "$arg" in
 	--windows) platform="windows" ;;
 	--linux) platform="linux" ;;
+	--weapon) script="res://tools/render_weapon.gd" ;;
 	--reference=* | --out=*)
 		name="${arg%%=*}"
 		value="${arg#*=}"
@@ -105,7 +112,7 @@ if [[ -n "$godot_win" ]]; then
 		esac
 	done
 	run_windows_godot "$godot_win" "$remaining" "$output" "$errors" "$project_dir" \
-		--resolution 1280x720 --script res://tools/render_unit.gd -- "${win_args[@]}"
+		--resolution 1280x720 --script "$script" -- "${win_args[@]}"
 	status=$?
 	print_with_wsl_paths "$output" "Render saved: "
 else
@@ -114,7 +121,7 @@ else
 		driver=(--rendering-driver "$GODOT_RENDERING_DRIVER")
 	fi
 	timeout "$remaining" "$GODOT" --path . --resolution 1280x720 "${driver[@]}" \
-		--script res://tools/render_unit.gd -- "${args[@]}" 2>"$errors"
+		--script "$script" -- "${args[@]}" 2>"$errors"
 	status=$?
 fi
 cat "$errors" >&2

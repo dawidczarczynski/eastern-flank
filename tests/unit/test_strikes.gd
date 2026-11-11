@@ -1,8 +1,26 @@
 extends TestCase
-## Deep strikes (TASK-097a): means data, installations, stock, range, ROE, resolution, resupply.
+## Deep strikes (TASK-097a, TASK-141a): means data (named weapons), installations, stock and its
+## side rule, range, ROE, resolution, resupply.
 
+const Fixtures := preload("res://tests/fixtures.gd")
 const Politics := preload("res://tests/unit/test_country_rules.gd")
 const A1 := Vector2i(6, 0)
+## The shipped weapons table of TASK-141a: accuracy, interceptability, damage, formation damage,
+## max salvo, range (hexes), side, class.
+const WEAPONS := {
+	&"iskander_m": [80, 40, 45, 3, 3, 100, 1, &"ballistic"],
+	&"kinzhal": [75, 25, 45, 3, 2, 400, 1, &"aeroballistic"],
+	&"kalibr": [80, 100, 35, 2, 12, 300, 1, &"cruise"],
+	&"kh101": [85, 80, 40, 2, 12, 500, 1, &"cruise"],
+	&"geran_2": [55, 150, 12, 1, 24, 360, 1, &"drone"],
+	&"jassm_er": [90, 70, 40, 2, 12, 185, 0, &"cruise"],
+	&"storm_shadow": [85, 85, 40, 2, 9, 110, 0, &"cruise"],
+	&"atacms": [80, 45, 35, 3, 4, 60, 0, &"ballistic"],
+	&"prsm": [85, 40, 40, 3, 3, 100, 0, &"ballistic"],
+	&"homar_k": [70, 90, 20, 2, 24, 58, 0, &"rocket"],
+	&"warmate": [60, 130, 8, 1, 20, 10, 0, &"loitering"],
+	&"tomahawk": [85, 90, 40, 2, 9, 320, 0, &"cruise"],
+}
 
 
 static func _means(
@@ -55,12 +73,12 @@ static func _definition() -> OperationDefinition:
 	)
 	op.strike_stock = (
 		[
-			{&"cruise": 8, &"ballistic": 4, &"strike_drone": 6},
-			{&"cruise": 8, &"ballistic": 6, &"strike_drone": 16},
+			{&"jassm_er": 8, &"atacms": 4, &"warmate": 6},
+			{&"kalibr": 8, &"iskander_m": 6, &"geran_2": 16},
 		]
 		as Array[Dictionary]
 	)
-	op.strike_resupply = ([{&"cruise": 1}, {&"cruise": 1, &"strike_drone": 2}] as Array[Dictionary])
+	op.strike_resupply = ([{&"jassm_er": 1}, {&"kalibr": 1, &"geran_2": 2}] as Array[Dictionary])
 	op.formations = (
 		[
 			_formation(
@@ -73,11 +91,14 @@ static func _definition() -> OperationDefinition:
 	return op
 
 
+## The operation of `_definition` (or `op`) plus the code-built test weapons: the generic
+## `cruise` / `ballistic` / `strike_drone` (Fixtures, either side) and `sure` / `never` / `short`.
 static func _state(op: OperationDefinition = null, seed_value := 1) -> OperationalState:
 	var state := Operation.from_definition(
 		op if op != null else _definition(), seed_value, Politics._grid(), Politics._country_map()
 	)
 	if state != null:
+		Fixtures.add_generic_strike_means(state)
 		state.strike_means[&"sure"] = _means(&"sure")
 		state.strike_means[&"never"] = _means(&"never", 0)
 		state.strike_means[&"short"] = _means(&"short", 100, 100, 35, 2)
@@ -93,18 +114,19 @@ static func _types(events: Array[Dictionary]) -> Array:
 # --- means data ---
 
 
-func test_shipped_means() -> void:
-	var expected := {
-		&"cruise": [80, 100, 35, 2, 4, 50],
-		&"ballistic": [70, 40, 45, 3, 2, 80],
-		&"strike_drone": [55, 150, 15, 1, 6, 20],
-	}
-	for id: StringName in expected:
+func test_shipped_weapons_table() -> void:
+	assert_eq(StrikeMeansDefinition.SHIPPED.size(), WEAPONS.size())
+	var shipped := StrikeMeansDefinition.shipped()
+	assert_eq(shipped.size(), WEAPONS.size(), "unique ids")
+	for id: StringName in WEAPONS:
+		assert_true(StrikeMeansDefinition.SHIPPED.has(id), String(id))
 		var means := StrikeMeansDefinition.find(id)
 		assert_true(means != null, String(id))
 		assert_eq(means.id, id)
-		assert_eq(means.problem(), "")
-		var row: Array = expected[id]
+		assert_eq(means.problem(), "", String(id))
+		assert_true(means.side == 0 or means.side == 1, "no shared weapon in v1: %s" % id)
+		assert_true(means.display_name != "" and means.designation != "", String(id))
+		assert_true(means.platform != "", String(id))
 		assert_eq(
 			[
 				means.accuracy_pct,
@@ -112,16 +134,42 @@ func test_shipped_means() -> void:
 				means.damage,
 				means.formation_damage,
 				means.max_salvo,
-				means.range_hexes
+				means.range_hexes,
+				means.side,
+				means.weapon_class,
 			],
-			row,
+			WEAPONS[id],
 			String(id)
 		)
 	assert_true(StrikeMeansDefinition.find(&"nope") == null)
 
 
+func test_old_generic_ids_are_gone() -> void:
+	for id: StringName in [&"cruise", &"ballistic", &"strike_drone"]:
+		assert_true(StrikeMeansDefinition.find(id) == null, String(id))
+		assert_false(StrikeMeansDefinition.SHIPPED.has(id), String(id))
+
+
+func test_usable_by() -> void:
+	var any := Fixtures.strike_means(&"any")
+	assert_true(any.usable_by(0) and any.usable_by(1))
+	var nato := Fixtures.strike_means(&"n", [80, 100, 35, 2, 4, 50], 0)
+	assert_true(nato.usable_by(0))
+	assert_false(nato.usable_by(1))
+	assert_false(StrikeMeansDefinition.find(&"iskander_m").usable_by(0))
+	assert_true(StrikeMeansDefinition.find(&"tomahawk").usable_by(0))
+
+
 func test_means_problems() -> void:
 	assert_eq(_means(&"ok").problem(), "")
+	for weapon_class in StrikeMeansDefinition.WEAPON_CLASSES:
+		var classed := _means(&"ok")
+		classed.weapon_class = weapon_class
+		assert_eq(classed.problem(), "", String(weapon_class))
+	var defaults := StrikeMeansDefinition.new()
+	defaults.id = &"d"
+	assert_eq(defaults.problem(), "", "defaults keep a test-made means valid")
+	assert_eq(defaults.side, StrikeMeansDefinition.ANY_SIDE)
 	var cases := {
 		"id": func(m: StrikeMeansDefinition) -> void: m.id = &"",
 		"accuracy low": func(m: StrikeMeansDefinition) -> void: m.accuracy_pct = -1,
@@ -132,6 +180,9 @@ func test_means_problems() -> void:
 		"formation damage": func(m: StrikeMeansDefinition) -> void: m.formation_damage = 0,
 		"salvo": func(m: StrikeMeansDefinition) -> void: m.max_salvo = 0,
 		"range": func(m: StrikeMeansDefinition) -> void: m.range_hexes = 0,
+		"class": func(m: StrikeMeansDefinition) -> void: m.weapon_class = &"laser",
+		"side low": func(m: StrikeMeansDefinition) -> void: m.side = -2,
+		"side high": func(m: StrikeMeansDefinition) -> void: m.side = 2,
 	}
 	for label: String in cases:
 		var means := _means(&"ok")
@@ -149,13 +200,14 @@ func test_state_from_definition() -> void:
 	assert_eq(a1.integrity, 100)
 	assert_false(a1.destroyed())
 	assert_eq(a1.owner, 1)
-	assert_eq(StrikeRules.stock(state, 0, &"cruise"), 8)
-	assert_eq(StrikeRules.stock(state, 1, &"strike_drone"), 16)
+	assert_eq(StrikeRules.stock(state, 0, &"jassm_er"), 8)
+	assert_eq(StrikeRules.stock(state, 1, &"geran_2"), 16)
+	assert_eq(state.strike_resupply[1], {&"kalibr": 1, &"geran_2": 2})
 	assert_eq(state.strikes_left, 2)
 	var snap := state.snapshot()
 	assert_eq((snap["installations"] as Array).size(), 3)
 	assert_eq((snap["installations"] as Array)[0]["id"], "a1")
-	assert_eq((snap["strike_stock"] as Array)[0]["cruise"], 8)
+	assert_eq((snap["strike_stock"] as Array)[0]["jassm_er"], 8)
 	assert_eq(snap["strikes_left"], 2)
 
 
@@ -181,9 +233,11 @@ func test_definition_rejections() -> void:
 		func(op: OperationDefinition) -> void: op.installations[0].coord = Vector2i(99, 0),
 		"owner": func(op: OperationDefinition) -> void: op.installations[0].owner = 2,
 		"negative owner": func(op: OperationDefinition) -> void: op.installations[0].owner = -1,
-		"negative stock": func(op: OperationDefinition) -> void: op.strike_stock[0][&"cruise"] = -1,
+		"negative stock":
+		func(op: OperationDefinition) -> void: op.strike_stock[0][&"jassm_er"] = -1,
 		"negative resupply":
-		func(op: OperationDefinition) -> void: op.strike_resupply[0][&"cruise"] = -1,
+		func(op: OperationDefinition) -> void: op.strike_resupply[0][&"jassm_er"] = -1,
+		"old generic id": func(op: OperationDefinition) -> void: op.strike_stock[0][&"cruise"] = 1,
 		"strikes per turn": func(op: OperationDefinition) -> void: op.strikes_per_turn = 0,
 		"repair": func(op: OperationDefinition) -> void: op.repair_per_round = -1,
 	}
@@ -199,17 +253,50 @@ func test_definition_rejections() -> void:
 
 func test_add_stock() -> void:
 	var state := _state()
-	var events := StrikeRules.add_stock(state, 1, &"cruise", 3, &"china_components")
+	var events := StrikeRules.add_stock(state, 1, &"kh101", 3, &"china_components")
 	assert_eq(events.size(), 1)
 	assert_eq(events[0]["type"], &"strike_stock_changed")
+	assert_eq(events[0]["means"], &"kh101")
 	assert_eq(events[0]["count"], 3)
-	assert_eq(events[0]["total"], 11)
+	assert_eq(events[0]["total"], 3)
 	assert_eq(events[0]["source"], &"china_components")
-	assert_eq(StrikeRules.stock(state, 1, &"cruise"), 11)
-	assert_eq(StrikeRules.add_stock(state, 1, &"cruise", 0, &"x"), [])
-	assert_eq(StrikeRules.add_stock(state, 1, &"cruise", -2, &"x"), [])
+	assert_eq(StrikeRules.stock(state, 1, &"kh101"), 3)
+	assert_eq(StrikeRules.add_stock(state, 1, &"kh101", 0, &"x"), [])
+	assert_eq(StrikeRules.add_stock(state, 1, &"kh101", -2, &"x"), [])
 	assert_eq(StrikeRules.add_stock(state, 1, &"nuke", 2, &"x"), [])
-	assert_eq(StrikeRules.stock(state, 1, &"cruise"), 11)
+	assert_eq(StrikeRules.stock(state, 1, &"kh101"), 3)
+	# Either-side test weapons go to both players.
+	assert_eq(StrikeRules.add_stock(state, 0, &"cruise", 1, &"x")[0]["total"], 9)
+	assert_eq(StrikeRules.add_stock(state, 1, &"cruise", 1, &"x")[0]["total"], 9)
+
+
+func test_add_stock_rejects_the_other_sides_weapon() -> void:
+	var state := _state()
+	var before := state.snapshot()
+	assert_eq(StrikeRules.add_stock(state, 0, &"iskander_m", 2, &"allied_strike_means"), [])
+	assert_eq(StrikeRules.add_stock(state, 1, &"tomahawk", 2, &"china_components"), [])
+	assert_eq(state.snapshot(), before, "no change")
+	assert_eq(StrikeRules.add_stock(state, 0, &"tomahawk", 2, &"allied_strike_means").size(), 1)
+	assert_eq(StrikeRules.add_stock(state, 1, &"geran_2", 8, &"iran_drones").size(), 1)
+	assert_eq(StrikeRules.stock(state, 0, &"tomahawk"), 2)
+	assert_eq(StrikeRules.stock(state, 1, &"geran_2"), 24)
+
+
+func test_definition_rejects_the_other_sides_weapon() -> void:
+	var cases := {
+		"russian stock for nato":
+		func(op: OperationDefinition) -> void: op.strike_stock[0][&"iskander_m"] = 2,
+		"nato stock for russia":
+		func(op: OperationDefinition) -> void: op.strike_stock[1][&"tomahawk"] = 0,
+		"russian resupply for nato":
+		func(op: OperationDefinition) -> void: op.strike_resupply[0][&"geran_2"] = 1,
+		"nato resupply for russia":
+		func(op: OperationDefinition) -> void: op.strike_resupply[1][&"jassm_er"] = 1,
+	}
+	for label: String in cases:
+		var op := _definition()
+		(cases[label] as Callable).call(op)
+		assert_true(_state(op) == null, label)
 
 
 # --- shipped data ---
@@ -223,10 +310,29 @@ func test_shipped_operation() -> void:
 	assert_eq(state.air_defence_radius, 4)
 	assert_eq(state.air_defence_intercept_pct, 40)
 	assert_eq(state.repair_per_round, 5)
-	assert_eq(state.strike_stock[0], {&"cruise": 8, &"ballistic": 4, &"strike_drone": 6})
-	assert_eq(state.strike_stock[1], {&"cruise": 8, &"ballistic": 6, &"strike_drone": 16})
-	assert_eq(state.strike_resupply[0], {&"cruise": 1, &"strike_drone": 1})
-	assert_eq(state.strike_resupply[1], {&"cruise": 1, &"strike_drone": 2})
+	assert_eq(
+		state.strike_stock[0],
+		{
+			&"jassm_er": 24,
+			&"atacms": 12,
+			&"prsm": 8,
+			&"homar_k": 36,
+			&"warmate": 40,
+			&"storm_shadow": 0,
+			&"tomahawk": 0,
+		}
+	)
+	assert_eq(
+		state.strike_stock[1],
+		{&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 80}
+	)
+	assert_eq(state.strike_resupply[0], {&"jassm_er": 4, &"homar_k": 6, &"warmate": 6})
+	assert_eq(state.strike_resupply[1], {&"kh101": 3, &"geran_2": 8})
+	for player in 2:
+		for entries: Array[Dictionary] in [state.strike_stock, state.strike_resupply]:
+			for means_id: StringName in entries[player]:
+				var means: StrikeMeansDefinition = state.strike_means[means_id]
+				assert_eq(means.side, player, "side rule: %s" % means_id)
 	var by_owner := [[], []]
 	var classes := [{}, {}]
 	for installation in state.installations:

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Tomahawk (BGM-109 Block V), TASK-141a. US Navy land-attack cruise missile, not in the Polish arsenal: arrives only as allied stock (start stock 0). Numbers [ASSUMPTION], subsonic like Storm Shadow. Range above the map: 'anywhere on the operation map'.
+; Real range 1600 km / 5 km per hex = 320 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"tomahawk"
+display_name = "Tomahawk"
+accuracy_pct = 85
+interceptability_pct = 90
+damage = 40
+formation_damage = 2
+max_salvo = 9
+range_hexes = 320
+weapon_class = &"cruise"
+side = 0
+platform = "ship / submarine-launched (US Navy)"
+designation = "BGM-109 Block V"

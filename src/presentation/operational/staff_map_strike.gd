@@ -26,6 +26,12 @@ const PROBLEM_TEXTS := {
 	"bad_count": "Bad salvo size",
 }
 
+## Kilometres of one hex (the strike ranges are the real range / 5 km, TASK-141a).
+const KM_PER_HEX := 5
+## Interceptability (% of the air defence's chance) up to which a weapon is "hard" / "normal".
+const HARD_MAX_PCT := 50
+const NORMAL_MAX_PCT := 110
+
 
 ## "" when `viewer` may open the strike mode now, else operation_over / battle_pending /
 ## not_your_turn.
@@ -44,24 +50,76 @@ static func problem_text(code: String) -> String:
 	return TranslationServer.translate(PROBLEM_TEXTS.get(code, code))
 
 
-## Means of `player`'s side: [{id, name, stock, range_hexes, max_salvo}] in the state's order.
+## Means of `player`'s side (the weapons it may hold), stock > 0 first, then range descending,
+## then id: [{id, name, designation, class_id, class_text, glyph, stock, enabled, range_hexes,
+## range_km, range_text, max_salvo, accuracy, interceptability, intercept_text, intercept_word,
+## platform, damage, formation_damage}]. A weapon at stock 0 is listed with `enabled` false.
 static func means_list(state: OperationalState, player: int) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
 	for id: StringName in state.strike_means:
 		var means: StrikeMeansDefinition = state.strike_means[id]
+		if not means.usable_by(player):
+			continue
+		var stock := StrikeRules.stock(state, player, id)
 		(
 			list
 			. append(
 				{
 					"id": id,
-					"name": TranslationServer.translate(means.display_name),
-					"stock": StrikeRules.stock(state, player, id),
+					"name": String(TranslationServer.translate(means.display_name)),
+					"designation": means.designation,
+					"class_id": means.weapon_class,
+					"class_text": _t(String(means.weapon_class).capitalize()),
+					"glyph": StrikeWeaponLook.for_means(id).glyph,
+					"stock": stock,
+					"enabled": stock > 0,
 					"range_hexes": means.range_hexes,
+					"range_km": means.range_hexes * KM_PER_HEX,
+					"range_text": range_text(means.range_hexes),
 					"max_salvo": means.max_salvo,
+					"accuracy": means.accuracy_pct,
+					"interceptability": means.interceptability_pct,
+					"intercept_text": intercept_text(means.interceptability_pct),
+					"intercept_word": intercept_word(means.interceptability_pct),
+					"platform": means.platform,
+					"damage": means.damage,
+					"formation_damage": means.formation_damage,
 				}
 			)
 		)
+	list.sort_custom(_before)
 	return list
+
+
+## "925 km": the range in hexes times KM_PER_HEX.
+static func range_text(range_hexes: int) -> String:
+	return "%d km" % (range_hexes * KM_PER_HEX)
+
+
+## "hard to intercept" (<= 50), "normal" (51 - 110) or "easy to intercept" (> 110).
+static func intercept_text(interceptability_pct: int) -> String:
+	if interceptability_pct <= HARD_MAX_PCT:
+		return _t("hard to intercept")
+	if interceptability_pct <= NORMAL_MAX_PCT:
+		return _t("normal")
+	return _t("easy to intercept")
+
+
+## The short word of the same band for a chip: "hard", "normal", "easy".
+static func intercept_word(interceptability_pct: int) -> String:
+	if interceptability_pct <= HARD_MAX_PCT:
+		return _t("hard")
+	if interceptability_pct <= NORMAL_MAX_PCT:
+		return _t("normal")
+	return _t("easy")
+
+
+static func _before(a: Dictionary, b: Dictionary) -> bool:
+	if a["enabled"] != b["enabled"]:
+		return a["enabled"]
+	if a["range_hexes"] != b["range_hexes"]:
+		return a["range_hexes"] > b["range_hexes"]
+	return String(a["id"]) < String(b["id"])
 
 
 ## Largest salvo of the means: min(max_salvo, stock); 0 for an unknown means or no stock.
@@ -206,7 +264,8 @@ static func _t(key: String) -> String:
 	return TranslationServer.translate(key)
 
 
-## The confirm card: {title, means_line, raise_line, lines, danger}. `title` is the target's
+## The confirm card: {title, means_line ("3 × JASSM-ER"), salvo_line (with "on <target>"),
+## raise_line, lines, danger}. `title` is the target's
 ## name; `raise_line` is "" unless `raised`; `danger` when a line is a danger line.
 static func confirm_model(
 	state: OperationalState,
@@ -230,7 +289,9 @@ static func confirm_model(
 		)
 	return {
 		"title": target_name(state, target_id),
-		"means_line": "%s × %d" % [TranslationServer.translate(means.display_name), salvo],
+		"means_line": StaffMapStrikeText.salvo_line(_t(means.display_name), salvo),
+		"salvo_line":
+		StaffMapStrikeText.salvo_line(_t(means.display_name), salvo, target_name(state, target_id)),
 		"raise_line": raise_line,
 		"lines": lines,
 		"danger": danger,

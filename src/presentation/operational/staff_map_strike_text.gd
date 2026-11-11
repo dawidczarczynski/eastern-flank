@@ -7,41 +7,54 @@ extends RefCounted
 ## remaining integrity / strength only.
 
 
+## "3 × JASSM-ER", or "3 × JASSM-ER on Chernyakhovsk airfield" with a target name (TASK-141b).
+static func salvo_line(means_name: String, salvo: int, target_name := "") -> String:
+	var line := "%d × %s" % [salvo, means_name]
+	if target_name != "":
+		line += " " + _t("on") + " " + target_name
+	return line
+
+
 ## The toast of a `strike_resolved` event.
 static func resolved(state: OperationalState, event: Dictionary) -> String:
 	var means: StrikeMeansDefinition = state.strike_means.get(event["means"])
 	var means_name := String(event["means"])
 	if means != null:
-		means_name = TranslationServer.translate(means.display_name)
+		means_name = _t(means.display_name)
 	var target_id: StringName = event["target"]
 	var parts: Array[String] = []
 	if int(event["intercepted"]) > 0:
-		parts.append("%d intercepted" % event["intercepted"])
-	parts.append(_n(event["hits"], "hit"))
+		parts.append("%d %s" % [event["intercepted"], _t("intercepted")])
+	parts.append(_n(event["hits"], _t("hit"), _t("hits")))
 	if int(event["misses"]) > 0:
-		parts.append(_n(event["misses"], "miss", "misses"))
+		parts.append(_n(event["misses"], _t("miss"), _t("misses")))
 	var text := (
-		"%s ×%d on %s: %s"
+		"%s ×%d %s %s: %s"
 		% [
 			means_name,
 			event["count"],
+			_t("on"),
 			StaffMapStrike.target_name(state, target_id),
 			", ".join(parts)
 		]
 	)
 	var dealt: int = event["damage_dealt"]
 	if event["target_destroyed"]:
-		text += " – DESTROYED"
+		text += " – " + _t("destroyed").to_upper()
 	elif dealt > 0:
 		var installation := state.get_installation(target_id)
 		if installation != null:
 			text += (
-				" – integrity %d → %d" % [installation.integrity + dealt, installation.integrity]
+				" – "
+				+ _t("integrity %d → %d") % [installation.integrity + dealt, installation.integrity]
 			)
 		else:
 			var formation := state.get_formation(target_id)
 			if formation != null:
-				text += " – strength %d → %d" % [formation.strength() + dealt, formation.strength()]
+				text += (
+					" – "
+					+ _t("strength %d → %d") % [formation.strength() + dealt, formation.strength()]
+				)
 	return text
 
 

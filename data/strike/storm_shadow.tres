@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; Storm Shadow (SCALP-EG), TASK-141a. British / French cruise missile, not in Polish service: arrives only as allied stock (start stock 0).
+; Real range 560 km / 5 km per hex = 112, rounded to 110 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"storm_shadow"
+display_name = "Storm Shadow"
+accuracy_pct = 85
+interceptability_pct = 85
+damage = 40
+formation_damage = 2
+max_salvo = 9
+range_hexes = 110
+weapon_class = &"cruise"
+side = 0
+platform = "fighter-launched (allied)"
+designation = "SCALP-EG"

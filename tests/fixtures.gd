@@ -77,8 +77,8 @@ static func set_range(
 ## A unit whose every shot hits (per-element rolls, TASK-089a): its attack is so high that
 ## hit_on is capped at max_hp, the size of its die. A strike therefore deals exactly the
 ## striker's current HP in damage – the tool for tests that need a certain result.
-static func sure_fighter(max_hp: int, defense: int = 2, attack_range: int = 1) -> UnitDefinition:
-	var definition := fighter(100, defense, max_hp, attack_range)
+static func sure_fighter(max_hp: int, defense: int = 2, range_hexes: int = 1) -> UnitDefinition:
+	var definition := fighter(100, defense, max_hp, range_hexes)
 	definition.id = &"test_sure_fighter"
 	return definition
 
@@ -231,3 +231,48 @@ static func auto_case(kind: String, seed_value := 1) -> BattleSetup:
 	if kind == "fortress":
 		return auto_setup(pl_pl, rows, [advance, [&"defend", 1]], &"hills", seed_value)
 	return auto_setup(pl_pl, rows, [advance, advance], &"plains", seed_value)
+
+
+## A strike means built in code (TASK-141a: the generic test weapons never come from data/strike/),
+## usable by either side unless `side` says otherwise.
+static func strike_means(
+	id: StringName,
+	numbers: Array = [80, 100, 35, 2, 4, 50],
+	side: int = StrikeMeansDefinition.ANY_SIDE,
+) -> StrikeMeansDefinition:
+	var means := StrikeMeansDefinition.new()
+	means.id = id
+	means.display_name = String(id)
+	means.accuracy_pct = numbers[0]
+	means.interceptability_pct = numbers[1]
+	means.damage = numbers[2]
+	means.formation_damage = numbers[3]
+	means.max_salvo = numbers[4]
+	means.range_hexes = numbers[5]
+	means.side = side
+	return means
+
+
+## The generic weapons of TASK-097a with their old numbers (accuracy, interceptability, damage,
+## formation damage, max salvo, range) and names, built in code and usable by either side.
+static func generic_strike_means() -> Dictionary:
+	var result := {
+		&"cruise": strike_means(&"cruise", [80, 100, 35, 2, 4, 50]),
+		&"ballistic": strike_means(&"ballistic", [70, 40, 45, 3, 2, 80]),
+		&"strike_drone": strike_means(&"strike_drone", [55, 150, 15, 1, 6, 20]),
+	}
+	(result[&"ballistic"] as StrikeMeansDefinition).weapon_class = &"ballistic"
+	(result[&"strike_drone"] as StrikeMeansDefinition).weapon_class = &"drone"
+	(result[&"cruise"] as StrikeMeansDefinition).display_name = "Cruise missile"
+	(result[&"ballistic"] as StrikeMeansDefinition).display_name = "Ballistic missile"
+	(result[&"strike_drone"] as StrikeMeansDefinition).display_name = "Strike drone"
+	return result
+
+
+## Adds the generic weapons to `state` with the old TASK-097a stock (player 0: cruise 8,
+## ballistic 4, strike_drone 6; player 1: 8, 6, 16), for tests that are about the rules, not the
+## named weapons.
+static func add_generic_strike_means(state: OperationalState) -> void:
+	state.strike_means.merge(generic_strike_means(), true)
+	state.strike_stock[0].merge({&"cruise": 8, &"ballistic": 4, &"strike_drone": 6}, true)
+	state.strike_stock[1].merge({&"cruise": 8, &"ballistic": 6, &"strike_drone": 16}, true)

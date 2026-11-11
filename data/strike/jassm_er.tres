@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrikeMeansDefinition" load_steps=2 format=3]
+
+; JASSM-ER (AGM-158B), TASK-141a. Stealthy air-launched cruise missile in Polish service. Range above the map: 'anywhere on the operation map'.
+; Real range 925 km / 5 km per hex = 185 hexes. Accuracy, interceptability, damage, salvo,
+; stock and resupply are [ASSUMPTION]s balanced by TASK-103. `platform` is flavour only.
+
+[ext_resource type="Script" path="res://src/core/data/strike_means_definition.gd" id="1_means"]
+
+[resource]
+script = ExtResource("1_means")
+id = &"jassm_er"
+display_name = "JASSM-ER"
+accuracy_pct = 90
+interceptability_pct = 70
+damage = 40
+formation_damage = 2
+max_salvo = 12
+range_hexes = 185
+weapon_class = &"cruise"
+side = 0
+platform = "fighter-launched (F-16 Block 52+)"
+designation = "AGM-158B"

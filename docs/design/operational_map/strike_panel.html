@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Strike panel</title>
+<style>
+@font-face{font-family:'Chakra Petch';font-weight:600;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf)}
+@font-face{font-family:'Chakra Petch';font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:'JetBrains Mono';font-weight:100 800;src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:'Plex Cond';font-weight:500;src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf)}
+:root{--void:#0b0d0b;--land:#1d211c;--sea:#0f1820;--shore:#2b4454;--own:#5b93d6;--enemy:#d76a52;--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--water:#6f95ab;--ok:#b9d38a;--warn:#e2c069;--panel:rgba(8,11,8,.93);--card:#12150f;--cardedge:#2e3329;--line:rgba(232,176,74,.34)}
+*{box-sizing:border-box}body{margin:0;background:#0a0c09;color:var(--text);font:14px/1.45 'Plex Cond',sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:0 24px 60px}
+.banner{background:var(--amber);color:#0a0c09;font:700 14px 'Chakra Petch';letter-spacing:.12em;padding:8px 24px;text-align:center}
+h1{font:700 30px 'Chakra Petch';margin:26px 0 4px}h2{font:700 22px 'Chakra Petch';color:var(--amber);margin:40px 0 6px;border-top:1px solid var(--cardedge);padding-top:18px}
+p,li{max-width:980px}code,.m{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--warn)}
+table{border-collapse:collapse;font-size:13px;margin:8px 0;max-width:1100px}td,th{border:1px solid var(--cardedge);padding:4px 9px;text-align:left;vertical-align:top}th{background:var(--card);font:600 12px 'Chakra Petch';letter-spacing:.08em;color:var(--muted)}
+.grid{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+/* map backdrop frame */
+.fr{position:relative;overflow:hidden;background:linear-gradient(115deg,var(--sea) 0 14%,var(--shore) 14% 14.6%,var(--land) 14.6%);border:1px solid var(--cardedge)}
+.fr .cap{position:absolute;left:0;bottom:0;right:0;background:rgba(0,0,0,.6);font:600 11px 'Chakra Petch';letter-spacing:.1em;color:var(--muted);padding:3px 8px;text-transform:uppercase;z-index:9}
+.fr .bar{position:absolute;left:0;right:0;top:0;height:92px;background:rgba(8,11,8,.7);border-bottom:1px solid var(--cardedge);font:600 11px 'Chakra Petch';letter-spacing:.1em;color:var(--muted);padding:8px 16px}
+.fr .tgt{position:absolute;width:26px;height:26px;border:2px solid var(--alert);border-radius:50%;box-shadow:0 0 0 5px rgba(224,124,94,.18)}
+.fr .rg{position:absolute;border:1.4px dashed var(--amber);border-radius:50%;opacity:.45}
+/* frame plate = StaffMapWindow */
+.plate{--c:var(--line);background:var(--c);padding:1px;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px));position:absolute;left:16px;top:110px}
+.plate .in{background:var(--panel);clip-path:polygon(0 0,calc(100% - 15px) 0,100% 15px,100% 100%,15px 100%,0 calc(100% - 15px));padding:0 16px 12px}
+.tab{display:flex;align-items:center;gap:8px;margin:0 -16px 10px;padding:5px 16px;font:700 11px 'Chakra Petch';letter-spacing:1px;color:#0a0c09;background:var(--own);height:32px}
+.tab .x{margin-left:auto;width:32px;height:32px;margin-right:-16px;display:grid;place-items:center;font:700 18px 'JetBrains Mono';color:#0a0c09}
+.sg{display:inline-block;width:14px;height:9px;background:#0f1a26}
+/* weapon rows */
+.row{display:flex;align-items:center;gap:10px;padding:0 8px;height:46px;border-bottom:1px solid rgba(46,51,41,.7);position:relative}
+.row.sel{background:rgba(232,176,74,.1);box-shadow:inset 3px 0 var(--amber)}
+.row.hov{background:rgba(223,229,214,.07)}
+.row.off{opacity:.45}
+.gl{width:34px;height:34px;flex:none;background:#171b14;display:grid;place-items:center;clip-path:polygon(0 0,calc(100% - 7px) 0,100% 7px,100% 100%,7px 100%,0 calc(100% - 7px))}
+.gl svg{width:26px;height:26px;stroke:var(--text);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.sel .gl svg{stroke:var(--amber)}
+.nm{font:700 15px/1.1 'Chakra Petch';letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.sub{font:500 10.5px 'JetBrains Mono';color:var(--muted);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.sub b{color:var(--water);font-weight:600}
+.stk{margin-left:auto;text-align:right;font:700 18px/1 'JetBrains Mono';color:var(--amber)}
+.stk small{display:block;font:600 9px 'Chakra Petch';letter-spacing:.14em;color:var(--muted);margin-top:2px}
+.off .stk{color:var(--muted)}
+.key{font:600 10px 'JetBrains Mono';border:1px solid var(--cardedge);padding:1px 5px;color:var(--muted);margin-left:8px}
+.sep{font:600 10px 'Chakra Petch';letter-spacing:.16em;color:var(--muted);padding:8px 8px 3px;text-transform:uppercase}
+/* model viewport */
+.mv{position:relative;background:radial-gradient(ellipse at 50% 85%,#262c21 0,#10130e 70%);border:1px solid var(--cardedge);overflow:hidden}
+.mv svg.mdl{position:absolute;inset:0;width:100%;height:100%}
+.mv .tag{position:absolute;left:8px;top:6px;font:600 9px 'Chakra Petch';letter-spacing:.16em;color:var(--muted)}
+.mv .tag2{position:absolute;right:8px;bottom:6px;font:500 9px 'JetBrains Mono';color:var(--muted)}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:8px 0}
+.chip{background:var(--card);border:1px solid var(--cardedge);padding:4px 7px}
+.chip i{display:block;font:600 9px 'Chakra Petch';letter-spacing:.14em;color:var(--muted);font-style:normal}
+.chip b{font:600 13px 'JetBrains Mono';color:var(--text)}
+.step{display:flex;align-items:center;gap:8px;margin-top:8px;font:600 12px 'Chakra Petch';letter-spacing:.08em;color:var(--muted)}
+.step .bt{width:30px;height:30px;border:1px solid var(--line);display:grid;place-items:center;font:700 16px 'JetBrains Mono';color:var(--text)}
+.step .n{font:700 20px 'JetBrains Mono';color:var(--amber);min-width:24px;text-align:center}
+.hint{font:500 12px 'Plex Cond';color:var(--muted);margin-top:8px}
+.go{margin-left:auto;background:var(--amber);color:#0a0c09;font:700 12px 'Chakra Petch';letter-spacing:.14em;padding:7px 14px}
+.old{background:#171b14;border:1px solid var(--cardedge);padding:10px 14px;font:13px 'JetBrains Mono';color:var(--muted);max-width:980px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="g-missile" viewBox="0 0 26 26"><path d="M3 13h14M17 8l6 5-6 5zM6 10l-3-3M6 16l-3 3"/></symbol>
+<symbol id="g-ballistic" viewBox="0 0 26 26"><path d="M13 3l4 7v9h-8v-9zM9 19l-3 4M17 19l3 4M13 19v4"/></symbol>
+<symbol id="g-drone" viewBox="0 0 26 26"><path d="M13 4v18M4 15l9-5 9 5M7 21h12"/></symbol>
+<symbol id="g-rocket" viewBox="0 0 26 26"><path d="M4 9h12l5 4-5 4H4zM8 9v8M12 9v8"/></symbol>
+<symbol id="g-loiter" viewBox="0 0 26 26"><path d="M13 5l8 16-8-4-8 4zM13 5v12"/></symbol>
+<!-- placeholder silhouette of the 3D model -->
+<symbol id="m-missile" viewBox="0 0 300 150"><g stroke="#dfe5d6" stroke-width="1.2" fill="#3a4034"><path d="M40 75l30-16h140l36 16-36 16H70z"/><path d="M110 60l30-30 20 0-18 30zM110 90l30 30 20 0-18-30z" fill="#2f352a"/><path d="M60 62l-18-20h16l14 18zM60 88l-18 20h16l14-18z" fill="#2f352a"/><path d="M246 75l22 0" /></g></symbol>
+</defs></svg>
+<div class="banner">Strike panel – variant A accepted 2026-11-11 (B flyout and C list-only rejected) · TASK-141b · model previews: TASK-144</div>
+<div class="wrap">
+<h1>Strike panel rework</h1>
+<h2>The need</h2>
+<p>Since TASK-141a the strike mode holds <b>12 named weapons</b> (5 Russian, 7 NATO). The TASK-097b panel is a 330 px column of plain toggle buttons with text like "Jassm_er  ×6  185 hx" – no glyph, no class, no real range, nothing to tell a Homar-K from an ATACMS, and the other side's weapons are listed too. It has to say, per weapon of <b>the viewer's side only</b>: <b>glyph, name, designation, class, range in km, stock, largest salvo</b>; stock 0 stays listed but greyed (Storm Shadow / Tomahawk until allies deliver); and the player wants a <b>3D model preview slot</b> for the selected weapon (the models are built in separate tasks; until a model exists the slot shows the class glyph large).</p>
+<ul>
+<li><b>When:</b> strike mode (bar button / key S). Docked window, left dock x 16 / y 110, one at a time, X and Esc close, a map click on a target does NOT close it (strike mode keeps the window; the existing rule is unchanged).</li>
+<li><b>States:</b> normal, hover, selected (picked weapon), stock 0 (greyed, not hidden, still hoverable for info, not pickable), out of range for the hovered target (hint line, row unchanged).</li>
+<li><b>Must not hide:</b> the turn bar rows, the selected counter, the target hex and the range ring – the window only grows downwards from y 110.</li>
+<li><b>Colour-blind:</b> side is carried by the tab text ("STRIKE · NATO") and the glyph shape; selection by the amber bar <i>and</i> the bright glyph; stock 0 by opacity <i>and</i> the "0" / "ALLIES" label.</li>
+<li><b>Models:</b> a <code>SubViewport</code> with one procedural mesh, slow turntable (12 s per turn, 18° tilt), rendered only while the window is visible and a weapon is picked or hovered (<code>UPDATE_WHEN_VISIBLE</code>, 60 FPS budget safe: one low-poly mesh, no shadows). No model yet → the glyph at 96 px.</li>
+</ul>
+<p>Existing frame (reused in all variants): <code>StaffMapWindow</code> – <code>PANEL_STRONG</code>, 1 px <code>LINE</code>, chamfers 0,16,0,16, tab Chakra Petch 700 11 on the side colour, X 32 px. <b>No new tokens in any variant.</b> Data below is real (<code>data/strike/*.tres</code>, NATO side, sorted stock &gt; 0 first, then range descending).</p>
+
+<h2>Variant A – docked window with the detail card inside (closest to existing; recommended)</h2>
+<p>Window widened to 420 px (the width of the report card; the docked-window rule allows 420 for reports – this is the same kind of content). The list is compact 46 px rows; the <b>picked weapon's detail card</b> (model viewport 388×140 + four spec chips) sits under the list; the salvo stepper and the Fire hint close the window. Hover on another row previews its model / chips in the same card (hover pauses back to the picked weapon on leave). One component, no floating layers.</p>
+<div class="grid"><div class="fr" id="fa1" style="width:760px;height:880px"><div class="bar">TURN BAR · ESCALATION CHIP</div><div class="rg" style="left:420px;top:440px;width:300px;height:300px"></div><div class="tgt" style="left:560px;top:580px"></div><div class="cap">A · normal – JASSM-ER picked</div></div></div>
+<div class="grid"><div class="fr" id="fa2" style="width:760px;height:880px"><div class="bar">TURN BAR · ESCALATION CHIP</div><div class="cap">A · hover on greyed Tomahawk (stock 0) – card shows its model dimmed + "arrives only from allies"</div></div></div>
+<table><tr><th>Part</th><th>Spec</th></tr>
+<tr><td>Window</td><td>420 px wide, x 16 / y 110, height by content (~700 px with 7 rows), <code>PANEL_STRONG</code>, 1 px <code>LINE</code>, chamfers 0,16,0,16; tab "STRIKE · NATO" Chakra 700 11 tracking 1 on <code>side.own</code> (<code>side.enemy</code> for Russia), X 32 px.</td></tr>
+<tr><td>Weapon row</td><td>46 px; glyph tile 34 px chamfered (<code>#171b14</code>, glyph 26 px stroke 1.6 <code>ui.text</code>, <code>ui.amber</code> when picked); name Chakra 700 15 caps; sub-line JetBrains Mono 500 10.5 caps muted: <i>designation · CLASS (<code>outcome.intercepted</code> blue) · range km</i>; right: stock JetBrains Mono 700 18 <code>ui.amber</code> + "STOCK" Chakra 600 9; separator 1 px <code>ui.card edge</code>.</td></tr>
+<tr><td>States</td><td>hover = white 7 % fill; picked = amber 10 % fill + 3 px <code>ui.amber</code> left bar + amber glyph; stock 0 = 45 % opacity, stock shows "0", sub-line ends with "ALLIES ONLY" (Storm Shadow, Tomahawk), not pickable (click = hint "arrives only from allies"); ranges above 120 hexes read "WHOLE MAP" instead of km. Keys 1–7 pick (key cap on the right of the row on hover only).</td></tr>
+<tr><td>Detail card</td><td>model viewport 388×140 (<code>#10130e</code> radial floor, turntable), tag "AGM-158B · CRUISE" Chakra 600 9; below it 4 chips (<code>ui.card</code> fill, 1 px card edge): RANGE km, SALVO ≤n, ACCURACY %, INTERCEPT in words ("hard / normal / easy to intercept" from the data thresholds), a second line of text: platform ("fighter-launched").</td></tr>
+<tr><td>Salvo row</td><td>[−] n [+] "SALVO" and the strikes line "STRIKES 1 / 2" right; hint line Plex Cond 12 muted ("Click a target in range").</td></tr>
+<tr><td>Behaviour</td><td>Model: no model file → class glyph 96 px, stroke 1.2 muted. Stock 0 weapon hovered: model at 45 % brightness. The window never blocks map clicks outside its rectangle.</td></tr>
+<tr><td>Godot notes</td><td>Extend <code>StaffMapStrikePanel</code> (it already extends <code>StaffMapWindow</code>); rows from <code>StaffMapStrike.means_list</code> (add side filter, designation, class, km); new small <code>StaffMapWeaponCard</code> = <code>SubViewportContainer</code> + chips; glyphs as drawn polylines like the installation glyphs (no assets).</td></tr></table>
+
+<h2>Variant B – narrow list + floating flyout card</h2>
+<p>The panel stays <b>330 px</b> (unchanged width, rows with a bigger 56 px thumbnail and the stock on the right). The detail card is a separate 320 px chamfered plate that opens to the <b>right of the window</b> (x 362) for the hovered / picked weapon and carries the large model (320×190) and the spec table. More room for the model; two layers and the card covers more of the map while hovering.</p>
+<div class="grid"><div class="fr" id="fb" style="width:760px;height:830px"><div class="bar">TURN BAR · ESCALATION CHIP</div><div class="rg" style="left:430px;top:380px;width:300px;height:300px"></div><div class="tgt" style="left:560px;top:520px"></div><div class="cap">B · ATACMS hovered, JASSM-ER picked</div></div></div>
+<table><tr><th>Part</th><th>Spec</th></tr>
+<tr><td>List window</td><td>330 px (standard docked width); row 56 px: model thumbnail 56×40 (a pre-rendered still of the model, static – no live viewport per row; glyph while no model), name Chakra 700 15, sub-line mono 10.5 "designation · km", stock right. States as in A.</td></tr>
+<tr><td>Flyout card</td><td>320 px wide plate in the same frame (<code>PANEL_STRONG</code>, 1 px <code>LINE</code>, chamfers 0,16,0,16), at x = 16 + 330 + 16, top aligned with the hovered row; model 296×190 turntable, then a 2-column info list (label muted left, mono value right – the standard info row): class, range km (hexes), salvo, accuracy, intercept words, damage, platform. Follows the hover; on leave returns to the picked weapon; closes with the window.</td></tr>
+<tr><td>Godot notes</td><td><code>StaffMapStrikePanel</code> unchanged in width; new <code>StaffMapWeaponFlyout</code> child of the strike HUD; thumbnails from one shared <code>SubViewport</code> baked once per weapon at load.</td></tr></table>
+
+<h2>Variant C – list only, models shown where they matter</h2>
+<p>Minimal: the panel stays 330 px, rows get glyph + name + designation + class + km + stock and <b>no preview at all</b>. The 3D model is shown only on the <b>confirm card</b> (the "3 × JASSM-ER on Chernyakhovsk" card) as a 120×70 side view, and on the result report header. Cheapest, no extra viewport while the player browses, but the player has to pick a weapon to ever see it.</p>
+<div class="grid"><div class="fr" id="fc" style="width:760px;height:700px"><div class="bar">TURN BAR · ESCALATION CHIP</div><div class="cap">C · list only; model on the confirm card</div></div></div>
+
+<h2>Recommendation</h2>
+<p><b>A.</b> It is one docked window with the existing frame, keeps the model in view while the player compares weapons by hovering, puts nothing over the map beyond the window itself and costs one <code>SubViewport</code>. B gives a bigger model but doubles the layers; C is the fallback if the live viewport proves too heavy. <b>Open questions:</b> (1) 420 px width for a docked window other than reports – OK? (2) Russian side: the same layout with <code>side.enemy</code> tab, 5 rows and no greyed ones – OK? (3) Should the stock-0 weapons be sorted last (as drawn) or stay in range order?</p>
+<h2>Current panel (for comparison)</h2>
+<div class="old">STRIKE · [ jassm_er ×6 185 hx ] [ storm_shadow ×0 110 hx ] [ iskander_m ×0 100 hx ] … (12 toggle buttons, both sides, ids as text)</div>
+</div>
+
+<script>
+const W={
+ jassm:{n:'JASSM-ER',d:'AGM-158B',c:'cruise',g:'missile',km:'925 km',s:6,sal:4,acc:'90 %',int:'Normal',pl:'Fighter-launched'},
+ prsm:{n:'PrSM',d:'Increment 1',c:'ballistic',g:'ballistic',km:'500 km',s:2,sal:2,acc:'85 %',int:'Hard',pl:'Truck launcher'},
+ atacms:{n:'ATACMS',d:'MGM-140',c:'ballistic',g:'ballistic',km:'300 km',s:4,sal:2,acc:'80 %',int:'Hard',pl:'Truck launcher'},
+ homar:{n:'Homar-K',d:'CGR-080',c:'rocket',g:'rocket',km:'290 km',s:6,sal:6,acc:'70 %',int:'Normal',pl:'Truck launcher'},
+ warmate:{n:'Warmate',d:'WB Group',c:'loitering',g:'loiter',km:'50 km',s:6,sal:6,acc:'60 %',int:'Easy',pl:'Portable'},
+ tomahawk:{n:'Tomahawk',d:'BGM-109 Blk V',c:'cruise',g:'missile',km:'WHOLE MAP',s:0,sal:3,acc:'85 %',int:'Normal',pl:'Ship / submarine'},
+ storm:{n:'Storm Shadow',d:'SCALP-EG',c:'cruise',g:'missile',km:'560 km',s:0,sal:3,acc:'85 %',int:'Normal',pl:'Fighter-launched'}
+};
+const ORDER=['jassm','prsm','atacms','homar','warmate','tomahawk','storm'];
+const gl=g=>`<span class="gl"><svg><use href="#g-${g}"/></svg></span>`;
+function row(k,st,keyn,big){const w=W[k];const off=w.s==0;
+ const sub=off?`${w.d} · <b>${w.c}</b> · ALLIES ONLY`:`${w.d} · <b>${w.c}</b> · ${w.km}`;
+ return `<div class="row ${st||''} ${off?'off':''}" style="${big?'height:56px':''}">${big?`<span class="gl" style="width:56px;height:40px"><svg style="width:34px;height:34px"><use href="#g-${w.g}"/></svg></span>`:gl(w.g)}<div><div class="nm">${w.n}</div><div class="sub">${big?`${w.d} · ${w.km}`:sub}</div></div><div class="stk">${w.s}<small>${off?'ALLIES':'STOCK'}</small></div></div>`}
+function model(w,dim,h,wd){return `<div class="mv" style="height:${h}px;width:${wd}px${dim?';filter:brightness(.5)':''}"><span class="tag">${w.d.toUpperCase()} · ${w.c.toUpperCase()}</span><span class="tag2">3D · TURNTABLE</span><svg class="mdl" viewBox="0 0 300 150" preserveAspectRatio="xMidYMid meet"><ellipse cx="150" cy="128" rx="90" ry="9" fill="#000" opacity=".45"/><use href="#m-missile" x="30" y="10" width="240" height="120"/></svg></div>`}
+function chips(w){return `<div class="chips"><div class="chip"><i>RANGE</i><b>${w.km.replace('WHOLE MAP','ALL MAP')}</b></div><div class="chip"><i>SALVO</i><b>≤ ${w.sal}</b></div><div class="chip"><i>ACCURACY</i><b>${w.acc}</b></div><div class="chip"><i>INTERCEPT</i><b>${w.int}</b></div></div>`}
+function plate(w,inner,x){return `<div class="plate" style="width:${w}px;${x?`left:${x}px;`:''}"><div class="in">${inner}</div></div>`}
+const tab=`<div class="tab"><span class="sg"></span>STRIKE · NATO<span class="x">✕</span></div>`;
+const step=`<div class="step">SALVO <span class="bt">−</span><span class="n">3</span><span class="bt">+</span><span style="margin-left:auto">STRIKES 1 / 2</span></div><div class="hint">Click a target in range · ↵ fire · Esc close</div>`;
+function A(pick,hov){const list=ORDER.map(k=>row(k,k==pick&&!hov?'sel':(k==hov?'hov':''))).join('');
+ const shown=W[hov||pick];
+ const detail=`${model(shown,shown.s==0,140,388)}${chips(shown)}<div class="sub" style="margin-top:-2px">${shown.s==0?'Arrives only from allies (support package)':shown.pl}</div>`;
+ return plate(420,tab+list+'<div style="height:10px"></div>'+detail+step)}
+document.getElementById('fa1').insertAdjacentHTML('beforeend',A('jassm'));
+document.getElementById('fa2').insertAdjacentHTML('beforeend',A('jassm','tomahawk'));
+// B
+(function(){const list=ORDER.map(k=>row(k,k=='jassm'?'sel':(k=='atacms'?'hov':''),0,true)).join('');
+ const w=W.atacms;
+ const info=[['CLASS','Ballistic'],['RANGE','300 km (60 hexes)'],['SALVO','≤ 2'],['ACCURACY','80 %'],['INTERCEPT','Hard'],['DAMAGE','35 · 3 str.'],['PLATFORM','Truck launcher']].map(r=>`<div style="display:flex;justify-content:space-between;border-bottom:1px solid rgba(46,51,41,.7);padding:3px 0;font:500 12px 'Plex Cond';color:var(--muted)">${r[0]}<span class="m" style="color:var(--text)">${r[1]}</span></div>`).join('');
+ const fly=`<div class="plate" style="left:362px;top:${110+32+10+56*2}px;width:320px"><div class="in" style="padding-top:12px"><div class="nm" style="font-size:18px">ATACMS</div><div class="sub" style="margin-bottom:8px">MGM-140 · M39 / M57</div>${model(w,false,170,288)}<div style="margin-top:8px">${info}</div></div></div>`;
+ document.getElementById('fb').insertAdjacentHTML('beforeend',plate(330,tab+list+step)+fly)})();
+// C
+document.getElementById('fc').insertAdjacentHTML('beforeend',plate(330,tab+ORDER.map(k=>row(k,k=='jassm'?'sel':'')).join('')+step));
+document.getElementById('fc').insertAdjacentHTML('beforeend',`<div class="plate" style="left:380px;top:300px;width:420px"><div class="in"><div class="tab" style="background:var(--amber)">CONFIRM STRIKE</div><div style="display:flex;gap:12px;align-items:center"><div class="mv" style="width:120px;height:70px"><svg class="mdl" viewBox="0 0 300 150"><use href="#m-missile" x="20" y="10" width="260" height="130"/></svg></div><div><div class="nm" style="font-size:18px">3 × JASSM-ER</div><div class="sub">on Chernyakhovsk airfield · 4 sites in range</div></div></div><div class="step"><span class="go">FIRE ↵</span></div></div></div>`);
+</script></body></html>

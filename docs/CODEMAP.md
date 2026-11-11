@@ -5,7 +5,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/ai/
 
-- `AiPlayer` – Simple AI: every unit moves as close as possible to the nearest enemy, attacks the enemy… (`ai_player.gd`)
+- `AiPlayer` – Simple AI: every unit moves to a firing position (_firing_destination), attacks the enemy… (`ai_player.gd`)
 - `MatchRunner` – Plays whole AI-vs-AI matches headless and aggregates the results (balancing tool, TASK-01… (`match_runner.gd`)
 
 ## src/core/
@@ -21,6 +21,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `GameState` – Full match state. No dependency on the scene tree – fully testable headless. (`game_state.gd`)
 - `Hex` – Hex grid utilities: axial coordinates (q, r) as Vector2i, "pointy-top" layout. (`hex.gd`)
 - `HexGrid` – Map: a set of hex tiles with a terrain type and an elevation. (`hex_grid.gd`)
+- `LineOfSight` – Line of sight of direct fire (TASK-131a, GDD "Combat"). Pure and static. (`line_of_sight.gd`)
 - `MapGenerator` – Procedural map generation from elevation and moisture noise (TerrainField). (`map_generator.gd`)
 - `MatchRecord` – A whole match as scenario + seed + executed commands (their `to_dict()` form). (`match_record.gd`)
 - `Replay` – Rebuilds a match from a MatchRecord: the scenario's starting state from the seed, then ev… (`replay.gd`)
@@ -61,7 +62,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
-- `StrikeMeansDefinition` – A means of deep strike (TASK-097a, GDD "Deep strikes"): cruise missile, ballistic missile, (`strike_means_definition.gd`)
+- `StrikeMeansDefinition` – A means of deep strike (TASK-097a, TASK-141a, GDD "Deep strikes"): one real named weapon (`strike_means_definition.gd`)
 - `TacticalChunk` – One square of a TacticalLayer (TASK-094b, ADR 0018 "Tactical layer"): data/maps/<layer>/ (`tactical_chunk.gd`)
 - `TacticalLayer` – The tactical (250 m hex) terrain of a whole theatre, imported once and cut on demand for a (`tactical_layer.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
@@ -230,6 +231,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/presentation/models/weapons/
 
 - `jassm_er` – AGM-158B JASSM-ER (TASK-144): procedural turntable model for the strike panel's model car… (`jassm_er.gd`)
+- `WeaponModels` – Registry of the strike weapon models (TASK-144): procedural turntable models of the strike (`weapon_models.gd`)
+- `WeaponTurntable` – Turntable of one strike weapon model (TASK-144) for the strike panel's model card (`weapon_turntable.gd`)
 
 ## src/presentation/operational/
 
@@ -293,12 +296,14 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapStrike` – Pure view model of the strike mode on the staff map (TASK-097b, GDD "Deep strikes"): the… (`staff_map_strike.gd`)
 - `StaffMapStrikeChip` – The collapsed strike report (TASK-097b): a compact 30 px chip "▮ STRIKE  CRUISE ×3 · 2 HI… (`staff_map_strike_chip.gd`)
 - `StaffMapStrikeConfirm` – The confirm card of a strike on the staff map (TASK-097b): the target, "means × salvo", t… (`staff_map_strike_confirm.gd`)
+- `StaffMapStrikeFlight` – Pure geometry and timing of one missile's trace on the staff map (TASK-141b): the point o… (`staff_map_strike_flight.gd`)
 - `StaffMapStrikeFx` – Procedural, time-driven impact effects of the strike layer (TASK-097b): a fireball, shock… (`staff_map_strike_fx.gd`)
 - `StaffMapStrikeHud` – The strike mode of the staff map (TASK-097b, GDD "Deep strikes") behind a few calls so St… (`staff_map_strike_hud.gd`)
 - `StaffMapStrikeLayer` – What the strike mode draws over the staff map in screen space (TASK-097b), in one node (f… (`staff_map_strike_layer.gd`)
-- `StaffMapStrikePanel` – The strike mode panel of the staff map (TASK-097b): the means with stock and range (a tog… (`staff_map_strike_panel.gd`)
+- `StaffMapStrikePanel` – The strike mode panel of the staff map (TASK-097b, TASK-141b): docs/design/operational_ma… (`staff_map_strike_panel.gd`)
 - `StaffMapStrikeReport` – The strike result report card (TASK-097b, variant A of docs/design/operational_map/ (`staff_map_strike_report.gd`)
 - `StaffMapStrikeReports` – The strike result reports of the staff map (TASK-097b): the card (StaffMapStrikeReport),… (`staff_map_strike_reports.gd`)
+- `StaffMapStrikeRow` – One weapon row of the strike panel (TASK-141b, docs/design/operational_map/strike_panel.h… (`staff_map_strike_row.gd`)
 - `StaffMapStrikeText` – Pure texts of a deep strike on the staff map (TASK-097a, TASK-097b): the one-line "Cruise (`staff_map_strike_text.gd`)
 - `StaffMapStrikeTrail` – Pure helpers and the bookkeeping of the strike trail on the staff map (TASK-097b): where… (`staff_map_strike_trail.gd`)
 - `StaffMapTerrain` – The staff map's terrain from real geography (TASK-126, ADR 0018 "Graphic layers"): the ma… (`staff_map_terrain.gd`)
@@ -306,8 +311,11 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapTurnMarks` – View-model of what happened when a side ended its move (TASK-092e), built from the operat… (`staff_map_turn_marks.gd`)
 - `StaffMapTurnReport` – Turn report of the staff map (TASK-092e), HUD v3 panel like the formation panel: one row… (`staff_map_turn_report.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
+- `StaffMapWeaponCard` – The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140… (`staff_map_weapon_card.gd`)
+- `StaffMapWeaponGlyph` – The silhouette glyph of a strike weapon class (TASK-141b): drawn polylines (no assets), n… (`staff_map_weapon_glyph.gd`)
 - `StaffMapWindow` – The one docked window of the staff map (docs/design/operational_map/bottom_bar_windows.ht… (`staff_map_window.gd`)
 - `StanceTint` – How the staff map tints the countries for one viewer (TASK-114): the single view function (`stance_tint.gd`)
+- `StrikeWeaponLook` – How one strike weapon looks on the staff map (TASK-141b): its glyph, the colour shade, sp… (`strike_weapon_look.gd`)
 
 ## src/presentation/ui/
 
