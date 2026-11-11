@@ -91,3 +91,7 @@ CampaignRecord {"version": 1, "scenario": "<operation id>", "seed": S, "factions
 - (−) `BattleSetup` / `BattleResult` change whenever a layer needs a new input or output (format changes ripple into `CampaignRecord`; no backward compatibility, as in ADR 0005 / 0009).
 
 Note (TASK-120 follow-up): `BattleSetup.Conditions.position_bonus` is read by both resolvers – `AutoResolve` and the played battle (`GameState.position_bonus_per_player`, added to the target's defense in `AttackCommand.compute_damage`, so forecast, AI scoring and HUD follow).
+
+## Calibration (TASK-128)
+
+Auto-resolve numbers were tuned against played AI-vs-AI battles of the same setups (`tools/calibrate_auto_resolve.sh`, 150 seeds): `default_rounds` 12, `break_share` 90 % (played battles run almost to the last company). The earlier "fortress" gap was largely a measurement artefact: played setups forced the defender's tiles to plains, while auto-resolve counted hills; with real hills under the defender the two agree. Win shares now differ by ≤ 15 points in every case (crush, mirror, fortress, siege 2:1 vs hills, defender caught on the march).

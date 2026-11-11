@@ -188,7 +188,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-123](TASK-123-sound.md) | Sound: UI clicks, per-unit gunshots, explosions, engines, tracks, forest ambience on zoom (CC0 assets, `AudioDirector` + `SoundPlanner`) | 🔵 done | – (soft: TASK-064, TASK-048, TASK-075) |
 | [TASK-124](TASK-124-menu-reorganisation.md) | Menu reorganisation: Start scenario (scenario list + map preview, back), Unit catalog (back), Settings (language, sound; back) | 🔵 done | – (soft: TASK-084, TASK-123) |
 | [TASK-127](TASK-127-side-flags-in-ui.md) | Side flags next to side names: shared flag component, first in the battle result notice (headline + side tabs), then the staff map top bar and contact notice | 🔵 done | – (soft: TASK-120) |
-| [TASK-128](TASK-128-auto-resolve-defence-calibration.md) | Auto-resolve calibration: defending on hills wins 94 % in auto-resolve vs 56 % in played battles ("fortress" gap); measure, tune or fix AI attacking fortified positions until win shares differ by ≤ 20 points | 🟢 ready | TASK-120 |
+| [TASK-128](TASK-128-auto-resolve-defence-calibration.md) | Auto-resolve calibration: defending on hills wins 94 % in auto-resolve vs 56 % in played battles ("fortress" gap); measure, tune or fix AI attacking fortified positions until win shares differ by ≤ 20 points | 🔵 done | TASK-120 |
 | [TASK-129](TASK-129-staff-map-cards-overlap.md) | Staff map: the order ring card overlaps the formation card (seen in the README staff_map shot) | 🔵 done | – |
 | [TASK-130](TASK-130-battle-turn-bar-flags.md) | Tactical battle turn bar: side flag and faction flag per player (new `FactionDefinition.flag`, Polish flag asset) | 🔵 done | – |
 

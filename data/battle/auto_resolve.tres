@@ -4,5 +4,5 @@
 
 [resource]
 script = ExtResource("1_rules")
-default_rounds = 8
-break_share = 50
+default_rounds = 12
+break_share = 90

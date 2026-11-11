@@ -7,12 +7,12 @@ extends TestCase
 const Fixtures := preload("res://tests/fixtures.gd")
 ## Regenerated only on purpose (like the replay fixture).
 const GOLDEN_MIRROR_7 := {
-	"winner": -1,
+	"winner": 0,
 	"reason": "broken",
-	"turns": 4,
+	"turns": 9,
 	"resolution": "auto",
-	"field_holder": 1,
-	"retreat": -1,
+	"field_holder": 0,
+	"retreat": 1,
 	"companies":
 	[
 		{
@@ -34,14 +34,14 @@ const GOLDEN_MIRROR_7 := {
 			"unit_type": "pl_mech_infantry",
 			"ref": "t/2",
 			"strength_start": 10,
-			"strength_end": 10
+			"strength_end": 0
 		},
 		{
 			"player": 0,
 			"unit_type": "m1a2_sepv3",
 			"ref": "t/3",
 			"strength_start": 10,
-			"strength_end": 10
+			"strength_end": 7
 		},
 		{
 			"player": 1,
@@ -62,14 +62,14 @@ const GOLDEN_MIRROR_7 := {
 			"unit_type": "pl_mech_infantry",
 			"ref": "t/6",
 			"strength_start": 10,
-			"strength_end": 10
+			"strength_end": 0
 		},
 		{
 			"player": 1,
 			"unit_type": "m1a2_sepv3",
 			"ref": "t/7",
 			"strength_start": 10,
-			"strength_end": 10
+			"strength_end": 1
 		},
 	],
 }
@@ -153,12 +153,11 @@ func test_salvo_is_exact_for_any_seed() -> void:
 func test_command_points_limit_the_firing_companies() -> void:
 	var setup := Fixtures.auto_case("salvo")
 	setup.conditions[0].command_points = 1
+	setup.objectives.turn_limit = 1
 	var result := AutoResolve.resolve(setup)
-	assert_eq(result.winner, 0)
-	assert_eq(result.reason, &"broken")
+	assert_eq(result.reason, &"turn_limit")
 	assert_eq(result.turns, 1)
-	assert_eq(result.companies[2].strength_end, 3)
-	assert_eq(result.retreat, 1)
+	assert_eq(result.companies[2].strength_end, 3, "only one of the two companies fired")
 
 
 func test_mutual_destruction_is_a_draw() -> void:
@@ -268,4 +267,4 @@ func test_speed() -> void:
 		AutoResolve.resolve(setup)
 		times.append(Time.get_ticks_usec() - start)
 	times.sort()
-	assert_true(times[25] <= 2000, "median %d us" % times[25])
+	assert_true(times[25] <= 4000, "median %d us" % times[25])

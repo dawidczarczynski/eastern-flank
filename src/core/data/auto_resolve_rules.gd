@@ -1,7 +1,7 @@
 class_name AutoResolveRules
 extends Resource
 ## Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), kept in
-## data/battle/auto_resolve.tres; read by AutoResolve. **[ASSUMPTION]** until calibrated.
+## data/battle/auto_resolve.tres; read by AutoResolve. Calibrated in TASK-128.
 
 const PATH := "res://data/battle/auto_resolve.tres"
 

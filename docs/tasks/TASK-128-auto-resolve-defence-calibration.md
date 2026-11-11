@@ -1,6 +1,6 @@
 # TASK-128: Auto-resolve calibration – defending on hills is far stronger in auto-resolve than in played battles
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/auto_resolve.gd`, `data/battle/auto_resolve.tres`) and/or AI (`src/ai/`); no presentation
 - **Depends on**: TASK-120
 - **Model**: sonnet
@@ -30,4 +30,14 @@ The defender wins 94 % of auto-resolved battles but 56 % of played ones (the pla
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Measured with the new `tools/calibrate_auto_resolve.sh` (150 seeds; wins P0 / P1 / draws; played = `MatchRunner` AI vs AI, 60-turn harness limit, defender tiles forced to hills where the case says hills):
+
+| Case | Played | Auto (old 8:50) | Auto (new 12:90) |
+|---|---|---|---|
+| crush | 149/0/1 | ~50/0/0 | 150/0/0 |
+| mirror | 80/68/2 | 9/20/21 per 50 | 60/80/10 |
+| fortress | 22/128/0 | 2/47/1 per 50 | 0/150/0 |
+| siege (2:1 vs hills) | 142/8/0 | 49/0/1 per 50 | 149/0/1 |
+| caught (march, plains) | 132/17/1 | 43/2/5 per 50 | 141/6/3 |
+
+Findings: (1) the TASK-120 "fortress" gap was mostly an artefact: played spawn tiles are forced to plains, so the defender had only the +1 posture bonus while auto-resolve also counted hills +2; with real hills the gap is ~15 points. (2) Real remaining gap: auto-resolve broke a side at 50 % losses in 8 rounds (mirror: ~40 % draws) while played battles go almost to annihilation. Fix: `default_rounds` 12, `break_share` 90 (data only). Largest win-share gap now 15 points (fortress). No AI change needed. Golden mirror seed 7 regenerated; `test_command_points…` now uses turn_limit 1; speed budget 2 → 4 ms (longer battles). GDD, MANUAL (auto-resolve paragraph) and ADR 0015 updated.

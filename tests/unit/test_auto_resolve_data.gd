@@ -8,12 +8,12 @@ const Fixtures := preload("res://tests/fixtures.gd")
 
 func test_shipped_rules() -> void:
 	var rules := AutoResolveRules.shipped()
-	assert_eq(rules.default_rounds, 8)
-	assert_eq(rules.break_share, 50)
+	assert_eq(rules.default_rounds, 12)
+	assert_eq(rules.break_share, 90)
 	assert_eq(rules.problem(), "")
 	var file := load("res://data/battle/auto_resolve.tres") as AutoResolveRules
-	assert_eq(file.default_rounds, 8)
-	assert_eq(file.break_share, 50)
+	assert_eq(file.default_rounds, 12)
+	assert_eq(file.break_share, 90)
 
 
 func test_rules_problems() -> void:
