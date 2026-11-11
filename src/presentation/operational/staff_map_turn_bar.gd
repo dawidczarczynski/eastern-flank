@@ -5,11 +5,10 @@ extends VBoxContainer
 ## stands in place of the faction badge):
 ## the viewed side on the left, TURN n / date / day-night / side moving in the middle, the
 ## opponent on the right (dimmed while waiting), End turn filled in the colour of the side to
-## move. Under the frame a small "follow side" toggle (the row is shared with the escalation
-## chip of TASK-115). Reads the OperationalState only; the buttons just emit signals.
+## move. Under the frame the escalation chip (TASK-115) and the strike button.
+## Reads the OperationalState only; the buttons just emit signals.
 
 signal end_turn_pressed
-signal follow_toggled(follow: bool)
 signal escalation_pressed
 signal strike_pressed
 
@@ -30,7 +29,6 @@ var _turn_label: Label
 var _date_label: Label
 var _icon: DayNightIcon
 var _mover: Label
-var _follow: Button
 var _chip: StaffMapEscalationChip
 var _strike_button: Button
 var _end_button: EndTurnButton
@@ -90,19 +88,11 @@ func _init() -> void:
 	_end_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_end_button.pressed.connect(func() -> void: end_turn_pressed.emit())
 	row.add_child(_end_button)
-	_follow = MenuStyle.button("", true)
-	_follow.name = "FollowToggle"
-	_follow.focus_mode = Control.FOCUS_NONE
-	_follow.custom_minimum_size = Vector2(0, 24)
-	_follow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_follow.add_theme_font_size_override(&"font_size", 10)
-	_follow.toggled.connect(func(on: bool) -> void: follow_toggled.emit(on))
 	var under := HBoxContainer.new()
 	under.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	under.alignment = BoxContainer.ALIGNMENT_CENTER
 	under.add_theme_constant_override(&"separation", 8)
 	add_child(under)
-	under.add_child(_follow)
 	_chip = StaffMapEscalationChip.new()
 	_chip.pressed.connect(func() -> void: escalation_pressed.emit())
 	under.add_child(_chip)
@@ -116,10 +106,8 @@ func _init() -> void:
 
 
 ## Fills the bar from `state`; `viewer` picks the side shown on the left and the YOUR / ENEMY
-## labels (colours belong to the sides), `follow` the toggle.
-func show_state(
-	state: OperationalState, palette: StaffMapPalette, viewer: int, follow: bool
-) -> void:
+## labels (colours belong to the sides).
+func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) -> void:
 	_palette = palette
 	_viewer = viewer
 	var mover := state.current_player
@@ -142,9 +130,6 @@ func show_state(
 	_strike_button.tooltip_text = tr(
 		"Deep strike: pick a means and a target on the map (key S, Esc leaves)"
 	)
-	_follow.set_pressed_no_signal(follow)
-	_follow.text = tr("FOLLOW SIDE").to_upper() if follow else tr("FIXED SIDE").to_upper()
-	_follow.tooltip_text = tr("FOLLOW_TOOLTIP")
 	_end_button.caption = tr("End turn").to_upper()
 	_end_button.fill = _colour(mover)
 	_end_button.detail = (
@@ -188,10 +173,6 @@ func take_end_button() -> EndTurnButton:
 
 func end_button() -> EndTurnButton:
 	return _end_button
-
-
-func follow_button() -> Button:
-	return _follow
 
 
 func turn_text() -> String:

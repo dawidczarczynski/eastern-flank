@@ -22,7 +22,6 @@ func after_all() -> void:
 
 
 func test_end_turn_flow() -> void:
-	_map.set_follow_side(true)
 	_map.set_viewer(0)
 	var state := _map.simulation().state
 	var start_turn := state.turn
@@ -43,23 +42,18 @@ func test_end_turn_flow() -> void:
 	assert_true(_map.turn_banner().title_text().contains("NATO"), _map.turn_banner().title_text())
 	assert_true(_map.end_turn())
 	assert_eq(state.turn, start_turn + 1)
-	assert_eq(_map.viewer_player, 1, "follow: the view switches to the side to play")
-	assert_true(_map.counters().counter(&"ru_mr_1").is_own())
+	assert_eq(_map.viewer_player, 0, "the view never switches by itself")
 	assert_false(bar.is_day_shown())
 	assert_eq(bar.date_text(), "14 JUN 2027 · 18:00–06:00")
 	assert_eq(bar.turn_text(), "02")
-	assert_eq(bar.side_meta_text(0), "YOUR MOVE · 10 FMN")
 	_map.set_viewer(0)
 
 
-func test_fixed_side_keeps_the_view() -> void:
+func test_the_view_keeps_its_side() -> void:
 	_map.set_viewer(0)
-	_map.set_follow_side(false)
 	_map.end_turn()
 	_map.end_turn()
 	assert_eq(_map.viewer_player, 0)
-	_map.set_follow_side(true)
-	assert_eq(_map.viewer_player, _map.simulation().state.current_player)
 	_map.set_viewer(0)
 
 
@@ -87,7 +81,6 @@ func test_snapshot_does_not_depend_on_the_viewer() -> void:
 
 
 func test_turn_bar_shows_side_flags() -> void:
-	_map.set_follow_side(true)
 	_map.set_viewer(0)
 	var state := _map.simulation().state
 	var bar := _map.turn_bar()

@@ -1,5 +1,5 @@
 extends TestCase
-## The staff map opens on the side to play when no --side is given (follow on): Russia moves first
+## The staff map opens on the side to play when no --side is given: Russia moves first
 ## in the operation, so the first turn must already show its formations as own (regression: the
 ## view stayed on NATO until the first End turn, so no order could be given to Russia).
 

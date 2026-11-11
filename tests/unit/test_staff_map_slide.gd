@@ -83,7 +83,6 @@ func test_six_turns_with_orders_match_a_run_without_any_view() -> void:
 
 func test_moved_counters_and_the_report_after_the_slide() -> void:
 	var sim := _map.simulation()
-	_map.set_follow_side(false)
 	var mover := sim.state.current_player
 	_map.set_viewer(mover)
 	assert_true(_order_everyone() > 0)
@@ -106,4 +105,3 @@ func test_moved_counters_and_the_report_after_the_slide() -> void:
 	assert_false(report.visible, "R closes it")
 	_map.toggle_report()
 	assert_true(report.visible, "and reopens it")
-	_map.set_follow_side(true)

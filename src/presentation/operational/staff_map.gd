@@ -9,8 +9,8 @@ extends Node3D
 ## Formations (TASK-092b): counters on their own CanvasLayer (StaffMapCounters), click selects
 ## (formation panel on the right), click on empty map or Esc deselects, Tab cycles own
 ## formations; `--side=nato|russia` picks the viewer (default NATO). Turns (TASK-093b): the turn bar
-## (top centre) and Enter end the move (EndOperationalTurnCommand); with "follow" on the view
-## switches to the side to play; `--pending-battle` adds a dummy pending battle (blocks End turn).
+## (top centre) and Enter end the move (EndOperationalTurnCommand); the view stays on one side;
+## `--pending-battle` adds a dummy pending battle (blocks End turn).
 ## Orders (TASK-092c / 092d): with an own formation selected the cursor hex shows the route
 ## (StaffMapRoutePreview); a left click on a hex gives a MARCH order (IssueOrderCommand), on an
 ## enemy counter / hex an ATTACK order (advance posture). A right click on a hex opens the order
@@ -122,7 +122,6 @@ var _resumed := false  # the simulation came back from a played battle (Session)
 var _marks := StaffMapTurnMarks.new()
 var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
-var _follow_side := true
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
 var _press_position := Vector2.ZERO
 var _drag_travel := 0.0
@@ -638,10 +637,6 @@ func turn_banner() -> TurnBanner:
 	return _banner
 
 
-func follows_side() -> bool:
-	return _follow_side
-
-
 ## Ends the move of the side to play; false when the command is rejected (a battle is pending).
 func end_turn() -> bool:
 	if _simulation == null or is_sliding():
@@ -690,14 +685,6 @@ func toggle_report() -> void:
 		_report.close()
 		return
 	_show_report()
-
-
-## "Follow the side to play" on / off; switching it on views the side to play at once.
-func set_follow_side(follow: bool) -> void:
-	_follow_side = follow
-	if follow and _simulation != null:
-		set_viewer(_simulation.state.current_player)
-	_refresh_turn_bar()
 
 
 func pitch() -> float:
@@ -879,7 +866,6 @@ func _build_operation(definition: OperationDefinition) -> void:
 		_simulation = resumed
 		state = resumed.state
 		viewer_player = int(Session.view.get("viewer", state.current_player))
-		_follow_side = bool(Session.view.get("follow", _follow_side))
 	elif definition != null:
 		state = Operation.from_definition(
 			definition,
@@ -900,9 +886,9 @@ func _build_operation(definition: OperationDefinition) -> void:
 		viewer_player = StaffMapFormations.viewer_from_args(
 			OS.get_cmdline_user_args(), state.player_sides
 		)
-		# Follow on and no explicit --side: start on the side to play (the first turn has no
-		# turn_started event to switch the view).
-		if _follow_side and not _has_side_arg():
+		# No explicit --side: start on the side to play (the first turn has no turn_started
+		# event to switch the view).
+		if not _has_side_arg():
 			viewer_player = state.current_player
 	_installations = StaffMapInstallations.new()  # under the counters
 	_counter_layer.add_child(_installations)
@@ -1202,7 +1188,6 @@ func view_settings() -> Dictionary:
 		"pitch_target": _pitch_target,
 		"tilt": _tilt,
 		"viewer": viewer_player,
-		"follow": _follow_side,
 		"selected": selected_formation(),
 		"grid": _view.grid_visible(),
 		"front_tint": _front.is_tint_visible(),
@@ -1370,18 +1355,9 @@ func _on_report_entry(formation_id: StringName, _coord: Vector2i) -> void:
 	_centre_on(formation_id)
 
 
-func _has_side_arg() -> bool:
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with(StaffMapFormations.SIDE_ARG):
-			return true
-	return false
-
-
-## The move changed hands: the view follows (if wanted) and the banner names the bloc.
+## The move changed hands: the banner names the bloc.
 func _on_turn_started(event: Dictionary) -> void:
 	var player: int = event["player"]
-	if _follow_side and player != viewer_player:
-		set_viewer(player)
 	var state := _simulation.state
 	var colour := StaffMapFormations.side_colour(_palette, player)
 	_banner.show_timed(
@@ -1391,10 +1367,17 @@ func _on_turn_started(event: Dictionary) -> void:
 	)
 
 
+func _has_side_arg() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with(StaffMapFormations.SIDE_ARG):
+			return true
+	return false
+
+
 func _refresh_turn_bar() -> void:
 	if _turn_bar != null and _simulation != null:
 		_turn_bar.set_busy(is_sliding())
-		_turn_bar.show_state(_simulation.state, _palette, viewer_player, _follow_side)
+		_turn_bar.show_state(_simulation.state, _palette, viewer_player)
 		_place_turn_bar()
 		_place_panel()
 
@@ -1495,7 +1478,6 @@ func _build_hud() -> void:
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
 	_turn_bar.end_turn_pressed.connect(end_turn)
-	_turn_bar.follow_toggled.connect(set_follow_side)
 	_turn_bar.escalation_pressed.connect(func() -> void: _toggle_ladder_card())
 	_hud.add_child(_turn_bar)
 	_report = StaffMapTurnReport.new()

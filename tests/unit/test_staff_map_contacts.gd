@@ -14,7 +14,6 @@ func before_all() -> void:
 	_map.viewer_player = 0
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
-	_map.set_follow_side(false)
 
 
 func after_all() -> void:

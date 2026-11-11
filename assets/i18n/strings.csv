@@ -191,9 +191,6 @@ Country,Country,Państwo
 DAY,DAY,DZIEŃ
 NIGHT,NIGHT,NOC
 TO MOVE,TO MOVE,RUCH
-FOLLOW SIDE,FOLLOW SIDE,ŚLEDŹ STRONĘ
-FIXED SIDE,FIXED SIDE,STAŁA STRONA
-FOLLOW_TOOLTIP,Follow: the view switches to the side to play after End turn. Fixed: the view stays on one side.,"Śledź: widok przełącza się na stronę, która ma ruch, po zakończeniu tury. Stała: widok zostaje przy jednej stronie."
 END_TURN_BLOCKED_BATTLE_PENDING,A contact battle has to be fought first.,Najpierw trzeba rozegrać bitwę.
 %s to move,%s to move,Ruch: %s
 %s MOVING,%s MOVING,RUCH: %s

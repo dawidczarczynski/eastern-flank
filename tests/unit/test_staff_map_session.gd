@@ -31,7 +31,6 @@ func _build() -> StaffMap:
 
 func test_play_battle_and_return_keeps_state_and_view() -> void:
 	var map := _build()
-	map.set_follow_side(false)
 	var simulation := map.simulation()
 	var state := simulation.state
 	for event in Fixtures.theatre_contact(state):
