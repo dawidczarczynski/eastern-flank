@@ -572,3 +572,10 @@ VIEW,View,Widok
 TILTED,Tilted,Pochylony
 PLACE NAMES,Place names,Nazwy miejsc
 POLITICAL TINT,Political tint,Odcień polityczny
+MENU,Menu,Menu
+EXIT OPERATION,Exit operation,Wyjdź z operacji
+SAVE AND EXIT,Save and exit,Zapisz i wyjdź
+EXIT WITHOUT SAVING,Exit without saving,Wyjdź bez zapisywania
+EXIT,Exit,Wyjdź
+Progress since the last save will be lost. Save before leaving?,Progress since the last save will be lost. Save before leaving?,Postęp od ostatniego zapisu zostanie utracony. Zapisać przed wyjściem?
+Leave the operation and return to the main menu?,Leave the operation and return to the main menu?,Wyjść z operacji i wrócić do menu głównego?

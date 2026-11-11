@@ -32,7 +32,7 @@ extends Node3D
 
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
-enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS }
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU }
 ## (The ladder window is a full-screen overlay: opening it closes all of them, see
 ## `_close_other_windows`; opening any of them closes it.)
 
@@ -46,7 +46,6 @@ const ACTION_FLAT := &"flat"
 const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
-const ACTION_SAVE := &"save"
 const ACTION_DECISIONS := &"decisions"
 const ACTION_STRIKE := &"strike"
 const ACTION_MAP_OPTIONS := &"map_options"
@@ -89,7 +88,10 @@ var _palette: StaffMapPalette
 var _view: StaffMapView
 var _camera: Camera3D
 var _card: StaffMapCard
-var _back: Button
+var _menu_button: StaffMapMenuButton  # hamburger, top-left: opens the operation menu
+var _menu: StaffMapMenuWindow  # Save, Exit operation
+var _exit_confirm: StaffMapExitConfirm  # "leave the operation?" (offers a save when unsaved)
+var _unsaved := false  # the operation changed since the last save (or since it was built)
 var _options: StaffMapOptionsWindow  # map layer toggles under the MAP button
 var _bar: ActionBar
 var _hud: CanvasLayer
@@ -202,6 +204,7 @@ func build_now() -> bool:
 		_resume()
 	build_ms = Time.get_ticks_msec() - start
 	print("Staff map built in %d ms" % build_ms)
+	_unsaved = false
 	is_built = true
 	refresh_texts()
 	return true
@@ -249,7 +252,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		match key.keycode:
 			KEY_ESCAPE:
 				if (
-					_close_options_key()
+					cancel_exit()
+					or close_menu()
+					or _close_options_key()
 					or _politics.close_card()
 					or _escalation.close_card()
 					or _decisions.close()
@@ -258,7 +263,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				if selected_formation() != &"":
 					select_formation(&"")
 				else:
-					_return_to_menu()
+					toggle_menu()
 			KEY_ENTER, KEY_KP_ENTER:
 				end_turn()
 			KEY_SPACE:
@@ -326,8 +331,6 @@ func _build_action_bar() -> void:
 		"TIP_DECISIONS"
 	)
 	_bar.add_action(ACTION_STRIKE, "STRIKE", "S", true, "TIP_STRIKE")
-	_bar.add_separator()
-	_bar.add_action(ACTION_SAVE, "SAVE", "F5", false, "TIP_SAVE_OPERATION")
 	_bar.action_pressed.connect(_on_action_pressed)
 	_hud.add_child(_bar)
 	_build_options_window()
@@ -412,8 +415,6 @@ func _on_action_pressed(id: StringName) -> void:
 			toggle_report()
 		ACTION_DECISIONS:
 			toggle_decisions()
-		ACTION_SAVE:
-			save_campaign()
 
 
 ## Lights the toggle buttons to match the layers (whatever changed them: a key or a button).
@@ -472,9 +473,9 @@ func _input(event: InputEvent) -> void:
 
 ## Sets every text in the current language.
 func refresh_texts() -> void:
-	if _back == null:
+	if _menu_button == null:
 		return  # not built yet; _ready calls it again
-	_back.text = "‹ " + tr("Back").to_upper()
+	_menu_button.tooltip_text = tr("MENU")
 	if _bar != null:
 		_bar.refresh_texts()
 	_view.countries().refresh_names()
@@ -796,7 +797,9 @@ func _claim_left_dock(owner: LeftWindow) -> void:
 	_escalation.close_card()
 	if owner != LeftWindow.OPTIONS and _options != null and _options.close():
 		_sync_action_bar()
-	if owner == LeftWindow.OPTIONS and _report != null:
+	if owner != LeftWindow.MENU:
+		close_menu()
+	if owner in [LeftWindow.OPTIONS, LeftWindow.MENU] and _report != null:
 		_report.close()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
@@ -1038,6 +1041,7 @@ func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
 
 
 func _on_operational_event(event: Dictionary) -> void:
+	_unsaved = true
 	_add_new_counters()
 	_contacts.on_event(event)
 	if event.get("type") == &"formation_joined":
@@ -1190,6 +1194,7 @@ func save_campaign() -> bool:
 	if record == null or CampaignSaver.save(record, path) != OK:
 		_toast_message(tr("CAMPAIGN_SAVE_FAILED"), _palette.ui_alert)
 		return false
+	_unsaved = false
 	_toast_message(tr("CAMPAIGN_SAVED"), _palette.ui_amber)
 	return true
 
@@ -1420,11 +1425,11 @@ func _on_report_entry(formation_id: StringName, _coord: Vector2i) -> void:
 ## The move changed hands: the banner names the bloc.
 func _on_turn_started(event: Dictionary) -> void:
 	var player: int = event["player"]
+	if player != viewer_player:
+		set_viewer(player)  # hot-seat (no AI yet): the human orders whichever bloc is to move
 	var state := _simulation.state
 	var colour := StaffMapFormations.side_colour(_palette, player)
 	_banner.show_timed(
-	if player != viewer_player:
-		set_viewer(player)  # hot-seat (no AI yet): the human orders whichever bloc is to move
 		"%s %02d" % [tr("TURN"), state.turn],
 		(tr("%s to move") % StaffMapTurnBar.side_name(state, player)).to_upper(),
 		colour
@@ -1459,14 +1464,16 @@ func _modal_open() -> bool:
 	return (
 		(_decisions != null and _decisions.is_open())
 		or (_escalation != null and _escalation.card().visible)
+		or (_exit_confirm != null and _exit_confirm.visible)
 	)
 
 
 ## The ladder window opens: every other staff-map window closes.
 func _close_other_windows() -> void:
+	close_menu()
+	_options.close()
 	_decisions.close()
 	if _strike != null:
-	_options.close()
 		_strike.reports().suspend()
 		_strike.close()
 	_politics.close_card()
@@ -1549,9 +1556,9 @@ func _build_hud() -> void:
 	_installation_card = StaffMapInstallationCard.new()
 	_hud.add_child(_installation_card)
 	_panel = StaffMapFormationPanel.new()
+	_panel.close_requested.connect(func() -> void: select_formation(&""))
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
-	_panel.close_requested.connect(func() -> void: select_formation(&""))
 	_turn_bar.end_turn_pressed.connect(end_turn)
 	_turn_bar.escalation_pressed.connect(func() -> void: _toggle_ladder_card())
 	_hud.add_child(_turn_bar)
@@ -1585,11 +1592,10 @@ func _build_hud() -> void:
 	_contacts.auto_requested.connect(auto_resolve)
 	_result_notice = StaffMapBattleResult.new()
 	_hud.add_child(_result_notice)
-	_back = MenuStyle.button("")
-	_back.position = Vector2(16, 16)
-	_back.pressed.connect(_return_to_menu)
-	_back.focus_mode = Control.FOCUS_NONE
-	_hud.add_child(_back)
+	_menu_button = StaffMapMenuButton.new()
+	_menu_button.pressed.connect(toggle_menu)
+	_hud.add_child(_menu_button)
+	_build_menu_windows()
 	_build_action_bar()
 	_politics = StaffMapPoliticsHud.new(
 		_view,
@@ -1603,9 +1609,9 @@ func _build_hud() -> void:
 	_politics.refresh(viewer_player)
 	_escalation = StaffMapEscalationHud.new(_simulation, _palette, _hud, _toast_message)
 	_escalation.menu_requested.connect(_return_to_menu)
+	_escalation.ladder_opening.connect(_close_other_windows)
 	_decisions = StaffMapDecisionsHud.new(
 		_simulation, _palette, _hud, func() -> int: return viewer_player
-	_escalation.ladder_opening.connect(_close_other_windows)
 	)
 	_strike = StaffMapStrikeHud.new(
 		_simulation,
@@ -1656,6 +1662,8 @@ func _update_limits() -> void:
 
 
 func _on_viewport_resized() -> void:
+	if _exit_confirm != null and _exit_confirm.visible:
+		_exit_confirm.present(_unsaved, _viewport_size())
 	_update_limits()
 	_set_zoom(_zoom)
 	_place_panel()
@@ -1752,6 +1760,8 @@ func _follow_pitch(delta: float) -> void:
 func _on_mouse_button(event: InputEventMouseButton) -> void:
 	match event.button_index:
 		MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE:
+			if event.pressed:
+				close_docked_windows()
 			_dragging = event.pressed
 			if event.button_index != MOUSE_BUTTON_LEFT:
 				return
@@ -1759,8 +1769,6 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				skip_slide()  # a click only skips the slide
 				_dragging = false
 				return
-			if event.pressed:
-				close_docked_windows()
 			if event.pressed:
 				_press_position = event.position
 				_drag_travel = 0.0
@@ -1784,17 +1792,11 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 				_zoom_at(notches, event.position)
 
 
-func _strike_mode_open() -> bool:
-	return _strike != null and _strike.is_open()
-
-
-func _zoom_at(notches: float, cursor: Vector2) -> void:
-	var new_zoom := StaffMapCameraMath.zoom_by(_zoom, notches, _min_zoom, _max_zoom)
-	var size := _viewport_size()
 ## A click on the map closes every docked window (left dock and the strike report card; the
 ## formation panel follows the selection, which `click_at` clears on an empty hex).
 func close_docked_windows() -> void:
-	var closed := _options.close()
+	var closed := close_menu()
+	closed = _options.close() or closed
 	closed = _politics.close_card() or closed
 	if _report != null and _report.visible:
 		_report.close()
@@ -1804,6 +1806,13 @@ func close_docked_windows() -> void:
 		_sync_action_bar()
 
 
+func _strike_mode_open() -> bool:
+	return _strike != null and _strike.is_open()
+
+
+func _zoom_at(notches: float, cursor: Vector2) -> void:
+	var new_zoom := StaffMapCameraMath.zoom_by(_zoom, notches, _min_zoom, _max_zoom)
+	var size := _viewport_size()
 	var moved := StaffMapCameraMath.zoom_about(
 		_position,
 		_zoom,
@@ -2065,6 +2074,79 @@ func _place_card(screen: Vector2, card: Control = null) -> void:
 	if at.y + card.size.y > size.y:
 		at.y = screen.y - CARD_OFFSET.y - card.size.y
 	card.position = at
+
+
+## The operation menu behind the hamburger: Save and Exit operation.
+func _build_menu_windows() -> void:
+	_menu = StaffMapMenuWindow.new()
+	_menu.save_pressed.connect(_on_menu_save)
+	_menu.exit_pressed.connect(request_exit)
+	_menu.close_requested.connect(func() -> void: close_menu())
+	_hud.add_child(_menu)
+	_exit_confirm = StaffMapExitConfirm.new()
+	_exit_confirm.save_and_exit.connect(_on_save_and_exit)
+	_exit_confirm.exit_confirmed.connect(_return_to_menu)
+	_exit_confirm.cancelled.connect(func() -> void: cancel_exit())
+	_hud.add_child(_exit_confirm)
+
+
+func menu_window() -> StaffMapMenuWindow:
+	return _menu
+
+
+func menu_button() -> StaffMapMenuButton:
+	return _menu_button
+
+
+func exit_confirm() -> StaffMapExitConfirm:
+	return _exit_confirm
+
+
+## True while the operation has changed since the last save.
+func has_unsaved_changes() -> bool:
+	return _unsaved
+
+
+## The hamburger / Esc with nothing to close: opens or closes the operation menu.
+func toggle_menu() -> void:
+	if _menu.is_open():
+		close_menu()
+		return
+	if _exit_confirm.visible:
+		return
+	_claim_left_dock(LeftWindow.MENU)
+	_menu.open(_viewport_size().x)
+	_menu_button.set_lit(true)
+
+
+## Closes the menu; true when it was open.
+func close_menu() -> bool:
+	if _menu == null:
+		return false
+	var was_open := _menu.close()
+	_menu_button.set_lit(false)
+	return was_open
+
+
+func _on_menu_save() -> void:
+	save_campaign()
+	close_menu()
+
+
+## Exit operation: asks first; offers a save when the operation changed since the last one.
+func request_exit() -> void:
+	close_menu()
+	_exit_confirm.present(_unsaved, _viewport_size())
+
+
+## Dismisses the exit question; true when it was open.
+func cancel_exit() -> bool:
+	return _exit_confirm != null and _exit_confirm.close()
+
+
+func _on_save_and_exit() -> void:
+	if save_campaign():
+		_return_to_menu()  # a failed save keeps the question open: the toast says why
 
 
 func _return_to_menu() -> void:

@@ -349,7 +349,7 @@ The battle has sound; there is no music yet.
 
 ## 12b. Operational map
 
-**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); orders: see **Orders** below, turns: see **Turns** below. **‹ Back** (or Esc when no formation is selected) returns to the menu.
+**Operation** in the main menu opens the staff map of the Suwałki theatre: a dark, clean digital map laid over a gently raised relief and seen at a slant, covering the Baltic coast and the Curonian Lagoon in the north-west, the Kaliningrad oblast, Lithuania, the Suwałki Gap, Poland's Masuria and Podlasie and western Belarus (one hex is 5 km). A loading screen shows while the map is drawn. The formations of the operation stand at their start positions and can be inspected (see **Formations** below); orders: see **Orders** below, turns: see **Turns** below. The **hamburger** (top left, or Esc when nothing is selected) opens the menu with **Save** and **Exit operation**; exiting asks for confirmation and offers to save first when there is unsaved progress.
 
 **Camera.** North is always up (the map does not rotate). The view starts tilted by 35°: the relief stands out, and hexes at the top of the screen are exactly as big as at the bottom (the camera has no perspective shrink). **Ctrl** + mouse wheel or holding **Q** / **E** changes the tilt between flat (0°, straight down) and 50°; **V** switches between flat and the last tilt. Drag with the left (or middle) mouse button, press W A S D or the arrow keys, or move the cursor to the edge of the window to pan. The mouse wheel zooms towards the cursor. Zoomed out fully the whole theatre fits in the window; zoomed in fully you see about 10 hexes across the shorter side of the window. The camera stops at the map border.
 
@@ -384,16 +384,16 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
 | End turn | Enter, or the **End turn** button |
-| Save the operation | F5, or the **SAVE** button |
+| Save the operation | F5, or **SAVE** in the menu (hamburger, top left) |
 | Select a formation | Left click on its counter |
 | Next own formation | Tab |
 | March the selected formation to a hex | Left click on the hex |
 | Attack an enemy formation | Left click on its counter or hex |
-| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons **map options** (opens a window with five toggle rows – grid G, place names N, borders B, political tint P, flat view V – each showing ON / OFF and its key; the map stays live behind it), **strike** (S, lit while strike mode is open), next formation (Tab), cancel order (X), turn report (R), save (F5) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle; saving the operation is only here |
+| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons **map options** (opens a window with five toggle rows – grid G, place names N, borders B, political tint P, flat view V – each showing ON / OFF and its key; the map stays live behind it), **strike** (S, lit while strike mode is open), next formation (Tab), cancel order (X), turn report (R) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle |
 | Order ring (March / Attack / Defend / Cancel) | Right click on the hex; 1-4 pick a segment, Esc closes |
 | Cancel the order | Delete, Backspace or X |
 | Deselect | Esc, or a click on empty map |
-| Back to the main menu | Esc (nothing selected), or the ‹ Back button |
+| Exit the operation | Esc (nothing selected) or the hamburger opens the menu: **Save** (F5) and **Exit operation** (asks first; offers to save when the progress is not saved) | |
 
 ### Countries
 
