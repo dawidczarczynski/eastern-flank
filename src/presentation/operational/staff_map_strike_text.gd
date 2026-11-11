@@ -109,6 +109,9 @@ static func report_model(
 		"strikes_max": state.strikes_per_turn,
 		"fallback": resolved(state, event),
 	}
+	var rounds := _report_suppression(event, target)
+	model["suppressed_rounds"] = rounds
+	model["suppressed_line"] = StaffMapAirDefence.report_line(rounds) if rounds > 0 else ""
 	if target["name"] != "":
 		model["target_name"] = target["name"]
 	if own:
@@ -131,6 +134,15 @@ static func report_model(
 	)
 	model["chip_result"] = _t("destroyed") if target["destroyed"] else short
 	return model
+
+
+## Rounds an air-defence target stays silenced after this strike: the `installation_suppressed`
+## event of its command (collected as event["suppression"]) when the salvo hit and the site stands.
+static func _report_suppression(event: Dictionary, target: Dictionary) -> int:
+	var change: Dictionary = event.get("suppression", {})
+	if int(event["hits"]) <= 0 or target["destroyed"] or change.is_empty():
+		return 0
+	return maxi(int(change.get("after", 0)), 0)
 
 
 ## Hits first, then intercepted, then missed (the pictogram order).

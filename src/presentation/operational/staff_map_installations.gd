@@ -50,6 +50,7 @@ static func info(state: OperationalState, installation: Installation) -> Diction
 		"destroyed": installation.destroyed(),
 		"gives": String(TranslationServer.translate(GIVES.get(installation.class_id, ""))),
 		"owner": installation.owner,
+		"air_defence": StaffMapAirDefence.card_model(state, installation),
 	}
 
 
@@ -82,8 +83,11 @@ func marker_count() -> int:
 func refresh() -> void:
 	for installation in _state.installations:
 		var m := marker(installation.id)
-		if m != null and m.integrity != installation.integrity:
+		if m == null:
+			continue
+		if m.integrity != installation.integrity:
 			m.set_integrity(installation.integrity)
+		m.set_suppressed(installation.suppressed_rounds)
 
 
 ## `points`: installation id -> screen position of its hex centre.

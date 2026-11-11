@@ -82,6 +82,15 @@ func present(model: Dictionary, index := 0, total := 1, has_next := false) -> vo
 	_column.add_child(_pictograms(model["outcomes"], 24.0))
 	_column.add_child(_counts(model))
 	_column.add_child(_target_section(model["target"]))
+	if model.get("suppressed_line", "") != "":
+		var silenced := MenuStyle.label(
+			"▲ " + (model["suppressed_line"] as String),
+			HudTheme.mono(700, 0),
+			12,
+			_palette.ui_amber
+		)
+		silenced.name = "Suppressed"
+		_column.add_child(silenced)
 	if not (model["interceptors"] as Array).is_empty():
 		_column.add_child(_interceptors(model))
 	_column.add_child(_escalation(model["escalation"]))

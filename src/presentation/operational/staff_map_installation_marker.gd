@@ -21,12 +21,20 @@ const HOVER_LIGHTEN := 0.15
 const DESTROYED_FILL := Color("#6d7076")
 const DESTROYED_INK := Color("#2a2c30")
 const SHADOW_SIZE := Vector2(64, 26)
+## Suppressed air defence (TASK-098b): grey plate, amber slash, badge with the rounds left.
+const SUPPRESSED_GREY := 0.7
+const SLASH_WIDTH := 2.0
+const BADGE_RADIUS := 7.0
+const BADGE_AT := Vector2(15.0, -14.0)
+const BADGE_FONT := 10
 
 var installation_id: StringName
 var class_id: StringName
 var owner_id := 0
 var integrity := Installation.MAX_INTEGRITY
 var destroyed := false
+## Rounds the site stays silenced (air defence only, 0 = active).
+var suppressed_rounds := 0
 var hovered := false:
 	set(value):
 		if hovered != value:
@@ -53,6 +61,19 @@ func setup(installation: Installation, palette: StaffMapPalette) -> void:
 	class_id = installation.class_id
 	owner_id = installation.owner
 	set_integrity(installation.integrity)
+	set_suppressed(installation.suppressed_rounds)
+
+
+func set_suppressed(rounds: int) -> void:
+	var value := maxi(rounds, 0) if class_id == &"air_defence" else 0
+	if value != suppressed_rounds:
+		suppressed_rounds = value
+		queue_redraw()
+
+
+## True while the plate shows the suppressed state (never for a destroyed site).
+func is_suppressed() -> bool:
+	return suppressed_rounds > 0 and not destroyed
 
 
 func set_integrity(value: int) -> void:
@@ -70,6 +91,8 @@ func fill_colour() -> Color:
 	var colour := DESTROYED_FILL
 	if not destroyed:
 		colour = StaffMapFormations.side_colour(_palette, owner_id)
+		if is_suppressed():
+			colour = colour.lerp(Color(0.5, 0.5, 0.5), SUPPRESSED_GREY)
 	if hovered:
 		colour = colour.lerp(Color.WHITE, HOVER_LIGHTEN)
 	return colour
@@ -151,8 +174,38 @@ func _draw() -> void:
 			1.6,
 			true
 		)
+	if is_suppressed():
+		var slash := area.grow(2.0)
+		draw_line(
+			Vector2(slash.position.x, slash.end.y),
+			Vector2(slash.end.x, slash.position.y),
+			_palette.ui_amber,
+			SLASH_WIDTH,
+			true
+		)
 	_draw_studs(base)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if is_suppressed():
+		_draw_badge()
+
+
+## The rounds left as a small number in a round badge, top right of the tile.
+func _draw_badge() -> void:
+	var at := BADGE_AT * StaffMapCounter.TILE_SCALE
+	draw_circle(at, BADGE_RADIUS + 1.0, _palette.ui_amber)
+	draw_circle(at, BADGE_RADIUS, _palette.map_void)
+	var font := HudTheme.mono(700, 0)
+	var text := str(suppressed_rounds)
+	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, BADGE_FONT).x
+	draw_string(
+		font,
+		at + Vector2(-width * 0.5, 3.5),
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		BADGE_FONT,
+		_palette.ui_amber
+	)
 
 
 func _draw_studs(base: Color) -> void:

@@ -15,6 +15,7 @@ var _title: Label
 var _means: Label
 var _raise: Label
 var _lines: VBoxContainer
+var _odds: StaffMapOddsRow
 var _confirm: Button
 var _cancel: Button
 
@@ -44,6 +45,8 @@ func _init() -> void:
 	_lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_lines.add_theme_constant_override(&"separation", 4)
 	column.add_child(_lines)
+	_odds = StaffMapOddsRow.new()
+	column.add_child(_odds)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 10)
@@ -85,6 +88,7 @@ func present(model: Dictionary) -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.custom_minimum_size = Vector2(WIDTH - 34, 0)
 		_lines.add_child(label)
+	_odds.show_odds(model.get("odds", {}))
 	_confirm.text = (tr("CONFIRM") + "  [ENTER]").to_upper()
 	_cancel.text = (tr("CANCEL") + "  [ESC]").to_upper()
 	show()
@@ -97,6 +101,19 @@ func title_text() -> String:
 
 func means_text() -> String:
 	return _means.text
+
+
+## The interception line of the card ("" when none), its kind and the row itself (tests).
+func odds_text() -> String:
+	return _odds.text()
+
+
+func odds_kind() -> StringName:
+	return _odds.kind()
+
+
+func odds_row() -> StaffMapOddsRow:
+	return _odds
 
 
 func raise_text() -> String:

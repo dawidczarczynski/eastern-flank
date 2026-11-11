@@ -9,10 +9,13 @@ extends RefCounted
 ## state; every change goes through a command (rule 3).
 
 signal open_changed(open: bool)
+## The strike mode is open with a weapon picked (the staff map then shows the air defence cover).
+signal cover_wanted_changed(wanted: bool)
 
 ## Events that may follow `strike_resolved` within its command (the report keeps collecting).
 const TAIL_EVENTS: Array[StringName] = [
 	&"installation_changed",
+	&"installation_suppressed",
 	&"formation_damaged",
 	&"formation_destroyed",
 	&"sanctuary_breached",
@@ -39,6 +42,7 @@ var _hovered: StringName = &""
 var _confirm_target: StringName = &""
 var _confirm_raised := false
 var _executing := false
+var _cover_wanted := false
 var _last_reject := ""
 var _reports: StaffMapStrikeReports
 var _pending := {}  # the strike_resolved being completed by the events of its command
@@ -102,6 +106,18 @@ func is_open() -> bool:
 	return _open
 
 
+## True while the mode is open with a weapon picked: the air defence cover is wanted on the map.
+func wants_cover() -> bool:
+	return _open and _means != &""
+
+
+func _sync_cover() -> void:
+	var wanted := wants_cover()
+	if wanted != _cover_wanted:
+		_cover_wanted = wanted
+		cover_wanted_changed.emit(wanted)
+
+
 func picked_means() -> StringName:
 	return _means
 
@@ -131,6 +147,7 @@ func toggle() -> bool:
 	_hovered = &""
 	refresh()
 	open_changed.emit(true)
+	_sync_cover()
 	return true
 
 
@@ -142,6 +159,7 @@ func close() -> bool:
 	_panel.hide()
 	_hovered = &""
 	_layer.set_targets([] as Array[Dictionary], _viewer.call())
+	_sync_cover()
 	if was_open:
 		open_changed.emit(false)
 	return was_open
@@ -156,6 +174,7 @@ func pick_means(id: StringName) -> void:
 	_salvo = clampi(_salvo, 1, limit)
 	_confirm.hide()
 	refresh()
+	_sync_cover()
 
 
 ## The salvo slider (1 .. the largest legal salvo of the picked means).
@@ -189,6 +208,7 @@ func refresh() -> void:
 	if _means != &"" and limit < 1:
 		_means = &""
 		_confirm.hide()
+		_sync_cover()
 	_salvo = clampi(_salvo, 1, maxi(limit, 1))
 	_panel.set_side(
 		StaffMapTurnBar.side_name(state, viewer),
@@ -411,6 +431,9 @@ func _collect_report(event: Dictionary) -> void:
 				flush_report()
 			elif type == &"escalation_changed" or type == &"operation_ended":
 				_pending["escalation"].append(event)
+			elif type == &"installation_suppressed":
+				if event.get("id") == _pending.get("target"):
+					_pending["suppression"] = event
 			elif not type in TAIL_EVENTS:
 				flush_report()
 
@@ -438,6 +461,7 @@ func _hint() -> String:
 
 
 func _update_hover_line() -> void:
+	_panel.set_odds({})
 	if _hovered == &"" or _means == &"":
 		_panel.set_hover_text("")
 		return
@@ -446,6 +470,7 @@ func _update_hover_line() -> void:
 	var target_label := StaffMapStrike.target_name(state, _hovered)
 	if view["legal"]:
 		_panel.set_hover_text("%s – %s" % [target_label, _t("click to strike")], _layer_colour())
+		_panel.set_odds(StaffMapAirDefence.odds_for_target(state, _viewer.call(), _means, _hovered))
 	elif view["conditional"]:
 		_panel.set_hover_text("%s – %s" % [target_label, view["reason_text"]], _palette.ui_amber)
 	else:

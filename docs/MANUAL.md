@@ -381,6 +381,8 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Grid on / off | G |
 | Place names on / off | N |
 | Country borders and names on / off | B (while no battle is pending) |
+| Air defence coverage on / off | C |
+| Country card | K |
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
 | End turn | Enter, or the **End turn** button |
@@ -389,7 +391,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Next own formation | Tab |
 | March the selected formation to a hex | Left click on the hex |
 | Attack an enemy formation | Left click on its counter or hex |
-| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons **map options** (opens a window with five toggle rows – grid G, place names N, borders B, political tint P, flat view V – each showing ON / OFF and its key; the map stays live behind it), **strike** (S, lit while strike mode is open), next formation (Tab), cancel order (X), turn report (R) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle |
+| Bottom bar (staff map) | Full-width bar: the hovered hex on the left (hex, terrain, elevation, road, river, country, stance), icon buttons **map options** (opens a window with six toggle rows – grid G, place names N, borders B, political tint P, air defence cover C, flat view V – each showing ON / OFF and its key; the map stays live behind it), **strike** (S, lit while strike mode is open), next formation (Tab), cancel order (X), turn report (R) – hover one for its name, key and description; toggles stay lit while on. The End turn button is in the bar at the far right, in the same place as in a battle |
 | Order ring (March / Attack / Defend / Cancel) | Right click on the hex; 1-4 pick a segment, Esc closes |
 | Cancel the order | Delete, Backspace or X |
 | Deselect | Esc, or a click on empty map |
@@ -544,6 +546,15 @@ Each site's chance is the figure above scaled by its **integrity**, so a damaged
 - **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (a whole salvo counts as one; the oldest drop first), and they keep the weapon's arc.
 - **Reading a trace.** Every missile of a salvo is drawn separately (at most 6 are drawn; a "+n" at the target counts the rest), launched a fraction of a second after the previous one, in your side's colour with a head in the weapon's glyph. The shape tells the weapon apart at a glance: a **ballistic** missile (ATACMS, PrSM, Iskander-M, Kinzhal) climbs in a **high arc** and arrives very fast, Kinzhal the fastest with a lower arc; a **cruise** missile (JASSM-ER, Storm Shadow, Tomahawk, Kalibr, Kh-101) flies **low and flat** on a thin long line; a **drone** (Geran-2, Warmate) crawls slowly on a low **wobbling dotted** line; a **rocket** (Homar-K) makes a **short, thick** medium arc. On a short strike every flight takes about the same minimum time, so compare the weapons on long shots.
 - **How a missile ends.** A trace that **stops short** of the target (about 70% of the way, with the interception mark) was **intercepted**. A small **puff of dust beside the target** is a **miss**. A hit ends in a burst: a **blast** for cruise missiles, a **heavy blast** with a second shockwave for ballistic ones, a small flash without smoke for drones, and a scatter of **cluster bomblets** for Homar-K rockets.
+
+### Air defence on the map
+
+Press **C**, or use the **Air defence cover** row in the map options, to show where air defence reaches. It is off at the start. While you have a weapon picked in strike mode the overlay shows by itself, and when strike mode closes the map returns to the state it had before.
+- **Zones.** Each air defence site draws its reach as a **solid zone in its owner's colour**. A **suppressed** site's zone is drawn **dashed, grey and hatched**.
+- **Marker.** A suppressed site's marker turns **grey with an amber slash** and shows the **number of rounds left** until it fires again.
+- **Hover card.** Pointing at a site shows its type with examples, its reach, and for a suppressed one "Suppressed – n rounds left".
+- **Odds line.** The confirm card shows the forecast for the target: "Interception ~X% per missile", "Air defence suppressed" or "No air defence cover". The strike panel shows the same as an **AT TARGET** chip.
+- **Report.** When a strike silences a site, the report card adds "Suppressed for n rounds".
 
 ### Turns
 

@@ -1,6 +1,6 @@
 # TASK-098b: Air defence and SEAD v1 (2/2, view) – coverage overlay on the staff map, suppressed state on air-defence markers, interception odds in the strike confirm card and panel
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (staff map); reads state and events only (`StrikeRules.coverage`, `StrikeRules.interception_chance`, `installation_suppressed`, `strike_resolved`), no rules
 - **Depends on**: TASK-098a (soft: TASK-141b – the weapon list of the strike panel, TASK-100 – fog of sites)
 - **Sections**: GDD "Deep strikes", "Operational map view"; ARCHITECTURE "Operational events"; TASK-098a, TASK-097b task files
@@ -18,7 +18,7 @@ The player sees where the air defence reaches, which sites are silenced and for 
 
 ## First step (before any code)
 
-Run **`/design-ui`** (the human does) for: the coverage overlay (zones, overlap, suppressed look, toggle control and key), the suppressed marker state and its hover-card lines, and the "interception ~X%" line in the confirm card / strike panel. Implement **only the variant the human picks**; save the chosen mockup in `docs/design/operational_map/` and name it in the notes. Components to reuse (grep `docs/CODEMAP.md`): `StaffMapInstallationMarker` / `StaffMapInstallations` (marker and its layer), `StaffMapInstallationCard` (hover card, `StaffMapCard` look), `StaffMapStrikeConfirm` (confirm card), `StaffMapStrikePanel` (means list), `StaffMapStrikeText` (pure texts), `StaffMapStrikeReport` (result card), the toast.
+Run **`/design-ui`** (the human does) for: the coverage overlay (zones, overlap, suppressed look, toggle control and key), the suppressed marker state and its hover-card lines, and the "interception ~X%" line in the confirm card / strike panel. **Design done: variant A "Glass zones", key C, accepted 2026-11-11** – mockup `docs/design/operational_map/air_defence_overlay.html`, spec in the README paragraph "Air defence overlay". Implement only that. Components to reuse (grep `docs/CODEMAP.md`): `StaffMapInstallationMarker` / `StaffMapInstallations` (marker and its layer), `StaffMapInstallationCard` (hover card, `StaffMapCard` look), `StaffMapStrikeConfirm` (confirm card), `StaffMapStrikePanel` (means list), `StaffMapStrikeText` (pure texts), `StaffMapStrikeReport` (result card), the toast.
 
 ## Acceptance criteria (testable)
 
@@ -60,4 +60,8 @@ Fog of air-defence sites (TASK-100); the full strike forecast (hit chance, expec
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Design: variant A "Glass zones", key C (`docs/design/operational_map/air_defence_overlay.html`). Pure models in `StaffMapAirDefence` (zones, odds, card and report lines, geometry helpers), overlay `StaffMapAirDefenceLayer` (cached geometry, ignores the mouse, 150 ms fade), `StaffMapOddsRow` (confirm-card row and the "AT TARGET" panel chip). Marker suppressed state, hover-card lines, report line "Suppressed for n rounds", sixth Map options row, `tools/screenshot.gd` tokens `cover` / `suppress:<id>[:<rounds>]`. Tests: `test_staff_map_air_defence.gd` (pure), `test_staff_map_air_defence_view.gd` (scene), report tests.
+- Decision: **C was already the country-card key**; the overlay got C (human confirmed), the country card moved to **K** (clicking a country name still opens it). Hint string and MANUAL updated.
+- Suppressed zone = hatch + dashed ring, no colour fill (open question settled by the agent).
+- Performance: geometry is rebuilt only when zones change or the camera moved (`_layout_counters`, no per-frame work with a static camera); pinned by `test_zones_are_cached_between_frames` (`rebuild_count`). **FPS was not measured** (headless); the human should check 60 FPS with the overlay on while panning / zooming.
+- Not done: README screenshot not refreshed (overlay off by default, battle scene unchanged).

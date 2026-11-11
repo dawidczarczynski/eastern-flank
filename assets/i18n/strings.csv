@@ -145,7 +145,7 @@ Master volume,Master volume,Głośność główna
 Ambient volume,Ambient volume,Głośność otoczenia
 Operation,Operation,Operacja
 BUILDING THE STAFF MAP,BUILDING THE STAFF MAP,Rysowanie mapy sztabowej
-STAFF_MAP_HINT,Click: march / select   RMB: orders   WASD: pan   Wheel: zoom   Q E: tilt   C: country   Esc: back,Klik: marsz / wybór   PPM: rozkazy   WASD: przesuw   Kółko: zoom   Q E: nachylenie   C: państwo   Esc: wstecz
+STAFF_MAP_HINT,Click: march / select   RMB: orders   WASD: pan   Wheel: zoom   Q E: tilt   K: country   C: air defence   Esc: back,Klik: marsz / wybór   PPM: rozkazy   WASD: przesuw   Kółko: zoom   Q E: nachylenie   K: państwo   C: obrona pow.   Esc: wstecz
 River,River,Rzeka
 Yes,Yes,Tak
 No,No,Nie
@@ -614,3 +614,14 @@ truck launcher (HIMARS),truck launcher (HIMARS),wyrzutnia na ciężarówce (HIMA
 truck launcher (K239 Chunmoo),truck launcher (K239 Chunmoo),wyrzutnia na ciężarówce (K239 Chunmoo)
 truck launcher,truck launcher,wyrzutnia na ciężarówce
 tube launcher,tube launcher,wyrzutnia tubowa
+Interception ~%d%% per missile,Interception ~%d%% per missile,Przechwycenie ~%d%% na pocisk
+Air defence suppressed,Air defence suppressed,Obrona powietrzna stłumiona
+No air defence cover,No air defence cover,Brak osłony obrony powietrznej
+radius %d hexes (%d km),radius %d hexes (%d km),promień %d heksów (%d km)
+SUPPRESSED,SUPPRESSED,STŁUMIONA
+%d rounds left,%d rounds left,pozostało rund: %d
+1 round left,1 round left,pozostała 1 runda
+Suppressed for %d rounds,Suppressed for %d rounds,Stłumiona na rund: %d
+Suppressed for 1 round,Suppressed for 1 round,Stłumiona na 1 rundę
+AIR DEFENCE COVER,AIR DEFENCE COVER,ZASIĘG OBRONY PPA
+AT TARGET,AT TARGET,NA CELU

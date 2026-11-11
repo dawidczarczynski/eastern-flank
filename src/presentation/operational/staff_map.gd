@@ -43,6 +43,7 @@ const ACTION_NAMES := &"names"
 const ACTION_BORDERS := &"borders"
 const ACTION_POLITICS := &"politics"
 const ACTION_FLAT := &"flat"
+const ACTION_COVER := &"cover"
 const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
@@ -100,6 +101,8 @@ var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
 var _places: StaffMapPlaceLayer  # place-name labels (TASK-112), N toggles
 var _installations: StaffMapInstallations
+var _cover: StaffMapAirDefenceLayer  # air defence coverage zones (TASK-098b), under the markers
+var _cover_on := false  # the player's toggle (key C); strike mode adds it while a weapon is picked
 var _installation_card: StaffMapInstallationCard
 var _installation_anchors := {}  # installation id -> point on the relief
 var _panel: StaffMapFormationPanel
@@ -294,6 +297,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F5:
 				save_campaign()
 			KEY_C:
+				toggle_air_defence_cover()
+			KEY_K:
 				open_country_card(_card_hex_country())
 			KEY_V:
 				toggle_flat_view()
@@ -358,6 +363,7 @@ func _build_options_window() -> void:
 	_options.add_option(ACTION_BORDERS, tr("BORDERS"), "B")
 	_options.add_option(ACTION_POLITICS, tr("POLITICAL TINT"), "P")
 	_options.add_option(ACTION_FLAT, tr("VIEW"), "V", tr("FLAT"), tr("TILTED"))
+	_options.add_option(ACTION_COVER, tr("AIR DEFENCE COVER"), "C")
 	_options.option_toggled.connect(_on_action_pressed)
 	_options.close_requested.connect(close_options)
 	_hud.add_child(_options)
@@ -407,6 +413,8 @@ func _on_action_pressed(id: StringName) -> void:
 			_politics.toggle_tint()
 		ACTION_FLAT:
 			toggle_flat_view()
+		ACTION_COVER:
+			toggle_air_defence_cover()
 		ACTION_NEXT:
 			select_next_formation()
 		ACTION_CANCEL:
@@ -426,6 +434,7 @@ func _sync_action_bar() -> void:
 	_options.set_active(ACTION_BORDERS, _view.countries().is_visible_layer())
 	_options.set_active(ACTION_POLITICS, _politics.tint_enabled())
 	_options.set_active(ACTION_FLAT, _pitch_target <= 0.5)
+	_options.set_active(ACTION_COVER, _cover_on)
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
 	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
@@ -448,6 +457,29 @@ func toggle_borders() -> void:
 func toggle_place_names() -> void:
 	_places.set_enabled(not _places.is_enabled())
 	_layout_places()
+
+
+## Key C / the "Air defence cover" row: the coverage zones of both sides (default off).
+func toggle_air_defence_cover() -> void:
+	_cover_on = not _cover_on
+	_apply_cover()
+	_sync_action_bar()
+
+
+func air_defence_cover() -> StaffMapAirDefenceLayer:
+	return _cover
+
+
+## Shown when the player toggled it on, or while the strike mode is open with a weapon picked.
+func _apply_cover() -> void:
+	if _cover == null:
+		return
+	_cover.set_shown(_cover_on or (_strike != null and _strike.wants_cover()))
+
+
+func _refresh_cover_zones() -> void:
+	if _cover != null:
+		_cover.set_zones(StaffMapAirDefence.zones(_simulation.state))
 
 
 func toggle_flat_view() -> void:
@@ -852,6 +884,11 @@ func _screen_of_hex(c: Vector2i) -> Vector2:
 	return _project(_view.relief().surface_point(Vector2(w.x, w.z)))
 
 
+## A ground point (hex units) on the screen, on the relief.
+func _ground_to_screen(ground: Vector2) -> Vector2:
+	return _project(_view.relief().surface_point(ground))
+
+
 func _project(point: Vector3) -> Vector2:
 	return StaffMapCameraMath.project(point, _viewport_size(), _target(), _scale(), _pitch)
 
@@ -953,6 +990,10 @@ func _build_operation(definition: OperationDefinition) -> void:
 		# event to switch the view).
 		if not _has_side_arg():
 			viewer_player = state.current_player
+	_cover = StaffMapAirDefenceLayer.new()  # under the markers and counters
+	_cover.setup(_palette, _ground_to_screen)
+	_counter_layer.add_child(_cover)
+	_cover.set_zones(StaffMapAirDefence.zones(state))
 	_installations = StaffMapInstallations.new()  # under the counters
 	_counter_layer.add_child(_installations)
 	_installations.build(state, _palette)
@@ -1013,6 +1054,8 @@ func _layout_counters() -> void:
 		_place_queue()
 	if _strike != null:
 		_strike.layout(_viewport_size(), _turn_bar.size.y + PANEL_MARGIN.y / 2.0)
+	if _cover != null:
+		_cover.layout()
 	if _installations != null:
 		var spots := {}
 		for id: StringName in _installation_anchors:
@@ -1087,7 +1130,17 @@ func _on_operational_event(event: Dictionary) -> void:
 func _on_strike_event(event: Dictionary) -> void:
 	var type: StringName = event.get("type", &"")
 	_strike.on_event(event)
-	if type in [&"installation_changed", &"strike_stock_changed", &"strike_launched"]:
+	if type in [&"installation_changed", &"installation_suppressed"]:
+		_refresh_cover_zones()
+	if (
+		type
+		in [
+			&"installation_changed",
+			&"installation_suppressed",
+			&"strike_stock_changed",
+			&"strike_launched"
+		]
+	):
 		_installations.refresh()
 		_politics.refresh(viewer_player)
 	elif type == &"strike_resolved":
@@ -1632,6 +1685,7 @@ func _build_hud() -> void:
 		_toast_message
 	)
 	_strike.open_changed.connect(_on_strike_open_changed)
+	_strike.cover_wanted_changed.connect(func(_wanted: bool) -> void: _apply_cover())
 	_strike.reports().shown.connect(func() -> void: _claim_left_dock(LeftWindow.REPORT))
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()

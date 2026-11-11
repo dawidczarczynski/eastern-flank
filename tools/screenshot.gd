@@ -363,6 +363,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
 ## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
 ## nohud (hides the whole HUD, the map and counters stay: the main menu backdrop),
+## cover (the air defence cover overlay), suppress:<installation id>[:<rounds>] (silences a site),
 ## country:<id> (the country card, TASK-114), options (the map options window),
 ## politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
@@ -543,6 +544,14 @@ func _apply_staff_map_state(spec: String) -> void:
 				contact_map = parts
 			"grid":
 				map.view().set_grid_visible(true)
+			"cover":  # the air defence cover overlay (key C, TASK-098b)
+				map.toggle_air_defence_cover()
+				map.air_defence_cover().settle()
+			"suppress":  # suppress:<installation id>[:<rounds>] – a silenced air-defence site
+				var site := map.simulation().state.get_installation(StringName(parts[1]))
+				site.suppressed_rounds = int(parts[2]) if parts.size() > 2 else 2
+				map.installations().refresh()
+				map.air_defence_cover().set_zones(StaffMapAirDefence.zones(map.simulation().state))
 			"country":
 				map.open_country_card(StringName(parts[1]) if parts.size() > 1 else &"")
 			"politics":
@@ -578,6 +587,7 @@ func _apply_staff_map_state(spec: String) -> void:
 				map.toggle_strike_mode()
 				var strike := map.strike_hud()
 				strike.pick_means(StringName(parts[1]) if parts.size() > 1 else &"jassm_er")
+				map.air_defence_cover().settle()  # no frames run: finish the cover's fade
 				if parts.size() > 2:
 					strike.click(StringName(parts[2]))
 					if parts.size() > 3 and parts[3] == "fire":

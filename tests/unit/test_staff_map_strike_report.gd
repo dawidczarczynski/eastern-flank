@@ -426,3 +426,52 @@ func test_clear_removes_everything() -> void:
 	reports.tick(10.0)
 	assert_false(reports.card_visible(), "a pending card is gone too")
 	h.release()
+
+
+# --- suppression line (TASK-098b) ---
+
+
+func _suppression(after: int) -> Dictionary:
+	return {
+		"type": &"installation_suppressed",
+		"id": AD,
+		"before": 0,
+		"after": after,
+		"cause": &"strike",
+	}
+
+
+func test_report_line_for_a_suppressing_hit() -> void:
+	var state := Model._state(2)
+	var event := _event(AD, 0, 0, 1, 0, {"damage_dealt": 35, "suppression": _suppression(2)})
+	var model := _model(state, event)
+	assert_eq(model["suppressed_rounds"], 2)
+	assert_eq(model["suppressed_line"], "Suppressed for 2 rounds")
+
+
+func test_no_report_line_without_a_hit_or_when_destroyed() -> void:
+	var state := Model._state(2)
+	var miss := _event(AD, 0, 0, 0, 1, {"suppression": _suppression(2)})
+	assert_eq(_model(state, miss)["suppressed_line"], "", "no hit, no line")
+	var destroyed := _event(
+		AD,
+		0,
+		0,
+		1,
+		0,
+		{"damage_dealt": 100, "target_destroyed": true, "suppression": _suppression(0)}
+	)
+	assert_eq(_model(state, destroyed)["suppressed_line"], "", "destroyed")
+	var other := _event(A1, 0, 0, 1, 0, {"damage_dealt": 35})
+	assert_eq(_model(state, other)["suppressed_line"], "", "not an air-defence site")
+
+
+func test_report_card_shows_the_line() -> void:
+	var state := Model._state(2)
+	var card := StaffMapStrikeReport.new(StaffMapPalette.new())
+	var event := _event(AD, 0, 0, 1, 0, {"damage_dealt": 35, "suppression": _suppression(2)})
+	card.present(_model(state, event))
+	assert_true(
+		card.texts().any(func(t: String) -> bool: return t.contains("Suppressed for 2 rounds"))
+	)
+	card.free()

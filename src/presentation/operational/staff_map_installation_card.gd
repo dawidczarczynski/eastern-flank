@@ -9,6 +9,9 @@ const ROW_SIZE := 12
 var _name_label: Label
 var _gives_label: Label
 var _note_label: Label
+var _type_label: Label
+var _reach_label: Label
+var _suppressed_label: Label
 var _values: Array[Label] = []
 
 
@@ -29,6 +32,17 @@ func _init() -> void:
 	column.add_child(_name_label)
 	for caption in ["Country", "Integrity"]:
 		column.add_child(_row(caption))
+	_type_label = _label(HudTheme.display(600), ROW_SIZE, UiPalette.HUD_TEXT)
+	_type_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_type_label.custom_minimum_size = Vector2(WIDTH - 24, 0)
+	_type_label.hide()
+	column.add_child(_type_label)
+	_reach_label = _label(HudTheme.mono(500, 0), ROW_SIZE, UiPalette.HUD_MUTED)
+	_reach_label.hide()
+	column.add_child(_reach_label)
+	_suppressed_label = _label(HudTheme.mono(700, 0), ROW_SIZE, UiPalette.AMBER)
+	_suppressed_label.hide()
+	column.add_child(_suppressed_label)
 	_gives_label = _label(HudTheme.display(400), ROW_SIZE, UiPalette.HUD_MUTED)
 	_gives_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_gives_label.custom_minimum_size = Vector2(WIDTH - 24, 0)
@@ -49,6 +63,10 @@ func show_info(data: Dictionary) -> void:
 	_values[0].text = tr(data["country"] as String).to_upper() if data["country"] != "" else "–"
 	_values[1].text = "DESTROYED" if data["destroyed"] else "%d %%" % data["integrity"]
 	_gives_label.text = tr(data["gives"] as String)
+	var air: Dictionary = data.get("air_defence", {})
+	_set_line(_type_label, air.get("type_line", ""))
+	_set_line(_reach_label, air.get("reach_line", ""))
+	_set_line(_suppressed_label, air.get("suppressed_line", ""))
 	set_note("")
 	show()
 	reset_size()
@@ -63,6 +81,23 @@ func set_note(text: String) -> void:
 
 func note_text() -> String:
 	return _note_label.text if _note_label.visible else ""
+
+
+func type_text() -> String:
+	return _type_label.text if _type_label.visible else ""
+
+
+func reach_text() -> String:
+	return _reach_label.text if _reach_label.visible else ""
+
+
+func suppressed_text() -> String:
+	return _suppressed_label.text if _suppressed_label.visible else ""
+
+
+func _set_line(label: Label, text: String) -> void:
+	label.text = text
+	label.visible = text != ""
 
 
 func name_text() -> String:

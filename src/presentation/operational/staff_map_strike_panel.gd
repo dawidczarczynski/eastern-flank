@@ -28,6 +28,7 @@ var _slider: HSlider
 var _strikes_label: Label
 var _hint: Label
 var _hover: Label
+var _odds: StaffMapOddsRow
 
 
 func _init() -> void:
@@ -45,6 +46,8 @@ func _init() -> void:
 	_column.add_child(_list)
 	_card = StaffMapWeaponCard.new()
 	_column.add_child(_card)
+	_odds = StaffMapOddsRow.new(true)
+	_column.add_child(_odds)
 	_build_salvo_row()
 	hide()
 
@@ -90,6 +93,21 @@ func show_state(
 func set_hover_text(text: String, colour: Color = UiPalette.HUD_TEXT) -> void:
 	_hover.text = text
 	_hover.add_theme_color_override(&"font_color", colour)
+
+
+## The "AT TARGET · Interception ~X% per missile" chip under the weapon card (a StaffMapAirDefence
+## odds model of the hovered legal target); an empty model hides it.
+func set_odds(model: Dictionary) -> void:
+	_odds.show_odds(model)
+	reset_size()
+
+
+func odds_text() -> String:
+	return _odds.text()
+
+
+func odds_kind() -> StringName:
+	return _odds.kind()
 
 
 func hover_text() -> String:

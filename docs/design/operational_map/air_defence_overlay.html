@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Air defence overlay – proposal</title>
+<style>
+@font-face{font-family:'Chakra Petch';font-weight:600;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf)}
+@font-face{font-family:'Chakra Petch';font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:'JetBrains Mono';font-weight:100 800;src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:'Plex Cond';font-weight:500;src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf)}
+:root{--void:#0b0d0b;--land:#1d211c;--sea:#0f1820;--shore:#2b4454;--own:#5b93d6;--enemy:#d76a52;--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--water:#6f95ab;--ok:#b9d38a;--panel:rgba(8,11,8,.93);--line:rgba(232,176,74,.34)}
+*{box-sizing:border-box}
+body{margin:0;background:#0a0c09;color:var(--text);font:14px/1.45 'Plex Cond',sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:0 24px 60px}
+.banner{background:var(--amber);color:#1a1405;font:700 13px 'Chakra Petch';letter-spacing:.12em;padding:8px 24px}
+h1{font:700 26px 'Chakra Petch';margin:24px 0 4px}
+h2{font:700 18px 'Chakra Petch';letter-spacing:.06em;margin:40px 0 4px;color:var(--amber)}
+h3{font:700 12px 'Chakra Petch';letter-spacing:.14em;color:var(--muted);margin:18px 0 6px}
+p{max-width:900px;margin:6px 0}
+.mono{font-family:'JetBrains Mono',monospace}
+.frame{position:relative;width:1000px;height:560px;background:var(--land);border:1px solid #2e3329;overflow:hidden}
+.frame svg.map{position:absolute;inset:0}
+.grid{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+table{border-collapse:collapse;font-size:13px;margin:8px 0;max-width:1000px}
+td,th{border:1px solid #2e3329;padding:4px 8px;text-align:left;vertical-align:top}
+th{font:700 11px 'Chakra Petch';letter-spacing:.1em;color:var(--muted)}
+.note{color:var(--muted);font-size:13px}
+/* cards */
+.card{position:absolute;background:var(--panel);border:1px solid var(--line);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.tab{font:700 11px 'Chakra Petch';letter-spacing:.14em;padding:5px 12px;color:#0f1a26}
+.tab.enemy{background:var(--enemy);color:#2a110b}.tab.own{background:var(--own)}.tab.amber{background:var(--amber);color:#1a1405}
+.row{display:flex;justify-content:space-between;padding:3px 12px;font:500 11px 'JetBrains Mono'}
+.row b{font-weight:700}.row .k{color:var(--muted)}
+.title{font:700 15px 'Chakra Petch';letter-spacing:.04em;padding:6px 12px 2px}
+.odds{margin:6px 12px;padding:6px 8px;border:1px solid rgba(111,149,171,.5);background:rgba(111,149,171,.08);display:flex;gap:8px;align-items:center;font:700 12px 'Chakra Petch';letter-spacing:.04em;color:var(--water)}
+.odds.none{border-color:#3a3f33;background:none;color:var(--muted)}
+.odds.supp{border-color:rgba(232,176,74,.5);background:rgba(232,176,74,.08);color:var(--amber)}
+.odds .n{font:700 16px 'JetBrains Mono'}
+.btn{display:inline-block;border:1px solid var(--line);padding:2px 8px;font:700 11px 'Chakra Petch';letter-spacing:.1em}
+.btn.f{background:var(--amber);color:#1a1405}
+.key{display:inline-block;border:1px solid #4b4e45;border-radius:3px;padding:0 5px;font:600 10px 'JetBrains Mono';color:var(--muted)}
+.bar{position:absolute;left:0;right:0;bottom:0;height:44px;background:var(--panel);border-top:1px solid #2e3329;display:flex;gap:8px;align-items:center;padding:0 16px}
+.bar .b{border:1px solid #3a3f33;padding:5px 12px;font:700 11px 'Chakra Petch';letter-spacing:.1em;color:var(--muted)}
+.bar .b.on{border-color:var(--amber);color:var(--amber);background:rgba(232,176,74,.1)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font:600 11px 'Chakra Petch';letter-spacing:.06em;color:var(--muted);margin:6px 0}
+</style></head><body>
+<div class="banner" style="background:#b9d38a">ACCEPTED 2026-11-11 · variant A "Glass zones", key C · TASK-098b (B range rings and C strike mode only rejected)</div>
+<div class="wrap">
+<h1>Air defence on the staff map</h1>
+<p>Everything the player must see about TASK-098a: <b>where</b> each site reaches (coverage zones, both sides, no fog yet), <b>which sites are silenced</b> and for how many rounds (suppressed), and <b>what interception chance</b> a planned strike faces (“Interception ~X% per missile”, “Air defence suppressed”, “No air defence cover”).</p>
+<table>
+<tr><th>Part</th><th>Content / states</th></tr>
+<tr><td>1 Coverage overlay</td><td>circle of <span class="mono">radius_hexes × 5 km</span> per non-destroyed site (short 5, medium 10, long 20 hexes in the shipped data = 25 / 50 / 100 km); owner side; active / suppressed; overlap; toggle key + control; auto-shown in strike mode while a weapon is picked. Must never block clicks; follows pan / zoom; drawn from cached geometry.</td></tr>
+<tr><td>2 Marker + hover card</td><td>air-defence installation marker (R 18 hex tile, shield glyph): normal / suppressed with rounds left; card lines type + examples, reach, “Suppressed – n rounds left”.</td></tr>
+<tr><td>3 Odds line</td><td>in the confirm card and in the strike panel (hovered target): three texts; also in the report “Suppressed for n rounds”.</td></tr>
+</table>
+<p class="note">Colour is never the only channel: own = blue rectangle-cut tile / ring, enemy = red; suppressed = dashed line + grey + number; odds states differ by icon and words. Tokens used: only existing ones (<span class="mono">side.own, side.enemy, ui.amber, ui.muted, outcome.intercepted #6f95ab, PANEL_STRONG, LINE</span>). <b>No new tokens.</b> Fonts: Chakra Petch labels, JetBrains Mono numbers.</p>
+
+<div class="legend" id="legend"></div>
+<div id="out"></div>
+
+<h2>Spec summary</h2>
+<table>
+<tr><th></th><th>A “Glass zones” (recommended)</th><th>B “Range rings”</th><th>C “Strike mode only”</th></tr>
+<tr><th>Zone look</th><td>fill owner colour 11 % (suppressed: <span class="mono">ui.muted</span> 6 % + 45° hatch 5 px), ring 1.4 px solid (suppressed: dashed 6/5, <span class="mono">ui.muted</span>); overlap = fills add up, so doubled cover is visibly stronger</td><td>no fill; ring 1.8 px + 4 tick marks and a label on the ring (“MEDIUM · 50 KM”, mono 10); suppressed dashed grey; hovered site gets 8 % fill</td><td>enemy zones only, hatch 45° 5 % + ring 1.4 px, only while a weapon is picked; none own, no toggle</td></tr>
+<tr><th>Toggle</th><td>key <b>C</b> (“cover”; free) + 6th toggle row in Map options “Air defence cover · C”; default off; strike mode shows it automatically while a weapon is picked and restores the previous state on close</td><td>key <b>C</b> + own bar button “COVER”, lit when on; strike mode as A</td><td>no toggle; automatic</td></tr>
+<tr><th>Marker, suppressed</th><td>plate grey (side colour lerp grey 0.7), 2 px diagonal slash in <span class="mono">ui.amber</span>, round badge top-right r 7: rounds left, mono 700 10, amber on <span class="mono">map.void</span></td><td>same grey plate; instead of the slash a row of pips under the base (one per round left, ◼ lit amber) – no number</td><td>as A</td></tr>
+<tr><th>Hover card</th><td>installation card + 3 lines (type + examples, reach, suppression)</td><td>same</td><td>same</td></tr>
+<tr><th>Odds line</th><td>full-width row in the confirm card under the target row: shield glyph + text + big mono number; also a one-line chip in the strike-panel detail card for the hovered target</td><td>replaces the INTERCEPT chip of the detail card with a big number and puts a small line in the confirm card</td><td>confirm card only, one text line without box</td></tr>
+<tr><th>Sizes (1440×900)</th><td>ring stroke 1.4; badge 14 px; odds row 28 px high × card width − 24; chip 24 px</td><td>ring 1.8; pips 4×4 px pitch 7; label 10 px mono</td><td>ring 1.4; line 12 px mono</td></tr>
+<tr><th>Behaviour</th><td colspan="3">overlay layer below counters, above terrain, <span class="mono">mouse_filter = IGNORE</span>; cached polygons (64 segments) per site, redraw only on <span class="mono">installation_suppressed</span> / destroyed / zoom; fade 150 ms.</td></tr>
+<tr><th>Godot notes</th><td>new <span class="mono">StaffMapAirDefenceOverlay</span> next to <span class="mono">StaffMapInstallations</span>; marker state in <span class="mono">StaffMapInstallationMarker</span>; lines in <span class="mono">StaffMapInstallationCard</span>, <span class="mono">StaffMapStrikeConfirm</span>, <span class="mono">StaffMapStrikePanel</span>; texts in <span class="mono">StaffMapStrikeText</span></td><td>same, + ring labels</td><td>same, no toggle row</td></tr>
+</table>
+<p><b>Recommendation: A.</b> Overlap is the key information for planning (“where do two layers meet”), the fills show it without reading numbers; B is cleaner but needs labels and gives no overlap read; C is the cheapest but hides your own cover and the enemy’s reach until you start a strike.</p>
+<p><b>Open questions:</b> key <b>C</b> OK? Should a suppressed zone keep a faint fill (A) or be ring-only?</p>
+</div>
+<script>
+const NS='http://www.w3.org/2000/svg';
+const OWN='#5b93d6',EN='#d76a52',MUT='#8d9585',AMB='#e8b04a';
+// sites: x,y,r(px),side,type,suppressed
+const sites=[
+ {x:640,y:150,r:170,s:'e',t:'long',n:'RU long'},
+ {x:610,y:190,r:85,s:'e',t:'medium',n:'RU medium'},
+ {x:560,y:230,r:42,s:'e',t:'short',n:'RU short',sup:2},
+ {x:230,y:360,r:85,s:'o',t:'medium',n:'PL medium'},
+ {x:330,y:300,r:42,s:'o',t:'short',n:'PL short'}
+];
+function hexPath(cx,cy,R){let p=[];for(let i=0;i<6;i++){const a=Math.PI/3*i;p.push((cx+R*Math.cos(a)).toFixed(1)+','+(cy+R*Math.sin(a)).toFixed(1))}return p.join(' ')}
+function marker(site,variant,hover){
+ const c=site.s=='e'?EN:OWN, sup=site.sup;
+ const plate=sup?'#6b6f66':c;
+ let g=`<g transform="translate(${site.x},${site.y})">`;
+ g+=`<ellipse cx="0" cy="14" rx="19" ry="6" fill="rgba(0,0,0,.4)"/>`;
+ g+=`<polygon points="${hexPath(0,0,18)}" fill="#2a2d27" stroke="${hover?'#dfe5d6':'none'}" stroke-width="1.2"/>`;
+ g+=`<polygon points="${hexPath(0,0,15)}" fill="#1a1d18"/>`;
+ g+=`<polygon points="-8,-6 8,-6 8,5 0,10 -8,5" fill="${plate}" opacity="${sup?.9:1}"/>`;
+ g+=`<path d="M-4,3 L0,-3 L4,3" stroke="#0f1a26" stroke-width="1.6" fill="none"/>`; // shield/missile glyph
+ for(let i=0;i<4;i++)g+=`<circle cx="${-9+i*6}" cy="15" r="1.6" fill="${sup?'#55574f':'#b9d38a'}"/>`;
+ if(sup&&variant!='B'){
+  g+=`<line x1="-14" y1="-12" x2="14" y2="12" stroke="${AMB}" stroke-width="2"/>`;
+  g+=`<circle cx="15" cy="-14" r="7.5" fill="#0b0d0b" stroke="${AMB}" stroke-width="1"/><text x="15" y="-10.5" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="10" fill="${AMB}">${sup}</text>`;
+ }
+ if(sup&&variant=='B'){
+  for(let i=0;i<sup;i++)g+=`<rect x="${-3.5+i*7-(sup-1)*3.5}" y="22" width="5" height="5" fill="${AMB}"/>`;
+ }
+ return g+'</g>';
+}
+function zone(site,variant,showAll){
+ const c=site.s=='e'?EN:OWN,sup=site.sup;
+ if(variant=='C'&&site.s=='o')return '';
+ const col=sup?MUT:c;
+ let s='';
+ if(variant=='A'){
+  s+=`<circle cx="${site.x}" cy="${site.y}" r="${site.r}" fill="${sup?'url(#hatch)':c}" fill-opacity="${sup?1:.11}" stroke="${col}" stroke-width="1.4" ${sup?'stroke-dasharray="6 5"':''} stroke-opacity=".9"/>`;
+ }else if(variant=='B'){
+  s+=`<circle cx="${site.x}" cy="${site.y}" r="${site.r}" fill="${site.hov?c:'none'}" fill-opacity=".08" stroke="${col}" stroke-width="1.8" ${sup?'stroke-dasharray="6 5"':''}/>`;
+  for(let i=0;i<4;i++){const a=Math.PI/2*i+Math.PI/4;const x1=site.x+site.r*Math.cos(a),y1=site.y+site.r*Math.sin(a);s+=`<line x1="${x1}" y1="${y1}" x2="${site.x+(site.r-7)*Math.cos(a)}" y2="${site.y+(site.r-7)*Math.sin(a)}" stroke="${col}" stroke-width="1.8"/>`}
+  const km=site.t=='long'?100:site.t=='medium'?50:25;
+  s+=`<text x="${site.x+site.r*Math.cos(-0.9)}" y="${site.y+site.r*Math.sin(-0.9)-4}" font-family="JetBrains Mono" font-size="10" fill="${col}" paint-order="stroke" stroke="#111411" stroke-width="3">${site.t.toUpperCase()} · ${km} KM${sup?' · OFF':''}</text>`;
+ }else{
+  s+=`<circle cx="${site.x}" cy="${site.y}" r="${site.r}" fill="url(#hatch)" fill-opacity=".8" stroke="${col}" stroke-width="1.4" ${sup?'stroke-dasharray="6 5"':''}/>`;
+ }
+ return s;
+}
+function map(variant,opts){
+ opts=opts||{};
+ let s=`<svg class="map" width="1000" height="560" viewBox="0 0 1000 560"><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#8d9585" stroke-opacity=".28" stroke-width="1.4"/></pattern></defs>`;
+ s+=`<rect width="1000" height="560" fill="#1d211c"/><path d="M0,0 H400 C420,60 380,120 430,170 C470,210 520,200 560,240 L620,300 L1000,330 V560 H0Z" fill="none"/>`;
+ s+=`<path d="M720,0 C760,40 800,60 840,120 C900,200 940,240 1000,250 V0Z" fill="#0f1820"/><path d="M720,0 C760,40 800,60 840,120 C900,200 940,240 1000,250" stroke="#2b4454" stroke-width="2" fill="none"/>`;
+ s+=`<path d="M0,420 C120,400 220,470 380,430 S640,380 760,470 S900,540 1000,520" stroke="#46728c" stroke-width="1.6" fill="none"/>`;
+ s+=`<path d="M0,140 C150,150 240,260 400,250 S520,330 600,300" stroke="#a9afa1" stroke-width="1.4" stroke-dasharray="8 3 2 3" fill="none"/>`;
+ s+=`<path d="M60,520 C200,400 300,330 470,290 S700,180 760,110" stroke="#b4ac98" stroke-width="1.3" fill="none"/>`;
+ // overlay
+ const showZones=opts.zones!==false;
+ if(showZones)for(const z of sites)s+=zone(z,variant);
+ // counters
+ s+=`<g><rect x="380" y="410" width="40" height="26" fill="${OWN}"/><rect x="278" y="262" width="40" height="26" fill="${OWN}"/><polygon points="520,330 539,311 558,330 539,349" fill="${EN}"/></g>`;
+ // markers
+ for(const z of sites)s+=marker(z,variant,z.hover);
+ s+='</svg>';return s;
+}
+function oddsRow(kind){
+ const sh='<svg width="18" height="18" viewBox="0 0 18 18"><path d="M9 1 L16 4 V9 C16 13 13 16 9 17 C5 16 2 13 2 9 V4Z" fill="none" stroke="currentColor" stroke-width="1.6"/>'+(kind=='some'?'<path d="M5 10 L9 6 L13 10" stroke="currentColor" stroke-width="1.6" fill="none"/>':kind=='supp'?'<path d="M4 14 L14 4" stroke="currentColor" stroke-width="1.8"/>':'<path d="M5 5 L13 13 M13 5 L5 13" stroke="currentColor" stroke-width="1.6"/>')+'</svg>';
+ if(kind=='some')return `<div class="odds">${sh}<span>Interception ~<span class="n">35%</span> per missile</span></div>`;
+ if(kind=='supp')return `<div class="odds supp">${sh}<span>Air defence suppressed</span></div>`;
+ return `<div class="odds none">${sh}<span>No air defence cover</span></div>`;
+}
+function confirmCard(kind,x,y,variant){
+ let odds=variant=='C'?`<div class="row"><span class="k">AIR DEFENCE</span><b style="color:${kind=='some'?'#6f95ab':kind=='supp'?AMB:MUT}">${kind=='some'?'Interception ~35% per missile':kind=='supp'?'Air defence suppressed':'No air defence cover'}</b></div>`:oddsRow(kind);
+ return `<div class="card" style="left:${x}px;top:${y}px;width:300px"><div class="tab own">STRIKE · CONFIRM</div><div class="title">RU command post · Kaliningrad</div>
+ <div class="row"><span class="k">MEANS</span><b>JASSM-ER × 2</b></div><div class="row"><span class="k">RANGE</span><b>380 km</b></div>${odds}
+ <div style="padding:6px 12px 12px;display:flex;gap:8px"><span class="btn f">↵ CONFIRM</span><span class="btn">Esc CANCEL</span></div></div>`;
+}
+function instCard(kind,x,y){
+ const sup=kind=='sup';
+ return `<div class="card" style="left:${x}px;top:${y}px;width:270px"><div class="tab enemy">AIR DEFENCE</div><div class="title">Medium air defence</div>
+ <div class="row"><span class="k">EXAMPLES</span><b>NASAMS, Buk-M3</b></div><div class="row"><span class="k">REACH</span><b>radius 10 hexes (50 km)</b></div>
+ <div class="row"><span class="k">INTEGRITY</span><b>4 / 4</b></div>${sup?`<div class="row" style="color:${AMB}"><span>▲ SUPPRESSED</span><b>2 rounds left</b></div>`:''}<div style="height:8px"></div></div>`;
+}
+function panelChip(variant,kind){
+ const txt=kind=='some'?'~35%':kind=='supp'?'OFF':'NONE';
+ if(variant=='B')return `<div style="margin:6px 12px;display:flex;align-items:baseline;gap:10px"><span class="k" style="font:600 10px 'Chakra Petch';letter-spacing:.14em;color:var(--muted)">INTERCEPT AT TARGET</span><span class="mono" style="font-weight:700;font-size:24px;color:#6f95ab">${txt}</span></div>`;
+ return `<div class="odds" style="padding:3px 8px;margin:4px 12px">${'<span style="font:600 10px Chakra Petch;letter-spacing:.12em;color:var(--muted)">AT TARGET</span>'}<span>Interception ~<span class="n" style="font-size:13px">35%</span> per missile</span></div>`;
+}
+function strikePanel(variant,x,y){
+ return `<div class="card" style="left:${x}px;top:${y}px;width:420px"><div class="tab own">STRIKE · NATO</div>
+ <div style="padding:6px 12px;border-left:3px solid ${AMB};background:rgba(232,176,74,.1);margin-top:6px"><span class="title" style="padding:0">JASSM-ER</span><span class="mono" style="float:right;color:${AMB};font-weight:700;font-size:16px">4</span><div class="mono" style="font-size:10px;color:var(--muted)">AGM-158B · CRUISE · 380 KM</div></div>
+ <div style="height:54px;margin:8px 12px 0;background:#10130f;border:1px solid #2e3329;display:grid;place-items:center;font:600 10px 'Chakra Petch';color:var(--muted);letter-spacing:.12em">MODEL / CLASS GLYPH</div>
+ ${panelChip(variant,'some')}<div style="height:8px"></div></div>`;
+}
+function bar(variant,on){
+ return `<div class="bar"><span class="b">MAP OPTIONS</span><span class="b">POLITICS</span><span class="b ${variant=='B'&&on?'on':''}">${variant=='B'?'COVER <span class="key">C</span>':'STRIKE <span class="key">S</span>'}</span>${variant=='B'?'<span class="b on">STRIKE <span class="key">S</span></span>':''}<span style="flex:1"></span><span class="b" style="border-color:var(--amber);color:var(--amber)">END TURN</span></div>`;
+}
+function mapOptions(x,y){
+ const r=(l,k,on)=>`<div class="row" style="padding:7px 12px;border-top:1px solid #1d211c"><span>${on?'☑':'☐'} ${l}</span><span><b style="color:${on?AMB:MUT}">${on?'ON':'OFF'}</b> <span class="key">${k}</span></span></div>`;
+ return `<div class="card" style="left:${x}px;top:${y}px;width:330px"><div class="tab amber">MAP OPTIONS</div>${r('Grid','G',0)}${r('Place names','N',1)}${r('Borders','B',1)}${r('Political tint','P',1)}${r('View 3D / 2D','V',1)}<div style="background:rgba(232,176,74,.1)">${r('Air defence cover','C',1)}</div></div>`;
+}
+function frame(label,inner){return `<div><h3>${label}</h3><div class="frame">${inner}</div></div>`}
+const out=document.getElementById('out');
+let h='';
+// ----- Variant A
+h+='<h2>A · Glass zones (recommended)</h2><p>Soft owner-coloured fills; overlaps add up; a suppressed zone turns grey, hatched and dashed.</p>';
+h+='<div class="grid">';
+h+=frame('A1 · overlay on (key C), both sides, one RU short site suppressed (2 rounds)',map('A')+mapOptions(16,16)+bar('A'));
+h+=frame('A2 · strike mode: weapon picked, confirm card with odds (cover 35 %)',map('A')+strikePanel('A',16,16)+confirmCard('some',640,300,'A')+bar('A'));
+h+='</div><div class="grid">';
+h+=frame('A3 · hover on the suppressed site: marker state + card',map('A',{}).replace('</svg>','')+'</svg>'+instCard('sup',590,150)+bar('A'));
+h+=frame('A4 · odds line: no cover (Lida) and suppressed',`<svg class="map" width="1000" height="560"><rect width="1000" height="560" fill="#1d211c"/></svg>`+confirmCard('none',60,40,'A')+confirmCard('supp',420,40,'A')+instCard('act',60,250)+`<div style="position:absolute;left:420px;top:250px;width:420px;font:12px 'Plex Cond';color:var(--muted)">Report card adds a line under the hit rows: <b style="color:${AMB}">Suppressed for 2 rounds</b> (only when a site was hit and survived).</div>`);
+h+='</div>';
+// ----- Variant B
+h+='<h2>B · Range rings</h2><p>Outline-only rings with ticks and a label on the ring; a lit bar button; suppressed rounds as pips; odds as a big number in the weapon detail card.</p><div class="grid">';
+sites[1].hover=false;sites[0].hov=true;
+h+=frame('B1 · overlay on, hover on the long site (8 % fill)',map('B')+bar('B',true));
+sites[0].hov=false;
+h+=frame('B2 · strike panel: big INTERCEPT number + confirm card',map('B')+strikePanel('B',16,16)+confirmCard('some',640,300,'B')+bar('B',true));
+h+='</div>';
+// ----- Variant C
+h+='<h2>C · Strike mode only</h2><p>No toggle and no own zones: enemy cover is drawn (hatch + ring) only while a weapon is picked; odds are one text row in the confirm card.</p><div class="grid">';
+h+=frame('C1 · weapon picked',map('C')+strikePanel('A',16,16).replace(/<div class="odds"[\s\S]*?<\/div><div style="height:8px">/,'<div style="height:8px">')+confirmCard('some',640,300,'C')+bar('C'));
+h+='</div>';
+out.innerHTML=h;
+document.getElementById('legend').innerHTML='<span style="color:#5b93d6">■ own (blue)</span><span style="color:#d76a52">◆ enemy (red)</span><span>- - - dashed grey = suppressed</span><span style="color:#e8b04a">number / slash = rounds left</span><span style="color:#6f95ab">blue-grey = interception (outcome.intercepted)</span>';
+</script></body></html>

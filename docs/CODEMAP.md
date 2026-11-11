@@ -239,6 +239,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 - `PlaceTransliteration` – Latin transcription of Cyrillic place names (Belarusian / Russian), shown under the origi… (`place_transliteration.gd`)
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
+- `StaffMapAirDefence` – Pure models and texts of the air defence on the staff map (TASK-098b, docs/design/ (`staff_map_air_defence.gd`)
+- `StaffMapAirDefenceLayer` – The air defence coverage overlay of the staff map (TASK-098b, docs/design/operational_map/ (`staff_map_air_defence_layer.gd`)
 - `StaffMapBattleResult` – Result notice of the staff map (TASK-094c, reworked for readability) after "Report to sta… (`staff_map_battle_result.gd`)
 - `StaffMapBorderPrompt` – One-key confirmation before an order that causes border incidents (TASK-116, design (`staff_map_border_prompt.gd`)
 - `StaffMapBorders` – Pure texts and markers of the border rules on the staff map (TASK-116): why a hex is clos… (`staff_map_borders.gd`)
@@ -279,6 +281,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapMenuWindow` – The operation menu of the staff map (opened by the hamburger in the top-left corner): a (`staff_map_menu_window.gd`)
 - `StaffMapMoveAnimation` – The cosmetic slide of counters at the end of a move (TASK-092e), pure timing and path mat… (`staff_map_move_animation.gd`)
 - `StaffMapNuclearPictogram` – Flat pictogram of a mushroom cloud (TASK-140) above the operation-over notice, after the… (`staff_map_nuclear_pictogram.gd`)
+- `StaffMapOddsRow` – The interception odds line of a planned strike (TASK-098b, docs/design/operational_map/ (`staff_map_odds_row.gd`)
 - `StaffMapOptionsWindow` – Map options window of the staff map: a StaffMapWindow (left dock) with a toggle row per m… (`staff_map_options_window.gd`)
 - `StaffMapOrderRing` – Order ring of the staff map: the battle unit ring (RadialRing + RingDetailCard, as in (`staff_map_order_ring.gd`)
 - `StaffMapOrderRingModel` – Pure model of the order ring of the staff map: a right click on a hex with an own formati… (`staff_map_order_ring_model.gd`)
