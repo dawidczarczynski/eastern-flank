@@ -412,39 +412,48 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 **The join notice.** When allies arrive, a notice appears: "<Country> joins <side> – N formations" (N counts the formations that really appeared), with a **Show** button that moves the camera to them. The new counters pulse with a ring for a moment and carry a small tag with the country's code, so you can tell them apart from the original formations.
 
-**The escalation ladder.** The tension between the blocs is one **shared** level with five steps; both sides push it up and it belongs to neither. The operation starts at the first step.
+**The escalation ladder.** The tension between the blocs is one **shared** level with seven steps, numbered 0 to 6 as on the chip; both sides push it up and it belongs to neither. "Suwałki Gap" starts at level 1, Limited war.
 
-| Level | Name | What may be struck |
-|---|---|---|
-| 1 | Contained clash | formations |
-| 2 | Limited war | formations, air defence, depots |
-| 3 | Open war | formations, air defence, depots, airfields, command posts |
-| 4 | Regional war | the same as Open war |
-| 5 | Strategic threshold | nothing |
+| Level | Name | What may be struck | Notes |
+|---|---|---|---|
+| 0 | Contained clash | formations | |
+| 1 | Limited war | formations, air defence, depots | |
+| 2 | Open war | formations, air defence, depots, airfields, command posts | the enemy sanctuary opens |
+| 3 | Regional war | the same as Open war | allies join |
+| 4 | General war | the same as Open war | no automatic effect |
+| 5 | Strategic alert | the same as Open war | no automatic effect; the highest level incidents and decisions can reach |
+| 6 | Nuclear attack | nothing | only by Russia's *Use nuclear weapon*; ends the operation |
 
 A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
 
-**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a strike on a town hex raising it by one, each time. The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, launched in strike mode (key S); ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
+**What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a bloc's **first** strike on a town hex in the operation raising it by one (its later town strikes add nothing; the other bloc's first town strike still counts). The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, launched in strike mode (key S); ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
 
 **What lowers it.** After 3 quiet rounds in a row (a round in which nobody raised the level) it falls back by one step, and the quiet count starts again. The **Stand down** decision (below) lowers it too.
 
 **Allies.** When the level first reaches Regional war, allied countries join automatically: aligned countries go to war on their side, and neutral countries that lean to a side become aligned with it.
 
-**The end.** The bloc whose action brings the level to the Strategic threshold loses the operation at once and the other bloc wins; any waiting contact battles are dropped. A full-screen **Operation over** notice names the bloc that crossed the threshold, the defeat and the victory, with a **Back to menu** button.
+**The cap at level 5.** Incidents and ordinary decisions never take the level above 5, Strategic alert. A rise that would go further stops at 5; at level 5 a sanctuary breach still counts as a breach (the country is marked breached) and a town strike still does its damage, but the level does not move. Warnings then read "Already at the highest level – no further escalation". Escalate, Declare hostilities and Invoke alliance are refused at the cap ("Already at the highest level").
+
+**Collapse.** An army **collapses** when it is broken: its present strength is **50 % or less** of all the strength it has fielded in the operation (formations that joined later count from when they arrived; destroyed ones stay in the total), **or** its strength is 70 % or less while the average readiness of its surviving formations is **35 or less**, or it has no formation left. The rule is the same for both sides.
+
+**The end: the nuclear attack.** Level 6 is reached only one way: **only Russia, only at level 5, only while its army is collapsing,** may take the decision *Use nuclear weapon*. This ends the operation at once, any waiting contact battles are dropped, and **nobody wins** – in a nuclear war there are no winners (Russia is judged to have crossed the line). NATO has no such decision. A full-screen **Operation over** notice says "Russia used a nuclear weapon. The operation ends.", and "Nobody wins.", with a **Back to menu** button. The map first fades to grey and then to black, and the notice appears on the black with a **mushroom-cloud pictogram** above it.
 
 **Borders and movement.** A formation cannot enter a country that is closed to its side: a neutral or hostile country. Such an order is refused. **Russia is closed to NATO until Open war**. The first entry of a formation into the enemy sanctuary raises the escalation level by 1. Attacking out of an aligned country gives the enemy a **casus belli** against that country, shown as a toast. Battles themselves never raise the level.
 
-**On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the levels, what may be struck at the current one and marks the steps where the enemy sanctuary opens, allies join and the operation ends. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
+**On screen.** A chip under the turn bar shows the current level; click it to open the **Escalation ladder** card, which lists the seven levels with what may be struck at each (a level that allows the same as the one below says "as level N") and marks the steps where the enemy sanctuary opens, allies join, the cap for incidents and decisions lies and the operation ends. Under the levels, a **collapse strip** per side reads, for example, "Russia · strength 72 % · readiness 80 · collapse at ≤ 50 %"; while that side is collapsing the line turns red with a red **▲ COLLAPSE** tag. Each change shows a short notice, such as "Open war – NATO entered enemy sanctuary", or "Calm: level 2 → 1".
 
-**Political decisions.** Instead of waiting for events, you can choose to widen or narrow the war. There are five decisions, the same for both sides. You may take **one decision per turn** (the count resets when your turn starts); a decision is refused while a contact battle is waiting. Open the **Politics screen** with **H** (High command) or the Decisions button on the bottom command bar; the map is dimmed and idle while it is open. Five cards sit in two groups, *Widen the war* and *Keep it small*. Each shows its key (1-5), its escalation cost (LEVEL +1 / LEVEL -1 / FREE), the effect in one line, the countries you can pick (with their stance to you: ally, hostile or neutral) and a Take button; a card that cannot be used is dimmed and says why (amber BLOCKED, or red THRESHOLD). Press **1-5** to pick a card, **left / right** to change the country, **Enter** to take it. A decision that raises or lowers the level asks you to confirm inside the card and shows the new level on a five-tick ladder; one that would reach the Strategic threshold (which loses the operation for you) says so in red and is refused. The header shows decisions left this turn, the level, the stand-down counter and, after a decision, a result line. The right-hand column is reserved for the read-only politics overview. **Esc** (first cancels a confirmation), **X** or **H** close the screen; it also closes when your turn ends.
+**Political decisions.** Instead of waiting for events, you can choose to widen or narrow the war. There are five decisions, the same for both sides, plus Russia's last resort *Use nuclear weapon*. You may take **one decision per turn** (the count resets when your turn starts); a decision is refused while a contact battle is waiting. Open the **Politics screen** with **H** (High command) or the Decisions button on the bottom command bar; the map is dimmed and idle while it is open. Five cards sit in two groups, *Widen the war* and *Keep it small*. Each shows its key (1-5), its escalation cost (LEVEL +1 / LEVEL -1 / FREE), the effect in one line, the countries you can pick (with their stance to you: ally, hostile or neutral) and a Take button; a card that cannot be used is dimmed and says why (amber BLOCKED and the reason). Press **1-5** (**6** for the nuclear card) to pick a card, **left / right** to change the country, **Enter** to take it. A decision that raises or lowers the level asks you to confirm inside the card and shows the new level on the ladder ticks; one that reaches level 5 says so in red ("the highest level of escalation").
+
+**Use nuclear weapon (Russia only).** Russia's Politics screen has a sixth card under *Last resort*; NATO never sees it. It is greyed out with the reason "Only at the highest level of escalation" below level 5, and "Only while the army is collapsing" when Russia is not in collapse. When it can be used, the card, its cost chip and its Take button turn **red**; Take opens a heavy red confirmation – a red **▲ THIS ENDS THE OPERATION** tag and "Use a nuclear weapon? This ends the operation. Russia is judged to have crossed the line." – with a red **Use nuclear weapon** button. It uses the turn's decision and is not blocked by standing down. The header shows decisions left this turn, the level, the stand-down counter and, after a decision, a result line. The right-hand column is reserved for the read-only politics overview. **Esc** (first cancels a confirmation), **X** or **H** close the screen; it also closes when your turn ends.
 
 | Decision | Effect | Escalation cost | Not available when |
 |---|---|---|---|
-| Escalate | Raises the shared level, which authorises wider strikes | +1 | standing down; the level would reach the threshold |
+| Escalate | Raises the shared level, which authorises wider strikes | +1 | standing down; already at level 5 (the cap), for both sides |
 | Stand down | Lowers the level by 1 and starts a cooldown | -1 | level is already the lowest; you raised the level this turn or last turn; your troops stand in a country you breached or declared hostilities on |
-| Declare hostilities (pick a country) | A neutral or aligned country that is not yours goes to war against you (you may now enter it) | +1, free if you already hold a casus belli against it | standing down; the country is yours or already at war with you; the level would reach the threshold |
-| Invoke alliance (pick a country) | An aligned country of your bloc goes to war on your side | +1 | not your ally, or already at war; standing down; the level would reach the threshold |
+| Declare hostilities (pick a country) | A neutral or aligned country that is not yours goes to war against you (you may now enter it) | +1, free if you already hold a casus belli against it | standing down; the country is yours or already at war with you; the level would go above 5 |
+| Invoke alliance (pick a country) | An aligned country of your bloc goes to war on your side | +1 | not your ally, or already at war; standing down; the level would go above 5 |
 | Demand neutrality (pick a country) | An ultimatum: a country aligned with the enemy becomes neutral, closed to both sides | none | the country is not hostile to you; it refuses ultimatums; the level is above 2 (Open war or higher); enemy troops stand on its soil |
+| Use nuclear weapon (Russia only) | Level 5 → 6: the operation ends, nobody wins | +1 | not Russia; the level is below 5; Russia's army is not collapsing |
 
 **Invoke alliance** is named per side: NATO calls it **Invoke collective defence**, Russia **Invoke the Union State**. Declaring hostilities on a neutral country makes it join the other side. **Lithuania refuses ultimatums**: it is a NATO member with allied troops on its soil, so Demand neutrality on it is always greyed out (the other countries accept).
 
@@ -479,7 +488,7 @@ A refused strike costs nothing.
 
 **Interception.** Air defence installations of the target's owner within 4 hexes of the target try to shoot missiles down. Each intact site adds 40% × its integrity; the sum is capped at 90% and then multiplied by the means' interceptability, so one fresh site stops about 40% of cruise missiles, 16% of ballistic ones and 60% of drones. Every missile is rolled separately: first interception, then, if it got through, the hit.
 
-**Escalation.** Every accepted strike is an incident on the ladder. The first strike into a country that is the enemy's sanctuary raises the level by one (once per country and bloc); a strike on a town hex raises it by one each time. This happens **even if all the missiles were intercepted or missed**. A strike may take the level to the Strategic threshold: it is allowed, and your bloc then loses the operation.
+**Escalation.** Every accepted strike is an incident on the ladder. The first strike into a country that is the enemy's sanctuary raises the level by one (once per country and bloc); a bloc's first strike on a town hex in the operation raises it by one, later ones add nothing. This happens **even if all the missiles were intercepted or missed**. A strike never takes the level above 5 and never ends the operation; at level 5 the confirm card reads "Already at the highest level – no further escalation".
 
 **Damage is lasting.** An installation has integrity from 100 to 0. Each hit takes off the means' damage; at 0 it is **destroyed** and stays so. A damaged but not destroyed installation recovers 5 points at the end of each full round (up to 100). A formation hit loses strength from its strongest company; when all its companies reach 0 the formation is destroyed and removed from the map. What a damaged installation does to battles (fire support, ammunition, command points) is not in the game yet.
 
@@ -490,7 +499,7 @@ A refused strike costs nothing.
 **Strike mode.** Press **S**, or click **STRIKE [S]** in the turn bar next to the escalation chip, to open strike mode. **Esc** or the **✕** in the panel corner leaves it. Strike mode also closes by itself once a strike has been launched (press **S** again for the next one); a rejected strike keeps it open.
 - **Panel.** It lists your means with their stock and range. Pick a means, then set the salvo with the stepper (1 up to the largest salvo, never more than your stock). The panel also shows **Strikes: n/N**, the strikes you still have this turn.
 - **Targets.** Every legal target is marked with a double ring in your side colour. An **amber** target is *conditional*: it becomes legal only after you raise the escalation level (raise-and-strike); the strike then includes an Escalate decision first (for airfields it starts from level 1). Illegal targets are **dimmed**; point at one to see the reason (closed country, level too low, out of range, too few missiles and so on).
-- **Confirm card.** Clicking a legal target opens a card with the means, salvo and target, the escalation lines (what the strike and any needed Escalate raise), and a **red line** when the strike would reach the Strategic threshold. Confirm to launch, or cancel; a cancelled strike costs nothing.
+- **Confirm card.** Clicking a legal target opens a card with the means, salvo and target, the escalation lines (what the strike and any needed Escalate raise, or "Already at the highest level – no further escalation" at level 5). Confirm to launch, or cancel; a cancelled strike costs nothing.
 - **Closing.** The strike panel and the confirm card each have an **X** in the corner; it does the same as Esc or cancel.
 - **Result report.** About 0.4 s after the strike, a **strike result report card** appears on the left, under the turn bar. It shows:
   - the weapon name and ×N (the salvo) and the target;
@@ -500,7 +509,6 @@ A refused strike costs nothing.
   - the escalation ticks with the new level, and lines such as "+n sanctuary breach" or "+n urban hex";
   - your stock of that means before → after, and "strikes left" this turn.
 
-  When the strike takes the level to the Strategic threshold the card has a **red edge** and says "operation ends".
 - **Card behaviour.** After 9 s the card collapses to a small **chip** (pointing at the card or chip pauses the timer). **J** toggles card and chip, **Enter** goes to the next report or collapses the card, **Esc** collapses it, and **◂ ▸** browse the earlier reports. The chip is a compact tab (weapon ×N and a short result such as "2 HIT") placed under the turn bar's button row at the left edge; it never covers other HUD. The **X** on the card or chip dismisses it.
 - **Enemy strikes.** Strikes by the other bloc during its turn appear one after another, 3.5 s each, marked "1/n" on the chip. Their stock is unknown, so it is not shown. All reports are cleared when your next turn begins.
 - **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (the oldest drop first).

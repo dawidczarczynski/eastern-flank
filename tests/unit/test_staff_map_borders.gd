@@ -42,16 +42,21 @@ func test_warnings_breach_and_end() -> void:
 	assert_eq(warnings.size(), 1)
 	assert_eq(warnings[0]["at"], Vector2i(4, 0))
 	assert_true("Enters Russia: escalation +1" in warnings[0]["text"])
-	assert_false(warnings[0]["ends"])
+	assert_false(warnings[0].has("ends"), "no incident ends the operation (TASK-140)")
 	assert_eq(warnings[0]["chip"], "+1")
 	assert_eq(warnings[0]["tag"], "ESCALATION +1")
 	assert_eq(warnings[0]["sentence"], "Enters Russia")
-	state.escalation_level = 3
+	state.escalation_level = state.ladder.cap()
 	warnings = StaffMapBorders.warnings(state, f, route)
-	assert_true(warnings[0]["ends"])
-	assert_true("This ends the operation" in warnings[0]["text"])
-	assert_eq(warnings[0]["chip"], "END")
-	assert_true("This ends the operation" in warnings[0]["sentence"])
+	assert_false("This ends the operation" in warnings[0]["text"])
+	assert_eq(
+		warnings[0]["text"], "Enters Russia: Already at the highest level – no further escalation"
+	)
+	assert_eq(
+		warnings[0]["sentence"],
+		"Enters Russia. Already at the highest level – no further escalation"
+	)
+	assert_eq(warnings[0]["chip"], "+0")
 
 
 func test_warnings_casus_belli() -> void:

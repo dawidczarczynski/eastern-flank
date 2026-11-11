@@ -3,7 +3,8 @@ extends PoliticalDecisionCommand
 ## Political decision *Invoke alliance* (TASK-117): an aligned ally of the player enters the war
 ## and the level rises by `ladder.alliance_escalation`. The same command for both sides (the view
 ## names it per side, SideDefinition.alliance_decision_name). Rejections after the common ones:
-## `unknown_country`, `not_your_ally`, `already_at_war`, `standing_down`, `threshold`.
+## `unknown_country`, `not_your_ally`, `already_at_war`, `standing_down`, `level_cap` (the level
+## would pass `ladder.cap()`, TASK-140).
 
 const TYPE := "invoke_alliance"
 
@@ -28,8 +29,8 @@ func _decision_problem(state: OperationalState, player: int) -> String:
 		return "already_at_war"
 	if is_standing_down(state, player):
 		return "standing_down"
-	if state.escalation_level + state.ladder.alliance_escalation >= state.ladder.top():
-		return "threshold"
+	if state.escalation_level + state.ladder.alliance_escalation > state.ladder.cap():
+		return "level_cap"
 	return ""
 
 

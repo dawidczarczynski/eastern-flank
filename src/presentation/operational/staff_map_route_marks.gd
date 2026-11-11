@@ -239,12 +239,12 @@ func _draw_route(route: Dictionary) -> void:
 
 ## Border incidents (design border_warnings.html): a sanctuary breach is a 4 px gate bar across the
 ## route at the border hex (+ the tag and the sentence in the planning preview); a casus belli is
-## a 26 x 23 px triangle "CB" (+ a plate with the sentence in the preview). ui.alert when the
-## incident ends the operation. An issued order keeps the bars and triangles only.
+## a 26 x 23 px triangle "CB" (+ a plate with the sentence in the preview), in amber (no incident
+## ends the operation since TASK-140). An issued order keeps the bars and triangles only.
 func _draw_warnings(warnings: Array, labelled: bool) -> void:
 	for warning: Dictionary in warnings:
 		var at: Vector2 = _project.call(warning["at"])
-		var colour := alert if warning["ends"] else amber
+		var colour := amber
 		if warning.get("kind", &"") == StaffMapBorders.BREACH:
 			_draw_gate(warning, at, colour, labelled)
 		else:

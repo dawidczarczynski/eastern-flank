@@ -13,7 +13,8 @@ const FALLBACK_RANGE := 3
 ## first, so a fallback never takes a hex another placement asked for. With `require_open` hexes
 ## that are closed to `player` (CountryRules.may_enter) are skipped too. New formations are
 ## appended in placement order, with full strength, `state.initial_posture` and no order, owned by
-## `player`. Returns {events, unplaced}: `formation_joined` per placed formation (`source` is
+## `player`; each adds its max_strength() to `state.fielded_strength[player]` (TASK-140). Returns
+## {events, unplaced}: `formation_joined` per placed formation (`source` is
 ## copied) and, unless `require_open`, `formation_join_failed` per unplaced one, in placement
 ## order.
 static func place(
@@ -60,6 +61,7 @@ static func place(
 		formation.owner_id = player
 		formation.coord = coord
 		state.formations.append(formation)
+		state.fielded_strength[player] += formation.max_strength()
 		(
 			events
 			. append(

@@ -30,6 +30,13 @@ static var _default: EscalationLadder
 @export var stand_down_cooldown_turns: int = 2
 ## Demand neutrality is rejected above this level.
 @export var demand_neutrality_max_level: int = 2
+## Collapse (TASK-140, CollapseRules): a side is *routed* when its present strength is at most this
+## % of its fielded strength ...
+@export var collapse_strength_pct: int = 50
+## ... or *shaken* when the average readiness of its surviving formations is at most this ...
+@export var collapse_readiness_pct: int = 35
+## ... while its present strength is at most this % of the fielded one.
+@export var collapse_readiness_strength_pct: int = 70
 
 
 ## The shipped data/operational/escalation.tres, loaded once.
@@ -39,9 +46,14 @@ static func shipped() -> EscalationLadder:
 	return _default
 
 
-## The highest level number; reaching it ends the operation.
+## The highest level number: the nuclear attack, reached only by NuclearStrikeCommand (TASK-140).
 func top() -> int:
 	return levels.size() - 1
+
+
+## The highest level incidents and ordinary decisions reach (TASK-140): one below `top()`.
+func cap() -> int:
+	return top() - 1
 
 
 ## Strike classes allowed at `level` (clamped into range).
@@ -88,4 +100,7 @@ func _decisions_problem() -> String:
 		or demand_neutrality_max_level < 0
 	):
 		return "decision escalation, cooldown and neutrality level must not be negative"
+	for pct in [collapse_strength_pct, collapse_readiness_pct, collapse_readiness_strength_pct]:
+		if pct < 1 or pct > 100:
+			return "collapse percentages must be within 1 .. 100, got %d" % pct
 	return ""

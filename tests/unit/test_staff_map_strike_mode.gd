@@ -238,16 +238,14 @@ func test_rejected_escalate_strikes_nothing() -> void:
 	assert_eq(state.get_installation(airfield).integrity, 100)
 
 
-func test_threshold_line_on_the_card() -> void:
+func test_no_threshold_line_on_the_card() -> void:
+	# TASK-140: a strike never reaches the top; near the cap the card names the capped level.
 	var state := _map.simulation().state
-	state.escalation_level = 3
+	state.escalation_level = state.ladder.cap() - 1
 	var hud := _open(&"cruise")
 	hud.click(_airfield(0))
 	assert_true(hud.is_confirming())
-	assert_eq(
-		hud.confirm_card().line_texts().back(),
-		"Reaches the strategic threshold – you would lose the operation"
-	)
+	assert_eq(hud.confirm_card().line_texts().back(), "Escalation level: Strategic alert")
 	hud.cancel()
 
 

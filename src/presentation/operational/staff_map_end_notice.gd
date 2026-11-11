@@ -1,14 +1,25 @@
 class_name StaffMapEndNotice
 extends Control
-## Full-screen notice when the operation ends (TASK-115): "Operation over", the side that crossed
-## the strategic threshold (it loses), the outcome per side and a Back to menu button. A dim layer
+## Full-screen notice when the operation ends (TASK-115, TASK-140): "Operation over", the side that
+## used a nuclear weapon, "nobody wins" and a Back to menu button. A dim layer
 ## blocks the map; HUD v3 frame like the battle result notice.
 
 signal menu_pressed
 
 const WIDTH := 460.0
 
+const GRAY_END := 2.0
+const DARK_START := 1.0
+const DARK_END := 3.5
+const FRAME_AT := 3.2
+const FRAME_FADE := 1.0
+
 var _title: Label
+var _dim: ColorRect
+var _frame: FramedPanel
+var _picture: StaffMapNuclearPictogram
+var _time := 0.0
+var _playing := false
 var _lines: Array[Label] = []
 var _menu: Button
 
@@ -18,16 +29,29 @@ func _init() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	var dim := ColorRect.new()
-	dim.color = Color(0, 0, 0, 0.62)
-	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
+	# The map first goes grey, then black (assets/shaders/nuclear_fade); the frame comes last.
+	_dim = ColorRect.new()
+	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var material := ShaderMaterial.new()
+	material.shader = load("res://assets/shaders/nuclear_fade.gdshader")
+	_dim.material = material
+	add_child(_dim)
 	var centre := CenterContainer.new()
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(centre)
+	# The pictogram stands above the frame, outside it.
+	var stack := VBoxContainer.new()
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_theme_constant_override(&"separation", 18)
+	centre.add_child(stack)
+	_picture = StaffMapNuclearPictogram.new()
+	_picture.colour = Color("#e07c5e")
+	_picture.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	stack.add_child(_picture)
 	var frame := FramedPanel.new()
+	_frame = frame
 	frame.custom_minimum_size = Vector2(WIDTH, 0)
 	frame.chamfers = Vector4(0, 16, 0, 16)
 	frame.padding = Vector2(20, 18)
@@ -35,7 +59,7 @@ func _init() -> void:
 	frame.bracket_color = Color("#e07c5e")
 	frame.tab_color = Color("#e07c5e")
 	frame.fill = UiPalette.PANEL_STRONG
-	centre.add_child(frame)
+	stack.add_child(frame)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override(&"separation", 10)
@@ -43,7 +67,7 @@ func _init() -> void:
 	_title = MenuStyle.label("", HudTheme.display(700, 2), 28, UiPalette.HUD_TEXT)
 	_title.name = "Title"
 	column.add_child(_title)
-	for index in 3:
+	for index in 2:
 		var line := MenuStyle.label("", HudTheme.mono(500, 0), 12, UiPalette.HUD_DESC)
 		line.name = "Line%d" % index
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -55,22 +79,46 @@ func _init() -> void:
 	_menu.pressed.connect(func() -> void: menu_pressed.emit())
 	column.add_child(_menu)
 	hide()
+	set_process(false)
 
 
-## `lines` = StaffMapEscalation.end_lines; the loser line is red, the winner's in its colour.
-func present(lines: Array[String], palette: StaffMapPalette, winner: int) -> void:
-	var frame := _title.get_parent().get_parent() as FramedPanel
-	frame.tab_text = tr("ESC_END_TAB").to_upper()
+## `lines` = StaffMapEscalation.end_lines; the nobody-wins line is red.
+func present(lines: Array[String], palette: StaffMapPalette) -> void:
+	_frame.tab_text = tr("ESC_END_TAB").to_upper()
 	_title.text = tr("ESC_END_TITLE").to_upper()
 	for index in _lines.size():
 		_lines[index].text = lines[index].to_upper()
 	_lines[0].add_theme_color_override(&"font_color", UiPalette.HUD_TEXT)
 	_lines[1].add_theme_color_override(&"font_color", palette.ui_alert)
-	_lines[2].add_theme_color_override(
-		&"font_color", StaffMapFormations.side_colour(palette, winner)
-	)
 	_menu.text = tr("ESC_END_MENU").to_upper()
+	seek(FRAME_AT + FRAME_FADE)
 	show()
+
+
+## Plays the fade from the start: grey, black, then the frame (a resumed operation skips it).
+func play() -> void:
+	_time = 0.0
+	_playing = true
+	seek(0.0)
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	seek(_time + delta)
+
+
+## The notice as it looks `time` seconds after the start (a pure function of the time).
+func seek(time: float) -> void:
+	_time = time
+	var material := _dim.material as ShaderMaterial
+	material.set_shader_parameter(&"gray", smoothstep(0.0, GRAY_END, time))
+	material.set_shader_parameter(&"dark", smoothstep(DARK_START, DARK_END, time))
+	var shown := clampf((time - FRAME_AT) / FRAME_FADE, 0.0, 1.0)
+	_frame.modulate.a = shown
+	_picture.modulate.a = shown
+	if _playing and time >= FRAME_AT + FRAME_FADE:
+		_playing = false
+		set_process(false)
 
 
 func title_text() -> String:

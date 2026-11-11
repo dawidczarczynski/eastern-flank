@@ -3,7 +3,8 @@ extends PoliticalDecisionCommand
 ## Political decision *Declare hostilities* (TASK-117): a neutral or opposing aligned country
 ## becomes belligerent against the declarer. Free with a casus belli, else it raises the level by
 ## `ladder.declaration_escalation`. Rejections after the common ones: `unknown_country`,
-## `own_country`, `already_at_war`, `standing_down`, `threshold`.
+## `own_country`, `already_at_war`, `standing_down`, `level_cap` (the level would pass
+## `ladder.cap()`, TASK-140).
 
 const TYPE := "declare_hostilities"
 
@@ -28,8 +29,8 @@ func _decision_problem(state: OperationalState, player: int) -> String:
 			return "already_at_war"
 	if is_standing_down(state, player):
 		return "standing_down"
-	if state.escalation_level + cost(state, player, country_id) >= state.ladder.top():
-		return "threshold"
+	if state.escalation_level + cost(state, player, country_id) > state.ladder.cap():
+		return "level_cap"
 	return ""
 
 

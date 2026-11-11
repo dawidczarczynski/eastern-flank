@@ -39,9 +39,10 @@ func test_choice_has_tag_cost_kind_and_stance() -> void:
 	assert_eq(escalate["cost_kind"], &"up")
 	var stand_down: Dictionary = _first_choice(state, &"stand_down")
 	assert_eq(stand_down["cost_kind"], &"down")
-	state.escalation_level = state.ladder.top() - 1
+	state.escalation_level = state.ladder.cap()
 	escalate = _first_choice(state, &"escalate")
-	assert_eq(escalate["tag"], &"threshold")
+	assert_eq(escalate["tag"], &"blocked")
+	assert_eq(escalate["code"], "level_cap")
 	state.decisions_left = 0
 	escalate = _first_choice(state, &"escalate")
 	assert_eq(escalate["tag"], &"blocked")

@@ -200,25 +200,25 @@ func test_second_formation_no_breach() -> void:
 	assert_eq(types.count(&"formation_order_completed"), 2)
 
 
-func test_threshold_during_execution_ends_operation() -> void:
+func test_breach_at_the_cap_does_not_end_the_operation() -> void:
 	var s := _quad()
-	s.escalation_level = 3
+	s.escalation_level = 5
 	_add(s, &"f", 0, Vector2i(3, 0))
 	_add(s, &"g", 0, Vector2i(3, 1))
 	var sim := _sim(s)
 	assert_true(sim.execute(IssueOrderCommand.new(&"f", Vector2i(5, 0), &"march")))
 	assert_true(sim.execute(IssueOrderCommand.new(&"g", Vector2i(2, 0), &"march")))
 	var events := _end(sim)
-	assert_eq(events[events.size() - 1]["type"], &"operation_ended")
-	assert_eq(events[events.size() - 1]["winner"], 1)
 	var types := _types(events)
-	assert_false(types.has(&"formation_order_completed"))
-	assert_false(types.has(&"operational_turn_ended"))
-	assert_false(types.has(&"operational_turn_started"))
-	assert_false(types.has(&"battle_pending"))
-	assert_eq(types.count(&"formation_moved"), 1, "no further formation executes")
+	assert_eq(types.count(&"sanctuary_breached"), 1, "the breach still happens")
+	assert_false(types.has(&"escalation_changed"), "no step above the cap")
+	assert_false(types.has(&"operation_ended"))
+	assert_eq(s.escalation_level, 5)
+	assert_true(s.get_country(&"russia").breached_by[0])
+	assert_eq(s.escalation_caused, [0, 0])
+	assert_eq(types.count(&"formation_order_completed"), 2, "both formations execute")
+	assert_true(types.has(&"operational_turn_ended"))
 	assert_eq(s.get_formation(&"f").coord, Vector2i(5, 0))
-	assert_eq(s.current_player, 0)
 
 
 func test_casus_belli_out_of_aligned_country() -> void:
@@ -346,9 +346,15 @@ func test_route_incidents_breach() -> void:
 	assert_eq(incidents[0]["at"], Vector2i(4, 0))
 	assert_eq(incidents[0]["steps"], 1)
 	assert_false(incidents[0]["ends_operation"])
-	s.escalation_level = 3
-	assert_true(EscalationRules.route_incidents(s, f, route)[0]["ends_operation"])
-	assert_eq(s.escalation_level, 3, "pure")
+	s.escalation_level = 4
+	var capped := EscalationRules.route_incidents(s, f, route)[0]
+	assert_eq(capped["steps"], 1)
+	assert_false(capped["ends_operation"], "an incident never ends the operation")
+	s.escalation_level = 5
+	var at_cap := EscalationRules.route_incidents(s, f, route)[0]
+	assert_eq(at_cap["steps"], 0, "clipped to the cap")
+	assert_false(at_cap["ends_operation"])
+	assert_eq(s.escalation_level, 5, "pure")
 	assert_false(s.get_country(&"russia").breached_by[0], "pure")
 	assert_true(EscalationRules.route_incidents(s, f, [] as Array[Vector2i]).is_empty())
 

@@ -203,7 +203,6 @@ static func warning_marks(
 					"chip": warning["chip"],
 					"tag": warning["tag"],
 					"sentence": warning["sentence"],
-					"ends": warning["ends"],
 				}
 			)
 		)

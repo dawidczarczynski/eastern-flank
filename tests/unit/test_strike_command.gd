@@ -152,7 +152,7 @@ func test_intercepted_strike_is_still_an_incident() -> void:
 	assert_eq(state.escalation_level, 3)
 
 
-func test_urban_strike_adds_one_per_strike() -> void:
+func test_urban_strike_adds_one_once_per_side() -> void:
 	var state := Strikes._state()
 	state.escalation_level = 0
 	state.escalation_floor = 0
@@ -161,9 +161,26 @@ func test_urban_strike_adds_one_per_strike() -> void:
 	var sim := _sim(state)
 	assert_true(sim.execute(StrikeCommand.new(&"sure", &"b", 1)))
 	assert_eq(state.escalation_level, 1)
+	assert_eq(state.urban_escalated, [false, true] as Array[bool])
 	assert_true(sim.execute(StrikeCommand.new(&"sure", &"b", 1)))
-	assert_eq(state.escalation_level, 2, "each strike adds one, the formation is hit anyway")
-	assert_eq(state.escalation_caused, [0, 2])
+	assert_eq(state.escalation_level, 1, "a later urban strike by the same side adds nothing")
+	assert_eq(state.escalation_caused, [0, 1])
+	assert_eq(state.snapshot()["escalation"]["urban_escalated"], [false, true])
+
+
+func test_urban_strike_at_the_cap_still_hits() -> void:
+	var state := Strikes._state()
+	state.escalation_level = 5
+	state.current_player = 1
+	state.grid.set_terrain(Vector2i(1, 0), Terrain.Type.URBAN)
+	var sim := _sim(state)
+	var seen := _collect(sim)
+	assert_true(sim.execute(StrikeCommand.new(&"sure", &"b", 1)))
+	assert_eq(state.escalation_level, 5)
+	assert_eq(state.result, {})
+	assert_true(_types(seen).has(&"strike_resolved"))
+	assert_false(_types(seen).has(&"escalation_changed"))
+	assert_true(state.urban_escalated[1])
 
 
 func test_breach_and_urban_together() -> void:
@@ -174,19 +191,20 @@ func test_breach_and_urban_together() -> void:
 	assert_eq(state.escalation_level, 4)
 
 
-func test_strike_reaching_the_top_ends_the_operation() -> void:
+func test_strike_near_the_cap_never_ends_the_operation() -> void:
 	var state := _open_war()
-	state.escalation_level = 3
+	state.escalation_level = 4
 	state.grid.set_terrain(Vector2i(6, 0), Terrain.Type.URBAN)
+	assert_eq(EscalationRules.strike_escalation(state, 0, Vector2i(6, 0)), 1, "clipped")
 	var sim := _sim(state)
 	var seen := _collect(sim)
-	var reasons := _reasons(sim)
 	assert_true(sim.execute(StrikeCommand.new(&"sure", &"a1", 1)))
-	assert_eq(state.escalation_level, 4)
-	assert_eq(state.result["winner"], 1)
-	assert_eq(seen[seen.size() - 1]["type"], &"operation_ended")
-	assert_false(sim.execute(StrikeCommand.new(&"sure", &"a1", 1)))
-	assert_eq(reasons, ["operation_over"])
+	assert_eq(state.escalation_level, 5)
+	assert_eq(state.escalation_caused[0], 1, "only the real step")
+	assert_eq(state.result, {})
+	assert_false(_types(seen).has(&"operation_ended"))
+	assert_true(state.get_country(&"russia").breached_by[0])
+	assert_true(state.urban_escalated[0])
 
 
 func test_mirror_gives_mirrored_result() -> void:

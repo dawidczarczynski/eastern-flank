@@ -71,8 +71,8 @@ class Chip:
 				at += DASH * 2.0
 
 
-## The 5-tick escalation ladder: ticks up to `from` filled, the tick `to` (-1 = none) hatched as
-## the new level; the last tick has a red outline (the threshold).
+## The escalation ladder ticks (one per level): ticks up to `from` filled, the tick `to` (-1 =
+## none) hatched as the new level; the last tick has a red outline (the nuclear attack).
 class Ticks:
 	extends Control
 
@@ -232,6 +232,18 @@ static func button(text: String, ghost := false) -> Button:
 	b.add_theme_stylebox_override(&"pressed", _button_box(UiPalette.NOTE_TEXT, UiPalette.NOTE_TEXT))
 	b.add_theme_stylebox_override(&"disabled", _button_box(Color(0, 0, 0, 0), MUTED_EDGE))
 	return b
+
+
+## Repaints an action button red (the nuclear decision, TASK-140): filled `alert`, dark ink; the
+## disabled look stays the dim outline.
+static func paint_danger(b: Button, alert: Color) -> void:
+	for colour in [&"font_color", &"font_hover_color", &"font_pressed_color"]:
+		b.add_theme_color_override(colour, UiPalette.INK)
+	b.add_theme_stylebox_override(&"normal", _button_box(alert, alert))
+	b.add_theme_stylebox_override(
+		&"hover", _button_box(alert.lightened(0.15), alert.lightened(0.15))
+	)
+	b.add_theme_stylebox_override(&"pressed", _button_box(alert.darkened(0.15), alert))
 
 
 static func _button_box(fill: Color, edge: Color) -> StyleBoxFlat:

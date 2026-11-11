@@ -111,7 +111,25 @@ func test_escalate() -> void:
 	assert_eq(s.escalation_level, 3)
 	_end(s)
 	_end(s)
-	assert_eq(EscalateCommand.new().validate(s), "threshold")
+	s.escalation_level = 4
+	assert_eq(EscalateCommand.new().validate(s), "", "below the cap as before")
+	_take(s, EscalateCommand.new())
+	assert_eq(s.escalation_level, 5)
+	assert_eq(s.result, {})
+	_end(s)
+	_end(s)
+	assert_eq(EscalateCommand.new().validate(s), "level_cap")
+
+
+func test_escalate_cap_for_both_sides_even_in_collapse() -> void:
+	for player in 2:
+		var s := _setup()
+		s.current_player = player
+		s.escalation_level = 5
+		assert_eq(EscalateCommand.new().validate(s), "level_cap", "player %d" % player)
+		s.formations = s.formations.filter(func(f: Formation) -> bool: return f.owner_id != player)
+		assert_true(CollapseRules.in_collapse(s, player))
+		assert_eq(EscalateCommand.new().validate(s), "level_cap", "in collapse %d" % player)
 
 
 func test_escalate_symmetry() -> void:
@@ -199,10 +217,12 @@ func test_declare_with_casus_belli_is_free() -> void:
 	assert_true(s.get_country(&"belarus").declared_by[0])
 
 
-func test_declare_threshold_and_standing_down() -> void:
+func test_declare_cap_and_standing_down() -> void:
 	var s := _setup()
-	s.escalation_level = 3
-	assert_eq(DeclareHostilitiesCommand.new(&"belarus").validate(s), "threshold")
+	s.escalation_level = 4
+	assert_eq(DeclareHostilitiesCommand.new(&"belarus").validate(s), "")
+	s.escalation_level = 5
+	assert_eq(DeclareHostilitiesCommand.new(&"belarus").validate(s), "level_cap")
 	s.get_country(&"belarus").casus_belli[0] = true
 	assert_eq(DeclareHostilitiesCommand.new(&"belarus").validate(s), "")
 	s.stand_down_until[0] = 2
@@ -239,8 +259,10 @@ func test_invoke_alliance() -> void:
 	s.stand_down_until[0] = 1
 	assert_eq(InvokeAllianceCommand.new(&"lithuania").validate(s), "standing_down")
 	s.stand_down_until[0] = 0
-	s.escalation_level = 3
-	assert_eq(InvokeAllianceCommand.new(&"lithuania").validate(s), "threshold")
+	s.escalation_level = 5
+	assert_eq(InvokeAllianceCommand.new(&"lithuania").validate(s), "level_cap")
+	s.escalation_level = 4
+	assert_eq(InvokeAllianceCommand.new(&"lithuania").validate(s), "")
 	s.escalation_level = 1
 	var events := _take(s, InvokeAllianceCommand.new(&"lithuania"))
 	assert_eq(events[0]["decision"], &"invoke_alliance")

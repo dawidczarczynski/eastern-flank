@@ -1,14 +1,15 @@
 class_name EscalationRules
 extends RefCounted
 ## Pure escalation rules of the operational layer (TASK-115, GDD "Escalation ladder"): raising and
-## lowering the shared level with attribution, allies joining, the threshold that ends the
-## operation, calm decay, the sanctuary breach and the rules of engagement for strikes. All state
-## changes go through here. No randomness.
+## lowering the shared level with attribution, allies joining, the cap below the top (TASK-140),
+## the nuclear attack that ends the operation, calm decay, the sanctuary breach and the rules of
+## engagement for strikes. All state changes go through here. No randomness.
 
 
-## Raises the level by `steps` (capped at the top), attributed to player `by`. Allies join when the
-## level reaches `allies_join_level`; reaching the top ends the operation: the other player wins.
-## Events: `escalation_changed`, the stance changes, then `operation_ended`.
+## Raises the level by `steps`, capped at `ladder.cap()` (one below the top, TASK-140), attributed
+## to player `by` for the real steps only; at the cap it does nothing. Allies join when the level
+## reaches `allies_join_level`. Never ends the operation (only `nuclear_use` does).
+## Events: `escalation_changed`, then the stance changes.
 static func raise(
 	state: OperationalState, by: int, cause: StringName, steps: int = 1
 ) -> Array[Dictionary]:
@@ -18,8 +19,8 @@ static func raise(
 		return events
 	var ladder := state.ladder
 	var previous := state.escalation_level
-	var level := mini(previous + steps, ladder.top())
-	if steps <= 0 or level == previous:
+	var level := mini(previous + steps, ladder.cap())
+	if steps <= 0 or level <= previous:
 		return events
 	state.escalation_level = level
 	state.escalation_caused[by] += level - previous
@@ -36,21 +37,32 @@ static func raise(
 	)
 	if previous < ladder.allies_join_level and level >= ladder.allies_join_level:
 		_join_allies(state, events)
-	if level == ladder.top() and state.result.is_empty():
-		state.result = {"winner": 1 - by, "reason": &"escalation_threshold"}
-		state.pending_battles.clear()
-		(
-			events
-			. append(
-				{
-					"type": &"operation_ended",
-					"winner": 1 - by,
-					"reason": &"escalation_threshold",
-					"by": by,
-				}
-			)
-		)
 	return events
+
+
+## Russia's nuclear attack (TASK-140, NuclearStrikeCommand validates it): the level goes to the
+## top, attributed to `by`, and the operation ends with reason `nuclear_use` – nobody wins
+## (`winner` -1, `by` = the user); pending battles are dropped. Events: `escalation_changed`,
+## `operation_ended`.
+static func nuclear_use(state: OperationalState, by: int) -> Array[Dictionary]:
+	var previous := state.escalation_level
+	var level := state.ladder.top()
+	state.escalation_level = level
+	state.escalation_caused[by] += level - previous
+	state.last_raise_turn[by] = state.turn
+	state.raised_this_round = true
+	state.result = {"winner": -1, "reason": &"nuclear_use", "by": by}
+	state.pending_battles.clear()
+	return [
+		{
+			"type": &"escalation_changed",
+			"level": level,
+			"previous": previous,
+			"by": by,
+			"cause": &"nuclear_use",
+		},
+		{"type": &"operation_ended", "winner": -1, "reason": &"nuclear_use", "by": by},
+	]
 
 
 ## Lowers the level by one (callers own the floor); attributed to `by` when >= 0 (-1 = nobody).
@@ -122,8 +134,8 @@ static func breach(
 
 ## The incidents of a formation that has just entered `steps` (in order, the first from `from`):
 ## for each entered hex the first breach of an enemy sanctuary (`breach`), then the casus belli of
-## a step out of an aligned country into an enemy one (`casus_belli_gained`). Stops once the
-## operation has ended. Draws nothing (TASK-116).
+## a step out of an aligned country into an enemy one (`casus_belli_gained`). Draws nothing
+## (TASK-116).
 static func on_steps(
 	state: OperationalState, formation: Formation, steps: Array[Vector2i], from: Vector2i
 ) -> Array[Dictionary]:
@@ -132,8 +144,6 @@ static func on_steps(
 	var previous := from
 	for hex in steps:
 		events.append_array(breach(state, player, state.country_at(hex), hex, formation.id))
-		if not state.result.is_empty():
-			break
 		var launch := _launch_country(state, player, previous, hex)
 		if launch != null and not launch.casus_belli[1 - player]:
 			launch.casus_belli[1 - player] = true
@@ -155,9 +165,10 @@ static func on_steps(
 
 ## The incidents the `route` of `formation` would cause, in order, assuming nothing else changes
 ## (pure): `{type: &"sanctuary_breach", country, at, steps, ends_operation}` – the first entry of
-## a not yet breached enemy sanctuary; `ends_operation` when the level plus all steps so far reach
-## the top – and `{type: &"casus_belli", country, for_player, at}` – a step out of an aligned
-## country into an enemy one whose flag is not set yet.
+## a not yet breached enemy sanctuary; `steps` are clipped to the cap (0 at the cap) and
+## `ends_operation` is always false since TASK-140 (kept for the view) – and
+## `{type: &"casus_belli", country, for_player, at}` – a step out of an aligned country into an
+## enemy one whose flag is not set yet.
 static func route_incidents(
 	state: OperationalState, formation: Formation, route: Array[Vector2i]
 ) -> Array[Dictionary]:
@@ -171,7 +182,9 @@ static func route_incidents(
 		var country_id := state.country_at(hex)
 		if not breached.has(country_id) and _would_breach(state, player, country_id):
 			breached[country_id] = true
-			var steps := state.ladder.sanctuary_breach_escalation
+			var steps := clampi(
+				state.ladder.cap() - level, 0, state.ladder.sanctuary_breach_escalation
+			)
 			level += steps
 			(
 				incidents
@@ -181,7 +194,7 @@ static func route_incidents(
 						"country": country_id,
 						"at": hex,
 						"steps": steps,
-						"ends_operation": level >= state.ladder.top(),
+						"ends_operation": false,
 					}
 				)
 			)
@@ -233,20 +246,23 @@ static func strike_allowed(
 	return ""
 
 
-## Steps a strike on `coord` by `player` would cause (breach + urban).
+## Steps a strike on `coord` by `player` would cause (a first breach + the side's first urban
+## strike), clipped to the cap: 0 at the cap.
 static func strike_escalation(state: OperationalState, player: int, coord: Vector2i) -> int:
 	var steps := 0
 	if _would_breach(state, player, state.country_at(coord)):
 		steps += state.ladder.sanctuary_breach_escalation
-	if _is_urban(state, coord):
+	if _is_urban(state, coord) and not state.urban_escalated[player]:
 		steps += state.ladder.urban_strike_escalation
-	return steps
+	return clampi(state.ladder.cap() - state.escalation_level, 0, steps)
 
 
-## Applies the escalation of a resolved strike: `breach`, then `raise` for an urban hex.
+## Applies the escalation of a resolved strike: `breach`, then `raise` for the side's first urban
+## strike in the operation (`urban_escalated`, TASK-140).
 static func on_strike(state: OperationalState, player: int, coord: Vector2i) -> Array[Dictionary]:
 	var events := breach(state, player, state.country_at(coord), coord, &"")
-	if _is_urban(state, coord) and state.result.is_empty():
+	if _is_urban(state, coord) and not state.urban_escalated[player]:
+		state.urban_escalated[player] = true
 		events.append_array(
 			raise(state, player, &"urban_strike", state.ladder.urban_strike_escalation)
 		)

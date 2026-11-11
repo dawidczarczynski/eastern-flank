@@ -53,9 +53,11 @@ static func from_definition(
 	state.front_range = definition.front_range
 	state.initial_posture = definition.initial_posture
 	state.grid = grid
-	for side in definition.sides:
+	for index in definition.sides.size():
+		var side: SideDefinition = definition.sides[index]
 		state.player_sides.append(side.id)
 		state.player_factions.append(side.lead_faction)
+		state.may_use_nuclear[index] = side.may_use_nuclear
 	state.first_player = definition.first_player
 	state.current_player = definition.first_player
 	state.turn = 1
@@ -67,7 +69,9 @@ static func from_definition(
 	for setup in definition.countries:
 		state.countries.append(CountryState.from_setup(setup))
 	for placement in definition.formations:
-		state.formations.append(Formation.from_placement(placement, definition.initial_posture))
+		var formation := Formation.from_placement(placement, definition.initial_posture)
+		state.formations.append(formation)
+		state.fielded_strength[formation.owner_id] += formation.max_strength()
 	_add_strikes(state, definition)
 	return state
 

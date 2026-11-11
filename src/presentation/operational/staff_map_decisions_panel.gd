@@ -3,8 +3,10 @@ extends Control
 ## The Politics screen of the staff map (TASK-117, docs/design/operational_map/
 ## political_decisions.html variant B): a full-screen sheet over the dimmed map. Left: the five
 ## decision cards in two groups (key chip, title, cost chip, one-line effect, country chips with
-## stance word and shape, reason + Take, inline confirmation with the new level on a 5-tick
-## ladder). Header: budget, stand-down counter, result line. Right: dashed placeholders for the
+## stance word and shape, reason + Take, inline confirmation with the new level on the ladder
+## ticks). Russia's side (SideDefinition.may_use_nuclear) also gets the red *Use nuclear weapon*
+## card under "Last resort" with a heavy red confirmation (TASK-140). Header: budget, stand-down
+## counter, result line. Right: dashed placeholders for the
 ## read-only overview of TASK-119. Everything shown comes from StaffMapDecisionsModel; the panel
 ## only emits `decision_chosen`, the hud issues the command. Built on open and on a state change
 ## only (never per frame).
@@ -17,8 +19,8 @@ const SHEET_MARGIN := Vector4(70, 36, 70, 28)  # left, top, right, bottom
 const CARD_WIDTH := 340.0  # minimum; the cards grow to 394 px on a 1440 px screen
 const OVERVIEW_WIDTH := 280.0
 const FADE_SECONDS := 0.15
-const NUMBER_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5]
-const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5]
+const NUMBER_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
+const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5, KEY_KP_6]
 # gdlint: disable=max-line-length
 const RULES_TEXT := "One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns."
 # gdlint: enable=max-line-length
@@ -135,15 +137,15 @@ func pick(id: StringName, country: StringName) -> void:
 	refresh()
 
 
-## Hot-key card pick (1-5); ignored while a confirmation is open.
+## Hot-key card pick (1-6); ignored while a confirmation is open or for a card not shown.
 func select_card(id: StringName) -> void:
-	if is_confirming() or not StaffMapDecisionsModel.ORDER.has(id):
+	if is_confirming() or _choices_of(id).is_empty():
 		return
 	_selected = id
 	refresh()
 
 
-## Keys while the sheet is open: Esc cancels a confirmation, else closes; 1-5 pick a card, left /
+## Keys while the sheet is open: Esc cancels a confirmation, else closes; 1-6 pick a card, left /
 ## right the country, Enter takes / confirms, the open key closes. Always consumes the key (the map
 ## below takes none).
 func handle_key(keycode: Key) -> bool:
@@ -160,7 +162,7 @@ func handle_key(keycode: Key) -> bool:
 	if number < 0:
 		number = KEYPAD_KEYS.find(keycode)
 	if number >= 0:
-		select_card(StaffMapDecisionsModel.ORDER[number])
+		select_card(_id_of_key(number + 1))
 	elif keycode == KEY_LEFT or keycode == KEY_RIGHT:
 		_step_country(-1 if keycode == KEY_LEFT else 1)
 	elif keycode == KEY_ENTER or keycode == KEY_KP_ENTER:
@@ -196,6 +198,13 @@ func _activate() -> void:
 	var chosen := _choice_of(_selected, _choices_of(_selected))
 	if chosen["enabled"]:
 		_take(_selected, chosen)
+
+
+func _id_of_key(key: int) -> StringName:
+	for row in _rows:
+		if StaffMapDecisionsModel.hot_key(row["id"]) == key:
+			return row["id"]
+	return &""
 
 
 func _choices_of(id: StringName) -> Array:
@@ -331,6 +340,8 @@ func _decisions_column() -> Control:
 	columns.size_flags_stretch_ratio = 1.9
 	var widen := _group(tr("Widen the war"), StaffMapDecisionsModel.WIDEN)
 	var small := _group(tr("Keep it small"), StaffMapDecisionsModel.KEEP_SMALL)
+	if _choices_of(StaffMapDecisionsModel.NUCLEAR).size() > 0:
+		_add_cards(small, tr("Last resort"), StaffMapDecisionsModel.LAST_RESORT)
 	var rules := MenuStyle.label(
 		tr(RULES_TEXT) % _state.ladder.stand_down_cooldown_turns,
 		HudTheme.mono(500, 0),
@@ -358,6 +369,12 @@ func _group(caption: String, ids: Array[StringName]) -> VBoxContainer:
 	group.custom_minimum_size.x = CARD_WIDTH
 	group.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	group.add_theme_constant_override(&"separation", 10)
+	_add_cards(group, caption, ids)
+	return group
+
+
+## A group caption and the cards of `ids` (those listed in the rows) appended to `group`.
+func _add_cards(group: VBoxContainer, caption: String, ids: Array[StringName]) -> void:
 	group.add_child(
 		MenuStyle.label(caption.to_upper(), HudTheme.display(700, 2), 11, UiPalette.HUD_MUTED)
 	)
@@ -365,7 +382,6 @@ func _group(caption: String, ids: Array[StringName]) -> VBoxContainer:
 		for row in _rows:
 			if row["id"] == id:
 				group.add_child(_card(row))
-	return group
 
 
 ## Right column: dashed placeholders for the read-only overview of TASK-119.
@@ -428,7 +444,7 @@ func _card(row: Dictionary) -> Control:
 	card.chamfers = Vector4(0, 9, 0, 9)
 	card.padding = Vector2(12, 7)
 	card.fill = UiPalette.CARD
-	card.line_color = _edge_of(chosen, usable, confirming_here, picked)
+	card.line_color = _edge_of(id, usable, confirming_here, picked)
 	card.custom_minimum_size.x = CARD_WIDTH
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -453,13 +469,14 @@ func _card(row: Dictionary) -> Control:
 	return card
 
 
-func _edge_of(chosen: Dictionary, usable: bool, confirming: bool, picked: bool) -> Color:
+func _edge_of(id: StringName, usable: bool, confirming: bool, picked: bool) -> Color:
+	var nuclear := id == StaffMapDecisionsModel.NUCLEAR
 	if confirming:
-		return UiPalette.AMBER
+		return _palette.ui_alert if nuclear else UiPalette.AMBER
 	if not usable:
-		if chosen["tag"] == &"threshold":
-			return StaffMapDecisionParts.DANGER_EDGE
 		return StaffMapDecisionParts.WARN_EDGE
+	if nuclear:
+		return _palette.ui_alert
 	return Color(UiPalette.AMBER, 0.6) if picked else UiPalette.CARD_EDGE
 
 
@@ -549,16 +566,15 @@ func _country_chip(id: StringName, choice: Dictionary, current: bool) -> Control
 	return chip
 
 
-## Foot of a card: BLOCKED / THRESHOLD tag with the reason (or nothing when it works) and Take.
+## Foot of a card: BLOCKED tag with the reason (or nothing when it works) and Take (red for the
+## nuclear decision).
 func _foot(id: StringName, chosen: Dictionary, waiting: bool) -> Control:
 	var foot := HBoxContainer.new()
 	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	foot.add_theme_constant_override(&"separation", 8)
 	var reason_text := ""
-	var tag: StringName = chosen["tag"]
 	if waiting:
 		reason_text = tr("Confirm or cancel %s first") % _confirming_title()
-		tag = &"blocked"
 	elif not chosen["enabled"]:
 		reason_text = chosen["reason"]
 	var why := HBoxContainer.new()
@@ -566,13 +582,17 @@ func _foot(id: StringName, chosen: Dictionary, waiting: bool) -> Control:
 	why.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	why.add_theme_constant_override(&"separation", 6)
 	if reason_text != "":
-		var danger := tag == &"threshold"
-		why.add_child(_tag_chip(danger))
+		why.add_child(
+			StaffMapDecisionParts.chip(
+				tr("Blocked").to_upper(),
+				HudTheme.mono(700, 1),
+				10,
+				UiPalette.AMBER,
+				UiPalette.AMBER
+			)
+		)
 		var reason := MenuStyle.label(
-			reason_text,
-			StaffMapDecisionParts.body_font(),
-			12,
-			_palette.ui_alert if danger else UiPalette.AMBER
+			reason_text, StaffMapDecisionParts.body_font(), 12, UiPalette.AMBER
 		)
 		reason.name = "Reason"
 		reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -583,6 +603,8 @@ func _foot(id: StringName, chosen: Dictionary, waiting: bool) -> Control:
 	var take := StaffMapDecisionParts.button(tr("Take"))
 	take.name = "Take"
 	take.disabled = reason_text != ""
+	if not take.disabled and id == StaffMapDecisionsModel.NUCLEAR:
+		StaffMapDecisionParts.paint_danger(take, _palette.ui_alert)
 	if not take.disabled:
 		take.pressed.connect(func() -> void: _take(id, chosen))
 	foot.add_child(take)
@@ -590,36 +612,36 @@ func _foot(id: StringName, chosen: Dictionary, waiting: bool) -> Control:
 	return foot
 
 
-func _tag_chip(danger: bool) -> Control:
-	if danger:
-		return StaffMapDecisionParts.chip(
-			"▲ " + tr("Threshold").to_upper(),
+## Inline confirmation: the question, the ladder with the new level and Cancel / Confirm. The
+## nuclear decision gets the heavy form: red rule, a filled red "▲ ENDS THE OPERATION" tag, a larger
+## red question and a red button named after the decision.
+func _confirmation(id: StringName, chosen: Dictionary) -> Control:
+	var nuclear := id == StaffMapDecisionsModel.NUCLEAR
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override(&"separation", 6)
+	var rule := ColorRect.new()
+	rule.color = _palette.ui_alert if nuclear else StaffMapDecisionParts.WARN_EDGE
+	rule.custom_minimum_size.y = 2.0 if nuclear else 1.0
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(rule)
+	if nuclear:
+		var tag := StaffMapDecisionParts.chip(
+			"▲ " + tr("This ends the operation").to_upper(),
 			HudTheme.mono(700, 1),
 			10,
 			UiPalette.INK,
 			_palette.ui_alert,
 			_palette.ui_alert
 		)
-	return StaffMapDecisionParts.chip(
-		tr("Blocked").to_upper(), HudTheme.mono(700, 1), 10, UiPalette.AMBER, UiPalette.AMBER
-	)
-
-
-## Inline confirmation: the question, the ladder with the new level and Cancel / Confirm.
-func _confirmation(id: StringName, chosen: Dictionary) -> Control:
-	var box := VBoxContainer.new()
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_theme_constant_override(&"separation", 6)
-	var rule := ColorRect.new()
-	rule.color = StaffMapDecisionParts.WARN_EDGE
-	rule.custom_minimum_size.y = 1.0
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(rule)
+		tag.name = "NuclearTag"
+		tag.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		box.add_child(tag)
 	var danger: bool = chosen["danger"]
 	var ask := MenuStyle.label(
 		chosen["confirm"],
 		HudTheme.display(700, 0),
-		13,
+		15 if nuclear else 13,
 		_palette.ui_alert if danger else UiPalette.HUD_TEXT
 	)
 	ask.name = "Confirm"
@@ -636,7 +658,12 @@ func _confirmation(id: StringName, chosen: Dictionary) -> Control:
 		)
 	)
 	ladder.add_child(
-		MenuStyle.label("%d ▸ %d" % [from, to], HudTheme.mono(700, 0), 11, UiPalette.AMBER)
+		MenuStyle.label(
+			"%d ▸ %d" % [from, to],
+			HudTheme.mono(700, 0),
+			11,
+			_palette.ui_alert if nuclear else UiPalette.AMBER
+		)
 	)
 	ladder.add_child(
 		MenuStyle.label(
@@ -656,8 +683,10 @@ func _confirmation(id: StringName, chosen: Dictionary) -> Control:
 	no.pressed.connect(cancel_confirmation)
 	buttons.add_child(no)
 	buttons.add_child(KeyCap.new("ESC"))
-	var yes := StaffMapDecisionParts.button(tr("Confirm"))
+	var yes := StaffMapDecisionParts.button(tr("Use nuclear weapon") if nuclear else tr("Confirm"))
 	yes.name = "ConfirmButton"
+	if nuclear:
+		StaffMapDecisionParts.paint_danger(yes, _palette.ui_alert)
 	yes.pressed.connect(
 		func() -> void:
 			_confirming = {}

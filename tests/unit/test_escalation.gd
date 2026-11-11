@@ -34,22 +34,35 @@ static func _ladder(levels := 5) -> EscalationLadder:
 func test_shipped_ladder() -> void:
 	var ladder := EscalationLadder.shipped()
 	assert_eq(ladder.problem(), "")
-	assert_eq(ladder.top(), 4)
+	assert_eq(ladder.top(), 6)
+	assert_eq(ladder.cap(), 5)
 	var ids: Array = ladder.levels.map(func(l: EscalationLevel) -> Variant: return l.id)
 	assert_eq(
-		ids, [&"contained", &"limited_war", &"open_war", &"regional_war", &"strategic_threshold"]
+		ids,
+		[
+			&"contained",
+			&"limited_war",
+			&"open_war",
+			&"regional_war",
+			&"general_war",
+			&"strategic_alert",
+			&"strategic_threshold",
+		]
 	)
 	assert_eq(ladder.levels[0].strike_classes, [&"formation"])
 	assert_eq(ladder.levels[1].strike_classes, [&"formation", &"air_defence", &"depot"])
 	var open: Array[StringName] = [&"formation", &"air_defence", &"depot", &"airfield", &"c2"]
-	assert_eq(ladder.levels[2].strike_classes, open)
-	assert_eq(ladder.levels[3].strike_classes, open)
-	assert_eq(ladder.levels[4].strike_classes, [])
+	for level in [2, 3, 4, 5]:
+		assert_eq(ladder.levels[level].strike_classes, open, "level %d" % level)
+	assert_eq(ladder.levels[6].strike_classes, [])
 	assert_eq(ladder.sanctuary_open_level, 2)
 	assert_eq(ladder.allies_join_level, 3)
 	assert_eq(ladder.calm_rounds, 3)
 	assert_eq(ladder.sanctuary_breach_escalation, 1)
 	assert_eq(ladder.urban_strike_escalation, 1)
+	assert_eq(ladder.collapse_strength_pct, 50)
+	assert_eq(ladder.collapse_readiness_pct, 35)
+	assert_eq(ladder.collapse_readiness_strength_pct, 70)
 
 
 func test_ladder_problems() -> void:
@@ -70,6 +83,16 @@ func test_ladder_problems() -> void:
 		var ladder := _ladder()
 		ladder.set(field, -1)
 		assert_true(ladder.problem() != "", field)
+	for field in [
+		"collapse_strength_pct", "collapse_readiness_pct", "collapse_readiness_strength_pct"
+	]:
+		for bad in [0, 101]:
+			var ladder := _ladder()
+			ladder.set(field, bad)
+			assert_true(ladder.problem() != "", "%s %d" % [field, bad])
+		var edge := _ladder()
+		edge.set(field, 100)
+		assert_eq(edge.problem(), "", "%s 100" % field)
 
 
 func test_initial_escalation() -> void:
@@ -80,7 +103,7 @@ func test_initial_escalation() -> void:
 	var op := Politics._definition()
 	op.initial_escalation = 0
 	assert_eq(Politics._strip(op).escalation_floor, 0)
-	for bad in [-1, 4]:
+	for bad in [-1, 6]:
 		var bad_op := Politics._definition()
 		bad_op.initial_escalation = bad
 		assert_true(Politics._strip(bad_op) == null, "initial %d" % bad)
@@ -107,9 +130,11 @@ func test_state_defaults_and_snapshot() -> void:
 			"last_raise_turn": [-1, -1],
 			"calm_rounds": 0,
 			"raised_this_round": false,
+			"urban_escalated": [false, false],
 		}
 	)
 	assert_eq(snap["result"], {})
+	assert_eq(snap["fielded_strength"], [0, 0])
 
 
 # --- raise / lower ---
@@ -175,39 +200,41 @@ func test_no_join_when_already_above() -> void:
 	assert_eq(events.size(), 1)
 	assert_eq(s.get_country(&"lithuania").stance, CountryState.BELLIGERENT, "never revert")
 	assert_eq(_types(EscalationRules.raise(s, 0, &"test")), [&"escalation_changed"])
-	s.escalation_level = 3
-	assert_eq(_types(EscalationRules.raise(s, 0, &"test")).size(), 2, "top: changed + ended")
+	s.escalation_level = 4
+	assert_eq(_types(EscalationRules.raise(s, 0, &"test")), [&"escalation_changed"], "to the cap")
 
 
-func test_threshold_ends_operation() -> void:
+func test_raise_is_capped_below_the_top() -> void:
 	var s := _strip()
-	s.escalation_level = 3
-	var events := EscalationRules.raise(s, 0, &"test")
-	assert_eq(s.escalation_level, 4)
-	assert_eq(s.result, {"winner": 1, "reason": &"escalation_threshold"})
-	assert_eq(events.back()["type"], &"operation_ended")
-	assert_eq(events.back()["winner"], 1)
-	assert_eq(events.back()["by"], 0)
-	assert_eq(events.back()["reason"], &"escalation_threshold")
-	var sim := OperationalSimulation.new(s)
-	var rejected: Array[String] = []
-	sim.command_rejected.connect(
-		func(_c: OperationalCommand, r: String) -> void: rejected.append(r)
-	)
-	assert_false(sim.execute(EndOperationalTurnCommand.new()))
-	assert_eq(rejected, ["operation_over"])
-
-
-func test_threshold_caps_steps_and_mirrors() -> void:
-	var s := _strip()
-	s.escalation_level = 3
-	EscalationRules.raise(s, 0, &"test", 2)
-	assert_eq(s.escalation_level, 4)
+	s.escalation_level = 4
+	s.raised_this_round = false
+	var events := EscalationRules.raise(s, 0, &"test", 3)
+	assert_eq(s.escalation_level, 5)
+	assert_eq(s.escalation_caused, [1, 0], "only the real steps")
+	assert_eq(_types(events), [&"escalation_changed"])
+	assert_eq(events[0]["level"], 5)
+	assert_eq(s.result, {}, "a raise never ends the operation")
+	s.raised_this_round = false
+	assert_eq(EscalationRules.raise(s, 1, &"test"), [], "no-op at the cap")
+	assert_eq(s.escalation_level, 5)
 	assert_eq(s.escalation_caused, [1, 0])
+	assert_false(s.raised_this_round)
+	assert_eq(s.last_raise_turn, [1, -1])
+
+
+func test_cap_mirrors_and_follows_the_ladder() -> void:
 	var m := _strip()
 	m.escalation_level = 3
-	EscalationRules.raise(m, 1, &"test")
-	assert_eq(m.result["winner"], 0)
+	EscalationRules.raise(m, 1, &"test", 9)
+	assert_eq(m.escalation_level, 5)
+	assert_eq(m.escalation_caused, [0, 2])
+	assert_eq(m.result, {})
+	var small := _strip()
+	small.ladder = _ladder(5)
+	small.escalation_level = 2
+	EscalationRules.raise(small, 0, &"test", 5)
+	assert_eq(small.escalation_level, 3, "a 5-level ladder caps at top() - 1")
+	assert_eq(small.result, {})
 
 
 func test_lower() -> void:
@@ -230,7 +257,7 @@ func test_lower() -> void:
 
 func test_every_command_rejected_when_over() -> void:
 	var s := _strip()
-	s.result = {"winner": 0, "reason": &"escalation_threshold"}
+	s.result = {"winner": -1, "reason": &"nuclear_use", "by": 1}
 	var sim := OperationalSimulation.new(s)
 	var rejected: Array[String] = []
 	sim.command_rejected.connect(
@@ -241,21 +268,6 @@ func test_every_command_rejected_when_over() -> void:
 	sim.execute(ResolveBattleCommand.new())
 	assert_eq(rejected, ["operation_over", "operation_over", "operation_over"])
 	assert_eq(sim.history.size(), 0)
-
-
-func test_pending_battles_dropped_at_the_end() -> void:
-	var s := _strip()
-	s.pending_battles.append(BattleSetup.new())
-	s.escalation_level = 3
-	EscalationRules.raise(s, 1, &"test")
-	assert_true(s.pending_battles.is_empty())
-	var sim := OperationalSimulation.new(s)
-	var rejected: Array[String] = []
-	sim.command_rejected.connect(
-		func(_c: OperationalCommand, r: String) -> void: rejected.append(r)
-	)
-	sim.execute(ResolveBattleCommand.new())
-	assert_eq(rejected, ["operation_over"])
 
 
 # --- calm decay ---
@@ -311,11 +323,25 @@ func test_raise_resets_calm_count() -> void:
 	assert_eq(s.escalation_level, 2)
 
 
-func test_threshold_during_turn_skips_battles() -> void:
+func test_calm_works_from_the_cap() -> void:
 	var s := _strip()
 	s.first_player = 0
 	s.current_player = 0
-	s.escalation_level = 3
+	s.escalation_level = 4
 	EscalationRules.raise(s, 1, &"test")
 	var sim := OperationalSimulation.new(s)
-	assert_false(sim.execute(EndOperationalTurnCommand.new()))
+	_end_turns(sim, 2)  # round 1: raised
+	assert_eq(s.escalation_level, 5)
+	_end_turns(sim, 2 * 3)  # three quiet rounds
+	assert_eq(s.escalation_level, 4)
+	_end_turns(sim, 2 * 30)
+	assert_eq(s.escalation_level, 1, "not below the start level")
+
+
+func test_stand_down_from_the_cap() -> void:
+	var s := _strip()
+	s.escalation_level = 5
+	s.current_player = 0
+	var sim := OperationalSimulation.new(s)
+	assert_true(sim.execute(StandDownCommand.new()))
+	assert_eq(s.escalation_level, 4)

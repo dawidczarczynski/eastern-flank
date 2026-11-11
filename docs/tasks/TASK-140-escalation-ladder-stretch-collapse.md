@@ -1,6 +1,6 @@
 # TASK-140: Escalation ladder stretched to 7 levels, the threshold = a Russian nuclear attack
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (chip, ladder card, decisions, warnings)
 - **Depends on**: TASK-117 (soft: TASK-097b – if its strike view is already committed, adapt its warning too)
 - **Sections**: GDD "Escalation ladder", "Political decisions", "Deep strikes" (Escalation line), TASK-115 / 116 / 117 task files
@@ -65,4 +65,7 @@ Rewrite the "Escalation ladder" table in docs/MANUAL.md to seven levels (numbere
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Logic: 7-level ladder (`EscalationLadder.cap()` = top()-1), `CollapseRules`, `NuclearStrikeCommand` (decision `nuclear_strike`, end reason `nuclear_use`), `fielded_strength`, `urban_escalated`, `may_use_nuclear` (Russia only). Reason `threshold` renamed to `level_cap` (Escalate / Declare / Invoke). `RequestSupportCommand` does not exist yet: **TASK-121 must reuse `level_cap`** when level + cost > cap.
+View: 7-tick chip, ladder card with collapse strips ("Nuclear attack" label), red nuclear card + confirmation (hot key 6), warnings "Already at the highest level", nuclear end notice, MANUAL updated, `tools/screenshot.gd` tokens `turn:`, `collapse:`, `nuclear:`, `decisions:confirm:`.
+Known leftovers (dead code, harmless): the strike report "threshold"/"ends" paths (`staff_map_strike_text.gd`, `_chip`, `_report`, `_reports`) and unused i18n rows; the panel keyboard hint still says "1-5". Candidates for a cleanup task.
+Changes after the playtest (2026-11-11): the nuclear attack ends the operation with **nobody winning** (`result` = `{winner: -1, reason: nuclear_use, by}`, `operation_ended.winner` -1) instead of NATO winning; the end notice says "Nobody wins." and no longer names a winner or a loser. After a nuclear end the map fades to grey and black (`assets/shaders/nuclear_fade.gdshader`, `StaffMapEndNotice.play()` / `seek()`), then the notice appears with a mushroom pictogram above its frame (`StaffMapNuclearPictogram`, after the hazard sign). Debug: F9 panel has a **Nuclear attack** button (`EscalationRules.nuclear_use` for the chosen side, no conditions). An animated 3D / volumetric mushroom and a city skyline were tried and dropped.

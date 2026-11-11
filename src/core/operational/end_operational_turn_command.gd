@@ -108,8 +108,6 @@ static func _execute_order(
 		)
 	if not steps.is_empty():
 		events.append_array(EscalationRules.on_steps(state, formation, steps, walk_from))
-		if not state.result.is_empty() and events.back()["type"] == &"operation_ended":
-			return  # the escalation threshold ended the operation
 	if stop == OperationalRoutes.STOP_ARRIVED:
 		formation.order = null
 		(

@@ -19,6 +19,9 @@ var front_range: int = FrontLine.DEFAULT_RANGE
 var player_sides: Array[StringName] = []
 ## Lead faction of each player's side (colours, HUD).
 var player_factions: Array[StringName] = []
+## Per player: the side may use a nuclear weapon (SideDefinition.may_use_nuclear, TASK-140; static,
+## not in the snapshot).
+var may_use_nuclear: Array[bool] = [false, false]
 ## Posture of formations that appear after the start (static, from the definition).
 var initial_posture: StringName = &"defend"
 var first_player: int = 0
@@ -47,6 +50,13 @@ var last_raise_turn: Array[int] = [-1, -1]
 var calm_rounds: int = 0
 ## A raise happened in the running round.
 var raised_this_round: bool = false
+## Per player: the side's first urban strike has raised the level; later ones add nothing
+## (TASK-140, never cleared).
+var urban_escalated: Array[bool] = [false, false]
+## Per player: the sum of max_strength() of every formation that has entered play for the player
+## (start, joined allies, arrived support); destroyed formations stay in it (TASK-140,
+## CollapseRules).
+var fielded_strength: Array[int] = [0, 0]
 ## Political decisions the current player may still take this turn (TASK-117); reset when the
 ## turn passes on.
 var decisions_left: int = 1
@@ -67,7 +77,7 @@ var strikes_per_turn: int = 2
 var air_defence_radius: int = 4
 var air_defence_intercept_pct: int = 40
 var repair_per_round: int = 5
-## {} while the operation runs, else {winner: int, reason: StringName}.
+## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}.
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
 var pending_battles: Array[BattleSetup] = []
@@ -114,7 +124,8 @@ func formation_at(coord: Vector2i) -> Formation:
 ## {turn, current_player, rng_state, escalation, result,
 ## countries: [CountryState.snapshot() sorted by id],
 ## formations: [Formation.snapshot() sorted by id],
-## installations: [Installation.snapshot() sorted by id], strike_stock, strikes_left}.
+## installations: [Installation.snapshot() sorted by id], strike_stock, strikes_left,
+## fielded_strength}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
 	sorted.sort_custom(_id_before)
@@ -142,6 +153,7 @@ func snapshot() -> Dictionary:
 		"current_player": current_player,
 		"rng_state": str(rng.state),
 		"formations": entries,
+		"fielded_strength": fielded_strength.duplicate(),
 		"escalation":
 		{
 			"level": escalation_level,
@@ -150,6 +162,7 @@ func snapshot() -> Dictionary:
 			"last_raise_turn": last_raise_turn.duplicate(),
 			"calm_rounds": calm_rounds,
 			"raised_this_round": raised_this_round,
+			"urban_escalated": urban_escalated.duplicate(),
 		},
 		"result": result.duplicate(),
 	}

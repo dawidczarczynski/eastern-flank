@@ -50,6 +50,8 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 			return EscalateCommand.new()
 		StandDownCommand.TYPE:
 			return StandDownCommand.new()
+		NuclearStrikeCommand.TYPE:
+			return NuclearStrikeCommand.new()
 		DeclareHostilitiesCommand.TYPE:
 			var country: Variant = d.get("country")
 			if not country is String:

@@ -39,6 +39,7 @@ func _init(
 		_panel.position = Vector2(16, 130)
 		_panel.stance_requested.connect(_on_stance_requested)
 		_panel.escalation_requested.connect(_on_escalation_requested)
+		_panel.nuclear_requested.connect(_on_nuclear_requested)
 		_panel.strike_requested.connect(_on_strike_requested)
 		_panel.stock_requested.connect(_on_stock_requested)
 		hud.add_child(_panel)
@@ -145,6 +146,18 @@ func _on_escalation_requested(by: int, raise: bool) -> void:
 	else:
 		events = EscalationRules.lower(state, by, &"stand_down")
 	for event in events:
+		_simulation.event_emitted.emit(event)
+	_panel.show_state(state)
+
+
+## The panel's Nuclear attack: EscalationRules.nuclear_use for side `by` without the decision's
+## conditions (a debug shortcut), its events re-emitted so the fade and the notice play.
+func _on_nuclear_requested(by: int) -> void:
+	var state := _simulation.state
+	if not state.result.is_empty():
+		_toast.call(TranslationServer.translate("ORDER_REJECTED_OPERATION_OVER"), _palette.ui_alert)
+		return
+	for event in EscalationRules.nuclear_use(state, by):
 		_simulation.event_emitted.emit(event)
 	_panel.show_state(state)
 

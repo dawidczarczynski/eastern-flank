@@ -344,6 +344,7 @@ ESC_CHIP_TOOLTIP,Escalation level - click for the ladder,Poziom eskalacji - klik
 ESC_CARD_TITLE,Escalation ladder,Drabina eskalacji
 ESC_ROE,May strike,Wolno uderzać
 ESC_ROE_NONE,Nothing,Nic
+May strike: as level %d,May strike: as level %d,Wolno uderzać: jak na poziomie %d
 ESC_CLASS_FORMATION,formations,oddziały
 ESC_CLASS_AIR_DEFENCE,air defence,obronę powietrzną
 ESC_CLASS_DEPOT,depots,składy
@@ -352,6 +353,9 @@ ESC_CLASS_C2,command posts,stanowiska dowodzenia
 ESC_MARK_SANCTUARY,Enemy sanctuary open,Zaplecze wroga otwarte
 ESC_MARK_ALLIES,Allies join,Sojusznicy dołączają
 ESC_MARK_END,Ends the operation,Kończy operację
+ESC_MARK_CAP,Highest level for incidents and decisions,Najwyższy poziom dla incydentów i decyzji
+ESC_COLLAPSE,Collapse,Rozpad
+"%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · siła %d %% · gotowość %d · rozpad przy ≤ %d %%"
 Calm: level %d → %d,Calm: level %d → %d,Uspokojenie: poziom %d → %d
 joins: %s,joins: %s,dołączają: %s
 raised by %s,raised by %s,podniesiona przez %s
@@ -360,10 +364,11 @@ raised by %s,raised by %s,podniesiona przez %s
 %s entered enemy sanctuary,%s entered enemy sanctuary,%s wkracza na zaplecze wroga
 %s struck a town,%s struck a town,%s uderza w miasto
 %s stood down,%s stood down,%s odstępuje od eskalacji
-ESC_END_TAB,Strategic threshold,Próg strategiczny
+ESC_END_TAB,Nuclear attack,Atak jądrowy
 ESC_END_TITLE,Operation over,Operacja zakończona
-%s crossed the %s,%s crossed the %s,%s przekracza: %s
-Defeat: %s,Defeat: %s,Porażka: %s
+%s used a nuclear weapon,%s used a nuclear weapon,%s użyła broni jądrowej
+%s used a nuclear weapon. The operation ends.,%s used a nuclear weapon. The operation ends.,%s użyła broni jądrowej. Operacja się kończy.
+Nobody wins.,Nobody wins.,Nikt nie wygrywa.
 ESC_END_MENU,Back to menu,Wróć do menu
 END_TURN_BLOCKED_OPERATION_OVER,The operation is over.,Operacja zakończona.
 ORDER_REJECTED_OPERATION_OVER,The operation is over.,Operacja zakończona.
@@ -430,7 +435,15 @@ Wider strikes: level %s,Wider strikes: level %s,Szersze uderzenia: poziom %s
 "%s enters the war on your side, level %s","%s enters the war on your side, level %s","%s przystępuje do wojny po twojej stronie, poziom %s"
 %s is forced back to neutrality,%s is forced back to neutrality,%s wraca do neutralności pod naciskiem
 %s? Level %d → %d (%s),%s? Level %d → %d (%s),%s? Poziom %d → %d (%s)
-– one step from the threshold,– one step from the threshold,– jeden krok od progu
+– the highest level of escalation,– the highest level of escalation,– najwyższy poziom eskalacji
+Last resort,Last resort,Ostateczność
+Use nuclear weapon,Use nuclear weapon,Użyj broni jądrowej
+"Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.","Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.","Użyć broni jądrowej? To kończy operację. %s zostanie uznana za stronę, która przekroczyła granicę."
+The operation ends: %s is judged the loser (level %s),The operation ends: %s is judged the loser (level %s),Operacja się kończy: %s przegrywa (poziom %s)
+Your side has no nuclear option,Your side has no nuclear option,Twoja strona nie ma opcji jądrowej
+Only at the highest level of escalation,Only at the highest level of escalation,Tylko na najwyższym poziomie eskalacji
+Only while the army is collapsing,Only while the army is collapsing,Tylko gdy armia się rozpada
+Already at the highest level – no further escalation,Already at the highest level – no further escalation,Już na najwyższym poziomie – bez dalszej eskalacji
 No neutral or hostile country to declare on,No neutral or hostile country to declare on,Brak państwa neutralnego lub wrogiego do wypowiedzenia
 No aligned ally to call,No aligned ally to call,Brak sojusznika do powołania
 No hostile country to give an ultimatum,No hostile country to give an ultimatum,Brak wrogiego państwa do ultimatum
@@ -439,7 +452,7 @@ The operation is over,The operation is over,Operacja zakończona
 Resolve the pending battle first,Resolve the pending battle first,Najpierw rozstrzygnij bitwę
 One decision per turn: already taken,One decision per turn: already taken,Jedna decyzja na turę: już podjęta
 Standing down: no escalating decisions yet,Standing down: no escalating decisions yet,Deeskalacja: jeszcze bez decyzji eskalujących
-Would cross the threshold,Would cross the threshold,Przekroczyłoby próg
+Already at the highest level,Already at the highest level,Już na najwyższym poziomie
 The level is already the lowest,The level is already the lowest,Poziom jest już najniższy
 You escalated last turn,You escalated last turn,Eskalowałeś w zeszłej turze
 Your troops are on soil you took,Your troops are on soil you took,Twoje wojska stoją na zajętej ziemi
@@ -458,7 +471,9 @@ Contained clash,Contained clash,Starcie ograniczone
 Limited war,Limited war,Wojna ograniczona
 Regional war,Regional war,Wojna regionalna
 Open war,Open war,Otwarta wojna
-Strategic threshold,Strategic threshold,Próg strategiczny
+Nuclear attack,Nuclear attack,Atak jądrowy
+General war,General war,Wojna powszechna
+Strategic alert,Strategic alert,Alarm strategiczny
 Politics,Politics,Polityka
 Widen the war,Widen the war,Rozszerz wojnę
 Keep it small,Keep it small,Utrzymaj ograniczony zasięg
@@ -486,7 +501,6 @@ Needs {level} – raise the level first,Needs {level} – raise the level first,
 No strikes left this turn,No strikes left this turn,Brak uderzeń w tej turze
 Out of stock,Out of stock,Brak zapasu
 Bad salvo size,Bad salvo size,Zła wielkość salwy
-Reaches the strategic threshold – you would lose the operation,Reaches the strategic threshold – you would lose the operation,Osiąga próg strategiczny – przegrasz operację
 Strikes: %d/%d,Strikes: %d/%d,Uderzenia: %d/%d
 Breaches %s sanctuary: +%d escalation,Breaches %s sanctuary: +%d escalation,Narusza sanktuarium: %s: +%d eskalacji
 Urban hex: +%d escalation,Urban hex: +%d escalation,Pole miejskie: +%d eskalacji

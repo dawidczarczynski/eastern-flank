@@ -358,8 +358,13 @@ func _fail(message: String, exit_code: int) -> void:
 ## country:<id> (the country card, TASK-114), politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
 ## card, with fire the strike is made, TASK-097b),
-## escalate:<steps> (raises the escalation level by NATO, TASK-115; the top ends the operation),
-## ladder (the ladder card), endturn (after the orders: ends the move, skips the slide, TASK-092e),
+## escalate:<steps> (raises the escalation level by NATO, TASK-115; stops at the cap, TASK-140),
+## collapse:<player> (halves that side's fielded strength in the state so it counts as collapsing,
+## TASK-140), nuclear:<player> (that player's nuclear attack: the end notice, TASK-140),
+## turn:<player> (hands the turn to that player in the state, a still-image shortcut),
+## decisions[:confirm[:<card key 1-6>]] (the Politics screen, optionally with the
+## confirmation of that card, default 1), ladder (the ladder card), endturn (after the orders:
+## ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
 ## battle, TASK-094a: dimmed map and contact notice; repeat for a queue),
 ## contactmap:<col>:<row>:<col>:<row> (the debug contact-map panel with that attacker / defender
@@ -539,6 +544,19 @@ func _apply_staff_map_state(spec: String) -> void:
 					map.simulation().event_emitted.emit(event)
 			"ladder":
 				map.escalation_hud().toggle_card()
+			"nuclear":
+				var user := parts[1].to_int() if parts.size() > 1 else 1
+				for event in EscalationRules.nuclear_use(map.simulation().state, user):
+					map.simulation().event_emitted.emit(event)
+				if parts.size() > 2:  # nuclear:<player>:<seconds> freezes the end notice's fade at that time
+					map.escalation_hud().end_notice().seek(parts[2].to_float())
+					map.escalation_hud().end_notice().set_process(false)
+			"turn":
+				map.simulation().state.current_player = parts[1].to_int() if parts.size() > 1 else 1
+			"collapse":
+				var who := parts[1].to_int() if parts.size() > 1 else 1
+				var state := map.simulation().state
+				state.fielded_strength[who] = CollapseRules.present_strength(state, who) * 2
 			"strike":  # strike:<means>[:<target id>[:fire]] – strike mode, TASK-097b
 				map.toggle_strike_mode()
 				var strike := map.strike_hud()
@@ -556,8 +574,9 @@ func _apply_staff_map_state(spec: String) -> void:
 			"decisions":
 				map.toggle_decisions()
 				var sheet := map.decisions_hud().panel()
-				if parts.size() > 1 and parts[1] == "confirm":  # card 1 asks its confirmation
-					sheet.handle_key(KEY_1)
+				if parts.size() > 1 and parts[1] == "confirm":  # a card asks its confirmation
+					var card_key := parts[2].to_int() if parts.size() > 2 else 1
+					sheet.handle_key((KEY_1 + card_key - 1) as Key)
 					sheet.handle_key(KEY_ENTER)
 				sheet.finish_fade()
 			"side":

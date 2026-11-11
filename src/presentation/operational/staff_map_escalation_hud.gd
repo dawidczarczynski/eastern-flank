@@ -25,6 +25,7 @@ func _init(
 	_card = StaffMapLadderCard.new()
 	hud.add_child(_card)
 	_end = StaffMapEndNotice.new()
+	_end.z_index = 100  # above the toasts, below nothing
 	_end.menu_pressed.connect(func() -> void: menu_requested.emit())
 	hud.add_child(_end)
 	# A resumed operation may already be over.
@@ -96,14 +97,19 @@ func on_event(event: Dictionary) -> void:
 					_toast.call(text, _changed_colour)
 		&"operation_ended":
 			_show_end(event)
+			if event.get("reason") == &"nuclear_use":
+				_end.play()  # grey, black, then the notice
 
 
 func _show_end(event: Dictionary) -> void:
 	var state := _simulation.state
 	_card.hide()
-	_end.present(StaffMapEscalation.end_lines(state, event), _palette, event["winner"])
+	_end.present(StaffMapEscalation.end_lines(state, event), _palette)
 
 
 static func _ended_event(state: OperationalState) -> Dictionary:
-	var winner: int = state.result.get("winner", 0)
-	return {"winner": winner, "by": 1 - winner, "reason": state.result.get("reason", &"")}
+	return {
+		"winner": state.result.get("winner", -1),
+		"by": state.result.get("by", 0),
+		"reason": state.result.get("reason", &""),
+	}

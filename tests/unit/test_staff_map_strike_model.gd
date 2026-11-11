@@ -177,17 +177,27 @@ func test_urban_hex_adds_a_line() -> void:
 	assert_eq(lines[1]["text"], "Escalation level: Regional war")
 
 
-func test_threshold_line_is_danger() -> void:
-	var state := _state(3)
+func test_no_threshold_line_near_the_cap() -> void:
+	# TASK-140: incidents stop at the cap, so no line ends the operation.
+	var state := _state(4)
 	var lines := StaffMapStrike.escalation_lines(state, 0, A1)
-	assert_eq(
-		lines.back()["text"], "Reaches the strategic threshold – you would lose the operation"
-	)
-	assert_true(lines.back()["danger"])
-	assert_true(lines[lines.size() - 2]["text"].ends_with("Strategic threshold"))
-	state.escalation_level = 2  # raise-and-strike that ends the operation
-	assert_true(StaffMapStrike.escalation_lines(state, 0, A1, true).back()["danger"])
-	assert_false(StaffMapStrike.escalation_lines(state, 0, A1).back()["danger"])
+	assert_eq(lines.back()["text"], "Escalation level: Strategic alert")
+	for line in lines:
+		assert_false(line["danger"], str(line))
+	var raised := StaffMapStrike.escalation_lines(state, 0, A1, true)
+	assert_eq(raised.size(), 1, "the raise reaches the cap first: " + str(raised))
+	assert_eq(raised[0]["text"], "Already at the highest level – no further escalation")
+
+
+func test_incident_at_the_cap_reads_no_further_escalation() -> void:
+	var state := _state(4)
+	state.escalation_level = state.ladder.cap()
+	var lines := StaffMapStrike.escalation_lines(state, 0, A1)
+	assert_eq(lines.size(), 1, str(lines))
+	assert_eq(lines[0]["text"], "Already at the highest level – no further escalation")
+	assert_false(lines[0]["danger"])
+	state.get_country(&"russia").breached_by[0] = true
+	assert_eq(StaffMapStrike.escalation_lines(state, 0, A1), [], "no incident: no lines")
 
 
 func test_confirm_model_with_raise() -> void:

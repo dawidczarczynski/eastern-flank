@@ -25,7 +25,6 @@ const PROBLEM_TEXTS := {
 	"out_of_stock": "Out of stock",
 	"bad_count": "Bad salvo size",
 }
-const THRESHOLD_TEXT := "Reaches the strategic threshold – you would lose the operation"
 
 
 ## "" when `viewer` may open the strike mode now, else operation_over / battle_pending /
@@ -156,69 +155,55 @@ static func raise_offered(
 
 
 ## The escalation lines of the confirm card: [{text, danger}]. `raised`: computed for the level
-## after the Escalate decision. Nothing for a strike without escalation.
+## after the Escalate decision. Nothing for a strike without an incident (a first breach of an
+## enemy sanctuary, the side's first urban strike); at the cap of the ladder (TASK-140) an incident
+## reads "Already at the highest level – no further escalation". No line is a danger line any more:
+## a strike never ends the operation.
 static func escalation_lines(
 	state: OperationalState, player: int, target_id: StringName, raised := false
 ) -> Array[Dictionary]:
 	var lines: Array[Dictionary] = []
-	var preview := StrikeRules.escalation_preview(state, player, target_id)
+	var target := StrikeRules.find_target(state, player, target_id)
+	if target.is_empty():
+		return lines
+	var coord: Vector2i = target["coord"]
 	var base := state.escalation_level + (state.ladder.decision_escalation if raised else 0)
-	var top := state.ladder.top()
-	if preview >= 1:
-		var target := StrikeRules.find_target(state, player, target_id)
-		var coord: Vector2i = target["coord"]
-		var breach := 0
-		var country := state.get_country(state.country_at(coord))
-		if (
-			country != null
-			and country.definition.sanctuary
-			and CountryRules.relation(state, player, country.id) == &"enemy"
-			and not country.breached_by[player]
-		):
-			breach = state.ladder.sanctuary_breach_escalation
-			(
-				lines
-				. append(
-					{
-						"text":
-						(
-							TranslationServer.translate("Breaches %s sanctuary: +%d escalation")
-							% [TranslationServer.translate(country.definition.display_name), breach]
-						),
-						"danger": false,
-					}
-				)
-			)
-		if preview > breach:
-			(
-				lines
-				. append(
-					{
-						"text":
-						(
-							TranslationServer.translate("Urban hex: +%d escalation")
-							% (preview - breach)
-						),
-						"danger": false,
-					}
-				)
-			)
-		(
-			lines
-			. append(
-				{
-					"text":
-					(
-						TranslationServer.translate("Escalation level: %s")
-						% StaffMapEscalation.level_name(state, mini(base + preview, top))
-					),
-					"danger": false,
-				}
-			)
+	var cap := state.ladder.cap()
+	var country := state.get_country(state.country_at(coord))
+	var breach := 0
+	if (
+		country != null
+		and country.definition.sanctuary
+		and CountryRules.relation(state, player, country.id) == &"enemy"
+		and not country.breached_by[player]
+	):
+		breach = state.ladder.sanctuary_breach_escalation
+	var urban := 0
+	if state.grid.get_terrain(coord) == Terrain.Type.URBAN and not state.urban_escalated[player]:
+		urban = state.ladder.urban_strike_escalation
+	if breach + urban <= 0:
+		return lines
+	var room := maxi(cap - base, 0)
+	if room == 0:
+		lines.append({"text": _t(StaffMapBorders.AT_CAP_TEXT), "danger": false})
+		return lines
+	breach = mini(breach, room)
+	urban = mini(urban, room - breach)
+	if breach > 0:
+		var text := (
+			_t("Breaches %s sanctuary: +%d escalation")
+			% [_t(country.definition.display_name), breach]
 		)
-	if base + preview >= top:
-		lines.append({"text": String(TranslationServer.translate(THRESHOLD_TEXT)), "danger": true})
+		lines.append({"text": text, "danger": false})
+	if urban > 0:
+		lines.append({"text": _t("Urban hex: +%d escalation") % urban, "danger": false})
+	var level := StaffMapEscalation.level_name(state, base + breach + urban)
+	lines.append({"text": _t("Escalation level: %s") % level, "danger": false})
 	return lines
+
+
+static func _t(key: String) -> String:
+	return TranslationServer.translate(key)
 
 
 ## The confirm card: {title, means_line, raise_line, lines, danger}. `title` is the target's

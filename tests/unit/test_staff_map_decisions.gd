@@ -71,13 +71,73 @@ func test_not_your_turn_disables_for_the_other_viewer() -> void:
 			assert_eq(choice["code"], "not_your_turn")
 
 
-func test_threshold_is_disabled_and_red() -> void:
+func test_level_cap_is_disabled() -> void:
 	var state := _state()
-	state.escalation_level = state.ladder.top() - 1
+	state.escalation_level = state.ladder.cap()
 	var choice: Dictionary = _row(StaffMapDecisionsModel.rows(state, 0), &"escalate")["choices"][0]
 	assert_false(choice["enabled"])
-	assert_eq(choice["code"], "threshold")
-	assert_true(choice["danger"])
+	assert_eq(choice["code"], "level_cap")
+	assert_eq(choice["tag"], &"blocked")
+	state.escalation_level = state.ladder.cap() - 1
+	choice = _row(StaffMapDecisionsModel.rows(state, 0), &"escalate")["choices"][0]
+	assert_true(choice["enabled"])
+	assert_true(choice["danger"], "the step to the cap is red")
+
+
+func _collapse(state: OperationalState, player: int) -> void:
+	state.fielded_strength[player] = CollapseRules.present_strength(state, player) * 2
+
+
+func _ids(rows: Array[Dictionary]) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for row in rows:
+		ids.append(row["id"])
+	return ids
+
+
+func test_nuclear_card_only_for_the_nuclear_side() -> void:
+	var state := _state(1)
+	assert_false(_ids(StaffMapDecisionsModel.rows(state, 0)).has(&"nuclear_strike"), "not for NATO")
+	assert_true(_ids(StaffMapDecisionsModel.rows(state, 1)).has(&"nuclear_strike"), "for Russia")
+	assert_eq(StaffMapDecisionsModel.ids(state, 0), StaffMapDecisionsModel.ORDER)
+	assert_eq(StaffMapDecisionsModel.hot_key(&"nuclear_strike"), 6)
+
+
+func test_nuclear_card_reasons_per_state() -> void:
+	var state := _state(1)
+	state.escalation_level = state.ladder.cap() - 1
+	_collapse(state, 1)
+	var rows := StaffMapDecisionsModel.rows(state, 1)
+	var choice: Dictionary = _row(rows, &"nuclear_strike")["choices"][0]
+	assert_false(choice["enabled"])
+	assert_eq(choice["code"], "level_too_low")
+	assert_eq(String(choice["reason"]), "Only at the highest level of escalation")
+	state = _state(1)
+	state.escalation_level = state.ladder.cap()
+	choice = _row(StaffMapDecisionsModel.rows(state, 1), &"nuclear_strike")["choices"][0]
+	assert_eq(choice["code"], "no_collapse")
+	assert_eq(String(choice["reason"]), "Only while the army is collapsing")
+	_collapse(state, 1)
+	choice = _row(StaffMapDecisionsModel.rows(state, 1), &"nuclear_strike")["choices"][0]
+	assert_true(choice["enabled"], choice["reason"])
+	assert_true(choice["danger"], "red")
+	assert_eq(choice["new_level"], state.ladder.top())
+	assert_eq(
+		choice["confirm"],
+		"Use a nuclear weapon? This ends the operation. Russia is judged to have crossed the line."
+	)
+	assert_eq(StaffMapDecisionsModel.command(&"nuclear_strike").validate(state), "")
+
+
+func test_level_cap_blocks_escalate_for_both_sides_even_in_collapse() -> void:
+	for player in 2:
+		var state := _state(player)
+		state.escalation_level = state.ladder.cap()
+		_collapse(state, player)
+		var rows := StaffMapDecisionsModel.rows(state, player)
+		var choice: Dictionary = _row(rows, &"escalate")["choices"][0]
+		assert_eq(choice["code"], "level_cap")
+		assert_eq(String(choice["reason"]), "Already at the highest level")
 
 
 func test_enabled_always_agrees_with_the_command() -> void:
@@ -192,7 +252,10 @@ func test_every_decision_text_has_a_polish_translation() -> void:
 		"%s enters the war on your side, level %s",
 		"%s is forced back to neutrality",
 		"%s? Level %d → %d (%s)",
-		"– one step from the threshold",
+		"– the highest level of escalation",
+		"Last resort",
+		"Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.",
+		"The operation ends: %s is judged the loser (level %s)",
 		"Politics",
 		"Widen the war",
 		"Keep it small",

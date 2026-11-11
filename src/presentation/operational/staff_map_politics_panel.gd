@@ -8,6 +8,8 @@ extends FramedPanel
 signal stance_requested(country_id: StringName, stance: StringName, side: int)
 ## Raise / Lower of the escalation level attributed to side `by` (TASK-115).
 signal escalation_requested(by: int, raise: bool)
+## The nuclear attack by side `by`, whatever the rules say (debug shortcut, TASK-140).
+signal nuclear_requested(by: int)
 
 ## Strikes block (TASK-097a): a strike as the Strike button would order it / debug stock.
 signal strike_requested(player: int, means: StringName, count: int, target: StringName)
@@ -76,6 +78,7 @@ func show_state(state: OperationalState) -> void:
 		_rows[country.id] = picker
 		_choices[country.id] = choices
 	column.add_child(_escalation_row(state))
+	column.add_child(_nuclear_button())
 	column.add_child(_strikes_block(state))
 	show()
 	reset_size()
@@ -105,6 +108,16 @@ func _escalation_row(state: OperationalState) -> Control:
 		button.pressed.connect(func() -> void: escalation_requested.emit(_by, raise))
 		row.add_child(button)
 	return row
+
+
+func _nuclear_button() -> Button:
+	var button := Button.new()
+	button.name = "Nuclear"
+	button.text = "Nuclear attack (by the side above)"
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_color_override(&"font_color", Color("#e8581c"))
+	button.pressed.connect(func() -> void: nuclear_requested.emit(_by))
+	return button
 
 
 func _strikes_block(state: OperationalState) -> Control:

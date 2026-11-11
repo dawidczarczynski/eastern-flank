@@ -3,8 +3,8 @@ extends Control
 ## One-key confirmation before an order that causes border incidents (TASK-116, design
 ## docs/design/operational_map/border_warnings.html, confirmation variant A): the map dims 28 %
 ## 360 px chamfered plate above the hint line lists one row per incident (chip + text) with the
-## keys "Enter Confirm" / "Esc Cancel". The edge turns ui.alert when an incident ends the
-## operation. Holds the pending order; StaffMap executes it on Enter (the same IssueOrderCommand
+## keys "Enter Confirm" / "Esc Cancel", amber (no incident ends the operation since TASK-140).
+## Holds the pending order; StaffMap executes it on Enter (the same IssueOrderCommand
 ## path) and drops it on Esc.
 
 const WIDTH := 360.0
@@ -17,7 +17,6 @@ var _plate: FramedPanel
 var _header: Label
 var _rows: VBoxContainer
 var _row_texts: PackedStringArray = []
-var _ends := false
 
 
 ## `bottom_offset`: distance (px) from the screen bottom to the plate's lower edge.
@@ -66,17 +65,14 @@ func ask(
 	warnings: Array[Dictionary]
 ) -> void:
 	_pending = {"formation_id": formation_id, "destination": destination, "posture": posture}
-	_ends = false
 	_row_texts = PackedStringArray()
 	for row in _rows.get_children():
 		_rows.remove_child(row)
 		row.queue_free()
 	for warning in warnings:
-		var ends: bool = warning["ends"]
-		_ends = _ends or ends
 		_row_texts.append(warning["text"])
-		_rows.add_child(_row(warning["chip"], warning["text"], ends))
-	var accent := _palette.ui_alert if _ends else _palette.ui_amber
+		_rows.add_child(_row(warning["chip"], warning["text"]))
+	var accent := _palette.ui_amber
 	var key := (
 		"CONFIRM ORDER · %d INCIDENTS" if warnings.size() != 1 else "CONFIRM ORDER · 1 INCIDENT"
 	)
@@ -114,17 +110,12 @@ func header_text() -> String:
 	return _header.text
 
 
-## True when the edge is drawn in ui.alert (an incident ends the operation).
-func is_alert() -> bool:
-	return _ends
-
-
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, DIM))
 
 
-func _row(chip: String, text: String, ends: bool) -> Control:
-	var accent := _palette.ui_alert if ends else _palette.ui_amber
+func _row(chip: String, text: String) -> Control:
+	var accent := _palette.ui_amber
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 8)
 	var chip_label := Label.new()

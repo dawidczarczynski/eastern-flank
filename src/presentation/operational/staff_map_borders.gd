@@ -8,6 +8,8 @@ const REASON_CLOSED := "ROUTE_CLOSED"
 ## Marker kinds (drawn alike: an amber triangle; the label says what it is).
 const BREACH := &"sanctuary_breach"
 const CASUS_BELLI := &"casus_belli"
+## An incident at the cap of the ladder (TASK-140): it raises nothing.
+const AT_CAP_TEXT := "Already at the highest level – no further escalation"
 
 
 ## Why a destination `formation` may not enter is closed: {title: "RUSSIA · CLOSED" (the country in
@@ -35,7 +37,8 @@ static func closed_info(
 
 
 ## One warning per incident of `route`: Array of {kind, at (the first hex of the incident), text,
-## ends (true when it ends the operation)}.
+## chip, tag, sentence}. No incident ends the operation (TASK-140): at the cap a breach reads
+## "Already at the highest level – no further escalation".
 static func warnings(
 	state: OperationalState, formation: Formation, route: Array[Vector2i]
 ) -> Array[Dictionary]:
@@ -51,7 +54,6 @@ static func warnings(
 					"chip": chip_of(incident),
 					"tag": tag_of(incident),
 					"sentence": sentence_of(state, incident),
-					"ends": incident.get("ends_operation", false),
 				}
 			)
 		)
@@ -74,10 +76,8 @@ static func order_warnings(
 	return warnings(state, formation, preview["route"])
 
 
-## The chip of an incident: "+1", "CB", or "END" when it ends the operation.
+## The chip of an incident: "+1" ("+0" at the cap) or "CB".
 static func chip_of(incident: Dictionary) -> String:
-	if incident.get("ends_operation", false):
-		return "END"
 	if incident["type"] == BREACH:
 		return "+%d" % incident["steps"]
 	return "CB"
@@ -90,31 +90,34 @@ static func tag_of(incident: Dictionary) -> String:
 	return TranslationServer.translate("ESCALATION +%d") % incident["steps"]
 
 
-## The sentence under a breach tag ("Enters Russia", "... This ends the operation"); the full
-## text for a casus belli.
+## The sentence under a breach tag ("Enters Russia", at the cap "Enters Russia. Already at the
+## highest level – no further escalation"); "" for a casus belli.
 static func sentence_of(state: OperationalState, incident: Dictionary) -> String:
 	if incident["type"] != BREACH:
 		return ""
 	var country := state.get_country(incident["country"])
 	var name := _country_name(country) if country != null else String(incident["country"])
 	var text: String = TranslationServer.translate("Enters %s") % name
-	if incident["ends_operation"]:
-		text += ". " + TranslationServer.translate("This ends the operation")
+	if int(incident["steps"]) <= 0:
+		text += ". " + TranslationServer.translate(AT_CAP_TEXT)
 	return text
 
 
-## "Enters Russia: escalation +1", "... – this ends the operation", "NATO attacks out of
-## Lithuania: casus belli for Russia".
+## "Enters Russia: escalation +1", at the cap "Enters Russia: already at the highest level – no
+## further escalation", "NATO attacks out of Lithuania: casus belli for Russia".
 static func incident_text(state: OperationalState, player: int, incident: Dictionary) -> String:
 	var country := state.get_country(incident["country"])
 	var name := _country_name(country) if country != null else String(incident["country"])
 	if incident["type"] == BREACH:
-		var text := (
-			TranslationServer.translate("Enters %s: escalation +%d") % [name, incident["steps"]]
-		)
-		if incident["ends_operation"]:
-			text += " – " + TranslationServer.translate("This ends the operation")
-		return text
+		if int(incident["steps"]) <= 0:
+			return (
+				"%s: %s"
+				% [
+					TranslationServer.translate("Enters %s") % name,
+					TranslationServer.translate(AT_CAP_TEXT)
+				]
+			)
+		return TranslationServer.translate("Enters %s: escalation +%d") % [name, incident["steps"]]
 	return casus_belli_text(state, player, name, incident["for_player"])
 
 
