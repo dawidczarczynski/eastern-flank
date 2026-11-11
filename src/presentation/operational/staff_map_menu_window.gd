@@ -1,7 +1,7 @@
 class_name StaffMapMenuWindow
 extends StaffMapWindow
 ## The operation menu of the staff map (opened by the hamburger in the top-left corner): a
-## StaffMapWindow on the left dock with two rows, SAVE (F5) and EXIT OPERATION. Holds no rules:
+## StaffMapWindow centred on the screen with two rows, SAVE (F5) and EXIT OPERATION. Holds no rules:
 ## the rows emit `save_pressed` / `exit_pressed` and the owner acts. Closed by the X, Esc, the
 ## hamburger and a click on the map.
 
@@ -29,6 +29,13 @@ func _init() -> void:
 	_exit.pressed.connect(func() -> void: exit_pressed.emit())
 	column.add_child(_exit)
 	column.add_child(StaffMapWindow.hint_line(tr("Esc or ✕ closes")))
+
+
+## Shows the menu centred in a viewport of size `viewport` (not on the left dock).
+func open_centered(viewport: Vector2) -> void:
+	show()
+	reset_size()
+	position = ((viewport - size) / 2.0).floor()
 
 
 func save_button() -> Button:

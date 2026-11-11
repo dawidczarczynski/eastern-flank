@@ -1662,6 +1662,8 @@ func _update_limits() -> void:
 
 
 func _on_viewport_resized() -> void:
+	if _menu != null and _menu.is_open():
+		_menu.open_centered(_viewport_size())
 	if _exit_confirm != null and _exit_confirm.visible:
 		_exit_confirm.present(_unsaved, _viewport_size())
 	_update_limits()
@@ -2115,7 +2117,7 @@ func toggle_menu() -> void:
 	if _exit_confirm.visible:
 		return
 	_claim_left_dock(LeftWindow.MENU)
-	_menu.open(_viewport_size().x)
+	_menu.open_centered(_viewport_size())
 	_menu_button.set_lit(true)
 
 
