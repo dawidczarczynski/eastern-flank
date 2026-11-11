@@ -72,10 +72,11 @@ var strikes_left: int = 2
 var strike_means: Dictionary = {}
 ## Per player: {means id: count} gained at each round boundary (static).
 var strike_resupply: Array[Dictionary] = [{}, {}]
-## Strikes per own turn, air-defence radius / interception %, repair per round (static).
+## Air-defence types by id (static, not in the snapshot; the shipped ones, tests may add more).
+var air_defence_types: Dictionary = {}
+## Strikes per own turn, rounds a hit silences an air-defence site, repair per round (static).
 var strikes_per_turn: int = 2
-var air_defence_radius: int = 4
-var air_defence_intercept_pct: int = 40
+var suppression_rounds: int = 2
 var repair_per_round: int = 5
 ## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}.
 var result: Dictionary = {}

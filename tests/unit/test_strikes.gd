@@ -39,7 +39,7 @@ static func _means(
 
 
 static func _placement(
-	id: StringName, class_id: StringName, owner: int, coord: Vector2i
+	id: StringName, class_id: StringName, owner: int, coord: Vector2i, ad_type := &""
 ) -> InstallationPlacement:
 	var placement := InstallationPlacement.new()
 	placement.id = id
@@ -47,6 +47,7 @@ static func _placement(
 	placement.class_id = class_id
 	placement.owner = owner
 	placement.coord = coord
+	placement.ad_type = ad_type if ad_type != &"" or class_id != &"air_defence" else &"short"
 	return placement
 
 
@@ -214,8 +215,7 @@ func test_state_from_definition() -> void:
 func test_defaults() -> void:
 	var op := OperationDefinition.new()
 	assert_eq(op.strikes_per_turn, 2)
-	assert_eq(op.air_defence_radius, 4)
-	assert_eq(op.air_defence_intercept_pct, 40)
+	assert_eq(op.suppression_rounds, 2)
 	assert_eq(op.repair_per_round, 5)
 
 
@@ -304,11 +304,10 @@ func test_definition_rejects_the_other_sides_weapon() -> void:
 
 func test_shipped_operation() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
-	assert_eq(state.installations.size(), 14)
+	assert_eq(state.installations.size(), 16)
 	assert_eq(state.strikes_left, 2)
 	assert_eq(state.strikes_per_turn, 2)
-	assert_eq(state.air_defence_radius, 4)
-	assert_eq(state.air_defence_intercept_pct, 40)
+	assert_eq(state.suppression_rounds, 2)
 	assert_eq(state.repair_per_round, 5)
 	assert_eq(
 		state.strike_stock[0],
@@ -342,10 +341,10 @@ func test_shipped_operation() -> void:
 		)
 		assert_true(state.grid.move_cost(installation.coord) != Terrain.IMPASSABLE)
 		assert_true(state.country_at(installation.coord) != &"", String(installation.id))
-	assert_eq((by_owner[0] as Array).size(), 7)
-	assert_eq((by_owner[1] as Array).size(), 7)
-	assert_eq(classes[0], {&"airfield": 2, &"depot": 2, &"c2": 1, &"air_defence": 2})
-	assert_eq(classes[1], {&"airfield": 2, &"depot": 2, &"c2": 1, &"air_defence": 2})
+	assert_eq((by_owner[0] as Array).size(), 8)
+	assert_eq((by_owner[1] as Array).size(), 8)
+	assert_eq(classes[0], {&"airfield": 2, &"depot": 2, &"c2": 1, &"air_defence": 3})
+	assert_eq(classes[1], {&"airfield": 2, &"depot": 2, &"c2": 1, &"air_defence": 3})
 
 
 func test_shipped_ladder_effect_on_russian_targets() -> void:
@@ -353,7 +352,7 @@ func test_shipped_ladder_effect_on_russian_targets() -> void:
 	var enemy := StrikeRules.targets(state, 0).filter(
 		func(t: Dictionary) -> bool: return t["kind"] == &"installation"
 	)
-	assert_eq(enemy.size(), 7)
+	assert_eq(enemy.size(), 8)
 	for target: Dictionary in enemy:
 		assert_eq(
 			StrikeRules.target_problem(state, 0, target["id"]),

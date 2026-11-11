@@ -17,7 +17,7 @@ func before_all() -> void:
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
 	Fixtures.add_generic_strike_means(_map.simulation().state)  # code-built `cruise`
-	_map.simulation().state.air_defence_intercept_pct = 0
+	_map.simulation().state.air_defence_types.clear()  # no interception
 
 
 func after_all() -> void:

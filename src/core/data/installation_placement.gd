@@ -12,3 +12,5 @@ extends Resource
 @export var owner: int
 ## Hex, axial coordinates on the operation's map.
 @export var coord: Vector2i
+## Air-defence type id (AirDefenceDefinition) of an `air_defence` installation; &"" otherwise.
+@export var ad_type: StringName = &""

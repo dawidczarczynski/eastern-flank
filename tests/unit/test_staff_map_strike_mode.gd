@@ -19,7 +19,7 @@ func before_all() -> void:
 	assert_true(_map.build_now(), "staff map builds")
 	var state := _map.simulation().state
 	Fixtures.add_generic_strike_means(state)  # code-built `cruise` / `strike_drone`, either side
-	state.air_defence_intercept_pct = 0
+	state.air_defence_types.clear()  # no interception
 	for id: StringName in state.strike_means.keys():  # copies: the shipped data stays as is
 		var means: StrikeMeansDefinition = state.strike_means[id].duplicate()
 		means.accuracy_pct = 100

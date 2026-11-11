@@ -172,22 +172,77 @@ static func capability(state: OperationalState, player: int, class_id: StringNam
 # --- resolution ---
 
 
-## Interception chance (%) of `means` against a target on `coord` owned by `owner`.
-static func intercept_chance(
-	state: OperationalState, owner: int, means: StrikeMeansDefinition, coord: Vector2i
-) -> int:
-	var sum := 0
+## The air-defence sites that count against a weapon on `target_coord`, for a strike by
+## `striker`: [{id, p}] in setup order. A site counts when it belongs to the enemy of `striker`,
+## is not destroyed, not suppressed, covers the hex (the exact radius counts) and its chance
+## `p` = type chance for the weapon class x integrity / 100 (rounded down) is above 0.
+static func interceptors(
+	state: OperationalState, striker: int, weapon_id: StringName, target_coord: Vector2i
+) -> Array[Dictionary]:
+	var sites: Array[Dictionary] = []
+	var means: StrikeMeansDefinition = state.strike_means.get(weapon_id)
+	if means == null:
+		return sites
 	for installation in state.installations:
 		if (
-			installation.owner == owner
-			and installation.class_id == &"air_defence"
-			and Hex.distance(installation.coord, coord) <= state.air_defence_radius
+			installation.owner == striker
+			or installation.class_id != &"air_defence"
+			or installation.destroyed()
+			or installation.suppressed()
 		):
-			sum += state.air_defence_intercept_pct * installation.integrity
-	sum = mini(sum, Installation.MAX_INTEGRITY * MAX_INTERCEPT_PCT)
-	return (
-		sum * means.interceptability_pct / (Installation.MAX_INTEGRITY * Installation.MAX_INTEGRITY)
-	)
+			continue
+		var type: AirDefenceDefinition = state.air_defence_types.get(installation.ad_type)
+		if type == null or Hex.distance(installation.coord, target_coord) > type.radius_hexes:
+			continue
+		var p := type.chance_against(means.weapon_class) * installation.integrity / 100
+		if p > 0:
+			sites.append({"id": installation.id, "p": p})
+	return sites
+
+
+## Interception chance (%, 0 - 90) of `weapon_id` fired by `striker` at `target_coord`: the
+## covering sites combine independently (1 - product of (1 - p)), capped at 90 %, then scaled by
+## the weapon's interceptability. Integer arithmetic in 1/10 000 units. 0 for an unknown weapon.
+static func interception_chance(
+	state: OperationalState, striker: int, weapon_id: StringName, target_coord: Vector2i
+) -> int:
+	var means: StrikeMeansDefinition = state.strike_means.get(weapon_id)
+	if means == null:
+		return 0
+	var survive := 10000
+	for site in interceptors(state, striker, weapon_id, target_coord):
+		survive = survive * (100 - int(site["p"])) / 100
+	var combined := mini((10000 - survive) / 100, MAX_INTERCEPT_PCT)
+	return combined * means.interceptability_pct / 100
+
+
+## The non-destroyed air-defence sites of `player`, setup order, for the view (TASK-098b):
+## {id, coord, ad_type, radius_hexes, integrity, suppressed, suppressed_rounds}.
+static func coverage(state: OperationalState, player: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for installation in state.installations:
+		if (
+			installation.owner != player
+			or installation.class_id != &"air_defence"
+			or installation.destroyed()
+		):
+			continue
+		var type: AirDefenceDefinition = state.air_defence_types.get(installation.ad_type)
+		(
+			result
+			. append(
+				{
+					"id": installation.id,
+					"coord": installation.coord,
+					"ad_type": installation.ad_type,
+					"radius_hexes": 0 if type == null else type.radius_hexes,
+					"integrity": installation.integrity,
+					"suppressed": installation.suppressed(),
+					"suppressed_rounds": installation.suppressed_rounds,
+				}
+			)
+		)
+	return result
 
 
 ## Resolves a salvo of `count` missiles of `means_id` on the target: two `state.rng` draws per
@@ -199,8 +254,10 @@ static func resolve(
 	var means: StrikeMeansDefinition = state.strike_means[means_id]
 	var target_id: StringName = target["id"]
 	var coord: Vector2i = target["coord"]
-	var owner := 1 - player
-	var p_intercept := intercept_chance(state, owner, means, coord)
+	var interceptor_ids: Array[StringName] = []
+	for site in interceptors(state, player, means_id, coord):
+		interceptor_ids.append(site["id"])
+	var p_intercept := interception_chance(state, player, means_id, coord)
 	var p_hit := clampi(means.accuracy_pct + recon_modifier(state, player, target), 0, 100)
 	var intercepted := 0
 	var hits := 0
@@ -222,6 +279,11 @@ static func resolve(
 			dealt = before - installation.integrity
 			destroyed = installation.destroyed()
 			effects.append(_installation_event(installation, before, &"strike"))
+			if installation.class_id == &"air_defence" and not destroyed:
+				effects.append(_suppress(installation, state.suppression_rounds))
+			elif installation.class_id == &"air_defence" and installation.suppressed():
+				# A site destroyed while suppressed is no longer counting down.
+				effects.append(_suppress(installation, 0))
 		else:
 			var result := _damage_formation(state, state.get_formation(target_id), hits, means)
 			dealt = result["dealt"]
@@ -238,6 +300,7 @@ static func resolve(
 			"hits": hits,
 			"misses": count - intercepted - hits,
 			"p_intercept": p_intercept,
+			"interceptor_ids": interceptor_ids,
 			"p_hit": p_hit,
 			"damage_dealt": dealt,
 			"target_destroyed": destroyed,
@@ -245,6 +308,25 @@ static func resolve(
 	]
 	events.append_array(effects)
 	return events
+
+
+## A hit silences the site for `rounds` (a refresh, never added to): `installation_suppressed`.
+static func _suppress(installation: Installation, rounds: int) -> Dictionary:
+	var before := installation.suppressed_rounds
+	installation.suppressed_rounds = rounds
+	return _suppression_event(installation, before, &"strike")
+
+
+static func _suppression_event(
+	installation: Installation, before: int, cause: StringName
+) -> Dictionary:
+	return {
+		"type": &"installation_suppressed",
+		"id": installation.id,
+		"before": before,
+		"after": installation.suppressed_rounds,
+		"cause": cause,
+	}
 
 
 static func _installation_event(
@@ -291,8 +373,8 @@ static func _damage_formation(
 # --- round boundary ---
 
 
-## Resupply (player 0, then 1, each means in `strike_resupply` order), then repair of damaged,
-## not destroyed, installations (setup order). No randomness.
+## Resupply (player 0, then 1, each means in `strike_resupply` order), repair of damaged, not
+## destroyed, installations (setup order), then the suppression countdown. No randomness.
 static func end_round(state: OperationalState) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 	for player in 2:
@@ -310,4 +392,10 @@ static func end_round(state: OperationalState) -> Array[Dictionary]:
 			)
 			if installation.integrity != before:
 				events.append(_installation_event(installation, before, &"repair"))
+	for installation in state.installations:
+		if installation.suppressed_rounds > 0:
+			installation.suppressed_rounds -= 1
+			events.append(
+				_suppression_event(installation, installation.suppressed_rounds + 1, &"lapse")
+			)
 	return events

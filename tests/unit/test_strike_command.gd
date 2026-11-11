@@ -138,8 +138,13 @@ func test_rng_advances_two_per_missile() -> void:
 func test_intercepted_strike_is_still_an_incident() -> void:
 	var op := Strikes._definition()
 	op.installations.append(Strikes._placement(&"ad", &"air_defence", 1, Vector2i(5, 0)))
-	op.air_defence_intercept_pct = 100
 	var state := Strikes._state(op)
+	var total := AirDefenceDefinition.new()  # a made-up type that intercepts everything
+	total.id = &"short"
+	total.radius_hexes = 4
+	for weapon_class in StrikeMeansDefinition.WEAPON_CLASSES:
+		total.intercept_pct[weapon_class] = 100
+	state.air_defence_types[&"short"] = total
 	state.escalation_level = 2
 	state.strike_means[&"sure"].interceptability_pct = 200
 	var sim := _sim(state)

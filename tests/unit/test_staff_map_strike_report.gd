@@ -35,6 +35,7 @@ static func _event(
 		"misses": misses,
 		"damage_dealt": 0,
 		"target_destroyed": false,
+		"interceptor_ids": [&"ru_ad"],
 	}
 	event.merge(extra, true)
 	return event

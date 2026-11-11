@@ -14,6 +14,10 @@ var class_id: StringName
 var owner: int
 var coord: Vector2i
 var integrity: int = MAX_INTEGRITY
+## Air-defence type id (AirDefenceDefinition) of an `air_defence` site, else &"" (static).
+var ad_type: StringName = &""
+## Rounds an air-defence site stays silent after a hit (0 = active; TASK-098a).
+var suppressed_rounds: int = 0
 
 
 static func from_placement(placement: InstallationPlacement) -> Installation:
@@ -23,11 +27,17 @@ static func from_placement(placement: InstallationPlacement) -> Installation:
 	installation.class_id = placement.class_id
 	installation.owner = placement.owner
 	installation.coord = placement.coord
+	installation.ad_type = placement.ad_type
 	return installation
 
 
 func destroyed() -> bool:
 	return integrity <= 0
+
+
+## Whether a hit silenced this site (it intercepts nothing while this holds).
+func suppressed() -> bool:
+	return suppressed_rounds > 0
 
 
 ## This installation's entry of OperationalState.snapshot().
@@ -38,4 +48,6 @@ func snapshot() -> Dictionary:
 		"class": String(class_id),
 		"coord": [coord.x, coord.y],
 		"integrity": integrity,
+		"ad_type": String(ad_type),
+		"suppressed_rounds": suppressed_rounds,
 	}

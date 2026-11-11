@@ -78,6 +78,7 @@ static func from_definition(
 
 static func _add_strikes(state: OperationalState, definition: OperationDefinition) -> void:
 	state.strike_means = StrikeMeansDefinition.shipped()
+	state.air_defence_types = AirDefenceDefinition.shipped()
 	for placement in definition.installations:
 		state.installations.append(Installation.from_placement(placement))
 	for player in 2:
@@ -87,8 +88,7 @@ static func _add_strikes(state: OperationalState, definition: OperationDefinitio
 			state.strike_resupply[player] = _copy_counts(definition.strike_resupply[player])
 	state.strikes_per_turn = definition.strikes_per_turn
 	state.strikes_left = definition.strikes_per_turn
-	state.air_defence_radius = definition.air_defence_radius
-	state.air_defence_intercept_pct = definition.air_defence_intercept_pct
+	state.suppression_rounds = definition.suppression_rounds
 	state.repair_per_round = definition.repair_per_round
 
 
@@ -251,11 +251,8 @@ static func _strikes_problem(definition: OperationDefinition, grid: HexGrid) -> 
 		return "strikes_per_turn %d must be at least 1" % definition.strikes_per_turn
 	if definition.repair_per_round < 0:
 		return "repair_per_round %d is negative" % definition.repair_per_round
-	if definition.air_defence_radius < 0:
-		return "air_defence_radius %d is negative" % definition.air_defence_radius
-	var intercept := definition.air_defence_intercept_pct
-	if intercept < 0 or intercept > 100:
-		return "air_defence_intercept_pct %d outside 0 .. 100" % intercept
+	if definition.suppression_rounds < 1:
+		return "suppression_rounds %d must be at least 1" % definition.suppression_rounds
 	var counts_error := _counts_problem(definition.strike_stock, definition.strike_resupply)
 	if counts_error != "":
 		return counts_error
@@ -302,10 +299,22 @@ static func _installation_problem(
 		return "unknown class '%s'" % placement.class_id
 	if placement.owner < 0 or placement.owner >= definition.sides.size():
 		return "owner %d out of range" % placement.owner
+	var ad_error := _ad_type_problem(placement)
+	if ad_error != "":
+		return ad_error
 	if not grid.has_tile(placement.coord):
 		return "off the map at %s" % placement.coord
 	if grid.move_cost(placement.coord) == Terrain.IMPASSABLE:
 		return "impassable tile %s" % placement.coord
+	return ""
+
+
+## An air-defence site needs a shipped type, any other class none (TASK-098a).
+static func _ad_type_problem(placement: InstallationPlacement) -> String:
+	if placement.class_id != &"air_defence":
+		return "" if placement.ad_type == &"" else "ad_type on a '%s'" % placement.class_id
+	if not AirDefenceDefinition.SHIPPED.has(placement.ad_type):
+		return "unknown ad_type '%s'" % placement.ad_type
 	return ""
 
 

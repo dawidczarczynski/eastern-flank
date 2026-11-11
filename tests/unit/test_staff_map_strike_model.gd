@@ -237,6 +237,7 @@ func _resolved(target: StringName, intercepted: int, hits: int, player := 0) -> 
 		"intercepted": intercepted,
 		"hits": hits,
 		"misses": 2 - intercepted - hits,
+		"interceptor_ids": [AD] if intercepted > 0 else [],
 	}
 
 
@@ -260,15 +261,19 @@ func test_origin_is_the_nearest_own_hex_and_follows_the_country() -> void:
 	assert_eq(russia.x, 4, "Belarus is the other side's nearest own soil")
 
 
-func test_interceptors_only_intact_enemy_sites_in_radius() -> void:
+func test_interceptors_are_the_event_sites() -> void:
 	var state := _state(2)
-	var sites := StaffMapStrikeTrail.interceptors(state, 1, Vector2i(6, 0))
+	var event := _resolved(A1, 1, 1)
+	var sites := StaffMapStrikeTrail.interceptors_before(state, event, Vector2i(6, 0))
 	assert_eq(sites.size(), 1)
 	assert_eq(sites[0]["id"], AD)
-	assert_eq(StaffMapStrikeTrail.interceptors(state, 0, Vector2i(6, 0)).size(), 0, "not own sites")
-	assert_eq(StaffMapStrikeTrail.interceptors(state, 1, Vector2i(0, 0)).size(), 0, "too far")
-	state.get_installation(AD).integrity = 0
-	assert_eq(StaffMapStrikeTrail.interceptors(state, 1, Vector2i(6, 0)).size(), 0, "destroyed")
+	assert_eq(sites[0]["integrity"], 100)
+	event["interceptor_ids"] = []
+	assert_eq(
+		StaffMapStrikeTrail.interceptors_before(state, event, Vector2i(6, 0)).size(),
+		0,
+		"none counted"
+	)
 
 
 func test_strike_makes_one_trace_and_one_burst_per_missile() -> void:
@@ -341,7 +346,6 @@ func test_struck_air_defence_still_counts_as_interceptor() -> void:
 	assert_eq(marks[0]["coord"], ad.coord)
 	assert_eq(marks[0]["count"], 1)
 	assert_true(trail.bursts[1]["destroyed"])
-	assert_eq(StaffMapStrikeTrail.interceptors(state, 1, ad.coord).size(), 0, "after: gone")
 
 
 func test_strikes_are_capped_and_cleared_at_the_viewers_turn_start() -> void:

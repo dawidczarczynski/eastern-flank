@@ -99,45 +99,6 @@ func test_capability() -> void:
 # --- resolution ---
 
 
-func _intercept(state: OperationalState, means_id: StringName) -> int:
-	var means: StrikeMeansDefinition = state.strike_means[means_id]
-	return StrikeRules.intercept_chance(state, 1, means, A1)
-
-
-func test_interception_chance() -> void:
-	var op := Strikes._definition()
-	op.installations.append(Strikes._placement(&"ad1", &"air_defence", 1, Vector2i(7, 0)))
-	var state := Strikes._state(op)
-	assert_eq(_intercept(state, &"cruise"), 40)
-	assert_eq(_intercept(state, &"ballistic"), 16)
-	assert_eq(_intercept(state, &"strike_drone"), 60)
-	state.get_installation(&"ad1").integrity = 50
-	assert_eq(_intercept(state, &"cruise"), 20)
-	state.get_installation(&"ad1").integrity = 0
-	assert_eq(_intercept(state, &"cruise"), 0, "destroyed")
-
-
-func test_interception_sum_cap_and_radius() -> void:
-	var op := Strikes._definition()
-	op.installations.append(Strikes._placement(&"ad1", &"air_defence", 1, Vector2i(7, 0)))
-	op.installations.append(Strikes._placement(&"ad2", &"air_defence", 1, Vector2i(5, 0)))
-	var state := Strikes._state(op)
-	state.get_installation(&"ad2").integrity = 50
-	assert_eq(_intercept(state, &"cruise"), 60)
-	op = Strikes._definition()
-	for i in 3:
-		op.installations.append(
-			Strikes._placement(StringName("ad%d" % i), &"air_defence", 1, Vector2i(4 + i, 1))
-		)
-	state = Strikes._state(op)
-	assert_eq(_intercept(state, &"cruise"), 90, "capped at 90")
-	state.air_defence_radius = 0
-	assert_eq(_intercept(state, &"cruise"), 0, "out of radius")
-	op = Strikes._definition()
-	op.installations.append(Strikes._placement(&"ad_player0", &"air_defence", 0, Vector2i(7, 0)))
-	assert_eq(_intercept(Strikes._state(op), &"cruise"), 0, "the other side's site does not count")
-
-
 func test_resolve_hits_and_misses() -> void:
 	var state := Strikes._state()
 	var target := StrikeRules.find_target(state, 0, &"a1")

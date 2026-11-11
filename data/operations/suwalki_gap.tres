@@ -313,6 +313,7 @@ display_name = "Bialystok air defence"
 class_id = &"air_defence"
 owner = 0
 coord = Vector2i(10, 58)
+ad_type = &"long"
 
 [sub_resource type="Resource" id="Inst_nato_ad_suwalki"]
 script = ExtResource("13_install")
@@ -321,6 +322,16 @@ display_name = "Suwalki air defence"
 class_id = &"air_defence"
 owner = 0
 coord = Vector2i(17, 34)
+ad_type = &"short"
+
+[sub_resource type="Resource" id="Inst_nato_ad_olsztyn"]
+script = ExtResource("13_install")
+id = &"nato_ad_olsztyn"
+display_name = "Olsztyn-Mazury air defence"
+class_id = &"air_defence"
+owner = 0
+coord = Vector2i(-18, 50)
+ad_type = &"medium"
 
 [sub_resource type="Resource" id="Inst_ru_airfield_chernyakhovsk"]
 script = ExtResource("13_install")
@@ -369,6 +380,7 @@ display_name = "Kaliningrad air defence"
 class_id = &"air_defence"
 owner = 1
 coord = Vector2i(-6, 18)
+ad_type = &"long"
 
 [sub_resource type="Resource" id="Inst_ru_ad_grodno"]
 script = ExtResource("13_install")
@@ -377,6 +389,16 @@ display_name = "Grodno air defence"
 class_id = &"air_defence"
 owner = 1
 coord = Vector2i(25, 45)
+ad_type = &"medium"
+
+[sub_resource type="Resource" id="Inst_ru_ad_chernyakhovsk"]
+script = ExtResource("13_install")
+id = &"ru_ad_chernyakhovsk"
+display_name = "Chernyakhovsk air defence"
+class_id = &"air_defence"
+owner = 1
+coord = Vector2i(9, 22)
+ad_type = &"short"
 
 [resource]
 script = ExtResource("3_operation")
@@ -389,10 +411,8 @@ initial_escalation = 1
 countries = Array[ExtResource("12_csetup")]([SubResource("Setup_poland"), SubResource("Setup_lithuania"), SubResource("Setup_belarus"), SubResource("Setup_russia")])
 start_date = "2027-06-14"
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
-installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno")])
+installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_nato_ad_olsztyn"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno"), SubResource("Inst_ru_ad_chernyakhovsk")])
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 80}])
 strike_resupply = Array[Dictionary]([{&"jassm_er": 4, &"homar_k": 6, &"warmate": 6}, {&"kh101": 3, &"geran_2": 8}])
 strikes_per_turn = 2
-air_defence_radius = 4
-air_defence_intercept_pct = 40
 repair_per_round = 5

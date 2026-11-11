@@ -106,38 +106,22 @@ static func _is_own(state: OperationalState, player: int, hex: Vector2i) -> bool
 	)
 
 
-## The intact air-defence sites of `owner` within the state's air-defence radius of `coord`:
-## [{id, coord, integrity}] in setup order. `restore` ({installation id: integrity} before a
-## strike) overrides the current integrity, so a site the strike just damaged still counts as the
-## contributor it was when the missiles flew.
-static func interceptors(
-	state: OperationalState, owner: int, coord: Vector2i, restore := {}
+## The air-defence sites that counted against the strike as they were BEFORE `strike_resolved`
+## (the events arrive after the state changed): the sites named by the event's `interceptor_ids`
+## (TASK-098a), [{id, coord, integrity}] in setup order; a target gets its `damage_dealt` back.
+static func interceptors_before(
+	state: OperationalState, event: Dictionary, _coord: Vector2i
 ) -> Array[Dictionary]:
 	var sites: Array[Dictionary] = []
+	var ids: Array = event.get("interceptor_ids", [])
 	for installation in state.installations:
-		var integrity: int = restore.get(installation.id, installation.integrity)
-		if (
-			installation.owner == owner
-			and installation.class_id == &"air_defence"
-			and integrity > 0
-			and Hex.distance(installation.coord, coord) <= state.air_defence_radius
-		):
-			sites.append(
-				{"id": installation.id, "coord": installation.coord, "integrity": integrity}
-			)
+		if not ids.has(installation.id):
+			continue
+		var integrity := installation.integrity
+		if installation.id == event["target"]:
+			integrity += int(event.get("damage_dealt", 0))
+		sites.append({"id": installation.id, "coord": installation.coord, "integrity": integrity})
 	return sites
-
-
-## The interceptors as they were BEFORE `strike_resolved` (the events arrive after the state
-## changed): an installation target gets its `damage_dealt` back.
-static func interceptors_before(
-	state: OperationalState, event: Dictionary, coord: Vector2i
-) -> Array[Dictionary]:
-	var restore := {}
-	var target: Installation = state.get_installation(event["target"])
-	if target != null:
-		restore[target.id] = target.integrity + int(event.get("damage_dealt", 0))
-	return interceptors(state, 1 - int(event["player"]), coord, restore)
 
 
 ## "hit" when a missile hit, else "intercepted" when one was intercepted, else "missed".

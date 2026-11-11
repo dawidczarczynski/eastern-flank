@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AirDefenceDefinition" load_steps=2 format=3]
+
+; Long-range air defence, TASK-098a. Radius in hexes (1 hex = 5 km) and the interception chance per weapon class
+; (cruise / ballistic / aeroballistic / rocket / drone / loitering) are [ASSUMPTION]s for TASK-103.
+
+[ext_resource type="Script" path="res://src/core/data/air_defence_definition.gd" id="1_ad"]
+
+[resource]
+script = ExtResource("1_ad")
+id = &"long"
+display_name = "Long-range air defence"
+examples = "Patriot / Wisla, S-400"
+radius_hexes = 30
+intercept_pct = {
+&"cruise": 55,
+&"ballistic": 50,
+&"aeroballistic": 30,
+&"rocket": 50,
+&"drone": 40,
+&"loitering": 30
+}

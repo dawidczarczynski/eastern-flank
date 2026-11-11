@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AirDefenceDefinition" load_steps=2 format=3]
+
+; Short-range air defence, TASK-098a. Radius in hexes (1 hex = 5 km) and the interception chance per weapon class
+; (cruise / ballistic / aeroballistic / rocket / drone / loitering) are [ASSUMPTION]s for TASK-103.
+
+[ext_resource type="Script" path="res://src/core/data/air_defence_definition.gd" id="1_ad"]
+
+[resource]
+script = ExtResource("1_ad")
+id = &"short"
+display_name = "Short-range air defence"
+examples = "Pilica+, Pantsir-S1"
+radius_hexes = 4
+intercept_pct = {
+&"cruise": 50,
+&"ballistic": 0,
+&"aeroballistic": 0,
+&"rocket": 40,
+&"drone": 60,
+&"loitering": 60
+}

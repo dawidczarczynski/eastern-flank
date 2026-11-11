@@ -463,17 +463,33 @@ A strike is refused if its target is on your own soil, in a country that is clos
 
 As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. You launch strikes in **strike mode** on the staff map (see below); the debug panel (F9, `--debug`, block **Strikes**) still works for testing, and **+stock** adds missiles. A hit-chance forecast comes later.
 
-**Means.** Each side has a stock of three means. A strike spends the missiles it launches whether or not they hit.
+**Weapons.** Strikes use real, named weapons. **A weapon belongs to one side**: NATO and Russia each have their own list, and a side can never fire or be given the other side's weapons. **Stock is per side**: each side keeps its own count of each of its weapons. A strike spends the missiles it launches whether or not they hit. One hex is about 5 km; a range above 120 hexes means "anywhere on the operation map".
 
-| Means | Accuracy | Damage to an installation (per hit) | Damage to a formation (per hit) | Largest salvo | Range |
-|---|---|---|---|---|---|
-| Cruise missile | 80% | 35 | 2 | 4 | 50 hexes |
-| Ballistic missile | 70% | 45 | 3 | 2 | 80 hexes |
-| Strike drone | 55% | 15 | 1 | 6 | 20 hexes |
+NATO:
 
-Accuracy is the chance that a missile that was not intercepted hits. Ballistic missiles are hard to intercept (40% of the normal chance), cruise missiles are normal, drones are easy to intercept (150%).
+| Weapon | Type | Range | Largest salvo | Accuracy | Interception | Damage (installation / formation, per hit) | Start stock |
+|---|---|---|---|---|---|---|---|
+| JASSM-ER | air-launched cruise missile | 925 km (185 hexes, whole map) | 4 | very high (90%) | fairly easy (70% of the normal chance) | 40 / 2 | 6 |
+| ATACMS | ballistic missile | 300 km (60 hexes) | 2 | good (80%) | hard (45%) | 35 / 3 | 4 |
+| PrSM | ballistic missile | 500 km (100 hexes) | 2 | very high (85%) | hard (40%) | 40 / 3 | 2 |
+| Homar-K | rocket artillery | 290 km (58 hexes) | 6 | moderate (70%) | almost normal (90%) | 20 / 2 | 6 |
+| Warmate | loitering munition (drone) | 50 km (10 hexes) | 6 | low (60%) | easy (130%) | 8 / 1 | 6 |
+| Storm Shadow | cruise missile | 560 km (110 hexes) | 3 | very high (85%) | fairly easy (85%) | 40 / 2 | 0, arrives only from allies |
+| Tomahawk | ship-launched cruise missile | 1 600 km (whole map) | 3 | very high (85%) | almost normal (90%) | 40 / 2 | 0, arrives only from allies |
 
-**Stock and resupply.** Starting stock in "Suwałki Gap": NATO 8 cruise, 4 ballistic, 6 drones; Russia 8 cruise, 6 ballistic, 16 drones. At the end of each full round (after both blocs have moved) each side receives more: NATO 1 cruise and 1 drone; Russia 1 cruise and 2 drones. There is no upper limit.
+Russia:
+
+| Weapon | Type | Range | Largest salvo | Accuracy | Interception | Damage (installation / formation, per hit) | Start stock |
+|---|---|---|---|---|---|---|---|
+| Iskander-M | ballistic missile | 500 km (100 hexes) | 2 | good (80%) | hard (40%) | 45 / 3 | 6 |
+| Kinzhal | air-launched ballistic missile | 2 000 km (whole map) | 1 | good (75%) | very hard (25%) | 45 / 3 | 2 |
+| Kalibr | ship-launched cruise missile | 1 500 km (whole map) | 4 | good (80%) | normal (100%) | 35 / 2 | 4 |
+| Kh-101 | air-launched cruise missile | 2 500 km (whole map) | 4 | very high (85%) | fairly easy (80%) | 40 / 2 | 4 |
+| Geran-2 | long-range strike drone | 1 800 km (whole map) | 8 | low (55%) | very easy (150%) | 12 / 1 | 16 |
+
+Accuracy is the chance that a missile that was not intercepted hits. "Interception" is how much of the air defence's normal chance applies to the weapon: ballistic missiles are hard to stop, cruise missiles and rockets are closer to normal, drones are easy to stop. "Start stock" is what a side holds when "Suwałki Gap" begins; **arrives only from allies** means the side starts with none and gets that weapon only through outside support (a support package can add it to the stock). The launching platform (ship, aircraft, truck) is flavour for now: every weapon is fired from your own soil.
+
+**Stock and resupply.** At the end of each full round (after both blocs have moved) each side receives more of some weapons: NATO 1 JASSM-ER, 1 Homar-K and 1 Warmate; Russia 1 Kh-101 and 2 Geran-2. The other weapons are not resupplied, so use them with care. There is no upper limit.
 
 **Strikes per turn.** Each bloc may make 2 strikes per turn (one strike is one salvo of 1 to the largest salvo at one target). Strikes are separate from the political decisions of the turn. The count is restored when the bloc's turn begins.
 
@@ -486,18 +502,32 @@ Accuracy is the chance that a missile that was not intercepted hits. Ballistic m
 
 A refused strike costs nothing.
 
-**Interception.** Air defence installations of the target's owner within 4 hexes of the target try to shoot missiles down. Each intact site adds 40% × its integrity; the sum is capped at 90% and then multiplied by the means' interceptability, so one fresh site stops about 40% of cruise missiles, 16% of ballistic ones and 60% of drones. Every missile is rolled separately: first interception, then, if it got through, the hit.
+**Interception.** Air defence sites of the target's owner whose reach covers the target hex try to shoot missiles down. There are three types of site:
+
+| Type | Examples | Reach | Cruise | Ballistic | Air-launched ballistic (Kinzhal) | Rocket | Drone | Loitering |
+|---|---|---|---|---|---|---|---|---|
+| Short-range | Pilica+, Pantsir-S1 | 4 hexes (20 km) | 50% | 0% | 0% | 40% | 60% | 60% |
+| Medium-range | NASAMS / Narew, Buk-M3, Tor | 10 hexes (50 km) | 60% | 20% | 10% | 50% | 60% | 50% |
+| Long-range | Patriot / Wisła, S-400 | 30 hexes (150 km) | 55% | 50% | 30% | 50% | 40% | 30% |
+
+Short-range sites are good against drones and low-flying cruise missiles but cannot touch ballistic missiles; long-range sites cover a wide area and are the only real answer to ballistic missiles. The figures are first estimates and will be tuned.
+
+Each site's chance is the figure above scaled by its **integrity**, so a damaged site defends worse (a site at 50% integrity has half the chance). **All covering sites act together as one interception roll** per missile: the chances combine (two sites of 50% give 75%), the result is capped at **90%**, and then it is multiplied by the weapon's interception figure from the weapon table (JASSM-ER 70%, Iskander-M 40%, Geran-2 150%, and so on). Every missile is rolled separately: first interception, then, if it got through, the hit. Battles and aircraft are not affected by air defence yet.
+
+**Suppression.** A strike that hits an air defence site without destroying it **silences it for the rest of that round and the whole next round**; a silenced site does not take part in interception at all. It still repairs, can still be hit, and a destroyed site never returns. So striking the air defence first is how you prepare a strike on what it protects.
 
 **Escalation.** Every accepted strike is an incident on the ladder. The first strike into a country that is the enemy's sanctuary raises the level by one (once per country and bloc); a bloc's first strike on a town hex in the operation raises it by one, later ones add nothing. This happens **even if all the missiles were intercepted or missed**. A strike never takes the level above 5 and never ends the operation; at level 5 the confirm card reads "Already at the highest level – no further escalation".
 
 **Damage is lasting.** An installation has integrity from 100 to 0. Each hit takes off the means' damage; at 0 it is **destroyed** and stays so. A damaged but not destroyed installation recovers 5 points at the end of each full round (up to 100). A formation hit loses strength from its strongest company; when all its companies reach 0 the formation is destroyed and removed from the map. What a damaged installation does to battles (fire support, ammunition, command points) is not in the game yet.
 
-**Installations in "Suwałki Gap".** Each side has 7. NATO: airfields near Olsztyn and Białystok, depots at Ełk and Kaunas (Lithuania), a command post and air defence at Białystok, air defence at Suwałki. Russia: airfields at Chernyakhovsk and Lida (Belarus), depots at Kaliningrad and Grodno (Belarus), a command post and air defence at Kaliningrad, air defence at Grodno. In practice, at the first level NATO can reach only Russian formations standing in Poland; Kaliningrad targets open at Open war and Belarusian ones at Regional war.
+**Installations in "Suwałki Gap".** Each side has 8: 2 airfields, 2 depots, a command post and 3 air defence sites. NATO: airfields near Olsztyn and Białystok, depots at Ełk and Kaunas (Lithuania), a command post at Białystok; air defence: long-range at Białystok, short-range at Suwałki, medium-range near Olsztyn (next to the Olsztyn-Mazury airfield). Russia: airfields at Chernyakhovsk and Lida (Belarus), depots at Kaliningrad and Grodno (Belarus), a command post at Kaliningrad; air defence: long-range at Kaliningrad, medium-range at Grodno, short-range at Chernyakhovsk (by the airfield). In practice, at the first level NATO can reach only Russian formations standing in Poland; Kaliningrad targets open at Open war and Belarusian ones at Regional war.
 
 **Installation markers.** The staff map shows every installation of both sides (there is no fog yet) as a small marker in the bloc's colour, with a glyph for its kind (airfield, depot, command post, air defence) and a thin **integrity bar** beneath. A destroyed installation is shown as a grey crossed glyph. Markers update when an installation is hit or repaired. Point at a marker for a card with its name, kind, country, integrity in per cent and what it gives: an airfield – fire support in nearby battles, and similarly for the other kinds.
 
 **Strike mode.** Press **S**, or click the **STRIKE** button on the bottom bar, to open strike mode. **Esc** or the **✕** in the panel corner leaves it. Strike mode also closes by itself once a strike has been launched (press **S** again for the next one); a rejected strike keeps it open.
-- **Panel.** It lists your means with their stock and range. Pick a means, then set the salvo with the stepper (1 up to the largest salvo, never more than your stock). The panel also shows **Strikes: n/N**, the strikes you still have this turn.
+- **Panel.** A docked window on the right, titled "STRIKE" with your side's name in its colour. It lists **only your own side's weapons**, one row each: a small **glyph** of the weapon's kind (ballistic missile, cruise missile, rocket, drone, loitering munition), the name, a line with the designation, the class and the **range in km**, and your **stock** on the right. Rows with stock first, then by range (longest first). A weapon you have none of (Storm Shadow and Tomahawk until allies deliver them) stays in the list **greyed with "ALLIES ONLY"** and cannot be picked (clicking it says it arrives only from allies). A range above 120 hexes reads "WHOLE MAP", for example JASSM-ER.
+- **Weapon card.** Under the list a detail card follows the weapon you point at, then the one you picked, then the first row. It shows the weapon's model (or a large glyph where it has none yet) and four chips: **RANGE**, **SALVO** (largest salvo), **ACCURACY** and **INTERCEPT** (HARD for 50% or less, NORMAL up to 110%, EASY above), plus a platform line; point at it for the long wording ("hard to intercept").
+- **Salvo.** Pick a weapon, then set the salvo with the stepper (1 up to the largest salvo, never more than your stock). The hint and the confirm card name the weapon, for example "3 × JASSM-ER on Chernyakhovsk airfield". The panel also shows **Strikes: n/N**, the strikes you still have this turn.
 - **Targets.** Every legal target is marked with a double ring in your side colour. An **amber** target is *conditional*: it becomes legal only after you raise the escalation level (raise-and-strike); the strike then includes an Escalate decision first (for airfields it starts from level 1). Illegal targets are **dimmed**; point at one to see the reason (closed country, level too low, out of range, too few missiles and so on).
 - **Confirm card.** Clicking a legal target opens a card with the means, salvo and target, the escalation lines (what the strike and any needed Escalate raise, or "Already at the highest level – no further escalation" at level 5). Confirm to launch, or cancel; a cancelled strike costs nothing.
 - **Closing.** The strike panel and the confirm card each have an **X** in the corner; it does the same as Esc or cancel.
@@ -511,7 +541,9 @@ A refused strike costs nothing.
 
 - **Card behaviour.** After 9 s the card collapses to a small **chip** (pointing at the card or chip pauses the timer). **J** toggles card and chip, **Enter** goes to the next report or collapses the card, **Esc** collapses it, and **◂ ▸** browse the earlier reports. The chip is a compact tab (weapon ×N and a short result such as "2 HIT") placed under the turn bar's button row at the left edge; it never covers other HUD. The **X** on the card or chip dismisses it.
 - **Enemy strikes.** Strikes by the other bloc during its turn appear one after another, 3.5 s each, marked "1/n" on the chip. Their stock is unknown, so it is not shown. All reports are cleared when your next turn begins.
-- **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (the oldest drop first).
+- **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (a whole salvo counts as one; the oldest drop first), and they keep the weapon's arc.
+- **Reading a trace.** Every missile of a salvo is drawn separately (at most 6 are drawn; a "+n" at the target counts the rest), launched a fraction of a second after the previous one, in your side's colour with a head in the weapon's glyph. The shape tells the weapon apart at a glance: a **ballistic** missile (ATACMS, PrSM, Iskander-M, Kinzhal) climbs in a **high arc** and arrives very fast, Kinzhal the fastest with a lower arc; a **cruise** missile (JASSM-ER, Storm Shadow, Tomahawk, Kalibr, Kh-101) flies **low and flat** on a thin long line; a **drone** (Geran-2, Warmate) crawls slowly on a low **wobbling dotted** line; a **rocket** (Homar-K) makes a **short, thick** medium arc. On a short strike every flight takes about the same minimum time, so compare the weapons on long shots.
+- **How a missile ends.** A trace that **stops short** of the target (about 70% of the way, with the interception mark) was **intercepted**. A small **puff of dust beside the target** is a **miss**. A hit ends in a burst: a **blast** for cruise missiles, a **heavy blast** with a second shockwave for ballistic ones, a small flash without smoke for drones, and a scatter of **cluster bomblets** for Homar-K rockets.
 
 ### Turns
 

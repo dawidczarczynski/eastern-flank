@@ -44,6 +44,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/data/
 
 - `AftermathSettings` – Numbers of a battle's consequences for the operation (TASK-095, GDD "Battle hand-off and (`aftermath_settings.gd`)
+- `AirDefenceDefinition` – An air-defence type (TASK-098a, GDD "Deep strikes"): the reach of a site and its chance to (`air_defence_definition.gd`)
 - `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
