@@ -17,7 +17,11 @@ const DESTROYED_SECONDS := 2.0
 ## Pixel distance range a missed missile lands beside the target.
 const MISS_MIN_PX := 20.0
 const MISS_MAX_PX := 34.0
-const STOP_FRACTION := StaffMapStrikeFlight.STOP_FRACTION
+## An intercepted missile is shot down at this share of its arc (range, per missile).
+const CUT_MIN := 0.55
+const CUT_MAX := 0.82
+## Flight time (s) of the interceptor an air-defence site launches at it, at most.
+const INTERCEPTOR_SECONDS := 0.6
 ## The launch point is searched at this share of the weapon's range from the target.
 const STANDOFF_SHARE := StrikeLaunch.STANDOFF_SHARE
 ## Outcome of a strike for the burst marker colour.
@@ -29,9 +33,12 @@ const MISSED := &"missed"
 ## leaves no trace. Always true until reconnaissance exists.
 var is_visible: Callable = func(_coord: Vector2i, _player: int) -> bool: return true
 ## One trace per missile, oldest first: {strike, player, means, from, to, outcome, start, offset,
-## bow, lateral, look (StrikeWeaponLook), duration (s), seed, stop (Vector2i, intercepted only,
-## absent when no site), marks: [{coord, count}] and more (missiles of the salvo not drawn; both
-## only on the first missile of a strike)}. `start` is the clock time the missile leaves.
+## bow, lateral, look (StrikeWeaponLook), duration (s), seed, cut (intercepted only: the share of
+## the arc where it is shot down), stop (Vector2i, intercepted only, absent when no site: the
+## launching site) and interceptor ({from: Vector2i, start, duration}, same condition: the missile
+## that site fires, arriving at the cut point as the missile does), marks: [{coord, count}]
+## and more (missiles of the salvo not drawn; both only on the first missile of a strike)}.
+## `start` is the clock time the missile leaves.
 var traces: Array[Dictionary] = []
 ## One impact / airburst / dust effect per missile: {strike, coord, outcome, player, class_id,
 ## start (clock time of the impact), seed, offset, destroyed, look, stop (as in traces)}.
@@ -185,7 +192,27 @@ func strike_count() -> int:
 ## Arc progress 0..1 of a trace at the current clock.
 func progress(trace: Dictionary) -> float:
 	var duration: float = trace.get("duration", ARC_SECONDS)
-	return clampf((clock - float(trace["start"])) / duration, 0.0, 1.0)
+	return clampf((clock - float(trace["start"])) / duration, 0.0, cut_of(trace))
+
+
+## The share of the arc a missile flies: 1, or less when it is shot down.
+static func cut_of(trace: Dictionary) -> float:
+	return float(trace.get("cut", 1.0))
+
+
+## True once a missile has flown all it will (the target, or its cut point).
+func finished(trace: Dictionary) -> bool:
+	return progress(trace) >= cut_of(trace)
+
+
+## The interceptor of a trace, 0 .. 1 along its flight: -1 before launch, 1 once it has arrived;
+## -1 as well when the trace has no interceptor.
+func interceptor_progress(trace: Dictionary) -> float:
+	var shot: Variant = trace.get("interceptor")
+	if not shot is Dictionary:
+		return -1.0
+	var at := (clock - float(shot["start"])) / float(shot["duration"])
+	return -1.0 if at <= 0.0 else minf(at, 1.0)
 
 
 ## Seconds since a burst's impact (negative before it), at the current clock.
@@ -256,6 +283,7 @@ func _add(state: OperationalState, event: Dictionary, viewer := 0) -> bool:
 			"marks": [],
 			"more": 0,
 		}
+		var impact := start + duration
 		var burst := {
 			"strike": _strike_seq,
 			"coord": to,
@@ -263,6 +291,9 @@ func _add(state: OperationalState, event: Dictionary, viewer := 0) -> bool:
 			"player": player,
 			"class_id": launched.get("class_id", &""),
 			"start": start + duration,
+			"from": from,
+			"bow": variance["bow"],
+			"lateral": variance["lateral"],
 			"seed": base + i * 17,
 			"look": look,
 			"warhead": look.warhead,
@@ -281,16 +312,23 @@ func _add(state: OperationalState, event: Dictionary, viewer := 0) -> bool:
 				trace["offset"] = miss_offset(base + i * 17)
 				burst["offset"] = trace["offset"]
 			INTERCEPTED:
+				var cut := lerpf(CUT_MIN, CUT_MAX, unit(base + i + 9))
+				var shot_at := start + duration * cut
+				trace["cut"] = cut
+				burst["cut"] = cut
+				burst["start"] = shot_at
+				impact = shot_at
 				if not sites.is_empty():
 					var k := intercept_index % sites.size()
 					assigned[k] += 1
 					trace["stop"] = sites[k]["coord"]
 					burst["stop"] = sites[k]["coord"]
-				var spread := Vector2(unit(base + i + 9), unit(base + i + 13)) - Vector2(0.5, 0.5)
-				trace["offset"] = spread * 14.0
-				burst["offset"] = trace["offset"]
+					var flight := minf(INTERCEPTOR_SECONDS, duration * cut * 0.9)
+					trace["interceptor"] = {
+						"from": sites[k]["coord"], "start": shot_at - flight, "duration": flight
+					}
 				intercept_index += 1
-		flight_end = maxf(flight_end, start + duration)
+		flight_end = maxf(flight_end, impact)
 		if first_trace.is_empty():
 			first_trace = trace
 		traces.append(trace)

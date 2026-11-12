@@ -57,12 +57,6 @@ func test_drawn_indices_cap_at_six_and_spread() -> void:
 	assert_eq(StaffMapStrikeFlight.hidden_count(4), 0)
 
 
-func test_stop_point_of_an_intercepted_missile() -> void:
-	var stop := StaffMapStrikeFlight.stop_point(FROM, TO)
-	assert_true(absf(stop.x - 360.0) < 0.01, "72 % of the way: %s" % stop)
-	assert_eq(StaffMapStrikeFlight.stop_point(FROM, TO, Vector2(300, 380)), Vector2(300, 380))
-
-
 func test_heading_points_along_the_flight() -> void:
 	var start := StaffMapStrikeFlight.heading(FROM, TO, 0.1, 0.4)
 	var end := StaffMapStrikeFlight.heading(FROM, TO, 0.95, 0.4)

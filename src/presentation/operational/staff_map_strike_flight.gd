@@ -2,15 +2,13 @@ class_name StaffMapStrikeFlight
 extends RefCounted
 ## Pure geometry and timing of one missile's trace on the staff map (TASK-141b): the point of its
 ## arc at time t (apex height from the weapon's `arc_height`, drone wobble), the stagger of the
-## missiles of a salvo, which missiles of a big salvo are drawn, and where an intercepted missile
-## stops. Nothing is drawn here; StaffMapStrikeLayer draws what these return.
+## missiles of a salvo, which missiles of a big salvo are drawn. Nothing is drawn here;
+## StaffMapStrikeLayer draws what these return.
 
 ## Delay between two missiles of one salvo (s): far enough apart to tell them apart.
 const STAGGER_SECONDS := 0.25
 ## Missiles drawn per strike; the rest is shown as a "+n" label.
 const MAX_DRAWN := 6
-## Where an intercepted missile stops when no air-defence site is known (share of the path).
-const STOP_FRACTION := 0.72
 ## The apex of an arc never rises more than this many pixels above the chord.
 const MAX_APEX_PX := 280.0
 ## Peak sideways wobble (px) at wobble = 1.
@@ -93,14 +91,6 @@ static func points(
 			point(from, to, float(i) / segments, arc_height, bow, lateral, wobble, seed_value)
 		)
 	return result
-
-
-## Where an intercepted missile ends: at the air-defence `site` (screen position, Vector2.INF when
-## unknown) or STOP_FRACTION of the way from `from` to `to`.
-static func stop_point(from: Vector2, to: Vector2, site := Vector2.INF) -> Vector2:
-	if site.is_finite():
-		return site
-	return from.lerp(to, STOP_FRACTION)
 
 
 ## The direction (unit vector) of the flight at `t`, from two close points.

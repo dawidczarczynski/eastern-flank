@@ -10,6 +10,9 @@ extends Control
 ## only reads them and re-draws when the camera moved (`layout`) or an arc grows.
 
 const ARC_SEGMENTS := 24
+const INTERCEPTOR_SEGMENTS := 12
+## Apex of the interceptor arc (share of its length): flatter than a cruise missile.
+const INTERCEPTOR_ARC := 0.2
 const DOT_SEGMENTS := 48
 const HEAD_SIZE := 16.0
 const FAINT_ALPHA := 0.5
@@ -130,13 +133,14 @@ func _draw_trace(trace: Dictionary) -> void:
 		return
 	var points := _points(trace, progress)
 	if points.size() >= 2:
-		if progress >= 1.0:
+		if _trail.finished(trace):
 			_polyline(points, Color(colour, FAINT_ALPHA), 2.0, look.dotted)
 		else:
 			_polyline(points, Color(colour, 0.35), 1.5, look.dotted)
 			var keep := maxi(2, ceili(points.size() * look.trail_length))
 			_polyline(points.slice(points.size() - keep), Color(colour, 0.95), 2.5, look.dotted)
 	var defender := StaffMapFormations.side_colour(_palette, 1 - int(trace["player"]))
+	_draw_interceptor(trace, defender)
 	for mark: Dictionary in trace["marks"]:
 		_draw_mark(_screen_of_hex.call(mark["coord"]), int(mark["count"]), defender)
 	if int(trace.get("more", 0)) > 0:
@@ -151,6 +155,30 @@ func _draw_trace(trace: Dictionary) -> void:
 			11,
 			_palette.ui_text
 		)
+
+
+## The interceptor an air-defence site fires at an intercepted missile: a short arc from the site
+## to the point where the missile is shot down, with a bright head while it flies and a faint line
+## once it has arrived.
+func _draw_interceptor(trace: Dictionary, colour: Color) -> void:
+	var at := _trail.interceptor_progress(trace)
+	if at <= 0.0:
+		return
+	var site: Vector2 = (
+		_screen_of_hex.call(trace["interceptor"]["from"]) + StaffMapInstallations.OFFSET
+	)
+	var target := _burst_point(trace)
+	var points := PackedVector2Array()
+	for i in INTERCEPTOR_SEGMENTS + 1:
+		var t := at * float(i) / INTERCEPTOR_SEGMENTS
+		points.append(StaffMapStrikeFlight.point(site, target, t, INTERCEPTOR_ARC))
+	if at >= 1.0:
+		draw_polyline(points, Color(colour, FAINT_ALPHA), 1.5, true)
+		return
+	draw_polyline(points, Color(colour, 0.4), 1.5, true)
+	var tail := points.slice(maxi(points.size() - 4, 0))
+	draw_polyline(tail, Color(colour, 0.95), 2.5, true)
+	draw_circle(points[points.size() - 1], 3.0, colour.lightened(0.4))
 
 
 ## One solid or dotted (every other segment) polyline.
@@ -200,7 +228,7 @@ func heads() -> Array[Dictionary]:
 		return list
 	for trace in _trail.traces:
 		var progress := _trail.progress(trace)
-		if progress <= 0.0 or progress >= 1.0:
+		if progress <= 0.0 or _trail.finished(trace):
 			continue
 		var look := _look(trace)
 		var from: Vector2 = _screen_of_hex.call(trace["from"])
@@ -237,25 +265,34 @@ func _draw_head(head: Dictionary) -> void:
 	)
 
 
-## Where a trace or burst ends on screen: the target (plus its offset), or short of it at the
-## interceptor site for an intercepted missile.
+## Where a trace's full arc ends on screen: the target (plus its offset). An intercepted missile
+## flies the same arc but is shot down short of it (`_burst_point`).
 func _end_point(item: Dictionary) -> Vector2:
 	var offset: Vector2 = item["offset"]
 	var coord: Vector2i = item["coord"] if item.has("coord") else item["to"]
-	if item["outcome"] == StaffMapStrikeTrail.INTERCEPTED:
-		var site := Vector2.INF
-		if item.has("stop"):
-			site = _screen_of_hex.call(item["stop"]) + StaffMapInstallations.OFFSET
-		return (
-			StaffMapStrikeFlight.stop_point(
-				_screen_of_hex.call(_origin_of(item)), _screen_of_hex.call(coord), site
-			)
-			+ offset
-		)
 	var at: Vector2 = _screen_of_hex.call(coord)
 	if item["class_id"] != &"formation":
 		at += StaffMapInstallations.OFFSET  # installations sit beside the hex centre
 	return at + offset
+
+
+## Where a burst plays: the target, or for an intercepted missile the point of its arc where it is
+## shot down.
+func _burst_point(burst: Dictionary) -> Vector2:
+	var end := _end_point(burst)
+	if burst["outcome"] != StaffMapStrikeTrail.INTERCEPTED:
+		return end
+	var look := _look(burst)
+	return StaffMapStrikeFlight.point(
+		_screen_of_hex.call(_origin_of(burst)),
+		end,
+		StaffMapStrikeTrail.cut_of(burst),
+		look.arc_height,
+		_bow(burst),
+		float(burst["lateral"]),
+		look.wobble,
+		int(burst.get("seed", 0))
+	)
 
 
 ## The launching hex of a burst's strike (its trace's `from`).
@@ -288,7 +325,7 @@ func _draw_mark(at: Vector2, count: int, colour: Color) -> void:
 
 func _draw_burst(burst: Dictionary) -> void:
 	StaffMapStrikeFx.draw(
-		self, burst, _trail.burst_age(burst), _end_point(burst), burst_colour(burst["outcome"])
+		self, burst, _trail.burst_age(burst), _burst_point(burst), burst_colour(burst["outcome"])
 	)
 
 

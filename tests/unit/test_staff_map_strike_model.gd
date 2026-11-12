@@ -320,7 +320,7 @@ func test_interception_marks_and_outcomes() -> void:
 	assert_eq(marks[0]["coord"], Vector2i(7, 0))
 	assert_eq(marks[0]["count"], 1)
 	assert_eq(trail.traces[0]["outcome"], StaffMapStrikeTrail.INTERCEPTED)
-	assert_eq(trail.traces[0]["stop"], Vector2i(7, 0), "ends at the interceptor")
+	assert_eq(trail.traces[0]["stop"], Vector2i(7, 0), "fired by the interceptor site")
 	assert_eq(trail.traces[1]["outcome"], StaffMapStrikeTrail.HIT)
 	trail.on_event(state, 0, _launched(A1, Vector2i(6, 0)))
 	trail.on_event(state, 0, _resolved(A1, 2, 0))
@@ -538,3 +538,25 @@ func test_strike_traces_start_at_the_events_origin_when_it_has_one() -> void:
 	trail.on_event(state, 0, launched)
 	trail.on_event(state, 0, _resolved(A1, 0, 1))
 	assert_eq(trail.traces[0]["from"], Vector2i(3, 1), "TASK-147: the event's launch point")
+
+
+func test_intercepted_missile_is_shot_down_by_an_interceptor_from_the_site() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	_feed(trail, state, A1, 1)
+	var shot: Dictionary = trail.traces[0]
+	var cut := StaffMapStrikeTrail.cut_of(shot)
+	assert_true(cut >= StaffMapStrikeTrail.CUT_MIN and cut <= StaffMapStrikeTrail.CUT_MAX)
+	assert_eq(StaffMapStrikeTrail.cut_of(trail.traces[1]), 1.0, "a hit flies the whole arc")
+	var interceptor: Dictionary = shot["interceptor"]
+	assert_eq(interceptor["from"], Vector2i(7, 0))
+	var meets := float(shot["start"]) + float(shot["duration"]) * cut
+	assert_eq(float(interceptor["start"]) + float(interceptor["duration"]), meets)
+	assert_true(float(interceptor["start"]) >= float(shot["start"]))
+	assert_eq(float(trail.bursts[0]["start"]), meets, "the burst is at the meeting point")
+	trail.clock = float(shot["start"]) + float(shot["duration"])
+	assert_true(trail.finished(shot))
+	assert_eq(trail.interceptor_progress(shot), 1.0)
+	trail.clock = float(interceptor["start"]) - 0.01
+	assert_eq(trail.interceptor_progress(shot), -1.0)
+	assert_false(trail.traces[1].has("interceptor"))

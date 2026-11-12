@@ -159,6 +159,7 @@ func close() -> bool:
 	_confirm.hide()
 	_panel.hide()
 	_hovered = &""
+	_sync_cursor()
 	_layer.set_targets([] as Array[Dictionary], _viewer.call())
 	_sync_cover()
 	if was_open:
@@ -211,6 +212,7 @@ func refresh() -> void:
 		_confirm.hide()
 		_sync_cover()
 	_salvo = clampi(_salvo, 1, maxi(limit, 1))
+	_sync_cursor()
 	_panel.set_side(
 		StaffMapTurnBar.side_name(state, viewer),
 		StaffMapFormations.side_colour(_palette, viewer),
@@ -264,6 +266,7 @@ func click(target_id: StringName) -> bool:
 			StaffMapStrike.confirm_model(state, player, target_id, _means, _salvo, _confirm_raised)
 		)
 		_panel.hide()
+		_sync_cursor()
 	else:
 		_toast.call(view["reason_text"], _palette.ui_alert)
 	return true
@@ -349,9 +352,27 @@ func set_hover(target_id: StringName) -> void:
 	if target_id == _hovered:
 		return
 	_hovered = target_id
+	_sync_cursor()
 	if _open:
 		_update_hover_line()
 		_layer.set_targets(_target_marks(), _viewer.call())
+
+
+## True when the hovered target can be picked now (legal, or legal once confirmed): the cursor
+## then turns into the crosshair.
+func aiming() -> bool:
+	if not _open or _means == &"" or _hovered == &"" or _confirm.visible:
+		return false
+	var view := StaffMapStrike.target_view(_simulation.state, _viewer.call(), _hovered, _means)
+	return view["legal"] or view["conditional"]
+
+
+func _sync_cursor() -> void:
+	CrosshairCursor.set_active(aiming())
+
+
+func _exit_tree() -> void:
+	CrosshairCursor.set_active(false)
 
 
 ## "Reason" line of the installation hover card while the mode is open with a means picked: why the
