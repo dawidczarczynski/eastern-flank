@@ -1,6 +1,6 @@
 # Night run report
 
-Run 2026-11-11 21:19 - 23:35 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
+Run 2026-11-11 21:19 - 01:14 (logs and patches of failed tasks: `/home/dawid/night_runs/20261111_2119`).
 
 | Task | Result | Status | Note |
 |---|---|---|---|
@@ -13,6 +13,14 @@ Run 2026-11-11 21:19 - 23:35 (logs and patches of failed tasks: `/home/dawid/nig
 | TASK-128 | ok | done |  |
 | TASK-131b | ok | to playtest |  |
 | TASK-146 | failed | ready | session ended with status 'ready': TASK-146 is blocked, so I wrote no code. The status stays `ready`, and the blocker is in the task's "Implementation notes".  The mockup check failed. `docs/design/operational_map/strike_panel.html` has no  |
+| TASK-108h | ok | to playtest |  |
+| TASK-108c | failed | in progress | session ended with status 'in progress': Implementation is running in the background; I'll wait for its completion notification. |
+| TASK-108d | failed | in progress | session ended with status 'in progress': The implementation agent is running in the background. I'm waiting for its completion notification before verifying. |
+| TASK-063 | failed | in progress | session ended with status 'in progress': The implementation agent is still running. I'll verify its work when it reports back. |
+| TASK-108g | failed | in progress | session ended with status 'in progress': The first agent (importer and `LandCover`) is still running. I'm waiting for it to finish before starting the presentation half, which needs its API. |
+| TASK-111 | failed | in progress | session ended with status 'in progress': The implementation agent is still running; I'll wait for its completion notification before verifying. |
+| TASK-134 | failed | in progress | session ended with status 'in progress': The implementation agent is running; I'll wait for it to finish. |
+| TASK-135 | failed | in progress | session ended with status 'in progress': I've delegated TASK-135 to an opus presentation agent, and it is still running. I'll verify its work with `tools/check.sh` once it reports back. |
 
 ## To playtest
 
@@ -34,4 +42,8 @@ Run 2026-11-11 21:19 - 23:35 (logs and patches of failed tasks: `/home/dawid/nig
 4. Hover an enemy hidden behind a forest: no crosshair; RMB says no line of sight.
 5. Open the unit card and the catalog: ranges in km / m shown, same as the manual.
 6. Watch the frame rate with Homar-K selected (60 FPS).
+
+### TASK-108h: Real-terrain look v2 – `soil` ground layer and URBAN farmyards
+
+1. `tools/run.sh --scenario=suwalki_battle`: villages read as farmyards (gravel + bare soil + grass). 2. Default battle unchanged. 3. `--quality=low` still shows it.
 
