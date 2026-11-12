@@ -1,6 +1,6 @@
 # TASK-103a: Operation simulation tool – operational AI-vs-AI matches with a report
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: ai / tools (+ core only for the provisional score, if it lives in `src/core/operational`)
 - **Depends on**: TASK-102c (hard), TASK-120 (hard), TASK-102a (soft: AI goals data), TASK-121 / TASK-122 (soft: outside-support figures)
 - **Topic**: Two-layer game
@@ -54,4 +54,10 @@ none
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done 2026-11-12. `tools/simulate.sh N --mode=operation` plays whole operations AI-vs-AI and prints the report / CSV (docs/TOOLS.md).
+
+- New: `ProvisionalScore` (src/core/operational/, goal weights held per side, draw threshold), `OperationMatchRunner` (src/ai/, sibling of `MatchRunner`); `turn_cap` (30) and `provisional_draw_threshold` (0) are data on `OperationDefinition` / `OperationalState`. Options in `tools/simulate_options.gd`, branch in `tools/simulate.gd`; tactical mode output unchanged.
+- Endings: the only rule that ends an operation today is nuclear use (`nuclear_use`, winner -1); `collapse` / `threshold` endings read 0 % until a rule produces them (TASK-140 removed the threshold ending). An unknown result reason is reported as `error` (push_error) rather than a turn cap. At the cap the winner is provisional, so NATO / Russia wins are mostly provisional – the report splits "by a rule" from "provisional".
+- `--battles=played` prints one `contact: played winner X, auto winner Y` line per contact and the agreement share (sample: 6 / 9 on seed 1, 6 rounds). A contact that cannot be prepared falls back to auto-resolve and is not compared.
+- Outside support line omitted (TASK-121 not done).
+- Limits: a 5-round match takes ~5–8 s, so N=20 at the default 30-round cap takes minutes. No end-to-end test of `simulate.sh` itself (smoke run done by hand); runner tests cover the logic.

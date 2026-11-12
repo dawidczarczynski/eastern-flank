@@ -38,6 +38,11 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var repair_per_round: int = 5
 ## Objectives of the operational AI, both sides (AiGoal.player; TASK-102a).
 @export var ai_goals: Array[AiGoal] = []
+## Round cap of an AI-vs-AI operation run (TASK-103a): after this many rounds without an ending
+## rule the run is scored by ProvisionalScore. Not a rule of the game itself.
+@export var turn_cap: int = 30
+## ProvisionalScore: a goal-weight difference of at most this is a draw.
+@export var provisional_draw_threshold: int = 0
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

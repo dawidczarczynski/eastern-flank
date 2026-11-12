@@ -80,6 +80,10 @@ var suppression_rounds: int = 2
 var repair_per_round: int = 5
 ## Objectives of the operational AI, both sides (static, not in the snapshot; TASK-102a).
 var ai_goals: Array[AiGoal] = []
+## Round cap of an AI-vs-AI run and the draw threshold of ProvisionalScore (static, not in the
+## snapshot; TASK-103a, from OperationDefinition).
+var turn_cap: int = 30
+var provisional_draw_threshold: int = 0
 ## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}.
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).

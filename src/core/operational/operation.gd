@@ -74,6 +74,8 @@ static func from_definition(
 		state.fielded_strength[formation.owner_id] += formation.max_strength()
 	_add_strikes(state, definition)
 	state.ai_goals = definition.ai_goals.duplicate()
+	state.turn_cap = definition.turn_cap
+	state.provisional_draw_threshold = definition.provisional_draw_threshold
 	return state
 
 

@@ -1,6 +1,6 @@
 # TASK-103b: Operation balancing – both sides win 40–60 % of decided operations (AI-vs-AI)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: data / docs
 - **Depends on**: TASK-103a (hard), TASK-099a / TASK-119a (soft, irrelevant to the numbers)
 - **Topic**: Two-layer game

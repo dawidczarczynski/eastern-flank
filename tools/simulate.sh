@@ -6,6 +6,12 @@
 #   counts as "Harness limit reached"), faction ids of player 0 and 1 (default poland,russia),
 #   scenario (default default_battle); --verbose prints one line per match.
 #   "Draws (rules)" are battles the rules ended without a winner (e.g. the battle's turn limit).
+# Operation mode (TASK-103a): tools/simulate.sh N --mode=operation [--seed=S] [--max-rounds=R]
+#                             [--scenario=<operation id, default suwalki_gap>] [--battles=auto|played]
+#                             [--out=file.csv] [--verbose]
+#   plays whole operations AI-vs-AI (round cap R, default the operation's turn_cap; battles auto-resolved
+#   or played headless and compared); --out writes seed,winner,ending,rounds,max_level,battles per match.
+#   --max-turns / --factions belong to the tactical mode, --max-rounds / --battles / --out to this one.
 # The Godot path can be overridden with GODOT.
 # Exit codes: 0 ok, 1 a match ended with "error" / script errors, 2 invalid arguments, 127 Godot not found.
 set -uo pipefail

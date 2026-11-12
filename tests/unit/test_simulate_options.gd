@@ -71,3 +71,45 @@ func test_scenario_option() -> void:
 		assert_eq(
 			SimulateOptions.parse(PackedStringArray(["10", bad]))["error"], "invalid_scenario", bad
 		)
+
+
+func test_operation_mode_defaults() -> void:
+	var o := SimulateOptions.parse(PackedStringArray(["3", "--mode=operation"]))
+	assert_eq(o["error"], "")
+	assert_eq(o["mode"], "operation")
+	assert_eq(o["scenario"], "suwalki_gap")
+	assert_eq(o["max_rounds"], 0)
+	assert_eq(o["battles"], "auto")
+	assert_eq(SimulateOptions.parse(PackedStringArray(["3"]))["mode"], "tactical")
+
+
+func test_operation_mode_options() -> void:
+	var o := SimulateOptions.parse(
+		PackedStringArray(
+			["3", "--mode=operation", "--max-rounds=5", "--battles=played", "--out=x.csv"]
+		)
+	)
+	assert_eq(o["error"], "")
+	assert_eq(o["max_rounds"], 5)
+	assert_eq(o["battles"], "played")
+	assert_eq(o["out"], "x.csv")
+
+
+func test_operation_mode_invalid_values() -> void:
+	for bad in ["--mode=x", "--max-rounds=0", "--max-rounds=abc", "--battles=x", "--out="]:
+		assert_true(
+			SimulateOptions.parse(PackedStringArray(["3", "--mode=operation", bad]))["error"] != "",
+			bad
+		)
+
+
+func test_options_of_the_other_mode_are_rejected() -> void:
+	for bad in ["--max-turns=5", "--factions=poland,russia"]:
+		assert_true(
+			SimulateOptions.parse(PackedStringArray(["3", "--mode=operation", bad]))["error"] != ""
+		)
+	for bad in ["--max-rounds=5", "--battles=auto", "--out=x.csv"]:
+		assert_true(SimulateOptions.parse(PackedStringArray(["3", bad]))["error"] != "")
+		assert_true(
+			SimulateOptions.parse(PackedStringArray(["3", "--mode=tactical", bad]))["error"] != ""
+		)
