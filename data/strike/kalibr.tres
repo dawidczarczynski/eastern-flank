@@ -19,4 +19,5 @@ range_hexes = 300
 weapon_class = &"cruise"
 side = 1
 platform = "ship / coastal launcher"
+launcher_kind = &"ship"
 designation = "3M14"

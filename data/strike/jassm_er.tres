@@ -19,4 +19,5 @@ range_hexes = 185
 weapon_class = &"cruise"
 side = 0
 platform = "fighter-launched (F-16 Block 52+)"
+launcher_kind = &"fighter"
 designation = "AGM-158B"

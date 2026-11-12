@@ -30,8 +30,8 @@ func test_weapon_families_read_differently() -> void:
 	assert_eq(StrikeWeaponLook.for_means(&"warmate").glyph, &"loitering")
 	assert_eq(rocket.glyph, &"rocket")
 	assert_true(ballistic.arc_height > rocket.arc_height and rocket.arc_height > cruise.arc_height)
-	assert_true(ballistic.duration(60.0) < cruise.duration(60.0))
-	assert_true(cruise.duration(60.0) < drone.duration(60.0))
+	assert_true(ballistic.duration(50.0) < cruise.duration(50.0))
+	assert_true(cruise.duration(50.0) < drone.duration(50.0))
 	assert_true(drone.wobble > 0.0 and cruise.wobble == 0.0)
 	assert_true(
 		StrikeWeaponLook.for_means(&"kinzhal").speed_hexes_per_s > ballistic.speed_hexes_per_s
@@ -43,10 +43,10 @@ func test_weapon_families_read_differently() -> void:
 
 func test_duration_is_clamped() -> void:
 	var look := StrikeWeaponLook.new()
-	look.speed_hexes_per_s = 100.0
+	look.speed_hexes_per_s = 25.0
 	assert_eq(look.duration(1.0), StrikeWeaponLook.DURATION_MIN)
 	assert_eq(look.duration(10000.0), StrikeWeaponLook.DURATION_MAX)
-	assert_true(absf(look.duration(100.0) - 1.0) < 0.001)
+	assert_true(absf(look.duration(50.0) - 2.0) < 0.001)
 
 
 func test_shade_mixes_towards_the_trail_colour_and_keeps_the_side() -> void:

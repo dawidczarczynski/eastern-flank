@@ -8,7 +8,7 @@
 script = ExtResource("1_look")
 glyph = &"rocket"
 trail_color = Color(1.0, 0.9, 0.6, 0.3)
-speed_hexes_per_s = 110.0
+speed_hexes_per_s = 22.0
 arc_height = 0.2
 wobble = 0.0
 trail_length = 0.2

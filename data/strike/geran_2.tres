@@ -19,4 +19,5 @@ range_hexes = 360
 weapon_class = &"drone"
 side = 1
 platform = "truck launcher"
+launcher_kind = &"drone_site"
 designation = "Shahed-136"

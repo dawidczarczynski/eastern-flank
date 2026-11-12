@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Strike launcher marker</title>
+<style>
+@font-face{font-family:'Chakra Petch';font-weight:600;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf)}
+@font-face{font-family:'Chakra Petch';font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:'JetBrains Mono';font-weight:100 800;src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:'Plex Cond';font-weight:500;src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf)}
+:root{--own:#5b93d6;--enemy:#d76a52;--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--card:#12150f;--cardedge:#2e3329;--void:#0b0d0b;--land:#1d211c;--sea:#0f1820;--shore:#2b4454}
+*{box-sizing:border-box}body{margin:0;background:#0a0c09;color:var(--text);font:14px/1.45 'Plex Cond',sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:0 24px 50px}
+.banner{background:var(--amber);color:#0a0c09;font:700 14px 'Chakra Petch';letter-spacing:.12em;padding:8px 24px;text-align:center}
+h1{font:700 28px 'Chakra Petch';margin:22px 0 4px}h2{font:700 20px 'Chakra Petch';color:var(--amber);margin:30px 0 6px;border-top:1px solid var(--cardedge);padding-top:14px}
+p,li{max-width:980px;margin:4px 0}code{font:12px 'JetBrains Mono';color:#e2c069}
+table{border-collapse:collapse;font-size:13px;margin:8px 0;max-width:1100px}td,th{border:1px solid var(--cardedge);padding:4px 9px;text-align:left;vertical-align:top}th{background:var(--card);font:600 12px 'Chakra Petch';letter-spacing:.08em;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:14px}
+.cap{font:600 10px 'Chakra Petch';letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin:0 0 3px}
+.map{position:relative;width:700px;height:300px;overflow:hidden;border:1px solid var(--cardedge);background:var(--land)}
+.map svg.bg{position:absolute;inset:0}
+.m{position:absolute;transform:translate(-50%,-50%)}
+.m svg{display:block;overflow:visible}
+.lab{position:absolute;white-space:nowrap;font:500 11px 'Plex Cond';letter-spacing:.02em;color:var(--text);text-shadow:0 0 3px #111411,0 0 3px #111411,0 0 3px #111411}
+.plate{position:absolute;white-space:nowrap;background:rgba(11,13,11,.9);border:1px solid rgba(232,176,74,.45);padding:2px 7px;font:700 11px 'Chakra Petch';letter-spacing:.04em}
+.plate small{font:500 10px 'JetBrains Mono';color:var(--muted);margin-left:6px}
+.sheet{display:flex;gap:14px;flex-wrap:wrap}
+.gl{display:flex;flex-direction:column;align-items:center;gap:4px;width:118px}
+.gl .cap{text-align:center}
+.tl{display:flex;gap:2px;align-items:flex-end}
+.tl div{width:96px;text-align:center;font:500 10px 'JetBrains Mono';color:var(--muted)}
+</style></head><body>
+<div class="banner">Strike launcher marker – variant B accepted 2026-11-12 (A hex tile and C label chip rejected) · TASK-147</div>
+<div class="wrap">
+<h1>Strike launcher marker</h1>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<!-- silhouettes in a 24×24 box, drawn with currentColor; nose / bow to the right -->
+<symbol id="g-fighter" viewBox="0 0 24 24"><path fill-rule="evenodd" fill="currentColor" d="M23 12 L19.6 10.7 L15.6 10.3 L9.6 2.4 L6.8 2.4 L9.4 10.3 L6.2 10.5 L3.8 7.2 L1.8 7.2 L3 11 L1 11.5 L1 12.5 L3 13 L1.8 16.8 L3.8 16.8 L6.2 13.5 L9.4 13.7 L6.8 21.6 L9.6 21.6 L15.6 13.7 L19.6 13.3 Z M17.4 12 a2.3 .9 0 1 0 -4.6 0 a2.3 .9 0 1 0 4.6 0 Z"/></symbol>
+<symbol id="g-bomber" viewBox="0 0 24 24"><path fill="currentColor" d="M23 12 L21.5 11 L4 11 L1.5 11.4 L1.5 12.6 L4 13 L21.5 13 Z M14.6 11.2 L11.6 1.2 L9.8 1.2 L9.4 11.2 Z M14.6 12.8 L11.6 22.8 L9.8 22.8 L9.4 12.8 Z M4.6 11.4 L2.6 6.4 L1.2 6.4 L1.8 11.4 Z M4.6 12.6 L2.6 17.6 L1.2 17.6 L1.8 12.6 Z M11.53 3.6 h3.2 v1.4 h-3.2 Z M12.64 7.3 h3.2 v1.4 h-3.2 Z M12.64 15.3 h3.2 v1.4 h-3.2 Z M11.53 19 h3.2 v1.4 h-3.2 Z"/></symbol>
+<symbol id="g-ship" viewBox="0 0 24 24"><path fill="currentColor" d="M1 12.5 L14 12.5 L17 11.4 L23 11.4 L20.6 17.6 L3 17.6 L1 15.6 Z M6 12.5 L6 9.6 L9 9.6 L9 7.6 L13 7.6 L14.6 10 L14.6 12.5 Z M10.6 3.4 H11.6 V7.6 H10.6 Z M9.2 4.6 H13 V5.6 H9.2 Z M16 9.5 H19 V11.4 H16 Z M19 10 H22 V10.8 H19 Z"/></symbol>
+<symbol id="g-submarine" viewBox="0 0 24 24"><path fill="currentColor" d="M2.5 15 C2.5 13.2 5 12.4 8 12.4 L9.8 12.4 L9.8 9.8 L10.5 9.8 L10.5 8 L13 8 L13 9.8 L13.8 9.8 L13.8 12.4 L17 12.4 C20.5 12.4 23 13.4 23 15 C23 16.6 20.5 17.6 17 17.6 L8 17.6 C5 17.6 2.5 16.8 2.5 15 Z M11.3 5.4 H12.2 V8 H11.3 Z M2.8 14.2 L.8 11.8 H2.4 L4.6 13.4 Z M2.8 15.8 L.8 18.2 H2.4 L4.6 16.6 Z M15 17.4 L16.4 19.8 H18 L17.6 17.4 Z"/></symbol>
+<symbol id="g-launcher" viewBox="0 0 24 24"><path fill="currentColor" d="M1.5 15 H22.8 V17.4 H1.5 Z M16.8 15 V10.4 H20.4 L22.8 13 V15 Z M2 14.6 L13.4 5 L15.6 7.3 L4.6 14.6 Z M2 13.6 H6.4 V15 H2 Z"/><circle cx="5" cy="19.2" r="1.9" fill="currentColor"/><circle cx="9.6" cy="19.2" r="1.9" fill="currentColor"/><circle cx="16" cy="19.2" r="1.9" fill="currentColor"/><circle cx="20.4" cy="19.2" r="1.9" fill="currentColor"/></symbol>
+<symbol id="g-drone_site" viewBox="0 0 24 24"><path fill="currentColor" d="M22.5 9.5 L7 3 V4.4 L11 9.5 L7 14.6 V16 Z M2.8 7.6 H3.7 V11.4 H2.8 Z M3.7 8.8 H6.4 V10.2 H3.7 Z M4 17.6 H20 V18.8 H4 Z M2 20 H22 V21.4 H2 Z M5 18.8 H6.4 V20 H5 Z M17.6 18.8 H19 V20 H17.6 Z"/></symbol>
+<symbol id="g-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" fill="currentColor"/></symbol>
+</defs></svg>
+
+<h2>The need</h2>
+<p>When a missile is launched, the staff map shows <b>what fired it</b> at the launch point (<code>strike_launched.origin</code>, TASK-147): <b>fighter</b>, <b>bomber</b> (both fly over, see "Aircraft flyover"), <b>ship</b>, <b>submarine</b> (kind exists, no weapon yet), <b>truck launcher</b> (TEL), <b>drone site</b>. It stays for the flight of the salvo (longest trace, TASK-141b), then fades in 0.6 s, never outliving the strike toast. Label = the means' <code>platform</code> text ("truck launcher (HIMARS)"), only at the zoom levels where counters are labelled. Presentation only: not selectable, no hit-testing, up to 8 markers, same-hex markers stack with an offset, one <code>CanvasItem</code>, redraw only while visible.</p>
+<p><b>Rules for all variants:</b> fixed screen size (like counters / place names), both sides (own = rectangle-cut plate / blue, enemy = diamond plate / red) – side by shape plus colour, the kind by <b>silhouette</b> (never colour alone), no new tokens, polygons only (no assets). Sits below counters and the trace lines, above terrain. Never drawn over the selected counter's brackets (it is a 12 px offset up-left from the launch hex centre when the hex also holds a counter).</p>
+
+<h2>Silhouettes (shared by all variants)</h2><p><b>Revised 2026-11-12:</b> swept-wing fighter with a canopy cut-out, heavy four-engine bomber with long, nearly straight wings and a tailplane, frigate with gun / mast / radar, submarine with sail, periscope and dive planes, truck with canted canisters and cab, delta drone on a launch rail. Shown at 72 px and at the real 28 px.</p>
+<p>Side-on / top-down simplified shapes, one filled polygon set each, 24×24 design box, nose to the right, drawn in a single colour. Unknown kind → plain dot.</p>
+<div class="sheet">
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-fighter"/></svg><div class="cap">fighter</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-bomber"/></svg><div class="cap">bomber</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-ship"/></svg><div class="cap">ship</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-submarine"/></svg><div class="cap">submarine</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-launcher"/></svg><div class="cap">launcher (TEL)</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--text)"><use href="#g-drone_site"/></svg><div class="cap">drone site</div></div>
+ <div class="gl"><svg width="72" height="72" style="color:var(--muted)"><use href="#g-dot"/></svg><div class="cap">unknown → dot</div></div>
+</div>
+<div class="sheet" style="margin-top:10px;align-items:center"><span class="cap">real size 28 px</span><svg width="28" height="28" style="color:#5b93d6"><use href="#g-fighter"/></svg><svg width="28" height="28" style="color:#d76a52"><use href="#g-bomber"/></svg><svg width="28" height="28" style="color:#5b93d6"><use href="#g-ship"/></svg><svg width="28" height="28" style="color:#5b93d6"><use href="#g-submarine"/></svg><svg width="28" height="28" style="color:#d76a52"><use href="#g-launcher"/></svg><svg width="28" height="28" style="color:#d76a52"><use href="#g-drone_site"/></svg></div>
+
+<!-- ============ VARIANT A ============ -->
+<h2>Variant A – hex tile with a ghost plate (closest to the accepted tokens)</h2>
+<p>Reuses the installation tile of <code>unit_tokens_hex.html</code> (hex base R 18, recessed field, bevel) with the <b>side plate</b> (own cut-corner rectangle, enemy diamond) carrying the <b>engraved silhouette</b> instead of an APP-6 glyph. The tile is drawn at 85 % opacity and a thin dashed ground ring marks "temporary, not a unit". Name tag to the right in the place-name style. No integrity studs.</p>
+<div class="row">
+<div><div class="cap">Z1 · own launcher + enemy aircraft · flight (t = mid)</div>
+<div class="map">
+<svg class="bg" width="700" height="300"><rect width="700" height="300" fill="#0f1820"/><path d="M0 0 H520 L430 300 H0 Z" fill="#1d211c"/><path d="M520 0 L430 300" stroke="#2b4454" stroke-width="2" fill="none"/>
+<path d="M150 190 Q300 120 470 70" stroke="#e8b04a" stroke-width="2" fill="none" stroke-dasharray="1 0"/><circle cx="470" cy="70" r="5" fill="none" stroke="#e8b04a" stroke-width="1.6"/></svg>
+<!-- tile A: own launcher at (150,190) -->
+<div class="m" style="left:150px;top:190px"><svg width="64" height="64" viewBox="-32 -32 64 64">
+ <ellipse cx="0" cy="3" rx="25" ry="20" fill="none" stroke="#dfe5d6" stroke-opacity=".35" stroke-dasharray="3 3"/>
+ <g opacity=".85"><polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" transform="translate(0 4)" fill="#274468"/>
+ <polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="#35597f" stroke="#fff" stroke-opacity=".25"/>
+ <polygon points="15,0 7.5,13 -7.5,13 -15,0 -7.5,-13 7.5,-13" fill="#2d4d70"/>
+ <path d="M-12,-8 H8 L12,-4 V8 H-12 Z" fill="#5b93d6" fill-opacity=".92" stroke="#fff" stroke-opacity=".35" stroke-width=".8"/>
+ <g style="color:#10223a" transform="translate(-9 -8) scale(.75)"><use href="#g-launcher" width="24" height="24"/></g></g></svg></div>
+<div class="lab" style="left:184px;top:176px">truck launcher (HIMARS)</div>
+<!-- enemy aircraft at (560,200)? put over sea at 300,60 -->
+<div class="m" style="left:300px;top:70px"><svg width="64" height="64" viewBox="-32 -32 64 64">
+ <ellipse cx="0" cy="3" rx="25" ry="20" fill="none" stroke="#dfe5d6" stroke-opacity=".35" stroke-dasharray="3 3"/>
+ <g opacity=".85"><polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" transform="translate(0 4)" fill="#6d3328"/>
+ <polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="#8a4638" stroke="#fff" stroke-opacity=".25"/>
+ <polygon points="15,0 7.5,13 -7.5,13 -15,0 -7.5,-13 7.5,-13" fill="#7a3d30"/>
+ <polygon points="0,-12 12,0 0,12 -12,0" fill="#d76a52" fill-opacity=".92" stroke="#fff" stroke-opacity=".35" stroke-width=".8"/>
+ <g style="color:#2a110b" transform="translate(-8 -8) scale(.67)"><use href="#g-fighter" width="24" height="24"/></g></g></svg></div>
+<div class="lab" style="left:334px;top:56px">bomber-launched (Su-34)</div>
+</div></div>
+<div><div class="cap">Fade (0.6 s) · stacking (3 launches in one hex)</div>
+<div class="map" style="width:420px">
+<svg class="bg" width="420" height="300"><rect width="420" height="300" fill="#1d211c"/></svg>
+<div class="m" style="left:130px;top:200px"><svg width="64" height="64" viewBox="-32 -32 64 64"><g opacity=".85"><polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="#35597f" stroke="#fff" stroke-opacity=".25"/><path d="M-12,-8 H8 L12,-4 V8 H-12 Z" fill="#5b93d6" fill-opacity=".92"/><g style="color:#10223a" transform="translate(-9 -8) scale(.75)"><use href="#g-launcher" width="24" height="24"/></g></g></svg></div>
+<div class="m" style="left:130px;top:200px;transform:translate(-50%,-50%) translate(0,0)"></div>
+<div class="m" style="left:130px;top:178px;opacity:.55"><svg width="64" height="64" viewBox="-32 -32 64 64"><g opacity=".85"><polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="#35597f" stroke="#fff" stroke-opacity=".25"/><path d="M-12,-8 H8 L12,-4 V8 H-12 Z" fill="#5b93d6" fill-opacity=".92"/><g style="color:#10223a" transform="translate(-9 -8) scale(.75)"><use href="#g-launcher" width="24" height="24"/></g></g></svg></div>
+<div class="m" style="left:130px;top:156px;opacity:.2"><svg width="64" height="64" viewBox="-32 -32 64 64"><g opacity=".85"><polygon points="18,0 9,15.6 -9,15.6 -18,0 -9,-15.6 9,-15.6" fill="#35597f" stroke="#fff" stroke-opacity=".25"/><path d="M-12,-8 H8 L12,-4 V8 H-12 Z" fill="#5b93d6" fill-opacity=".92"/><g style="color:#10223a" transform="translate(-9 -8) scale(.75)"><use href="#g-launcher" width="24" height="24"/></g></g></svg></div>
+<div class="lab" style="left:164px;top:192px">truck launcher (HIMARS)</div>
+<div class="lab" style="left:164px;top:170px;opacity:.55">truck launcher (HIMARS)</div>
+<div class="cap" style="position:absolute;left:10px;top:8px">stack: each further launch 22 px up, max 3 per hex, older ones fade first</div>
+</div></div>
+</div>
+<table><tr><th>Item</th><th>Spec</th></tr>
+<tr><td>Size</td><td>tile R 18 px (≈ 36×31), plate 0.5 × counter shape (own 20×14 cut corner, enemy diamond 20×20), glyph 15 px; ground ring 50×40 dashed 3/3</td></tr>
+<tr><td>Colours</td><td>as installations: base = side colour lerp <code>ui.muted</code> .78 → lerp <code>map.void</code> .3, plate <code>side.own</code> / <code>side.enemy</code> lerp grey .2, glyph = side ink (<code>#0f1a26</code> / <code>#2a110b</code>); tile 85 % opacity; ring <code>ui.text</code> 35 %</td></tr>
+<tr><td>Label</td><td>IBM Plex Sans Condensed 500 11, <code>ui.text</code>, halo <code>#111411</code> 3 px, 6 px right of the tile; Z1 and Z2 only (hidden on Z0)</td></tr>
+<tr><td>Timing</td><td>pop-in 120 ms (scale .8→1), steady for the longest trace duration, fade 0.6 s linear alpha, whole marker incl. label</td></tr>
+<tr><td>Pitch</td><td>same depth / squash as installation tiles (<code>StaffMapCounter.depth_for_pitch</code>)</td></tr></table>
+<p><b>Godot notes:</b> extend the drawing of <code>StaffMapInstallationMarker</code> (tile + plate) as a static draw helper with a different glyph and an alpha; glyphs as <code>PackedVector2Array</code> polygons in a new <code>LauncherGlyphs</code> (pure, testable "every kind maps to a shape"). Draw all markers in one <code>StaffMapStrikeLayer</code> pass. Pros: identical look language as counters, side readable by shape. Cons: heaviest; a hex tile looks like a permanent installation, so the dashed ring and fade have to do the "temporary" work.</p>
+
+<!-- ============ VARIANT B ============ -->
+<h2>Variant B – bare silhouette with a launch tick (ACCEPTED)</h2>
+<p>No tile. The <b>silhouette itself</b> is the marker: 28 px, filled in the side colour with a 2 px <code>map.void</code> halo for contrast on any terrain, standing on a small <b>launch tick</b> (a 6 px ring on the exact launch hex centre, where the trace starts). Side is carried by a <b>mini side chip</b> (7 px rectangle / diamond) at the glyph's top-left, so colour is never the only channel. Label under the glyph, centred. Light, reads as "a thing that just happened", clearly not a unit or an installation.</p>
+<div class="row">
+<div><div class="cap">Z1 · five kinds in context (own blue, enemy red)</div>
+<div class="map">
+<svg class="bg" width="700" height="300"><rect width="700" height="300" fill="#0f1820"/><path d="M0 0 H470 L400 300 H0 Z" fill="#1d211c"/><path d="M470 0 L400 300" stroke="#2b4454" stroke-width="2" fill="none"/>
+<path d="M90 230 Q230 120 330 60" stroke="#e8b04a" stroke-width="2" fill="none"/><path d="M590 120 Q500 150 420 190" stroke="#d76a52" stroke-width="2" fill="none"/></svg>
+<!-- B markers -->
+<div class="m" style="left:90px;top:230px"><svg width="120" height="64" viewBox="-60 -40 120 64">
+ <circle r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><g transform="translate(-14 -34)"><g stroke="#0b0d0b" stroke-width="2.6" stroke-linejoin="round" style="color:#5b93d6"><use href="#g-launcher" width="28" height="28" stroke="#0b0d0b"/></g><use href="#g-launcher" width="28" height="28" style="color:#5b93d6"/><rect x="-3" y="-3" width="9" height="6.5" fill="#5b93d6" stroke="#0b0d0b" stroke-width="1.2"/></g></svg></div>
+<div class="lab" style="left:90px;top:262px;transform:translateX(-50%)">truck launcher (HIMARS)</div>
+<div class="m" style="left:330px;top:60px"><svg width="120" height="64" viewBox="-60 -40 120 64"><circle r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><g transform="translate(-14 -34)"><use href="#g-fighter" width="28" height="28" style="color:#5b93d6" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-fighter" width="28" height="28" style="color:#5b93d6"/><rect x="-3" y="-3" width="9" height="6.5" fill="#5b93d6" stroke="#0b0d0b" stroke-width="1.2"/></g></svg></div>
+<div class="lab" style="left:330px;top:92px;transform:translateX(-50%)">fighter-launched (F-16 Block 52+)</div>
+<div class="m" style="left:590px;top:120px"><svg width="120" height="64" viewBox="-60 -40 120 64"><circle r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><g transform="translate(-14 -34)"><use href="#g-ship" width="28" height="28" style="color:#d76a52" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-ship" width="28" height="28" style="color:#d76a52"/><polygon points="1.5,-3.5 6,1 1.5,5.5 -3,1" fill="#d76a52" stroke="#0b0d0b" stroke-width="1.2"/></g></svg></div>
+<div class="lab" style="left:590px;top:152px;transform:translateX(-50%)">frigate (Admiral Grigorovich)</div>
+<div class="m" style="left:240px;top:250px"><svg width="120" height="64" viewBox="-60 -40 120 64"><circle r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><g transform="translate(-14 -34)"><use href="#g-drone_site" width="28" height="28" style="color:#d76a52" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-drone_site" width="28" height="28" style="color:#d76a52"/><polygon points="1.5,-3.5 6,1 1.5,5.5 -3,1" fill="#d76a52" stroke="#0b0d0b" stroke-width="1.2"/></g></svg></div>
+<div class="lab" style="left:240px;top:282px;transform:translateX(-50%)">drone launch site</div>
+<div class="m" style="left:530px;top:250px"><svg width="120" height="64" viewBox="-60 -40 120 64"><circle r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><g transform="translate(-14 -34)"><use href="#g-submarine" width="28" height="28" style="color:#5b93d6" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-submarine" width="28" height="28" style="color:#5b93d6"/><rect x="-3" y="-3" width="9" height="6.5" fill="#5b93d6" stroke="#0b0d0b" stroke-width="1.2"/></g></svg></div>
+<div class="lab" style="left:530px;top:282px;transform:translateX(-50%)">submarine (SSN)</div>
+</div></div>
+</div>
+<div class="row" style="margin-top:12px">
+<div><div class="cap">Lifetime</div>
+<div class="tl"><div>t = 0<br><svg width="40" height="40" viewBox="-20 -34 40 44" style="opacity:1"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><use href="#g-launcher" x="-14" y="-34" width="28" height="28" style="color:#5b93d6"/></svg><br>α 1.0</div>
+<div>mid flight<br><svg width="40" height="40" viewBox="-20 -34 40 44"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><use href="#g-launcher" x="-14" y="-34" width="28" height="28" style="color:#5b93d6"/></svg><br>α 1.0</div>
+<div>flight end<br><svg width="40" height="40" viewBox="-20 -34 40 44"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><use href="#g-launcher" x="-14" y="-34" width="28" height="28" style="color:#5b93d6"/></svg><br>α 1.0</div>
+<div>+0.3 s<br><svg width="40" height="40" viewBox="-20 -34 40 44" style="opacity:.5"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/><use href="#g-launcher" x="-14" y="-34" width="28" height="28" style="color:#5b93d6"/></svg><br>α 0.5</div>
+<div>+0.6 s<br><svg width="40" height="40" viewBox="-20 -34 40 44" style="opacity:.06"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/></svg><br>α 0</div></div></div>
+<div><div class="cap">Same-hex stack (3 launches)</div>
+<svg width="170" height="86" viewBox="-30 -66 170 86"><circle r="4" fill="none" stroke="#dfe5d6" stroke-width="1.4"/>
+<use href="#g-launcher" x="-14" y="-34" width="28" height="28" style="color:#5b93d6"/>
+<use href="#g-launcher" x="14" y="-48" width="28" height="28" style="color:#5b93d6" opacity=".7"/>
+<use href="#g-launcher" x="42" y="-62" width="28" height="28" style="color:#5b93d6" opacity=".45"/></svg></div></div>
+<table><tr><th>Item</th><th>Spec</th></tr>
+<tr><td>Size</td><td>glyph 28×28 px, stands 6 px above the launch tick (ring r 4.5, 1.4 px <code>ui.text</code>); side chip 9×6.5 (own rectangle) / 7×7 diamond (enemy) at the glyph's top-left</td></tr>
+<tr><td>Colours</td><td>glyph <code>side.own</code> / <code>side.enemy</code>, halo 2.6 px <code>map.void</code>; tick <code>ui.text</code></td></tr>
+<tr><td>Label</td><td>IBM Plex Sans Condensed 500 11, <code>ui.text</code>, halo 3 px <code>#111411</code>, centred 3 px under the glyph; Z1+Z2; collision: hidden before the glyph when it overlaps a counter label</td></tr>
+<tr><td>Timing</td><td>(revised after playtest 2026-11-12) the marker shows 1.2 s before the first missile leaves; pop-in 250 ms; the launch tick pulses once (r 4.5→9, α .6→0, 800 ms) to mark the start; steady through the flight, fade 0.6 s; the report card shows 0.8 s after the last impact</td></tr>
+<tr><td>Stack</td><td>each further marker in the same hex +14 px right / −14 px up, older = lower alpha (1 / .7 / .45), max 3 per hex, 8 overall</td></tr></table>
+<h2>Aircraft flyover (fighter, bomber) – added 2026-11-12 after playtest</h2>
+<p>An aircraft is not parked at the launch point. It <b>appears ~230 px behind it</b> (away from the target, fades in 250 ms), <b>flies straight to it facing the target</b> (1.8 s; the glyph is rotated to its heading), the missiles leave when it is over the launch tick (the approach replaces the 1.2 s lead-in), then it <b>banks away in a half-circle U-turn</b> to one side (1.2 s, heading turns 180°) and fades out over the last 0.6 s. The launch tick and the label stay at the launch point through the flight of the salvo. Several launches from one hex: turn sides alternate and the approach lines are shifted ±12 px. Ships, submarines, truck launchers and drone sites keep the static marker.</p>
+<div class="row"><div><div class="cap">t = 0.9 s · approach</div><svg width="300" height="130" viewBox="0 0 300 130" style="background:#1d211c;border:1px solid #2e3329">
+<line x1="20" y1="70" x2="180" y2="70" stroke="#8d9585" stroke-width="1" stroke-dasharray="3 4"/><path d="M180 70 Q240 40 285 70" stroke="#d76a52" stroke-width="2" fill="none" opacity="0"/>
+<circle cx="285" cy="70" r="5" fill="none" stroke="#e8b04a" stroke-width="1.5"/><circle cx="180" cy="70" r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/>
+<g transform="translate(100 70) rotate(0) translate(-14 -14)" opacity="1"><use href="#g-bomber" width="28" height="28" style="color:#d76a52" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-bomber" width="28" height="28" style="color:#d76a52"/></g>
+<text x="180" y="100" fill="#dfe5d6" font-size="11" text-anchor="middle" font-family="Plex Cond">bomber-launched (Tu-95MS / Tu-160)</text>
+<text x="8" y="122" fill="#8d9585" font-size="10" font-family="JetBrains Mono">flies in facing the target</text></svg></div><div><div class="cap">t = 1.8 s · launch</div><svg width="300" height="130" viewBox="0 0 300 130" style="background:#1d211c;border:1px solid #2e3329">
+<line x1="20" y1="70" x2="180" y2="70" stroke="#8d9585" stroke-width="1" stroke-dasharray="3 4"/><path d="M180 70 Q240 40 285 70" stroke="#d76a52" stroke-width="2" fill="none" opacity="1"/>
+<circle cx="285" cy="70" r="5" fill="none" stroke="#e8b04a" stroke-width="1.5"/><circle cx="180" cy="70" r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/>
+<g transform="translate(180 70) rotate(0) translate(-14 -14)" opacity="1"><use href="#g-bomber" width="28" height="28" style="color:#d76a52" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-bomber" width="28" height="28" style="color:#d76a52"/></g>
+<text x="180" y="100" fill="#dfe5d6" font-size="11" text-anchor="middle" font-family="Plex Cond">bomber-launched (Tu-95MS / Tu-160)</text>
+<text x="8" y="122" fill="#8d9585" font-size="10" font-family="JetBrains Mono">over the tick: missiles leave</text></svg></div><div><div class="cap">t ≈ 2.7 s · U-turn</div><svg width="300" height="130" viewBox="0 0 300 130" style="background:#1d211c;border:1px solid #2e3329">
+<line x1="20" y1="70" x2="180" y2="70" stroke="#8d9585" stroke-width="1" stroke-dasharray="3 4"/><path d="M180 70 Q240 40 285 70" stroke="#d76a52" stroke-width="2" fill="none" opacity="1"/>
+<circle cx="285" cy="70" r="5" fill="none" stroke="#e8b04a" stroke-width="1.5"/><circle cx="180" cy="70" r="4.5" fill="none" stroke="#dfe5d6" stroke-width="1.4"/>
+<g transform="translate(210 25) rotate(200) translate(-14 -14)" opacity="0.55"><use href="#g-bomber" width="28" height="28" style="color:#d76a52" stroke="#0b0d0b" stroke-width="2.6"/><use href="#g-bomber" width="28" height="28" style="color:#d76a52"/></g>
+<text x="180" y="100" fill="#dfe5d6" font-size="11" text-anchor="middle" font-family="Plex Cond">bomber-launched (Tu-95MS / Tu-160)</text>
+<text x="8" y="122" fill="#8d9585" font-size="10" font-family="JetBrains Mono">banks away, fading out</text></svg></div></div>
+<p><b>Godot notes:</b> draw in <code>StaffMapStrikeLayer</code> with <code>draw_colored_polygon</code> / <code>draw_polyline</code> (halo = polyline of the outline), glyph polygons in a pure <code>LauncherGlyphs</code>; pure <code>StaffMapLauncherMarker.alpha_at(t, flight)</code> for the lifetime test. Pros: lightest to draw, instantly distinct from unit tiles, kind is the first thing seen. Cons: less "built" than the tile language; relies on the halo for contrast.</p>
+
+<!-- ============ VARIANT C ============ -->
+<h2>Variant C – label chip only</h2>
+<p>Minimal: a one-line chamfered chip at the launch point (silhouette 14 px + <code>platform</code> text) in the style of the strike chip. No tile, no tick: the chip's left edge is the launch point. Works at every zoom (the glyph stays; only the text hides on Z0).</p>
+<div class="row"><div><div class="cap">Z1 · own and enemy</div>
+<div class="map" style="width:520px;height:150px"><svg class="bg" width="520" height="150"><rect width="520" height="150" fill="#1d211c"/></svg>
+<div style="position:absolute;left:60px;top:40px;height:24px;display:flex;align-items:center;gap:6px;padding:0 10px 0 7px;background:rgba(8,11,8,.93);border:1px solid #5b93d6;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))">
+ <svg width="16" height="16" style="color:#5b93d6"><use href="#g-launcher"/></svg><span style="font:500 11.5px 'Plex Cond'">truck launcher (HIMARS)</span></div>
+<div style="position:absolute;left:280px;top:90px;height:24px;display:flex;align-items:center;gap:6px;padding:0 10px 0 7px;background:rgba(8,11,8,.93);border:1px solid #d76a52;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))">
+ <svg width="16" height="16" style="color:#d76a52"><use href="#g-fighter"/></svg><span style="font:500 11.5px 'Plex Cond'">bomber-launched (Su-34)</span></div>
+<div style="position:absolute;left:58px;top:64px;width:4px;height:4px;background:#dfe5d6"></div></div></div></div>
+<table><tr><th>Item</th><th>Spec</th></tr>
+<tr><td>Size</td><td>height 24 px, glyph 16 px, chamfer 8 px (top-right, bottom-left), 1 px edge in side colour, fill <code>PANEL_STRONG</code></td></tr>
+<tr><td>Cons</td><td>kind is small (16 px); chips of several launches in one area collide more easily with place names</td></tr></table>
+<p><b>Godot notes:</b> a draw helper in <code>StaffMapStrikeLayer</code> reusing the <code>StaffMapStrikeChip</code> chamfer geometry.</p>
+
+<h2>Recommendation and open questions</h2>
+<ul>
+<li><b>B</b> – the silhouette is the information (kind at a glance, 28 px), light to draw (8 markers, 60 FPS), cannot be mistaken for a unit or an installation. A is the choice if you want everything on the map to share the tile language.</li>
+<li>New tokens: none. All colours are existing tokens (<code>side.own</code>, <code>side.enemy</code>, <code>map.void</code>, <code>ui.text</code>, <code>PANEL_STRONG</code>).</li>
+<li>Open: (1) should the marker also show for the <b>enemy's</b> launches the viewer cannot see (fog)? Proposed: only launches the viewer sees (as the trace and the report), (2) pop-in and tick pulse OK, or fade only? (3) submarine has no weapon yet – keep the shape ready?</li>
+</ul>
+</div></body></html>

@@ -119,6 +119,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 - `StandDownCommand` – Political decision *Stand down* (TASK-117): lowers the level by one and bars the player f… (`stand_down_command.gd`)
 - `StrikeCommand` – A deep strike by the current player (TASK-097a, GDD "Deep strikes"): a salvo of one means… (`strike_command.gd`)
+- `StrikeLaunch` – Where a deep strike is launched from (TASK-147, GDD "Deep strikes"): the hex of the launc… (`strike_launch.gd`)
 - `StrikeRules` – Pure deep-strike rules of the operational layer (TASK-097a, GDD "Deep strikes"): the stoc… (`strike_rules.gd`)
 
 ## src/presentation/audio/
@@ -291,6 +292,9 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapJournalRing` – The amber ring the journal puts on a hex when an entry is clicked (TASK-148b): a circle o… (`staff_map_journal_ring.gd`)
 - `StaffMapJournalText` – Pure texts of the operational journal window (TASK-148b, docs/design/operational_map/ (`staff_map_journal_text.gd`)
 - `StaffMapJournalWindow` – The operational journal window (TASK-148b, docs/design/operational_map/operational_journa… (`staff_map_journal_window.gd`)
+- `StaffMapLauncherFlyover` – Pure path of an aircraft launcher marker (TASK-147 follow-up): the aircraft appears (`staff_map_launcher_flyover.gd`)
+- `StaffMapLauncherGlyphs` – The silhouettes of the strike launcher markers (TASK-147, variant B of (`staff_map_launcher_glyphs.gd`)
+- `StaffMapLauncherMarker` – Pure timing and layout of a strike launcher marker (TASK-147, variant B of (`staff_map_launcher_marker.gd`)
 - `StaffMapLines` – Mesh building for the staff map's screen-space lines (TASK-125, assets/shaders/ (`staff_map_lines.gd`)
 - `StaffMapMenuButton` – The hamburger of the staff map (top-left corner, where the Back button used to be): a flat (`staff_map_menu_button.gd`)
 - `StaffMapMenuWindow` – The operation menu of the staff map (opened by the hamburger in the top-left corner): a (`staff_map_menu_window.gd`)

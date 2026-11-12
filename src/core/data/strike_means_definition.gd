@@ -24,6 +24,11 @@ const SHIPPED: Array[StringName] = [
 const WEAPON_CLASSES: Array[StringName] = [
 	&"cruise", &"ballistic", &"aeroballistic", &"rocket", &"drone", &"loitering"
 ]
+## What launches the weapon (TASK-147): the staff map draws it at the launch point and
+## StrikeRules.launch_origin picks the launch site by it. `submarine` is kept for later variants.
+const LAUNCHER_KINDS: Array[StringName] = [
+	&"fighter", &"bomber", &"ship", &"submarine", &"launcher", &"drone_site"
+]
 ## `side` of a weapon usable by either side (test data only in v1).
 const ANY_SIDE := -1
 
@@ -49,6 +54,8 @@ const ANY_SIDE := -1
 @export_range(-1, 1) var side: int = ANY_SIDE
 ## Launch platform as short text, e.g. "truck launcher" (view only; launchers come with TASK-098).
 @export var platform: String = ""
+## One of LAUNCHER_KINDS (TASK-147): what fires it; `platform` stays the flavour text.
+@export var launcher_kind: StringName = &"launcher"
 ## NATO / manufacturer designation, e.g. "9M723" (view only).
 @export var designation: String = ""
 
@@ -98,4 +105,6 @@ func _label_problem() -> String:
 		return "unknown weapon_class '%s'" % weapon_class
 	if side < ANY_SIDE or side > 1:
 		return "side %d outside -1 .. 1" % side
+	if not LAUNCHER_KINDS.has(launcher_kind):
+		return "unknown launcher_kind '%s'" % launcher_kind
 	return ""

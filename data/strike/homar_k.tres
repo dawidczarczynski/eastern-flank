@@ -19,4 +19,5 @@ range_hexes = 58
 weapon_class = &"rocket"
 side = 0
 platform = "truck launcher (K239 Chunmoo)"
+launcher_kind = &"launcher"
 designation = "CGR-080 (K239 / K263)"

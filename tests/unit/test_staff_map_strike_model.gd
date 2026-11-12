@@ -526,3 +526,15 @@ func test_strike_traces_start_at_the_launch_origin() -> void:
 	assert_eq(
 		trail.traces[0]["from"], StaffMapStrikeTrail.launch_origin(state, 0, coord, range_hexes)
 	)
+
+
+func test_strike_traces_start_at_the_events_origin_when_it_has_one() -> void:
+	var state := _state(2)
+	var trail := StaffMapStrikeTrail.new()
+	var coord := state.get_installation(A1).coord
+	var launched := _launched(A1, coord)
+	launched["origin"] = Vector2i(3, 1)
+	launched["launcher_kind"] = "launcher"
+	trail.on_event(state, 0, launched)
+	trail.on_event(state, 0, _resolved(A1, 0, 1))
+	assert_eq(trail.traces[0]["from"], Vector2i(3, 1), "TASK-147: the event's launch point")

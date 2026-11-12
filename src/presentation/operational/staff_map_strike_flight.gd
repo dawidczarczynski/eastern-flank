@@ -5,8 +5,8 @@ extends RefCounted
 ## missiles of a salvo, which missiles of a big salvo are drawn, and where an intercepted missile
 ## stops. Nothing is drawn here; StaffMapStrikeLayer draws what these return.
 
-## Delay between two missiles of one salvo (s).
-const STAGGER_SECONDS := 0.08
+## Delay between two missiles of one salvo (s): far enough apart to tell them apart.
+const STAGGER_SECONDS := 0.25
 ## Missiles drawn per strike; the rest is shown as a "+n" label.
 const MAX_DRAWN := 6
 ## Where an intercepted missile stops when no air-defence site is known (share of the path).

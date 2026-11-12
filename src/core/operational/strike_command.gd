@@ -39,6 +39,8 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	var player := state.current_player
 	var target := StrikeRules.find_target(state, player, target_id)
 	var coord: Vector2i = target["coord"]
+	var means: StrikeMeansDefinition = state.strike_means[means_id]
+	var origin := StrikeRules.launch_origin(state, player, means_id, coord)
 	var events: Array[Dictionary] = [StrikeRules.spend(state, player, means_id, count)]
 	state.strikes_left -= 1
 	(
@@ -52,6 +54,8 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 				"target": target_id,
 				"coord": coord,
 				"class_id": target["class_id"],
+				"launcher_kind": String(means.launcher_kind),
+				"origin": origin,
 			}
 		)
 	)

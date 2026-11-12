@@ -1,12 +1,12 @@
 class_name StaffMapStrikeReports
 extends RefCounted
 ## The strike result reports of the staff map (TASK-097b): the card (StaffMapStrikeReport), its
-## collapsed chip (StaffMapStrikeChip), the queue and the timing of the accepted mockup. An own
-## strike's card shows 400 ms after the strike (the map burst plays first), stays 9 s (hovering it
-## pauses) and collapses to the chip; enemy strikes queue, 3.5 s each ("1 OF n"); the last one
-## stays as a chip; a threshold report never collapses by itself. Keys: Enter / a click opens the
-## journal at the strike line (TASK-148b), Esc collapse, ◂ ▸ browse; X (card or chip) dismisses
-## the report.
+## collapsed chip (StaffMapStrikeChip), the queue and the timing of the accepted mockup. A card
+## shows 0.8 s after the strike's last impact on the map (the HUD passes the delay, TASK-147; the
+## launch and the flight play first), stays 9 s (hovering it pauses) and collapses to the chip;
+## enemy strikes queue, 3.5 s each ("1 OF n"); the last one stays as a chip; a threshold report
+## never collapses by itself. Keys: Enter / a click opens the journal at the strike line
+## (TASK-148b), Esc collapse, ◂ ▸ browse; X (card or chip) dismisses the report.
 ## `tick` is a no-op while nothing is timed, so an idle HUD costs nothing.
 
 signal shown  ## the card is (re)shown – the left dock hands it the place
@@ -17,7 +17,10 @@ enum Mode { NONE, CARD, CHIP }
 
 const OWN_SECONDS := 9.0
 const ENEMY_SECONDS := 3.5
+## Default reveal delay of a card (s); the strike HUD passes the real one: IMPACT_REVEAL_SECONDS
+## after the last impact of the strike on the map, so the card never covers the flight (TASK-147).
 const REVEAL_DELAY := 0.4
+const IMPACT_REVEAL_SECONDS := 0.8
 const FADE_SECONDS := 0.15
 const NO_TIMEOUT := -1.0
 const ORIGIN := Vector2(16, 110)
@@ -88,13 +91,13 @@ func chip_visible() -> bool:
 	return _chip.visible
 
 
-## A new report (a StaffMapStrikeText.report_model()). Own reports jump in at once, enemy reports
-## queue behind a card that is showing.
-func add(model: Dictionary) -> void:
+## A new report (a StaffMapStrikeText.report_model()), revealed after `delay` s (the strike's
+## impact on the map). Own reports jump in, enemy reports queue behind a card that is showing.
+func add(model: Dictionary, delay := REVEAL_DELAY) -> void:
 	_items.append(model)
 	if model["own"] or (_delay <= 0.0 and _mode != Mode.CARD):
 		_index = _items.size() - 1
-		_delay = REVEAL_DELAY
+		_delay = maxf(delay, 0.01)
 	elif _mode == Mode.CARD:
 		_card.present(_items[_index], _index, _items.size(), _index < _items.size() - 1)
 		_place()  # the "k OF n" counter grows

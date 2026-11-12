@@ -19,4 +19,5 @@ range_hexes = 400
 weapon_class = &"aeroballistic"
 side = 1
 platform = "fighter-launched (MiG-31K)"
+launcher_kind = &"fighter"
 designation = "Kh-47M2"

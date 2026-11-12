@@ -19,7 +19,7 @@ const MISS_MIN_PX := 20.0
 const MISS_MAX_PX := 34.0
 const STOP_FRACTION := StaffMapStrikeFlight.STOP_FRACTION
 ## The launch point is searched at this share of the weapon's range from the target.
-const STANDOFF_SHARE := 0.9
+const STANDOFF_SHARE := StrikeLaunch.STANDOFF_SHARE
 ## Outcome of a strike for the burst marker colour.
 const HIT := &"hit"
 const INTERCEPTED := &"intercepted"
@@ -36,74 +36,32 @@ var traces: Array[Dictionary] = []
 ## One impact / airburst / dust effect per missile: {strike, coord, outcome, player, class_id,
 ## start (clock time of the impact), seed, offset, destroyed, look, stop (as in traces)}.
 var bursts: Array[Dictionary] = []
+## One launcher marker per seen strike (TASK-147), oldest first: {strike, player, kind (String,
+## the event's `launcher_kind`), origin (Vector2i), to (Vector2i, the target hex: an aircraft
+## faces it), label (the means' `platform` text), start (clock time the marker appears), flight
+## (s from then to the last impact), cap (s, the end of the strike card's lifetime)}. Gone
+## markers are dropped on the next strike; at most StaffMapLauncherMarker.MAX_PER_HEX per hex and
+## MAX_MARKERS overall.
+var launchers: Array[Dictionary] = []
 ## Seconds since the first trace, advanced by the layer; arcs and effects are functions of it.
 var clock := 0.0
 
 var _launched := {}
 var _strike_seq := 0
 var _busy_until := 0.0
+var _last_impact := 0.0
 
 
-## The nearest hex (by hex distance) of a country that is own to `player`: the hex the range of a
-## strike is measured from. Ties go to the smaller (x, y). `target` itself when there is none.
+## The nearest own (border) hex to `target`: StrikeLaunch.origin (core, TASK-147).
 static func origin(state: OperationalState, player: int, target: Vector2i) -> Vector2i:
-	var own := {}
-	for country in state.countries:
-		own[country.id] = CountryRules.relation(state, player, country.id) == &"own"
-	var best := target
-	var best_distance := -1
-	for hex: Vector2i in state.country_map:
-		if not own.get(state.country_map[hex], false):
-			continue
-		var distance := Hex.distance(hex, target)
-		if (
-			best_distance < 0
-			or distance < best_distance
-			or (
-				distance == best_distance
-				and (hex.x < best.x or (hex.x == best.x and hex.y < best.y))
-			)
-		):
-			best = hex
-			best_distance = distance
-	return best
+	return StrikeLaunch.origin(state, player, target)
 
 
-## Where the missiles of a strike are launched from: a safe standoff point. Of the own hexes
-## within `range_hexes` of `target`, the one whose distance is closest to STANDOFF_SHARE of the
-## range (so a long-range weapon, with no own hex that far, fires from the farthest own hex in
-## range); ties go to the smaller x, then y. When no own hex is within range it is the nearest own
-## (border) hex, `origin()`; `target` itself when nothing is own.
+## The standoff launch point: StrikeLaunch.standoff_origin (core, TASK-147).
 static func launch_origin(
 	state: OperationalState, player: int, target: Vector2i, range_hexes: int
 ) -> Vector2i:
-	var border := origin(state, player, target)
-	if not _is_own(state, player, border):
-		return target
-	var wanted := range_hexes * STANDOFF_SHARE
-	var best := border
-	var best_gap := INF
-	for hex: Vector2i in state.country_map:
-		if not _is_own(state, player, hex):
-			continue
-		var distance := Hex.distance(hex, target)
-		if distance > range_hexes:
-			continue
-		var gap := absf(distance - wanted)
-		if (
-			gap < best_gap
-			or (gap == best_gap and (hex.x < best.x or (hex.x == best.x and hex.y < best.y)))
-		):
-			best = hex
-			best_gap = gap
-	return best
-
-
-static func _is_own(state: OperationalState, player: int, hex: Vector2i) -> bool:
-	return (
-		state.country_map.has(hex)
-		and CountryRules.relation(state, player, state.country_map[hex]) == &"own"
-	)
+	return StrikeLaunch.standoff_origin(state, player, target, range_hexes)
 
 
 ## The air-defence sites that counted against the strike as they were BEFORE `strike_resolved`
@@ -178,7 +136,7 @@ func on_event(state: OperationalState, viewer: int, event: Dictionary) -> bool:
 		&"strike_launched":
 			_launched[event["target"]] = event
 		&"strike_resolved":
-			return _add(state, event)
+			return _add(state, event, viewer)
 		&"operational_turn_started":
 			if (
 				int(event.get("player", -1)) == viewer
@@ -192,9 +150,11 @@ func on_event(state: OperationalState, viewer: int, event: Dictionary) -> bool:
 func clear() -> void:
 	traces.clear()
 	bursts.clear()
+	launchers.clear()
 	_launched.clear()
 	clock = 0.0
 	_busy_until = 0.0
+	_last_impact = 0.0
 
 
 func trace_count() -> int:
@@ -203,6 +163,16 @@ func trace_count() -> int:
 
 func burst_count() -> int:
 	return bursts.size()
+
+
+## The number of strikes added so far (grows by one per drawn strike, never reset by clear()).
+func strike_sequence() -> int:
+	return _strike_seq
+
+
+## Seconds from now to the last impact of the newest drawn strike (0 when it is past).
+func seconds_to_last_impact() -> float:
+	return maxf(_last_impact - clock, 0.0)
 
 
 func strike_count() -> int:
@@ -233,7 +203,7 @@ func animating() -> bool:
 	return clock < _busy_until
 
 
-func _add(state: OperationalState, event: Dictionary) -> bool:
+func _add(state: OperationalState, event: Dictionary, viewer := 0) -> bool:
 	var launched: Dictionary = _launched.get(event["target"], {})
 	_launched.erase(event["target"])
 	if launched.is_empty():
@@ -253,12 +223,7 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 	var assigned: Array[int] = []
 	assigned.resize(sites.size())
 	assigned.fill(0)
-	var means: StrikeMeansDefinition = state.strike_means.get(event["means"])
-	var from := (
-		launch_origin(state, player, to, means.range_hexes)
-		if means != null
-		else origin(state, player, to)
-	)
+	var from := _from(state, player, launched, event["means"], to)
 	_strike_seq += 1
 	var base := to.x * 977 + to.y * 131 + _strike_seq * 53
 	var first_trace := {}
@@ -267,10 +232,12 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 		last_hit = outcomes.size() - 1
 	var duration := look.duration(Hex.distance(from, to))
 	var intercept_index := 0
+	var flight_end := clock
+	var lead_in := StaffMapLauncherMarker.lead_in(launched.get("launcher_kind", ""))
 	for i in outcomes.size():
 		var result: StringName = outcomes[i]
 		var variance := variation(base, i)
-		var start := clock + float(variance["delay"])
+		var start := clock + lead_in + float(variance["delay"])
 		var trace := {
 			"strike": _strike_seq,
 			"player": player,
@@ -323,6 +290,7 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 				trace["offset"] = spread * 14.0
 				burst["offset"] = trace["offset"]
 				intercept_index += 1
+		flight_end = maxf(flight_end, start + duration)
 		if first_trace.is_empty():
 			first_trace = trace
 		traces.append(trace)
@@ -330,8 +298,94 @@ func _add(state: OperationalState, event: Dictionary) -> bool:
 		_busy_until = maxf(_busy_until, float(burst["start"]) + effect_seconds(burst))
 	first_trace["marks"] = _marks(sites, assigned)
 	first_trace["more"] = StaffMapStrikeFlight.hidden_count(all_outcomes.size())
+	_last_impact = flight_end
+	_add_launcher(state, launched, event["means"], from, flight_end - clock, player == viewer)
 	_trim()
 	return true
+
+
+## The launcher marker of a strike at its launch hex (TASK-147).
+func _add_launcher(
+	state: OperationalState,
+	launched: Dictionary,
+	means_id: StringName,
+	from: Vector2i,
+	flight: float,
+	own: bool
+) -> void:
+	launchers = launchers.filter(func(marker: Dictionary) -> bool: return launcher_alive(marker))
+	var on_hex := launchers.filter(
+		func(marker: Dictionary) -> bool: return marker["origin"] == from
+	)
+	if on_hex.size() >= StaffMapLauncherMarker.MAX_PER_HEX:
+		launchers.erase(on_hex[0])
+	if launchers.size() >= StaffMapLauncherMarker.MAX_MARKERS:
+		launchers.pop_front()
+	var means: StrikeMeansDefinition = state.strike_means.get(means_id)
+	var marker := {
+		"strike": _strike_seq,
+		"player": int(launched.get("player", 0)),
+		"kind": str(launched.get("launcher_kind", "")),
+		"origin": from,
+		"to": launched.get("coord", from),
+		"label": means.platform if means != null else "",
+		"start": clock,
+		"flight": flight,
+		"cap": StaffMapLauncherMarker.toast_cap(own, flight),
+	}
+	launchers.append(marker)
+	_busy_until = maxf(_busy_until, clock + launcher_end(marker))
+
+
+## Seconds a marker lives after its launch (an aircraft until its U-turn is flown).
+static func launcher_end(marker: Dictionary) -> float:
+	return StaffMapLauncherMarker.end_for(
+		marker["kind"], float(marker["flight"]), float(marker["cap"])
+	)
+
+
+## Seconds since a marker's launch, at the current clock.
+func launcher_age(marker: Dictionary) -> float:
+	return clock - float(marker["start"])
+
+
+## The marker's lifetime alpha at the current clock (stack fading not included).
+func launcher_alpha(marker: Dictionary) -> float:
+	return StaffMapLauncherMarker.alpha_at(
+		launcher_age(marker), float(marker["flight"]), float(marker["cap"])
+	)
+
+
+func launcher_alive(marker: Dictionary) -> bool:
+	return launcher_age(marker) < launcher_end(marker)
+
+
+## The markers shown now, newest first, each with its `slot` in its hex's stack (0 = newest):
+## [{marker, slot}].
+func visible_launchers() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var slots := {}
+	for i in range(launchers.size() - 1, -1, -1):
+		var marker := launchers[i]
+		if not launcher_alive(marker):
+			continue
+		var slot: int = slots.get(marker["origin"], 0)
+		slots[marker["origin"]] = slot + 1
+		list.append({"marker": marker, "slot": slot})
+	return list
+
+
+## The launch hex: the event's `origin` (TASK-147); older events without it get the standoff point
+## of the means (the border hex for an unknown means).
+static func _from(
+	state: OperationalState, player: int, launched: Dictionary, means_id: StringName, to: Vector2i
+) -> Vector2i:
+	if launched.get("origin") is Vector2i:
+		return launched["origin"]
+	var means: StrikeMeansDefinition = state.strike_means.get(means_id)
+	if means == null:
+		return origin(state, player, to)
+	return launch_origin(state, player, to, means.range_hexes)
 
 
 ## The interception marks: every contributing site, with the missiles it stopped.

@@ -44,7 +44,7 @@ func _strike_once() -> StaffMapStrikeReports:
 			hud.click(target["id"])
 			break
 	hud.confirm()
-	hud.reports().tick(0.5)
+	hud.reports().tick(10.0)  # revealed after the impact (TASK-147)
 	return hud.reports()
 
 

@@ -48,6 +48,7 @@ var _reports: StaffMapStrikeReports
 var _pending := {}  # the strike_resolved being completed by the events of its command
 var _stock_event := {}
 var _launched := {}
+var _reported_seq := 0  # the trail's strike sequence when the last report was made
 var _names := {}  # formation id -> {name, max}: a destroyed formation is gone from the state
 
 
@@ -322,7 +323,7 @@ func flush_report() -> void:
 		return
 	var event := _pending
 	_pending = {}
-	_reports.add(StaffMapStrikeText.report_model(_simulation.state, event, _trail))
+	_reports.add(StaffMapStrikeText.report_model(_simulation.state, event, _trail), _reveal_delay())
 	_snapshot_names()
 
 
@@ -436,6 +437,16 @@ func _collect_report(event: Dictionary) -> void:
 					_pending["suppression"] = event
 			elif not type in TAIL_EVENTS:
 				flush_report()
+
+
+## The card waits until the strike's last impact was seen on the map (TASK-147); a strike the
+## trail did not draw (fog) uses the default delay.
+func _reveal_delay() -> float:
+	var delay := StaffMapStrikeReports.REVEAL_DELAY
+	if _trail.strike_sequence() > _reported_seq:
+		_reported_seq = _trail.strike_sequence()
+		delay = _trail.seconds_to_last_impact() + StaffMapStrikeReports.IMPACT_REVEAL_SECONDS
+	return delay
 
 
 func _snapshot_names() -> void:

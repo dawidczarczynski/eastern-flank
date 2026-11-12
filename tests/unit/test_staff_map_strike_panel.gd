@@ -315,7 +315,7 @@ func test_salvo_heads_are_drawn_without_extra_nodes() -> void:
 		var trail: StaffMapStrikeTrail = made[1]
 		assert_eq(layer.get_child_count(), 0)
 		assert_eq(layer.heads().size(), 0, "nothing flies before the clock runs")
-		trail.clock = 0.6
+		trail.clock = StaffMapLauncherMarker.LEAD_IN_SECONDS + 1.5  # the whole salvo is up
 		var heads := layer.heads()
 		assert_eq(heads.size(), case[2], "%s x%d" % [case[0], case[1]])
 		assert_eq(layer.get_child_count(), 0, "no node per missile")
@@ -330,7 +330,7 @@ func test_salvo_heads_are_drawn_without_extra_nodes() -> void:
 func test_weapon_without_a_look_still_flies_with_the_default() -> void:
 	var made := _layer(_state(), &"home_made", 2)
 	var trail: StaffMapStrikeTrail = made[1]
-	trail.clock = 0.6
+	trail.clock = StaffMapLauncherMarker.LEAD_IN_SECONDS + 0.6
 	assert_eq((made[0] as StaffMapStrikeLayer).heads().size(), 2)
 	(made[0] as StaffMapStrikeLayer).free()
 

@@ -19,4 +19,5 @@ range_hexes = 60
 weapon_class = &"ballistic"
 side = 0
 platform = "truck launcher (HIMARS)"
+launcher_kind = &"launcher"
 designation = "MGM-140 (M39 / M57)"

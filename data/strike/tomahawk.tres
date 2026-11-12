@@ -19,4 +19,5 @@ range_hexes = 320
 weapon_class = &"cruise"
 side = 0
 platform = "ship / submarine-launched (US Navy)"
+launcher_kind = &"ship"
 designation = "BGM-109 Block V"

@@ -103,7 +103,7 @@ func test_debug_strike_lowers_bar_and_stock_line() -> void:
 	panel.press_stock(player, &"cruise", 1)
 	assert_eq(StrikeRules.stock(state, player, &"cruise"), before_stock + 1)
 	panel.press_strike(player, &"cruise", 2, target)
-	_map.strike_hud().tick(0.5)  # the result report card (it replaced the toast)
+	_map.strike_hud().tick(10.0)  # the result report card (it replaced the toast)
 	var message := _map.strike_hud().reports().card().tooltip_text
 	assert_eq(StrikeRules.stock(state, player, &"cruise"), before_stock - 1, message)
 	var installation := state.get_installation(target)

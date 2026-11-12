@@ -277,7 +277,7 @@ func test_enter_on_a_strike_report_opens_the_journal_at_the_strike_entry() -> vo
 			hud.click(target["id"])
 			break
 	hud.confirm()
-	hud.reports().tick(0.5)
+	hud.reports().tick(10.0)  # revealed after the impact (TASK-147)
 	assert_true(hud.reports().card_visible())
 	assert_true(hud.handle_report_key(KEY_ENTER))
 	var window := _map.journal_window()

@@ -590,9 +590,10 @@ func _apply_staff_map_state(spec: String) -> void:
 					strike.click(StringName(parts[2]))
 					if parts.size() > 3 and parts[3] == "fire":
 						strike.confirm()
-						strike.trail().clock = 1.0  # no frames run: arcs done, effects playing
+						var trail := strike.trail()  # no frames run: arcs done, effects playing
+						trail.clock += trail.seconds_to_last_impact() + 0.3
 						strike.layer().layout()
-						strike.tick(0.5)  # the result report card appears after the burst
+						strike.tick(30.0)  # the result report card appears after the impact
 						strike.tick(0.2)
 						if parts.size() > 4 and parts[4] == "chip":
 							strike.tick(10.0)  # the collapsed chip instead of the card

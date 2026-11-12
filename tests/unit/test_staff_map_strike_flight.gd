@@ -41,8 +41,8 @@ func test_points_grow_with_progress() -> void:
 
 func test_stagger_offsets() -> void:
 	assert_eq(StaffMapStrikeFlight.stagger(0), 0.0)
-	assert_true(absf(StaffMapStrikeFlight.stagger(1) - 0.08) < 0.0001)
-	assert_true(absf(StaffMapStrikeFlight.stagger(5) - 0.40) < 0.0001)
+	assert_true(absf(StaffMapStrikeFlight.stagger(1) - 0.25) < 0.0001)
+	assert_true(absf(StaffMapStrikeFlight.stagger(5) - 1.25) < 0.0001)
 
 
 func test_drawn_indices_cap_at_six_and_spread() -> void:

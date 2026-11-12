@@ -8,7 +8,7 @@
 script = ExtResource("1_look")
 glyph = &"ballistic"
 trail_color = Color(1.0, 0.9, 0.75, 0.30)
-speed_hexes_per_s = 170.0
+speed_hexes_per_s = 32.0
 arc_height = 0.4
 wobble = 0.0
 trail_length = 0.3

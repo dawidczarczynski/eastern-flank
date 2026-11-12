@@ -19,4 +19,5 @@ range_hexes = 110
 weapon_class = &"cruise"
 side = 0
 platform = "fighter-launched (allied)"
+launcher_kind = &"fighter"
 designation = "SCALP-EG"

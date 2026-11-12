@@ -130,6 +130,13 @@ static func in_range(
 	return false
 
 
+## The launch hex of a strike (TASK-147): see StrikeLaunch.launch_origin. Pure, no rng draw.
+static func launch_origin(
+	state: OperationalState, player: int, means_id: StringName, target_coord: Vector2i
+) -> Vector2i:
+	return StrikeLaunch.launch_origin(state, player, means_id, target_coord)
+
+
 ## "" when `player` may strike the target (with `means_id` when given), else why not, in this
 ## order: `unknown_target`, `target_destroyed`, `own_soil` / `closed_country` / `roe_class`
 ## (EscalationRules.strike_allowed), `out_of_range`.

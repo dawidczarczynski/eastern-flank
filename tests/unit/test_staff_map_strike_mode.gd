@@ -192,7 +192,7 @@ func test_confirm_strikes_and_updates_the_view() -> void:
 	assert_eq(state.escalation_level, 3, "the sanctuary breach")
 	var reports := hud.reports()
 	assert_eq(reports.count(), 1, "the result report replaces the toast")
-	reports.tick(0.5)
+	reports.tick(10.0)  # revealed after the impact on the map
 	assert_true(reports.card_visible())
 	var texts := reports.card().texts()
 	assert_true(texts.has("CRUISE MISSILE"), str(texts))
@@ -312,7 +312,9 @@ func test_a_strike_creates_one_report_card_and_x_dismisses_it() -> void:
 	assert_eq(reports.count(), 1)
 	assert_false(reports.card_visible(), "the burst plays first")
 	hud.tick(0.5)
-	assert_true(reports.card_visible())
+	assert_false(reports.card_visible(), "TASK-147: the card waits for the launch and the flight")
+	hud.tick(hud.trail().seconds_to_last_impact() + 0.9)
+	assert_true(reports.card_visible(), "0.8 s after the last impact")
 	assert_true(reports.card().get_global_rect().position.x >= 0.0)
 	reports.card().close_button().pressed.emit()
 	assert_false(reports.card_visible())
@@ -326,7 +328,7 @@ func test_the_chip_goes_with_the_trail() -> void:
 	var hud := _open(&"cruise")
 	hud.click(_airfield(0))
 	hud.confirm()
-	hud.tick(0.5)
+	hud.tick(10.0)
 	assert_false(hud.handle_report_key(KEY_J), "J is the journal's")
 	hud.reports().collapse()
 	assert_true(hud.reports().chip_visible())
@@ -349,7 +351,7 @@ func test_enemy_strikes_queue_as_reports_without_stock() -> void:
 	assert_true(_map.simulation().execute(StrikeCommand.new(&"cruise", targets[0], 1)))
 	assert_true(_map.simulation().execute(StrikeCommand.new(&"cruise", targets[0], 1)))
 	var hud := _map.strike_hud()
-	hud.tick(0.5)  # completes the last report and reveals the first
+	hud.tick(10.0)  # completes the last report and reveals the first
 	var reports := hud.reports()
 	assert_eq(reports.count(), 2)
 	assert_true(reports.card_visible())

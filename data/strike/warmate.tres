@@ -19,4 +19,5 @@ range_hexes = 10
 weapon_class = &"loitering"
 side = 0
 platform = "tube launcher"
+launcher_kind = &"drone_site"
 designation = "WB Warmate"

@@ -19,4 +19,5 @@ range_hexes = 500
 weapon_class = &"cruise"
 side = 1
 platform = "bomber-launched (Tu-95MS / Tu-160)"
+launcher_kind = &"bomber"
 designation = "Kh-101"

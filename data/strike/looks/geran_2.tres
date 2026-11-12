@@ -8,7 +8,7 @@
 script = ExtResource("1_look")
 glyph = &"drone"
 trail_color = Color(0.6, 0.55, 0.4, 0.4)
-speed_hexes_per_s = 45.0
+speed_hexes_per_s = 10.0
 arc_height = 0.02
 wobble = 0.6
 trail_length = 0.4

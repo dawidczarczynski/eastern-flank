@@ -334,7 +334,7 @@ func test_report_line_after_the_hit() -> void:
 	hud.click(AD_RU)
 	hud.confirm()
 	var reports := hud.reports()
-	reports.tick(0.5)
+	reports.tick(10.0)  # revealed after the impact (TASK-147)
 	assert_true(reports.card_visible())
 	var found := false
 	for text in reports.card().texts():

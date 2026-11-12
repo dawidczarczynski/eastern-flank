@@ -10,8 +10,9 @@ const GLYPHS: Array[StringName] = [&"missile", &"ballistic", &"drone", &"rocket"
 const WARHEADS: Array[StringName] = [&"blast", &"heavy_blast", &"small", &"cluster"]
 const ARC_MIN := 0.02
 const ARC_MAX := 0.45
-const DURATION_MIN := 0.3
-const DURATION_MAX := 2.0
+## Flight time limits (s): slow enough to follow a missile by eye (TASK-147 playtest).
+const DURATION_MIN := 1.2
+const DURATION_MAX := 4.0
 
 ## One of GLYPHS (StaffMapWeaponGlyph draws it).
 @export var glyph: StringName = &"missile"
@@ -19,7 +20,7 @@ const DURATION_MAX := 2.0
 ## (alpha 0 = the plain side colour, 1 = this colour), so the palette stays the side's.
 @export var trail_color: Color = Color(1, 1, 1, 0.0)
 ## Flight speed in hexes per second; the duration is distance / speed, clamped DURATION_MIN .. MAX.
-@export_range(1.0, 1000.0) var speed_hexes_per_s: float = 80.0
+@export_range(1.0, 1000.0) var speed_hexes_per_s: float = 12.0
 ## Height of the arc's apex as a fraction of the flight distance.
 @export_range(0.02, 0.45) var arc_height: float = 0.03
 ## Sideways wobble of the flight, 0 (straight) to 1 (drones).

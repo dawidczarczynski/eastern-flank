@@ -4,7 +4,8 @@ extends Control
 ## draw calls): the glow / dim rings of the targets while the mode is open, and the strike trail:
 ## one trace per missile (flies for the weapon's duration with its arc, wobble and glyph head, then
 ## stays as a faint trace), an animated effect
-## where each ends (StaffMapStrikeFx) and interception marks on the air-defence sites. The
+## where each ends (StaffMapStrikeFx), interception marks on the air-defence sites and the
+## launcher marker at each launch hex (TASK-147: silhouette, launch tick, side chip, label). The
 ## data comes from StaffMapStrikeHud (targets) and StaffMapStrikeTrail (traces, bursts); the layer
 ## only reads them and re-draws when the camera moved (`layout`) or an arc grows.
 
@@ -21,6 +22,8 @@ var _screen_of_hex: Callable  # (Vector2i) -> Vector2
 var _trail: StaffMapStrikeTrail
 var _targets: Array[Dictionary] = []  # {coord, installation: bool, status, hovered}
 var _viewer := 0
+var _labels := true
+var _label_font: Font
 
 
 func _init() -> void:
@@ -56,6 +59,17 @@ func status_at(coord: Vector2i) -> StringName:
 	return &""
 
 
+## Launcher labels only at the zoom levels where counters are labelled (Z1 / Z2).
+func set_labels(shown: bool) -> void:
+	if shown != _labels:
+		_labels = shown
+		queue_redraw()
+
+
+func labels_shown() -> bool:
+	return _labels
+
+
 ## The camera moved or the trail changed: redraw, and animate while an arc grows.
 func layout() -> void:
 	set_process(_trail != null and _trail.animating())
@@ -74,6 +88,9 @@ func _draw() -> void:
 		return
 	for target in _targets:
 		_draw_target(target)
+	var markers := _trail.visible_launchers()
+	for i in range(markers.size() - 1, -1, -1):  # the newest on top
+		_draw_launcher(markers[i]["marker"], int(markers[i]["slot"]))
 	for trace in _trail.traces:
 		_draw_trace(trace)
 	for burst in _trail.bursts:
@@ -283,3 +300,142 @@ func burst_colour(outcome: StringName) -> Color:
 		StaffMapStrikeTrail.INTERCEPTED:
 			return _palette.ui_amber
 	return UiPalette.HUD_MUTED
+
+
+## One launcher marker (variant B): the launch tick on the launch hex centre with its single pulse,
+## the silhouette 6 px above it (pop-in, map.void halo), the side chip at its top-left and the
+## platform label under the tick; stacked markers sit up-right of the newest, fainter. An aircraft
+## is not parked: it flies in from behind the launch point facing the target, launches and turns
+## away (StaffMapLauncherFlyover); its tick and label stay at the launch point.
+func _draw_launcher(marker: Dictionary, slot: int) -> void:
+	var age := _trail.launcher_age(marker)
+	var kind: Variant = marker["kind"]
+	var aircraft := StaffMapLauncherFlyover.is_aircraft(kind)
+	var alpha := _trail.launcher_alpha(marker)
+	if not aircraft:
+		alpha *= StaffMapLauncherMarker.stack_alpha(slot)
+	var player := int(marker["player"])
+	var colour := StaffMapFormations.side_colour(_palette, player)
+	var tick: Vector2 = _screen_of_hex.call(marker["origin"])
+	if slot == 0 and alpha > 0.0:
+		var pulse_age := age - (StaffMapLauncherMarker.lead_in(kind) if aircraft else 0.0)
+		_draw_tick(tick, StaffMapLauncherMarker.pulse(pulse_age), alpha)
+	if aircraft:
+		var flyover := StaffMapLauncherFlyover.variant(int(marker.get("strike", 0)))
+		var target: Vector2 = _screen_of_hex.call(marker.get("to", marker["origin"]))
+		var pose := StaffMapLauncherFlyover.pose(
+			age, tick, target, flyover["side"], flyover["lateral"]
+		)
+		var plane_alpha := float(pose["alpha"])
+		if plane_alpha > 0.0:
+			var heading: Vector2 = pose["heading"]
+			_draw_glyph(kind, pose["at"], heading.angle(), 1.0, colour, plane_alpha)
+			var corner: Vector2 = pose["at"] - Vector2.ONE * StaffMapLauncherMarker.GLYPH_PX * 0.5
+			_draw_side_chip(
+				corner, player, Color(colour, plane_alpha), Color(_palette.map_void, plane_alpha)
+			)
+	elif alpha > 0.0:
+		var box := StaffMapLauncherMarker.glyph_rect(StaffMapLauncherMarker.pop_scale(age))
+		box.position += tick + StaffMapLauncherMarker.stack_offset(slot)
+		var scale := box.size.x / StaffMapLauncherMarker.GLYPH_PX
+		_draw_glyph(kind, box.get_center(), 0.0, scale, colour, alpha)
+		_draw_side_chip(box.position, player, Color(colour, alpha), Color(_palette.map_void, alpha))
+	if _labels and slot == 0 and alpha > 0.0 and str(marker["label"]) != "":
+		_draw_launcher_label(tick, TranslationServer.translate(marker["label"]), alpha)
+
+
+## The launch tick ring and its pulse ({radius, alpha} of StaffMapLauncherMarker.pulse).
+func _draw_tick(tick: Vector2, ring: Dictionary, alpha: float) -> void:
+	var width := StaffMapLauncherMarker.TICK_WIDTH
+	var ink := Color(_palette.ui_text, alpha)
+	draw_arc(tick, StaffMapLauncherMarker.TICK_RADIUS, 0.0, TAU, 20, ink, width, true)
+	if float(ring["alpha"]) > 0.0:
+		var pulse := Color(_palette.ui_text, float(ring["alpha"]) * alpha)
+		draw_arc(tick, ring["radius"], 0.0, TAU, 24, pulse, width, true)
+
+
+## A launcher silhouette of GLYPH_PX * `scale` centred on `centre`, its nose turned to `angle`
+## (0 = the drawing's nose to the right), filled in `colour` over a map.void halo.
+func _draw_glyph(
+	kind: Variant, centre: Vector2, angle: float, scale: float, colour: Color, alpha: float
+) -> void:
+	var shape := StaffMapLauncherGlyphs.shape(kind)
+	var halo := Color(_palette.map_void, alpha)
+	var fill := Color(colour, alpha)
+	var factor := StaffMapLauncherMarker.GLYPH_PX * scale / StaffMapLauncherGlyphs.BOX
+	var fills: Array[PackedVector2Array] = []
+	for polygon: PackedVector2Array in shape["fills"]:
+		fills.append(_placed(polygon, centre, factor, angle))
+	for polygon in fills:
+		var ring := polygon.duplicate()
+		ring.append(polygon[0])
+		draw_polyline(ring, halo, StaffMapLauncherMarker.HALO_PX, true)
+	for polygon in fills:
+		draw_colored_polygon(polygon, fill)
+	for polygon: PackedVector2Array in shape["cutouts"]:
+		draw_colored_polygon(_placed(polygon, centre, factor, angle), halo)
+
+
+## A polygon of the 24-unit glyph box scaled, turned about the box centre and centred on `centre`.
+static func _placed(
+	polygon: PackedVector2Array, centre: Vector2, scale: float, angle := 0.0
+) -> PackedVector2Array:
+	var middle := Vector2.ONE * StaffMapLauncherGlyphs.BOX * 0.5
+	var points := PackedVector2Array()
+	points.resize(polygon.size())
+	for i in polygon.size():
+		points[i] = centre + ((polygon[i] - middle) * scale).rotated(angle)
+	return points
+
+
+## The mini side chip at the glyph's top-left: own rectangle 9 x 6.5, enemy diamond 9 x 9 (as
+## drawn in the mockup); the shape follows the side colour (StaffMapFormations.side_colour).
+func _draw_side_chip(corner: Vector2, player: int, fill: Color, halo: Color) -> void:
+	var points: PackedVector2Array
+	if player == 0:
+		var at := corner + Vector2(-3.0, -3.0)
+		points = PackedVector2Array(
+			[at, at + Vector2(9.0, 0.0), at + Vector2(9.0, 6.5), at + Vector2(0.0, 6.5)]
+		)
+	else:
+		var c := corner + Vector2(1.5, 1.0)
+		points = PackedVector2Array(
+			[c + Vector2(0, -4.5), c + Vector2(4.5, 0), c + Vector2(0, 4.5), c + Vector2(-4.5, 0)]
+		)
+	draw_colored_polygon(points, fill)
+	var ring := points.duplicate()
+	ring.append(points[0])
+	draw_polyline(ring, halo, 1.2, true)
+
+
+## The platform label centred under the launch tick (IBM Plex Sans Condensed 500 11, 3 px halo).
+func _draw_launcher_label(tick: Vector2, text: String, alpha: float) -> void:
+	if _label_font == null:
+		_label_font = HudTheme.font("IBMPlexSansCondensed-Medium")
+	var size := StaffMapLauncherMarker.LABEL_SIZE
+	var width := _label_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var top := (
+		StaffMapLauncherMarker.TICK_RADIUS
+		+ StaffMapLauncherMarker.LABEL_GAP
+		+ _label_font.get_ascent(size)
+	)
+	var origin := tick + Vector2(-width * 0.5, top)
+	draw_string_outline(
+		_label_font,
+		origin,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		size,
+		StaffMapLauncherMarker.LABEL_HALO_PX,
+		Color(StaffMapPlaceLayer.HALO, alpha)
+	)
+	draw_string(
+		_label_font,
+		origin,
+		text,
+		HORIZONTAL_ALIGNMENT_LEFT,
+		-1,
+		size,
+		Color(_palette.ui_text, alpha)
+	)
