@@ -166,6 +166,8 @@ func refresh(state: OperationalState, viewer: int, allowed: bool) -> bool:
 	var places: Array[Vector2i] = []
 	for entry in _entries:
 		places.append(entry["at"])
+	queue.place_namer = place_namer
+	notice.place_namer = place_namer
 	queue.show_places(places)
 	notice.present(
 		state,

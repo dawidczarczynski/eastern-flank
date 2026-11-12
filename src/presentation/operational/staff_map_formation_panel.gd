@@ -37,6 +37,8 @@ class Gauge:
 		StaffMapCounter.draw_segments(self, Vector2.ZERO, lit, colour, unlit, SCALE)
 
 
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
 var formation_id: StringName = &""
 var hostile := false
 
@@ -123,7 +125,7 @@ func show_formation(
 		StaffMapFormations.strength_colour(current, maximum, palette),
 		Color(palette.ui_muted, 0.3)
 	)
-	_values["Location"].text = tr("HEX %s") % _hex_text(formation.coord)
+	_values["Location"].text = _place_text(formation.coord, true)
 	_companies_caption.text = tr("COMPANIES").to_upper()
 	_fill_companies(formation)
 	show()
@@ -149,7 +151,9 @@ func show_order(formation: Formation) -> void:
 	var budget := OperationalOrders.budget(formation, posture) if posture != null else move_points
 	(_values["POINTS"] as Label).text = "%d / %d" % [budget, move_points]
 	(_values["ORDER"] as Label).text = (
-		tr("ORDER_NONE") if formation.order == null else _hex_text(formation.order.destination)
+		tr("ORDER_NONE")
+		if formation.order == null
+		else _place_text(formation.order.destination, false)
 	)
 	_order_box.show()
 	reset_size()
@@ -188,6 +192,14 @@ func company_text(index: int) -> String:
 			if child is Label:
 				parts.append((child as Label).text)
 	return "  ".join(parts)
+
+
+## The place name of a hex, else its number ("HEX 06·01" when `prefixed`).
+func _place_text(c: Vector2i, prefixed: bool) -> String:
+	var named := StaffMapPlaceName.named(place_namer, c)
+	if named != "":
+		return named
+	return tr("HEX %s") % _hex_text(c) if prefixed else _hex_text(c)
 
 
 ## The axial coordinate as the hex card shows it ("col·row", 1-based offset).
@@ -256,6 +268,9 @@ func _row(caption: String) -> Control:
 		row.add_child(_gauge)
 	var value := _label(HudTheme.mono(600), ROW_SIZE, UiPalette.HUD_TEXT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	if caption in ["Location", "ORDER"]:  # place names can be long: wrap them
+		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		value.custom_minimum_size.x = 150.0
 	_values[caption] = value
 	row.add_child(value)
 	return row

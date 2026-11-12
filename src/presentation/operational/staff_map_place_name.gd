@@ -10,6 +10,12 @@ const COMPASS: Array[String] = [
 const NEAR_KM := 1.5
 
 
+## The place name of `coord` through `namer` ((Vector2i) -> String, set by the panel's owner), or ""
+## when there is no namer or no name: the caller then falls back to the hex number.
+static func named(namer: Callable, coord: Vector2i) -> String:
+	return String(namer.call(coord)) if namer.is_valid() else ""
+
+
 ## Translated "Place, N km direction" of the place nearest to `coord`; "" when the map has none.
 static func describe(map: ImportedMap, coord: Vector2i) -> String:
 	if map == null or map.place_count() == 0:

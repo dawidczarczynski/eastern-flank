@@ -19,6 +19,8 @@ const RELATION_TEXT := {
 	&"neutral": "Neutral",
 }
 
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
 var _tab: Label
 var _name_label: Label
 var _values: Array[Label] = []
@@ -32,6 +34,7 @@ static func info(grid: HexGrid, c: Vector2i, country := "") -> Dictionary:
 	return {
 		"name": Terrain.definition(grid.get_terrain(c)).display_name,
 		"hex": "%02d·%02d" % [offset.x + 1, offset.y + 1],
+		"coord": c,
 		"elevation": "%d m" % roundi(metres),
 		"road": grid.road_links(c) != 0,
 		"river": grid.river_links(c) != 0,
@@ -74,7 +77,10 @@ func _init() -> void:
 
 ## Fills the strip from `info()` and shows it.
 func show_info(data: Dictionary) -> void:
-	_tab.text = (tr("HEX %s") % data["hex"]).to_upper()
+	var named := StaffMapPlaceName.named(place_namer, data["coord"]) if data.has("coord") else ""
+	_tab.text = (named if named != "" else tr("HEX %s") % data["hex"]).to_upper()
+	_tab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if named != "" else TextServer.AUTOWRAP_OFF
+	_tab.custom_minimum_size.x = 150.0 if named != "" else 0.0
 	_name_label.text = tr(data["name"] as String).to_upper()
 	_values[0].text = data["elevation"]
 	_values[1].text = _yes_no(data["road"])

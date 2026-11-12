@@ -19,6 +19,8 @@ const CARD_SIZE := Vector2(60, 52)
 const COUNTER_AT := Vector2(30, 24)
 const ALERT := Color("#e07c5e")
 
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
 var _palette: StaffMapPalette
 var _title: Label
 var _counter_boxes: Array[Control] = []
@@ -95,9 +97,12 @@ func present(
 	_captions["LOCATION"].text = tr("Location").to_upper()
 	_captions["FORCES"].text = tr("CONTACT_FORCES").to_upper()
 	_captions["MISSION"].text = tr("CONTACT_MISSION").to_upper()
-	_rows["LOCATION"].text = ("%s · %s" % [hex_text(at), terrain_name(setup.terrain)]).to_upper()
+	var here := place_name if place_name != "" else hex_text(at)
+	_rows["LOCATION"].text = ("%s · %s" % [here, terrain_name(setup.terrain)]).to_upper()
 	_rows["FORCES"].text = "%d : %d" % [totals.x, totals.y]
-	_rows["MISSION"].text = mission_text(setup.missions[setup.attacker]).to_upper()
+	_rows["MISSION"].autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_rows["MISSION"].custom_minimum_size.x = 280.0
+	_rows["MISSION"].text = mission_text(setup.missions[setup.attacker], place_namer).to_upper()
 	_play.text = tr("CONTACT_PLAY").to_upper() + "  [B]"
 	_auto.text = tr("CONTACT_AUTO").to_upper()
 	set_play_problem("")
@@ -148,22 +153,23 @@ static func terrain_name(id: StringName) -> String:
 
 
 ## "Attack · Advance to hex 06·01" – the task and the intent of a mission.
-static func mission_text(mission: BattleSetup.Mission) -> String:
+static func mission_text(mission: BattleSetup.Mission, namer := Callable()) -> String:
 	if mission == null:
 		return "?"
-	var intent := intent_text(mission)
+	var intent := intent_text(mission, namer)
 	var task := TranslationServer.translate("MISSION_TASK_" + String(mission.task).to_upper())
 	return "%s · %s" % [task, intent] if intent != "" else task
 
 
 ## "Advance to hex 06·01" – the leader's order behind a mission (its intent); "" without one.
-static func intent_text(mission: BattleSetup.Mission) -> String:
+static func intent_text(mission: BattleSetup.Mission, namer := Callable()) -> String:
 	if mission == null or mission.intent_key == "":
 		return ""
 	var intent := TranslationServer.translate(mission.intent_key)
 	if mission.intent_args.size() >= 2:
 		var hex := Vector2i(int(mission.intent_args[0]), int(mission.intent_args[1]))
-		intent += " " + hex_text(hex)
+		var named := StaffMapPlaceName.named(namer, hex)
+		intent += " " + (named if named != "" else hex_text(hex))
 	return intent
 
 
@@ -351,6 +357,9 @@ func _row(key: String) -> Control:
 	row.add_child(rule)
 	var value := MenuStyle.label("", HudTheme.mono(500, 0), 11, UiPalette.HUD_TEXT)
 	value.name = key.capitalize()
+	if key == "LOCATION":  # a place name with distance and direction can be long: wrap it
+		value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		value.custom_minimum_size.x = 280.0
 	row.add_child(value)
 	_rows[key] = value
 	_captions[key] = caption

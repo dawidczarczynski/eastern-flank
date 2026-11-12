@@ -6,6 +6,9 @@ extends FramedPanel
 const WIDTH := 200.0
 const ROW_SIZE := 11
 
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
+
 var _column: VBoxContainer
 var _rows: Array[Label] = []
 
@@ -26,6 +29,13 @@ func _init() -> void:
 	hide()
 
 
+## The words of a hex: the place name when `place_namer` ((Vector2i) -> String, set by the owner)
+## gives one, else "HEX x,y".
+func place_text(coord: Vector2i) -> String:
+	var named := StaffMapPlaceName.named(place_namer, coord)
+	return named if named != "" else tr("HEX %s") % StaffMapContactNotice.hex_text(coord)
+
+
 ## One row per hex in `places` (axial coordinates of the defenders' hexes, first = active).
 func show_places(places: Array[Vector2i]) -> void:
 	for row in _rows:
@@ -36,12 +46,11 @@ func show_places(places: Array[Vector2i]) -> void:
 	tab_right_text = str(places.size())
 	for i in places.size():
 		var key := "CONTACT_NOW" if i == 0 else ("CONTACT_NEXT" if i == 1 else "CONTACT_LATER")
-		var text := (
-			"%s HEX %s  -  %s"
-			% ["▸" if i == 0 else " ", StaffMapContactNotice.hex_text(places[i]), tr(key)]
-		)
+		var text := "%s %s  -  %s" % ["▸" if i == 0 else " ", place_text(places[i]), tr(key)]
 		var colour := UiPalette.HUD_TEXT if i == 0 else UiPalette.HUD_MUTED
 		var row := MenuStyle.label(text.to_upper(), HudTheme.mono(500, 0), ROW_SIZE, colour)
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.custom_minimum_size.x = WIDTH - 24.0
 		_column.add_child(row)
 		_rows.append(row)
 	show()

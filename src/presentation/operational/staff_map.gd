@@ -717,6 +717,11 @@ func set_viewer(player: int) -> void:
 		select_formation(_panel.formation_id, true)
 
 
+## Place-based name of a hex ("Suwałki, 5 km east"), shared by the report and the contacts.
+func _place_name(c: Vector2i) -> String:
+	return StaffMapPlaceName.describe(_imported, c)
+
+
 func turn_bar() -> StaffMapTurnBar:
 	return _turn_bar
 
@@ -1229,6 +1234,8 @@ func _refresh_contacts() -> void:
 		_centre_on_hex(_contacts.active_hex())
 	if _contacts.is_active() and _report != null:
 		_report.close()  # the contact notice has the screen; the report would lie under it
+	elif not _contacts.is_active():
+		_show_new_report()  # the report that waited for the contact notice to go
 	_place_queue()
 	_contacts.layout()
 
@@ -1471,6 +1478,8 @@ func _show_report() -> void:
 
 ## Opens the report of the viewed side's last move once, when it is new (not during the slide).
 func _show_new_report() -> void:
+	if _contacts != null and _contacts.is_active():
+		return  # stays unseen; _refresh_contacts shows it once the notice is gone
 	if _report != null and not is_sliding() and _marks.take_unseen(viewer_player):
 		_show_report()
 
@@ -1617,10 +1626,12 @@ func _centre_on(formation_id: StringName) -> void:
 
 func _build_hud() -> void:
 	_card = StaffMapCard.new()
+	_card.place_namer = _place_name
 	_hud.add_child(_card)
 	_installation_card = StaffMapInstallationCard.new()
 	_hud.add_child(_installation_card)
 	_panel = StaffMapFormationPanel.new()
+	_panel.place_namer = _place_name
 	_panel.close_requested.connect(func() -> void: select_formation(&""))
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
@@ -1629,6 +1640,7 @@ func _build_hud() -> void:
 	_hud.add_child(_turn_bar)
 	_report = StaffMapTurnReport.new()
 	_report.entry_chosen.connect(_on_report_entry)
+	_report.place_namer = _place_name
 	_hud.add_child(_report)
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
@@ -1655,11 +1667,11 @@ func _build_hud() -> void:
 		_viewport_size,
 		OS.get_cmdline_user_args().has("--debug")
 	)
-	_contacts.place_namer = func(c: Vector2i) -> String:
-		return StaffMapPlaceName.describe(_imported, c)
+	_contacts.place_namer = _place_name
 	_contacts.play_requested.connect(play_battle)
 	_contacts.auto_requested.connect(auto_resolve)
 	_result_notice = StaffMapBattleResult.new()
+	_result_notice.place_namer = _place_name
 	_hud.add_child(_result_notice)
 	_menu_button = StaffMapMenuButton.new()
 	_menu_button.pressed.connect(toggle_menu)

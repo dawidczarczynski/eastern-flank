@@ -18,6 +18,8 @@ const BAR_WIDTH := 80.0
 const TAB_FLAG_INSET := 10.0
 const LOSS_COLOUR := UiPalette.DISABLED
 
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
 var _title: Label
 var _title_flag: SideFlag
 var _subtitle: Label
@@ -416,12 +418,14 @@ func _fill_aftermath(
 			if row.has("retreat_to"):
 				detail += (
 					" · %s %s"
-					% [tr("BATTLE_RESULT_RETREATED_TO").to_upper(), _hex_text(row["retreat_to"])]
+					% [tr("BATTLE_RESULT_RETREATED_TO").to_upper(), _place_text(row["retreat_to"])]
 				)
 			elif row["blocked"]:
 				detail += " · %s" % tr("BATTLE_RESULT_RETREAT_BLOCKED").to_upper()
 		var detail_label := MenuStyle.label(detail, HudTheme.mono(500, 0), 11, detail_colour)
 		detail_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		detail_label.custom_minimum_size.x = 240.0
 		detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		line.add_child(detail_label)
 		_aftermath.add_child(line)
@@ -441,6 +445,11 @@ func _fill_aftermath(
 			UiPalette.HUD_TEXT
 		)
 	)
+
+
+func _place_text(c: Vector2i) -> String:
+	var named := StaffMapPlaceName.named(place_namer, c)
+	return named if named != "" else _hex_text(c)
 
 
 static func _hex_text(c: Vector2i) -> String:

@@ -13,9 +13,13 @@ signal closed
 const WIDTH := 300
 const ROW_SIZE := 11
 
+## (Vector2i) -> String: a place-based name of a hex ("Suwałki, 5 km east"), set by the owner;
+## "" = fall back to the hex number.
+var place_namer: Callable
+
 var _column: VBoxContainer
 var _rows: Array[Button] = []
-var _close_button: Button
+var _close_button: StaffMapCloseButton
 
 
 func _init() -> void:
@@ -31,10 +35,7 @@ func _init() -> void:
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_theme_constant_override(&"separation", 4)
 	add_child(_column)
-	_close_button = MenuStyle.button("")
-	_close_button.name = "Close"
-	_close_button.focus_mode = Control.FOCUS_NONE
-	_close_button.add_theme_font_size_override(&"font_size", ROW_SIZE)
+	_close_button = StaffMapCloseButton.attach(self)
 	_close_button.pressed.connect(close)
 	hide()
 
@@ -67,9 +68,6 @@ func show_report(
 		row.queue_free()
 	_rows.clear()
 	tab_text = tr("TURN REPORT").to_upper()
-	_close_button.text = ("%s [R]" % tr("CLOSE")).to_upper()
-	if _close_button.get_parent() != null:
-		_column.remove_child(_close_button)
 	for entry in entries:
 		var formation := state.get_formation(entry["id"])
 		if formation == null:
@@ -79,12 +77,14 @@ func show_report(
 			% [
 				StaffMapFormations.designation(formation.display_name, formation.parent),
 				entry_text(entry, state).to_upper(),
-				place_text(entry["at"]),
+				_place_of(entry["at"]),
 			]
 		)
 		var row := MenuStyle.button(text)
 		row.name = String(entry["id"])
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.custom_minimum_size.x = WIDTH - 28.0
 		row.focus_mode = Control.FOCUS_NONE
 		row.add_theme_font_size_override(&"font_size", ROW_SIZE)
 		row.add_theme_color_override(&"font_color", _kind_colour(entry["kind"]))
@@ -109,8 +109,12 @@ func show_report(
 		)
 		empty.name = "Empty"
 		_column.add_child(empty)
-	_column.add_child(_close_button)
 	reset_size()
+
+
+func _place_of(coord: Vector2i) -> String:
+	var named := StaffMapPlaceName.named(place_namer, coord)
+	return named.to_upper() if named != "" else place_text(coord)
 
 
 func entry_count() -> int:
