@@ -383,7 +383,7 @@ ESC_WIN_REQUIRES,Requires all of,Wymaga łącznie
 level %d · %s in collapse · %s's own decision,level %d · %s in collapse · %s's own decision,poziom %d · %s w rozpadzie · własna decyzja: %s
 strength %d %% · readiness %d,strength %d %% · readiness %d,siła %d %% · gotowość %d
 collapse at ≤ %d %%,collapse at ≤ %d %%,rozpad przy ≤ %d %%
-"%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · strength %d %% · readiness %d · collapse at ≤ %d %%","%s · siła %d %% · gotowość %d · rozpad przy ≤ %d %%"
+%s · strength %d %% · readiness %d · collapse at ≤ %d %%,%s · strength %d %% · readiness %d · collapse at ≤ %d %%,%s · siła %d %% · gotowość %d · rozpad przy ≤ %d %%
 Calm: level %d → %d,Calm: level %d → %d,Uspokojenie: poziom %d → %d
 joins: %s,joins: %s,dołączają: %s
 raised by %s,raised by %s,podniesiona przez %s
@@ -467,7 +467,7 @@ Wider strikes: level %s,Wider strikes: level %s,Szersze uderzenia: poziom %s
 – the highest level of escalation,– the highest level of escalation,– najwyższy poziom eskalacji
 Last resort,Last resort,Ostateczność
 Use nuclear weapon,Use nuclear weapon,Użyj broni jądrowej
-"Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.","Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.","Użyć broni jądrowej? To kończy operację. %s zostanie uznana za stronę, która przekroczyła granicę."
+Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.,Use a nuclear weapon? This ends the operation. %s is judged to have crossed the line.,"Użyć broni jądrowej? To kończy operację. %s zostanie uznana za stronę, która przekroczyła granicę."
 The operation ends: %s is judged the loser (level %s),The operation ends: %s is judged the loser (level %s),Operacja się kończy: %s przegrywa (poziom %s)
 Your side has no nuclear option,Your side has no nuclear option,Twoja strona nie ma opcji jądrowej
 Only at the highest level of escalation,Only at the highest level of escalation,Tylko na najwyższym poziomie eskalacji
@@ -574,7 +574,7 @@ OK,OK,OK
 Strategic threshold reached – the operation ends,Strategic threshold reached – the operation ends,Osiągnięto próg strategiczny – operacja się kończy
 MAP OPTIONS,Map options,Opcje mapy
 TIP_MAP_OPTIONS,"Opens or closes the map options: grid, names, borders, politics tint and the flat view.","Otwiera lub zamyka opcje mapy: siatkę, nazwy, granice, odcień polityczny i widok płaski."
-TIP_STRIKE,"Deep strike: pick a means and a target on the map (Esc leaves).","Uderzenie w głąb: wybierz środek i cel na mapie (Esc wychodzi)."
+TIP_STRIKE,Deep strike: pick a means and a target on the map (Esc leaves).,Uderzenie w głąb: wybierz środek i cel na mapie (Esc wychodzi).
 Esc or ✕ closes,Esc or ✕ closes,Esc lub ✕ zamyka
 ON,ON,WŁ.
 OFF,OFF,WYŁ.
@@ -644,5 +644,73 @@ TARGET TOO CLOSE,TARGET TOO CLOSE,CEL ZA BLISKO
 DIST,DIST,DYST.
 LEAVE BATTLE,Leave battle,Opuść bitwę
 EXIT TO MAIN MENU,Exit to main menu,Wyjdź do menu głównego
-"The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?","The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?","Bitwa zostanie dokończona automatycznie od osiągniętych pozycji, a jej wynik trafi do operacji. Opuścić bitwę?"
+The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?,The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?,"Bitwa zostanie dokończona automatycznie od osiągniętych pozycji, a jej wynik trafi do operacji. Opuścić bitwę?"
 Leave the battle and return to the main menu?,Leave the battle and return to the main menu?,Opuścić bitwę i wrócić do menu głównego?
+TIP_JOURNAL,"Opens or closes the journal: what happened to your side, turn by turn.","Otwiera lub zamyka dziennik: co spotkało twoją stronę, tura po turze."
+JOURNAL,JOURNAL,DZIENNIK
+NOW,NOW,TERAZ
+ALL,ALL,WSZYSTKO
+STRIKES,STRIKES,UDERZENIA
+BATTLES,BATTLES,BITWY
+MOVES,MOVES,RUCHY
+J or ✕ closes · click an entry to find it on the map,J or ✕ closes · click an entry to find it on the map,"J lub ✕ zamyka · kliknij wpis, by znaleźć go na mapie"
+Nothing under this filter,Nothing under this filter,Nic pod tym filtrem
+Nothing has happened yet. Orders you issue and strikes you launch are recorded here.,Nothing has happened yet. Orders you issue and strikes you launch are recorded here.,Nic się jeszcze nie wydarzyło. Tu zapisują się twoje rozkazy i uderzenia.
+JRN_CLASS_FORMATION,formation,oddział
+JRN_CLASS_AIR_DEFENCE,air defence site,stanowisko obrony powietrznej
+JRN_CLASS_DEPOT,depot,skład
+JRN_CLASS_AIRFIELD,airfield,lotnisko
+JRN_CLASS_C2,command post,stanowisko dowodzenia
+%s halted on contact,%s halted on contact,%s zatrzymał się w styku z wrogiem
+%s halted at a closed border,%s halted at a closed border,%s zatrzymał się na zamkniętej granicy
+%s halted,%s halted,%s zatrzymał się
+%s arrived,%s arrived,%s dotarł na miejsce
+%s ordered to move (%s),%s ordered to move (%s),%s otrzymał rozkaz ruchu (%s)
+%s: order cancelled,%s: order cancelled,%s: rozkaz anulowany
+%s changed posture to %s,%s changed posture to %s,%s: zmiana postawy – %s
+%s stopped at the closed border of %s,%s stopped at the closed border of %s,%s zatrzymał się na zamkniętej granicy: %s
+%s joined (%s),%s joined (%s),%s dołączył do operacji (%s)
+Contact: %s and %s,Contact: %s and %s,Styk: %s i %s
+%s could not retreat,%s could not retreat,%s nie mógł się wycofać
+%s retreated one hex,%s retreated one hex,%s wycofał się o jedno pole
+%s was destroyed,%s was destroyed,%s został zniszczony
+Escalation level %d: %s,Escalation level %d: %s,Poziom eskalacji %d: %s
+Decision: %s,Decision: %s,Decyzja: %s
+Sanctuary breached: %s,Sanctuary breached: %s,Naruszone sanktuarium: %s
+Casus belli over %s,Casus belli over %s,Casus belli: %s
+The operation ended: nobody won,The operation ended: nobody won,Operacja zakończona: nikt nie wygrał
+The operation ended: we won,The operation ended: we won,Operacja zakończona: zwyciężyliśmy
+The operation ended: we lost,The operation ended: we lost,Operacja zakończona: przegraliśmy
+We struck the enemy %s with ,We struck the enemy %s with ,Nasze uderzenie na %s wroga – 
+Enemy ,Enemy ,Uderzenie wroga – 
+strength,strength,siła
+integrity,integrity,integralność
+%s won the battle against %s,%s won the battle against %s,Bitwa: %s × %s – zwycięstwo
+%s lost the battle against %s,%s lost the battle against %s,Bitwa: %s × %s – porażka
+The battle between %s and %s ended in a draw,The battle between %s and %s ended in a draw,Bitwa: %s × %s – remis
+"Losses: ours %d, enemy %d","Losses: ours %d, enemy %d","Straty: nasze %d, wroga %d"
+We hold the field,We hold the field,Pole walki w naszych rękach
+Enemy holds the field,Enemy holds the field,Pole walki w rękach wroga
+%s became neutral,%s became neutral,%s: ogłoszona neutralność
+%s changed its stance,%s changed its stance,%s: zmiana stanowiska
+%s moved to our side,%s moved to our side,%s: przejście na naszą stronę
+%s moved to the enemy side,%s moved to the enemy side,%s: przejście na stronę wroga
+%s entered the war,%s entered the war,%s: przystąpienie do wojny
+%s entered the war on our side,%s entered the war on our side,%s: przystąpienie do wojny po naszej stronie
+%s entered the war on the enemy side,%s entered the war on the enemy side,%s: przystąpienie do wojny po stronie wroga
+A formation,A formation,Oddział
+Our formation,Our formation,Nasz oddział
+Enemy formation,Enemy formation,Oddział wroga
+Our %s,Our %s,Nasz oddział %s
+Enemy %s,Enemy %s,Oddział wroga %s
+Escalation level %d,Escalation level %d,Poziom eskalacji %d
+%s moved,%s moved,%s przesunął się
+ on %s, on %s, na %s
+JRN_OUR_FORMATION,our formation,nasz oddział
+JRN_OUR_AIR_DEFENCE,our air defence site,nasze stanowisko obrony powietrznej
+JRN_OUR_DEPOT,our depot,nasz skład
+JRN_OUR_AIRFIELD,our airfield,nasze lotnisko
+JRN_OUR_C2,our command post,nasze stanowisko dowodzenia
+%d hit,%d hit,trafiło %d
+%d intercepted,%d intercepted,przechwycono %d
+target destroyed,target destroyed,cel zniszczony

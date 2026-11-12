@@ -320,21 +320,19 @@ func test_a_strike_creates_one_report_card_and_x_dismisses_it() -> void:
 	assert_eq(reports.count(), 0)
 
 
-func test_j_toggles_the_report_and_the_chip_goes_with_the_trail() -> void:
+func test_the_chip_goes_with_the_trail() -> void:
 	var state := _map.simulation().state
 	state.escalation_level = 2
 	var hud := _open(&"cruise")
 	hud.click(_airfield(0))
 	hud.confirm()
 	hud.tick(0.5)
-	assert_true(hud.handle_report_key(KEY_J))
+	assert_false(hud.handle_report_key(KEY_J), "J is the journal's")
+	hud.reports().collapse()
 	assert_true(hud.reports().chip_visible())
 	assert_true(
 		hud.reports().chip().text_of().begins_with("STRIKE"), hud.reports().chip().text_of()
 	)
-	assert_true(hud.handle_report_key(KEY_J))
-	assert_true(hud.reports().card_visible())
-	hud.handle_report_key(KEY_J)
 	_map.simulation().event_emitted.emit({"type": &"operational_turn_started", "player": 0})
 	assert_false(hud.reports().chip_visible(), "cleared with the trail at the viewer's turn start")
 	assert_eq(hud.reports().count(), 0)

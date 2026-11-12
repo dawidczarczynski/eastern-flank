@@ -26,5 +26,6 @@ func execute(command: OperationalCommand) -> bool:
 	history.append(command)
 	for event in command.apply(state):
 		state.political_log.on_event(state, event)
+		state.journal.on_event(state, event)
 		event_emitted.emit(event)
 	return true

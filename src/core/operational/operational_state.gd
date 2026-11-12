@@ -84,6 +84,8 @@ var result: Dictionary = {}
 var pending_battles: Array[BattleSetup] = []
 ## Short history of political changes, effects only (TASK-119a); filled by OperationalSimulation.
 var political_log := PoliticalLog.new()
+## Per-side journal of everything that happened (TASK-148a); filled by OperationalSimulation.
+var journal := OperationalJournal.new()
 
 
 ## The formation with this id; null if there is none.
@@ -169,6 +171,7 @@ func snapshot() -> Dictionary:
 		},
 		"result": result.duplicate(),
 		"political_log": political_log.to_dict()["entries"],
+		"journal": journal.to_dict()["entries"],
 	}
 
 

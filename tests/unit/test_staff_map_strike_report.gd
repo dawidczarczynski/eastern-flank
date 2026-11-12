@@ -361,26 +361,27 @@ func test_threshold_never_auto_collapses() -> void:
 	h.release()
 
 
-func test_keys_j_enter_escape_and_arrows() -> void:
+func test_keys_enter_escape_and_arrows() -> void:
 	var h := Harness.new()
 	var reports := h.reports
-	assert_false(reports.handle_key(KEY_J), "nothing to toggle")
+	var asked: Array[Dictionary] = []
+	reports.log_requested.connect(func(model: Dictionary) -> void: asked.append(model))
 	assert_false(reports.handle_key(KEY_ENTER), "Enter falls through to End turn")
 	reports.add(_entry(true))
 	reports.tick(0.5)
-	assert_true(reports.handle_key(KEY_J))
-	assert_true(reports.chip_visible(), "J collapses")
-	assert_true(reports.handle_key(KEY_J))
-	assert_true(reports.card_visible(), "J expands")
-	reports.tick(60.0)
-	assert_true(reports.card_visible(), "a card the player opened stays")
-	assert_true(reports.handle_key(KEY_ENTER))
-	assert_true(reports.chip_visible(), "Enter collapses")
-	assert_false(reports.handle_key(KEY_ENTER), "...and the next Enter is End turn")
-	reports.handle_key(KEY_J)
+	assert_false(reports.handle_key(KEY_J), "J belongs to the journal now")
+	assert_true(reports.card_visible())
+	assert_true(reports.handle_key(KEY_ENTER), "Enter opens the journal at the strike line")
+	assert_eq(asked.size(), 1)
+	reports.collapse()
+	assert_false(reports.handle_key(KEY_ENTER), "...on the chip Enter is End turn")
+	reports.toggle()
+	assert_true(reports.card_visible(), "toggle() brings the card back")
 	assert_true(reports.handle_key(KEY_ESCAPE))
 	assert_true(reports.chip_visible(), "Esc collapses")
 	assert_false(reports.handle_key(KEY_ESCAPE), "Esc on the chip is not taken")
+	reports.chip().toggle_requested.emit()
+	assert_eq(asked.size(), 2, "a click on the chip asks for the journal too")
 	reports.clear()
 	for i in 3:
 		reports.add(_entry(false))
@@ -389,9 +390,6 @@ func test_keys_j_enter_escape_and_arrows() -> void:
 	assert_eq(reports.index(), 1)
 	assert_true(reports.handle_key(KEY_LEFT))
 	assert_eq(reports.index(), 0)
-	assert_true(reports.handle_key(KEY_ENTER), "Enter shows the next of a queue")
-	assert_eq(reports.index(), 1)
-	assert_true(reports.card_visible())
 	h.release()
 
 
@@ -406,7 +404,7 @@ func test_x_dismisses_card_and_chip() -> void:
 	assert_eq(reports.count(), 0)
 	reports.add(_entry(true))
 	reports.tick(0.5)
-	reports.handle_key(KEY_J)
+	reports.collapse()
 	assert_true(reports.chip_visible())
 	reports.chip().close_button().pressed.emit()
 	assert_false(reports.chip_visible())

@@ -56,5 +56,5 @@ func test_country_card_and_strike_report_share_the_place() -> void:
 	assert_false(reports.card_visible(), "and takes the report's place")
 	assert_false(reports.chip_visible())
 	reports.toggle()
-	assert_true(reports.card_visible(), "J brings the report back")
+	assert_true(reports.card_visible(), "toggle() brings the report back")
 	assert_false(_map.country_card().visible, "and closes the country card")

@@ -365,6 +365,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## nohud (hides the whole HUD, the map and counters stay: the main menu backdrop),
 ## cover (the air defence cover overlay), suppress:<installation id>[:<rounds>] (silences a site),
 ## country:<id> (the country card, TASK-114), options (the map options window),
+## journal[:<strikes|battles|moves|politics>] (the journal window with that chip, TASK-148b),
 ## politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
 ## card, with fire the strike is made, TASK-097b),
@@ -487,6 +488,7 @@ func _apply_staff_map_state(spec: String) -> void:
 	var show_result := false
 	var result_tab := -1
 	var no_hud := false
+	var journal_filter: Variant = null
 	for token in spec.split(",", false):
 		var parts := token.strip_edges().split(":")
 		match parts[0]:
@@ -558,6 +560,8 @@ func _apply_staff_map_state(spec: String) -> void:
 				map.politics_hud().toggle_panel()
 			"options":  # the map options window
 				map.toggle_options()
+			"journal":  # journal[:<strikes|battles|moves|politics>] – the journal window, TASK-148b
+				journal_filter = parts[1] if parts.size() > 1 else ""
 			"escalate":
 				var steps := parts[1].to_int() if parts.size() > 1 else 1
 				for event in EscalationRules.raise(
@@ -653,6 +657,12 @@ func _apply_staff_map_state(spec: String) -> void:
 		map.end_turn()
 		map.skip_slide()
 		map.set_viewer(mover)
+	if journal_filter != null:
+		map.open_journal()
+		var chip := {
+			"strikes": &"strike", "battles": &"battle", "moves": &"move", "politics": &"politics"
+		}
+		map.journal_window().set_filter(chip.get(journal_filter, &""))
 	if select_id != &"" or not orders.is_empty():
 		map.select_formation(select_id)
 	if route_posture > 0:

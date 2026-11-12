@@ -144,6 +144,8 @@ static func report_model(
 	var model := {
 		"own": own,
 		"striker": striker,
+		"turn": state.turn,
+		"coord": _report_coord(state, event),
 		"side_text": side_text,
 		"side_name": StaffMapTurnBar.side_name(state, striker),
 		"tab": ("▲ %s · %s" % [_t("Threshold"), side_text]) if threshold else side_text,

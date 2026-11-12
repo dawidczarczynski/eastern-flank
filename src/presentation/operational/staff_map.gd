@@ -32,7 +32,7 @@ extends Node3D
 
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
-enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU }
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU, JOURNAL }
 ## (The ladder window is a full-screen overlay: opening it closes all of them, see
 ## `_close_other_windows`; opening any of them closes it.)
 
@@ -47,6 +47,7 @@ const ACTION_COVER := &"cover"
 const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
+const ACTION_JOURNAL := &"journal"
 const ACTION_DECISIONS := &"decisions"
 const ACTION_STRIKE := &"strike"
 const ACTION_MAP_OPTIONS := &"map_options"
@@ -94,6 +95,9 @@ var _menu: StaffMapMenuWindow  # Save, Exit operation
 var _exit_confirm: StaffMapExitConfirm  # "leave the operation?" (offers a save when unsaved)
 var _unsaved := false  # the operation changed since the last save (or since it was built)
 var _options: StaffMapOptionsWindow  # map layer toggles under the MAP button
+var _journal: StaffMapJournalWindow  # the operational journal (JRN, J)
+var _journal_ring: StaffMapJournalRing
+var _journal_dirty := false
 var _bar: ActionBar
 var _hud: CanvasLayer
 var _simulation: OperationalSimulation
@@ -228,11 +232,21 @@ func _process(delta: float) -> void:
 		_pan_by_keys_and_edge(delta)
 		_update_hover()
 	_sync_action_bar()
+	_tick_journal(delta)
 	advance_slide(delta)
 	if _strike != null:
 		_strike.tick(delta)
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
+
+
+## Per frame: the journal is rebuilt once after new events while open; the ring follows the camera.
+func _tick_journal(delta: float) -> void:
+	if _journal_dirty:
+		_journal_dirty = false
+		_journal.refresh()
+	if _journal_ring != null and _journal_ring.is_active():
+		_journal_ring.tick(delta, _screen_of_hex)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -258,6 +272,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					cancel_exit()
 					or close_menu()
 					or _close_options_key()
+					or _close_journal_key()
 					or _politics.close_card()
 					or _escalation.close_card()
 					or _decisions.close()
@@ -273,6 +288,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				skip_slide()
 			KEY_R:
 				toggle_report()
+			KEY_J:
+				toggle_journal()
 			KEY_DELETE, KEY_BACKSPACE, KEY_X:
 				cancel_order()
 			KEY_G:
@@ -328,6 +345,7 @@ func _build_action_bar() -> void:
 	_bar.add_action(ACTION_NEXT, "NEXT", "TAB", false, "TIP_NEXT")
 	_bar.add_action(ACTION_CANCEL, "CANCEL", "X", false, "TIP_CANCEL")
 	_bar.add_action(ACTION_REPORT, "REPORT", "R", false, "TIP_REPORT")
+	_bar.add_action(ACTION_JOURNAL, "JOURNAL", "J", true, "TIP_JOURNAL")
 	_bar.add_action(
 		ACTION_DECISIONS,
 		"DECISIONS",
@@ -339,6 +357,7 @@ func _build_action_bar() -> void:
 	_bar.action_pressed.connect(_on_action_pressed)
 	_hud.add_child(_bar)
 	_build_options_window()
+	_build_journal()
 	# The hovered hex lives in the left zone (a fixed-width slot, so the bar does not jump).
 	var slot := Control.new()
 	slot.custom_minimum_size = Vector2(CARD_SLOT_WIDTH, 50)
@@ -367,6 +386,79 @@ func _build_options_window() -> void:
 	_options.option_toggled.connect(_on_action_pressed)
 	_options.close_requested.connect(close_options)
 	_hud.add_child(_options)
+
+
+## The operational journal window (JRN button, key J) and the ring it puts on a clicked hex.
+func _build_journal() -> void:
+	_journal = StaffMapJournalWindow.new(_palette)
+	_journal.place_namer = _place_name
+	_journal.close_requested.connect(close_journal)
+	_journal.entry_chosen.connect(_on_journal_entry)
+	_hud.add_child(_journal)
+	_journal_ring = StaffMapJournalRing.new()
+	_hud.add_child(_journal_ring)
+	_journal.show_journal(_simulation.state, viewer_player)
+	_journal.mark_seen()  # what happened before the map was built counts as read
+	_journal.hide()
+
+
+func journal_window() -> StaffMapJournalWindow:
+	return _journal
+
+
+func journal_ring() -> StaffMapJournalRing:
+	return _journal_ring
+
+
+## J / the JRN button: the journal for the viewed side (closes the other left windows).
+func toggle_journal() -> void:
+	if _journal.is_open():
+		close_journal()
+	else:
+		open_journal()
+
+
+## Opens the journal; `focus` (an entry of the viewed side) is scrolled to and lit.
+func open_journal(focus: OperationalJournal.Entry = null) -> void:
+	_claim_left_dock(LeftWindow.JOURNAL)
+	_journal.show_journal(_simulation.state, viewer_player, focus)
+	_journal.show()
+	_journal.dock(_viewport_size().x)
+	_sync_action_bar()
+
+
+func _close_journal_key() -> bool:
+	if not _journal.is_open():
+		return false
+	close_journal()
+	return true
+
+
+func close_journal() -> void:
+	_journal.close()
+	_sync_action_bar()
+
+
+## A click on a journal entry: the map centres on its place and rings the hex.
+func _on_journal_entry(coord: Vector2i) -> void:
+	if not _view.has_tile(coord):
+		return
+	_centre_on_hex(coord)
+	_journal_ring.show_at(coord, _screen_of_hex(coord))
+
+
+## A strike report asks for its line in the journal (Enter, a click on the card or the chip).
+func _on_strike_log_requested(model: Dictionary) -> void:
+	var found: OperationalJournal.Entry = null
+	for entry in _simulation.state.journal.entries_for(viewer_player):
+		if (
+			entry.kind == &"strike"
+			and entry.actor == model["striker"]
+			and entry.turn == model["turn"]
+		):
+			if found == null or entry.coord == model["coord"]:
+				found = entry
+	open_journal(found)
 
 
 func options_window() -> StaffMapOptionsWindow:
@@ -423,6 +515,8 @@ func _on_action_pressed(id: StringName) -> void:
 			toggle_report()
 		ACTION_DECISIONS:
 			toggle_decisions()
+		ACTION_JOURNAL:
+			toggle_journal()
 
 
 ## Lights the toggle buttons to match the layers (whatever changed them: a key or a button).
@@ -438,6 +532,7 @@ func _sync_action_bar() -> void:
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
 	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
+	_bar.set_active(ACTION_JOURNAL, _journal != null and _journal.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
 
 
@@ -705,6 +800,8 @@ func set_viewer(player: int) -> void:
 	if _counters == null:
 		return
 	_refresh_turn_bar()
+	if _journal != null and _journal.is_open():
+		_journal.show_journal(_simulation.state, player)
 	if _politics != null:
 		_politics.refresh(player)
 	_counters.set_viewer(player)
@@ -836,7 +933,9 @@ func _claim_left_dock(owner: LeftWindow) -> void:
 		_sync_action_bar()
 	if owner != LeftWindow.MENU:
 		close_menu()
-	if owner in [LeftWindow.OPTIONS, LeftWindow.MENU] and _report != null:
+	if owner != LeftWindow.JOURNAL and _journal != null and _journal.close():
+		_sync_action_bar()
+	if owner in [LeftWindow.OPTIONS, LeftWindow.MENU, LeftWindow.JOURNAL] and _report != null:
 		_report.close()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
@@ -1090,6 +1189,7 @@ func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
 
 func _on_operational_event(event: Dictionary) -> void:
 	_unsaved = true
+	_journal_dirty = _journal_dirty or (_journal != null and _journal.is_open())
 	_add_new_counters()
 	_contacts.on_event(event)
 	if event.get("type") == &"formation_joined":
@@ -1470,6 +1570,8 @@ func _apply_front_view() -> void:
 func _show_report() -> void:
 	if _contacts != null and _contacts.is_active():
 		return
+	if _journal != null:
+		_journal.close()
 	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
 	_report.show()
 	_report.reset_size()
@@ -1539,6 +1641,7 @@ func _modal_open() -> bool:
 func _close_other_windows() -> void:
 	close_menu()
 	_options.close()
+	_journal.close()
 	_decisions.close()
 	if _strike != null:
 		_strike.reports().suspend()
@@ -1706,6 +1809,7 @@ func _build_hud() -> void:
 	_strike.open_changed.connect(_on_strike_open_changed)
 	_strike.cover_wanted_changed.connect(func(_wanted: bool) -> void: _apply_cover())
 	_strike.reports().shown.connect(func() -> void: _claim_left_dock(LeftWindow.REPORT))
+	_strike.reports().log_requested.connect(_on_strike_log_requested)
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
 
@@ -1881,6 +1985,7 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 func close_docked_windows() -> void:
 	var closed := close_menu()
 	closed = _options.close() or closed
+	closed = _journal.close() or closed
 	closed = _politics.close_card() or closed
 	if _report != null and _report.visible:
 		_report.close()

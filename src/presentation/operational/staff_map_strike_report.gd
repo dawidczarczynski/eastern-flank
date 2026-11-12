@@ -63,7 +63,7 @@ func _collect_texts(node: Node, result: Array[String]) -> void:
 
 
 ## Fills the card for a StaffMapStrikeText.report_model(): `index` (0-based) of `total` reports,
-## `has_next` whether Enter shows another report.
+## `has_next` (kept for callers) whether another report is queued.
 func present(model: Dictionary, index := 0, total := 1, has_next := false) -> void:
 	var threshold: bool = model["threshold"]
 	var own: bool = model["own"]
@@ -352,7 +352,7 @@ func _threshold_tags(_model: Dictionary) -> Control:
 	return row
 
 
-func _footer(model: Dictionary, index: int, total: int, has_next: bool) -> Control:
+func _footer(model: Dictionary, index: int, total: int, _has_next: bool) -> Control:
 	var section := _section()
 	var row := HBoxContainer.new()
 	row.name = "Footer"
@@ -373,7 +373,7 @@ func _footer(model: Dictionary, index: int, total: int, has_next: bool) -> Contr
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
-	var keys := "↵ %s · J %s" % [tr("Next") if has_next else tr("OK"), tr("Log")]
+	var keys := "↵ %s" % tr("Log")
 	if total > 1:
 		keys = "%s · %s" % [tr("%d of %d") % [index + 1, total], keys]
 	row.add_child(MenuStyle.label(keys.to_upper(), HudTheme.mono(600, 0), 11, UiPalette.AMBER))

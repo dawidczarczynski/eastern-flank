@@ -390,6 +390,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Country card | K |
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
+| Journal on / off | J, or the **JRN** (log book) button on the bottom bar; Esc or ✕ closes it |
 | End turn | Enter, or the **End turn** button |
 | Save the operation | F5, or **SAVE** in the menu (hamburger, top left) |
 | Select a formation | Left click on its counter |
@@ -546,7 +547,7 @@ Each site's chance is the figure above scaled by its **integrity**, so a damaged
   - the escalation ticks with the new level, and lines such as "+n sanctuary breach" or "+n urban hex";
   - your stock of that means before → after, and "strikes left" this turn.
 
-- **Card behaviour.** After 9 s the card collapses to a small **chip** (pointing at the card or chip pauses the timer). **J** toggles card and chip, **Enter** goes to the next report or collapses the card, **Esc** collapses it, and **◂ ▸** browse the earlier reports. The chip is a compact tab (weapon ×N and a short result such as "2 HIT") placed under the turn bar's button row at the left edge; it never covers other HUD. The **X** on the card or chip dismisses it.
+- **Card behaviour.** After 9 s the card collapses to a small **chip** (pointing at the card or chip pauses the timer). **Enter** (or a click on the card or the chip) opens the **Journal** at this strike's line, **Esc** collapses the card, and **◂ ▸** browse the earlier reports. The chip is a compact tab (weapon ×N and a short result such as "2 HIT") placed under the turn bar's button row at the left edge; it never covers other HUD. The **X** on the card or chip dismisses it.
 - **Enemy strikes.** Strikes by the other bloc during its turn appear one after another, 3.5 s each, marked "1/n" on the chip. Their stock is unknown, so it is not shown. All reports are cleared when your next turn begins.
 - **Arcs and impacts.** Each missile flies its own arc: a hit ends at the target, an intercepted missile bursts in mid-air at an air-defence site, and a miss lands beside the target. The impact looks different for an installation, a formation and a town hex. The traces stay on the map until your next turn begins, and at most 8 are kept (a whole salvo counts as one; the oldest drop first), and they keep the weapon's arc.
 - **Reading a trace.** Every missile of a salvo is drawn separately (at most 6 are drawn; a "+n" at the target counts the rest), launched a fraction of a second after the previous one, in your side's colour with a head in the weapon's glyph. The shape tells the weapon apart at a glance: a **ballistic** missile (ATACMS, PrSM, Iskander-M, Kinzhal) climbs in a **high arc** and arrives very fast, Kinzhal the fastest with a lower arc; a **cruise** missile (JASSM-ER, Storm Shadow, Tomahawk, Kalibr, Kh-101) flies **low and flat** on a thin long line; a **drone** (Geran-2, Warmate) crawls slowly on a low **wobbling dotted** line; a **rocket** (Homar-K) makes a **short, thick** medium arc. On a short strike every flight takes about the same minimum time, so compare the weapons on long shots.
@@ -669,6 +670,8 @@ An order stays on the formation: it keeps following it on later turns until one 
 - **Halted** – a formation that would attack into a country it may not attack into stops, and the report says "Halted – cannot attack into <country>".
 
 **Turn report.** After the turn, press **R** to open (or close) the turn report: one row per order carried out, with what happened to it. Click a row to centre the map on that formation.
+
+**Journal.** Press **J** (or the log book button on the bottom bar) to read what happened to your side, turn by turn. The window sits on the left edge like the turn report; only one such window is open at a time. Entries are grouped under a header for each turn (`TURN 5`, the date and DAY or NIGHT with its hours; the current turn carries **NOW**), newest turn first, and every entry of the operation is kept. Each entry has a shape (a square for your side, a diamond for the enemy, a circle for politics), a tag (STR strikes, BTL battles, MOV moves, POL politics), a sentence in your side's words ("We struck the enemy airfield with Iskander-M ×2: 2 hit, 1 intercepted", "Enemy … on our depot") and the place. The journal writes down everything your side did and what the enemy did **to you** (a strike or a battle against you, an enemy halted in contact with your formation); enemy moves far away are not written. Political lines are bare facts (a country moved to a side, the escalation level changed, a decision taken) and never say who decided. The chips **ALL / STRIKES / BATTLES / MOVES / POLITICS** filter the list. Click an entry that has a place and the map centres on it and rings the hex for two seconds. Entries added since you last closed the window carry a thin amber bar on the left until you point at them. In a strike report, **Enter** (or a click on the card or chip) opens the journal at that strike's line.
 
 ### Contact
 

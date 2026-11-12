@@ -17,6 +17,7 @@ const IDS: Array[StringName] = [
 	&"next",
 	&"cancel",
 	&"report",
+	&"journal",
 	&"decisions",
 	&"strike",
 	&"map_options",
@@ -120,6 +121,16 @@ static func polylines(id: StringName) -> Array[PackedVector2Array]:
 			)
 			lines.append(_poly([Vector2(3, 12), Vector2(12, 17), Vector2(21, 12)]))
 			lines.append(_poly([Vector2(3, 16), Vector2(12, 21), Vector2(21, 16)]))
+		&"journal":  # a log book: spine, cover and entries
+			lines.append(
+				_poly(
+					[Vector2(5, 3), Vector2(19, 3), Vector2(19, 21), Vector2(5, 21), Vector2(5, 3)]
+				)
+			)
+			lines.append(_poly([Vector2(9, 3), Vector2(9, 21)]))
+			lines.append(_poly([Vector2(12, 8), Vector2(16, 8)]))
+			lines.append(_poly([Vector2(12, 12), Vector2(16, 12)]))
+			lines.append(_poly([Vector2(12, 16), Vector2(15, 16)]))
 		&"report":  # sheet with text lines
 			lines.append(
 				_poly(

@@ -4,11 +4,14 @@ extends RefCounted
 ## collapsed chip (StaffMapStrikeChip), the queue and the timing of the accepted mockup. An own
 ## strike's card shows 400 ms after the strike (the map burst plays first), stays 9 s (hovering it
 ## pauses) and collapses to the chip; enemy strikes queue, 3.5 s each ("1 OF n"); the last one
-## stays as a chip; a threshold report never collapses by itself. Keys: J toggles card / chip,
-## Enter next or collapse, Esc collapse, ◂ ▸ browse; X (card or chip) dismisses the report.
+## stays as a chip; a threshold report never collapses by itself. Keys: Enter / a click opens the
+## journal at the strike line (TASK-148b), Esc collapse, ◂ ▸ browse; X (card or chip) dismisses
+## the report.
 ## `tick` is a no-op while nothing is timed, so an idle HUD costs nothing.
 
 signal shown  ## the card is (re)shown – the left dock hands it the place
+## Enter, a click on the card or the chip: the journal opens at this report's strike line.
+signal log_requested(model: Dictionary)
 
 enum Mode { NONE, CARD, CHIP }
 
@@ -41,7 +44,8 @@ func _init(palette: StaffMapPalette) -> void:
 	_chip = StaffMapStrikeChip.new(palette)
 	_card.close_requested.connect(dismiss)
 	_chip.close_requested.connect(dismiss)
-	_chip.toggle_requested.connect(toggle)
+	_chip.toggle_requested.connect(request_log)
+	_card.gui_input.connect(_on_card_input)
 	_chip.browse_requested.connect(browse)
 	_card.mouse_entered.connect(func() -> void: _hover = true)
 	_card.mouse_exited.connect(func() -> void: _hover = false)
@@ -128,11 +132,9 @@ func handle_key(keycode: Key) -> bool:
 		return false
 	var in_card := _mode == Mode.CARD
 	match keycode:
-		KEY_J:
-			toggle()
 		KEY_ENTER, KEY_KP_ENTER:
 			if in_card:
-				advance()
+				request_log()
 			return in_card
 		KEY_ESCAPE:
 			if in_card:
@@ -161,16 +163,14 @@ func toggle() -> void:
 		_show(_index, NO_TIMEOUT)
 
 
-## Enter: the next queued report, else collapse to the chip.
-func advance() -> void:
-	if _index < _items.size() - 1:
-		_show(_index + 1, _timeout_of(_index + 1))
-	else:
-		collapse()
+## Enter / a click: asks for the journal line of the shown report.
+func request_log() -> void:
+	if _index >= 0 and _index < _items.size():
+		log_requested.emit(_items[_index])
 
 
 ## Hides the card and the chip without dropping the reports (another left-dock window opened);
-## J brings the card back.
+## The journal (or the next report) brings it back.
 func suspend() -> void:
 	if _items.is_empty():
 		return
@@ -228,6 +228,12 @@ func covers(point: Vector2) -> bool:
 		(_card.visible and _card.get_global_rect().has_point(point))
 		or (_chip.visible and _chip.get_global_rect().has_point(point))
 	)
+
+
+func _on_card_input(event: InputEvent) -> void:
+	var button := event as InputEventMouseButton
+	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+		request_log()
 
 
 func _timeout_of(item_index: int) -> float:

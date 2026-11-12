@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Operational journal</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:400;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Regular.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";font-weight:100 800;src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+:root{--panel:rgba(8,11,8,.93);--line:rgba(232,176,74,.34);--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--own:#5b93d6;--enemy:#d76a52;--hit:#e8b04a;--icpt:#6f95ab}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:13px "Chakra Petch",sans-serif}
+.banner{background:var(--alert);color:#0a0c09;font:700 12px "Chakra Petch";letter-spacing:.12em;padding:6px 16px}
+h1{font:700 22px "Chakra Petch";margin:18px 16px 4px}
+h2{font:700 15px "Chakra Petch";margin:28px 16px 6px;color:var(--amber);letter-spacing:.06em}
+p,li{max-width:1000px;margin:4px 16px;color:var(--muted);line-height:1.5}li{margin-left:36px}
+table{border-collapse:collapse;margin:8px 16px;font:12px "JetBrains Mono";max-width:1100px}
+td,th{border:1px solid #2e3329;padding:4px 10px;text-align:left;vertical-align:top}th{color:var(--amber)}
+code{color:var(--text)}
+.frame{position:relative;width:1440px;height:780px;margin:8px 16px;overflow:hidden;background:radial-gradient(ellipse at 60% 45%,#1d231a,#11140f 70%);border:1px solid #2e3329}
+.frame:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px),repeating-linear-gradient(-60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px)}
+.turn{position:absolute;left:50%;top:0;transform:translateX(-50%);width:420px;height:64px;background:var(--panel);border:1px solid var(--line);font:700 12px "Chakra Petch";padding:8px 14px;color:var(--muted)}
+.turn b{color:var(--text)}
+.bar{position:absolute;left:0;right:0;bottom:0;height:76px;background:var(--panel);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:6px}
+.bb{width:38px;height:38px;border:1px solid transparent;display:grid;place-items:center;color:var(--text);font:700 10px "JetBrains Mono"}
+.bb.on{background:rgba(232,176,74,.12);border-color:rgba(232,176,74,.45);color:var(--amber)}
+.sep{width:1px;height:22px;background:var(--line);margin:0 8px}
+.win{position:absolute;background:var(--line);width:var(--w,420px);left:16px;top:110px;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.wi{background:#0a0d0a;margin:1px;position:relative;clip-path:polygon(0 0,calc(100% - 15.4px) 0,100% 15.4px,100% 100%,15.4px 100%,0 calc(100% - 15.4px))}
+.tab{height:32px;display:flex;align-items:center;padding:0 10px;font:700 11px "Chakra Petch";letter-spacing:.12em;color:#0a0c09;background:var(--own);width:max-content}
+.x{position:absolute;right:12px;top:0;width:32px;height:32px;display:grid;place-items:center;font:700 18px "JetBrains Mono";color:var(--muted)}
+.body{padding:8px 12px 10px}
+.chips{display:flex;gap:4px;margin:2px 0 8px}
+.chip{font:600 10px "JetBrains Mono";letter-spacing:.06em;padding:3px 7px;border:1px solid #3a3f33;color:var(--muted)}
+.chip.on{background:rgba(232,176,74,.12);border-color:rgba(232,176,74,.6);color:var(--amber)}
+.scroll{max-height:430px;overflow:hidden}
+.th{display:flex;align-items:center;gap:8px;height:28px;margin-top:6px;border-bottom:1px solid rgba(232,176,74,.3);font:700 11px "Chakra Petch";letter-spacing:.1em;color:var(--amber)}
+.th .d{font:600 10px "JetBrains Mono";color:var(--muted);letter-spacing:.04em;margin-left:auto}
+.th .now{font:700 9px "JetBrains Mono";color:#0a0c09;background:var(--amber);padding:1px 5px}
+.e{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);align-items:flex-start}
+.e:hover,.e.hv{background:rgba(255,255,255,.07)}
+.sd{flex:none;width:14px;height:14px;margin-top:1px;background:var(--own)}
+.sd.en{background:var(--enemy);transform:rotate(45deg) scale(.72)}
+.sd.nu{background:var(--muted);border-radius:50%}
+.tg{flex:none;width:34px;font:700 9px "JetBrains Mono";letter-spacing:.06em;color:var(--muted);margin-top:3px}
+.tx{font:500 12.5px "Plex Cond",sans-serif;line-height:1.35;color:var(--text)}
+.tx i{font-style:normal;color:var(--muted);font:600 10px "JetBrains Mono"}
+.tx .h{color:var(--hit);font-weight:700}.tx .ic{color:var(--icpt);font-weight:700}.tx .bad{color:var(--alert);font-weight:700}
+.pl{font:500 11px "Plex Cond",sans-serif;color:var(--muted);margin-top:1px;text-transform:uppercase;letter-spacing:.04em}
+.hint{font:11px "JetBrains Mono";color:var(--muted);padding:8px 12px;border-top:1px solid #2e3329}
+.note{position:absolute;font:11px "JetBrains Mono";color:var(--amber)}
+.map1{position:absolute;left:760px;top:330px;width:40px;height:26px;background:var(--own)}
+.map2{position:absolute;left:860px;top:300px;width:34px;height:34px;background:var(--enemy);transform:rotate(45deg) scale(.7)}
+.ring{position:absolute;left:845px;top:285px;width:64px;height:64px;border:2px solid var(--amber);border-radius:50%}
+.tl{position:relative;padding-left:44px}
+.tl:before{content:"";position:absolute;left:19px;top:0;bottom:0;width:2px;background:rgba(232,176,74,.25)}
+.tl .th{margin-left:-44px;padding-left:12px}
+.tl .e{position:relative}
+.tl .e .nd{position:absolute;left:-30px;top:8px;width:12px;height:12px;background:#0a0d0a;border:2px solid var(--muted)}
+.tl .e .nd.own{border-color:var(--own)}.tl .e .nd.en{border-color:var(--enemy);transform:rotate(45deg) scale(.8)}
+.tl .e .tm{position:absolute;left:-44px;top:-1px;width:12px}
+.ln{font:500 12px "Plex Cond",sans-serif;padding:4px 0;display:flex;gap:7px;border-bottom:1px solid rgba(255,255,255,.05)}
+.ln .sd{width:10px;height:10px;margin-top:3px}
+.ln .sd.en{transform:rotate(45deg) scale(.7)}
+.ln .r{margin-left:auto;font:600 10px "JetBrains Mono";color:var(--muted)}
+</style></head><body>
+<div class="banner" style="background:#b9d38a">ACCEPTED 2026-11-12 · variant A · variants B and C rejected · TASK-148a / 148b</div>
+<h1>Operational journal – a per-side log of the operation</h1>
+<h2>1 · The need</h2>
+<p>Today the only "log" is the strike card queue (J), the turn report (only the last move of the viewing side) and the political event list. The player has no place to read <b>what happened to my side, turn by turn</b>. The journal collects, for the viewing side only, every event that touched it: strikes (own and incoming), battles, formation movement and halts, retreats and losses, installations hit, political changes. Entries are grouped under a <b>turn header with its date and day / night</b>, newest turn first, written from the side's point of view (<i>our</i> / <i>enemy</i>, never NATO / Russia).</p>
+<ul>
+<li><b>Opened</b> from a new bottom bar button <b>JRN</b> (key <b>J</b>; strike cards keep their own queue and open the journal at the strike entry with their "Log" hint). Docked left window, one at a time, like Report / Strike / Map options.</li>
+<li><b>Filter</b>: ALL · STRIKES · BATTLES · MOVES · POLITICS (chips, one active). Default ALL.</li>
+<li><b>Visibility</b> (human decision 2026-11-12): own actions in full; the enemy only where it touched us (a strike or battle against us, an enemy halted in contact with our formation). Enemy moves far away are not written. No fog of war yet, the same rule will carry over to TASK-100.</li>
+<li><b>Side is carried by shape + word</b>, not colour alone: own = rectangle, enemy = diamond, neutral / political = circle. The tag column (STR · BTL · MOV · POL) names the category.</li>
+<li><b>Click</b> on an entry with a place centres the map on it (as report rows do) and rings the hex for 2 s. Hover = white 7 %.</li>
+<li>Must not hide: the turn bar row, the selected counter, the route. It does not block map input.</li>
+<li>States: <b>normal</b>, <b>filtered</b>, <b>empty</b> ("Nothing has happened yet. Orders you issue and strikes you launch are recorded here."), <b>new entries</b> (current turn header carries <code>NOW</code>; unseen entries since the last close have a 3 px amber left bar until hovered), <b>hover</b>, <b>capped</b> (older than 20 turns are dropped, footer "Older entries are not kept").</li>
+</ul>
+<h2>2 · VARIANT A – grouped list, same frame as Report (recommended)</h2>
+<p>Closest to existing components: <code>StaffMapWindow</code> at report width 420, tab "JOURNAL · NATO" in the side colour. Turn headers are sticky rows; each entry is a single block: side shape · tag · sentence · place line.</p>
+<div class="frame">
+ <div class="turn"><b>TURN 5</b> · 14 JUN · DAY ☀ · NATO to move</div>
+ <div class="map1"></div><div class="map2"></div><div class="ring"></div>
+ <div class="win"><div class="wi"><div class="tab">JOURNAL · NATO</div><div class="x">✕</div>
+  <div class="body">
+   <div class="chips"><span class="chip on">ALL</span><span class="chip">STRIKES</span><span class="chip">BATTLES</span><span class="chip">MOVES</span><span class="chip">POLITICS</span></div>
+   <div class="scroll">
+    <div class="th">TURN 5 <span class="now">NOW</span><span class="d">14 JUN · DAY 06–18</span></div>
+    <div class="e hv"><span class="sd"></span><span class="tg">STR</span><div><div class="tx">We struck the enemy command post with <b>Cruise ×3</b>: <span class="h">2 hit</span>, <span class="ic">1 intercepted</span></div><div class="pl">Gusev · Kaliningrad</div></div></div>
+    <div class="e"><span class="sd en"></span><span class="tg">STR</span><div><div class="tx">Enemy <b>Ballistic ×4</b> on our airfield: <span class="h">3 hit</span>, integrity 4 → <span class="bad">1</span></div><div class="pl">Mińsk Mazowiecki</div></div></div>
+    <div class="e"><span class="sd"></span><span class="tg">BTL</span><div><div class="tx">Our 15th Bde repulsed the enemy attack. We hold the field; losses 8 / 14</div><div class="pl">Sejny · 3 km north</div></div></div>
+    <div class="e"><span class="sd"></span><span class="tg">MOV</span><div><div class="tx">Our 1st Bn halted on contact</div><div class="pl">Sejny · 5 km east</div></div></div>
+    <div class="e"><span class="sd"></span><span class="tg">POL</span><div><div class="tx">Lithuania moved to NATO</div></div></div>
+    <div class="th">TURN 4<span class="d">14 JUN · NIGHT 18–06</span></div>
+    <div class="e"><span class="sd en"></span><span class="tg">BTL</span><div><div class="tx">Enemy 11th Gds retreated one hex after a battle with our 3rd Bde</div><div class="pl">Suwałki · 8 km north-east</div></div></div>
+    <div class="e"><span class="sd"></span><span class="tg">MOV</span><div><div class="tx">Our 3rd Bde arrived</div><div class="pl">Augustów</div></div></div>
+    <div class="e"><span class="sd"></span><span class="tg">MOV</span><div><div class="tx">Order of 2nd Bn dropped: no route</div><div class="pl">Gołdap</div></div></div>
+    <div class="th">TURN 3<span class="d">13 JUN · DAY 06–18</span></div>
+    <div class="e"><span class="sd en"></span><span class="tg">STR</span><div><div class="tx">Enemy cruise strike destroyed our 4th Arty Bn</div><div class="pl">Elk</div></div></div>
+   </div>
+  </div>
+  <div class="hint">J or ✕ closes · click an entry to find it on the map</div>
+ </div></div>
+ <div class="bar"><span class="bb">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb on">JRN</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+ <div class="note" style="left:470px;top:152px">◂ hover: row lit, hex ringed on the map</div>
+</div>
+<table>
+<tr><th>Property</th><th>Spec</th></tr>
+<tr><td>Size / place</td><td>420 × up to 560 px (list scrolls, 430 px viewport, ends above the 76 px bar) at x 16 / y 110, 1440×900; same dock as Report</td></tr>
+<tr><td>Frame</td><td><code>StaffMapWindow</code>: <code>PANEL_STRONG</code>, 1 px <code>LINE</code>, chamfers 0,16,0,16, tab Chakra 700 11 tracking 1.2 in <code>side.own</code> / <code>side.enemy</code>, X 32 px</td></tr>
+<tr><td>Filter chips</td><td>mono 600 10, 1 px <code>#3a3f33</code>; active = <code>ui.amber</code> 12 % fill + amber edge</td></tr>
+<tr><td>Turn header</td><td>28 px, Chakra 700 11 tracking 1 <code>ui.amber</code>, 1 px amber 30 % underline; right: date + DAY / NIGHT range mono 600 10 <code>ui.muted</code>; <code>NOW</code> badge on the current turn; sticky while scrolling</td></tr>
+<tr><td>Entry</td><td>side shape 14 px (own rectangle <code>side.own</code>, enemy diamond <code>side.enemy</code>, neutral circle <code>ui.muted</code>) · tag mono 700 9 <code>ui.muted</code> (STR / BTL / MOV / POL) · sentence IBM Plex Sans Condensed 500 12.5 <code>ui.text</code> · place line Plex Cond 500 11 caps <code>ui.muted</code>; padding 6 px, 1 px white 5 % divider</td></tr>
+<tr><td>Outcome words</td><td>reuse strike tokens: <code>outcome.hit</code> = amber, <code>outcome.intercepted</code> = <code>#6f95ab</code>, losses / damage <code>ui.alert</code>; the words ("hit", "intercepted", "destroyed") carry the meaning</td></tr>
+<tr><td>Behaviour</td><td>no scrim, map live; button JRN lit while open; key J, Esc, ✕; click on the map closes docked windows as today; fade 150 ms; unseen entries since last close: 3 px amber left bar until hover; opens scrolled to the current turn</td></tr>
+</table>
+<p><b>Godot notes:</b> new <code>StaffMapJournalWindow</code> extends <code>StaffMapWindow</code> (width <code>WIDTH_REPORT</code>), rows built like <code>StaffMapTurnReport</code> (MenuStyle labels), side shape from the counter shapes (<code>StaffMapCounter</code>), tokens from <code>UiPalette</code>. Text comes from a pure <code>StaffMapJournalText</code>. J is free once the strike cards move to the journal (see open question 1). No new tokens.</p>
+
+<h2>3 · VARIANT B – timeline rail, wide window</h2>
+<p>A 560 px window with a vertical rail: each entry hangs on a node (rectangle = our side, diamond = enemy), with the time-of-turn on the left. Reads like a diary; more room for the sentence and a second line (numbers), but covers more of the map and breaks the 420 px window width used by Report and Strike.</p>
+<div class="frame" style="height:560px">
+ <div class="turn"><b>TURN 5</b> · 14 JUN · DAY ☀ · NATO to move</div>
+ <div class="win" style="--w:560px"><div class="wi"><div class="tab">JOURNAL · NATO</div><div class="x">✕</div>
+  <div class="body"><div class="chips"><span class="chip">ALL</span><span class="chip on">STRIKES</span><span class="chip">BATTLES</span><span class="chip">MOVES</span><span class="chip">POLITICS</span></div>
+  <div class="tl">
+   <div class="th">TURN 5 <span class="now">NOW</span><span class="d">14 JUN · DAY 06–18</span></div>
+   <div class="e"><span class="nd own"></span><div><div class="tx"><b>Own strike</b> · Cruise ×3 on the enemy command post, Gusev</div><div class="pl"><span class="h" style="color:var(--hit)">2 HIT</span> · <span style="color:var(--icpt)">1 INTERCEPTED</span> · TARGET DAMAGED 6 → 3</div></div></div>
+   <div class="e"><span class="nd en"></span><div><div class="tx"><b>Enemy strike</b> · Ballistic ×4 on our airfield, Mińsk Mazowiecki</div><div class="pl"><span style="color:var(--hit)">3 HIT</span> · <span style="color:var(--icpt)">1 INTERCEPTED</span> · INTEGRITY 4 → 1</div></div></div>
+   <div class="th">TURN 3<span class="d">13 JUN · DAY 06–18</span></div>
+   <div class="e"><span class="nd en"></span><div><div class="tx"><b>Enemy strike</b> · Cruise ×2 on our 4th Arty Bn, Elk</div><div class="pl"><span style="color:var(--alert)">FORMATION DESTROYED</span></div></div></div>
+  </div></div>
+  <div class="hint">J or ✕ closes · click an entry to find it on the map</div>
+ </div></div>
+ <div class="bar"><span class="bb">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb on">JRN</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+</div>
+<p>Spec differences from A: width 560, rail 2 px <code>LINE</code> 80 % at x 19, node 12 px with 2 px side-coloured edge, second line carries numbers (mono). Tag column dropped (the filter and the sentence's first bold words name the category). <b>Cost:</b> 140 px more map covered; two lines per entry halve the number visible.</p>
+
+<h2>4 · VARIANT C – compact one-liners, 330 px</h2>
+<p>The cheapest: the standard 330 px window, one line per entry (side shape · text · place on the right), no filter chips, last 3 turns expanded and older turns collapsed to a header row with a count (click expands). Fits Map-options width; no room for numbers, so the sentence is short ("We struck Gusev: 2 hit").</p>
+<div class="frame" style="height:520px">
+ <div class="turn"><b>TURN 5</b> · 14 JUN · DAY ☀ · NATO to move</div>
+ <div class="win" style="--w:330px"><div class="wi"><div class="tab">JOURNAL · NATO</div><div class="x">✕</div>
+  <div class="body">
+   <div class="th" style="margin-top:0">TURN 5 <span class="now">NOW</span><span class="d">14 JUN · DAY</span></div>
+   <div class="ln"><span class="sd"></span>Strike on Gusev: 2 hit<span class="r">STR</span></div>
+   <div class="ln"><span class="sd en"></span>Strike on Mińsk Maz.: 3 hit<span class="r">STR</span></div>
+   <div class="ln"><span class="sd"></span>Sejny: enemy repulsed<span class="r">BTL</span></div>
+   <div class="ln"><span class="sd"></span>1st Bn halted, Sejny<span class="r">MOV</span></div>
+   <div class="th">TURN 4<span class="d">14 JUN · NIGHT</span></div>
+   <div class="ln"><span class="sd"></span>3rd Bde arrived, Augustów<span class="r">MOV</span></div>
+   <div class="th">TURN 3 ▸ 4 ENTRIES<span class="d">13 JUN · DAY</span></div>
+   <div class="th">TURN 2 ▸ 7 ENTRIES<span class="d">13 JUN · NIGHT</span></div>
+  </div>
+  <div class="hint">J or ✕ closes</div>
+ </div></div>
+ <div class="bar"><span class="bb">MAP</span><span class="sep"></span><span class="bb">NXT</span><span class="bb">CAN</span><span class="bb">REP</span><span class="bb on">JRN</span><span class="bb">DEC</span><span class="bb">STR</span><span class="sep"></span><span class="bb">SAV</span></div>
+</div>
+
+<h2>5 · Decisions (human, 2026-11-12)</h2>
+<ol>
+<li>J opens the journal; the strike cards open it at the strike entry with <b>Enter</b> or a click on the chip (the card queue keeps ◂ ▸ and X).</li>
+<li>All entries are kept for the whole operation (no cap).</li>
+<li>Political entries are bare facts (effects only, never who decided), as <code>PoliticalLog</code>.</li>
+</ol>
+<p>New tokens: none. Date format "14 JUN" comes from <code>OperationalClock</code> (12 h per turn; DAY = odd turns 06–18).</p>
+</body></html>
