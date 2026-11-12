@@ -215,7 +215,7 @@ func test_card_shows_the_model_or_the_class_glyph_and_the_chips() -> void:
 	var panel := _panel(_state(), &"jassm_er")
 	var card := panel.card()
 	assert_eq(card.shown_id(), &"jassm_er")
-	assert_true(card.shows_model(), "JASSM-ER has a turntable model")
+	assert_true(card.shows_blueprint(), "JASSM-ER has a blueprint")
 	assert_eq(card.chip_text("RANGE"), "925 KM")
 	assert_eq(card.chip_text("SALVO").substr(0, 1), "≤")
 	assert_true(card.chip_text("ACCURACY").ends_with("%"))
@@ -223,13 +223,40 @@ func test_card_shows_the_model_or_the_class_glyph_and_the_chips() -> void:
 	assert_eq(card.tag_text(), "AGM-158B · CRUISE")
 	panel.hover_row(&"atacms")
 	assert_eq(card.shown_id(), &"atacms", "hover previews")
-	assert_false(card.shows_model(), "no ATACMS model yet: the glyph stands in")
+	assert_true(card.shows_blueprint(), "ATACMS has a blueprint")
 	assert_eq(card.chip_text("RANGE"), "300 KM")
 	panel.hover_row(&"tomahawk")
 	assert_true(card.platform_text().contains("allies"), card.platform_text())
 	panel.hover_row(&"")
 	assert_eq(card.shown_id(), &"jassm_er", "leaving the row returns to the picked weapon")
 	panel.free()
+
+
+func test_card_has_no_viewport_and_unknown_weapon_shows_the_glyph() -> void:
+	var card := StaffMapWeaponCard.new()
+	for id in StrikeMeansDefinition.SHIPPED:
+		card.show_entry(_entry(id))
+		assert_true(card.shows_blueprint(), "blueprint for %s" % id)
+	assert_eq(card.find_children("*", "SubViewport", true, false).size(), 0, "no 3D viewport")
+	card.show_entry(_entry(&"hand_made"))
+	assert_false(card.shows_blueprint(), "unknown id: class glyph")
+	card.free()
+
+
+func _entry(id: StringName) -> Dictionary:
+	return {
+		"id": id,
+		"glyph": &"missile",
+		"designation": "X",
+		"class_text": "cruise",
+		"enabled": true,
+		"range_text": "100 km",
+		"max_salvo": 2,
+		"accuracy": 80,
+		"intercept_word": "normal",
+		"intercept_text": "",
+		"platform": "ground-launched",
+	}
 
 
 # --- the layer: one head per flying missile, no node per missile ---

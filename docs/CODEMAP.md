@@ -333,11 +333,12 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapTurnMarks` – View-model of what happened when a side ended its move (TASK-092e), built from the operat… (`staff_map_turn_marks.gd`)
 - `StaffMapTurnReport` – Turn report of the staff map (TASK-092e), HUD v3 panel like the formation panel: one row… (`staff_map_turn_report.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
-- `StaffMapWeaponCard` – The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140… (`staff_map_weapon_card.gd`)
+- `StaffMapWeaponCard` – The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140 (`staff_map_weapon_card.gd`)
 - `StaffMapWeaponGlyph` – The silhouette glyph of a strike weapon class (TASK-141b): drawn polylines (no assets), n… (`staff_map_weapon_glyph.gd`)
 - `StaffMapWindow` – The one docked window of the staff map (docs/design/operational_map/bottom_bar_windows.ht… (`staff_map_window.gd`)
 - `StanceTint` – How the staff map tints the countries for one viewer (TASK-114): the single view function (`stance_tint.gd`)
 - `StrikeWeaponLook` – How one strike weapon looks on the staff map (TASK-141b): its glyph, the colour shade, sp… (`strike_weapon_look.gd`)
+- `WeaponBlueprint` – Blueprint-style side drawing of a strike weapon (TASK-146, docs/design/operational_map/ (`weapon_blueprint.gd`)
 
 ## src/presentation/ui/
 

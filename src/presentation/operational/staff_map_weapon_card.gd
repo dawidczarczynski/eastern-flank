@@ -1,19 +1,18 @@
 class_name StaffMapWeaponCard
 extends VBoxContainer
-## The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140 model
-## stage (the 3D turntable of TASK-144, or the class glyph at 96 px while the weapon has no model),
+## The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140
+## stage with the blueprint drawing of the weapon (TASK-146, WeaponBlueprint) or the class glyph at
+## 96 px while the weapon has no blueprint,
 ## four chips (RANGE, SALVO, ACCURACY, INTERCEPT) and the platform line. Shows one StaffMapStrike
 ## means entry at a time (`show_entry`); a weapon at stock 0 is shown dimmed with "arrives only
 ## from allies".
 
 const STAGE_SIZE := Vector2(388, 140)
 const FLOOR := Color("#10130e")
-const FLOOR_LIGHT := Color("#262c21")
 const GLYPH_PX := 96.0
 const DIM := 0.5
 
 var _stage: Control
-var _turntable: WeaponTurntable
 var _glyph: StaffMapWeaponGlyph
 var _tag: Label
 var _chips := {}  # key -> value Label
@@ -32,10 +31,6 @@ func _init() -> void:
 	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stage.draw.connect(_draw_stage)
 	add_child(_stage)
-	_turntable = WeaponTurntable.new()
-	_turntable.name = "Turntable"
-	_turntable.position = Vector2.ZERO
-	_stage.add_child(_turntable)
 	_glyph = StaffMapWeaponGlyph.new(&"missile", GLYPH_PX)
 	_glyph.name = "ClassGlyph"
 	_glyph.stroke = 1.2
@@ -59,18 +54,14 @@ func _init() -> void:
 	add_child(_platform)
 
 
-func turntable() -> WeaponTurntable:
-	return _turntable
-
-
 ## The means id shown now (&"" before the first `show_entry`).
 func shown_id() -> StringName:
 	return _shown
 
 
-## True while the 3D model is shown, false for the class glyph stand-in.
-func shows_model() -> bool:
-	return _turntable.visible
+## True while the blueprint is drawn, false for the class glyph stand-in.
+func shows_blueprint() -> bool:
+	return WeaponBlueprint.has_blueprint(_shown)
 
 
 func chip_text(key: String) -> String:
@@ -88,9 +79,7 @@ func tag_text() -> String:
 ## Shows a StaffMapStrike.means_list entry.
 func show_entry(entry: Dictionary) -> void:
 	_shown = entry["id"]
-	var has_model := _turntable.show_weapon(_shown)
-	_turntable.visible = has_model
-	_glyph.visible = not has_model
+	_glyph.visible = not WeaponBlueprint.has_blueprint(_shown)
 	_glyph.glyph = entry["glyph"]
 	_stage.modulate = Color(DIM, DIM, DIM) if not entry["enabled"] else Color.WHITE
 	var tag := entry["designation"] as String
@@ -143,10 +132,5 @@ static func _capitalised(text: String) -> String:
 func _draw_stage() -> void:
 	var rect := Rect2(Vector2.ZERO, _stage.size)
 	_stage.draw_rect(rect, FLOOR)
-	# A soft lit floor under the model: a flat ellipse near the bottom.
-	_stage.draw_set_transform(
-		Vector2(rect.size.x / 2.0, rect.size.y * 0.88), 0.0, Vector2(1.0, 0.18)
-	)
-	_stage.draw_circle(Vector2.ZERO, rect.size.x * 0.34, Color(FLOOR_LIGHT, 0.7))
-	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	WeaponBlueprint.draw(_stage, _shown, rect, UiPalette.AMBER)
 	_stage.draw_rect(rect, UiPalette.CARD_EDGE, false, 1.0)
