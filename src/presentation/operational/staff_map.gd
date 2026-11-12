@@ -1105,6 +1105,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 		push_error("StaffMap: cannot build operation '%s'" % operation_id)
 		state = OperationalState.new()
 		state.grid = _grid
+	var chosen_side := Session.take_chosen_side() if not _resumed else &""
 	if not _resumed:
 		_simulation = OperationalSimulation.new(state)
 		Session.start_campaign(_simulation, operation_id, seed_value)
@@ -1118,6 +1119,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 		# event to switch the view).
 		if not _has_side_arg():
 			viewer_player = state.current_player
+			if state.player_sides.has(chosen_side):  # the side picked in the menu (TASK-149)
+				viewer_player = state.player_sides.find(chosen_side)
 	if state.player_sides.size() == 2 and not OS.get_cmdline_user_args().has("--hotseat"):
 		ai_side = 1 - viewer_player
 	_cover = StaffMapAirDefenceLayer.new()  # under the markers and counters

@@ -732,3 +732,14 @@ Sanctuary entered - %s,Sanctuary entered - %s,Wkroczenie na zaplecze - %s
 %s sends reinforcements to %s,%s sends reinforcements to %s,%s wysyła posiłki dla %s
 All levels,All levels,Wszystkie poziomy
 Hide levels,Hide levels,Ukryj poziomy
+"Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.","Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.","Obrona Przesmyku suwalskiego i utrzymanie połączenia z Bałtykiem. Obrońca z pierwszym ruchem i posiłkami sojuszników."
+"Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.","Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.","Przecięcie korytarza między Kaliningradem a Białorusią, zanim NATO się zwiąże. Atakujący z inicjatywą i opcją nuklearną."
+SELECT YOUR SIDE,SELECT YOUR SIDE,Wybierz stronę
+YOU COMMAND,YOU COMMAND,Dowodzisz
+OPPONENT · AI,OPPONENT · AI,Przeciwnik · SI
+LEAD FACTION,LEAD FACTION,Frakcja wiodąca
+ALLIANCE DECISION,ALLIANCE DECISION,Decyzja sojusznicza
+NUCLEAR OPTION,NUCLEAR OPTION,Opcja nuklearna
+FORMATIONS,FORMATIONS,Formacje
+START OPERATION,START OPERATION,Rozpocznij operację
+SEED,SEED,Ziarno

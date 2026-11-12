@@ -375,6 +375,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `ScenarioPreview` – Flat top-down preview of a scenario's terrain for the scenario screen (TASK-124): terrain (`scenario_preview.gd`)
 - `ScreenDecor` – Full-screen decoration of the HUD v3 look: vignette, scanlines and amber corner brackets, (`screen_decor.gd`)
 - `SideFlag` – Flat flag of a side (TASK-127) with a 1 px frame in the side colour; drawn from (`side_flag.gd`)
+- `SideSelectWindow` – Side selection before an operation starts (TASK-149, docs/design/operational_map/ (`side_select_window.gd`)
 - `TargetTag` – Compact attack forecast beside the cursor (TASK-089b) while the hovered enemy is a valid… (`target_tag.gd`)
 - `TargetingBar` – Targeting mode bar (HUD v3 "06 Notices"): 16 px amber hatch | amber block with the mode t… (`targeting_bar.gd`)
 - `TerrainPanel` – Terrain strip in the left zone of the bottom bar (TASK-079, TASK-139, docs/design/hud_v3/ (`terrain_panel.gd`)

@@ -8,6 +8,7 @@ script = ExtResource("1_side")
 id = &"russia"
 display_name = "Russia"
 alliance_decision_name = "Invoke the Union State"
+briefing = "Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option."
 lead_faction = &"russia"
 factions = Array[StringName]([&"russia"])
 flag = ExtResource("2_flag")

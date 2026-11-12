@@ -16,6 +16,8 @@ const IDS: Array[StringName] = [&"nato", &"russia"]
 @export var factions: Array[StringName] = []
 ## Name of the *Invoke alliance* decision for this side (translation key, TASK-117).
 @export var alliance_decision_name: String = ""
+## One-line briefing on the side selection screen (translation key, English).
+@export var briefing: String = ""
 ## Whether this side may take the decision *Use nuclear weapon* (TASK-140, NuclearStrikeCommand).
 @export var may_use_nuclear: bool = false
 ## Flag next to the side name in the UI (TASK-127), see assets/flags/README.md.

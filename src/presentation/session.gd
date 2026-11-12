@@ -25,6 +25,9 @@ const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 ## The operation of the campaign; null when there is none.
 static var simulation: OperationalSimulation = null
 static var operation_id: StringName = &""
+## The side picked on the side selection screen (SideDefinition id) for the operation the staff map
+## is about to build; empty = none (command line / tools). The staff map takes it once.
+static var chosen_side: StringName = &""
 ## The player the human commands in the battle (the staff map's viewer when Play was pressed).
 static var human_player := 0
 ## The staff map's view settings when Play was pressed (StaffMap.view_settings).
@@ -42,6 +45,13 @@ static var _report_result: BattleResult = null
 static var _report_events: Array[Dictionary] = []
 ## True from Play until the staff map takes the simulation back.
 static var _away := false
+
+
+## The side picked in the menu, cleared on read; empty when none was picked.
+static func take_chosen_side() -> StringName:
+	var side := chosen_side
+	chosen_side = &""
+	return side
 
 
 ## A staff map built a new operation: it becomes the session's campaign (no battles yet).
@@ -217,6 +227,7 @@ static func _execute_collecting(command: OperationalCommand) -> bool:
 
 ## Drops the campaign without a result (Esc to the menu from a campaign battle, the main menu).
 static func abandon() -> void:
+	chosen_side = &""
 	simulation = null
 	operation_id = &""
 	human_player = 0

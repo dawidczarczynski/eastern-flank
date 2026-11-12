@@ -32,6 +32,8 @@ var _backdrop: MenuBackdrop
 var _main_page: Control
 var _scenario_page: Control
 var _settings_page: Control
+var _side_overlay: Control  # scrim + SideSelectWindow over the menu (TASK-149)
+var _side_select: SideSelectWindow
 var _scenario_buttons: Dictionary = {}  # scenario name -> Button
 var _preview: ScenarioPreview
 var _begin: Button  # scenario page: starts the battle
@@ -215,6 +217,7 @@ func _build() -> void:
 	var settings_column := _column(BUTTON_WIDTH)
 	_settings_page = settings_column.get_parent()
 	_build_settings(settings_column)
+	_build_side_select()
 	var audio := AudioDirector.create(self, null, null, 1.0)
 	audio.settings = _sound  # the menu edits this dictionary: clicks follow mute and volume
 	audio.hook_tree(self)
@@ -397,8 +400,68 @@ func _on_language_pressed() -> void:
 	refresh_continue()
 
 
+## Operation: asks which side to command before the staff map opens (TASK-149).
 func _on_operation_pressed() -> void:
-	get_tree().change_scene_to_file(STAFF_MAP_SCENE)
+	var definition := OperationDefinition.find(StaffMap.DEFAULT_OPERATION)
+	if definition == null or definition.sides.size() != 2:
+		push_warning("Main menu: no playable operation '%s'" % StaffMap.DEFAULT_OPERATION)
+		get_tree().change_scene_to_file(STAFF_MAP_SCENE)
+		return
+	_side_select.present(definition, StaffMap.DEFAULT_SEED, get_viewport_rect().size)
+	_side_overlay.show()
+	_side_select.card(0).grab_focus()
+	if is_inside_tree():  # fade 150 ms
+		_side_overlay.modulate.a = 0.0
+		create_tween().tween_property(_side_overlay, "modulate:a", 1.0, 0.15)
+
+
+## The side selection overlay: a scrim (a click on it goes back) and the window, hidden.
+func _build_side_select() -> void:
+	_side_overlay = Control.new()
+	_side_overlay.name = "SideOverlay"
+	_side_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_side_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_side_overlay.gui_input.connect(_on_side_overlay_input)
+	var scrim := ColorRect.new()
+	scrim.color = UiPalette.SCRIM_SCREEN
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_side_overlay.add_child(scrim)
+	_side_select = SideSelectWindow.new()
+	_side_select.cancelled.connect(close_side_select)
+	_side_select.start_requested.connect(_on_side_chosen)
+	_side_overlay.add_child(_side_select)
+	_side_overlay.hide()
+	add_child(_side_overlay)
+
+
+func _on_side_overlay_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		close_side_select()
+
+
+## Closes the side selection (BACK, X, Esc, click on the scrim); false when it was not open.
+func close_side_select() -> bool:
+	var was_open := _side_overlay.visible
+	_side_overlay.hide()
+	if was_open and is_inside_tree():
+		_operation.grab_focus()
+	return was_open
+
+
+func side_select() -> SideSelectWindow:
+	return _side_select
+
+
+func is_side_select_open() -> bool:
+	return _side_overlay.visible
+
+
+## START: remembers the side for the staff map and opens it.
+func _on_side_chosen(side_id: StringName) -> void:
+	Session.chosen_side = side_id
+	if is_inside_tree():
+		get_tree().change_scene_to_file(STAFF_MAP_SCENE)
 
 
 func _on_catalog_pressed() -> void:

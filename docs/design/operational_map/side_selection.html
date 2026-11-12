@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Side selection – accepted variant A</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf)}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:"JetBrains Mono";src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:"Plex Cond";src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Regular.ttf)}
+:root{--void:#0b0d0b;--land:#1d211c;--panel:rgba(8,11,8,.86);--strong:rgba(8,11,8,.93);--line:rgba(232,176,74,.34);--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--own:#5b93d6;--ownink:#0f1a26;--enemy:#d76a52;--enemyink:#2a110b;--alert:#e07c5e;--scrim:rgba(0,0,0,.62)}
+*{box-sizing:border-box}body{margin:0;background:#050605;color:var(--text);font:14px "Plex Cond",sans-serif}
+.banner{background:var(--amber);color:#0a0c09;font:700 13px "Chakra Petch";letter-spacing:1px;padding:8px 24px}
+h1,h2{font-family:"Chakra Petch";margin:0}h2{font-size:18px;color:var(--amber);margin:28px 24px 6px}
+p.n{margin:4px 24px 12px;color:var(--muted);max-width:1100px}
+.frame{position:relative;width:1440px;height:900px;margin:0 24px 12px;overflow:hidden;background:
+ radial-gradient(ellipse at 30% 40%,#2a3128 0,var(--land) 45%,var(--void) 100%)}
+.frame:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(60deg,transparent 0 58px,rgba(255,255,255,.03) 58px 59px)}
+.scrim{position:absolute;inset:0;background:var(--scrim)}
+.win{position:absolute;background:var(--strong);border:1px solid var(--line);clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.tab{font:700 11px "Chakra Petch";letter-spacing:1px;color:var(--amber);padding:12px 20px 0}
+.mono{font-family:"JetBrains Mono";font-weight:600}
+.card{position:absolute;border:1px solid #3a3f33;background:rgba(255,255,255,.02);padding:18px 20px}
+.card.sel{border:2px solid var(--own);background:rgba(91,147,214,.08)}
+.card .name{font:700 26px "Chakra Petch";letter-spacing:1px}
+.flag{width:64px;height:42px;background:#2b3d5a;border:1px solid var(--own);display:inline-block;vertical-align:middle}
+.flag.r{background:#5a2b2b;border-color:var(--enemy)}
+.shape{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.rect{background:var(--own)}.dia{background:var(--enemy);transform:rotate(45deg) scale(.8)}
+.row{display:flex;justify-content:space-between;font:500 12px "JetBrains Mono";padding:5px 0;border-bottom:1px solid rgba(255,255,255,.06)}.row b{color:var(--amber)}
+.brief{font:500 13px "Plex Cond";color:var(--text);margin:10px 0;line-height:1.35}
+.btn{position:absolute;height:44px;line-height:42px;text-align:center;font:700 15px "Chakra Petch";letter-spacing:1px;border:1px solid var(--line);color:var(--text);background:rgba(8,11,8,.7)}
+.btn.go{background:var(--amber);color:#0a0c09;border-color:var(--amber)}.btn.off{opacity:.4}
+.key{font:600 10px "JetBrains Mono";border:1px solid var(--muted);padding:1px 5px;margin-left:8px;color:var(--muted)}
+.chip{display:inline-block;font:700 10px "JetBrains Mono";border:1px solid var(--amber);color:var(--amber);padding:2px 6px;margin-right:6px}
+table{border-collapse:collapse;margin:4px 24px 24px;font:12px "JetBrains Mono";max-width:1300px}td,th{border:1px solid #2b2f27;padding:5px 10px;text-align:left;vertical-align:top}th{color:var(--amber);font-family:"Chakra Petch"}
+.gn{margin:0 24px 8px;color:var(--muted);font-size:12px}.gn b{color:var(--text)}
+.state{position:absolute;top:8px;left:8px;font:700 11px "Chakra Petch";color:var(--amber);background:#000a;padding:3px 8px;z-index:5}
+.menu-col{position:absolute;right:0;top:0;bottom:0;width:420px;background:linear-gradient(90deg,transparent,rgba(8,11,8,.9) 30%)}
+</style></head><body>
+
+<h2>The need</h2>
+<p class="n">Today <b>Operation</b> in the main menu jumps straight to the staff map and the side comes from <code>--side=</code> or the first turn. The human must choose which side to command (NATO or Russia, <code>data/sides/*.tres</code>) before the map opens. The screen shows per side: flag, name, lead faction, one briefing line, alliance decision, whether nuclear use is available (<code>may_use_nuclear</code>) and the scenario facts (operation, map, seed); buttons BACK (to the main menu) and START. The pick is passed as the staff map's <code>viewer_player</code> (the other side becomes <code>ai_side</code>); No hot-seat option (decided 2026-11-12; <code>--hotseat</code> stays a command-line flag). States: nothing picked (START disabled) · hover · picked · keyboard focus. Meaning by shape and text, not colour: picked card carries "◆ YOU COMMAND" tag; the opponent card is labelled "OPPONENT · AI". Palette has only own / enemy – the picked side is drawn <b>own blue</b> (rectangle), the other <b>enemy red</b> (diamond); NATO / Russia have no colour of their own, so the picked blue changes when you switch. Briefing texts are sample wording.</p>
+
+<h2>Variant A – "Briefing sheet" (<b>accepted 2026-11-12</b>; B and C rejected)</h2>
+<p class="n">Centered full window in the docked-window frame (PANEL_STRONG, 1 px LINE, chamfers 0,16,0,16) over the dimmed main-menu backdrop (scrim 62 %). Two cards side by side, START bottom-right. Esc / X / BACK return to the menu.</p>
+<div class="frame"><div class="state">A · NATO picked</div><div class="scrim"></div>
+<div class="win" style="left:220px;top:140px;width:1000px;height:620px">
+ <div class="tab">SELECT YOUR SIDE · OPERATION SUWAŁKI GAP</div>
+ <div style="position:absolute;right:12px;top:8px;width:32px;height:32px;text-align:center;font-size:18px;line-height:32px;color:var(--muted)">✕</div>
+ <div class="card sel" style="left:28px;top:56px;width:456px;height:400px">
+  <span class="chip" style="border-color:var(--own);color:var(--own)">◆ YOU COMMAND</span>
+  <div style="margin-top:12px"><span class="flag"></span> <span class="name" style="margin-left:10px"><span class="shape rect"></span>NATO</span></div>
+  <div class="brief">Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.</div>
+  <div class="row"><span>LEAD FACTION</span><b>POLAND</b></div>
+  <div class="row"><span>ALLIANCE DECISION</span><b>Invoke collective defence</b></div>
+  <div class="row"><span>NUCLEAR OPTION</span><b>NO</b></div>
+  <div class="row"><span>FORMATIONS</span><b>24</b></div>
+ </div>
+ <div class="card" style="left:516px;top:56px;width:456px;height:400px">
+  <span class="chip" style="border-color:var(--muted);color:var(--muted)">OPPONENT · AI</span>
+  <div style="margin-top:12px"><span class="flag r"></span> <span class="name" style="margin-left:10px"><span class="shape dia"></span>RUSSIA</span></div>
+  <div class="brief">Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.</div>
+  <div class="row"><span>LEAD FACTION</span><b>RUSSIA</b></div>
+  <div class="row"><span>ALLIANCE DECISION</span><b>Invoke the Union State</b></div>
+  <div class="row"><span>NUCLEAR OPTION</span><b style="color:var(--alert)">YES</b></div>
+  <div class="row"><span>FORMATIONS</span><b>31</b></div>
+ </div>
+ <div style="position:absolute;left:28px;top:480px;color:var(--muted);font:500 12px 'JetBrains Mono'">SEED 20261112</div>
+ <div class="btn" style="left:28px;top:552px;width:180px">◂ BACK <span class="key">Esc</span></div>
+ <div class="btn go" style="right:28px;top:552px;width:240px">START OPERATION <span class="key" style="color:#0a0c09;border-color:#0a0c09">↵</span></div>
+</div></div>
+<div class="gn"><b>Other states:</b> nothing picked – both cards neutral (1 px #3a3f33 edge), START at 40 % opacity and not clickable; hover – white 7 %; keyboard focus – ←/→ moves between cards, Space/↵ picks, Tab reaches BACK / START; Russia picked – same layout mirrored (Russia card gets blue rectangle + "◆ YOU COMMAND", NATO diamond red).</div>
+<table><tr><th>Item</th><th>Spec</th></tr>
+<tr><td>Window</td><td>1000×620 centred (x 220 / y 140 at 1440×900), PANEL_STRONG, 1 px LINE, chamfers 0,16,0,16; tab Chakra Petch 700 11 amber; X 32 px; fade 150 ms</td></tr>
+<tr><td>Card</td><td>456×400, 1 px #3a3f33; picked 2 px side.own + own 8 % fill; flag 64×42 (SideFlag), name Chakra 700 26, rows mono 500 12 (value amber), brief Plex Cond 500 13</td></tr>
+<tr><td>Buttons</td><td>44 px high (MenuStyle BUTTON_HEIGHT); START amber fill, BACK outline; key caps mono 600 10</td></tr>
+<tr><td>Behaviour</td><td>Blocks the menu behind it; Esc = BACK; ↵ = START when picked; click on the scrim = BACK; no timeout; default pick: none</td></tr>
+<tr><td>Godot notes</td><td>New scene opened by <code>MainMenu._on_operation_pressed</code>; extend FramedPanel / StaffMapWindow look, <code>MenuStyle.button/plate</code>, SideFlag, <code>SideDefinition.find</code>; result stored in Session (human side) and read by StaffMap (viewer_player / ai_side). No new tokens.</td></tr></table>
+
+<h2>Variant B – "Two fronts" (full-screen split)</h2>
+<p class="n">Whole screen split diagonally: left half NATO, right half Russia, each with a big flag and briefing over the dimmed staff-map backdrop; hover widens the half to 58 %; click picks, START appears at the bottom centre. Heavier and more dramatic, no window frame, new layout.</p>
+<div class="frame"><div class="state">B · hover on Russia</div>
+ <div style="position:absolute;left:0;top:0;width:640px;height:900px;background:rgba(91,147,214,.08);border-right:1px solid var(--line)"></div>
+ <div style="position:absolute;left:640px;top:0;right:0;height:900px;background:rgba(215,106,82,.14)"></div>
+ <div style="position:absolute;left:80px;top:200px;width:460px"><span class="flag" style="width:96px;height:64px"></span><div class="name" style="font:700 44px 'Chakra Petch';margin:14px 0"><span class="shape rect"></span>NATO</div><div class="brief">Hold the Suwałki Gap. Defender, allied reinforcements.</div><div class="row"><span>LEAD</span><b>POLAND</b></div><div class="row"><span>NUCLEAR</span><b>NO</b></div></div>
+ <div style="position:absolute;left:740px;top:200px;width:560px"><span class="flag r" style="width:96px;height:64px"></span><div class="name" style="font:700 44px 'Chakra Petch';margin:14px 0"><span class="shape dia"></span>RUSSIA</div><div class="brief">Cut the corridor. Attacker, nuclear option.</div><div class="row"><span>LEAD</span><b>RUSSIA</b></div><div class="row"><span>NUCLEAR</span><b style="color:var(--alert)">YES</b></div></div>
+ <div class="btn" style="left:40px;bottom:40px;width:180px">◂ BACK</div>
+ <div class="btn go off" style="left:600px;bottom:40px;width:240px">START OPERATION</div>
+</div>
+<table><tr><th>Item</th><th>Spec</th></tr><tr><td>Behaviour</td><td>Halves 50/50, hover 58/42 (150 ms); picked half gets 3 px side.own bar and "◆ YOU COMMAND"; the other half is dimmed with "OPPONENT · AI"; START enabled after a pick</td></tr>
+<tr><td>Godot notes</td><td>New full-screen scene, ChamferBox diagonal, no existing component reused – more design and code than A. No new tokens.</td></tr></table>
+
+<h2>Variant C – "In the menu column" (minimal)</h2>
+<p class="n">No new screen: the main menu's right column swaps to a sub-page (like the Settings page) with two big plates NATO / RUSSIA, a one-line briefing each, BACK and START. The backdrop stays visible.</p>
+<div class="frame"><div class="state">C · Russia picked</div><div class="menu-col"></div>
+ <div style="position:absolute;right:40px;top:200px;width:340px">
+  <div class="tab" style="padding:0 0 10px">SELECT YOUR SIDE</div>
+  <div class="card" style="position:relative;margin-bottom:12px;padding:12px 14px"><span class="flag" style="width:40px;height:26px"></span> <b style="font:700 18px 'Chakra Petch';margin-left:8px"><span class="shape dia"></span>NATO</b><div class="brief" style="margin:6px 0 0">Defender · lead Poland</div></div>
+  <div class="card sel" style="position:relative;margin-bottom:12px;padding:12px 14px"><span class="flag r" style="width:40px;height:26px"></span> <b style="font:700 18px 'Chakra Petch';margin-left:8px"><span class="shape rect"></span>RUSSIA</b> <span class="chip" style="float:right;margin:0;border-color:var(--own);color:var(--own)">◆ YOU</span><div class="brief" style="margin:6px 0 0">Attacker · lead Russia · nuclear option</div></div>
+  <div class="btn go" style="position:relative;margin-top:20px">START OPERATION</div><div class="btn" style="position:relative;margin-top:10px">◂ BACK</div>
+ </div></div>
+<table><tr><th>Item</th><th>Spec</th></tr><tr><td>Behaviour</td><td>Reuses MenuStyle buttons / plates; 340 px column; no briefing detail (no alliance / nuclear rows) – quickest to build, least informative</td></tr>
+<tr><td>Godot notes</td><td>A new page inside <code>main_menu.gd</code> (like the settings page); no new scene. No new tokens.</td></tr></table>
+
+<h2>Decisions (2026-11-12)</h2><p class="n">Variant A. No hot-seat checkbox. No remembered side (nothing pre-picked). Continue skips this screen (the save has its side). Briefing comes from data: <code>SideDefinition.briefing</code> (translation key).</p>
+</body></html>
