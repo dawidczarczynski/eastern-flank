@@ -336,6 +336,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `ActionTooltip` – HUD tooltip of an action bar button (TASK-139): a title in Chakra with the key on a KeyCap (`action_tooltip.gd`)
 - `BattleBriefing` – Commander's briefing at the start of a campaign battle (TASK-094c, GDD "Player roles"): t… (`battle_briefing.gd`)
 - `BattleHud` – Battle HUD built in code (HUD v3, ADR 0013): the top turn bar with both sides and the tick (`battle_hud.gd`)
+- `BattleMenu` – The hamburger menu of the battle (same look and behaviour as the staff map's): the button… (`battle_menu.gd`)
 - `Bracketed` – Tag in amber brackets, "[ TEXT ]": mono 10.5 (rendered at 11) as used for unit and terrai… (`bracketed.gd`)
 - `ChamferBox` – Flat box with two opposite chamfered corners (top-right and bottom-left), the plate of th… (`chamfer_box.gd`)
 - `CrosshairCursor` – The amber crosshair mouse cursor shown over a valid attack target (TASK-089b): a ring wit… (`crosshair_cursor.gd`)

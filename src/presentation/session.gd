@@ -10,8 +10,9 @@ extends RefCounted
 ## Flow: staff map Play battle -> `play_battle` (ContactBattle.prepare cuts the map; the staff map
 ## hands over its simulation and view) -> battle scene reads `battle` / `human_player` -> end
 ## screen Report to staff -> `finish_battle` (BattleResult.from_battle -> ResolveBattleCommand
-## through the simulation) -> staff map `take_simulation` / `view` / `take_report`. Esc to the
-## menu from a campaign battle and the main menu itself `abandon` the session (no result).
+## through the simulation) -> staff map `take_simulation` / `view` / `take_report`. Leaving a
+## battle from its menu (`leave_battle`) auto-resolves the rest from the state reached; the main
+## menu itself `abandon`s the session (no result).
 ## Saving (TASK-094d): a staff map that builds a new operation calls `start_campaign`; the
 ## session keeps the seed and every played battle (`finish_battle`), so `record` gives the whole
 ## CampaignRecord (the operational commands are the simulation's history). Continue: `resume`
@@ -120,12 +121,31 @@ static func in_battle() -> bool:
 static func finish_battle(played: GameSimulation) -> bool:
 	if not in_battle() or played == null or not played.state.is_over():
 		return false
-	var command := ResolveBattleCommand.new(BattleResult.from_battle(battle, played.state))
+	return _close_battle(played, BattleResult.from_battle(battle, played.state), false)
+
+
+## Leaving a campaign battle that is not over: the rest is auto-resolved from the state the player
+## reached (AutoResolve.resolve_from) and closes the pending battle like a played one; the
+## commands played so far join the record. False (and nothing changes) when no campaign battle
+## runs, it is already over (use `finish_battle`) or the operation rejects the result.
+static func leave_battle(played: GameSimulation) -> bool:
+	if not in_battle() or played == null or played.state.is_over():
+		return false
+	var result := AutoResolve.resolve_from(battle, played.state)
+	return result != null and _close_battle(played, result, true)
+
+
+## Closes the pending battle with `result` and records it with the commands of `played`.
+static func _close_battle(played: GameSimulation, result: BattleResult, left: bool) -> bool:
+	var command := ResolveBattleCommand.new(result)
 	if not _execute_collecting(command):
 		return false
+	var commands := BattleReplay.command_dicts(played.history)
 	battles.append(
-		CampaignRecord.Battle.played(
-			battle, BattleReplay.command_dicts(played.history), command.result
+		(
+			CampaignRecord.Battle.concluded(battle, commands, command.result)
+			if left
+			else CampaignRecord.Battle.played(battle, commands, command.result)
 		)
 	)
 	_report_setup = battle

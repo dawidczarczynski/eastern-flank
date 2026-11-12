@@ -44,6 +44,11 @@ static func problem(
 			return "command %d: invalid" % j
 		if not battle.execute(command):
 			return "command %d: %s" % [j, rejection[0]]
+	if result.resolution == BattleResult.CONCLUDED:
+		var rest := AutoResolve.resolve_from(setup, state)
+		if state.is_over() or rest == null or rest.to_dict() != result.to_dict():
+			return "result"
+		return ""
 	if not state.is_over():
 		return "not_over"
 	if BattleResult.from_battle(setup, state).to_dict() != result.to_dict():

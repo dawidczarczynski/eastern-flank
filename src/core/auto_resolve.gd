@@ -10,6 +10,40 @@ extends RefCounted
 
 ## The result of fighting `setup` out; null (push_error) when the setup cannot be fought.
 static func resolve(setup: BattleSetup, rules: AutoResolveRules = null) -> BattleResult:
+	return _fight(setup, rules, PackedInt32Array(), 0, setup.seed, BattleResult.AUTO)
+
+
+## The result of finishing the unfinished battle `state` (started from `setup` with
+## `Scenario.from_setup`) by auto-resolve: the fight goes on from the companies' current strengths
+## (a destroyed one stays destroyed), for the turns the limit still allows (at least one round),
+## and a side's break share counts from its strength at the start of the battle. Used when the
+## player leaves a campaign battle. The dice are seeded from the setup seed and the turn reached,
+## never from `state.rng`. Resolution `concluded`; a battle that is already over gives its played
+## result. Null (push_error) when the setup cannot be fought.
+static func resolve_from(
+	setup: BattleSetup, state: GameState, rules: AutoResolveRules = null
+) -> BattleResult:
+	if state.is_over():
+		return BattleResult.from_battle(setup, state)
+	var current := PackedInt32Array()
+	for i in setup.companies.size():
+		var unit := state.get_unit(i + 1)
+		current.append(maxi(unit.hp, 0) if unit != null else 0)
+	return _fight(
+		setup, rules, current, state.turn, hash([setup.seed, state.turn]), BattleResult.CONCLUDED
+	)
+
+
+## Fights `setup` out from `current` strengths (empty = the planned ones) after `turns_played`
+## turns; the dice come from `seed_value`.
+static func _fight(
+	setup: BattleSetup,
+	rules: AutoResolveRules,
+	current: PackedInt32Array,
+	turns_played: int,
+	seed_value: int,
+	resolution: StringName
+) -> BattleResult:
 	if rules == null:
 		rules = AutoResolveRules.shipped()
 	var defs := _definitions(setup)
@@ -21,7 +55,7 @@ static func resolve(setup: BattleSetup, rules: AutoResolveRules = null) -> Battl
 		return null
 	var hit_on := _hit_table(setup, defs, bonus as int)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = setup.seed
+	rng.seed = seed_value
 	var sides := setup.factions.size()
 	var owner := PackedInt32Array()
 	var dice := PackedInt32Array()
@@ -31,11 +65,13 @@ static func resolve(setup: BattleSetup, rules: AutoResolveRules = null) -> Battl
 	for i in count:
 		owner.append(setup.companies[i].player)
 		dice.append(defs[i].max_hp)
-		strength.append(setup.companies[i].strength)
+		strength.append(current[i] if not current.is_empty() else setup.companies[i].strength)
 		side_start[owner[i]] += setup.companies[i].strength
 	var rounds := setup.objectives.turn_limit
 	if rounds <= 0:
 		rounds = rules.default_rounds
+	elif turns_played > 0:
+		rounds = maxi(rounds - turns_played, 1)
 	var winner := -1
 	var reason := &"turn_limit"
 	var fought := 0
@@ -73,10 +109,10 @@ static func resolve(setup: BattleSetup, rules: AutoResolveRules = null) -> Battl
 			reason = &"eliminated" if ended.y == 0 else &"broken"
 			break
 	var result := BattleResult.new()
-	result.resolution = BattleResult.AUTO
+	result.resolution = resolution
 	result.winner = winner
 	result.reason = reason
-	result.turns = fought
+	result.turns = turns_played + fought
 	for i in count:
 		var planned := setup.companies[i]
 		var company := BattleResult.Company.new()

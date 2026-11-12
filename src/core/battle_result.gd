@@ -8,6 +8,9 @@ extends RefCounted
 
 const PLAYED := &"played"
 const AUTO := &"auto"
+## The player left the battle unfinished and the rest was auto-resolved from the state reached
+## (AutoResolve.resolve_from); the commands played so far are in the campaign record.
+const CONCLUDED := &"concluded"
 
 
 ## Strength of one company at the start and the end of the battle (losses = start - end).
@@ -61,7 +64,8 @@ var winner: int = -1
 var reason: StringName = &""
 ## Turns played (GameState.turn when the battle ended).
 var turns: int = 0
-## &"played" (a tactical battle was fought) or &"auto" (AutoResolve, TASK-120). The consequences
+## &"played" (a tactical battle was fought), &"auto" (AutoResolve, TASK-120) or &"concluded"
+## (left halfway, the rest auto-resolved). The consequences
 ## (TASK-095) never read it.
 var resolution: StringName = &"played"
 ## Player who holds the field afterwards: the winner, on a draw the defender, -1 without an
@@ -142,7 +146,7 @@ static func from_dict(d: Dictionary) -> BattleResult:
 		return null
 	if holder_value == null or retreat_value == null or not resolution_value is String:
 		return null
-	if not [PLAYED, AUTO].has(StringName(resolution_value as String)):
+	if not [PLAYED, AUTO, CONCLUDED].has(StringName(resolution_value as String)):
 		return null
 	if not company_list is Array:
 		return null

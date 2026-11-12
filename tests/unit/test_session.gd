@@ -68,3 +68,44 @@ func test_abandon_drops_the_campaign_without_a_result() -> void:
 	assert_true(Session.take_simulation(OPERATION) == null)
 	assert_true(Session.take_report().is_empty())
 	assert_eq(_state.pending_battles.size(), 1, "the battle stays pending")
+
+
+func test_leave_battle_auto_resolves_the_rest_from_the_state_reached() -> void:
+	Fixtures.theatre_contact(_state)
+	assert_eq(Session.play_battle(_simulation, OPERATION, 0, {}), "")
+	var battle := GameSimulation.new(Scenario.from_setup(Session.battle))
+	var setup := Session.battle
+	var weakened := battle.state.get_unit(1)
+	weakened.hp = 1
+	assert_true(Session.leave_battle(battle), "leaving a battle that is not over")
+	assert_false(Session.in_battle())
+	assert_eq(_state.pending_battles.size(), 0, "the battle is resolved")
+	var report := Session.take_report()
+	var result: BattleResult = report["result"]
+	assert_eq(result.resolution, BattleResult.CONCLUDED)
+	assert_eq(result.companies[0].strength_start, setup.companies[0].strength)
+	assert_true(result.companies[0].strength_end <= 1, "the weakened company stays weakened")
+	assert_eq(Session.battles.size(), 1)
+	assert_eq(Session.battles[0].resolution, CampaignRecord.CONCLUDED)
+
+
+func test_left_battle_record_replays() -> void:
+	Fixtures.theatre_contact(_state)
+	assert_eq(Session.play_battle(_simulation, OPERATION, 0, {}), "")
+	var setup := Session.battle
+	var battle := GameSimulation.new(Scenario.from_setup(setup))
+	assert_true(Session.leave_battle(battle))
+	var result: BattleResult = Session.take_report()["result"]
+	assert_eq(
+		BattleReplay.problem(setup, Session.battles[0].commands, result), "", "the record replays"
+	)
+
+
+func test_leave_battle_needs_a_battle_that_is_not_over() -> void:
+	assert_false(Session.leave_battle(null))
+	Fixtures.theatre_contact(_state)
+	assert_eq(Session.play_battle(_simulation, OPERATION, 0, {}), "")
+	var battle := GameSimulation.new(Scenario.from_setup(Session.battle))
+	assert_true(MatchRunner.run(battle, 40))
+	assert_false(Session.leave_battle(battle), "an over battle is reported, not left")
+	assert_true(Session.in_battle())

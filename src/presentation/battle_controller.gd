@@ -45,6 +45,7 @@ var human_player := 0
 ## True in a campaign battle (Session): briefing, mission line, Report to staff.
 var campaign := false
 var _briefing: BattleBriefing
+var _menu: BattleMenu  # hamburger: Save, Leave battle / Exit to main menu
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
@@ -255,7 +256,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	):  # view setting, like camera keys
 		_toggle_grid()
 		return
-	if _campaign_key(key.keycode) or _leave_setup_battle(key):
+	if _campaign_key(key.keycode) or _menu_key(key):
 		return
 	if not _input_allowed() or _target_ring.handle_key(key.keycode):
 		return
@@ -265,18 +266,35 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select(-1)
 
 
-## Esc with nothing selected leaves a battle started from a setup for the main menu (TASK-094b);
-## also after the game is over. A campaign battle is abandoned without a result (TASK-094c
-## [ASSUMPTION]; the pending battle stays in the operation).
-func _leave_setup_battle(key: InputEventKey) -> bool:
-	if setup == null or key.keycode != KEY_ESCAPE or _selected_unit_id >= 0:
+## Esc closes the menu (or its question), then deselects; with nothing left to close it opens the
+## menu (like the staff map), also after the game is over.
+func _menu_key(key: InputEventKey) -> bool:
+	if key.keycode != KEY_ESCAPE or _menu == null:
+		return false
+	if _menu.close_topmost():
+		return true
+	if _selected_unit_id >= 0:
 		return false
 	if _target_ring.handle_key(key.keycode):
 		return true
-	if campaign:
-		Session.abandon()
-	get_tree().change_scene_to_file(MENU_SCENE)
+	_menu.toggle()
 	return true
+
+
+## Leave confirmed in the menu. A campaign battle that is not over is finished by auto-resolve from
+## the state reached and the staff map comes back with the result (Session.leave_battle); a
+## finished one reports like the end screen's button; any other battle returns to the main menu.
+func _leave_battle() -> void:
+	if campaign:
+		if _is_playing_events():
+			return
+		var done := (
+			Session.finish_battle(_sim) if _sim.state.is_over() else Session.leave_battle(_sim)
+		)
+		if done:
+			Session.change_scene(get_tree(), Session.STAFF_MAP_SCENE)
+		return
+	get_tree().change_scene_to_file(MENU_SCENE)
 
 
 ## Keys of a campaign battle: Enter / Esc / Space close the briefing (every other key waits for
@@ -435,6 +453,8 @@ func _save_match() -> void:
 ## A click that never became a camera drag: the unit ring first (RMB on a unit opens it, any
 ## click closes it), then LMB selects/moves/attacks and RMB on the ground deselects.
 func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
+	if _menu != null and _menu.close():  # a click on the map closes the menu, like the staff map
+		return
 	if not _input_allowed():
 		return
 	var coord: Variant = _pick_hex(screen_position)
@@ -451,6 +471,8 @@ func _input_allowed() -> bool:
 	if _is_playing_events():
 		return false
 	if _briefing != null and _briefing.visible:
+		return false
+	if _menu != null and _menu.is_open():
 		return false
 	return not _sim.state.is_over() and _sim.state.current_player == human_player
 
@@ -687,6 +709,10 @@ func _build_hud_root() -> void:
 	_briefing = BattleBriefing.new()
 	_briefing.closed.connect(_start_play)
 	_hud_root.add_child(_briefing)
+	_menu = BattleMenu.new(campaign, setup == null)
+	_menu.save_pressed.connect(_save_match)
+	_menu.leave_confirmed.connect(_leave_battle)
+	_hud_root.add_child(_menu)
 
 
 ## The left zone of the bottom bar: the operation label and the terrain strip (the unit hover

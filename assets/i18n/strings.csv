@@ -632,3 +632,7 @@ Expected loss ~%d strength,Expected loss ~%d strength,Oczekiwana strata ~%d sił
 NO LINE OF SIGHT,NO LINE OF SIGHT,BRAK LINII WIDZENIA
 TARGET TOO CLOSE,TARGET TOO CLOSE,CEL ZA BLISKO
 DIST,DIST,DYST.
+LEAVE BATTLE,Leave battle,Opuść bitwę
+EXIT TO MAIN MENU,Exit to main menu,Wyjdź do menu głównego
+"The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?","The battle is finished automatically from the positions reached and its result goes to the operation. Leave the battle?","Bitwa zostanie dokończona automatycznie od osiągniętych pozycji, a jej wynik trafi do operacji. Opuścić bitwę?"
+Leave the battle and return to the main menu?,Leave the battle and return to the main menu?,Opuścić bitwę i wrócić do menu głównego?

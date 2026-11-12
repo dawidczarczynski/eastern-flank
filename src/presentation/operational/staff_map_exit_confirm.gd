@@ -18,8 +18,9 @@ var _exit: Button
 var _cancel: Button
 
 
-func _init() -> void:
-	super(tr("EXIT OPERATION").to_upper())
+## `title` is the tab text (the battle menu asks "LEAVE BATTLE" / "EXIT TO MAIN MENU").
+func _init(title := "EXIT OPERATION") -> void:
+	super(tr(title).to_upper())
 	name = "ExitConfirm"
 	custom_minimum_size = Vector2(WIDTH, 0)
 	padding = Vector2(16, 14)
@@ -51,6 +52,16 @@ func present(unsaved: bool, viewport: Vector2) -> void:
 	)
 	_save_exit.visible = unsaved
 	_exit.text = (tr("EXIT WITHOUT SAVING") if unsaved else tr("EXIT")).to_upper()
+	show()
+	reset_size()
+	position = ((viewport - size) / 2.0).floor()
+
+
+## Shows a plain question (no save offer): `message` (translation key) with `exit_text` and CANCEL.
+func present_question(message: String, exit_text: String, viewport: Vector2) -> void:
+	_message.text = tr(message)
+	_save_exit.visible = false
+	_exit.text = tr(exit_text).to_upper()
 	show()
 	reset_size()
 	position = ((viewport - size) / 2.0).floor()

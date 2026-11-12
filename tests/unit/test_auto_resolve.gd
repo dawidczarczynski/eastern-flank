@@ -268,3 +268,49 @@ func test_speed() -> void:
 		times.append(Time.get_ticks_usec() - start)
 	times.sort()
 	assert_true(times[25] <= 4000, "median %d us" % times[25])
+
+
+# --- resolve_from: leaving a battle halfway ---------------------------------------------------
+
+
+func _unfinished(kind := "mirror") -> Array:
+	var setup := Fixtures.auto_case(kind, 7)
+	return [setup, Scenario.from_setup(setup)]
+
+
+func test_resolve_from_the_start_is_concluded_and_deterministic() -> void:
+	var pair := _unfinished()
+	var first := AutoResolve.resolve_from(pair[0], pair[1])
+	var second := AutoResolve.resolve_from(pair[0], pair[1])
+	assert_true(first != null)
+	assert_eq(first.resolution, BattleResult.CONCLUDED)
+	assert_eq(first.to_dict(), second.to_dict())
+	assert_eq(first.companies.size(), (pair[0] as BattleSetup).companies.size())
+
+
+func test_resolve_from_keeps_destroyed_companies_destroyed_and_current_strength() -> void:
+	var pair := _unfinished()
+	var state: GameState = pair[1]
+	state.get_unit(1).hp = 0
+	state.get_unit(2).hp = 3
+	var result := AutoResolve.resolve_from(pair[0], state)
+	assert_eq(result.companies[0].strength_end, 0)
+	assert_true(result.companies[1].strength_end <= 3)
+	assert_eq(result.companies[1].strength_start, (pair[0] as BattleSetup).companies[1].strength)
+
+
+func test_resolve_from_counts_the_turns_already_played() -> void:
+	var pair := _unfinished()
+	var state: GameState = pair[1]
+	state.turn = 5
+	var result := AutoResolve.resolve_from(pair[0], state)
+	assert_true(result.turns >= 5)
+
+
+func test_resolve_from_a_finished_battle_is_its_played_result() -> void:
+	var pair := _unfinished()
+	var state: GameState = pair[1]
+	assert_true(MatchRunner.run(GameSimulation.new(state), 40))
+	var result := AutoResolve.resolve_from(pair[0], state)
+	assert_eq(result.resolution, BattleResult.PLAYED)
+	assert_eq(result.winner, state.winner)

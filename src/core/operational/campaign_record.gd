@@ -28,7 +28,8 @@ extends RefCounted
 const VERSION := 1
 const PLAYED := &"played"
 const AUTO := &"auto"
-const RESOLUTIONS: Array[StringName] = [PLAYED, AUTO]
+const CONCLUDED := &"concluded"
+const RESOLUTIONS: Array[StringName] = [PLAYED, AUTO, CONCLUDED]
 
 
 ## One resolved battle: the setup it was played from (the cut map, ContactBattle.prepare), its
@@ -49,6 +50,15 @@ class Battle:
 		entry.setup = p_setup
 		entry.result = p_result
 		entry.commands = command_dicts.duplicate(true)
+		return entry
+
+	## Entry of a battle left halfway: the tactical commands played so far; the rest was
+	## auto-resolved from the state they reached (AutoResolve.resolve_from).
+	static func concluded(
+		p_setup: BattleSetup, command_dicts: Array[Dictionary], p_result: BattleResult
+	) -> Battle:
+		var entry := Battle.played(p_setup, command_dicts, p_result)
+		entry.resolution = CONCLUDED
 		return entry
 
 	## Entry of an auto-resolved battle (TASK-120): the pending setup, no tactical commands.

@@ -12,7 +12,9 @@ var _save: Button
 var _exit: Button
 
 
-func _init() -> void:
+## `exit_label` names the exit row; `with_save` = false leaves the SAVE row out (a battle that
+## cannot be saved). The battle menu (BattleMenu) uses the same window.
+func _init(exit_label := "EXIT OPERATION", with_save := true) -> void:
 	super(tr("MENU").to_upper())
 	name = "MenuWindow"
 	var column := VBoxContainer.new()
@@ -23,8 +25,9 @@ func _init() -> void:
 	_save.name = "Save"
 	_save.tooltip_text = tr("TIP_SAVE_OPERATION")
 	_save.pressed.connect(func() -> void: save_pressed.emit())
+	_save.visible = with_save
 	column.add_child(_save)
-	_exit = _row(tr("EXIT OPERATION"), "")
+	_exit = _row(tr(exit_label), "")
 	_exit.name = "Exit"
 	_exit.pressed.connect(func() -> void: exit_pressed.emit())
 	column.add_child(_exit)
