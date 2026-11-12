@@ -8,8 +8,10 @@ extends HBoxContainer
 const COLUMN_SIZE := 10
 ## Fixed column widths (title, then elevation, road, river, country, stance): the strip never
 ## changes width with the hovered hex. They add up to the slot in the bottom bar (470 px).
-const TITLE_WIDTH := 90
-const COLUMN_WIDTHS: Array[int] = [62, 44, 44, 76, 84]
+const TITLE_WIDTH := 114
+const COLUMN_WIDTHS: Array[int] = [52, 40, 40, 76, 78]
+## A place-based name wraps to at most two lines of this font size, so the strip keeps its height.
+const NAMED_TAB_SIZE := 9
 const SEPARATION := 14
 ## Relation of the hex's country to the viewer (CountryRules.relation).
 const RELATION_TEXT := {
@@ -80,7 +82,10 @@ func show_info(data: Dictionary) -> void:
 	var named := StaffMapPlaceName.named(place_namer, data["coord"]) if data.has("coord") else ""
 	_tab.text = (named if named != "" else tr("HEX %s") % data["hex"]).to_upper()
 	_tab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if named != "" else TextServer.AUTOWRAP_OFF
-	_tab.custom_minimum_size.x = 150.0 if named != "" else 0.0
+	_tab.max_lines_visible = 2 if named != "" else -1
+	_tab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_tab.add_theme_font_size_override(&"font_size", NAMED_TAB_SIZE if named != "" else COLUMN_SIZE)
+	_tab.custom_minimum_size.x = TITLE_WIDTH - 22.0 if named != "" else 0.0
 	_name_label.text = tr(data["name"] as String).to_upper()
 	_values[0].text = data["elevation"]
 	_values[1].text = _yes_no(data["road"])
