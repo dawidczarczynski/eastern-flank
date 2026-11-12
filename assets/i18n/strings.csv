@@ -513,10 +513,6 @@ Confirm or cancel %s first,Confirm or cancel %s first,Najpierw potwierdź lub an
 Target,Target,Cel
 Blocked,Blocked,Zablokowane
 Threshold,Threshold,Próg
-Overview · coming with the politics report,Overview · coming with the politics report,"Przegląd · wkrótce, z raportem politycznym"
-Escalation ladder table,Escalation ladder table,Tabela drabiny eskalacji
-Countries list,Countries list,Lista państw
-Event log,Event log,Dziennik zdarzeń
 One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns.,Jedna decyzja na turę. Decyzja podnosząca poziom prosi o potwierdzenie i pokazuje nowy poziom. Deeskalacja blokuje eskalację na %d tury.
 "1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close","1-5 wybór karty · lewo / prawo państwo · Enter podejmij, potwierdź · Esc anuluj, zamknij"
 Own territory,Own territory,Własne terytorium
@@ -714,3 +710,25 @@ JRN_OUR_C2,our command post,nasze stanowisko dowodzenia
 %d hit,%d hit,trafiło %d
 %d intercepted,%d intercepted,przechwycono %d
 target destroyed,target destroyed,cel zniszczony
+Escalation ladder,Escalation ladder,Drabina eskalacji
+Countries,Countries,Państwa
+Event log,Event log,Dziennik zdarzeń
+Nothing yet,Nothing yet,Na razie nic
+open,open,otwarte
+closed,closed,zamknięte
+own,own,własne
+allied,allied,sojusznicze
+neutral,neutral,neutralne
+hostile,hostile,wrogie
+enemy,enemy,wróg
+aligned,aligned,sojusznik
+belligerent,belligerent,strona wojny
+"%s: caused %d, de-escalated %d, net %d","%s: caused %d, de-escalated %d, net %d","%s: wywołał %d, rozładował %d, saldo %d"
+%d formations when it joins,%d formations when it joins,%d oddziałów po przystąpieniu
+%s -> neutral,%s -> neutral,%s -> neutralne
+%s -> %s (%s),%s -> %s (%s),%s -> %s (%s)
+Level %d -> %d %s,Level %d -> %d %s,Poziom %d -> %d %s
+Sanctuary entered - %s,Sanctuary entered - %s,Wkroczenie na zaplecze - %s
+%s sends reinforcements to %s,%s sends reinforcements to %s,%s wysyła posiłki dla %s
+All levels,All levels,Wszystkie poziomy
+Hide levels,Hide levels,Ukryj poziomy

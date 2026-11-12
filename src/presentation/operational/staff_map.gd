@@ -265,7 +265,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		# the ring, 1-4 pick a slot; Enter / Esc close the result notice.
 		if (
 			(_decisions != null and _decisions.handle_key(key.keycode))
-			or (_escalation != null and _escalation.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_report_key(key.keycode))
 			or _order_ring.handle_key(key.keycode)
@@ -281,7 +280,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					or _close_options_key()
 					or _close_journal_key()
 					or _politics.close_card()
-					or _escalation.close_card()
 					or _decisions.close()
 				):
 					return
@@ -955,7 +953,6 @@ func open_country_card(country_id: StringName) -> void:
 
 
 func _claim_left_dock(owner: LeftWindow) -> void:
-	_escalation.close_card()
 	if owner != LeftWindow.OPTIONS and _options != null and _options.close():
 		_sync_action_bar()
 	if owner != LeftWindow.MENU:
@@ -1653,15 +1650,10 @@ func _place_turn_bar() -> void:
 	_turn_bar.position = Vector2((_viewport_size().x - _turn_bar.size.x) / 2.0, 0.0)
 
 
-func _toggle_ladder_card() -> void:
-	_escalation.toggle_card()
-
-
 ## True while a full-screen window (Politics screen, ladder window) dims the map.
 func _modal_open() -> bool:
 	return (
 		(_decisions != null and _decisions.is_open())
-		or (_escalation != null and _escalation.card().visible)
 		or (_exit_confirm != null and _exit_confirm.visible)
 	)
 
@@ -1683,7 +1675,6 @@ func _close_other_windows() -> void:
 func toggle_decisions() -> void:
 	if _decisions == null:
 		return
-	_escalation.close_card()
 	_decisions.toggle()
 
 
@@ -1696,7 +1687,6 @@ func toggle_strike_mode() -> void:
 	if _strike == null:
 		return
 	if not _strike.is_open():
-		_escalation.close_card()
 		_decisions.close()
 		select_formation(&"")
 	_strike.toggle()
@@ -1768,7 +1758,7 @@ func _build_hud() -> void:
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
 	_turn_bar.end_turn_pressed.connect(end_turn)
-	_turn_bar.escalation_pressed.connect(func() -> void: _toggle_ladder_card())
+	_turn_bar.escalation_pressed.connect(func() -> void: toggle_decisions())
 	_hud.add_child(_turn_bar)
 	_report = StaffMapTurnReport.new()
 	_report.entry_chosen.connect(_on_report_entry)
@@ -1822,7 +1812,6 @@ func _build_hud() -> void:
 	_politics.refresh(viewer_player)
 	_escalation = StaffMapEscalationHud.new(_simulation, _palette, _hud, _toast_message)
 	_escalation.menu_requested.connect(_return_to_menu)
-	_escalation.ladder_opening.connect(_close_other_windows)
 	_decisions = StaffMapDecisionsHud.new(
 		_simulation, _palette, _hud, func() -> int: return viewer_player
 	)

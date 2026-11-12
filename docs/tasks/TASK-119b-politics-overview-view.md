@@ -1,6 +1,6 @@
 # TASK-119b: Politics overview (view, manual)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation, docs
 - **Depends on**: hard TASK-119a; soft TASK-121 (support summary block), TASK-112 (place names)
 - **Topic**: Two-layer game
@@ -14,7 +14,7 @@ Pressing H shows, beside the decisions, a read-only overview of the political si
 
 ## Look
 
-_To fill in after the design check (first criterion): which components were reused, and the variant the human picked where `/design-ui` was needed._
+Design check done: no new element. Reused `StaffMapDecisionParts` (Chip, Shape), the ladder window's level colours and ROE / marker texts (`StaffMapEscalation`, `ESC_MARK_*`), and the journal-style plain rows for the log. `/design-ui` not run: the blocks are text rows inside the dashed-placeholder slots of mockup variant B.
 
 ## Acceptance criteria (testable)
 
@@ -48,4 +48,10 @@ Edit docs/MANUAL.md chapter "Politics" (grep `### Politics`): add a **Political 
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `StaffMapOverviewModel` (pure, reads state only) + `StaffMapOverviewColumn` (view) replace the placeholders in `StaffMapDecisionsPanel` (column now 400 px). Tests: `tests/unit/test_staff_map_overview.gd`. Polish strings added.
+- Support block: TASK-121 is not done, so the model has no `support` key (absent by design); add it there when support packages exist.
+- Stance wording: own = belligerent on my side, allied = aligned with me, hostile = aligned with the enemy, enemy = belligerent against me. Troops count only formations with strength > 0.
+- Manual: added the **Political overview** section and the pointer. The wider chapter re-ordering (consolidation) was not done – no duplicated paragraphs were found worth moving; flag if you want the order changed.
+- Screenshot compared (`.screenshots/politics.png`): matches variant B layout; the ladder footer and log rows are plain text lines (no mockup).
+
+- **Follow-up (human request)**: the separate ladder window (TASK-143, `StaffMapLadderWindow`) is removed; the turn-bar chip now opens the Politics screen. The overview's ladder is folded to the current level with an All levels / Hide levels button, and the viewer's collapse line moved there. The `ladder` screenshot token is gone. The ladder window's hover tooltips and ✓ NEW class table are not carried over.

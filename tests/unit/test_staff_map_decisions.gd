@@ -269,10 +269,10 @@ func test_every_decision_text_has_a_polish_translation() -> void:
 		"Target",
 		"Blocked",
 		"Threshold",
-		"Overview · coming with the politics report",
-		"Escalation ladder table",
-		"Countries list",
+		"Escalation ladder",
+		"Countries",
 		"Event log",
+		"Nothing yet",
 		StaffMapDecisionsPanel.RULES_TEXT,
 		"1-5 pick a card · left / right country · Enter take, confirm · Esc cancel, close",
 	]  # gdlint: disable=max-line-length

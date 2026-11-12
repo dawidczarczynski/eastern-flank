@@ -6,10 +6,10 @@ extends Control
 ## stance word and shape, reason + Take, inline confirmation with the new level on the ladder
 ## ticks). Russia's side (SideDefinition.may_use_nuclear) also gets the red *Use nuclear weapon*
 ## card under "Last resort" with a heavy red confirmation (TASK-140). Header: budget, stand-down
-## counter, result line. Right: dashed placeholders for the
-## read-only overview of TASK-119. Everything shown comes from StaffMapDecisionsModel; the panel
-## only emits `decision_chosen`, the hud issues the command. Built on open and on a state change
-## only (never per frame).
+## counter, result line. Right: the read-only overview (StaffMapOverviewColumn, TASK-119b).
+## Everything shown comes from StaffMapDecisionsModel; the panel only emits
+## `decision_chosen`, the hud issues the command. Built on open and on a state change only (never
+## per frame).
 
 signal decision_chosen(id: StringName, country: StringName)
 signal close_requested
@@ -17,7 +17,7 @@ signal close_requested
 const OPEN_KEY := KEY_H
 const SHEET_MARGIN := Vector4(70, 36, 70, 28)  # left, top, right, bottom
 const CARD_WIDTH := 340.0  # minimum; the cards grow to 394 px on a 1440 px screen
-const OVERVIEW_WIDTH := 280.0
+const OVERVIEW_WIDTH := 400.0
 const FADE_SECONDS := 0.15
 const NUMBER_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5, KEY_KP_6]
@@ -38,6 +38,7 @@ var _selected := &""  # the card the hot keys act on
 var _result_id := &""  # the decision taken in this sitting (result line)
 var _buttons := {}  # decision id -> the Take / Confirm button (tests)
 var _reasons := {}  # decision id -> the reason Label (tests)
+var _ladder_expanded := false  # the overview's ladder table shows every level
 var _fade: Tween
 
 
@@ -384,7 +385,7 @@ func _add_cards(group: VBoxContainer, caption: String, ids: Array[StringName]) -
 				group.add_child(_card(row))
 
 
-## Right column: dashed placeholders for the read-only overview of TASK-119.
+## Right column: the read-only politics overview (TASK-119b).
 func _overview_column() -> Control:
 	var wrap := HBoxContainer.new()
 	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -395,39 +396,16 @@ func _overview_column() -> Control:
 	line.custom_minimum_size.x = 1.0
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wrap.add_child(line)
-	var column := VBoxContainer.new()
-	column.name = "Overview"
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.custom_minimum_size.x = OVERVIEW_WIDTH
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_theme_constant_override(&"separation", 10)
-	column.add_child(
-		MenuStyle.label(
-			tr("Overview · coming with the politics report").to_upper(),
-			HudTheme.display(700, 2),
-			11,
-			UiPalette.HUD_MUTED
-		)
+	var column := StaffMapOverviewColumn.new()
+	column.ladder_expanded = _ladder_expanded
+	column.ladder_toggled.connect(
+		func() -> void:
+			_ladder_expanded = column.ladder_expanded
+			refresh()
 	)
-	column.add_child(_placeholder(tr("Escalation ladder table"), 170.0, false))
-	column.add_child(_placeholder(tr("Countries list"), 150.0, false))
-	column.add_child(_placeholder(tr("Event log"), 0.0, true))
+	column.show_state(_state, _palette, _viewer)
 	wrap.add_child(column)
 	return wrap
-
-
-func _placeholder(text: String, height: float, grow: bool) -> Control:
-	var chip := StaffMapDecisionParts.Chip.new()
-	chip.edge = StaffMapDecisionParts.MUTED_EDGE
-	chip.dashed = true
-	chip.custom_minimum_size.y = height
-	if grow:
-		chip.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var label := MenuStyle.label(text, HudTheme.mono(500, 0), 11, UiPalette.HUD_MUTED)
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	chip.add_child(label)
-	return chip
 
 
 func _card(row: Dictionary) -> Control:

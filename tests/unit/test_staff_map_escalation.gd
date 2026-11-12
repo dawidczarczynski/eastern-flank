@@ -35,13 +35,10 @@ func test_raise_stops_at_cap_and_nuclear_use_ends_the_operation() -> void:
 	assert_eq(chip.lit_ticks(), 2)
 	assert_false(_map.turn_bar().end_button().disabled)
 	assert_false(_map.escalation_hud().end_notice().visible)
-	# Open the card from the chip.
+	# The chip opens the Politics screen (the ladder lives there).
 	chip.pressed.emit()
-	var card := _map.escalation_hud().card()
-	assert_true(card.visible, "card opens")
-	assert_eq(card.columns().size(), state.ladder.levels.size())
-	assert_eq(card.columns()[6]["name"], "Nuclear attack")
-	assert_true(_map.escalation_hud().close_card(), "closes")
+	assert_true(_map.decisions_hud().is_open(), "chip opens the Politics screen")
+	_map.decisions_hud().close()
 	# One step: a toast with the cause and the chip follows.
 	_emit(EscalationRules.raise(state, 0, &"decision"))
 	assert_eq(chip.lit_ticks(), 3)
