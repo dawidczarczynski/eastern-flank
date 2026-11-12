@@ -73,6 +73,7 @@ static func from_definition(
 		state.formations.append(formation)
 		state.fielded_strength[formation.owner_id] += formation.max_strength()
 	_add_strikes(state, definition)
+	state.ai_goals = definition.ai_goals.duplicate()
 	return state
 
 
@@ -138,6 +139,9 @@ static func _problem(
 	var strike_error := _strikes_problem(definition, grid)
 	if strike_error != "":
 		return strike_error
+	var goals_error := _goals_problem(definition, grid)
+	if goals_error != "":
+		return goals_error
 	return _contributions_problem(definition, grid, country_map, ids)
 
 
@@ -242,6 +246,34 @@ static func _closed_placement_problem(
 	for placement in definition.formations:
 		if not CountryRules.may_enter(probe, placement.player, placement.coord):
 			return "formation '%s' starts on a closed hex %s" % [placement.id, placement.coord]
+	return ""
+
+
+## AI goals (TASK-102a): a known player and role, a positive weight, a unique id and an existing
+## installation or a hex of the map.
+static func _goals_problem(definition: OperationDefinition, grid: HexGrid) -> String:
+	var ids := {}
+	for goal in definition.ai_goals:
+		if goal == null:
+			return "empty AI goal"
+		var label := "AI goal '%s'" % goal.id
+		if ids.has(goal.id):
+			return "duplicate AI goal id '%s'" % goal.id
+		ids[goal.id] = true
+		if goal.player != 0 and goal.player != 1:
+			return "%s: player %d" % [label, goal.player]
+		if not AiGoal.ROLES.has(goal.role):
+			return "%s: unknown role '%s'" % [label, goal.role]
+		if goal.weight < 1:
+			return "%s: weight %d must be positive" % [label, goal.weight]
+		if goal.installation_id != &"":
+			var found := false
+			for placement in definition.installations:
+				found = found or placement.id == goal.installation_id
+			if not found:
+				return "%s: unknown installation '%s'" % [label, goal.installation_id]
+		elif not grid.has_tile(goal.coord):
+			return "%s: hex %s is not on the map" % [label, goal.coord]
 	return ""
 
 

@@ -1,6 +1,6 @@
 # TASK-102a: Operational AI – profile, goals, formation orders and strikes
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core / ai
 - **Depends on**: TASK-095 (hard), TASK-097a (hard)
 - **Sections**: GDD "Operational AI", "Player roles", "Operational turns", "Orders and postures", "Deep strikes", "Escalation ladder"; ARCHITECTURE: none
@@ -55,4 +55,16 @@ none (the manual line about the AI leader comes with TASK-102c).
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done (core / ai, no presentation changes).
+
+- `src/ai/ai_profile.gd` (`AiProfile`) + `data/ai/default.tres`: goal / distance / threat weights, `aggression` 0.5, `strike_reserve` 1 (salvos' worth: stock must exceed reserve x the weapon's `max_salvo`), `min_strike_value` 10, `max_commands` 40, plus `destination_search_radius` 3, `contact_range` 2 and the strike `target_tiers` / `target_weights` tables (all data).
+- `src/core/data/ai_goal.gd` (`AiGoal`: id, player, installation id or hex, weight, role take / hold); `OperationDefinition.ai_goals` (one list, `AiGoal.player` = side), copied to `OperationalState.ai_goals` (static, not in the snapshot); `Operation` rejects bad goals (player, role, weight, unknown installation, hex off the map). `suwalki_gap.tres` has 4 goals per side (installation goals).
+- `src/ai/operational_ai.gd`: `OperationalAi.plan(state, player, profile = default)`. Pure: no state change, no rng. Orders: each formation picks its best-scoring goal (weight x goal_weight - distance x distance_weight - threat x threat_weight x (1 - aggression)), ignoring goals an own formation stands on; strongest picks first; destination = goal hex or the nearest hex in rings around it that `IssueOrderCommand.validate` accepts and no other order in the plan uses; posture `advance` if an enemy formation is within ceil(1 / aggression) hexes of the goal, else `march`. A standing order ending within the search radius of the goal and still valid is kept (no command). A formation on a `hold` goal gets `SetPostureCommand(defend)` if not already defending. Strikes: up to `strikes_left`; targets by tier (air defence, airfield / C2, formation within `contact_range` of an own formation), then target weight, then id; weapon with the best expected value (expected hits x damage x target weight); each target at most once; suppressed air-defence sites skipped. Strikes are planned first so they keep their share of `max_commands`; the plan lists orders, then strikes.
+- Tests: `tests/unit/test_operational_ai.gd`.
+
+Decisions / limitations:
+- The escalation rule: a strike whose `escalation_preview` > 0 and which would bring the level to the cap (5) or above is never planned; and after a planned strike that raises the level the planner stops adding strikes (the state it planned against changes).
+- A formation standing on a `hold` goal keeps any standing order (only the posture is set); a formation on a `take` goal is left alone.
+- Reserve is per weapon, expressed in salvos; the salvo is the largest allowed by stock above the reserve.
+- Orders are validated against the state at planning time; orders do not affect each other's validity, strikes do not affect orders (checked by the executed-plan tests).
+

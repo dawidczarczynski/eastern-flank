@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="AiProfile" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/ai/ai_profile.gd" id="1_profile"]
+
+[resource]
+script = ExtResource("1_profile")
+goal_weight = 10.0
+distance_weight = 1.0
+threat_weight = 3.0
+aggression = 0.5
+strike_reserve = 1
+min_strike_value = 10.0
+max_commands = 40
+destination_search_radius = 3
+contact_range = 2
+target_tiers = {
+&"air_defence": 0,
+&"airfield": 1,
+&"c2": 1,
+&"formation": 2
+}
+target_weights = {
+&"air_defence": 3.0,
+&"airfield": 2.0,
+&"c2": 2.0,
+&"formation": 5.0
+}

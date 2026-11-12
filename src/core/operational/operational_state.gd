@@ -78,6 +78,8 @@ var air_defence_types: Dictionary = {}
 var strikes_per_turn: int = 2
 var suppression_rounds: int = 2
 var repair_per_round: int = 5
+## Objectives of the operational AI, both sides (static, not in the snapshot; TASK-102a).
+var ai_goals: Array[AiGoal] = []
 ## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}.
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).

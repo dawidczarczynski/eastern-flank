@@ -6,7 +6,9 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/ai/
 
 - `AiPlayer` – Simple AI: every unit moves to a firing position (_firing_destination), attacks the enemy… (`ai_player.gd`)
+- `AiProfile` – Tuning of the operational AI (TASK-102a, GDD "Operational AI"): every number OperationalAi (`ai_profile.gd`)
 - `MatchRunner` – Plays whole AI-vs-AI matches headless and aggregates the results (balancing tool, TASK-01… (`match_runner.gd`)
+- `OperationalAi` – The opponent's leader on the staff map (TASK-102a, GDD "Operational AI"): a pure, determi… (`operational_ai.gd`)
 
 ## src/core/
 
@@ -46,6 +48,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/data/
 
 - `AftermathSettings` – Numbers of a battle's consequences for the operation (TASK-095, GDD "Battle hand-off and (`aftermath_settings.gd`)
+- `AiGoal` – One objective of the operational AI (TASK-102a, GDD "Operational AI"): a hex or an (`ai_goal.gd`)
 - `AirDefenceDefinition` – An air-defence type (TASK-098a, GDD "Deep strikes"): the reach of a site and its chance to (`air_defence_definition.gd`)
 - `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)

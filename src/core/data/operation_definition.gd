@@ -36,6 +36,8 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var suppression_rounds: int = 2
 ## Integrity a damaged, not destroyed, installation regains each round.
 @export var repair_per_round: int = 5
+## Objectives of the operational AI, both sides (AiGoal.player; TASK-102a).
+@export var ai_goals: Array[AiGoal] = []
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

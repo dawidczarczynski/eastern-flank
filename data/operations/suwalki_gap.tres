@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDefinition" load_steps=56 format=3]
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=65 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
 [ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
@@ -18,6 +18,7 @@
 [ext_resource type="Resource" path="res://data/countries/russia.tres" id="c_russia"]
 
 [ext_resource type="Script" path="res://src/core/data/installation_placement.gd" id="13_install"]
+[ext_resource type="Script" path="res://src/core/data/ai_goal.gd" id="14_aigoal"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -400,6 +401,70 @@ owner = 1
 coord = Vector2i(9, 22)
 ad_type = &"short"
 
+[sub_resource type="Resource" id="Goal_nato_hold_suwalki"]
+script = ExtResource("14_aigoal")
+id = &"nato_hold_suwalki"
+player = 0
+installation_id = &"nato_ad_suwalki"
+weight = 4
+role = &"hold"
+
+[sub_resource type="Resource" id="Goal_nato_hold_bialystok"]
+script = ExtResource("14_aigoal")
+id = &"nato_hold_bialystok"
+player = 0
+installation_id = &"nato_c2_bialystok"
+weight = 3
+role = &"hold"
+
+[sub_resource type="Resource" id="Goal_nato_hold_elk"]
+script = ExtResource("14_aigoal")
+id = &"nato_hold_elk"
+player = 0
+installation_id = &"nato_depot_elk"
+weight = 2
+role = &"hold"
+
+[sub_resource type="Resource" id="Goal_nato_take_grodno"]
+script = ExtResource("14_aigoal")
+id = &"nato_take_grodno"
+player = 0
+installation_id = &"ru_depot_grodno"
+weight = 3
+role = &"take"
+
+[sub_resource type="Resource" id="Goal_ru_take_suwalki"]
+script = ExtResource("14_aigoal")
+id = &"ru_take_suwalki"
+player = 1
+installation_id = &"nato_ad_suwalki"
+weight = 5
+role = &"take"
+
+[sub_resource type="Resource" id="Goal_ru_take_elk"]
+script = ExtResource("14_aigoal")
+id = &"ru_take_elk"
+player = 1
+installation_id = &"nato_depot_elk"
+weight = 3
+role = &"take"
+
+[sub_resource type="Resource" id="Goal_ru_take_kaunas"]
+script = ExtResource("14_aigoal")
+id = &"ru_take_kaunas"
+player = 1
+installation_id = &"nato_depot_kaunas"
+weight = 3
+role = &"take"
+
+[sub_resource type="Resource" id="Goal_ru_hold_grodno"]
+script = ExtResource("14_aigoal")
+id = &"ru_hold_grodno"
+player = 1
+installation_id = &"ru_depot_grodno"
+weight = 2
+role = &"hold"
+
 [resource]
 script = ExtResource("3_operation")
 id = &"suwalki_gap"
@@ -414,5 +479,6 @@ formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"
 installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_nato_ad_olsztyn"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno"), SubResource("Inst_ru_ad_chernyakhovsk")])
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 80}])
 strike_resupply = Array[Dictionary]([{&"jassm_er": 4, &"homar_k": 6, &"warmate": 6}, {&"kh101": 3, &"geran_2": 8}])
+ai_goals = Array[ExtResource("14_aigoal")]([SubResource("Goal_nato_hold_suwalki"), SubResource("Goal_nato_hold_bialystok"), SubResource("Goal_nato_hold_elk"), SubResource("Goal_nato_take_grodno"), SubResource("Goal_ru_take_suwalki"), SubResource("Goal_ru_take_elk"), SubResource("Goal_ru_take_kaunas"), SubResource("Goal_ru_hold_grodno")])
 strikes_per_turn = 2
 repair_per_round = 5

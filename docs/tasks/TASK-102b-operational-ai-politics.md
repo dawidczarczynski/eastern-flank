@@ -1,6 +1,6 @@
 # TASK-102b: Operational AI – political decisions and outside support
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core / ai
 - **Depends on**: TASK-102a (hard), TASK-117 (hard), TASK-121 and TASK-122 (soft)
 - **Sections**: GDD "Operational AI", "Political decisions", "Escalation ladder", "Countries and stances", "Outside support"; ARCHITECTURE: none
