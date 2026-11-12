@@ -68,6 +68,48 @@ static func run(sim: GameSimulation, max_turns: int) -> bool:
 	return true
 
 
+## Operational AI match (TASK-102c): lets OperationalAiTurn play every side in `ai_sides` until
+## `rounds` rounds are done (state.turn > rounds), the operation has a result or the guard fires.
+## A contact battle waiting between two AI sides is auto-resolved (AutoResolve,
+## ResolveBattleCommand);
+## a pending battle of a human side is left untouched, and then the run stops (nobody can act).
+## Result: {"rejected": commands refused, "commands": executed, "battles": auto-resolved,
+## "stalled": true when it stopped on a human's battle or the guard, "hash": state hash}.
+static func play_operational(
+	sim: OperationalSimulation, rounds: int, ai_sides: Array[int] = [0, 1]
+) -> Dictionary:
+	var state := sim.state
+	var out := {"rejected": 0, "commands": 0, "battles": 0, "stalled": false, "hash": ""}
+	var max_iterations := (rounds + 1) * 2 * 4 + 8
+	var iterations := 0
+	while state.result.is_empty() and state.turn <= rounds:
+		iterations += 1
+		if iterations > max_iterations or not ai_sides.has(state.current_player):
+			out["stalled"] = true
+			break
+		if not state.pending_battles.is_empty():
+			if not _auto_resolve_pending(sim, ai_sides):
+				out["stalled"] = true
+				break
+			out["battles"] = int(out["battles"]) + 1
+			continue
+		var turn := OperationalAiTurn.play(sim, state.current_player)
+		var results: Array[bool] = turn["results"]
+		out["commands"] = int(out["commands"]) + results.size()
+		out["rejected"] = int(out["rejected"]) + results.count(false)
+	out["hash"] = state.snapshot().hash()
+	return out
+
+
+## Resolves the first pending battle when both its sides are AI sides; false otherwise.
+static func _auto_resolve_pending(sim: OperationalSimulation, ai_sides: Array[int]) -> bool:
+	var setup := sim.state.pending_battles[0]
+	if not (ai_sides.has(setup.attacker) and ai_sides.has(1 - setup.attacker)):
+		return false
+	var result := AutoResolve.resolve(setup)
+	return result != null and sim.execute(ResolveBattleCommand.new(result))
+
+
 ## Aggregates `play` results: per-player wins, draws by the rules, harness limits, errors and
 ## average match length (`avg_turns_decided` over victories only, `avg_turns_all` over every
 ## match – error matches count with the turn the guard fired at).

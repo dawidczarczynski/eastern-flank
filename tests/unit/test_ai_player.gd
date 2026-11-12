@@ -216,6 +216,28 @@ func test_ai_ignores_objectives_without_a_take_or_hold_condition() -> void:
 	assert_eq(Hex.distance(ai_unit.coord, human.coord), 1)
 
 
+func test_ai_reaches_a_far_objective_within_the_turn_limit() -> void:
+	var state := GameState.new(Fixtures.plains_grid(12), 2, 1)
+	state.add_unit(0, Fixtures.infantry(), Vector2i(-10, 0))
+	var company := state.add_unit(1, Fixtures.infantry(), Vector2i(0, 0))
+	var hexes: Array[Vector2i] = [Vector2i(9, 0)]
+	state.set_objectives(
+		Fixtures.objectives(
+			4, hexes, [0], [Fixtures.condition(VictoryCondition.Kind.TAKE_HEXES, 1, hexes)]
+		)
+	)
+	var game := GameSimulation.new(state)
+	game.execute(EndTurnCommand.new())
+	var reached := 0
+	for ai_turn in range(1, 5):
+		AiPlayer.new().take_turn(game)
+		if company.coord == hexes[0]:
+			reached = ai_turn
+			break
+		game.execute(EndTurnCommand.new())
+	assert_true(reached == 3 or reached == 4, "reached on AI turn %d" % reached)
+
+
 # --- target choice by forecast (TASK-089a) ------------------------------------------------------
 
 

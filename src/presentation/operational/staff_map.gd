@@ -73,6 +73,11 @@ var seed_value := DEFAULT_SEED
 ## The player the human views the map as (0 = first side of the operation); -1 = from the
 ## command line (`--side=`), see StaffMapFormations.viewer_from_args.
 var viewer_player := -1
+## The side the AI leader plays (TASK-102c): the one that is not the viewer when the map opens;
+## -1 = hot-seat (`--hotseat`, both sides human). Tests may set it and swap `ai_turn`.
+var ai_side := -1
+## Plays one AI turn: Callable(sim: OperationalSimulation, player: int) (the test seam).
+var ai_turn: Callable = OperationalAiTurn.play
 ## False: _ready only sets up the scene and the caller runs build_now() (headless tests).
 var auto_build := true
 ## True once the map is built (the loading notice shows for a frame first).
@@ -134,6 +139,7 @@ var _contacts: StaffMapContacts
 var _result_notice: StaffMapBattleResult
 var _resumed := false  # the simulation came back from a played battle (Session)
 var _marks := StaffMapTurnMarks.new()
+var _ai_turn_key := -1  # turn * 2 + player of the AI turn already played
 var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
@@ -234,6 +240,7 @@ func _process(delta: float) -> void:
 	_sync_action_bar()
 	_tick_journal(delta)
 	advance_slide(delta)
+	play_ai_turn_if_due()
 	if _strike != null:
 		_strike.tick(delta)
 	if _route != null:
@@ -827,6 +834,26 @@ func turn_banner() -> TurnBanner:
 	return _banner
 
 
+## Lets the AI play its side once per turn (TASK-102c), when it is to move, no battle waits and
+## no slide is running; the usual end-of-turn marks (report, slide, strike reports) follow from
+## the events. It never plays or auto-resolves a battle (the notice asks the human only).
+## True when the AI turn ran.
+func play_ai_turn_if_due() -> bool:
+	if _simulation == null or ai_side < 0 or is_sliding():
+		return false
+	var state := _simulation.state
+	if state.current_player != ai_side or not state.result.is_empty():
+		return false
+	if not state.pending_battles.is_empty():
+		return false
+	var key := state.turn * 2 + state.current_player
+	if key == _ai_turn_key:
+		return false
+	_ai_turn_key = key
+	ai_turn.call(_simulation, ai_side)
+	return true
+
+
 ## Ends the move of the side to play; false when the command is rejected (a battle is pending).
 func end_turn() -> bool:
 	if _simulation == null or is_sliding():
@@ -1094,6 +1121,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 		# event to switch the view).
 		if not _has_side_arg():
 			viewer_player = state.current_player
+	if state.player_sides.size() == 2 and not OS.get_cmdline_user_args().has("--hotseat"):
+		ai_side = 1 - viewer_player
 	_cover = StaffMapAirDefenceLayer.new()  # under the markers and counters
 	_cover.setup(_palette, _ground_to_screen)
 	_counter_layer.add_child(_cover)
@@ -1594,8 +1623,8 @@ func _on_report_entry(formation_id: StringName, _coord: Vector2i) -> void:
 ## The move changed hands: the banner names the bloc.
 func _on_turn_started(event: Dictionary) -> void:
 	var player: int = event["player"]
-	if player != viewer_player:
-		set_viewer(player)  # hot-seat (no AI yet): the human orders whichever bloc is to move
+	if player != viewer_player and player != ai_side:
+		set_viewer(player)  # hot-seat: the human orders whichever bloc is to move
 	var state := _simulation.state
 	var colour := StaffMapFormations.side_colour(_palette, player)
 	_banner.show_timed(

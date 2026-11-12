@@ -13,6 +13,7 @@ func before_all() -> void:
 	_map.viewer_player = 0
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
+	_map.ai_side = -1  # these tests are about hot-seat; the AI side has its own test file
 
 
 func after_all() -> void:

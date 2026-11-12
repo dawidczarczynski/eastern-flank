@@ -9,6 +9,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `AiProfile` – Tuning of the operational AI (TASK-102a, GDD "Operational AI"): every number OperationalAi (`ai_profile.gd`)
 - `MatchRunner` – Plays whole AI-vs-AI matches headless and aggregates the results (balancing tool, TASK-01… (`match_runner.gd`)
 - `OperationalAi` – The opponent's leader on the staff map (TASK-102a, GDD "Operational AI"): a pure, determi… (`operational_ai.gd`)
+- `OperationalAiTurn` – One operational turn of the AI leader (TASK-102c): runs OperationalAi.plan for `player`, (`operational_ai_turn.gd`)
 - `OperationalPolitics` – The political half of the operational AI (TASK-102b, GDD "Operational AI" / "Political (`operational_politics.gd`)
 
 ## src/core/

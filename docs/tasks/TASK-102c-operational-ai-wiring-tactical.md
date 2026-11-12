@@ -1,6 +1,6 @@
 # TASK-102c: Operational AI – plays its turn; tactical AI heads for objectives
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: ai / presentation
 - **Depends on**: TASK-102a (hard), TASK-102b (hard), TASK-120 (hard), TASK-121 (soft)
 - **Sections**: GDD "Operational AI", "Player roles", "Battle hand-off and auto-resolve", "Operational turns"; ARCHITECTURE: none (grep docs/CODEMAP.md for `StaffMap`, `AiPlayer`, `MatchRunner`, `BattleObjectives`, `VictoryCondition`)
@@ -42,4 +42,7 @@ Add to docs/MANUAL.md (operation / turns section): the opponent's leader is play
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations. Files touched in presentation: `src/presentation/operational/staff_map.gd` (turn hand-over) and, if needed, `staff_map_turn_bar.gd` – confirm by grepping CODEMAP._
+- `OperationalAiTurn.play(sim, player, profile)` (src/ai/operational_ai_turn.gd): plan, execute (at most `max_commands`), always tries `EndOperationalTurnCommand`; returns `{commands, results, ended}`; nothing when out of turn. Rejected commands are skipped.
+- `MatchRunner.play_operational(sim, rounds, ai_sides)`: AI turns for the listed sides; a pending battle between two AI sides is auto-resolved (AutoResolve + ResolveBattleCommand); a pending battle of a human side is never touched and the run stops (`stalled`). Returns rejected / commands / battles / stalled / state hash. Test: `tests/unit/test_operational_ai_turn.gd` (10 rounds on suwalki_gap, same seed = same hash).
+- Tactical `AiPlayer` already headed for TAKE/HOLD objectives (TASK-088 era code); added a test for reaching a far objective within a turn limit of 4. Limitation: a hold objective keeps only companies standing ON the hex; companies merely next to it are not pinned.
+- `StaffMap`: `ai_side` (the side that is not the viewer when the map opens; `--hotseat` disables) and `ai_turn` Callable (test seam, default `OperationalAiTurn.play`). `play_ai_turn_if_due()` is called from `_process`: once per AI turn, only when no slide runs and no battle is pending; the existing event handlers then show the report / slide / strike reports. The view no longer jumps to the AI side on `operational_turn_started`. Hot-seat tests in test_staff_map_turns.gd set `ai_side = -1`. Test: `tests/unit/test_staff_map_ai_turn.gd`.

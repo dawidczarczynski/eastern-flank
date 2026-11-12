@@ -1,6 +1,6 @@
 # TASK-103a: Operation simulation tool – operational AI-vs-AI matches with a report
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: ai / tools (+ core only for the provisional score, if it lives in `src/core/operational`)
 - **Depends on**: TASK-102c (hard), TASK-120 (hard), TASK-102a (soft: AI goals data), TASK-121 / TASK-122 (soft: outside-support figures)
 - **Topic**: Two-layer game
