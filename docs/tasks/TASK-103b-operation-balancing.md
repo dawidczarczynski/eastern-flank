@@ -1,6 +1,6 @@
 # TASK-103b: Operation balancing – both sides win 40–60 % of decided operations (AI-vs-AI)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: data / docs
 - **Depends on**: TASK-103a (hard), TASK-099a / TASK-119a (soft, irrelevant to the numbers)
 - **Topic**: Two-layer game
@@ -47,4 +47,32 @@ none
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done 2026-11-12 (data only + one test). Baseline first, then a code fix found by the baseline, then a data pass.
+
+**Seeds** 1..100 for every measurement (`tools/simulate.sh 25 --mode=operation --seed=1/26/51/76` in parallel, battles auto, cap 30).
+
+| | NATO % | Russia % | undecided % | avg max level | avg length |
+|---|---|---|---|---|---|
+| baseline (as found) | 0 | 39 (provisional) | 61 (38 `error`, 23 `nuclear`) | 5.23 | 13.3 |
+| after the zero-strength fix (src/core/operational/contact_rules.gd, bug found by the baseline) | 0 | 71 | 29 (`nuclear`) | 5.29 | 23.3 |
+| after the data pass | 52 | 44 | 4 (`nuclear`) | 5.0 | 29.9 |
+
+Share of decided operations: NATO 52 / (52 + 44) = 54 %, Russia 46 %, 4 % `nuclear` (no winner) – inside 40–60 %, the human preferred NATO slightly ahead. Seeds 1..20 alone: NATO 9, Russia 10, 1 draw. Deterministic: the same seeds gave identical numbers on repeated runs.
+
+**Why** (diagnosis, 8 seeds): battles were even (Russia 78, NATO 64 wins); strikes cost NATO 639 strength vs 386 for Russia; the `nuclear` endings are Russia in collapse (< 50 % of fielded strength) at level 5 – the more even the match, the more often Russia collapses.
+
+**Data changes**
+| file | field | old → new |
+|---|---|---|
+| data/operations/suwalki_gap.tres | strike_stock Russia `geran_2` | 80 → 40 |
+| | strike_resupply Russia `kh101` / `geran_2` | 3 / 8 → 2 / 4 |
+| | strike_resupply NATO `jassm_er` / `homar_k` / `warmate` | 4 / 6 / 6 → 6 / 10 / 10 |
+| | goal weights `nato_hold_suwalki` / `nato_hold_bialystok` / `nato_hold_elk` / `nato_take_grodno` | 4 / 3 / 2 / 3 → 10 / 6 / 5 / 8 |
+| | goal weights `ru_take_suwalki` / `ru_take_elk` / `ru_take_kaunas` / `ru_hold_grodno` | 5 / 3 / 3 / 2 → 6 / 4 / 3 / 4 |
+| data/operational/escalation.tres | collapse_strength_pct / collapse_readiness_pct / collapse_readiness_strength_pct | 50 / 35 / 70 → 35 / 25 / 55 |
+
+Weights were doubled so single steps are finer (a step of 1 swung NATO from 30 % to 80 % at the old scale). The collapse thresholds are a player-visible rule: MANUAL "Collapse" updated, and the tests that pinned shipped values (test_collapse, test_escalation, test_nuclear_strike, test_staff_map_escalation, test_staff_map_decisions, test_strikes) were updated to the new numbers – an exception to "data only" the criteria did not foresee. Without the collapse change the 100 seeds gave NATO 20 / Russia 41 / 39 % `nuclear`.
+
+**Test**: tests/unit/test_operation_balance.gd – `in_band` helper (checked with hand-made result lists) and a 20-seed run asserting each side 35–65 % of decided and undecided ≤ 40 %, plus a determinism replay. **It takes ~190 s, above the 120 s in the criteria** (a 30-round match is ~9 s); shortening it would mean fewer seeds or a lower round cap, which changes what is measured.
+
+**Limits**: the result is very sensitive to the goal weights (single-point changes swing NATO from 30 % to 80 %) because the provisional score is a few discrete weights; it is a stopgap until TASK-107's victory replaces it, then re-measure. Only data changed apart from the zero-strength fix and the new test.

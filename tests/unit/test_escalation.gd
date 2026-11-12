@@ -60,9 +60,9 @@ func test_shipped_ladder() -> void:
 	assert_eq(ladder.calm_rounds, 3)
 	assert_eq(ladder.sanctuary_breach_escalation, 1)
 	assert_eq(ladder.urban_strike_escalation, 1)
-	assert_eq(ladder.collapse_strength_pct, 50)
-	assert_eq(ladder.collapse_readiness_pct, 35)
-	assert_eq(ladder.collapse_readiness_strength_pct, 70)
+	assert_eq(ladder.collapse_strength_pct, 35)
+	assert_eq(ladder.collapse_readiness_pct, 25)
+	assert_eq(ladder.collapse_readiness_strength_pct, 55)
 
 
 func test_ladder_problems() -> void:

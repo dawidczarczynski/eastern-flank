@@ -88,11 +88,11 @@ func test_strength_pct_and_readiness() -> void:
 func test_in_collapse_table() -> void:
 	# [present, readiness, expected]
 	var table := [
-		[200, 100, true],
-		[204, 100, false],
-		[280, 35, true],
-		[284, 0, false],
-		[280, 36, false],
+		[140, 100, true],
+		[144, 100, false],
+		[220, 25, true],
+		[224, 0, false],
+		[220, 26, false],
 		[0, 100, true],
 	]
 	for player in 2:

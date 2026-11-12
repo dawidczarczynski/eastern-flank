@@ -15,7 +15,7 @@ static func _state(nuclear_player := 1) -> OperationalState:
 	s.escalation_level = s.ladder.top() - 1
 	s.current_player = nuclear_player
 	s.fielded_strength[nuclear_player] = 400
-	s.formations.append(Collapse._company_formation(&"f", nuclear_player, 400, 200, 100))
+	s.formations.append(Collapse._company_formation(&"f", nuclear_player, 400, 140, 100))
 	return s
 
 
@@ -93,7 +93,7 @@ func test_rejections_in_order() -> void:
 	low.formations[0].companies[0].strength = 400
 	assert_eq(NuclearStrikeCommand.new().validate(low), "level_too_low")
 	var steady := _state()
-	steady.formations[0].companies[0].strength = 204
+	steady.formations[0].companies[0].strength = 144
 	assert_eq(NuclearStrikeCommand.new().validate(steady), "no_collapse")
 
 

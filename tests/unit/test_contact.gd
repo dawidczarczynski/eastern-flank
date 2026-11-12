@@ -83,6 +83,19 @@ func test_battle_allowed_is_always_true() -> void:
 	assert_true(ContactRules.battle_allowed(state, state.formations[0], state.formations[1]))
 
 
+func test_dead_companies_stay_out_of_the_contact_battle() -> void:
+	var state := _state()
+	# A strike can leave a surviving formation with a zero-strength company.
+	state.formations[0].companies[1].strength = 0
+	var sim := _sim(state)
+	_contact(sim, &"advance")
+	var setup := state.pending_battles[0]
+	var refs: Array = setup.companies.map(func(c: BattleSetup.Company) -> String: return c.ref)
+	assert_false(refs.has("f/2"))
+	for company in setup.companies:
+		assert_true(company.strength > 0)
+
+
 func test_postures_carry_position_bonus() -> void:
 	assert_eq(OperationalPosture.find(&"defend").position_bonus, 1)
 	assert_eq(OperationalPosture.find(&"advance").position_bonus, 0)

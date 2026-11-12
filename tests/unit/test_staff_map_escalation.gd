@@ -94,15 +94,15 @@ func test_collapse_strip_text_and_flag() -> void:
 	assert_eq(
 		strip["text"],
 		(
-			"Russia · strength %d %% · readiness 80 · collapse at ≤ 50 %%"
+			"Russia · strength %d %% · readiness 80 · collapse at ≤ 35 %%"
 			% CollapseRules.strength_pct(state, russia)
 		)
 	)
 	assert_false(strip["collapse"])
-	state.fielded_strength[russia] = CollapseRules.present_strength(state, russia) * 2
+	state.fielded_strength[russia] = CollapseRules.present_strength(state, russia) * 3
 	assert_true(StaffMapEscalation.collapse_strip(state, russia)["collapse"])
 	# The same rule for the other side (mirror).
-	state.fielded_strength[0] = CollapseRules.present_strength(state, 0) * 2
+	state.fielded_strength[0] = CollapseRules.present_strength(state, 0) * 3
 	assert_true(StaffMapEscalation.collapse_strip(state, 0)["collapse"])
 	assert_true(String(StaffMapEscalation.collapse_strip(state, 0)["text"]).begins_with("NATO"))
 

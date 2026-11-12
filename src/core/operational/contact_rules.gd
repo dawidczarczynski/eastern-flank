@@ -110,6 +110,8 @@ static func _build_setup(
 		setup.missions[player] = _mission(formation, formation == attacker)
 	for formation in [attacker, defender]:
 		for company: Formation.Company in formation.companies:
+			if company.strength <= 0:
+				continue  # a strike can leave a dead company in a surviving formation
 			var planned := BattleSetup.Company.new()
 			planned.player = formation.owner_id
 			planned.unit_type = company.unit_type

@@ -1,6 +1,6 @@
 # TASK-107a: Operation victory – hex control, the Gap chain, scoring and the endings (core + data)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core / data (+ ai: swap of the provisional score in the simulation runner)
 - **Depends on**: TASK-103b (hard); TASK-104, TASK-105, TASK-106, TASK-118, TASK-121 (soft – none required)
 - **Topic**: Two-layer game

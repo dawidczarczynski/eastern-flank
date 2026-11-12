@@ -323,10 +323,10 @@ func test_shipped_operation() -> void:
 	)
 	assert_eq(
 		state.strike_stock[1],
-		{&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 80}
+		{&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 40}
 	)
-	assert_eq(state.strike_resupply[0], {&"jassm_er": 4, &"homar_k": 6, &"warmate": 6})
-	assert_eq(state.strike_resupply[1], {&"kh101": 3, &"geran_2": 8})
+	assert_eq(state.strike_resupply[0], {&"jassm_er": 6, &"homar_k": 10, &"warmate": 10})
+	assert_eq(state.strike_resupply[1], {&"kh101": 2, &"geran_2": 4})
 	for player in 2:
 		for entries: Array[Dictionary] in [state.strike_stock, state.strike_resupply]:
 			for means_id: StringName in entries[player]:

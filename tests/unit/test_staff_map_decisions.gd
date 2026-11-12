@@ -85,7 +85,7 @@ func test_level_cap_is_disabled() -> void:
 
 
 func _collapse(state: OperationalState, player: int) -> void:
-	state.fielded_strength[player] = CollapseRules.present_strength(state, player) * 2
+	state.fielded_strength[player] = CollapseRules.present_strength(state, player) * 3
 
 
 func _ids(rows: Array[Dictionary]) -> Array[StringName]:
