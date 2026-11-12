@@ -1227,7 +1227,10 @@ func _refresh_contacts() -> void:
 		return
 	if _contacts.refresh(_simulation.state, viewer_player, not is_sliding()):
 		_centre_on_hex(_contacts.active_hex())
+	if _contacts.is_active() and _report != null:
+		_report.close()  # the contact notice has the screen; the report would lie under it
 	_place_queue()
+	_contacts.layout()
 
 
 ## A campaign waiting in Session (Continue, or back from a battle) names the operation and seed.
@@ -1458,6 +1461,8 @@ func _apply_front_view() -> void:
 
 ## Opens the report panel with the viewed side's last report.
 func _show_report() -> void:
+	if _contacts != null and _contacts.is_active():
+		return
 	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
 	_report.show()
 	_report.reset_size()
@@ -1650,6 +1655,8 @@ func _build_hud() -> void:
 		_viewport_size,
 		OS.get_cmdline_user_args().has("--debug")
 	)
+	_contacts.place_namer = func(c: Vector2i) -> String:
+		return StaffMapPlaceName.describe(_imported, c)
 	_contacts.play_requested.connect(play_battle)
 	_contacts.auto_requested.connect(auto_resolve)
 	_result_notice = StaffMapBattleResult.new()

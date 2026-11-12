@@ -67,7 +67,8 @@ func present(
 	at: Vector2i,
 	viewer: int,
 	queue: Vector2i,
-	palette: StaffMapPalette
+	palette: StaffMapPalette,
+	place_name := ""
 ) -> void:
 	_palette = palette
 	tab_text = tr("CONTACT").to_upper()
@@ -75,10 +76,10 @@ func present(
 	line_color = Color(ALERT, 0.45)
 	tab_right_text = ("%s %02d · %d/%d" % [tr("TURN"), state.turn, queue.x, queue.y])
 	var attacking_viewer := attacker.owner_id == viewer
-	var place := hex_text(at)
+	var place := place_name if place_name != "" else tr("HEX %s") % hex_text(at)
 	_title.text = (
 		(
-			"%s %s"
+			"%s – %s"
 			% [
 				tr("CONTACT_TITLE_ATTACK") if attacking_viewer else tr("CONTACT_TITLE_DEFEND"),
 				place
@@ -94,7 +95,7 @@ func present(
 	_captions["LOCATION"].text = tr("Location").to_upper()
 	_captions["FORCES"].text = tr("CONTACT_FORCES").to_upper()
 	_captions["MISSION"].text = tr("CONTACT_MISSION").to_upper()
-	_rows["LOCATION"].text = ("%s · %s" % [place, terrain_name(setup.terrain)]).to_upper()
+	_rows["LOCATION"].text = ("%s · %s" % [hex_text(at), terrain_name(setup.terrain)]).to_upper()
 	_rows["FORCES"].text = "%d : %d" % [totals.x, totals.y]
 	_rows["MISSION"].text = mission_text(setup.missions[setup.attacker]).to_upper()
 	_play.text = tr("CONTACT_PLAY").to_upper() + "  [B]"

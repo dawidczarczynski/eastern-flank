@@ -295,6 +295,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapOrders` – The issued orders on the staff map (TASK-092d, look: docs/design/operational_map "Orders"… (`staff_map_orders.gd`)
 - `StaffMapPlaceFilter` – Which place-name labels the staff map shows (TASK-112): pure maths, no nodes. Ranks open… (`staff_map_place_filter.gd`)
 - `StaffMapPlaceLayer` – Place-name labels of the staff map (TASK-112) in screen space, drawn in one pass with a d… (`staff_map_place_layer.gd`)
+- `StaffMapPlaceName` – Names a hex by the nearest place of the imported map: "Suwałki, 5 km east" (the place sta… (`staff_map_place_name.gd`)
 - `StaffMapPolitics` – The political tint of the staff map (TASK-114): feeds the terrain shader the country cove… (`staff_map_politics.gd`)
 - `StaffMapPoliticsHud` – Everything political on the staff map (TASK-114) behind a few calls, so StaffMap stays sm… (`staff_map_politics_hud.gd`)
 - `StaffMapPoliticsPanel` – Debug politics panel of the staff map (TASK-114, F9, only with --debug): one row per coun… (`staff_map_politics_panel.gd`)

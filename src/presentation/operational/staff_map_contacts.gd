@@ -15,13 +15,14 @@ signal auto_requested
 const SCRIM := Color(5 / 255.0, 7 / 255.0, 5 / 255.0, 0.55)
 const RING_INNER := 44.0
 const RING_OUTER := 56.0
-const NOTICE_GAP := 140.0
 const SCREEN_MARGIN := 16.0
 
 var notice: StaffMapContactNotice
 var queue: StaffMapContactQueue
 var scrim: ColorRect
 var ring: Control
+## (Vector2i) -> String: a place-based name of a hex, set by the owner; "" = use the hex number.
+var place_namer: Callable
 
 var _entries: Array[Dictionary] = []  # {attacker_id, defender_id, at}
 var _shown := false
@@ -174,7 +175,8 @@ func refresh(state: OperationalState, viewer: int, allowed: bool) -> bool:
 		first["at"],
 		viewer,
 		Vector2i(1, _entries.size()),
-		_palette
+		_palette,
+		place_namer.call(first["at"]) if place_namer.is_valid() else ""
 	)
 	layout()
 	return appeared
@@ -189,13 +191,18 @@ func layout() -> void:
 	var screen: Vector2 = _viewport.call()
 	notice.reset_size()
 	var size := notice.size
-	# Right of the hex, centred on it, kept on screen (left of it when there is no room).
-	var x := at.x + NOTICE_GAP
-	if x + size.x > screen.x - SCREEN_MARGIN:
-		x = at.x - NOTICE_GAP - size.x
-	x = clampf(x, SCREEN_MARGIN, maxf(screen.x - size.x - SCREEN_MARGIN, SCREEN_MARGIN))
+	# Centred on the screen (the ring still marks the hex), kept on screen.
+	var x := (screen.x - size.x) / 2.0
+	# Never over the queue tab at the left edge.
+	var min_x := SCREEN_MARGIN
+	if queue.visible:
+		queue.reset_size()
+		min_x = maxf(min_x, queue.position.x + queue.size.x + SCREEN_MARGIN)
+	x = clampf(x, min_x, maxf(screen.x - size.x - SCREEN_MARGIN, min_x))
 	var y := clampf(
-		at.y - size.y * 0.5, SCREEN_MARGIN, maxf(screen.y - size.y - SCREEN_MARGIN, SCREEN_MARGIN)
+		(screen.y - size.y) / 2.0,
+		SCREEN_MARGIN,
+		maxf(screen.y - size.y - SCREEN_MARGIN, SCREEN_MARGIN)
 	)
 	notice.position = Vector2(x, y)
 

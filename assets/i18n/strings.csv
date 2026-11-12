@@ -271,8 +271,17 @@ REPORT_EMPTY,No orders were carried out.,Nie wykonano żadnych rozkazów.
 JOIN_SHOW,Show,Pokaż
 CONTACT,Contact,Zetknięcie
 CONTACTS,Contacts,Zetknięcia
-CONTACT_TITLE_ATTACK,Attack at hex,Atak na heks
-CONTACT_TITLE_DEFEND,Enemy attack at hex,Atak wroga na heks
+CONTACT_TITLE_ATTACK,Attack,Atak
+CONTACT_TITLE_DEFEND,Enemy attack,Atak wroga
+"%s, %d km %s","%s, %d km %s","%s, %d km na %s"
+DIR_N,north,północ
+DIR_NE,north-east,północny wschód
+DIR_E,east,wschód
+DIR_SE,south-east,południowy wschód
+DIR_S,south,południe
+DIR_SW,south-west,południowy zachód
+DIR_W,west,zachód
+DIR_NW,north-west,północny zachód
 CONTACT_ROLE_ATTACKER,Attacker,Atakujący
 CONTACT_ROLE_DEFENDER,Defender,Obrońca
 CONTACT_ROLE_HOLD_OUT,Caught on the march,Zaskoczony w marszu

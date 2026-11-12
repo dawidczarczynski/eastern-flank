@@ -66,7 +66,7 @@ func test_contact_shows_notice_and_resolving_closes_it() -> void:
 	assert_eq(notice.name_text(1), tr_upper(pair[1].display_name))
 	assert_false(notice.counter(0).is_own(), "the Russian attacker is the enemy to NATO")
 	assert_true(notice.counter(1).is_own())
-	assert_true(notice.title_text().begins_with("ENEMY ATTACK AT HEX"), notice.title_text())
+	assert_true(notice.title_text().begins_with("ENEMY ATTACK – "), notice.title_text())
 	assert_true(notice.odds_line().begins_with("1 : "), notice.odds_line())
 	assert_true(notice.role_text(0).ends_with("ATTACKER"), notice.role_text(0))
 	assert_true(notice.row_text("MISSION").begins_with("ATTACK"), notice.row_text("MISSION"))
