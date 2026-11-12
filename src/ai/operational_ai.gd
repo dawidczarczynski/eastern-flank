@@ -10,8 +10,10 @@ extends RefCounted
 const NO_HEX := Vector2i.MAX
 
 
-## The commands `player` gives this turn, in execution order (orders, then strikes); [] when
-## `player` is not the current player or the operation is over. Bounded by `profile.max_commands`.
+## The commands `player` gives this turn, in execution order (decision, orders, strikes); [] when
+## `player` is not the current player or the operation is over. At most one political decision
+## comes first (OperationalPolitics; the orders are planned against the state before it).
+## Bounded by `profile.max_commands`.
 static func plan(
 	state: OperationalState, player: int, profile: AiProfile = null
 ) -> Array[OperationalCommand]:
@@ -22,9 +24,14 @@ static func plan(
 		return commands
 	if not state.pending_battles.is_empty() or profile.max_commands <= 0:
 		return commands
+	var decision := OperationalPolitics.decide(state, player, profile, _goals(state, player))
+	if decision != null:
+		commands.append(decision)
 	var strikes := _plan_strikes(state, player, profile)
 	commands.append_array(
-		_plan_orders(state, player, profile, profile.max_commands - strikes.size())
+		_plan_orders(
+			state, player, profile, profile.max_commands - strikes.size() - commands.size()
+		)
 	)
 	commands.append_array(strikes)
 	return commands
@@ -156,7 +163,7 @@ static func _keeps_order(
 	if Hex.distance(destination, goal["coord"]) > profile.destination_search_radius:
 		return false
 	var command := IssueOrderCommand.new(formation.id, destination, formation.posture)
-	if command.validate(state) != "":
+	if command.validate(state) != "" or not _incident_ok(state, formation, command, profile):
 		return false
 	used[destination] = true
 	return true
@@ -179,10 +186,27 @@ static func _order_for(
 			if used.has(hex):
 				continue
 			var command := IssueOrderCommand.new(formation.id, hex, posture)
-			if command.validate(state) == "":
+			if command.validate(state) == "" and _incident_ok(state, formation, command, profile):
 				used[hex] = true
 				return command
 	return null
+
+
+## Whether the order's route causes no incident the AI avoids: none that ends the operation, and
+## none that raises the level to the cap unless `aggression` >= `cap_incident_aggression`.
+static func _incident_ok(
+	state: OperationalState, formation: Formation, command: IssueOrderCommand, profile: AiProfile
+) -> bool:
+	var data := OperationalPosture.find(command.posture)
+	var route := OperationalRoutes.plan(state, formation, command.destination, data.avoids_contact)
+	var level := state.escalation_level
+	for incident in EscalationRules.route_incidents(state, formation, route):
+		if incident.get("ends_operation", false):
+			return false
+		level += int(incident.get("steps", 0))
+	if level > state.escalation_level and level >= state.ladder.cap():
+		return profile.aggression >= profile.cap_incident_aggression
+	return true
 
 
 ## `advance` when an enemy formation is within ceil(1 / aggression) hexes of the goal, else

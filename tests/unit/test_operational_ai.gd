@@ -48,7 +48,10 @@ static func _orders_state(extra := 0) -> OperationalState:
 		]
 		as Array[AiGoal]
 	)
-	return Operation.from_definition(op, 1, _plains(20, 12), {})
+	var state := Operation.from_definition(op, 1, _plains(20, 12), {})
+	for country in state.countries:
+		country.accepts_ultimatum = false  # no political decision muddies the order tests
+	return state
 
 
 static func _profile() -> AiProfile:

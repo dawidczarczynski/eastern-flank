@@ -1,6 +1,6 @@
 # TASK-102b: Operational AI – political decisions and outside support
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core / ai
 - **Depends on**: TASK-102a (hard), TASK-117 (hard), TASK-121 and TASK-122 (soft)
 - **Sections**: GDD "Operational AI", "Political decisions", "Escalation ladder", "Countries and stances", "Outside support"; ARCHITECTURE: none
@@ -42,4 +42,9 @@ none (the manual line about the AI leader comes with TASK-102c).
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `src/ai/operational_politics.gd` (`OperationalPolitics.decide`) picks at most one decision; `OperationalAi.plan` puts it first (counts towards `max_commands`). Priority: Stand down, Demand neutrality, Invoke alliance, Declare hostilities, Escalate, and Use nuclear weapon only when none of these applies. Every candidate must pass its own `validate()`.
+- `AiProfile` / `data/ai/default.tres` got `escalate_min_goal_gap` (2, untaken `take` goals), `declare_min_strength_ratio` (1.5), `ultimatum_enabled` (true), `support_min_affordable_level_margin` (1, unused until TASK-121 / 122) and three more thresholds: `stand_down_level` (4), `stand_down_goal_range` (2), `cap_incident_aggression` (0.8).
+- Orders: `_incident_ok` rejects an order (also a kept standing order) whose route has an `ends_operation` incident or raises the level to the cap, unless aggression >= `cap_incident_aggression`; closed countries were already rejected by `IssueOrderCommand`.
+- Stand down: in collapse, or level >= `stand_down_level` with no untaken `take` goal; never with an own formation within `stand_down_goal_range` of an untaken `take` goal. Declare hostilities additionally needs an untaken own `take` goal on that country's soil (otherwise it gains nothing); Invoke alliance needs any own goal on the ally's soil.
+- Tests: `tests/unit/test_operational_ai_politics.gd`; `_orders_state` in test_operational_ai.gd refuses ultimatums so order tests stay free of decisions.
+- Limitations: outside support (RequestSupport, free response) is skipped entirely, as TASK-121 / 122 do not exist (no reason list, no support tests); the orders of a plan are planned against the state before the decision (plan stays pure, there is no state clone), so soil opened by the decision is used by orders only on the next plan (TASK-102c may re-plan after executing the decision).

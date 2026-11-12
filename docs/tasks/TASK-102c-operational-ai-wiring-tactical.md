@@ -1,6 +1,6 @@
 # TASK-102c: Operational AI – plays its turn; tactical AI heads for objectives
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: ai / presentation
 - **Depends on**: TASK-102a (hard), TASK-102b (hard), TASK-120 (hard), TASK-121 (soft)
 - **Sections**: GDD "Operational AI", "Player roles", "Battle hand-off and auto-resolve", "Operational turns"; ARCHITECTURE: none (grep docs/CODEMAP.md for `StaffMap`, `AiPlayer`, `MatchRunner`, `BattleObjectives`, `VictoryCondition`)
