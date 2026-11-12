@@ -1,6 +1,6 @@
 # TASK-108h: Real-terrain look v2 – `soil` ground layer and URBAN farmyards
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`TerrainSplat`, `TerrainTextures`, `TerrainGround`, `assets/shaders/terrain.gdshader`) + assets (one CC0 ground set, `credits.json`) + docs (MANUAL)
 - **Depends on**: TASK-108 (done) (split from TASK-108b, 2026-11-10)
 - **Model**: sonnet

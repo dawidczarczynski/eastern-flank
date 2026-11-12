@@ -1,6 +1,6 @@
 # TASK-101: Deep strike forecast – expected hits and damage of a planned salvo in the confirm card
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: core (pure `StrikeRules.forecast`), presentation (staff map: odds row extension, pure text model)
 - **Depends on**: TASK-097b, TASK-098a, TASK-098b (all done; soft: TASK-100 – reconnaissance modifier)
 - **Sections**: GDD "Deep strikes"; ARCHITECTURE "Operational events" (no new event); TASK-098b notes (`StaffMapOddsRow`, `StaffMapAirDefence`), TASK-089a (how `CombatForecast` is done)

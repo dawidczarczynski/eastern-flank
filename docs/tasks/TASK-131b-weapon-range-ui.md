@@ -1,6 +1,6 @@
 # TASK-131b: Weapon range in the battle UI – range overlay, LoS marks, forecast distance, manual
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-131a
 - **Sections**: GDD "Combat" (as updated by TASK-131a), TASK-089b (forecast HUD); docs/design mockups (battle HUD, unit popup); `docs/CODEMAP.md` entries for range highlight in `map_view.gd`, `battle_controller.gd`, `unit_popup_model.gd`, `ui/unit_catalog.gd`
