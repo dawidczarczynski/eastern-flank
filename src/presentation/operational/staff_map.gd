@@ -1602,6 +1602,8 @@ func _show_report() -> void:
 	_report.show()
 	_report.reset_size()
 	_report.position = Vector2(PANEL_MARGIN.x, 130.0)
+	var report_floor := _viewport_size().y - float(ActionBar.HEIGHT) - PANEL_MARGIN.y
+	_report.position.y = clampf(130.0, 8.0, maxf(report_floor - _report.size.y, 8.0))
 
 
 ## Opens the report of the viewed side's last move once, when it is new (not during the slide).
@@ -1903,6 +1905,8 @@ func _apply_camera() -> void:
 		)
 	)
 	_layout_places()
+	if _strike != null:  # launcher labels at Z1 / Z2 like the counter labels (TASK-147)
+		_strike.layer().set_labels(_view.zoom_level() >= 1)
 	if _front != null:
 		_apply_front_view()
 
@@ -2275,11 +2279,13 @@ func _place_card(screen: Vector2, card: Control = null) -> void:
 	if card == null:
 		card = _card
 	var size := _viewport_size()
+	var floor_y := size.y - float(ActionBar.HEIGHT)  # the bottom bar is a margin of the screen
 	var at := screen + CARD_OFFSET
 	if at.x + card.size.x > size.x:
 		at.x = screen.x - CARD_OFFSET.x - card.size.x
-	if at.y + card.size.y > size.y:
+	if at.y + card.size.y > floor_y:
 		at.y = screen.y - CARD_OFFSET.y - card.size.y
+	at.y = clampf(at.y, 0.0, maxf(floor_y - card.size.y, 0.0))
 	card.position = at
 
 

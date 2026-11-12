@@ -69,6 +69,10 @@ static func dock_position(side: Dock, viewport_width: float, width: float) -> Ve
 func dock(viewport_width: float) -> void:
 	reset_size()
 	position = dock_position(dock_side, viewport_width, size.x)
+	var parent := get_parent_control()
+	if parent != null:  # keep clear of the bottom bar
+		var floor_y := parent.size.y - float(ActionBar.HEIGHT) - MARGIN
+		position.y = clampf(position.y, 8.0, maxf(floor_y - size.y, 8.0))
 
 
 ## Shows the window on its dock.
