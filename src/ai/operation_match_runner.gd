@@ -4,13 +4,16 @@ extends RefCounted
 ## Both sides play with OperationalAiTurn; every contact battle is auto-resolved (AutoResolve) or,
 ## in `played` mode, fought as a headless tactical AI-vs-AI battle and compared with the
 ## auto-resolve of the same setup.
-## Ending of a match: the operation's own result when a rule set one (today only `nuclear_use`
-## -> `nuclear`; `collapse` / `escalation_threshold` results map to `collapse` / `threshold` when
-## a rule produces them), else `turn_cap` with the winner from ProvisionalScore.
+## Ending of a match: the operation's own result (OperationVictory, TASK-107a): `gap_closed`,
+## `round_limit` (the higher score wins, a draw inside the margin), `nuclear_use` -> `nuclear`;
+## `collapse` / `escalation_threshold` results map to `collapse` / `threshold` when a rule
+## produces them.
 
 const AUTO := &"auto"
 const PLAYED := &"played"
-const ENDINGS: Array[StringName] = [&"collapse", &"threshold", &"nuclear", &"turn_cap", &"error"]
+const ENDINGS: Array[StringName] = [
+	&"collapse", &"threshold", &"nuclear", &"gap_closed", &"round_limit", &"error"
+]
 ## Harness limit of one played contact battle (tactical turns).
 const PLAYED_MAX_TURNS := 50
 
@@ -21,11 +24,13 @@ var _destroyed: int = 0
 
 
 ## One match on the operation `operation_id`. `max_rounds` <= 0 = the operation's own cap
-## (OperationalState.turn_cap). `battles` = AUTO / PLAYED.
+## (OperationDefinition.round_limit; a smaller value ends the match by `round_limit` earlier).
+## `battles` = AUTO / PLAYED.
 ## Result keys: seed, operation, sides (side ids), winner, ending, reason, rounds, max_level,
 ## battles, battles_auto, battles_played, compared, agreed, caused ([int, int] escalation steps
 ## per player), strikes_fired ([int, int]), strikes_intercepted, installations_destroyed,
-## totals (ProvisionalScore totals at the end), contacts (played mode: [played winner, auto winner]
+## totals (OperationVictory score totals at the end), contacts (played mode: [played winner,
+## auto winner]
 ## per contact).
 static func play(
 	operation_id: StringName, seed_value: int, max_rounds: int = 0, battles: StringName = AUTO
@@ -44,17 +49,17 @@ static func play_state(
 	return runner._run(sim, seed_value, max_rounds, battles)
 
 
-## Aggregates `play` results: per-player wins (decided = ended by a rule, provisional = turn cap),
-## draws, endings, average length, politics and battle counts.
+## Aggregates `play` results: per-player wins (`wins_decided` = ended by a rule other than the
+## round limit, `wins_by_score` = at the round limit), draws, endings, average length, politics
+## and battle counts. `decided` = matches that ended without an error.
 static func summarize(results: Array[Dictionary]) -> Dictionary:
 	var out := {
 		"matches": results.size(),
 		"wins": [0, 0],
 		"wins_decided": [0, 0],
-		"wins_provisional": [0, 0],
+		"wins_by_score": [0, 0],
 		"draws": 0,
 		"decided": 0,
-		"undecided": 0,
 		"endings": {},
 		"errors": 0,
 		"avg_rounds": 0.0,
@@ -83,15 +88,12 @@ static func summarize(results: Array[Dictionary]) -> Dictionary:
 		rounds += r["rounds"] as int
 		levels += r["max_level"] as int
 		var winner: int = r["winner"]
-		if ending == &"turn_cap":
-			out["undecided"] += 1
-		else:
-			out["decided"] += 1
+		out["decided"] += 1
 		if winner < 0:
 			out["draws"] += 1
 		else:
 			out["wins"][winner] += 1
-			var key := "wins_provisional" if ending == &"turn_cap" else "wins_decided"
+			var key := "wins_by_score" if ending == &"round_limit" else "wins_decided"
 			out[key][winner] += 1
 		for p in 2:
 			out["caused"][p] += (r["caused"] as Array)[p]
@@ -148,7 +150,14 @@ func _run(
 	sim: OperationalSimulation, seed_value: int, max_rounds: int, battles: StringName
 ) -> Dictionary:
 	var state := sim.state
-	var cap := max_rounds if max_rounds > 0 else state.turn_cap
+	if max_rounds > 0 and state.definition != null:
+		state.definition = state.definition.duplicate()  # the shared resource stays untouched
+		state.definition.round_limit = max_rounds
+	var cap := max_rounds
+	if state.definition != null and max_rounds <= 0:
+		cap = state.definition.round_limit
+	elif cap <= 0:
+		cap = 30
 	var out := _error_result(state.operation_id, seed_value)
 	out["sides"] = state.player_sides.duplicate()
 	_level_max = state.escalation_level
@@ -171,8 +180,9 @@ func _run(
 			stalled = true
 			break
 	sim.event_emitted.disconnect(_on_event)
-	var provisional := ProvisionalScore.evaluate(state)
-	out["totals"] = provisional["totals"]
+	if state.definition != null:
+		var scores := OperationVictory.score(state, state.definition)
+		out["totals"] = [scores[0]["total"], scores[1]["total"]]
 	if stalled:
 		out["ending"] = &"error"
 	elif not state.result.is_empty():
@@ -181,10 +191,7 @@ func _run(
 		out["reason"] = state.result["reason"]
 		out["rounds"] = mini(state.turn, cap)
 	else:
-		out["ending"] = &"turn_cap"
-		out["winner"] = provisional["winner"]
-		out["reason"] = ProvisionalScore.REASON
-		out["rounds"] = cap
+		out["ending"] = &"error"  # the round limit was reached without the rule firing
 	out["max_level"] = maxi(_level_max, state.escalation_level)
 	out["caused"] = state.escalation_caused.duplicate()
 	out["strikes_fired"] = _fired.duplicate()
@@ -250,5 +257,9 @@ static func _ending_of(result: Dictionary) -> StringName:
 			return &"threshold"
 		&"collapse":
 			return &"collapse"
+		&"gap_closed":
+			return &"gap_closed"
+		&"round_limit":
+			return &"round_limit"
 	push_error("OperationMatchRunner: unknown result reason '%s'" % result["reason"])
 	return &"error"

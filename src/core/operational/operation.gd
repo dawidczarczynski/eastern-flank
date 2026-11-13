@@ -74,8 +74,8 @@ static func from_definition(
 		state.fielded_strength[formation.owner_id] += formation.max_strength()
 	_add_strikes(state, definition)
 	state.ai_goals = definition.ai_goals.duplicate()
-	state.turn_cap = definition.turn_cap
-	state.provisional_draw_threshold = definition.provisional_draw_threshold
+	state.definition = definition
+	HexControl.setup(state)
 	return state
 
 
@@ -141,6 +141,9 @@ static func _problem(
 	var strike_error := _strikes_problem(definition, grid)
 	if strike_error != "":
 		return strike_error
+	var victory_error := _victory_problem(definition, grid)
+	if victory_error != "":
+		return victory_error
 	var goals_error := _goals_problem(definition, grid)
 	if goals_error != "":
 		return goals_error
@@ -268,7 +271,12 @@ static func _goals_problem(definition: OperationDefinition, grid: HexGrid) -> St
 			return "%s: unknown role '%s'" % [label, goal.role]
 		if goal.weight < 1:
 			return "%s: weight %d must be positive" % [label, goal.weight]
-		if goal.installation_id != &"":
+		if goal.objective_id != &"":
+			if not definition.objectives.any(
+				func(o: OperationObjective) -> bool: return o.id == goal.objective_id
+			):
+				return "%s: unknown objective '%s'" % [label, goal.objective_id]
+		elif goal.installation_id != &"":
 			var found := false
 			for placement in definition.installations:
 				found = found or placement.id == goal.installation_id
@@ -276,6 +284,54 @@ static func _goals_problem(definition: OperationDefinition, grid: HexGrid) -> St
 				return "%s: unknown installation '%s'" % [label, goal.installation_id]
 		elif not grid.has_tile(goal.coord):
 			return "%s: hex %s is not on the map" % [label, goal.coord]
+	return ""
+
+
+## Victory data (TASK-107a): objectives on the map with positive points, the Gap chain (3+ land
+## road hexes, consecutive ones neighbours), round limit, rounds to win, draw margin.
+static func _victory_problem(definition: OperationDefinition, grid: HexGrid) -> String:
+	if definition.round_limit < 1:
+		return "round_limit %d must be at least 1" % definition.round_limit
+	if definition.closed_rounds_to_win < 1:
+		return "closed_rounds_to_win %d must be at least 1" % definition.closed_rounds_to_win
+	if definition.draw_margin < 0 or definition.escalation_penalty < 0:
+		return "draw_margin / escalation_penalty must not be negative"
+	var ids := {}
+	for objective in definition.objectives:
+		if objective == null:
+			return "empty objective"
+		var label := "objective '%s'" % objective.id
+		if ids.has(objective.id):
+			return "duplicate objective id '%s'" % objective.id
+		ids[objective.id] = true
+		if objective.points < 1:
+			return "%s: points %d must be positive" % [label, objective.points]
+		if not OperationObjective.HOLDER_RULES.has(objective.holder_rule):
+			return "%s: unknown holder_rule '%s'" % [label, objective.holder_rule]
+		if objective.holder_rule == OperationObjective.OWN_SIDE and objective.side not in [0, 1]:
+			return "%s: own_side needs side 0 or 1" % label
+		if objective.installation_id != &"":
+			var found := definition.installations.any(
+				func(p: InstallationPlacement) -> bool: return p.id == objective.installation_id
+			)
+			if not found:
+				return "%s: unknown installation '%s'" % [label, objective.installation_id]
+		elif not grid.has_tile(objective.coord):
+			return "%s: hex %s is not on the map" % [label, objective.coord]
+	return _chain_problem(definition.gap_chain, grid)
+
+
+static func _chain_problem(chain: Array[Vector2i], grid: HexGrid) -> String:
+	if chain.is_empty():
+		return ""
+	if chain.size() < 3:
+		return "gap_chain needs at least 3 hexes"
+	for index in chain.size():
+		var hex := chain[index]
+		if not grid.has_tile(hex) or grid.move_cost(hex) == Terrain.IMPASSABLE:
+			return "gap_chain hex %s is not a land hex of the map" % hex
+		if index > 0 and not grid.has_road(chain[index - 1], hex):
+			return "gap_chain hexes %s and %s have no road link" % [chain[index - 1], hex]
 	return ""
 
 

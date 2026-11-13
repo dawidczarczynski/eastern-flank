@@ -1,6 +1,6 @@
 # TASK-107a: Operation victory – hex control, the Gap chain, scoring and the endings (core + data)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core / data (+ ai: swap of the provisional score in the simulation runner)
 - **Depends on**: TASK-103b (hard); TASK-104, TASK-105, TASK-106, TASK-118, TASK-121 (soft – none required)
 - **Topic**: Two-layer game
@@ -60,4 +60,8 @@ none (the end notice and objectives are written in TASK-107b)
 
 ## Implementation notes
 
-_Filled in by the agent when done: the chosen `gap_chain` hex list, the win shares, decisions, known limitations._
+- **gap_chain** (13 hexes, axial, Suwałki to Marijampolė along the road, found by BFS over road links): (17,34) Suwałki, (18,33), (19,32), (20,31), (21,30), (22,29), (23,28), (24,27), (25,26), (26,25), (27,24), (28,23), (29,22) Marijampolė. Six Polish and seven Lithuanian hexes; Suwałki starts held by NATO.
+- **Objectives** (data `objectives` on `suwalki_gap.tres`): Chernyakhovsk airfield (installation, NATO 5), Białystok command post (installation, Russia 5), Vilnius (hex 56,17, Russia 5), Grodno depot (installation, `any`, **40** after tuning). Gap open 10 (NATO) / closed 10 (Russia), penalty 3 per net step.
+- **Win shares** (`tools/simulate.sh 30 --mode=operation --seed=1`): first run with Grodno 5: NATO 28 / Russia 0 / 2 draws (Russia causes ~10 escalation steps per match = about -30, and never takes a scoring hex). Grodno 30: NATO 17 / Russia 8 / 5 draws (68 / 32 %). Final, Grodno 40 (only data change, objective points): NATO 15, Russia 12, draws 3 (nuclear 1) = **NATO 55.6 % / Russia 44.4 %** of decided operations; endings: round_limit 96.7 %, nuclear 3.3 %, gap_closed 0 %.
+- **Decisions**: `OperationalState.definition` (static) carries the victory data so commands can end the operation; hand-made states without it have no victory rule (existing tests unchanged, only `test_calm_works_from_the_cap` raises its `round_limit`). `turn_cap` / `provisional_draw_threshold` removed (replaced by `round_limit` / `draw_margin`). The runner's `max_rounds` runs on a duplicate of the definition with a lower `round_limit`. Runner summary: `undecided` removed, `wins_provisional` -> `wins_by_score`, `decided` = matches without an error. AI goals `nato_hold_bialystok`, `nato_take_grodno`, `ru_hold_grodno` use `objective_id` (hex single source; weights stay on the goals). Attacker taking a hex after a won battle does not physically move there. `nuclear_use` event now carries `score`.
+- **Limitations**: the AI has no goal for Vilnius, Chernyakhovsk or the chain, so `gap_closed` never happens in AI-vs-AI matches (0 %) and the result is mostly decided by Grodno and the escalation penalty; a follow-up AI task should add goals for the victory objectives. Reinforcements that appear (joined allies, support) do not take their hex. CampaignRecord `gap_closed` replay is tested on a hand-made strip operation via `replay_on`, since the shipped operation cannot reach it by commands in a test.

@@ -329,6 +329,7 @@ func test_calm_works_from_the_cap() -> void:
 	s.current_player = 0
 	s.escalation_level = 4
 	EscalationRules.raise(s, 1, &"test")
+	s.definition.round_limit = 100  # the 30-round limit (TASK-107a) is not under test
 	var sim := OperationalSimulation.new(s)
 	_end_turns(sim, 2)  # round 1: raised
 	assert_eq(s.escalation_level, 5)

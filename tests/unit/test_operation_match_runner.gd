@@ -7,7 +7,7 @@ func test_match_is_deterministic_and_ends_at_the_cap() -> void:
 	var b := OperationMatchRunner.play(&"suwalki_gap", 5, 2)
 	assert_eq(a, b)
 	assert_true(a["rounds"] <= 2)
-	assert_true([&"turn_cap", &"nuclear"].has(a["ending"]))
+	assert_true([&"round_limit", &"nuclear", &"gap_closed"].has(a["ending"]))
 	assert_eq(a["battles"], a["battles_auto"], "auto by default")
 	assert_eq(a["battles_played"], 0)
 
@@ -28,14 +28,17 @@ func test_unknown_operation_is_an_error_result() -> void:
 	assert_eq(OperationMatchRunner.play(&"nope", 1)["ending"], &"error")
 
 
-func test_cap_without_an_ending_uses_the_provisional_score() -> void:
+func test_cap_without_another_ending_is_scored_by_the_victory_rules() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
-	state.turn = 4
 	var r := OperationMatchRunner.play_state(OperationalSimulation.new(state), 1, 3)
-	assert_eq(r["ending"], &"turn_cap")
-	assert_eq(r["reason"], &"provisional")
+	assert_true([&"round_limit", &"nuclear", &"gap_closed"].has(r["ending"]))
+	assert_eq(r["reason"], &"round_limit")
 	assert_eq(r["rounds"], 3)
-	assert_eq(r["winner"], ProvisionalScore.evaluate(state)["winner"])
+	var scores := OperationVictory.score(state, state.definition)
+	assert_eq(r["totals"], [scores[0]["total"], scores[1]["total"]])
+	assert_eq(r["winner"], OperationVictory.winner_of(scores, state.definition))
+	assert_eq(state.definition.round_limit, 3, "the copy, not the shared resource")
+	assert_eq(OperationDefinition.find(&"suwalki_gap").round_limit, 30)
 
 
 func test_already_over_operation_plays_nothing() -> void:
@@ -57,7 +60,7 @@ func test_summary_shares_and_csv() -> void:
 	for e in OperationMatchRunner.ENDINGS:
 		total += s["endings"][e] as int
 	assert_eq(total, 3)
-	assert_eq(s["decided"] + s["undecided"] + s["errors"], 3)
+	assert_eq(s["decided"] + s["errors"], 3)
 	var lines := OperationMatchRunner.csv(results).strip_edges().split("\n")
 	assert_eq(lines.size(), 4)
 	assert_eq(lines[0], "seed,winner,ending,rounds,max_level,battles")

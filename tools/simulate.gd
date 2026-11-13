@@ -145,58 +145,46 @@ func _operation_report(
 	lines.append("Sides: %s vs %s" % names)
 	var wins: Array = s["wins"]
 	var wins_decided: Array = s["wins_decided"]
-	var wins_provisional: Array = s["wins_provisional"]
+	var wins_by_score: Array = s["wins_by_score"]
 	for p in 2:
 		lines.append(
 			(
-				"%s wins: %d (%s) - by a rule %d, provisional %d"
-				% [
-					names[p],
-					wins[p],
-					_percent(wins[p], count),
-					wins_decided[p],
-					wins_provisional[p]
-				]
+				"%s wins: %d (%s) - by a rule %d, by score at the round limit %d"
+				% [names[p], wins[p], _percent(wins[p], count), wins_decided[p], wins_by_score[p]]
 			)
 		)
 	lines.append("Draws: %d (%s)" % [s["draws"], _percent(s["draws"], count)])
-	lines.append(
-		(
-			"Decided by a rule: %d (%s), undecided (turn cap, provisional): %d (%s)"
-			% [
-				s["decided"],
-				_percent(s["decided"], count),
-				s["undecided"],
-				_percent(s["undecided"], count)
-			]
-		)
-	)
-	var decided_wins: int = wins_decided[0] + wins_decided[1]
+	lines.append("Ended without an error: %d (%s)" % [s["decided"], _percent(s["decided"], count)])
+	var decided_wins: int = wins[0] + wins[1]
 	if decided_wins > 0:
 		lines.append(
 			(
 				"Win share of decided operations: %s %s, %s %s"
 				% [
 					names[0],
-					_percent(wins_decided[0], decided_wins),
+					_percent(wins[0], decided_wins),
 					names[1],
-					_percent(wins_decided[1], decided_wins)
+					_percent(wins[1], decided_wins)
 				]
 			)
 		)
 	else:
 		lines.append("Win share of decided operations: n/a (no decided operation with a winner)")
 	var endings: Dictionary = s["endings"]
-	lines.append(
-		(
-			"Endings: collapse %s, threshold %s, nuclear %s, turn cap (provisional) %s, error %s"
-			% [
-				_percent(endings[&"collapse"], count),
-				_percent(endings[&"threshold"], count),
-				_percent(endings[&"nuclear"], count),
-				_percent(endings[&"turn_cap"], count),
-				_percent(endings[&"error"], count)
-			]
+	(
+		lines
+		. append(
+			(
+				"Endings: collapse %s, threshold %s, nuclear %s, gap closed %s, round limit %s, error %s"
+				% [
+					_percent(endings[&"collapse"], count),
+					_percent(endings[&"threshold"], count),
+					_percent(endings[&"nuclear"], count),
+					_percent(endings[&"gap_closed"], count),
+					_percent(endings[&"round_limit"], count),
+					_percent(endings[&"error"], count)
+				]
+			)
 		)
 	)
 	lines.append("Errors: %d" % s["errors"])

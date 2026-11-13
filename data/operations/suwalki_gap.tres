@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDefinition" load_steps=65 format=3]
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=70 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
 [ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
@@ -19,6 +19,7 @@
 
 [ext_resource type="Script" path="res://src/core/data/installation_placement.gd" id="13_install"]
 [ext_resource type="Script" path="res://src/core/data/ai_goal.gd" id="14_aigoal"]
+[ext_resource type="Script" path="res://src/core/data/operation_objective.gd" id="15_objective"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -401,6 +402,42 @@ owner = 1
 coord = Vector2i(9, 22)
 ad_type = &"short"
 
+[sub_resource type="Resource" id="Objective_chernyakhovsk"]
+script = ExtResource("15_objective")
+id = &"chernyakhovsk"
+display_name = "Chernyakhovsk airfield"
+installation_id = &"ru_airfield_chernyakhovsk"
+side = 0
+points = 5
+holder_rule = &"own_side"
+
+[sub_resource type="Resource" id="Objective_bialystok"]
+script = ExtResource("15_objective")
+id = &"bialystok"
+display_name = "Bialystok command post"
+installation_id = &"nato_c2_bialystok"
+side = 1
+points = 5
+holder_rule = &"own_side"
+
+[sub_resource type="Resource" id="Objective_vilnius"]
+script = ExtResource("15_objective")
+id = &"vilnius"
+display_name = "Vilnius"
+coord = Vector2i(56, 17)
+side = 1
+points = 5
+holder_rule = &"own_side"
+
+[sub_resource type="Resource" id="Objective_grodno"]
+script = ExtResource("15_objective")
+id = &"grodno"
+display_name = "Grodno depot"
+installation_id = &"ru_depot_grodno"
+side = -1
+points = 40
+holder_rule = &"any"
+
 [sub_resource type="Resource" id="Goal_nato_hold_suwalki"]
 script = ExtResource("14_aigoal")
 id = &"nato_hold_suwalki"
@@ -413,7 +450,7 @@ role = &"hold"
 script = ExtResource("14_aigoal")
 id = &"nato_hold_bialystok"
 player = 0
-installation_id = &"nato_c2_bialystok"
+objective_id = &"bialystok"
 weight = 6
 role = &"hold"
 
@@ -429,7 +466,7 @@ role = &"hold"
 script = ExtResource("14_aigoal")
 id = &"nato_take_grodno"
 player = 0
-installation_id = &"ru_depot_grodno"
+objective_id = &"grodno"
 weight = 8
 role = &"take"
 
@@ -461,7 +498,7 @@ role = &"take"
 script = ExtResource("14_aigoal")
 id = &"ru_hold_grodno"
 player = 1
-installation_id = &"ru_depot_grodno"
+objective_id = &"grodno"
 weight = 4
 role = &"hold"
 
@@ -480,5 +517,13 @@ installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfiel
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 40}])
 strike_resupply = Array[Dictionary]([{&"jassm_er": 6, &"homar_k": 10, &"warmate": 10}, {&"kh101": 2, &"geran_2": 4}])
 ai_goals = Array[ExtResource("14_aigoal")]([SubResource("Goal_nato_hold_suwalki"), SubResource("Goal_nato_hold_bialystok"), SubResource("Goal_nato_hold_elk"), SubResource("Goal_nato_take_grodno"), SubResource("Goal_ru_take_suwalki"), SubResource("Goal_ru_take_elk"), SubResource("Goal_ru_take_kaunas"), SubResource("Goal_ru_hold_grodno")])
+objectives = Array[ExtResource("15_objective")]([SubResource("Objective_chernyakhovsk"), SubResource("Objective_bialystok"), SubResource("Objective_vilnius"), SubResource("Objective_grodno")])
+gap_chain = Array[Vector2i]([Vector2i(17, 34), Vector2i(18, 33), Vector2i(19, 32), Vector2i(20, 31), Vector2i(21, 30), Vector2i(22, 29), Vector2i(23, 28), Vector2i(24, 27), Vector2i(25, 26), Vector2i(26, 25), Vector2i(27, 24), Vector2i(28, 23), Vector2i(29, 22)])
+round_limit = 30
+closed_rounds_to_win = 2
+draw_margin = 5
+gap_open_points = 10
+gap_closed_points = 10
+escalation_penalty = 3
 strikes_per_turn = 2
 repair_per_round = 5

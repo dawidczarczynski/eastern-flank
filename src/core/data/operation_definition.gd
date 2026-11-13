@@ -38,11 +38,21 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var repair_per_round: int = 5
 ## Objectives of the operational AI, both sides (AiGoal.player; TASK-102a).
 @export var ai_goals: Array[AiGoal] = []
-## Round cap of an AI-vs-AI operation run (TASK-103a): after this many rounds without an ending
-## rule the run is scored by ProvisionalScore. Not a rule of the game itself.
-@export var turn_cap: int = 30
-## ProvisionalScore: a goal-weight difference of at most this is a draw.
-@export var provisional_draw_threshold: int = 0
+## Victory objectives (hex or installation, side, points; TASK-107a); the AI goals reuse them.
+@export var objectives: Array[OperationObjective] = []
+## The Gap road link: ordered road hexes from Suwałki to Marijampolė (OperationVictory).
+@export var gap_chain: Array[Vector2i] = []
+## Rounds of the operation; at the end of the last one the higher score wins.
+@export var round_limit: int = 30
+## Side 1 wins at once when it holds the whole chain at the end of this many consecutive rounds.
+@export var closed_rounds_to_win: int = 2
+## A score difference below this is a draw.
+@export var draw_margin: int = 5
+## Points for side 0 while the Gap is open / for side 1 while it is closed, at the end.
+@export var gap_open_points: int = 10
+@export var gap_closed_points: int = 10
+## Points lost per net escalation step caused (max(0, caused - deescalated)).
+@export var escalation_penalty: int = 3
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

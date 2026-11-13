@@ -1,6 +1,6 @@
 # TASK-107b: Side choice at the start of an operation and the end-of-operation notice
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation / docs
 - **Depends on**: TASK-107a (hard)
 - **Topic**: Two-layer game

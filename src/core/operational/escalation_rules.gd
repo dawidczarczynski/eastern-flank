@@ -43,7 +43,7 @@ static func raise(
 ## Russia's nuclear attack (TASK-140, NuclearStrikeCommand validates it): the level goes to the
 ## top, attributed to `by`, and the operation ends with reason `nuclear_use` – nobody wins
 ## (`winner` -1, `by` = the user); pending battles are dropped. Events: `escalation_changed`,
-## `operation_ended`.
+## `operation_ended` (with the score, TASK-107a).
 static func nuclear_use(state: OperationalState, by: int) -> Array[Dictionary]:
 	var previous := state.escalation_level
 	var level := state.ladder.top()
@@ -51,18 +51,17 @@ static func nuclear_use(state: OperationalState, by: int) -> Array[Dictionary]:
 	state.escalation_caused[by] += level - previous
 	state.last_raise_turn[by] = state.turn
 	state.raised_this_round = true
-	state.result = {"winner": -1, "reason": &"nuclear_use", "by": by}
-	state.pending_battles.clear()
-	return [
+	var events: Array[Dictionary] = [
 		{
 			"type": &"escalation_changed",
 			"level": level,
 			"previous": previous,
 			"by": by,
 			"cause": &"nuclear_use",
-		},
-		{"type": &"operation_ended", "winner": -1, "reason": &"nuclear_use", "by": by},
+		}
 	]
+	events.append_array(OperationVictory.end(state, -1, &"nuclear_use", by))
+	return events
 
 
 ## Lowers the level by one (callers own the floor); attributed to `by` when >= 0 (-1 = nobody).

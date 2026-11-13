@@ -5,7 +5,10 @@ extends OperationalCommand
 ## turn). Rejected while a contact battle is waiting to be fought.
 ## Before the turn ends, the current player's formations carry out their orders (TASK-092e): in
 ## placement order, each one walks its route as far as its posture's budget allows. Execution
-## draws nothing from `state.rng`; afterwards every formation that halted on contact attacks an
+## draws nothing from `state.rng`; a formation that ends its walk on a hex takes it (HexControl);
+## when play returns to the first player the round ends (EscalationRules.end_round, StrikeRules,
+## OperationVictory.end_round: `gap_closed` / `round_limit` may end the operation); afterwards
+## every formation that halted on contact attacks an
 ## adjacent enemy (ContactRules.start_battles, TASK-094a), which draws one value per battle.
 
 const TYPE := "end_operational_turn"
@@ -33,6 +36,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	if state.current_player == state.first_player and state.result.is_empty():
 		events.append_array(EscalationRules.end_round(state))
 		events.append_array(StrikeRules.end_round(state))
+		events.append_array(OperationVictory.end_round(state, state.turn - 1))
 	(
 		events
 		. append(
@@ -107,6 +111,7 @@ static func _execute_order(
 			)
 		)
 	if not steps.is_empty():
+		events.append_array(HexControl.take(state, formation.coord, formation.owner_id))
 		events.append_array(EscalationRules.on_steps(state, formation, steps, walk_from))
 	if stop == OperationalRoutes.STOP_ARRIVED:
 		formation.order = null

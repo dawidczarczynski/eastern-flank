@@ -10,7 +10,8 @@ extends RefCounted
 
 ## Applies `result` of the battle `setup` (already popped from the queue) to `state`. Events:
 ## `formation_destroyed` (cause `battle`), `formation_order_interrupted` (`retreated`),
-## `formation_retreated`, then `battle_consequences`.
+## `formation_retreated`, `objective_changed` (the attacker that won takes the defender's hex,
+## HexControl), then `battle_consequences`.
 static func apply(
 	state: OperationalState, setup: BattleSetup, result: BattleResult
 ) -> Array[Dictionary]:
@@ -21,6 +22,8 @@ static func apply(
 		var formation := state.get_formation(id)
 		if formation != null:
 			by_player[formation.owner_id] = formation
+	var defender: Formation = by_player[1 - setup.attacker] if setup.attacker in [0, 1] else null
+	var defended_hex := defender.coord if defender != null else Vector2i.MAX
 	var losses: Array[int] = [0, 0]
 	var strengths: Array = [[0, 0], [0, 0]]
 	var readiness: Array = [[0, 0], [0, 0]]
@@ -75,6 +78,14 @@ static func apply(
 		var retreating := by_player[result.retreat]
 		if state.get_formation(retreating.id) != null:
 			events.append_array(_retreat(state, retreating, by_player[1 - result.retreat]))
+	var attacker: Formation = by_player[setup.attacker] if setup.attacker in [0, 1] else null
+	if (
+		attacker != null
+		and defended_hex != Vector2i.MAX
+		and result.field_holder == setup.attacker
+		and state.get_formation(attacker.id) != null
+	):
+		events.append_array(HexControl.take(state, defended_hex, setup.attacker))
 	(
 		events
 		. append(

@@ -1,8 +1,8 @@
 extends TestCase
 ## Operation balance regression (TASK-103b): in AI-vs-AI operations on seeds 1..20 each side must
 ## hold 35-65 % of the decided operations (the target is 40-60 %, the band leaves room for noise).
-## A turn-cap result counts as decided by its provisional winner; a draw or a nuclear ending does
-## not (TASK-103a report).
+## A round_limit result counts as decided by the real score (TASK-107a); a draw or a nuclear ending
+## does not (TASK-103a report).
 
 const SEEDS := 20
 const MIN_SHARE := 0.35

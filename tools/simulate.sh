@@ -9,7 +9,7 @@
 # Operation mode (TASK-103a): tools/simulate.sh N --mode=operation [--seed=S] [--max-rounds=R]
 #                             [--scenario=<operation id, default suwalki_gap>] [--battles=auto|played]
 #                             [--out=file.csv] [--verbose]
-#   plays whole operations AI-vs-AI (round cap R, default the operation's turn_cap; battles auto-resolved
+#   plays whole operations AI-vs-AI (round cap R, default the operation's round_limit; battles auto-resolved
 #   or played headless and compared); --out writes seed,winner,ending,rounds,max_level,battles per match.
 #   --max-turns / --factions belong to the tactical mode, --max-rounds / --battles / --out to this one.
 # The Godot path can be overridden with GODOT.

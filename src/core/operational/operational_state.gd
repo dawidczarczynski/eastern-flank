@@ -80,11 +80,18 @@ var suppression_rounds: int = 2
 var repair_per_round: int = 5
 ## Objectives of the operational AI, both sides (static, not in the snapshot; TASK-102a).
 var ai_goals: Array[AiGoal] = []
-## Round cap of an AI-vs-AI run and the draw threshold of ProvisionalScore (static, not in the
-## snapshot; TASK-103a, from OperationDefinition).
-var turn_cap: int = 30
-var provisional_draw_threshold: int = 0
-## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}.
+## The operation's data (victory objectives, Gap chain, round limit; static, not in the snapshot).
+## Null in hand-made states: then no victory rule applies (OperationVictory.end_round does nothing).
+var definition: OperationDefinition = null
+## Holder (0 / 1) of each hex at the start (static, HexControl.setup); hexes absent are unheld.
+var hex_initial: Dictionary = {}
+## Vector2i -> holder of the hexes whose holder changed since the start (HexControl).
+var hex_holders: Dictionary = {}
+## Consecutive finished rounds that ended with side 1 holding the whole Gap chain.
+var gap_closed_rounds: int = 0
+## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}
+## (`by` = the side that caused it, -1 when none; the score is in the `operation_ended` event and
+## OperationVictory.score).
 var result: Dictionary = {}
 ## Contact battles waiting to be fought, FIFO (filled by EndOperationalTurnCommand, TASK-094a).
 var pending_battles: Array[BattleSetup] = []
@@ -99,6 +106,16 @@ func get_formation(formation_id: StringName) -> Formation:
 	for f in formations:
 		if f.id == formation_id:
 			return f
+	return null
+
+
+## The victory objective with this id; null if there is none (or no definition).
+func get_objective(objective_id: StringName) -> OperationObjective:
+	if definition == null:
+		return null
+	for o in definition.objectives:
+		if o.id == objective_id:
+			return o
 	return null
 
 
@@ -136,7 +153,7 @@ func formation_at(coord: Vector2i) -> Formation:
 ## countries: [CountryState.snapshot() sorted by id],
 ## formations: [Formation.snapshot() sorted by id],
 ## installations: [Installation.snapshot() sorted by id], strike_stock, strikes_left,
-## fielded_strength}.
+## fielded_strength, hex_holders, gap_closed_rounds}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
 	sorted.sort_custom(_id_before)
@@ -176,9 +193,20 @@ func snapshot() -> Dictionary:
 			"urban_escalated": urban_escalated.duplicate(),
 		},
 		"result": result.duplicate(),
+		"hex_holders": _holders_snapshot(),
+		"gap_closed_rounds": gap_closed_rounds,
 		"political_log": political_log.to_dict()["entries"],
 		"journal": journal.to_dict()["entries"],
 	}
+
+
+## [[q, r, holder], ...] of the changed hexes, sorted.
+func _holders_snapshot() -> Array:
+	var coords: Array = hex_holders.keys()
+	coords.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y)
+	)
+	return coords.map(func(c: Vector2i) -> Array: return [c.x, c.y, hex_holders[c]])
 
 
 static func _id_before(a: Formation, b: Formation) -> bool:
