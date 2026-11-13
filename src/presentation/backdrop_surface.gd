@@ -1,7 +1,8 @@
 class_name BackdropSurface
 extends TerrainSurface
-## TerrainSurface whose heights come from a callable (the drawn backdrop ground), so that
-## ScatterPlanner can place scenery on the non-playable ring (TASK-052).
+## TerrainSurface whose heights come from a callable (the drawn ground), so that ScatterPlanner
+## can place scenery on the non-playable ring (TASK-052) and the grass stands on the terrain
+## mesh (MapView.mesh_height_at) without evaluating the surface per clump.
 
 var _height_fn: Callable
 

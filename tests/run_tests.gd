@@ -9,6 +9,8 @@ const TEST_DIRS := ["res://tests/unit", "res://tests/integration"]
 
 
 func _initialize() -> void:
+	# Tests write nothing into the player's cache folder (the cache tests use their own).
+	TerrainTextures.cache_dir = ""
 	var args := OS.get_cmdline_user_args()
 	var filter: String = args[0] if args.size() > 0 else ""
 	var total := 0

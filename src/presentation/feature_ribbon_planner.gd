@@ -24,6 +24,8 @@ extends RefCounted
 ## the same centrelines (`is_clear`). Look values, not balance data.
 
 enum Kind { ROAD, RIVER }
+const _KINDS: Array[Kind] = [Kind.ROAD, Kind.RIVER]
+const _NO_ENTRY: Array = []
 
 ## Centre to side midpoint: half the distance between neighbouring centres (√3/2 · HEX_SIZE).
 const HALF_SEGMENT := Hex.SQRT3 / 2.0 * TerrainField.HEX_SIZE
@@ -172,9 +174,33 @@ static func edge_distance(grid: HexGrid, kind: Kind, x: float, z: float) -> floa
 static func is_clear(grid: HexGrid, x: float, z: float) -> bool:
 	if not grid.has_links():
 		return true
-	for kind: Kind in Kind.values():
-		if _nearest(grid, kind, x, z, true) < clearance(kind):
-			return false
+	# Called per grass candidate: the edge_distance(kind) < clearance(kind) rule with one index
+	# and tile lookup, the segment distance inlined, squared, and an early exit.
+	var index := _clearance_index(grid)
+	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
+	for kind: Kind in _KINDS:
+		var entry: Array = (index[kind] as Dictionary).get(coord, _NO_ENTRY)
+		if entry.is_empty():
+			continue
+		var pairs: PackedVector2Array = entry[0]
+		var halves: PackedFloat32Array = entry[1]
+		var limit := clearance(kind)
+		for i in halves.size():
+			var reach := halves[i] + limit
+			if reach <= 0.0:
+				continue
+			var a := pairs[2 * i]
+			var abx := pairs[2 * i + 1].x - a.x
+			var aby := pairs[2 * i + 1].y - a.y
+			var dx := x - a.x
+			var dy := z - a.y
+			var length_squared := abx * abx + aby * aby
+			if length_squared > 0.0:
+				var t := clampf((dx * abx + dy * aby) / length_squared, 0.0, 1.0)
+				dx -= abx * t
+				dy -= aby * t
+			if dx * dx + dy * dy < reach * reach:
+				return false
 	return true
 
 

@@ -282,6 +282,32 @@ func test_distance_and_clearance_follow_the_new_geometry() -> void:
 	assert_true(FeatureRibbonPlanner.is_clear(river, 0.0, -2.5), "far from the river")
 
 
+## is_clear is a fast path of its definition: farther than the clearance from every ribbon edge.
+func test_is_clear_equals_the_edge_distance_rule() -> void:
+	var grid := Fixtures.plains_grid(4)
+	_link_path(grid, KIND_RIVER, _zigzag())
+	grid.set_road_links(Vector2i.ZERO, 1 << 0)
+	grid.set_road_links(Vector2i(1, 0), 1 << 3)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var blocked := 0
+	for i in 4000:
+		var x := rng.randf_range(-7.0, 7.0)
+		var z := rng.randf_range(-7.0, 7.0)
+		var expected := true
+		for kind: FeatureRibbonPlanner.Kind in [KIND_ROAD, KIND_RIVER]:
+			if (
+				FeatureRibbonPlanner.edge_distance(grid, kind, x, z)
+				< FeatureRibbonPlanner.clearance(kind)
+			):
+				expected = false
+		blocked += 0 if expected else 1
+		if FeatureRibbonPlanner.is_clear(grid, x, z) != expected:
+			_fail("is_clear(%f, %f) should be %s" % [x, z, expected])
+			return
+	assert_true(blocked > 30, "the sample covers the ribbons (%d blocked)" % blocked)
+
+
 # --- scatter and grass keep off the ribbons ---
 
 

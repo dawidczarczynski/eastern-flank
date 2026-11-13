@@ -63,6 +63,15 @@ func height_at(x: float, z: float) -> float:
 	return h
 
 
+## Fills the per-tile cache `height_at` builds lazily, so that later calls only read – needed
+## before the surface is queried from several threads. Changes no height.
+func prime() -> void:
+	if _grid.field == null:
+		return
+	for c in _grid.coords():
+		_center_height(c, Hex.to_world(c, TerrainField.HEX_SIZE))
+
+
 ## Height that units, overlays and picking sit on: never below the water surface.
 func ground_height(x: float, z: float) -> float:
 	return maxf(height_at(x, z), WATER_SURFACE)

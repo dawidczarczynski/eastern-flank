@@ -113,4 +113,4 @@ func _on_open() -> void:
 
 func _change_scene(setup: BattleSetup) -> void:
 	BattleOptions.pending_setup = setup
-	_panel.get_tree().change_scene_to_file(BATTLE_SCENE)
+	SceneLoader.open(_panel.get_tree(), BATTLE_SCENE, setup.operation_name)

@@ -391,7 +391,10 @@ func _select_scenario(scenario_name: String) -> void:
 
 func _on_begin_pressed() -> void:
 	BattleOptions.menu_choice = _scenario_name
-	get_tree().change_scene_to_file(BATTLE_SCENE)
+	var operation := Scenario.OPERATION_NAME
+	if _scenario_name == "suwalki_battle":
+		operation = Scenario.SUWALKI_OPERATION_NAME
+	SceneLoader.open(get_tree(), BATTLE_SCENE, operation)
 
 
 func _on_language_pressed() -> void:

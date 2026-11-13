@@ -6,9 +6,10 @@ extends Node3D
 ## fades out over the visibility_range_end_margin MARGIN around that distance (Godot dithers the
 ## fade; the exact start of the margin was not measured). The range is measured from the chunk
 ## node's origin, which sits at the chunk centre, so whole chunks pop in and out of range, not
-## single clumps. Grass casts no shadows. Meadow flowers (TASK-070) are a second MultiMesh node per
-## chunk ("Flowers_<x>_<z>") with the same ranges; reeds (TASK-108e) likewise ("Reeds_<x>_<z>",
-## own card).
+## single clumps. Behind the loading screen the chunks around the start camera are planned on
+## worker threads instead (`begin_prebuild` / `prebuild_step`). Grass casts no shadows. Meadow
+## flowers (TASK-070) are a second MultiMesh node per chunk ("Flowers_<x>_<z>") with the same
+## ranges; reeds (TASK-108e) likewise ("Reeds_<x>_<z>", own card).
 
 const SEED := 7919
 const RANGE := 14.0
@@ -57,6 +58,14 @@ var _target := Vector2.ZERO
 var _has_target := false
 var _scan_needed := false
 var _scanned_target := Vector2.ZERO
+## A running prebuild: its chunks (taken out of _pending), their plans (filled by the worker
+## threads, one slot per chunk), the WorkerThreadPool group task (-1 = none) and how many of the
+## chunks are instantiated.
+var _prebuild_chunks: Array[Vector2i] = []
+var _prebuild_plans: Array = []
+var _prebuild_task := -1
+var _prebuild_done := 0
+var _prebuild_target := Vector2.ZERO
 
 
 ## Prepares the field for a map. `requested` is the quality density; it is cut so that the whole
@@ -70,6 +79,7 @@ func setup(
 	budget: int = GrassPlanner.INSTANCE_BUDGET,
 	parcels: ParcelMap = null
 ) -> void:
+	_abandon_prebuild()
 	for child in get_children():
 		remove_child(child)
 		child.free()
@@ -152,6 +162,8 @@ func density() -> float:
 ## Keeps the ground within `radius` of `center` (XZ) bare: chunks not built yet skip it, built
 ## chunks it touches are dropped and planned again.
 func add_clearing(center: Vector2, radius: float) -> void:
+	while not prebuild_step(_prebuild_chunks.size(), true):
+		pass
 	_clearings.append(Vector3(center.x, radius, center.y))
 	if _density <= 0.0:
 		return
@@ -232,7 +244,85 @@ func _process(_delta: float) -> void:
 
 ## True when every chunk within BUILD_RADIUS of the target is built.
 func is_settled() -> bool:
+	if not _prebuild_chunks.is_empty():
+		return false
 	return _density <= 0.0 or not _has_target or not _scan_needed
+
+
+## Starts planning every pending chunk within BUILD_RADIUS of the target on the worker threads
+## (the planners are pure). Follow with prebuild_step() each frame until it returns true.
+func begin_prebuild() -> void:
+	if _density <= 0.0 or not _has_target or not _prebuild_chunks.is_empty():
+		return
+	var rest: Array[Vector2i] = []
+	for chunk in _pending:
+		if _chunk_distance(chunk) <= BUILD_RADIUS:
+			_prebuild_chunks.append(chunk)
+		else:
+			rest.append(chunk)
+	if _prebuild_chunks.is_empty():
+		return
+	_pending = rest
+	_prebuild_chunks.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool: return _chunk_distance(a) < _chunk_distance(b)
+	)
+	# The threads only read: fill the lazy caches the planners use before they start.
+	_surface.prime()
+	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
+	_prebuild_plans = []
+	_prebuild_plans.resize(_prebuild_chunks.size())
+	_prebuild_done = 0
+	_prebuild_target = _target
+	_prebuild_task = WorkerThreadPool.add_group_task(
+		_plan_prebuild_chunk, _prebuild_chunks.size(), -1, true, "Grass prebuild"
+	)
+
+
+## One step of a prebuild: once the worker threads have planned the chunks (`wait` blocks until
+## then), turns up to `max_chunks` of them into nodes, nearest first. True when the prebuild is
+## over (or none is running).
+func prebuild_step(max_chunks: int, wait := false) -> bool:
+	if _prebuild_chunks.is_empty():
+		return true
+	if _prebuild_task >= 0:
+		if not wait and not WorkerThreadPool.is_group_task_completed(_prebuild_task):
+			return false
+		WorkerThreadPool.wait_for_group_task_completion(_prebuild_task)
+		_prebuild_task = -1
+	var last := mini(_prebuild_done + max_chunks, _prebuild_chunks.size())
+	while _prebuild_done < last:
+		var chunk := _prebuild_chunks[_prebuild_done]
+		_chunks[chunk] = _instantiate_chunk(chunk, _prebuild_plans[_prebuild_done])
+		_prebuild_plans[_prebuild_done] = null
+		_prebuild_done += 1
+	if _prebuild_done < _prebuild_chunks.size():
+		return false
+	_prebuild_chunks = []
+	_prebuild_plans = []
+	# Everything within reach of the target the prebuild started at is built now.
+	if _target == _prebuild_target:
+		_scanned_target = _target
+		_scan_needed = false
+	return true
+
+
+## Runs on a worker thread: writes only its own slot of _prebuild_plans.
+func _plan_prebuild_chunk(index: int) -> void:
+	_prebuild_plans[index] = _plan_chunk(_prebuild_chunks[index])
+
+
+## Waits for the worker threads and drops what they planned (the field is set up again or freed).
+func _abandon_prebuild() -> void:
+	if _prebuild_task >= 0:
+		WorkerThreadPool.wait_for_group_task_completion(_prebuild_task)
+		_prebuild_task = -1
+	_prebuild_chunks = []
+	_prebuild_plans = []
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_abandon_prebuild()
 
 
 ## Builds up to `max_chunks` pending chunks within BUILD_RADIUS of the target, nearest first.
@@ -278,14 +368,26 @@ func _chunk_distance(chunk: Vector2i) -> float:
 
 
 func _build_chunk(chunk: Vector2i) -> MultiMeshInstance3D:
-	var flowers := _without_cleared(
-		GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow, _parcels)
-	)
+	return _instantiate_chunk(chunk, _plan_chunk(chunk))
+
+
+## The planned flowers and clumps of a chunk. Pure (reads the grid, surface, parcels and look
+## only), so a prebuild runs it on worker threads.
+func _plan_chunk(chunk: Vector2i) -> Dictionary:
+	return {
+		"flowers":
+		GrassPlanner.plan_flowers(chunk, _grid, _surface, SEED, _density, _meadow, _parcels),
+		"clumps":
+		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow, _parcels),
+	}
+
+
+## The nodes of a planned chunk (main thread); returns the grass node, null without clumps.
+func _instantiate_chunk(chunk: Vector2i, plan: Dictionary) -> MultiMeshInstance3D:
+	var flowers := _without_cleared(plan["flowers"])
 	if not flowers.is_empty():
 		_flower_chunks[chunk] = _build_flowers(chunk, flowers)
-	var clumps := _without_cleared(
-		GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow, _parcels)
-	)
+	var clumps := _without_cleared(plan["clumps"])
 	var reeds := clumps.filter(
 		func(g: Dictionary) -> bool: return g["kind"] == GrassPlanner.Kind.REED
 	)

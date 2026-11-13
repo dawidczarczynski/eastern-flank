@@ -242,7 +242,11 @@ static func abandon() -> void:
 
 
 ## The only scene change between the staff map and the battle (ADR 0015 §5); no-op without a
-## tree (headless tests).
+## tree (headless tests). The battle scene loads behind the loading screen (SceneLoader).
 static func change_scene(tree: SceneTree, path: String) -> void:
-	if tree != null:
+	if tree == null:
+		return
+	if path == BATTLE_SCENE:
+		SceneLoader.open(tree, path, battle.operation_name if battle != null else "")
+	else:
 		tree.change_scene_to_file(path)

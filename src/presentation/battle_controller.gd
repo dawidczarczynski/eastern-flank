@@ -15,14 +15,12 @@ const LAUNCHER_TRAVERSE_DURATION := VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
 const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
 const TURRET_AIM_DURATION := VolleyPlayback.TURRET_AIM_DURATION
 
-const PREBUILD_GRASS_CHUNKS_PER_FRAME := 4
+const PREBUILD_GRASS_CHUNKS_PER_FRAME := 8
 ## Gap above the terrain / unit strip slot in the bottom bar (the strips share one fixed height).
 const SLOT_PADDING_TOP := 9
 ## The unit strip's tab ("JEDNOSTKA · WŁASNA") is wider than its title column: reserve that, so the
 ## bar's centre zone does not shift when the strip replaces the terrain strip.
 const SLOT_WIDTH_SLACK := 12
-const WARM_UP_FRAME_S := 1.0 / 40.0  ## a frame faster than this counts as calm
-const WARM_UP_CALM_FRAMES := 8
 const WARM_UP_MAX_MS := 4000
 ## Command.validate() reasons a click can hit -> toast (translation key).
 const REJECT_TOASTS := {
@@ -180,24 +178,26 @@ func _next_frame() -> void:
 	await RenderingServer.frame_post_draw
 
 
-## Builds the grass around the start camera behind the loading screen, a few chunks per frame,
-## so the first seconds of the battle are not spent building it at 4-5 FPS.
+## Builds the grass around the start camera behind the loading screen (planned on worker threads,
+## then a few chunks per frame), so the first seconds of the battle are not spent building it at
+## 4-5 FPS.
 func _prebuild_grass() -> void:
 	_map_view.set_camera_target(_camera_rig.target())
 	var grass := _map_view.grass()
-	while not grass.is_settled():
-		grass.update(PREBUILD_GRASS_CHUNKS_PER_FRAME)
+	grass.begin_prebuild()
+	while not grass.prebuild_step(PREBUILD_GRASS_CHUNKS_PER_FRAME):
 		await _next_frame()
 
 
 ## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
-## rendered under the loading screen: wait until the frame time settles, or give up after a while.
+## rendered under the loading screen: wait until the frame time settles (WarmUp), or give up
+## after a while.
 func _warm_up() -> void:
-	var calm := 0
+	var warm_up := WarmUp.new()
 	var deadline := Time.get_ticks_msec() + WARM_UP_MAX_MS
-	while calm < WARM_UP_CALM_FRAMES and Time.get_ticks_msec() < deadline:
+	while not warm_up.is_settled() and Time.get_ticks_msec() < deadline:
 		await _next_frame()
-		calm = calm + 1 if get_process_delta_time() < WARM_UP_FRAME_S else 0
+		warm_up.add_frame(get_process_delta_time())
 
 
 ## Throttles the frame rate while the window is in the background.

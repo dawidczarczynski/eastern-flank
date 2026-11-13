@@ -217,3 +217,14 @@ func test_raycast_from_below_the_start_height_starts_at_the_origin() -> void:
 	var surface := TerrainSurface.new(Fixtures.plains_grid(3))
 	var hit: Variant = surface.raycast(Vector3(0.0, 1.0, 0.0), Vector3.DOWN)
 	_assert_hit_near(hit, Vector3(0.0, 0.2, 0.0), 0.01)
+
+
+## prime() only fills the lazy per-tile cache (for worker threads): no height changes.
+func test_prime_changes_no_height() -> void:
+	var grid := _generate(4242)
+	var plain := TerrainSurface.new(grid)
+	var primed := TerrainSurface.new(grid)
+	primed.prime()
+	for c in grid.coords():
+		var w := Hex.to_world(c, TerrainField.HEX_SIZE)
+		assert_eq(primed.height_at(w.x + 0.2, w.z - 0.1), plain.height_at(w.x + 0.2, w.z - 0.1))

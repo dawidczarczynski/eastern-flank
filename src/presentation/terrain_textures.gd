@@ -6,7 +6,10 @@ extends RefCounted
 ## map) and `roughness_ao` (R roughness, G ambient occlusion). Packing decodes and merges
 ## 35 images, so `request(size)` starts it on the WorkerThreadPool (MapView calls it before
 ## building the terrain mesh, which hides the cost) and `arrays(size)` waits for it and caches
-## the result per size for the rest of the run.
+## the result per size for the rest of the run. The packed images are also kept on disk
+## (`cache_dir`, one file per size, keyed by the source files' modification times and the look's
+## layer tints), so only the first run after a texture change pays for the packing: later runs
+## read the file on a worker thread.
 ## Usage: TerrainTextures.request(1024); ...; var maps := TerrainTextures.arrays(1024)
 
 const ROOT := "res://assets/third_party/textures/ground/"
@@ -15,6 +18,20 @@ const LAYERS: Array[String] = ["grass", "dry_grass", "dirt", "mud", "gravel", "r
 ## Real-world size of one texture repeat in metres (from the sources, see credits.json).
 const SOURCE_METRES: Array[float] = [1.4, 2.0, 2.0, 1.3, 2.0, 1.5, 3.0]
 
+## The maps of a layer folder (`<name>.jpg`).
+const SOURCE_MAPS: Array[String] = ["albedo", "height", "normal_gl", "roughness", "ao"]
+## The packed arrays, in cache file order, with their image formats.
+const PACKED_MAPS: Array[String] = ["albedo_height", "normal", "roughness_ao"]
+const PACKED_FORMATS: Array[Image.Format] = [
+	Image.FORMAT_RGBA8, Image.FORMAT_RGBA8, Image.FORMAT_RG8
+]
+## Bump when the packing changes, so older cache files are packed again.
+const CACHE_VERSION := 1
+
+## Folder of the packed-image cache; "" switches the cache off (the tests).
+static var cache_dir := "user://cache"
+## "cache" or "packed": where the last arrays() that built a size got its images (tests).
+static var last_source := ""
 ## size -> {"albedo_height", "normal", "roughness_ao": Texture2DArray}
 static var _cache: Dictionary = {}
 ## size -> _Job still running
@@ -27,8 +44,39 @@ static func request(size: int) -> void:
 	if _cache.has(size) or _jobs.has(size):
 		return
 	var job := _Job.new(size)
-	job.task_id = WorkerThreadPool.add_group_task(job.pack_layer, LAYERS.size())
+	job.key = cache_key(size)
+	if job.key != "" and _stored_key(size) == job.key:
+		job.reading = true
+		job.task_id = WorkerThreadPool.add_task(job.read_cache.bind(cache_path(size)))
+	else:
+		job.task_id = WorkerThreadPool.add_group_task(job.pack_layer, LAYERS.size())
 	_jobs[size] = job
+
+
+static func cache_path(size: int) -> String:
+	return cache_dir.path_join("terrain_textures_%d.bin" % size)
+
+
+## What the cache file of `size` must have been packed from: the cache version, the look's layer
+## tints (the average colours carry them) and every source file's modification time. "" when
+## there is no cache: switched off, or the source files are not on disk (an exported build).
+static func cache_key(size: int) -> String:
+	if cache_dir == "":
+		return ""
+	var parts: Array = [CACHE_VERSION, size, LookPreset.layer_tints(TerrainGround.LAYER_TINTS)]
+	for layer: String in LAYERS:
+		for map_name: String in SOURCE_MAPS:
+			var path := ROOT + layer + "/" + map_name + ".jpg"
+			if not FileAccess.file_exists(path):
+				return ""
+			parts.append(FileAccess.get_modified_time(path))
+	return str(parts).sha256_text()
+
+
+## The key stored in the cache file of `size` ("" without a file).
+static func _stored_key(size: int) -> String:
+	var file := FileAccess.open(cache_path(size), FileAccess.READ)
+	return file.get_pascal_string() if file != null else ""
 
 
 ## The three arrays at `size` (waits for request(size), or packs them now).
@@ -37,7 +85,16 @@ static func arrays(size: int) -> Dictionary:
 		return _cache[size]
 	request(size)
 	var job: _Job = _jobs[size]
-	WorkerThreadPool.wait_for_group_task_completion(job.task_id)
+	if job.reading:
+		WorkerThreadPool.wait_for_task_completion(job.task_id)
+		if job.failed:  # a damaged cache file: pack after all
+			job.reading = false
+			job.task_id = WorkerThreadPool.add_group_task(job.pack_layer, LAYERS.size())
+	if not job.reading:
+		WorkerThreadPool.wait_for_group_task_completion(job.task_id)
+		if job.key != "":
+			job.write_cache(cache_path(size))
+	last_source = "cache" if job.reading else "packed"
 	_jobs.erase(size)
 	var result := {"average_colors": job.averages}
 	for key: String in ["albedo_height", "normal", "roughness_ao"]:
@@ -114,6 +171,11 @@ class _Job:
 	extends RefCounted
 	var size: int
 	var task_id := -1
+	## TerrainTextures.cache_key of the job ("" = no cache); `reading`: the task reads the cache
+	## file instead of packing, `failed`: it could not.
+	var key := ""
+	var reading := false
+	var failed := false
 	## Per layer: {"albedo_height", "normal", "roughness_ao": Image}
 	var images: Array = []
 	## Per layer: the mean albedo (linear) times TerrainGround.LAYER_TINTS (what the shader shows).
@@ -152,3 +214,45 @@ class _Job:
 			"albedo_height": albedo_height, "normal": normal, "roughness_ao": roughness_ao
 		}
 		_mutex.unlock()
+
+	## Reads the images and averages write_cache() stored (runs on a worker thread).
+	func read_cache(path: String) -> void:
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null or file.get_pascal_string() != key:
+			failed = true
+			return
+		for layer in images.size():
+			var color := Color()
+			for channel in 4:
+				color[channel] = file.get_float()
+			averages[layer] = color
+			var maps := {}
+			for m in TerrainTextures.PACKED_MAPS.size():
+				var data := file.get_buffer(file.get_64())
+				var probe := Image.create_empty(size, size, true, TerrainTextures.PACKED_FORMATS[m])
+				if data.size() != probe.get_data().size():
+					failed = true
+					return
+				maps[TerrainTextures.PACKED_MAPS[m]] = Image.create_from_data(
+					size, size, true, TerrainTextures.PACKED_FORMATS[m], data
+				)
+			images[layer] = maps
+		failed = file.get_error() != OK
+
+	## Stores the packed images (mipmaps included) and averages under `key`; a temp file renamed
+	## over the old one, so a crash never leaves half a cache.
+	func write_cache(path: String) -> void:
+		DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+		var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
+		if file == null:
+			return
+		file.store_pascal_string(key)
+		for layer in images.size():
+			for channel in 4:
+				file.store_float(averages[layer][channel])
+			for map_name: String in TerrainTextures.PACKED_MAPS:
+				var data: PackedByteArray = (images[layer][map_name] as Image).get_data()
+				file.store_64(data.size())
+				file.store_buffer(data)
+		file.close()
+		DirAccess.rename_absolute(path + ".tmp", path)

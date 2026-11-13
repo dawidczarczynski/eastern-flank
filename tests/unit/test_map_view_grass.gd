@@ -211,3 +211,92 @@ func test_grass_is_settled_once_the_chunks_around_the_target_are_built() -> void
 	assert_false(_view.grass().is_settled())
 	_view.grass().update(1000)
 	assert_true(_view.grass().is_settled())
+
+
+func _prebuild(view: MapView) -> void:
+	view.grass().begin_prebuild()
+	for i in 20000:
+		if view.grass().prebuild_step(1000):
+			return
+		OS.delay_msec(1)
+	_fail("the prebuild never finished")
+
+
+## Chunk name -> instance transforms of every grass node of the view.
+func _grass_snapshot(view: MapView) -> Dictionary:
+	var result := {}
+	for node in view.grass().chunk_nodes():
+		var transforms: Array[Transform3D] = []
+		for i in node.multimesh.instance_count:
+			transforms.append(node.multimesh.get_instance_transform(i))
+		result[String(node.name)] = transforms
+	return result
+
+
+## The prebuild behind the loading screen plans the chunks on worker threads: same grass as the
+## per-frame build.
+func test_prebuild_builds_the_same_grass_as_update() -> void:
+	_build({"grass_density": 1.0, "wind": false})
+	var expected := _grass_snapshot(_view)
+	var expected_count := _view.grass().instance_count()
+	var other := MapView.new()
+	other._ready()
+	other.quality = {"grass_density": 1.0, "wind": false, "foliage": false}
+	other.build(Fixtures.plains_grid(4))
+	other.set_camera_target(Vector2.ZERO)
+	assert_false(other.grass().is_settled())
+	_prebuild(other)
+	assert_true(other.grass().is_settled())
+	assert_eq(other.grass().instance_count(), expected_count)
+	assert_eq(_grass_snapshot(other), expected)
+	other.free()
+
+
+func test_prebuild_instantiates_at_most_the_asked_chunks_per_step() -> void:
+	_build_grass_only({"grass_density": 1.0, "wind": false})
+	_view.set_camera_target(Vector2.ZERO)
+	_view.grass().begin_prebuild()
+	var steps := 0
+	var before := 0
+	for i in 20000:
+		var done := _view.grass().prebuild_step(2)
+		assert_true(_view.grass().built_chunks() - before <= 2, "at most 2 chunks a step")
+		before = _view.grass().built_chunks()
+		steps += 1
+		if done:
+			break
+		assert_false(_view.grass().is_settled(), "not settled while prebuilding")
+		OS.delay_msec(1)
+	assert_true(steps > 1)
+	assert_true(_view.grass().is_settled())
+	assert_true(_view.grass().built_chunks() > 2)
+
+
+func test_prebuild_without_a_target_or_grass_is_done_at_once() -> void:
+	_build_grass_only({"grass_density": 1.0, "wind": false})
+	_view.grass().begin_prebuild()
+	assert_true(_view.grass().prebuild_step(10), "no target")
+	_view.free()
+	_view = MapView.new()
+	_view._ready()
+	_build_grass_only({"grass_density": 0.0, "wind": false})
+	_view.set_camera_target(Vector2.ZERO)
+	_view.grass().begin_prebuild()
+	assert_true(_view.grass().prebuild_step(10), "no grass")
+
+
+## A wreck burns the ground while chunks are still being planned: the prebuild is finished
+## first, so the clearing applies to them too.
+func test_clearing_during_a_prebuild_still_clears() -> void:
+	_build_grass_only({"grass_density": 1.0, "wind": false})
+	_view.set_camera_target(Vector2.ZERO)
+	_view.grass().begin_prebuild()
+	_view.grass().add_clearing(Vector2.ZERO, 1.0)
+	_view.grass().update(1000)
+	assert_true(_view.grass().is_settled())
+	for node in _view.grass().chunk_nodes():
+		for i in node.multimesh.instance_count:
+			var p := node.position + node.multimesh.get_instance_transform(i).origin
+			if Vector2(p.x, p.z).length() < 0.99:
+				_fail("a clump at %s stands in the clearing" % p)
+				return

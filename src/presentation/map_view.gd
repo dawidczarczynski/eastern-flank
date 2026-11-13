@@ -114,6 +114,9 @@ static var _water_normal: ImageTexture
 
 ## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
 var quality: Dictionary = {}
+## The rows of the terrain mesh are built on the worker threads (TerrainRows); off: on the
+## caller's thread, same mesh.
+var terrain_threads := true
 var _grid: HexGrid
 var _surface: TerrainSurface
 ## Terrain mesh height grid, kept so the grid lines can sit exactly on the mesh.
@@ -226,9 +229,11 @@ func build(grid: HexGrid) -> void:
 	Wind.setup(quality.get("wind", true))
 	# After Wind.setup: the foliage shader reads the wind globals.
 	_trees.setup(_map_trees, _backdrop_trees, CameraMath.map_bounds(centers, hex_size))
+	# The grass stands on the drawn mesh: its heights are a lookup in the mesh's height grid,
+	# far cheaper than the surface (noise octaves per query) and safe on the planning threads.
 	_grass.setup(
 		grid,
-		_surface,
+		BackdropSurface.new(grid, mesh_height_at),
 		CameraMath.map_bounds(centers, hex_size),
 		quality.get("grass_density", 1.0),
 		_grass_color,
@@ -299,16 +304,14 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	var step := Vector2(rect.size.x / nx, rect.size.y / nz)
 	var row := nx + 1
 	var count := row * (nz + 1)
-	var vertices := PackedVector3Array()
-	vertices.resize(count)
-	_mesh_heights.resize(count)
-	for j in nz + 1:
-		var z := rect.position.y + j * step.y
-		for i in row:
-			var x := rect.position.x + i * step.x
-			var h := _surface.height_at(x, z)
-			vertices[j * row + i] = Vector3(x, h, z)
-			_mesh_heights[j * row + i] = h
+	_mesh_origin = rect.position
+	_mesh_step = step
+	_mesh_cells = Vector2i(nx, nz)
+	var rows := TerrainRows.new(_grid, _surface, rect.position, step, _mesh_cells, hex_size)
+	rows.threads = terrain_threads
+	rows.build_heights()
+	_mesh_heights = rows.heights
+	var vertices := rows.vertices
 	# Odd border vertices sit on the line between their even neighbours, so the coarser backdrop
 	# edge meets the border without cracks (the border is outside the map, nobody notices).
 	for i in range(1, nx, 2):
@@ -317,55 +320,14 @@ func _build_terrain(rect: Rect2) -> MeshInstance3D:
 	for j in range(1, nz, 2):
 		for i: int in [0, nx]:
 			_set_border_height(vertices, j * row + i, row)
-	_mesh_origin = rect.position
-	_mesh_step = step
-	_mesh_cells = Vector2i(nx, nz)
-
-	# Normals by central differences on the height grid (one-sided at the border).
-	var normals := PackedVector3Array()
-	normals.resize(count)
-	var weights := PackedFloat32Array()
-	weights.resize(count * TerrainSplat.LAYER_COUNT)
-	var tints := PackedVector2Array()
-	tints.resize(count)
-	var uvs := PackedVector2Array()
-	uvs.resize(count)
-	# Godot packs tangents as (x, y, z, w) with binormal = cross(normal, tangent) * w.
-	var tangents := PackedFloat32Array()
-	tangents.resize(count * 4)
-	for j in nz + 1:
-		var j0 := maxi(j - 1, 0)
-		var j1 := mini(j + 1, nz)
-		for i in row:
-			var i0 := maxi(i - 1, 0)
-			var i1 := mini(i + 1, nx)
-			var dx := (vertices[j * row + i1].y - vertices[j * row + i0].y) / ((i1 - i0) * step.x)
-			var dz := (vertices[j1 * row + i].y - vertices[j0 * row + i].y) / ((j1 - j0) * step.y)
-			var n := Vector3(-dx, 1.0, -dz).normalized()
-			normals[j * row + i] = n
-			# U runs along +x, so the tangent is the slope direction (1, dh/dx, 0), made
-			# perpendicular to the normal. With w = +1 the binormal is -z, i.e. up the
-			# normal map image (towards v = 0), the OpenGL convention DetailTexture writes.
-			var t := Vector3(1.0, dx, 0.0)
-			t = (t - n * n.dot(t)).normalized()
-			var ti := (j * row + i) * 4
-			tangents[ti] = t.x
-			tangents[ti + 1] = t.y
-			tangents[ti + 2] = t.z
-			tangents[ti + 3] = 1.0
-			uvs[j * row + i] = (
-				Vector2(vertices[j * row + i].x, vertices[j * row + i].z) / DETAIL_TILE
-			)
-			var v := vertices[j * row + i]
-			# The jittered tile type keeps forest edges from following the hex outline.
-			var jittered := GroundNoise.jitter(v.x, v.z)
-			var jc := Hex.from_world(Vector3(jittered.x, 0.0, jittered.y), hex_size)
-			var jittered_type := int(_grid.get_terrain(jc)) if _grid.has_tile(jc) else -1
-			var on_map := _grid.has_tile(Hex.from_world(v, hex_size))
-			var w := _splat(jittered_type, n.y, v, _splat_noise(v.x, v.z))
-			for layer in TerrainSplat.LAYER_COUNT:
-				weights[(j * row + i) * TerrainSplat.LAYER_COUNT + layer] = w[layer]
-			tints[j * row + i] = Vector2(1.0 if on_map else OFF_MAP_VALUE, 1.0)
+	rows.vertices = vertices
+	rows.build_attributes()
+	var normals := rows.normals
+	var tangents := rows.tangents
+	var uvs := rows.uvs
+	var weights := rows.weights
+	var tints := rows.tints
+	assert(normals.size() == count and weights.size() == count * TerrainSplat.LAYER_COUNT)
 
 	var indices := PackedInt32Array()
 	indices.resize(nx * nz * 6)
