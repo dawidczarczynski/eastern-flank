@@ -133,6 +133,12 @@ static func _place(state: OperationalState, support: SupportState) -> Array[Dict
 			events.append_array(_casus_belli(state, package.side, e))
 	if support.waiting.is_empty():
 		support.delivered = true
+		var means := {}
+		for grant in package.strike_means:
+			events.append_array(
+				StrikeRules.add_stock(state, package.side, grant.means, grant.count, support.id)
+			)
+			means[grant.means] = grant.count
 		events.append(
 			{
 				"type": &"support_delivered",
@@ -140,6 +146,7 @@ static func _place(state: OperationalState, support: SupportState) -> Array[Dict
 				"player": package.side,
 				"formations":
 				package.formations.map(func(p: FormationPlacement) -> StringName: return p.id),
+				"means": means,
 			}
 		)
 	else:

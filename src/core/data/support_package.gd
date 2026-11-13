@@ -2,7 +2,8 @@ class_name SupportPackage
 extends Resource
 ## One package of outside support (TASK-121, GDD "Outside support"), a sub-resource of
 ## OperationDefinition.support_packages: what a supporter sends to a side, when it is available,
-## what asking for it costs and how late it arrives. Effects: `formations` (TASK-122 adds means).
+## what asking for it costs and how late it arrives. Effects: `formations` and `strike_means`
+## (TASK-122).
 
 @export var id: StringName
 ## Translation key (English).
@@ -28,3 +29,5 @@ extends Resource
 @export var withdraw_if_unmet: bool = false
 ## Formations that arrive; `coord` is the entry hex, `player` the side.
 @export var formations: Array[FormationPlacement] = []
+## Strike means added to the recipient's stock on delivery (grant order); never wait for an entry.
+@export var strike_means: Array[MeansGrant] = []

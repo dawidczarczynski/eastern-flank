@@ -502,6 +502,17 @@ NATO:
 | North Korean expeditionary force (infantry and artillery) | Russia | 2-3 | 1 | 4 turns | through Belarus |
 
 **North Korean troops and Belarus.** The North Korean force enters through Belarus. While Belarus is closed to Russia, the ghost counter reads "waiting – Belarus closed" and the troops do not arrive until it opens. If Belarus is only **aligned** (not at war) when they arrive, NATO gets a **casus belli** against it, shown as a toast.
+**Strike means packages.** Some packages bring long-range **strike means** (missiles and drones) instead of formations. Your stock is shown on the Support tab as a **Strike means** line (e.g. Kh-101 x4). Arrival is announced by a toast.
+
+| Package | Side | Level band | Delay | Strike means |
+|---|---|---|---|---|
+| China: components | Russia | 1-2 | 6 turns | +4 Kh-101 |
+| Iran: drones | Russia | 1-3 | 2 turns | +8 Geran-2 |
+| Allied strike means | NATO | 2-3 | 2 turns | +4 Storm Shadow, +2 Tomahawk |
+
+- **China is conditional.** It can be requested only while Russia has caused at most 1 net escalation step. If the conditions lapse before delivery, the package is **withdrawn**; its card then shows the reason.
+- **Allied answer.** The NATO allied strike means can be taken **free** as the answer to the Chinese or Iranian package.
+
 
 | Homar-K | rocket artillery | 290 km (58 hexes) | 6 | moderate (70%) | almost normal (90%) | 20 / 2 | 6 |
 | Warmate | loitering munition (drone) | 50 km (10 hexes) | 6 | low (60%) | easy (130%) | 8 / 1 | 6 |

@@ -5,6 +5,7 @@ extends TestCase
 
 const Politics := preload("res://tests/unit/test_country_rules.gd")
 const Borders := preload("res://tests/unit/test_borders_movement.gd")
+const Strikes := preload("res://tests/unit/test_strikes.gd")
 const BAD_PACKAGES: Array[String] = [
 	"wrong side",
 	"min above max",
@@ -610,3 +611,184 @@ func test_replay_on_real_operation() -> void:
 	var events_b := _scripted(second, dicts)
 	assert_eq(first.snapshot(), second.snapshot())
 	assert_eq(str(events_a), str(events_b))
+
+
+# --- strike means (TASK-122) ---
+
+
+static func _grant(means: StringName, count: int) -> MeansGrant:
+	var g := MeansGrant.new()
+	g.means = means
+	g.count = count
+	return g
+
+
+## Packages D (+3 kh101, delay 1), E (+2 geran_2, max_caused 0, withdraw_if_unmet, delay 2) and
+## F (one formation + 2 kh101) of side 1; player 1 starts with 4 kh101.
+static func _means_setup() -> OperationalState:
+	var none: Array[FormationPlacement] = []
+	var d := _package(&"d", &"china", Vector2i(1, 3), 0, 1, none)
+	d.strike_means = [_grant(&"kh101", 3)] as Array[MeansGrant]
+	var e := _package(&"e", &"iran", Vector2i(1, 2), 0, 2, none)
+	e.max_caused = 0
+	e.withdraw_if_unmet = true
+	e.strike_means = [_grant(&"geran_2", 2)] as Array[MeansGrant]
+	var f := _package(
+		&"f",
+		&"china",
+		Vector2i(1, 3),
+		0,
+		1,
+		[_placement(&"f1", 1, &"ru_tank_battalion", Vector2i(7, 0))] as Array[FormationPlacement]
+	)
+	f.strike_means = [_grant(&"kh101", 2)] as Array[MeansGrant]
+	var packages: Array[SupportPackage] = [d, e, f]
+	var def := _definition(packages)
+	def.strike_stock = [{}, {&"kh101": 4}] as Array[Dictionary]
+	var s := Operation.from_definition(def, 1, _grid(), _map())
+	s.first_player = 0
+	s.current_player = 0
+	Borders._add(s, &"f", 0, Vector2i(0, 0))
+	Borders._add(s, &"r", 1, Vector2i(7, 3))
+	return s
+
+
+func test_means_only_package_is_valid_and_bad_grants_rejected() -> void:
+	assert_true(_means_setup() != null)
+	for label in ["unknown", "zero", "twice", "other side", "empty"]:
+		var def := _definition(_packages())
+		var none: Array[FormationPlacement] = []
+		var p := _package(&"m", &"china", Vector2i(1, 3), 0, 1, none)
+		match label:
+			"unknown":
+				p.strike_means = [_grant(&"nuke", 1)] as Array[MeansGrant]
+			"zero":
+				p.strike_means = [_grant(&"kh101", 0)] as Array[MeansGrant]
+			"twice":
+				p.strike_means = [_grant(&"kh101", 1), _grant(&"kh101", 2)] as Array[MeansGrant]
+			"other side":
+				p.strike_means = [_grant(&"storm_shadow", 1)] as Array[MeansGrant]
+			"empty":
+				pass
+		def.support_packages = [p] as Array[SupportPackage]
+		assert_true(Operation.from_definition(def, 1, _grid(), _map()) == null, label)
+
+
+func test_means_delivery_adds_stock_at_turn_start() -> void:
+	var s := _means_setup()
+	_end(s)
+	_take(s, RequestSupportCommand.new(&"d"))
+	var rng_before := s.rng.state
+	var events := _end(s)
+	assert_false(_types(events).has(&"support_delivered"))
+	events = _end(s)
+	assert_eq(
+		_types(events).slice(-3),
+		[&"operational_turn_started"] + [&"strike_stock_changed", &"support_delivered"]
+	)
+	assert_eq(s.turn, 2)
+	assert_eq(StrikeRules.stock(s, 1, &"kh101"), 7)
+	var changed := events[-2]
+	assert_eq([changed["total"], changed["count"], changed["source"]], [7, 3, &"d"])
+	assert_eq(events[-1]["means"], {&"kh101": 3})
+	assert_eq(events[-1]["formations"], [])
+	assert_true(s.get_support(&"d").delivered)
+	assert_eq(s.rng.state, rng_before)
+
+
+func test_means_package_withdrawn_when_conditions_lapse() -> void:
+	var s := _means_setup()
+	_end(s)
+	_take(s, RequestSupportCommand.new(&"e"))
+	s.escalation_level = 3
+	var events := _until(s, 3, 1)
+	assert_eq(StrikeRules.stock(s, 1, &"geran_2"), 0)
+	assert_true(s.get_support(&"e").withdrawn)
+	assert_false(_types(events).has(&"strike_stock_changed"))
+
+
+func test_formation_and_means_package_orders_events() -> void:
+	var s := _means_setup()
+	_end(s)
+	_take(s, RequestSupportCommand.new(&"f"))
+	_end(s)
+	var events := _end(s)
+	assert_eq(
+		_types(events).slice(-4),
+		[
+			&"operational_turn_started",
+			&"formation_joined",
+			&"strike_stock_changed",
+			&"support_delivered"
+		]
+	)
+	assert_eq(events[-1]["formations"], [&"f1"])
+	assert_eq(events[-1]["means"], {&"kh101": 2})
+	assert_eq(StrikeRules.stock(s, 1, &"kh101"), 6)
+
+
+func test_shipped_strike_means_packages() -> void:
+	var s := Operation.build(&"suwalki_gap", 1)
+	var china := s.get_support(&"china_components").definition
+	var iran := s.get_support(&"iran_drones").definition
+	var allied := s.get_support(&"allied_strike_means").definition
+	assert_eq(
+		[china.supporter.id, china.side, china.min_level, china.max_level], [&"china", 1, 1, 2]
+	)
+	assert_eq([china.max_caused, china.escalation_cost, china.delay_turns], [1, 0, 6])
+	assert_true(china.withdraw_if_unmet)
+	assert_eq([china.strike_means[0].means, china.strike_means[0].count], [&"kh101", 4])
+	assert_eq(
+		[iran.supporter.id, iran.min_level, iran.max_level, iran.delay_turns], [&"iran", 1, 3, 2]
+	)
+	assert_eq([iran.strike_means[0].means, iran.strike_means[0].count], [&"geran_2", 8])
+	assert_eq([allied.side, allied.min_level, allied.max_level, allied.delay_turns], [0, 2, 3, 2])
+	assert_eq(allied.response_to, [&"china_components", &"iran_drones"] as Array[StringName])
+	assert_eq(
+		allied.strike_means.map(func(g: MeansGrant) -> Array: return [g.means, g.count]),
+		[[&"storm_shadow", 4], [&"tomahawk", 2]]
+	)
+	assert_true(china.formations.is_empty())
+
+
+## A TASK-097 strike state (player 0 strikes "a1") with a delivered-on-demand means-only package
+## granting `granted` of `sure` to player 0 on top of `start`.
+func _granted_strike_state(
+	start: int, granted: int, seed_value := 1, means := &"sure"
+) -> OperationalState:
+	var s := Strikes._state(null, seed_value)
+	s.escalation_level = 2
+	s.strike_stock[0][means] = start
+	if granted > 0:
+		var none: Array[FormationPlacement] = []
+		var p := _package(&"g", &"nato_allies", Vector2i(0, 3), 0, 0, none)
+		p.strike_means = [_grant(means, granted)] as Array[MeansGrant]
+		var support := SupportState.from_package(p)
+		support.requested_turn = s.turn
+		s.support.append(support)
+		SupportRules.deliver(s)
+		assert_true(support.delivered)
+	return s
+
+
+func test_granted_stock_is_spent_like_any_stock() -> void:
+	var s := _granted_strike_state(4, 3, 1, &"never")
+	assert_eq(StrikeRules.stock(s, 0, &"never"), 7)
+	var sim := OperationalSimulation.new(s)
+	for i in 7:
+		s.strikes_left = 5
+		assert_true(sim.execute(StrikeCommand.new(&"never", &"a1", 1)), "strike %d" % (i + 1))
+	s.strikes_left = 5
+	assert_eq(StrikeCommand.new(&"never", &"a1", 1).validate(s), "out_of_stock")
+
+
+func test_strike_result_does_not_depend_on_stock_origin() -> void:
+	var results: Array = []
+	for granted in [0, 3]:
+		var s := _granted_strike_state(10 - granted, granted, 5)
+		var sim := OperationalSimulation.new(s)
+		var seen: Array[Dictionary] = []
+		sim.event_emitted.connect(func(e: Dictionary) -> void: seen.append(e))
+		assert_true(sim.execute(StrikeCommand.new(&"sure", &"a1", 2)))
+		results.append(seen)
+	assert_eq(results[0], results[1])

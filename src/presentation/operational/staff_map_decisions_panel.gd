@@ -791,6 +791,15 @@ func _supporters_column() -> Control:
 	var found := StaffMapSupportModel.supporters(_state, _viewer)
 	if found.is_empty():
 		column.add_child(_note(tr("No supporter can help this side.")))
+	var stock := StaffMapSupportModel.means_stock_text(_state, _viewer)
+	if stock != "":
+		var stock_line := _package_line(
+			"StrikeMeans",
+			tr("Strike means: %s") % stock,
+			13,
+			UiPalette.HUD_TEXT,
+		)
+		column.add_child(stock_line)
 	for supporter: Dictionary in found:
 		column.add_child(_supporter_head(supporter))
 		for package: Dictionary in supporter["packages"]:

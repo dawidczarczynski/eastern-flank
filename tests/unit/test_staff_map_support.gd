@@ -27,7 +27,7 @@ func test_supporters_of_the_viewer_side() -> void:
 	var nato := StaffMapSupportModel.supporters(state, 0)
 	assert_eq(nato.size(), 1)
 	assert_eq(nato[0]["id"], &"nato_allies")
-	assert_eq(nato[0]["packages"].size(), 1)
+	assert_eq(nato[0]["packages"].size(), 2)
 	var russia := StaffMapSupportModel.supporters(state, 1)
 	assert_eq(russia[0]["id"], &"north_korea")
 
@@ -162,3 +162,100 @@ func test_no_support_tab_without_packages() -> void:
 	panel.open_tab(StaffMapDecisionsPanel.TAB_SUPPORT)
 	assert_eq(panel.tab(), StaffMapDecisionsPanel.TAB_DECISIONS)
 	panel.free()
+
+
+# --- strike means (TASK-122) ---
+
+
+func test_means_stock_line_and_package_text() -> void:
+	var state := _state(1)
+	assert_eq(
+		StaffMapSupportModel.means_stock_text(state, 1),
+		"Iskander-M 18 · Kinzhal 6 · Kalibr 20 · Kh-101 20 · Geran-2 40"
+	)
+	var pack := _pack(state, 1, &"iran_drones")
+	assert_eq(pack["what"], "Strike means: +8 Geran-2")
+	assert_eq(pack["entry"], "")
+	assert_eq(pack["delay"], "Arrives 2 turns after the request")
+	_take(state, RequestSupportCommand.new(&"iran_drones"))
+	pack = _pack(state, 1, &"iran_drones")
+	assert_eq(pack["state"], &"on_way")
+	assert_eq(pack["state_text"], "in 2 turns")
+
+
+## Ends turns through the simulation until `kind` of `package` happens; returns that event.
+func _run_until(state: OperationalState, kind: StringName, package: StringName) -> Dictionary:
+	for i in 30:
+		state.pending_battles.clear()
+		if kind == &"support_withdrawn":
+			state.escalation_caused[1] = 5  # the level itself decays; the record does not
+		for e in EndOperationalTurnCommand.new().apply(state):
+			if e["type"] == kind and e.get("package") == package:
+				return e
+	assert_true(
+		false,
+		(
+			"%s happened (turn %d level %d result %s)"
+			% [kind, state.turn, state.escalation_level, state.result]
+		)
+	)
+	return {}
+
+
+func test_means_delivery_toast_and_stock_line() -> void:
+	var state := _state(1)
+	_take(state, RequestSupportCommand.new(&"iran_drones"))
+	var before := StaffMapSupportModel.means_stock_text(state, 1)
+	assert_true(before.contains("Geran-2 40"))
+	var delivered := _run_until(state, &"support_delivered", &"iran_drones")
+	assert_eq(delivered["means"], {&"geran_2": 8})
+	assert_eq(
+		StaffMapSupportModel.toast_text(state, 1, delivered),
+		"Iranian drones has arrived: +8 Geran-2"
+	)
+	assert_eq(StaffMapSupportModel.toast_text(state, 0, delivered), "")
+	# Resupply of the round may add to the 8 delivered.
+	var stock := StrikeRules.stock(state, 1, &"geran_2")
+	assert_true(stock >= 48)
+	assert_true(StaffMapSupportModel.means_stock_text(state, 1).contains("Geran-2 %d" % stock))
+
+
+func test_withdrawn_package_toast() -> void:
+	var state := _state(1)
+	_take(state, RequestSupportCommand.new(&"china_components"))
+	var withdrawn := _run_until(state, &"support_withdrawn", &"china_components")
+	var text := StaffMapSupportModel.toast_text(state, 1, withdrawn)
+	assert_true(
+		text.contains("Chinese missile components") and text.contains("escalated too much"), text
+	)
+	assert_eq(StaffMapSupportModel.toast_text(state, 0, withdrawn), "")
+
+
+func test_panel_strike_means_line() -> void:
+	var state := _state(1)
+	var panel := StaffMapDecisionsPanel.new()
+	panel.show_state(state, StaffMapPalette.new(), 1)
+	panel.finish_fade()
+	panel.open_tab(StaffMapDecisionsPanel.TAB_SUPPORT)
+	var line := panel.find_child("LineStrikeMeans", true, false) as Label
+	assert_true(line != null)
+	if line != null:
+		assert_true(line.text.contains("Kh-101 20"), line.text)
+	panel.free()
+	state.strike_stock[1].clear()
+	panel = StaffMapDecisionsPanel.new()
+	panel.show_state(state, StaffMapPalette.new(), 1)
+	panel.finish_fade()
+	panel.open_tab(StaffMapDecisionsPanel.TAB_SUPPORT)
+	assert_true(panel.find_child("LineStrikeMeans", true, false) == null)
+	panel.free()
+
+
+func test_withdrawn_chinese_package_shows_reason() -> void:
+	var state := _state(1)
+	_take(state, RequestSupportCommand.new(&"china_components"))
+	state.escalation_level = 3
+	state.get_support(&"china_components").withdrawn = true
+	var pack := _pack(state, 1, &"china_components")
+	assert_eq(pack["state"], &"withdrawn")
+	assert_true(pack["state_text"].contains("Only up to level 2"))

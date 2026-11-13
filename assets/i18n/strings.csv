@@ -820,3 +820,8 @@ HEALTH,HEALTH,ZDROWIE
 STATUS,STATUS,STAN
 UNIT_STRIP_READY,READY,GOTOWA
 UNIT_STRIP_DONE,DONE,WYKONAŁA
+Strike means: %s,Strike means: %s,Środki uderzeniowe: %s
+%s has arrived: %s,%s has arrived: %s,%s dotarło: %s
+Chinese missile components,Chinese missile components,Chińskie komponenty rakietowe
+Iranian drones,Iranian drones,Irańskie drony
+Allied cruise missiles,Allied cruise missiles,Sojusznicze pociski manewrujące

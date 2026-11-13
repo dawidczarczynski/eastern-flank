@@ -24,6 +24,9 @@
 [ext_resource type="Script" path="res://src/core/data/support_package.gd" id="16_package"]
 [ext_resource type="Resource" path="res://data/supporters/nato_allies.tres" id="s_nato_allies"]
 [ext_resource type="Resource" path="res://data/supporters/north_korea.tres" id="s_north_korea"]
+[ext_resource type="Script" path="res://src/core/data/means_grant.gd" id="17_grant"]
+[ext_resource type="Resource" path="res://data/supporters/china.tres" id="s_china"]
+[ext_resource type="Resource" path="res://data/supporters/iran.tres" id="s_iran"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -574,6 +577,74 @@ delay_turns = 4
 withdraw_if_unmet = false
 formations = Array[ExtResource("2_placement")]([SubResource("Support_kp_inf_1"), SubResource("Support_kp_art_1")])
 
+[sub_resource type="Resource" id="Grant_china_kh101"]
+script = ExtResource("17_grant")
+means = &"kh101"
+count = 4
+
+[sub_resource type="Resource" id="Grant_iran_geran_2"]
+script = ExtResource("17_grant")
+means = &"geran_2"
+count = 8
+
+[sub_resource type="Resource" id="Grant_allied_storm_shadow"]
+script = ExtResource("17_grant")
+means = &"storm_shadow"
+count = 4
+
+[sub_resource type="Resource" id="Grant_allied_tomahawk"]
+script = ExtResource("17_grant")
+means = &"tomahawk"
+count = 2
+
+[sub_resource type="Resource" id="Package_china_components"]
+script = ExtResource("16_package")
+id = &"china_components"
+display_name = "Chinese missile components"
+supporter = ExtResource("s_china")
+side = 1
+min_level = 1
+max_level = 2
+max_caused = 1
+response_to = Array[StringName]([])
+escalation_cost = 0
+entry_casus_belli = false
+delay_turns = 6
+withdraw_if_unmet = true
+strike_means = Array[ExtResource("17_grant")]([SubResource("Grant_china_kh101")])
+
+[sub_resource type="Resource" id="Package_iran_drones"]
+script = ExtResource("16_package")
+id = &"iran_drones"
+display_name = "Iranian drones"
+supporter = ExtResource("s_iran")
+side = 1
+min_level = 1
+max_level = 3
+max_caused = -1
+response_to = Array[StringName]([])
+escalation_cost = 0
+entry_casus_belli = false
+delay_turns = 2
+withdraw_if_unmet = false
+strike_means = Array[ExtResource("17_grant")]([SubResource("Grant_iran_geran_2")])
+
+[sub_resource type="Resource" id="Package_allied_strike_means"]
+script = ExtResource("16_package")
+id = &"allied_strike_means"
+display_name = "Allied cruise missiles"
+supporter = ExtResource("s_nato_allies")
+side = 0
+min_level = 2
+max_level = 3
+max_caused = -1
+response_to = Array[StringName]([&"china_components", &"iran_drones"])
+escalation_cost = 0
+entry_casus_belli = false
+delay_turns = 2
+withdraw_if_unmet = false
+strike_means = Array[ExtResource("17_grant")]([SubResource("Grant_allied_storm_shadow"), SubResource("Grant_allied_tomahawk")])
+
 [resource]
 script = ExtResource("3_operation")
 id = &"suwalki_gap"
@@ -584,7 +655,7 @@ first_player = 1
 initial_escalation = 1
 countries = Array[ExtResource("12_csetup")]([SubResource("Setup_poland"), SubResource("Setup_lithuania"), SubResource("Setup_belarus"), SubResource("Setup_russia")])
 start_date = "2027-06-14"
-support_packages = Array[ExtResource("16_package")]([SubResource("Package_allied_reinforcements"), SubResource("Package_nk_troops")])
+support_packages = Array[ExtResource("16_package")]([SubResource("Package_allied_reinforcements"), SubResource("Package_nk_troops"), SubResource("Package_china_components"), SubResource("Package_iran_drones"), SubResource("Package_allied_strike_means")])
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
 installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_nato_ad_olsztyn"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno"), SubResource("Inst_ru_ad_chernyakhovsk")])
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 40}])

@@ -304,8 +304,11 @@ static func _package_problem(
 			return "response_to unknown package '%s'" % response
 		if sides[response] == package.side:
 			return "response_to '%s' of the same side" % response
-	if package.formations.is_empty():
+	if package.formations.is_empty() and package.strike_means.is_empty():
 		return "no effect"
+	var grant_error := _grants_problem(package)
+	if grant_error != "":
+		return grant_error
 	for placement in package.formations:
 		if placement == null:
 			return "empty placement"
@@ -319,6 +322,27 @@ static func _package_problem(
 		if error != "":
 			return "formation '%s': %s" % [placement.id, error]
 		ids[placement.id] = true
+	return ""
+
+
+## Strike-means grants of a package (TASK-122): known weapons the package's side may hold, a
+## positive count, each weapon once.
+static func _grants_problem(package: SupportPackage) -> String:
+	var shipped := StrikeMeansDefinition.shipped()
+	var seen := {}
+	for grant in package.strike_means:
+		if grant == null:
+			return "empty means grant"
+		if not shipped.has(grant.means):
+			return "unknown strike means '%s'" % grant.means
+		if grant.count <= 0:
+			return "means '%s': count %d is not positive" % [grant.means, grant.count]
+		if seen.has(grant.means):
+			return "means '%s' granted twice" % grant.means
+		seen[grant.means] = true
+		var definition: StrikeMeansDefinition = shipped[grant.means]
+		if not definition.usable_by(package.side):
+			return "means '%s' cannot be held by side %d" % [grant.means, package.side]
 	return ""
 
 

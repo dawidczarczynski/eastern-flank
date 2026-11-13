@@ -67,6 +67,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `FormationPlacement` – One named formation of an operation at its start hex (a sub-resource of OperationDefiniti… (`formation_placement.gd`)
 - `ImportedMap` – A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018): (`imported_map.gd`)
 - `InstallationPlacement` – One installation of an operation at its hex (a sub-resource of OperationDefinition, TASK-… (`installation_placement.gd`)
+- `MeansGrant` – One strike-means grant of a support package (TASK-122): `count` of the named weapon are a… (`means_grant.gd`)
 - `OperationDefinition` – An operation (TASK-092b): map, the two sides and the start order of battle. Instances are… (`operation_definition.gd`)
 - `OperationObjective` – A victory objective of an operation (TASK-107a, GDD "Sides" Victory): a hex or an install… (`operation_objective.gd`)
 - `OperationalMovement` – Movement costs of the operational layer (TASK-092c, GDD "Movement costs"), kept in (`operational_movement.gd`)

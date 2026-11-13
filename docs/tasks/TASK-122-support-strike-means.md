@@ -1,6 +1,6 @@
 # TASK-122: Outside support – strike means as package effects (Chinese missile components, Iranian drones, allied cruise missiles) added to the side's strike stock
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stock line in the Support tab)
 - **Depends on**: TASK-121, TASK-097a
 - **Model**: sonnet
@@ -46,4 +46,9 @@ Section in the "Politics" chapter (started by TASK-113) – the politics chapter
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- Core: `MeansGrant` (`src/core/data/means_grant.gd`), `SupportPackage.strike_means`; `Operation._grants_problem` (unknown id, count <= 0, duplicate, weapon of the other side, "no effect" now means neither formations nor means); `SupportRules._place` adds the grants via `StrikeRules.add_stock` once the package is fully delivered (after formation events, before `support_delivered`, which gained `means`). Means-only packages have no waiting list so they never emit `support_delayed`. No rng.
+- Data: `china_components`, `iran_drones`, `allied_strike_means` in `suwalki_gap.tres` (+ `means_grant.gd`, `china`, `iran` ext_resources). Counts are the task's [ASSUMPTION] numbers.
+- View: `StaffMapSupportModel.means_stock_text` (Strike means line at the top of the supporters column, from `StrikeRules.stock`), package `what` / `effect` list the grants, no Entry line for means-only packages, state text "in N turns" (never "waiting"), delivery toast "%s has arrived: +8 Geran-2" (also appended to formation toasts); the withdrawn reason chip existed.
+- Tests: `test_outside_support.gd` (grants, delivery, ordering, withdrawal, shipped data) and `test_staff_map_support.gd`. The "8th strike rejected" criterion is not tested separately: stock is a plain count in `strike_stock` that `StrikeCommand` spends without knowing its origin.
+- Decision: `allied_strike_means` is listed in NATO's Support tab like `allied_reinforcements` (blocked by level until a Chinese / Iranian package is requested, then a free response), so NATO sees two packages from the start.
+- Strike-origin tests (`test_granted_stock_is_spent_like_any_stock`, `test_strike_result_does_not_depend_on_stock_origin`) use TASK-097's strike fixtures with a means-only package of the generic `sure` weapon.

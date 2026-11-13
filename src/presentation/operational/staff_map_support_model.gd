@@ -76,6 +76,17 @@ static func supporters(state: OperationalState, viewer: int) -> Array[Dictionary
 	return found
 
 
+## The "Strike means" line of `viewer`'s stock (counts per named weapon from StrikeRules, in the
+## order of the shipped list, zero stocks left out): "Kh-101 20 · Geran-2 40"; "" for none.
+static func means_stock_text(state: OperationalState, viewer: int) -> String:
+	var parts: Array[String] = []
+	for means_id in StrikeMeansDefinition.SHIPPED:
+		var count := StrikeRules.stock(state, viewer, means_id)
+		if count > 0 and state.strike_means.has(means_id):
+			parts.append("%s %d" % [_means_name(state, means_id), count])
+	return " · ".join(parts)
+
+
 ## The other bloc's requested packages {id, title, supporter, text, responses: [package]} - what
 ## the enemy asked for and the free answers it opens to `viewer`.
 static func other_bloc(state: OperationalState, viewer: int) -> Array[Dictionary]:
@@ -135,7 +146,7 @@ static func package(state: OperationalState, viewer: int, support: SupportState)
 		"package": support.id,
 		"title": title,
 		"supporter": TranslationServer.translate(definition.supporter.display_name),
-		"what": _what(definition),
+		"what": _what(definition, state),
 		"entry": _entry_text(state, definition),
 		"delay": _delay_text(definition),
 		"band": _band_text(state, definition),
@@ -153,7 +164,7 @@ static func package(state: OperationalState, viewer: int, support: SupportState)
 		"new_level": next,
 		"new_level_name": StaffMapEscalation.level_name(state, next),
 		"confirm": _confirm(state, definition, title, previous, next, danger),
-		"effect": _what(definition),
+		"effect": _what(definition, state),
 	}
 
 
@@ -220,10 +231,16 @@ static func toast_text(state: OperationalState, viewer: int, event: Dictionary) 
 			return text
 		&"support_delivered":
 			if definition.side == viewer:
-				return (
+				var granted := _granted_text(state, event.get("means", {}))
+				if definition.formations.is_empty():
+					return TranslationServer.translate("%s has arrived: %s") % [title, granted]
+				var text := (
 					TranslationServer.translate("%s has arrived (%d formations)")
 					% [title, definition.formations.size()]
 				)
+				if granted != "":
+					text += ", " + granted
+				return text
 		&"support_delayed":
 			if definition.side == viewer:
 				var country := ""
@@ -253,7 +270,9 @@ static func _state_of(state: OperationalState, support: SupportState) -> StringN
 	if support.delivered:
 		return &"delivered"
 	if support.on_its_way():
-		return &"waiting" if _turns_left(state, support) <= 0 else &"on_way"
+		# Means never wait for an entry: a due means-only package arrives at its next turn start.
+		var means_only := support.definition.formations.is_empty()
+		return &"waiting" if _turns_left(state, support) <= 0 and not means_only else &"on_way"
 	return &"open"
 
 
@@ -265,13 +284,15 @@ static func _turns_text(state: OperationalState, support: SupportState) -> Strin
 	if support.delivered:
 		return TranslationServer.translate("arrived")
 	var turns := _turns_left(state, support)
+	if support.definition.formations.is_empty():
+		return ghost_text(maxi(turns, 1), false, "")
 	return ghost_text(turns, turns <= 0, _entry_country(state, support.definition))
 
 
 static func _state_text(state: OperationalState, support: SupportState, kind: StringName) -> String:
 	match kind:
 		&"on_way":
-			return ghost_text(_turns_left(state, support), false, "")
+			return ghost_text(maxi(_turns_left(state, support), 1), false, "")
 		&"waiting":
 			return ghost_text(0, true, _entry_country(state, support.definition))
 		&"withdrawn":
@@ -283,20 +304,49 @@ static func _state_text(state: OperationalState, support: SupportState, kind: St
 	return TranslationServer.translate(STATE_TEXTS[kind])
 
 
-static func _what(definition: SupportPackage) -> String:
+static func _what(definition: SupportPackage, state: OperationalState) -> String:
 	var names: Array[String] = []
 	for placement in definition.formations:
 		names.append(TranslationServer.translate(placement.display_name))
-	if names.is_empty():
-		return ""
-	return (
-		TranslationServer.translate("%d formations: %s") % [names.size(), ", ".join(names)]
-		if names.size() > 1
-		else TranslationServer.translate("1 formation: %s") % names[0]
-	)
+	var parts: Array[String] = []
+	if names.size() > 1:
+		parts.append(
+			TranslationServer.translate("%d formations: %s") % [names.size(), ", ".join(names)]
+		)
+	elif names.size() == 1:
+		parts.append(TranslationServer.translate("1 formation: %s") % names[0])
+	var means := _means_text(state, definition)
+	if means != "":
+		parts.append(TranslationServer.translate("Strike means: %s") % means)
+	return ". ".join(parts)
+
+
+## "+4 Kh-101, +2 Tomahawk" - the package's grants.
+static func _means_text(state: OperationalState, definition: SupportPackage) -> String:
+	var parts: Array[String] = []
+	for grant in definition.strike_means:
+		parts.append("+%d %s" % [grant.count, _means_name(state, grant.means)])
+	return ", ".join(parts)
+
+
+## "+8 Geran-2" for a `support_delivered` event's `means` dictionary.
+static func _granted_text(state: OperationalState, means: Dictionary) -> String:
+	var parts: Array[String] = []
+	for means_id: StringName in means:
+		parts.append("+%d %s" % [means[means_id], _means_name(state, means_id)])
+	return ", ".join(parts)
+
+
+static func _means_name(state: OperationalState, means_id: StringName) -> String:
+	if state.strike_means.has(means_id):
+		var means: StrikeMeansDefinition = state.strike_means[means_id]
+		return TranslationServer.translate(means.display_name)
+	return String(means_id)
 
 
 static func _entry_text(state: OperationalState, definition: SupportPackage) -> String:
+	if definition.formations.is_empty():
+		return ""
 	return TranslationServer.translate("Enters at %s") % _entry_country(state, definition)
 
 
