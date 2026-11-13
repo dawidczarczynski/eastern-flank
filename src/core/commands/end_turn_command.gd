@@ -22,6 +22,7 @@ func apply(state: GameState) -> Array[Dictionary]:
 	state.current_player = (state.current_player + 1) % state.player_count
 	if state.current_player == 0:
 		state.turn += 1
+	state.fire_support_used_turn[state.current_player] = false
 	for unit in state.units_of(state.current_player):
 		unit.moves_left = unit.definition.move_points
 		unit.has_attacked = false

@@ -1,6 +1,6 @@
 # TASK-099a: Battle conditions from installations – core and data
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core
 - **Depends on**: TASK-094c (done), TASK-091 (done), TASK-097a (done), TASK-120 (done)
 - **Topic**: Two-layer game
@@ -22,7 +22,7 @@ Damage to a side's command posts and airfields (deep strikes) changes its next b
 
 ## Acceptance criteria (testable)
 
-- [ ] Data `data/battle/conditions.tres`: `command_points_base` 4, `command_points_floor` 25 (% of base), `fire_support_base` 2, `fire_support_floor` 0, `fire_support_attack` 4 (fixed attack value of the off-map shooter, **[ASSUMPTION]** balance guess). Loaded by `BattleConditionsRules.shipped()`.
+- [ ] Data `data/battle/conditions.tres`: `command_points_base` 4, `command_points_floor` 25 (% of base), `fire_support_base` 2, `fire_support_floor` 0, `fire_support_die` 10 (die size of the off-map shooter), `fire_support_attack` 4 (fixed attack value of the off-map shooter, **[ASSUMPTION]** balance guess). Loaded by `BattleConditionsRules.shipped()`.
 - [ ] `BattleConditionsRules.for_side(installations, player)` -> `BattleSetup.Conditions` with `command_points` and `fire_support` set; `ammunition` 100, `morale` 100 untouched; posture fields are not touched by it.
 - [ ] One C2 at integrity 100 -> 4 command points; at 50 -> 2; at 10 -> 1 (floor 25 % of 4 = 1); at 0 (destroyed) -> 1 (floor).
 - [ ] Mean over several: C2 at 100 and C2 destroyed -> mean 50 -> 2 points.
@@ -58,4 +58,9 @@ None (the view and the rules text come with TASK-099b).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `BattleConditionsRules` (`src/core/data/battle_conditions_rules.gd`, `data/battle/conditions.tres`): `for_side(installations, player)` and the shared `scaled(...)`; half-up rounding in integers; command points clamped to at least 1. `ContactRules._build_setup` uses it for both sides.
+- `FireSupportCommand` (`src/core/commands/fire_support_command.gd`), codec entry `fire_support`; `GameState.fire_support_left` / `fire_support_used_turn` (set in `Scenario.from_setup`, flag reset in `EndTurnCommand`). The snapshot gets the two keys only once a mission exists, so older snapshots / golden fixtures are unchanged. Event `fire_support_used` added to ARCHITECTURE.
+- `AutoResolve`: `_firing` (command cap by highest attack value, ties setup order) and free volleys in rounds 1..m; `resolve_from` takes the missions left from the played `GameState`.
+- Assumptions beyond the task text: (1) `fire_support_die` = 10 added to `conditions.tres` (the off-map shooter needs a die size; `hit_on` is clamped to it); (2) "seen by the side" = some living own unit has `LineOfSight.visible` to the target hex (there is no fog or sight range in the tactical layer yet; TASK-100 can tighten it); (3) validation order follows the criteria list; (4) the volley emits `fire_support_used` + `unit_died` / `game_over`, no `unit_attacked`.
+- GDD "Battle conditions" matches; no change needed beyond that.
+- Tests: `test_battle_conditions.gd`, `test_fire_support_command.gd`, `test_auto_resolve_conditions.gd`. Presentation (TASK-099b) must show the missions left and a call button; the AI does not call fire support.

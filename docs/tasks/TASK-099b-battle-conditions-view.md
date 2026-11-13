@@ -1,6 +1,6 @@
 # TASK-099b: Battle conditions – contact notice, fire-support button, manual
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation
 - **Depends on**: TASK-099a (hard); soft: design check (first acceptance criterion – `/design-ui` if no mockup fits)
 - **Topic**: Two-layer game

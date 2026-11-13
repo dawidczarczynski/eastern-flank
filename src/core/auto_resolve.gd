@@ -10,7 +10,9 @@ extends RefCounted
 
 ## The result of fighting `setup` out; null (push_error) when the setup cannot be fought.
 static func resolve(setup: BattleSetup, rules: AutoResolveRules = null) -> BattleResult:
-	return _fight(setup, rules, PackedInt32Array(), 0, setup.seed, BattleResult.AUTO)
+	return _fight(
+		setup, rules, PackedInt32Array(), 0, setup.seed, BattleResult.AUTO, PackedInt32Array()
+	)
 
 
 ## The result of finishing the unfinished battle `state` (started from `setup` with
@@ -29,20 +31,31 @@ static func resolve_from(
 	for i in setup.companies.size():
 		var unit := state.get_unit(i + 1)
 		current.append(maxi(unit.hp, 0) if unit != null else 0)
+	var missions := PackedInt32Array()
+	for player in setup.factions.size():
+		missions.append(state.fire_support_left[player] if player < state.player_count else 0)
 	return _fight(
-		setup, rules, current, state.turn, hash([setup.seed, state.turn]), BattleResult.CONCLUDED
+		setup,
+		rules,
+		current,
+		state.turn,
+		hash([setup.seed, state.turn]),
+		BattleResult.CONCLUDED,
+		missions
 	)
 
 
 ## Fights `setup` out from `current` strengths (empty = the planned ones) after `turns_played`
-## turns; the dice come from `seed_value`.
+## turns; the dice come from `seed_value`. `missions` = fire-support missions left per side (empty =
+## the setup's conditions).
 static func _fight(
 	setup: BattleSetup,
 	rules: AutoResolveRules,
 	current: PackedInt32Array,
 	turns_played: int,
 	seed_value: int,
-	resolution: StringName
+	resolution: StringName,
+	missions: PackedInt32Array
 ) -> BattleResult:
 	if rules == null:
 		rules = AutoResolveRules.shipped()
@@ -54,6 +67,8 @@ static func _fight(
 	if bonus == null:
 		return null
 	var hit_on := _hit_table(setup, defs, bonus as int)
+	var support := BattleConditionsRules.shipped()
+	var support_hit := _support_table(setup, defs, bonus as int, support)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var sides := setup.factions.size()
@@ -77,20 +92,17 @@ static func _fight(
 	var fought := 0
 	var damage := PackedInt32Array()
 	damage.resize(count)
-	var fired := PackedInt32Array()
-	fired.resize(sides)
+	if missions.is_empty():
+		for side in sides:
+			missions.append(setup.conditions[side].fire_support)
 	while fought < rounds:
 		fought += 1
 		damage.fill(0)
-		fired.fill(0)
 		var before := strength.duplicate()
+		var fires := _firing(setup, owner, before, defs)
 		for i in count:
-			if before[i] <= 0:
+			if not fires[i]:
 				continue
-			var points := setup.conditions[owner[i]].command_points
-			if points > 0 and fired[owner[i]] >= points:
-				continue
-			fired[owner[i]] += 1
 			var target := _target(owner, before, hit_on, i)
 			if target < 0:
 				continue
@@ -101,6 +113,16 @@ static func _fight(
 				if rng.randi_range(1, die) <= needed:
 					hits += 1
 			damage[target] += hits
+		for side in sides:
+			if fought > missions[side]:
+				continue
+			var target := _support_target(owner, before, support_hit, side)
+			if target < 0:
+				continue
+			var needed := support_hit[target]
+			for roll in support.fire_support_shots:
+				if rng.randi_range(1, support.fire_support_die) <= needed:
+					damage[target] += 1
 		for i in count:
 			strength[i] = maxi(strength[i] - damage[i], 0)
 		var ended := _end_of_round(owner, strength, side_start, rules)
@@ -150,6 +172,70 @@ static func _end_of_round(
 		return Vector2i(1 - loser, 0 if left[loser] <= 0 else 1)
 	var wiped := left[0] <= 0 and left[1] <= 0
 	return Vector2i(-1, 0 if wiped else 1)
+
+
+## Per company: whether it fires this round. A side with command points N > 0 lets only its N
+## living companies with the highest attack value fire (ties: setup order); 0 = all living fire.
+static func _firing(
+	setup: BattleSetup,
+	owner: PackedInt32Array,
+	before: PackedInt32Array,
+	defs: Array[UnitDefinition]
+) -> Array[bool]:
+	var fires: Array[bool] = []
+	fires.resize(owner.size())
+	var order: Array[int] = []
+	for i in owner.size():
+		fires[i] = false
+		if before[i] > 0:
+			order.append(i)
+	# sort_custom is not stable, so ties are broken by setup index explicitly.
+	order.sort_custom(
+		func(a: int, b: int) -> bool:
+			return defs[a].attack > defs[b].attack or (defs[a].attack == defs[b].attack and a < b)
+	)
+	var taken := PackedInt32Array()
+	taken.resize(setup.factions.size())
+	for i in order:
+		var points := setup.conditions[owner[i]].command_points
+		if points > 0 and taken[owner[i]] >= points:
+			continue
+		taken[owner[i]] += 1
+		fires[i] = true
+	return fires
+
+
+## support_hit[j]: a roll of the fire-support die at or below it hits company j (the volley's
+## attack value against defence + position bonus + terrain if j defends).
+static func _support_table(
+	setup: BattleSetup, defs: Array[UnitDefinition], terrain: int, rules: BattleConditionsRules
+) -> PackedInt32Array:
+	var table := PackedInt32Array()
+	for j in defs.size():
+		var target := setup.companies[j]
+		var guard := defs[j].defense + setup.conditions[target.player].position_bonus
+		if setup.attacker >= 0 and target.player != setup.attacker:
+			guard += terrain
+		table.append(mini(maxi(1, rules.fire_support_attack - guard), rules.fire_support_die))
+	return table
+
+
+## Index of the living enemy company of `side` that a fire-support volley hits best (ties: lowest
+## strength at the start of the round, then lowest index); -1 when none is left.
+static func _support_target(
+	owner: PackedInt32Array, before: PackedInt32Array, support_hit: PackedInt32Array, side: int
+) -> int:
+	var best := -1
+	for j in owner.size():
+		if before[j] <= 0 or owner[j] == side:
+			continue
+		if (
+			best < 0
+			or support_hit[j] > support_hit[best]
+			or (support_hit[j] == support_hit[best] and before[j] < before[best])
+		):
+			best = j
+	return best
 
 
 ## Index of the living enemy company `shooter` hits best (ties: lowest strength at the start of

@@ -42,6 +42,12 @@ var position_bonus_per_player: Array[int] = []
 ## Command points the current player has left this turn (meaningless while they are unlimited).
 ## Part of snapshot().
 var command_points: int = 0
+## Fire-support missions each player has left (TASK-099a), from `Conditions.fire_support`
+## (Scenario.from_setup). Part of snapshot() once any mission exists.
+var fire_support_left: Array[int] = []
+## Whether each player already called a mission this turn; EndTurnCommand resets the new current
+## player's flag. Part of snapshot() with `fire_support_left`.
+var fire_support_used_turn: Array[bool] = []
 
 var _next_unit_id: int = 1
 
@@ -55,6 +61,8 @@ func _init(p_grid: HexGrid, p_player_count: int = 2, seed_value: int = 0) -> voi
 		player_factions.append(defaults[player % defaults.size()])
 		command_points_per_turn.append(0)
 		position_bonus_per_player.append(0)
+		fire_support_left.append(0)
+		fire_support_used_turn.append(false)
 
 
 ## Whether the battle has ended (winner or draw).
@@ -182,7 +190,7 @@ func snapshot() -> Dictionary:
 	var unit_list: Array[Dictionary] = []
 	for id: int in ids:
 		unit_list.append(_unit_snapshot(units[id]))
-	return {
+	var d := {
 		"turn": turn,
 		"current_player": current_player,
 		"winner": winner,
@@ -192,6 +200,12 @@ func snapshot() -> Dictionary:
 		"command_points": command_points,
 		"units": unit_list,
 	}
+	# Only once a mission exists, so snapshots of battles without fire support stay unchanged.
+	var used := fire_support_used_turn.has(true)
+	if used or fire_support_left.any(func(left: int) -> bool: return left != 0):
+		d["fire_support_left"] = fire_support_left.duplicate()
+		d["fire_support_used_turn"] = fire_support_used_turn.duplicate()
+	return d
 
 
 func _objectives_snapshot() -> Array:

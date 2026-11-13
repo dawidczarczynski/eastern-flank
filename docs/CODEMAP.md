@@ -46,6 +46,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `CommandCodec` – Rebuilds commands from their `to_dict()` form (also after a JSON round trip). (`command_codec.gd`)
 - `DigInCommand` – Order Dig in (TASK-081a): the unit entrenches – +2 defence until it moves. Uses the unit's (`dig_in_command.gd`)
 - `EndTurnCommand` – Ends the current player's turn. BattleRules.at_turn_end may end the battle first (take he… (`end_turn_command.gd`)
+- `FireSupportCommand` – A fire-support mission (TASK-099a, GDD "Battle conditions"): an off-map shooter (artiller… (`fire_support_command.gd`)
 - `MoveUnitCommand` (`move_unit_command.gd`)
 
 ## src/core/data/
@@ -54,6 +55,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `AiGoal` – One objective of the operational AI (TASK-102a, GDD "Operational AI"): a hex or an (`ai_goal.gd`)
 - `AirDefenceDefinition` – An air-defence type (TASK-098a, GDD "Deep strikes"): the reach of a site and its chance to (`air_defence_definition.gd`)
 - `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
+- `BattleConditionsRules` – Battle conditions from installations (TASK-099a, GDD "Battle hand-off and auto-resolve", (`battle_conditions_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
 - `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
 - `CountryDefinition` – A country of an operational map (TASK-114, GDD "Countries and stances"). Instances are ke… (`country_definition.gd`)

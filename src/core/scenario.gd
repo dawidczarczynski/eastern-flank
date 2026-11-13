@@ -267,6 +267,7 @@ static func from_setup(setup: BattleSetup) -> GameState:
 	state.set_command_points_per_turn(points)
 	for player in mini(setup.conditions.size(), state.player_count):
 		state.position_bonus_per_player[player] = setup.conditions[player].position_bonus
+		state.fire_support_left[player] = maxi(setup.conditions[player].fire_support, 0)
 	state.record_starting_hp()
 	return state
 

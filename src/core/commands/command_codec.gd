@@ -4,6 +4,7 @@ extends RefCounted
 ## Formats:
 ##   MoveUnitCommand → {"type": "move", "unit_id": 3, "target": [q, r]}
 ##   AttackCommand   → {"type": "attack", "attacker_id": 1, "target_id": 5}
+##   FireSupportCommand → {"type": "fire_support", "player": 0, "target_id": 5}
 ##   DigInCommand    → {"type": "order_dig_in", "unit_id": 3}
 ##   EndTurnCommand  → {"type": "end_turn"}
 ## Validation is strict: unknown "type", missing fields or non-numeric values give null.
@@ -23,6 +24,8 @@ static func from_dict(d: Dictionary) -> Command:
 			return _move(d)
 		"attack":
 			return _attack(d)
+		"fire_support":
+			return _fire_support(d)
 		"order_dig_in":
 			return _dig_in(d)
 		"end_turn":
@@ -48,6 +51,14 @@ static func _attack(d: Dictionary) -> Command:
 	if attacker_id == null or target_id == null:
 		return null
 	return AttackCommand.new(attacker_id, target_id)
+
+
+static func _fire_support(d: Dictionary) -> Command:
+	var player: Variant = to_int_or_null(d.get("player"))
+	var target_id: Variant = to_int_or_null(d.get("target_id"))
+	if player == null or target_id == null:
+		return null
+	return FireSupportCommand.new(player, target_id)
 
 
 static func _dig_in(d: Dictionary) -> Command:

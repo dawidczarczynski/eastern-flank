@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BattleConditionsRules" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/battle_conditions_rules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+command_points_base = 4
+command_points_floor = 25
+fire_support_base = 2
+fire_support_floor = 0
+fire_support_attack = 4
+fire_support_shots = 6
+fire_support_die = 10
