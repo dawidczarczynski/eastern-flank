@@ -32,7 +32,7 @@ extends Node3D
 
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
-enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU, JOURNAL }
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU, JOURNAL, OBJECTIVES }
 ## (The ladder window is a full-screen overlay: opening it closes all of them, see
 ## `_close_other_windows`; opening any of them closes it.)
 
@@ -48,6 +48,7 @@ const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
 const ACTION_JOURNAL := &"journal"
+const ACTION_OBJECTIVES := &"objectives"
 const ACTION_DECISIONS := &"decisions"
 const ACTION_STRIKE := &"strike"
 const ACTION_MAP_OPTIONS := &"map_options"
@@ -104,6 +105,7 @@ var _options: StaffMapOptionsWindow  # map layer toggles under the MAP button
 var _journal: StaffMapJournalWindow  # the operational journal (JRN, J)
 var _journal_ring: StaffMapJournalRing
 var _journal_dirty := false
+var _objectives: StaffMapObjectivesWindow  # what the operation is scored on (O)
 var _bar: ActionBar
 var _hud: CanvasLayer
 var _simulation: OperationalSimulation
@@ -288,6 +290,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					or close_menu()
 					or _close_options_key()
 					or _close_journal_key()
+					or _close_objectives_key()
 					or _politics.close_card()
 					or _decisions.close()
 					or close_info()
@@ -306,6 +309,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_report()
 			KEY_J:
 				toggle_journal()
+			KEY_O:
+				toggle_objectives()
 			KEY_DELETE, KEY_BACKSPACE, KEY_X:
 				cancel_order()
 			KEY_G:
@@ -365,6 +370,7 @@ func _build_action_bar() -> void:
 	_bar.add_action(ACTION_NEXT, "NEXT", "TAB", false, "TIP_NEXT")
 	_bar.add_action(ACTION_CANCEL, "CANCEL", "X", false, "TIP_CANCEL")
 	_bar.add_action(ACTION_REPORT, "REPORT", "R", false, "TIP_REPORT")
+	_bar.add_action(ACTION_OBJECTIVES, "OBJECTIVES", "O", true, "TIP_OBJECTIVES")
 	_bar.add_action(ACTION_JOURNAL, "JOURNAL", "J", true, "TIP_JOURNAL")
 	_bar.add_action(
 		ACTION_DECISIONS,
@@ -378,6 +384,7 @@ func _build_action_bar() -> void:
 	_hud.add_child(_bar)
 	_build_options_window()
 	_build_journal()
+	_build_objectives()
 	# The hovered hex lives in the left zone (a fixed-width slot, so the bar does not jump).
 	var slot := Control.new()
 	slot.custom_minimum_size = Vector2(CARD_SLOT_WIDTH, 50)
@@ -423,6 +430,45 @@ func _build_journal() -> void:
 	_journal.show_journal(_simulation.state, viewer_player)
 	_journal.mark_seen()  # what happened before the map was built counts as read
 	_journal.hide()
+
+
+## The objectives window (OBJECTIVES button, key O): objectives, holders, round counter.
+func _build_objectives() -> void:
+	_objectives = StaffMapObjectivesWindow.new()
+	_objectives.close_requested.connect(close_objectives)
+	_hud.add_child(_objectives)
+
+
+func objectives_window() -> StaffMapObjectivesWindow:
+	return _objectives
+
+
+func toggle_objectives() -> void:
+	if _objectives.is_open():
+		close_objectives()
+	else:
+		open_objectives()
+
+
+## Opens the objectives for the viewed side with the current holders (closes other left windows).
+func open_objectives() -> void:
+	_claim_left_dock(LeftWindow.OBJECTIVES)
+	_objectives.show_objectives(_simulation.state, viewer_player)
+	_objectives.show()
+	_objectives.dock(_viewport_size().x)
+	_sync_action_bar()
+
+
+func _close_objectives_key() -> bool:
+	if not _objectives.is_open():
+		return false
+	close_objectives()
+	return true
+
+
+func close_objectives() -> void:
+	_objectives.close()
+	_sync_action_bar()
 
 
 func journal_window() -> StaffMapJournalWindow:
@@ -540,6 +586,8 @@ func _on_action_pressed(id: StringName) -> void:
 			toggle_decisions()
 		ACTION_JOURNAL:
 			toggle_journal()
+		ACTION_OBJECTIVES:
+			toggle_objectives()
 
 
 ## Lights the toggle buttons to match the layers (whatever changed them: a key or a button).
@@ -556,6 +604,7 @@ func _sync_action_bar() -> void:
 	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
 	_bar.set_active(ACTION_JOURNAL, _journal != null and _journal.is_open())
+	_bar.set_active(ACTION_OBJECTIVES, _objectives != null and _objectives.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
 
 
@@ -1073,7 +1122,12 @@ func _claim_left_dock(owner: LeftWindow) -> void:
 		close_menu()
 	if owner != LeftWindow.JOURNAL and _journal != null and _journal.close():
 		_sync_action_bar()
-	if owner in [LeftWindow.OPTIONS, LeftWindow.MENU, LeftWindow.JOURNAL] and _report != null:
+	if owner != LeftWindow.OBJECTIVES and _objectives != null and _objectives.close():
+		_sync_action_bar()
+	if (
+		owner in [LeftWindow.OPTIONS, LeftWindow.MENU, LeftWindow.JOURNAL, LeftWindow.OBJECTIVES]
+		and _report != null
+	):
 		_report.close()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
@@ -1738,6 +1792,8 @@ func _show_report() -> void:
 		return
 	if _journal != null:
 		_journal.close()
+	if _objectives != null:
+		_objectives.close()
 	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
 	_report.show()
 	_report.reset_size()
@@ -1805,6 +1861,7 @@ func _close_other_windows() -> void:
 	close_menu()
 	_options.close()
 	_journal.close()
+	_objectives.close()
 	_decisions.close()
 	if _strike != null:
 		_strike.reports().suspend()
@@ -2259,6 +2316,7 @@ func close_docked_windows() -> void:
 	var closed := close_menu()
 	closed = _options.close() or closed
 	closed = _journal.close() or closed
+	closed = _objectives.close() or closed
 	closed = _politics.close_card() or closed
 	if _report != null and _report.visible:
 		_report.close()

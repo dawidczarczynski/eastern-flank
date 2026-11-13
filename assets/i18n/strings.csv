@@ -825,3 +825,9 @@ Strike means: %s,Strike means: %s,Środki uderzeniowe: %s
 Chinese missile components,Chinese missile components,Chińskie komponenty rakietowe
 Iranian drones,Iranian drones,Irańskie drony
 Allied cruise missiles,Allied cruise missiles,Sojusznicze pociski manewrujące
+OBJECTIVES,OBJECTIVES,CELE
+TIP_OBJECTIVES,Opens or closes the objectives: what the operation is scored on and who holds each one now.,Otwiera lub zamyka cele: za co liczone są punkty operacji i kto aktualnie trzyma każdy z nich.
+ROUND %d / %d,ROUND %d / %d,RUNDA %d / %d
+NOBODY,NOBODY,NIKT
+OPEN,OPEN,OTWARTA
+TIP_MISSION,"Click, press O or use the OBJECTIVES button to read the briefing and the objectives again.","Kliknij, naciśnij O lub użyj przycisku CELE, aby ponownie przeczytać odprawę i cele."
