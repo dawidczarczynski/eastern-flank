@@ -1,6 +1,6 @@
 # TASK-121: Outside support – off-map supporters, support packages as data, the *Request support* decision, delayed arrival of formations, responses for the other bloc
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (support tab, arrivals)
 - **Depends on**: TASK-117, TASK-118
 - **Model**: sonnet
@@ -82,4 +82,10 @@ Section in the "Politics" chapter (started by TASK-113) – the off-map supporte
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+Done (logic + Support tab + ghost counters). Tests: `tests/unit/test_outside_support.gd` (20), `tests/unit/test_staff_map_support.gd` (12).
+
+- **Core**: `SupporterDefinition`, `SupportPackage`, `SupportState`, `SupportRules` (`request_problem`, `status`, `is_response`, `conditions_problem`, `open_responses`, `deliver`), `RequestSupportCommand`; delivery runs in `EndOperationalTurnCommand` right after `operational_turn_started` (only while the operation has no result).
+- **Deviation from the task text**: the shipped ladder has `top() = 6`, so `threshold` triggers only at level 5, not 3; the threshold test uses packages with `max_level` 5. Shipped packages (levels 1-3) hit `level_too_high` first. Also, a paid request that lifts the level to 3 triggers `allies_join_level`, so the round-3 delivery tests use N as a free response to A.
+- **Shipped entry hexes** (axial, `suwalki_theatre`, plain hexes with road links; checked passable/in-country by test, road and edge distance picked by hand): `us_armor_1` (-20, 43) Poland, near Olsztyn / Jonkowo road; `nato_mech_1` (-20, 42) next to it; `kp_inf_1` (46, 39) Belarus, 2 hexes from the east edge, ~1.8 hexes from Lida; `kp_art_1` (47, 36) Belarus, ~3 hexes NE of Lida. If occupied at delivery, `Reinforcements.place` uses its fallback hex. Strengths: 80 / 56 are package sums.
+- **View**: `DECISIONS | SUPPORT` tab (H, Tab) in the Decisions panel; no mockup exists for the tab, it reuses the political_decisions variant B card/chip/button parts, so the look needs the human's sign-off (`/design-ui` if wanted). Ghost counters are dashed hexes with "+N" and caption; they can overlap a real counter on the same hex. `SCREENSHOT_STAFF_MAP` gained `support[:russia][:ghost]`.
+- **Limitations**: the withdrawn reason in the card is derived from current conditions (`SupportState` does not store it; the toast uses the exact event reason). `support_*` events are not journaled. Formation display names are not translated.

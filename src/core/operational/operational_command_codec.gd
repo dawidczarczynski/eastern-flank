@@ -67,6 +67,11 @@ static func from_dict(d: Dictionary) -> OperationalCommand:
 			if not country is String:
 				return null
 			return DemandNeutralityCommand.new(StringName(country as String))
+		RequestSupportCommand.TYPE:
+			var package: Variant = d.get("package")
+			if not package is String:
+				return null
+			return RequestSupportCommand.new(StringName(package as String))
 		_:
 			return null
 

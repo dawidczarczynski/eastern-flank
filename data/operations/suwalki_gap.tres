@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="OperationDefinition" load_steps=70 format=3]
+[gd_resource type="Resource" script_class="OperationDefinition" load_steps=80 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/side_definition.gd" id="1_side"]
 [ext_resource type="Script" path="res://src/core/data/formation_placement.gd" id="2_placement"]
@@ -20,6 +20,10 @@
 [ext_resource type="Script" path="res://src/core/data/installation_placement.gd" id="13_install"]
 [ext_resource type="Script" path="res://src/core/data/ai_goal.gd" id="14_aigoal"]
 [ext_resource type="Script" path="res://src/core/data/operation_objective.gd" id="15_objective"]
+
+[ext_resource type="Script" path="res://src/core/data/support_package.gd" id="16_package"]
+[ext_resource type="Resource" path="res://data/supporters/nato_allies.tres" id="s_nato_allies"]
+[ext_resource type="Resource" path="res://data/supporters/north_korea.tres" id="s_north_korea"]
 
 [sub_resource type="Resource" id="Resource_pl_mech_1"]
 script = ExtResource("2_placement")
@@ -502,6 +506,74 @@ objective_id = &"grodno"
 weight = 4
 role = &"hold"
 
+[sub_resource type="Resource" id="Support_us_armor_1"]
+script = ExtResource("2_placement")
+id = &"us_armor_1"
+display_name = "US Armored Battalion"
+parent = "US Armored Brigade Combat Team"
+player = 0
+definition = ExtResource("7_pl_tank_battalion")
+coord = Vector2i(-20, 43)
+
+[sub_resource type="Resource" id="Support_nato_mech_1"]
+script = ExtResource("2_placement")
+id = &"nato_mech_1"
+display_name = "NATO Mechanised Battalion"
+parent = "Allied Reaction Force"
+player = 0
+definition = ExtResource("6_pl_mech_battalion")
+coord = Vector2i(-20, 42)
+
+[sub_resource type="Resource" id="Support_kp_inf_1"]
+script = ExtResource("2_placement")
+id = &"kp_inf_1"
+display_name = "North Korean Infantry Battalion"
+parent = "KPA Expeditionary Corps"
+player = 1
+definition = ExtResource("9_ru_motor_rifle_battalion")
+coord = Vector2i(46, 39)
+
+[sub_resource type="Resource" id="Support_kp_art_1"]
+script = ExtResource("2_placement")
+id = &"kp_art_1"
+display_name = "North Korean Artillery Battalion"
+parent = "KPA Expeditionary Corps"
+player = 1
+definition = ExtResource("11_ru_mlrs_battalion")
+coord = Vector2i(47, 36)
+
+[sub_resource type="Resource" id="Package_allied_reinforcements"]
+script = ExtResource("16_package")
+id = &"allied_reinforcements"
+display_name = "Allied reinforcements"
+supporter = ExtResource("s_nato_allies")
+side = 0
+min_level = 1
+max_level = 3
+max_caused = -1
+response_to = Array[StringName]([&"nk_troops"])
+escalation_cost = 1
+entry_casus_belli = false
+delay_turns = 4
+withdraw_if_unmet = false
+formations = Array[ExtResource("2_placement")]([SubResource("Support_us_armor_1"), SubResource("Support_nato_mech_1")])
+
+[sub_resource type="Resource" id="Package_nk_troops"]
+script = ExtResource("16_package")
+id = &"nk_troops"
+display_name = "North Korean expeditionary force"
+supporter = ExtResource("s_north_korea")
+side = 1
+min_level = 2
+max_level = 3
+max_caused = -1
+response_to = Array[StringName]([&"allied_reinforcements"])
+escalation_cost = 1
+entry_casus_belli = true
+delay_turns = 4
+withdraw_if_unmet = false
+formations = Array[ExtResource("2_placement")]([SubResource("Support_kp_inf_1"), SubResource("Support_kp_art_1")])
+
 [resource]
 script = ExtResource("3_operation")
 id = &"suwalki_gap"
@@ -512,6 +584,7 @@ first_player = 1
 initial_escalation = 1
 countries = Array[ExtResource("12_csetup")]([SubResource("Setup_poland"), SubResource("Setup_lithuania"), SubResource("Setup_belarus"), SubResource("Setup_russia")])
 start_date = "2027-06-14"
+support_packages = Array[ExtResource("16_package")]([SubResource("Package_allied_reinforcements"), SubResource("Package_nk_troops")])
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
 installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_nato_ad_olsztyn"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno"), SubResource("Inst_ru_ad_chernyakhovsk")])
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 40}])

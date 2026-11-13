@@ -488,6 +488,21 @@ NATO:
 | JASSM-ER | air-launched cruise missile | 925 km (185 hexes, whole map) | 4 | very high (90%) | fairly easy (70% of the normal chance) | 40 / 2 | 6 |
 | ATACMS | ballistic missile | 300 km (60 hexes) | 2 | good (80%) | hard (45%) | 35 / 3 | 4 |
 | PrSM | ballistic missile | 500 km (100 hexes) | 2 | very high (85%) | hard (40%) | 40 / 3 | 2 |
+**Outside support.** Beyond the countries on the map, each bloc has **supporters** off the map: NATO has the **NATO allies**; Russia has **North Korea**, **China** and **Iran**. A supporter can send a **package** of formations to its side. The **Decisions panel** (H) has two tabs, **Decisions** and **Support**; **Tab** switches between them.
+
+- **Supporters.** The Support tab lists the supporters of your side with a status: **Supporting** (a package of theirs has been taken), **Considering** (they would send help, but no package is available yet) or **Uninvolved**.
+- **Package cards.** Each package shows what arrives (the formations), the **entry country** it comes through, the **delay** in turns, the **level band** in which it can be requested and its **escalation cost**. A card outside its level band is dimmed and says why. **Take** requests it; if it costs a level, you confirm inside the card first. Once requested, the package arrives after its delay, and is not requested twice.
+- **Free answers.** A request raises tension for the other bloc too: when one side takes a package, a package of the other bloc that answers it can be taken **free of charge** (cost chip "Free answer"). In "Suwałki Gap" the NATO allies and North Korea answer each other.
+- **Level.** A paid request raises the shared level by its cost; if that lifts it to level 3 (Regional war), allies join as described under **Allies** above. Free answers do not move the level.
+- **Arrivals on the map.** Until a package arrives, a **ghost counter** marks its entry hexes with dashed outlines and a "+N" count (N formations), labelled "in n turns". When it arrives the formations appear at full strength and a toast announces it.
+
+| Package | Side | Level band | Cost | Delay | Arrives |
+|---|---|---|---|---|---|
+| Allied reinforcements (US armour and a NATO mechanised battalion) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
+| North Korean expeditionary force (infantry and artillery) | Russia | 2-3 | 1 | 4 turns | through Belarus |
+
+**North Korean troops and Belarus.** The North Korean force enters through Belarus. While Belarus is closed to Russia, the ghost counter reads "waiting – Belarus closed" and the troops do not arrive until it opens. If Belarus is only **aligned** (not at war) when they arrive, NATO gets a **casus belli** against it, shown as a toast.
+
 | Homar-K | rocket artillery | 290 km (58 hexes) | 6 | moderate (70%) | almost normal (90%) | 20 / 2 | 6 |
 | Warmate | loitering munition (drone) | 50 km (10 hexes) | 6 | low (60%) | easy (130%) | 8 / 1 | 6 |
 | Storm Shadow | cruise missile | 560 km (110 hexes) | 3 | very high (85%) | fairly easy (85%) | 40 / 2 | 0, arrives only from allies |

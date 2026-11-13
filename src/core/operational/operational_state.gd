@@ -62,6 +62,8 @@ var fielded_strength: Array[int] = [0, 0]
 var decisions_left: int = 1
 ## Per player: the escalating decisions are rejected while `turn` <= this (after Stand down).
 var stand_down_until: Array[int] = [0, 0]
+## Outside-support packages in setup order (TASK-121).
+var support: Array[SupportState] = []
 ## Fixed installations of both sides, in setup order (TASK-097a).
 var installations: Array[Installation] = []
 ## Per player: {means id: count} (TASK-097a; changed only through StrikeRules.add_stock).
@@ -119,6 +121,14 @@ func get_objective(objective_id: StringName) -> OperationObjective:
 	return null
 
 
+## The support package with this id; null if there is none.
+func get_support(package_id: StringName) -> SupportState:
+	for s in support:
+		if s.id == package_id:
+			return s
+	return null
+
+
 ## The installation with this id; null if there is none.
 func get_installation(installation_id: StringName) -> Installation:
 	for i in installations:
@@ -152,7 +162,8 @@ func formation_at(coord: Vector2i) -> Formation:
 ## {turn, current_player, rng_state, escalation, result,
 ## countries: [CountryState.snapshot() sorted by id],
 ## formations: [Formation.snapshot() sorted by id],
-## installations: [Installation.snapshot() sorted by id], strike_stock, strikes_left,
+## installations: [Installation.snapshot() sorted by id],
+## support: [SupportState.snapshot() sorted by id], strike_stock, strikes_left,
 ## fielded_strength, hex_holders, gap_closed_rounds}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
@@ -170,8 +181,14 @@ func snapshot() -> Dictionary:
 	sorted_installations.sort_custom(_installation_id_before)
 	for i: Installation in sorted_installations:
 		installation_entries.append(i.snapshot())
-	return {
+	var support_entries: Array = []
+	var sorted_support := support.duplicate()
+	sorted_support.sort_custom(_support_id_before)
+	for s: SupportState in sorted_support:
+		support_entries.append(s.snapshot())
+	var snapshot := {
 		"countries": country_entries,
+		"support": support_entries,
 		"installations": installation_entries,
 		"strike_stock": [_stock_snapshot(0), _stock_snapshot(1)],
 		"strikes_left": strikes_left,
@@ -198,6 +215,7 @@ func snapshot() -> Dictionary:
 		"political_log": political_log.to_dict()["entries"],
 		"journal": journal.to_dict()["entries"],
 	}
+	return snapshot
 
 
 ## [[q, r, holder], ...] of the changed hexes, sorted.
@@ -214,6 +232,10 @@ static func _id_before(a: Formation, b: Formation) -> bool:
 
 
 static func _country_id_before(a: CountryState, b: CountryState) -> bool:
+	return String(a.id) < String(b.id)
+
+
+static func _support_id_before(a: SupportState, b: SupportState) -> bool:
 	return String(a.id) < String(b.id)
 
 

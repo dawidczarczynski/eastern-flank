@@ -111,6 +111,7 @@ var _counter_layer: CanvasLayer
 var _counters: StaffMapCounters
 var _places: StaffMapPlaceLayer  # place-name labels (TASK-112), N toggles
 var _installations: StaffMapInstallations
+var _support_ghosts: StaffMapSupportGhosts  # arrivals of outside support on the way (TASK-121)
 var _cover: StaffMapAirDefenceLayer  # air defence coverage zones (TASK-098b), under the markers
 var _cover_on := false  # the player's toggle (key C); strike mode adds it while a weapon is picked
 var _installation_card: StaffMapInstallationCard
@@ -1247,6 +1248,9 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_installations = StaffMapInstallations.new()  # under the counters
 	_counter_layer.add_child(_installations)
 	_installations.build(state, _palette)
+	_support_ghosts = StaffMapSupportGhosts.new()  # under the counters
+	_support_ghosts.set_colour(StaffMapFormations.side_colour(_palette, viewer_player))
+	_counter_layer.add_child(_support_ghosts)
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
 	_counters.set_depth(StaffMapCounter.depth_for_pitch(_pitch))
@@ -1254,6 +1258,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_build_route_preview()  # after the counters: its cross and label draw over them
 	_counters.build(state, _palette, viewer_player)
 	_counters.refresh()  # the order marks, also when the state already holds orders
+	_support_ghosts.show_ghosts(StaffMapSupportModel.ghosts(state, viewer_player))
 	_orders.refresh(state, viewer_player)
 	_front.refresh(state, viewer_player)
 	_apply_front_view()
@@ -1311,6 +1316,8 @@ func _layout_counters() -> void:
 		for id: StringName in _installation_anchors:
 			spots[id] = _project(_installation_anchors[id])
 		_installations.layout(spots)
+	if _support_ghosts != null:
+		_support_ghosts.layout(_screen_of_hex)
 	if _counters == null:
 		return
 	var points := {}
@@ -1325,10 +1332,7 @@ func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
 		_toast_message(reason, _palette.ui_alert)
 		return
 	if command is PoliticalDecisionCommand:
-		_toast_message(
-			TranslationServer.translate(StaffMapDecisionsModel.REASONS.get(reason, reason)),
-			_palette.ui_alert
-		)
+		_toast_message(StaffMapSupportModel.reason_text(reason), _palette.ui_alert)
 		return
 	_toast_message(tr("ORDER_REJECTED_" + reason.to_upper()), _palette.ui_alert)
 
@@ -1352,6 +1356,7 @@ func _on_operational_event(event: Dictionary) -> void:
 	if event.get("type") == &"political_decision_taken":
 		_decision_lines.append(StaffMapDecisionsModel.log_text(_simulation.state, event))
 	_decisions.refresh()
+	_on_support_event(event)
 	if event.get("type") == &"casus_belli_gained":
 		_toast_message(
 			StaffMapBorders.casus_belli_event_text(_simulation.state, event), _palette.ui_amber
@@ -1374,6 +1379,22 @@ func _on_operational_event(event: Dictionary) -> void:
 	elif event.get("type") == &"battle_consequences":
 		_begin_slide()  # the retreating counter slides back (TASK-095)
 	_refresh_contacts()
+
+
+## Outside support (TASK-121): the ghost counters follow the packages on the way; requests,
+## arrivals, waits and withdrawals show a toast (the casus belli one is toasted above).
+func _on_support_event(event: Dictionary) -> void:
+	if _support_ghosts == null:
+		return
+	var state := _simulation.state
+	_support_ghosts.show_ghosts(StaffMapSupportModel.ghosts(state, viewer_player))
+	var text := StaffMapSupportModel.toast_text(state, viewer_player, event)
+	if text != "":
+		_toast_message(text, _palette.ui_amber)
+
+
+func support_ghosts() -> StaffMapSupportGhosts:
+	return _support_ghosts
 
 
 ## Strike events (TASK-097a): the markers' bars, the result report and the debug panel's stock line.

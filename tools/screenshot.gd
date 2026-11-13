@@ -376,6 +376,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## collapse:<player> (halves that side's fielded strength in the state so it counts as collapsing,
 ## TASK-140), nuclear:<player> (that player's nuclear attack: the end notice, TASK-140),
 ## turn:<player> (hands the turn to that player in the state, a still-image shortcut),
+## support[:russia][:ghost] (Support tab of the Politics screen; with ghost a package request
+## and its ghost counters, TASK-121),
 ## decisions[:confirm[:<card key 1-6>]] (the Politics screen, optionally with the
 ## confirmation of that card, default 1), ladder[:<level>] (removed)
 ## the tooltip of that level), endturn (after the orders:
@@ -575,6 +577,22 @@ func _apply_staff_map_state(spec: String) -> void:
 					map.simulation().state, 0, &"sanctuary_breach", steps
 				):
 					map.simulation().event_emitted.emit(event)
+			"support":
+				# support[:tab] opens the Support tab; support:ghost requests NATO's package (the
+				# ghost counters on the map); support:russia / support:russia:ghost for the other
+				# side (TASK-121).
+				var side := 1 if parts.size() > 1 and parts[1] == "russia" else 0
+				var sim := map.simulation()
+				if parts.has("ghost"):
+					sim.state.current_player = side
+					sim.state.escalation_level = maxi(sim.state.escalation_level, 2)
+					var package := &"allied_reinforcements" if side == 0 else &"nk_troops"
+					sim.execute(RequestSupportCommand.new(package))
+				else:
+					map.toggle_decisions()
+					var sheet := map.decisions_hud().panel()
+					sheet.open_tab(StaffMapDecisionsPanel.TAB_SUPPORT)
+					sheet.finish_fade()
 			"nuclear":
 				var user := parts[1].to_int() if parts.size() > 1 else 1
 				for event in EscalationRules.nuclear_use(map.simulation().state, user):

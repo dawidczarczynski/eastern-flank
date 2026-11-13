@@ -24,6 +24,8 @@ const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5, KEY_KP_6
 # gdlint: disable=max-line-length
 const RULES_TEXT := "One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns."
 # gdlint: enable=max-line-length
+const TAB_DECISIONS := &"decisions"
+const TAB_SUPPORT := &"support"
 const SHEET_FILL := Color(11 / 255.0, 13 / 255.0, 11 / 255.0, 0.97)
 
 var _sheet := FramedPanel.new()
@@ -40,6 +42,7 @@ var _buttons := {}  # decision id -> the Take / Confirm button (tests)
 var _reasons := {}  # decision id -> the reason Label (tests)
 var _ladder_expanded := false  # the overview's ladder table shows every level
 var _fade: Tween
+var _tab := TAB_DECISIONS  # the open tab (TASK-121: Support next to the decisions)
 
 
 func _init() -> void:
@@ -122,6 +125,20 @@ func reason_of(id: StringName) -> String:
 	return "" if label == null else label.text
 
 
+## Opens the tab `tab` (TAB_DECISIONS / TAB_SUPPORT); the support tab only exists when the
+## operation has packages.
+func open_tab(tab: StringName) -> void:
+	if tab == TAB_SUPPORT and (_state == null or _state.support.is_empty()):
+		return
+	_tab = tab
+	_confirming = {}
+	refresh()
+
+
+func tab() -> StringName:
+	return _tab
+
+
 func is_confirming() -> bool:
 	return not _confirming.is_empty()
 
@@ -159,10 +176,16 @@ func handle_key(keycode: Key) -> bool:
 	if keycode == OPEN_KEY:
 		close_requested.emit()
 		return true
+	if keycode == KEY_TAB:
+		open_tab(TAB_DECISIONS if _tab == TAB_SUPPORT else TAB_SUPPORT)
+		return true
 	var number := NUMBER_KEYS.find(keycode)
 	if number < 0:
 		number = KEYPAD_KEYS.find(keycode)
-	if number >= 0:
+	if _tab == TAB_SUPPORT:
+		if keycode == KEY_ENTER or keycode == KEY_KP_ENTER:
+			_activate()
+	elif number >= 0:
 		select_card(_id_of_key(number + 1))
 	elif keycode == KEY_LEFT or keycode == KEY_RIGHT:
 		_step_country(-1 if keycode == KEY_LEFT else 1)
@@ -227,12 +250,20 @@ func _rebuild() -> void:
 	_content.add_child(_budget_row(head))
 	if _result_id != &"":
 		_content.add_child(_result_row())
+	if _state.support.is_empty():
+		_tab = TAB_DECISIONS
+	else:
+		_content.add_child(_tab_row())
 	var body := HBoxContainer.new()
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override(&"separation", 20)
-	body.add_child(_decisions_column())
-	body.add_child(_overview_column())
+	if _tab == TAB_SUPPORT:
+		body.add_child(_supporters_column())
+		body.add_child(_other_bloc_column())
+	else:
+		body.add_child(_decisions_column())
+		body.add_child(_overview_column())
 	_content.add_child(body)
 
 
@@ -584,7 +615,7 @@ func _foot(id: StringName, chosen: Dictionary, waiting: bool) -> Control:
 	if not take.disabled and id == StaffMapDecisionsModel.NUCLEAR:
 		StaffMapDecisionParts.paint_danger(take, _palette.ui_alert)
 	if not take.disabled:
-		take.pressed.connect(func() -> void: _take(id, chosen))
+		take.pressed.connect(func() -> void: _take(chosen["id"], chosen))
 	foot.add_child(take)
 	_buttons[id] = take
 	return foot
@@ -678,6 +709,8 @@ func _confirmation(id: StringName, chosen: Dictionary) -> Control:
 
 
 func _confirming_title() -> String:
+	if _confirming.get("id") == StaffMapSupportModel.DECISION:
+		return tr("Request support")
 	for row in _rows:
 		if row["id"] == _confirming.get("id"):
 			return row["title"]
@@ -708,3 +741,213 @@ func _take(id: StringName, chosen: Dictionary) -> void:
 		refresh()
 		return
 	decision_chosen.emit(id, chosen["country"])
+
+
+# --- Support tab (TASK-121) ---
+
+
+func _tab_row() -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Tabs"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 8)
+	for entry: Array in [[TAB_DECISIONS, "Decisions"], [TAB_SUPPORT, "Support"]]:
+		var current: bool = entry[0] == _tab
+		var chip := StaffMapDecisionParts.Chip.new(true)
+		chip.name = "Tab" + String(entry[0]).capitalize()
+		chip.edge = UiPalette.AMBER if current else StaffMapDecisionParts.MUTED_EDGE
+		chip.wash = Color(UiPalette.AMBER, 0.16) if current else Color(0, 0, 0, 0)
+		var text_colour := UiPalette.AMBER if current else UiPalette.HUD_TEXT
+		chip.add_child(
+			MenuStyle.label(tr(entry[1]).to_upper(), HudTheme.display(700, 2), 12, text_colour)
+		)
+		var target: StringName = entry[0]
+		chip.clicked.connect(func() -> void: open_tab(target))
+		row.add_child(chip)
+	row.add_child(MenuStyle.label("TAB", HudTheme.mono(500, 0), 10, UiPalette.HUD_MUTED))
+	return row
+
+
+func _scroll_column(ratio: float) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_stretch_ratio = ratio
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override(&"separation", 10)
+	scroll.add_child(column)
+	column.set_meta(&"scroll", scroll)
+	return column
+
+
+## Left: each supporter of the viewer's side with its status and package cards.
+func _supporters_column() -> Control:
+	var column := _scroll_column(1.9)
+	column.name = "Supporters"
+	var found := StaffMapSupportModel.supporters(_state, _viewer)
+	if found.is_empty():
+		column.add_child(_note(tr("No supporter can help this side.")))
+	for supporter: Dictionary in found:
+		column.add_child(_supporter_head(supporter))
+		for package: Dictionary in supporter["packages"]:
+			column.add_child(_package_card(package))
+	return column.get_meta(&"scroll")
+
+
+func _supporter_head(supporter: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Supporter_" + String(supporter["id"])
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 10)
+	row.add_child(
+		MenuStyle.label(
+			String(supporter["name"]).to_upper(), HudTheme.display(700, 2), 12, UiPalette.HUD_TEXT
+		)
+	)
+	var tint := UiPalette.HUD_MUTED
+	if supporter["status"] == &"supporting":
+		tint = _palette.side_own
+	elif supporter["status"] == &"considering":
+		tint = UiPalette.AMBER
+	row.add_child(
+		StaffMapDecisionParts.chip(
+			String(supporter["status_text"]).to_upper(), HudTheme.mono(700, 0), 10, tint, tint
+		)
+	)
+	return row
+
+
+## Right: what the other bloc asked for and the free answers it opens (cards with Take).
+func _other_bloc_column() -> Control:
+	var wrap := HBoxContainer.new()
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_theme_constant_override(&"separation", 20)
+	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var line := ColorRect.new()
+	line.color = Color("#2a2e27")
+	line.custom_minimum_size.x = 1.0
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(line)
+	var column := _scroll_column(1.0)
+	column.name = "OtherBloc"
+	column.add_child(
+		MenuStyle.label(
+			tr("Requests of the other bloc").to_upper(),
+			HudTheme.display(700, 2),
+			11,
+			UiPalette.HUD_MUTED
+		)
+	)
+	var found := StaffMapSupportModel.other_bloc(_state, _viewer)
+	if found.is_empty():
+		column.add_child(_note(tr("The other bloc has requested no support.")))
+	for request: Dictionary in found:
+		var head := MenuStyle.label(
+			"%s · %s" % [request["text"], request["turns_text"]],
+			StaffMapDecisionParts.body_font(),
+			13,
+			UiPalette.HUD_TEXT
+		)
+		head.name = "Request_" + String(request["id"])
+		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		column.add_child(head)
+		for answer: Dictionary in request["responses"]:
+			column.add_child(_package_card(answer))
+	wrap.add_child(column.get_meta(&"scroll"))
+	return wrap
+
+
+func _note(text: String) -> Label:
+	var note := MenuStyle.label(text, StaffMapDecisionParts.body_font(), 12, UiPalette.HUD_MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return note
+
+
+## One package: title, cost chip, what arrives, entry / delay / band / conditions lines, then the
+## state (on its way, waiting, arrived, withdrawn) or the Take foot / inline confirmation.
+func _package_card(pack: Dictionary) -> Control:
+	var key: StringName = pack["package"]
+	var open: bool = pack["state"] == &"open"
+	var confirming_here := _is_confirming(pack["id"], pack)
+	var waiting := is_confirming() and not confirming_here
+	var usable: bool = open and pack["enabled"] and not waiting
+	var card := FramedPanel.new()
+	card.name = "Package_" + String(key)
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.chamfers = Vector4(0, 9, 0, 9)
+	card.padding = Vector2(12, 7)
+	card.fill = UiPalette.CARD
+	card.line_color = UiPalette.CARD_EDGE
+	if confirming_here:
+		card.line_color = UiPalette.AMBER
+	elif open and not usable:
+		card.line_color = StaffMapDecisionParts.WARN_EDGE
+	card.custom_minimum_size.x = CARD_WIDTH
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override(&"separation", 4)
+	card.add_child(box)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override(&"separation", 8)
+	var title := MenuStyle.label(
+		pack["title"],
+		HudTheme.display(700, 0),
+		15,
+		UiPalette.HUD_TEXT if usable or not open else StaffMapDecisionParts.OFF_TEXT
+	)
+	title.name = "TitleLabel"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.clip_text = true
+	head.add_child(title)
+	var tint := UiPalette.AMBER if pack["cost_kind"] == &"up" else UiPalette.HUD_MUTED
+	if pack["response"]:
+		tint = _palette.side_own
+	var cost := StaffMapDecisionParts.chip(
+		String(pack["cost_text"]).to_upper(), HudTheme.mono(700, 0), 11, tint, tint
+	)
+	cost.name = "Cost"
+	head.add_child(cost)
+	box.add_child(head)
+	box.add_child(_package_line("What", pack["what"], 13, StaffMapDecisionParts.BODY_TEXT))
+	for field in ["entry", "delay", "band", "conditions"]:
+		if pack[field] != "":
+			box.add_child(
+				_package_line(field.capitalize(), pack[field], 12, StaffMapDecisionParts.OFF_TEXT)
+			)
+	if not open:
+		box.add_child(_package_state(pack))
+	elif confirming_here:
+		box.add_child(_confirmation(pack["id"], pack))
+		_buttons[key] = _buttons[pack["id"]]
+		_buttons.erase(pack["id"])
+	else:
+		box.add_child(_foot(key, pack, waiting))
+	return card
+
+
+func _package_line(name_text: String, text: String, size: int, colour: Color) -> Label:
+	var label := MenuStyle.label(text, StaffMapDecisionParts.body_font(), size, colour)
+	label.name = "Line" + name_text
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
+
+
+## Status line of a package that is no longer open to a request.
+func _package_state(pack: Dictionary) -> Control:
+	var kind: StringName = pack["state"]
+	var tint := UiPalette.AMBER
+	if kind == &"delivered":
+		tint = _palette.side_own
+	elif kind == &"withdrawn":
+		tint = _palette.ui_alert
+	var chip := StaffMapDecisionParts.chip(
+		String(pack["state_text"]).to_upper(), HudTheme.mono(700, 1), 10, tint, tint
+	)
+	chip.name = "State"
+	chip.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	return chip

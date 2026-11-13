@@ -83,6 +83,8 @@ static func from_definition(
 		var formation := Formation.from_placement(placement, definition.initial_posture)
 		state.formations.append(formation)
 		state.fielded_strength[formation.owner_id] += formation.max_strength()
+	for package in definition.support_packages:
+		state.support.append(SupportState.from_package(package))
 	_add_strikes(state, definition)
 	state.ai_goals = definition.ai_goals.duplicate()
 	state.definition = definition
@@ -158,7 +160,10 @@ static func _problem(
 	var goals_error := _goals_problem(definition, grid)
 	if goals_error != "":
 		return goals_error
-	return _contributions_problem(definition, grid, country_map, ids)
+	var contributions_error := _contributions_problem(definition, grid, country_map, ids)
+	if contributions_error != "":
+		return contributions_error
+	return _support_problem(definition, grid, ids)
 
 
 ## Coord -> country id of every hex of `map` that belongs to a country (what `from_definition`
@@ -246,6 +251,74 @@ static func _contribution_problem(
 		return error
 	if country_map.get(placement.coord, &"") != setup.country.id:
 		return "%s is not in the country" % placement.coord
+	return ""
+
+
+## Support packages (TASK-121): a known supporter of the package's side, levels, costs and delay
+## in range, unique ids, responses to known packages of the other side, valid placements of the
+## recipient side with formation ids unused anywhere else, and at least one effect.
+static func _support_problem(
+	definition: OperationDefinition, grid: HexGrid, ids: Dictionary
+) -> String:
+	var top := EscalationLadder.shipped().top()
+	var sides := {}
+	for package in definition.support_packages:
+		if package == null:
+			return "empty support package"
+		if sides.has(package.id):
+			return "duplicate support package id '%s'" % package.id
+		sides[package.id] = package.side
+	for package in definition.support_packages:
+		var error := _package_problem(definition, grid, package, sides, top, ids)
+		if error != "":
+			return "support package '%s': %s" % [package.id, error]
+	return ""
+
+
+static func _package_problem(
+	definition: OperationDefinition,
+	grid: HexGrid,
+	package: SupportPackage,
+	sides: Dictionary,
+	top: int,
+	ids: Dictionary
+) -> String:
+	if package.supporter == null:
+		return "no supporter"
+	if package.side != package.supporter.side:
+		return "side %d is not the supporter's side %d" % [package.side, package.supporter.side]
+	if package.side < 0 or package.side >= definition.sides.size():
+		return "side %d out of range" % package.side
+	if (
+		package.min_level < 0
+		or package.max_level > top - 1
+		or package.min_level > package.max_level
+	):
+		return "levels %d .. %d outside 0 .. %d" % [package.min_level, package.max_level, top - 1]
+	if package.escalation_cost < 0 or package.delay_turns < 0:
+		return "negative escalation_cost / delay_turns"
+	if package.max_caused < -1:
+		return "max_caused %d below -1" % package.max_caused
+	for response in package.response_to:
+		if not sides.has(response):
+			return "response_to unknown package '%s'" % response
+		if sides[response] == package.side:
+			return "response_to '%s' of the same side" % response
+	if package.formations.is_empty():
+		return "no effect"
+	for placement in package.formations:
+		if placement == null:
+			return "empty placement"
+		var error := ""
+		if placement.player != package.side:
+			error = "player %d is not the package side %d" % [placement.player, package.side]
+		else:
+			error = _placement_problem(definition, grid, placement)
+		if error == "" and ids.has(placement.id):
+			error = "duplicate formation id '%s'" % placement.id
+		if error != "":
+			return "formation '%s': %s" % [placement.id, error]
+		ids[placement.id] = true
 	return ""
 
 

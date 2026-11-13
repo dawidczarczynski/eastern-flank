@@ -764,3 +764,55 @@ UNIT_CARD_NO_ORDER,– NO ORDER –,– BRAK ROZKAZU –
 ORDER_RING_INFO,Info,Info
 ORDER_RING_INFO_TITLE,Unit info,Informacje o jednostce
 ORDER_RING_INFO_HINT,"Opens the full formation panel: strength, location and companies.","Otwiera pełny panel formacji: siła, lokalizacja i kompanie."
+Request support,Request support,Poproś o wsparcie
+Support,Support,Wsparcie
+Available,Available,Dostępne
+On its way,On its way,W drodze
+Waiting,Waiting,Oczekuje
+Arrived,Arrived,Dotarło
+Withdrawn,Withdrawn,Wycofane
+Supporting,Supporting,Wspiera
+Considering,Considering,Rozważa
+Uninvolved,Uninvolved,Nie angażuje się
+No such package,No such package,Nie ma takiego pakietu
+Not your package,Not your package,To nie twój pakiet
+Already requested,Already requested,Już zamówiono
+You have escalated too much for this,You have escalated too much for this,Zbyt mocno eskalowałeś
+Too close to the top of the ladder,Too close to the top of the ladder,Zbyt blisko szczytu drabiny
+Needs level %d or higher,Needs level %d or higher,Wymaga poziomu %d lub wyższego
+Only up to level %d,Only up to level %d,Tylko do poziomu %d
+%s requested %s,%s requested %s,%s zamawia: %s
+a free response is open,a free response is open,dostępna darmowa odpowiedź
+%s requested – arrives in %d turns,%s requested – arrives in %d turns,%s zamówiono – dotrze za %d tur
+%s has arrived (%d formations),%s has arrived (%d formations),%s dotarło (%d oddziałów)
+%s is waiting – %s closed,%s is waiting – %s closed,%s czeka – %s zamknięte
+%s withdrawn: %s,%s withdrawn: %s,%s wycofano: %s
+the map edge,the map edge,skraj mapy
+waiting – %s closed,waiting – %s closed,czeka – %s zamknięte
+next turn,next turn,w następnej turze
+in %d turns,in %d turns,za %d tur
+arrived,arrived,dotarło
+%d formations: %s,%d formations: %s,%d oddziałów: %s
+1 formation: %s,1 formation: %s,1 oddział: %s
+Enters at %s,Enters at %s,Wchodzi przez: %s
+Arrives at once,Arrives at once,Dociera natychmiast
+Arrives %d turns after the request,Arrives %d turns after the request,Dociera %d tur po zamówieniu
+Level %d – %d (%s – %s),Level %d – %d (%s – %s),Poziom %d – %d (%s – %s)
+Free answer to the other bloc's request,Free answer to the other bloc's request,Darmowa odpowiedź na zamówienie drugiego bloku
+You caused at most %d levels,You caused at most %d levels,Spowodowałeś najwyżej %d poziomów
+Entering %s gives the other side a casus belli,Entering %s gives the other side a casus belli,Wejście przez %s daje drugiej stronie casus belli
+Withdrawn if the conditions lapse on the way,Withdrawn if the conditions lapse on the way,"Wycofane, jeśli warunki ustaną w drodze"
+Free answer,Free answer,Darmowa odpowiedź
+arrives in %d turns,arrives in %d turns,dotrze za %d tur
+arrives at once,arrives at once,dotrze natychmiast
+Request %s? It %s.,Request %s? It %s.,Zamówić: %s? Pakiet %s.
+Request %s? Level %d → %d (%s); it %s.,Request %s? Level %d → %d (%s); it %s.,Zamówić: %s? Poziom %d → %d (%s); pakiet %s.
+No supporter can help this side.,No supporter can help this side.,Żaden sojusznik nie może pomóc tej stronie.
+Requests of the other bloc,Requests of the other bloc,Zamówienia drugiego bloku
+The other bloc has requested no support.,The other bloc has requested no support.,Drugi blok nie zamówił wsparcia.
+Allied reinforcements,Allied reinforcements,Wzmocnienia sojusznicze
+North Korean expeditionary force,North Korean expeditionary force,Korpus ekspedycyjny Korei Północnej
+NATO allies,NATO allies,Sojusznicy NATO
+North Korea,North Korea,Korea Północna
+China,China,Chiny
+Iran,Iran,Iran

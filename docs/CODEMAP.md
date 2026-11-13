@@ -76,6 +76,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
 - `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
 - `StrikeMeansDefinition` – A means of deep strike (TASK-097a, TASK-141a, GDD "Deep strikes"): one real named weapon (`strike_means_definition.gd`)
+- `SupportPackage` – One package of outside support (TASK-121, GDD "Outside support"), a sub-resource of (`support_package.gd`)
+- `SupporterDefinition` – An off-map supporter (TASK-121, GDD "Outside support"): a third party that can send help… (`supporter_definition.gd`)
 - `TacticalChunk` – One square of a TacticalLayer (TASK-094b, ADR 0018 "Tactical layer"): data/maps/<layer>/ (`tactical_chunk.gd`)
 - `TacticalLayer` – The tactical (250 m hex) terrain of a whole theatre, imported once and cut on demand for a (`tactical_layer.gd`)
 - `TerrainDefinition` – Static data for a terrain type. Instances are kept as .tres files in data/terrain/. (`terrain_definition.gd`)
@@ -121,12 +123,15 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `PoliticalDecisionCommand` – Base of the five political decisions (TASK-117, GDD "Political decisions"): the issuer is… (`political_decision_command.gd`)
 - `PoliticalLog` – Short deterministic history of political changes (TASK-119a): stance, level, decisions, (`political_log.gd`)
 - `Reinforcements` – Puts new formations on the staff map (TASK-118; TASK-121 reuses it for off-map support).… (`reinforcements.gd`)
+- `RequestSupportCommand` – Political decision *Request support* (TASK-121, GDD "Outside support"): asks a supporter… (`request_support_command.gd`)
 - `ResolveBattleCommand` – Closes the first pending contact battle with its result (TASK-094a): removes it from the (`resolve_battle_command.gd`)
 - `SetPostureCommand` – Changes the posture of a formation of the current player (TASK-092d). A standing order is… (`set_posture_command.gd`)
 - `StandDownCommand` – Political decision *Stand down* (TASK-117): lowers the level by one and bars the player f… (`stand_down_command.gd`)
 - `StrikeCommand` – A deep strike by the current player (TASK-097a, GDD "Deep strikes"): a salvo of one means… (`strike_command.gd`)
 - `StrikeLaunch` – Where a deep strike is launched from (TASK-147, GDD "Deep strikes"): the hex of the launc… (`strike_launch.gd`)
 - `StrikeRules` – Pure deep-strike rules of the operational layer (TASK-097a, GDD "Deep strikes"): the stoc… (`strike_rules.gd`)
+- `SupportRules` – Pure rules of outside support (TASK-121, GDD "Outside support"): when a package can be (`support_rules.gd`)
+- `SupportState` – Dynamic state of one support package in an operation (TASK-121). Changed only by (`support_state.gd`)
 
 ## src/presentation/audio/
 
@@ -342,6 +347,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapTerrain` – The staff map's terrain from real geography (TASK-126, ADR 0018 "Graphic layers"): the ma… (`staff_map_terrain.gd`)
 - `StaffMapTurnBar` – Turn bar of the staff map (TASK-093b, look: docs/design/operational_map "Turn bar" – the… (`staff_map_turn_bar.gd`)
 - `StaffMapTurnMarks` – View-model of what happened when a side ended its move (TASK-092e), built from the operat… (`staff_map_turn_marks.gd`)
+- `StaffMapSupportGhosts` – Ghost counters of outside support on its way (TASK-121): a dashed hexagon in the side col… (`staff_map_support_ghosts.gd`)
+- `StaffMapSupportModel` – Pure view-model of outside support on the staff map (TASK-121, GDD "Outside support"): the (`staff_map_support_model.gd`)
 - `StaffMapTurnReport` – Turn report of the staff map (TASK-092e), HUD v3 panel like the formation panel: one row… (`staff_map_turn_report.gd`)
 - `StaffMapView` – The map of the staff map scene (TASK-093a, restyled 2.5D in TASK-125): one displaced grou… (`staff_map_view.gd`)
 - `StaffMapWeaponCard` – The detail card of the strike panel (TASK-141b, strike_panel.html variant A): a 388 x 140 (`staff_map_weapon_card.gd`)

@@ -53,6 +53,8 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var gap_closed_points: int = 10
 ## Points lost per net escalation step caused (max(0, caused - deescalated)).
 @export var escalation_penalty: int = 3
+## Packages of outside support, in setup order (TASK-121).
+@export var support_packages: Array[SupportPackage] = []
 ## Start formations; their order is the order in which orders execute.
 @export var formations: Array[FormationPlacement] = []
 

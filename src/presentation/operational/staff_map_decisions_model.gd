@@ -36,6 +36,7 @@ const TITLES := {
 	INVOKE: "Invoke alliance",
 	DEMAND: "Demand neutrality",
 	NUCLEAR: "Use nuclear weapon",
+	&"request_support": "Request support",
 }
 const NO_TARGET_EFFECTS := {
 	ESCALATE: "",
@@ -102,6 +103,8 @@ static func command(id: StringName, country: StringName = &"") -> PoliticalDecis
 			return DemandNeutralityCommand.new(country)
 		NUCLEAR:
 			return NuclearStrikeCommand.new()
+		StaffMapSupportModel.DECISION:  # `country` is the package id (TASK-121)
+			return RequestSupportCommand.new(country)
 	return null
 
 

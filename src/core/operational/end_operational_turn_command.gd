@@ -47,6 +47,8 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 			}
 		)
 	)
+	if state.result.is_empty():
+		events.append_array(SupportRules.deliver(state))
 	return events
 
 
