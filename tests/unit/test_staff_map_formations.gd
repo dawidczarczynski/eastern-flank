@@ -181,6 +181,8 @@ func test_scene_has_one_counter_per_formation() -> void:
 func test_scene_selecting_fills_the_panel() -> void:
 	var panel := _map.formation_panel()
 	_map.select_formation(&"pl_mech_1")
+	assert_false(panel.visible, "a selection no longer opens the panel (TASK-151)")
+	assert_true(_map.open_info(&"pl_mech_1"))
 	assert_true(panel.visible)
 	assert_eq(_map.selected_formation(), &"pl_mech_1")
 	assert_true(_map.counters().counter(&"pl_mech_1").selected)
@@ -192,9 +194,12 @@ func test_scene_selecting_fills_the_panel() -> void:
 	assert_true(panel.company_text(3).contains("pl_mech_1/4"), panel.company_text(3))
 	assert_true(panel.company_text(3).contains("Abrams"), panel.company_text(3))
 	_map.select_formation(&"ru_mr_1")
+	assert_true(panel.visible, "the open panel follows the selection")
 	assert_true(panel.hostile, "enemy formations are marked hostile")
 	assert_eq(panel.value_text("STRENGTH"), "38 / 38")
 	_map.select_formation(&"")
+	assert_true(panel.visible, "deselecting alone keeps it open")
+	assert_true(_map.close_info())
 	assert_false(panel.visible)
 	assert_false(_map.counters().counter(&"pl_mech_1").selected)
 
@@ -204,9 +209,10 @@ func test_scene_click_picks_a_counter_and_empty_map_deselects() -> void:
 	var id: StringName = shown[0]
 	_map.click_at(_map.counter_screen_position(id))
 	assert_eq(_map.selected_formation(), id)
+	_map.open_info(id)
 	_map.click_at(Vector2(-1000, -1000))
 	assert_eq(_map.selected_formation(), &"")
-	assert_false(_map.formation_panel().visible)
+	assert_false(_map.formation_panel().visible, "a click on the bare map closes the panel")
 
 
 func test_scene_viewer_swap() -> void:

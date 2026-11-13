@@ -361,7 +361,10 @@ func _fail(message: String, exit_code: int) -> void:
 ## selected formation to that hex, TASK-092c), posture:<1-3> (posture of the selected formation,
 ## TASK-092d) and order:<formation id>:<col>:<row>:<1-3> (gives that formation an order in that
 ## posture; view as the side to play), ring:<col>:<row>[:<slot 1-6>] (the order ring of the
-## selected formation on that hex, optionally with a slot hovered; needs select:), e.g.
+## selected formation on that hex, optionally with a slot hovered; needs select:),
+## info (the full formation panel of the select: formation), pick:<1-3> (key 1-3: arms that
+## posture), unit[:<formation id>] (the unit strip in the bottom bar slot: the formation named,
+## else the selected one), e.g.
 ## nohud (hides the whole HUD, the map and counters stay: the main menu backdrop),
 ## cover (the air defence cover overlay), suppress:<installation id>[:<rounds>] (silences a site),
 ## country:<id> (the country card, TASK-114), options (the map options window),
@@ -476,6 +479,10 @@ func _apply_staff_map_state(spec: String) -> void:
 	var show_hover := false
 	var select_id := &""
 	var hover_counter := &""
+	var show_info := false
+	var pick_number := 0
+	var unit_strip_id := &""
+	var show_unit_strip := false
 	var route_hex := Vector2i(-1, -1)
 	var show_route := false
 	var route_posture := 0
@@ -611,6 +618,13 @@ func _apply_staff_map_state(spec: String) -> void:
 				select_id = StringName(parts[1]) if parts.size() > 1 else &""
 			"hovercounter":
 				hover_counter = StringName(parts[1]) if parts.size() > 1 else &""
+			"info":
+				show_info = true
+			"pick":
+				pick_number = parts[1].to_int() if parts.size() > 1 else 1
+			"unit":
+				show_unit_strip = true
+				unit_strip_id = StringName(parts[1]) if parts.size() > 1 else &""
 			"nohud":
 				no_hud = true
 			"pitch":
@@ -683,6 +697,13 @@ func _apply_staff_map_state(spec: String) -> void:
 		print("Contact map: ", " | ".join(debug.preview().lines()))
 	if hover_counter != &"" and map.counters() != null:
 		map.counters().set_hovered(hover_counter)
+	if show_info and select_id != &"":
+		map.open_info(select_id)
+		map.formation_panel().modulate.a = 1.0  # the fade-in tween does not run (processing stops)
+	if pick_number > 0:
+		map.pick_posture_number(pick_number)
+	if show_unit_strip:  # the unit strip in the bottom bar slot (TASK-151)
+		map.debug_unit_strip(unit_strip_id)
 	if no_hud:  # the counters, front and map stay: a backdrop (tools/menu_backdrop.sh)
 		(map.get("_hud") as CanvasLayer).visible = false
 	map.process_mode = Node.PROCESS_MODE_DISABLED

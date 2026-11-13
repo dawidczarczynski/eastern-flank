@@ -2,12 +2,15 @@ class_name StaffMapOrderRing
 extends RefCounted
 ## Order ring of the staff map: the battle unit ring (RadialRing + RingDetailCard, as in
 ## TargetRingController) opened on a hex by a right click with an own formation selected. Slots
-## and cards come from StaffMapOrderRingModel; choosing a slot builds IssueOrderCommand /
-## CancelOrderCommand and hands it to `execute` (the staff map's simulation). The ring follows the
+## and cards come from StaffMapOrderRingModel (slot 5 INFO opens the full panel, TASK-151);
+## choosing a slot builds IssueOrderCommand / CancelOrderCommand and hands it to `execute` (the
+## staff map's simulation). The ring follows the
 ## hex through pan / zoom / tilt (`follow`) and stays on screen. Keys 1-4 pick a slot, Esc closes.
 
 ## A slot was accepted by the simulation: `action` is a posture id or &"cancel".
 signal ordered(action: StringName)
+## INFO was chosen (slot 5 / key I): open the full panel of that formation (TASK-151).
+signal info_requested(formation_id: StringName)
 signal closed
 
 var _ring: RadialRing
@@ -53,6 +56,11 @@ func is_open() -> bool:
 	return not _model.is_empty()
 
 
+## True for a ring opened on a counter (only CANCEL ORDER and INFO), false for a hex ring.
+func is_on_counter() -> bool:
+	return is_open() and _model.get("on_counter", false)
+
+
 func hex() -> Vector2i:
 	return _model["hex"] if is_open() else StaffMapRoutePreview.OFF
 
@@ -82,11 +90,18 @@ func hovered_posture() -> StringName:
 	return _model["slots"][slot]["action"]
 
 
-## Opens the ring on `hex` for `formation`; the colour is the acting side's.
+## Opens the ring on `hex` for `formation`; the colour is the acting side's. `info_id` = the
+## formation INFO is about when it is not `formation` (the hostile counter the ring was opened on).
 func open(
-	state: OperationalState, formation: Formation, hex_coord: Vector2i, accent: Color
+	state: OperationalState,
+	formation: Formation,
+	hex_coord: Vector2i,
+	accent: Color,
+	on_counter := false,
+	info_id := &""
 ) -> void:
-	_model = StaffMapOrderRingModel.build(state, formation, hex_coord)
+	_model = StaffMapOrderRingModel.build(state, formation, hex_coord, on_counter)
+	_model["info_id"] = info_id  # &"" = INFO is about the ordered formation itself
 	_accent = accent
 	var slots: Array[Dictionary] = []
 	slots.assign(_model["slots"])
@@ -110,12 +125,15 @@ func close() -> void:
 	closed.emit()
 
 
-## Keys while the ring is open: Esc closes, 1-6 pick a slot. Returns true when used.
+## Keys while the ring is open: Esc closes, I = INFO, 1-6 pick a slot. Returns true when used.
 func handle_key(keycode: Key) -> bool:
 	if not is_open():
 		return false
 	if keycode == KEY_ESCAPE:
 		close()
+		return true
+	if keycode == KEY_I:
+		activate(StaffMapOrderRingModel.SLOT_INFO)
 		return true
 	var slot: int = keycode - KEY_1
 	if keycode >= KEY_KP_1:
@@ -139,6 +157,13 @@ func activate(slot: int) -> void:
 		_refresh_card()
 		return
 	var action: StringName = data["action"]
+	if action == StaffMapOrderRingModel.INFO:
+		var id: StringName = _model["formation_id"]
+		if _model.get("info_id", &"") != &"":
+			id = _model["info_id"]
+		close()
+		info_requested.emit(id)
+		return
 	var command: OperationalCommand
 	if action == StaffMapOrderRingModel.CANCEL:
 		command = CancelOrderCommand.new(_model["formation_id"])

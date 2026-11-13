@@ -260,7 +260,7 @@ func test_ring_on_an_enemy_hex_enables_only_attack() -> void:
 	var formation := _own()
 	var enemy := _enemy()
 	_map.select_formation(formation.id)
-	_map.right_click_at(_map.hex_screen_position(enemy.coord))
+	_map.open_order_ring(enemy.coord)
 	assert_true(_map.order_ring().is_open())
 	assert_false(_slot(0)["enabled"])
 	assert_eq(_slot(0)["reason"], "Only the Attack posture can target an enemy formation.")
@@ -277,7 +277,7 @@ func test_ring_on_an_enemy_hex_enables_only_attack() -> void:
 func test_ring_on_an_own_hex_refuses_everything() -> void:
 	var formation := _own()
 	_map.select_formation(formation.id)
-	_map.right_click_at(_map.hex_screen_position(formation.coord))
+	_map.open_order_ring(formation.coord)
 	for i in 3:
 		assert_false(_slot(i)["enabled"])
 		assert_true(_slot(i)["reason"] != "")
@@ -412,3 +412,125 @@ func test_enemy_orders_stay_hidden() -> void:
 		_map.counters().counter(enemy.id).is_own(), "the mark is drawn for own counters only"
 	)
 	assert_false(_map.formation_panel().order_visible())
+
+
+func test_ring_has_the_info_slot_on_a_hex() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	assert_eq(_slot(4)["action"], StaffMapOrderRingModel.INFO)
+	assert_eq(_slot(4)["key"], 5)
+	assert_true(_slot(4)["enabled"])
+	assert_false(_slot(4)["empty"])
+	assert_true(_slot(5)["empty"])
+	assert_false(_map.order_ring().is_on_counter())
+
+
+func test_info_slot_opens_the_panel_without_a_command() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	var history := _map.simulation().history.size()
+	_key(KEY_5)
+	assert_false(_map.order_ring().is_open())
+	assert_true(_map.formation_panel().visible)
+	assert_eq(_map.formation_panel().formation_id, formation.id)
+	assert_eq(_map.simulation().history.size(), history)
+	_map.close_info()
+
+
+func test_key_i_picks_info_in_an_open_ring() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map.right_click_at(_map.hex_screen_position(_far_hex(formation)))
+	_key(KEY_I)
+	assert_true(_map.formation_panel().visible)
+	_map.close_info()
+
+
+func test_right_click_on_an_own_counter_opens_the_info_ring() -> void:
+	var formation := _own()
+	var ring := _map.order_ring()
+	assert_true(_map.right_click_at(_map.counter_screen_position(formation.id)))
+	assert_true(ring.is_open())
+	assert_true(ring.is_on_counter())
+	assert_eq(_map.selected_formation(), formation.id)
+	for i in 4:
+		assert_true(_slot(i)["empty"], "no postures on the counter itself")
+	assert_false(_slot(4)["empty"])
+	ring.activate(4)
+	assert_true(_map.formation_panel().visible)
+	_map.close_info()
+
+
+func test_right_click_on_a_hostile_counter_opens_the_panel_directly() -> void:
+	var enemy := _enemy()
+	assert_false(_map.right_click_at(_map.counter_screen_position(enemy.id)))
+	assert_false(_map.order_ring().is_open())
+	assert_true(_map.formation_panel().visible)
+	assert_eq(_map.formation_panel().formation_id, enemy.id)
+	assert_true(_map.formation_panel().hostile)
+	_map.close_info()
+
+
+func test_key_i_toggles_the_panel_and_esc_closes_it_first() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	assert_false(_map.formation_panel().visible)
+	_key(KEY_I)
+	assert_true(_map.formation_panel().visible)
+	_key(KEY_ESCAPE)
+	assert_false(_map.formation_panel().visible)
+	assert_eq(_map.selected_formation(), formation.id, "Esc closed the panel only")
+	_key(KEY_I)
+	_key(KEY_I)
+	assert_false(_map.formation_panel().visible)
+
+
+func test_the_open_panel_follows_a_click_on_another_counter() -> void:
+	var formation := _own()
+	var other: Formation = null
+	for f in _map.simulation().state.formations:
+		if f != formation and f.owner_id == formation.owner_id:
+			other = f
+			break
+	_map.select_formation(formation.id)
+	_map.open_info(formation.id)
+	_map.select_formation(other.id)
+	assert_true(_map.formation_panel().visible, "stays open")
+	assert_eq(_map.formation_panel().formation_id, other.id, "and switches")
+	_map.close_info()
+
+
+func test_a_posture_key_arms_the_next_click() -> void:
+	var formation := _own()
+	var target := _far_hex(formation)
+	_map.select_formation(formation.id)
+	assert_false(_map.is_picking())
+	_key(KEY_2)
+	assert_true(_map.is_picking())
+	_key(KEY_ESCAPE)
+	assert_false(_map.is_picking())
+	assert_eq(_map.selected_formation(), formation.id, "Esc dropped the pick only")
+	_key(KEY_2)
+	_map.click_at(_map.hex_screen_position(target))
+	assert_eq(formation.posture, &"advance", "the click ordered in the picked posture")
+	assert_eq(formation.order.destination, target)
+	assert_false(_map.is_picking())
+	formation.order = null
+
+
+func test_right_click_on_an_enemy_counter_with_own_selected_opens_the_order_ring() -> void:
+	var formation := _own()
+	var enemy := _enemy()
+	_map.select_formation(formation.id)
+	assert_true(_map.right_click_at(_map.counter_screen_position(enemy.id)))
+	var ring := _map.order_ring()
+	assert_true(ring.is_open())
+	assert_eq(ring.hex(), enemy.coord)
+	assert_false(ring.is_on_counter())
+	assert_true(_slot(1)["enabled"], "ATTACK is offered")
+	var asked: Array[StringName] = []
+	ring.info_requested.connect(func(id: StringName) -> void: asked.append(id))
+	ring.activate(StaffMapOrderRingModel.SLOT_INFO)
+	assert_eq(asked, [enemy.id] as Array[StringName], "INFO is about the hostile counter")

@@ -618,7 +618,17 @@ Pointing at a counter brightens it; the hex card keeps working underneath.
 
 Strength is the sum of the companies' hit points – the same units that fight when a battle starts.
 
-**Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel. The panel has an **✕** in its corner that does the same.
+**Formation panel.** The full panel shows the name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). Of a hostile formation it shows only what you know: estimated figures marked **EST.** and **?** for the rest. Selecting a counter no longer opens it; see **Unit info** below for how to open it. While open it follows the selection, so clicking another counter switches it. **Tab** jumps to your next formation (the camera moves to it if it is off screen). **✕**, **Esc**, **I** or a click on empty map closes the panel.
+
+**Unit info.** Information about a formation appears in the left part of the bottom bar, the place where the hex under the cursor is described, in the same look: a tab "FORMATION · OWN" (or "HOSTILE" in the enemy colour), the formation name (long names are abbreviated, e.g. BN, MECH, or BAON, ZMECH in Polish) and the columns STRENGTH (five bars and "30 / 40"), POSTURE and ORDER (a destination, or "NO ORDER"). Of a hostile formation you see only what you know: **EST.** for the strength and **?** for posture and order. What the slot shows: the counter under the cursor; else the hex under the cursor (as before); else your selected formation. Nothing is drawn over the map, so nothing covers a counter or a route.
+
+| Action | Control |
+|---|---|
+| Arm a posture for the next map click | **1** March, **2** Attack, **3** Defend (with one of your formations selected). The next left click on a hex gives that order; the POSTURE column of the bottom bar shows the armed posture in amber and the route preview uses it. **Esc** or the same key again cancels the pick |
+| Open the order ring on your own counter | Right click it. Slot **5 INFO** (key **5** or **I**) opens the full formation panel; while the formation has an order the ring also offers CANCEL ORDER |
+| Order an attack from the menu / see an enemy | With your formation selected, right click the enemy counter: the order ring opens on its hex (2 ATTACK; **5 INFO** opens that enemy's panel). With nothing selected the right click opens its full panel directly |
+| Open the order ring on a bare hex | Right click the hex; it also has **5 INFO** |
+| Close the full panel | **✕**, **Esc**, **I**, or a click on the bare map |
 
 **Docked windows.** The map options, the country card, strike reports and the formation panel share one frame: a tab, an ✕ in the corner, the same dark plate. Left-edge windows come one at a time (opening one closes the other); the formation panel docks on the side opposite the selected counter (on the right when the left edge is taken, then the map eases the unit clear of it), and the map never lets the top and bottom bars hide a unit: you can always pan it fully into view. A click on the map, **Esc** or the ✕ closes them, and the bottom-bar button that opened a window stays lit while it is open.
 
@@ -639,7 +649,7 @@ With one of your formations selected, point at a hex to see how it would get the
 | 3 DEFEND | go there in the defensive posture, around enemy zones |
 | 4 CANCEL ORDER | only while the formation has an order: drop it |
 
-Hovering a segment shows a card with what the posture does, the route cost, the points per turn, the number of turns and how the route ends (arrived / contact / no progress), and the route preview on the map switches to that posture. Click a segment or press **1-4** to give the order; **Esc**, a click elsewhere or another right click closes the ring. On an enemy-held hex only ATTACK is available; a segment that cannot be used is dimmed and its card says why (UNAVAILABLE and the reason). A short message confirms "Order given", or says why the order was refused:
+Hovering a segment shows a card with what the posture does, the route cost, the points per turn, the number of turns and how the route ends (arrived / contact / no progress), and the route preview on the map switches to that posture. Click a segment or press **1-4** to give the order (**5** shows the info); **Esc**, a click elsewhere or another right click closes the ring. On an enemy-held hex only ATTACK is available; a segment that cannot be used is dimmed and its card says why (UNAVAILABLE and the reason). A short message confirms "Order given", or says why the order was refused:
 
 - a contact battle has to be fought first;
 - not your formation;
@@ -649,10 +659,11 @@ Hovering a segment shows a card with what the posture does, the route cost, the 
 - no route in this posture (for example, the way is blocked by enemy zones of control while marching);
 - already in this posture (when you pick the posture it already has);
 - the country is closed to you (neutral or hostile; see **Borders and movement** under Politics).
+| 5 INFO | open the full formation panel (key **5** or **I**) |
 
 **Attacking.** Select your formation and **left click** the enemy counter (or its hex), or right click the enemy hex and choose 2 ATTACK. The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped.
 
-**Postures.** The formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** (the posture of the last order you gave it) and **POINTS**. The posture comes with the order: choose it in the order ring. The points are what the formation can spend in one turn (for a formation with 8 move points):
+**Postures.** The full formation panel of your own formations (not the enemy's) has two extra rows, **POSTURE** (the posture of the last order you gave it) and **POINTS**. The posture comes with the order: choose it in the order ring. The points are what the formation can spend in one turn (for a formation with 8 move points):
 
 | Key | Posture | Points | Enemy zone of control |
 |---|---|---|---|

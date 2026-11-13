@@ -3,7 +3,9 @@ extends RefCounted
 ## Pure model of the order ring of the staff map: a right click on a hex with an own formation
 ## selected opens the HUD v3 radial ring (RadialRing, same component as the battle unit ring) on
 ## that hex with 1 MARCH, 2 ATTACK, 3 DEFEND and 4 CANCEL ORDER (only while the formation has an
-## order); the other slots stay empty. Whether an order is possible and why not come from the
+## order) and 5 INFO (always: it opens the full formation panel); the other slots stay empty.
+## A ring opened on the counter itself (`on_counter`) has no posture slots, only CANCEL ORDER
+## and INFO. Whether an order is possible and why not come from the
 ## validate() of IssueOrderCommand / CancelOrderCommand, the numbers on the card from
 ## StaffMapRoute.preview_in_posture – no rules here. Texts are translated here (presentation).
 ##
@@ -12,14 +14,22 @@ extends RefCounted
 ## RingDetailCard dictionaries. The `action` of a slot is a posture id or &"cancel".
 
 const SLOT_CANCEL := 3
+const SLOT_INFO := 4  # key 5 (TASK-151): opens the full formation panel
 const CANCEL := &"cancel"
+const INFO := &"info"
 
 
 ## The ring on `hex` for `formation` in `state`.
-static func build(state: OperationalState, formation: Formation, hex: Vector2i) -> Dictionary:
+static func build(
+	state: OperationalState, formation: Formation, hex: Vector2i, on_counter := false
+) -> Dictionary:
 	var slots: Array[Dictionary] = []
 	var details: Array[Dictionary] = []
 	for i in OperationalPosture.NAMES.size():
+		if on_counter:
+			slots.append(_empty_slot(i))
+			details.append({})
+			continue
 		var posture := OperationalPosture.NAMES[i]
 		var reason := reason_text(IssueOrderCommand.new(formation.id, hex, posture).validate(state))
 		slots.append(_slot(i, posture, [_name_key(posture)], _icon(posture), reason))
@@ -30,6 +40,11 @@ static func build(state: OperationalState, formation: Formation, hex: Vector2i) 
 			_slot(SLOT_CANCEL, CANCEL, ["ORDER_RING_CANCEL", "ORDER_RING_ORDER"], CANCEL, reason)
 		)
 		details.append(_cancel_detail(reason))
+	else:
+		slots.append(_empty_slot(SLOT_CANCEL))
+		details.append({})
+	slots.append(_slot(SLOT_INFO, INFO, ["ORDER_RING_INFO"], INFO, ""))
+	details.append(_info_detail())
 	for i in range(slots.size(), RadialRingGeometry.SLOT_COUNT):
 		slots.append(_empty_slot(i))
 		details.append({})
@@ -38,6 +53,7 @@ static func build(state: OperationalState, formation: Formation, hex: Vector2i) 
 		"hex": hex,
 		"slots": slots,
 		"details": details,
+		"on_counter": on_counter,
 		"summary": _summary(formation, hex),
 	}
 
@@ -152,6 +168,14 @@ static func _cancel_detail(reason: String) -> Dictionary:
 		detail["footer_label"] = "UNAVAILABLE"
 		detail["footer_value"] = reason
 	return detail
+
+
+static func _info_detail() -> Dictionary:
+	return _detail(
+		SLOT_INFO + 1,
+		TranslationServer.translate("ORDER_RING_INFO_TITLE"),
+		TranslationServer.translate("ORDER_RING_INFO_HINT")
+	)
 
 
 ## The card with nothing hovered: the formation's name and posture.

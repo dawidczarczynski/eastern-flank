@@ -82,12 +82,15 @@ func test_one_docked_window_at_a_time_on_the_left() -> void:
 	_map.country_card().hide()
 
 
-func test_x_on_the_formation_panel_deselects() -> void:
+func test_x_on_the_formation_panel_closes_it() -> void:
 	var own := _map.simulation().state.formations[0]
 	_map.select_formation(own.id)
 	var panel := _map.formation_panel()
+	assert_false(panel.visible)
+	_map.open_info(own.id)
 	assert_true(panel.visible)
 	assert_eq(panel.position.y, StaffMapWindow.TOP)
 	panel.close_button().pressed.emit()
 	assert_false(panel.visible)
-	assert_eq(_map.selected_formation(), &"")
+	assert_eq(_map.selected_formation(), own.id, "the selection stays")
+	_map.select_formation(&"")

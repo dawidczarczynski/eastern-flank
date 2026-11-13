@@ -276,3 +276,21 @@ static func add_generic_strike_means(state: OperationalState) -> void:
 	state.strike_means.merge(generic_strike_means(), true)
 	state.strike_stock[0].merge({&"cruise": 8, &"ballistic": 4, &"strike_drone": 6}, true)
 	state.strike_stock[1].merge({&"cruise": 8, &"ballistic": 6, &"strike_drone": 16}, true)
+
+
+## A bare formation (no definition data) of `owner` on `coord` with one company of `strength` /
+## `max_strength` (TASK-151 unit card tests).
+static func formation(
+	id: StringName, owner: int, coord := Vector2i.ZERO, strength := 40, max_strength := 40
+) -> Formation:
+	var f := Formation.new()
+	f.id = id
+	f.display_name = "2nd Light Infantry Battalion"
+	f.parent = "1st Division"
+	f.owner_id = owner
+	f.coord = coord
+	f.definition = FormationDefinition.new()
+	var company := Formation.Company.new(&"infantry", max_strength, "%s/1" % id)
+	company.strength = strength
+	f.companies.append(company)
+	return f

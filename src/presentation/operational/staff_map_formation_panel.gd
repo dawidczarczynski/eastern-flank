@@ -5,7 +5,8 @@ extends StaffMapWindow
 ## location and the companies (ref, unit type, strength). Hostile formations are fully shown
 ## (fog is TASK-100) but marked HOSTILE in the tab and the side row. Own formations also
 ## show posture, points and order (TASK-092d). Stops the mouse, so a click on it never reaches a
-## counter under it.
+## counter under it. Opened on demand only (RMB on a counter, ring slot INFO, key I; TASK-151),
+## closed by its X, Esc, I or a click on the bare map; the X emits `close_requested`.
 
 const WIDTH := 300
 const ROW_SIZE := 12
@@ -95,6 +96,16 @@ func _init() -> void:
 func show_formation(
 	state: OperationalState, formation: Formation, viewer_player: int, palette: StaffMapPalette
 ) -> void:
+	fill_formation(state, formation, viewer_player, palette)
+	show()
+	reset_size()
+
+
+## Fills the panel without showing it: since TASK-151 the panel opens on demand only, but keeps
+## the content of the selected formation ready.
+func fill_formation(
+	state: OperationalState, formation: Formation, viewer_player: int, palette: StaffMapPalette
+) -> void:
 	_palette = palette
 	formation_id = formation.id
 	hostile = (
@@ -128,7 +139,6 @@ func show_formation(
 	_values["Location"].text = _place_text(formation.coord, true)
 	_companies_caption.text = tr("COMPANIES").to_upper()
 	_fill_companies(formation)
-	show()
 	reset_size()
 
 

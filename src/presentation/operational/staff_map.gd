@@ -122,6 +122,8 @@ var _route_marks: StaffMapRouteMarks
 var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
 var _order_ring: StaffMapOrderRing
+var _unit_strip: StaffMapUnitStrip  # a formation in the hex strip's slot (TASK-151)
+var _pick_posture: StringName = &""  # key 1-3: the posture the next click on the map orders
 var _toast: Toast
 var _border_prompt: StaffMapBorderPrompt
 var _join_notice: StaffMapJoinNotice
@@ -241,6 +243,7 @@ func _process(delta: float) -> void:
 	if not modal:
 		_pan_by_keys_and_edge(delta)
 		_update_hover()
+	_sync_unit_strip(modal)
 	_sync_action_bar()
 	_sync_insets()
 	_tick_journal(delta)
@@ -286,6 +289,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					or _close_journal_key()
 					or _politics.close_card()
 					or _decisions.close()
+					or close_info()
+					or _cancel_pick()
 				):
 					return
 				if selected_formation() != &"":
@@ -329,6 +334,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				open_country_card(_card_hex_country())
 			KEY_V:
 				toggle_flat_view()
+			KEY_I:
+				toggle_info()
+			KEY_1, KEY_2, KEY_3:
+				_pick_posture_key(key.keycode - KEY_1 + 1)
 		return
 	if _modal_open():
 		_dragging = false  # the Politics screen idles the map: no wheel zoom, drag or click
@@ -375,6 +384,9 @@ func _build_action_bar() -> void:
 	_hud.remove_child(_card)
 	slot.add_child(_card)
 	_card.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hud.remove_child(_unit_strip)
+	slot.add_child(_unit_strip)
+	_unit_strip.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_bar.add_left(slot)
 	if _turn_bar != null:
 		_bar.add_right(_turn_bar.take_end_button())  # End turn: same place as in the battle
@@ -617,8 +629,7 @@ func refresh_texts() -> void:
 		_bar.refresh_texts()
 	_view.countries().refresh_names()
 	_refresh_turn_bar()
-	if _panel != null and _panel.visible:
-		select_formation(_panel.formation_id, true)
+	_refresh_selection_ui()
 
 
 func _card_info(c: Vector2i) -> Dictionary:
@@ -769,9 +780,10 @@ func selected_formation() -> StringName:
 	return _counters.selected() if _counters != null else &""
 
 
-## Selects a formation (counter brackets + panel); &"" deselects. `refill` refreshes the panel
-## even when the selection did not change (language switch, events); `ease_camera` false keeps
-## the camera where it is (view restore).
+## Selects a formation (counter brackets, brief card); &"" deselects. The formation panel is not
+## shown by a selection any more (TASK-151) but, while it is open, switches to the new selection.
+## `refill` refreshes the selection UI even when the selection did not change (language switch,
+## events); `ease_camera` false keeps the camera where it is (view restore).
 func select_formation(formation_id: StringName, refill := false, ease_camera := true) -> void:
 	if _counters == null:
 		return
@@ -782,24 +794,112 @@ func select_formation(formation_id: StringName, refill := false, ease_camera := 
 		return
 	_order_ring.close()
 	var new_selection := formation_id != _counters.selected()
-	var appears := not _panel.visible
+	if new_selection:
+		_clear_pick()
 	if _border_prompt != null and _border_prompt.pending().get("formation_id") != formation_id:
 		_border_prompt.take()
 	_counters.set_selected(formation_id)
 	if formation == null:
-		_panel.hide()
 		_route.set_formation(_simulation.state, &"")
 		return
-	_panel.show_formation(_simulation.state, formation, viewer_player, _palette)
 	var own := formation.owner_id == viewer_player
 	_route.set_formation(_simulation.state, formation_id if own else &"")
-	var origin := CountryDefinition.find(origin_country(formation_id))
+	if new_selection or not _panel.visible:
+		_fill_panel(formation)  # the panel follows the selection while it is open
+		if new_selection and _panel.visible:
+			_dock_panel_for(formation_id, false, ease_camera)
+	else:
+		_refresh_panel()
+		_place_panel()
+
+
+## Fills the formation panel (shown or not) from `formation`.
+func _fill_panel(formation: Formation) -> void:
+	_panel.fill_formation(_simulation.state, formation, viewer_player, _palette)
+	var origin := CountryDefinition.find(origin_country(formation.id))
 	_panel.show_origin(origin.display_name if origin != null else "")
 	_show_order_ui(formation)
-	if new_selection:
-		_dock_panel_for(formation_id, appears, ease_camera)
+
+
+## Refills the panel with the formation it shows (events, language, viewer swap).
+func _refresh_panel() -> void:
+	if _panel == null or _panel.formation_id == &"":
+		return
+	var formation := _simulation.state.get_formation(_panel.formation_id)
+	if formation == null:
+		close_info()
+		return
+	_fill_panel(formation)
+
+
+## Selection UI after a change of the state, the language or the viewer.
+func _refresh_selection_ui() -> void:
+	if _counters != null and selected_formation() != &"":
+		select_formation(selected_formation(), true)
 	else:
-		_place_panel()
+		_refresh_panel()
+
+
+## Opens the full formation panel for `formation_id` (own or hostile; the selection is not
+## changed): RMB on a hostile counter, ring slot INFO, key I. False for an unknown formation.
+func open_info(formation_id: StringName) -> bool:
+	var formation := _simulation.state.get_formation(formation_id)
+	if formation == null or _panel == null:
+		return false
+	var appears := not _panel.visible
+	_fill_panel(formation)
+	_panel.show()
+	_dock_panel_for(formation_id, appears, true)
+	return true
+
+
+## Closes the full panel; true when it was open.
+func close_info() -> bool:
+	if _panel == null or not _panel.visible:
+		return false
+	if _panel_fade != null:
+		_panel_fade.kill()
+	_panel.hide()
+	_panel.modulate.a = 1.0
+	_sync_insets()
+	return true
+
+
+## Key I: closes the panel, else opens it for the selected formation (or the hovered counter).
+func toggle_info() -> void:
+	if close_info():
+		return
+	var id := selected_formation()
+	if id == &"" and _counters != null:
+		id = _counters.hovered()
+	if id != &"":
+		open_info(id)
+
+
+## Keys 1-3 with an own formation selected: the next click on the map orders in that posture
+## (the same key or Esc drops it); the brief card shrinks to the chip meanwhile.
+func _pick_posture_key(number: int) -> void:
+	var formation := _selected_own()
+	if formation == null or not _can_order(formation.id):
+		return
+	var posture := StaffMapRoute.posture_for_key(number)
+	_pick_posture = &"" if posture == _pick_posture else posture
+	_route.set_posture(_pick_posture)
+
+
+func _clear_pick() -> void:
+	if _pick_posture == &"":
+		return
+	_pick_posture = &""
+	if _route != null:
+		_route.set_posture(&"")
+
+
+func _cancel_pick() -> bool:
+	if _pick_posture == &"":
+		return false
+	_clear_pick()
+	return true
 
 
 ## Posture / order rows of the panel: own formations only.
@@ -826,8 +926,7 @@ func set_viewer(player: int) -> void:
 	_refresh_orders()
 	_show_new_report()
 	_refresh_contacts()
-	if _panel.visible:
-		select_formation(_panel.formation_id, true)
+	_refresh_selection_ui()
 
 
 ## Place-based name of a hex ("Suwałki, 5 km east"), shared by the report and the contacts.
@@ -1266,8 +1365,7 @@ func _on_operational_event(event: Dictionary) -> void:
 	_route.invalidate()
 	_layout_counters()
 	_refresh_turn_bar()
-	if _panel.visible:
-		select_formation(_panel.formation_id, true)
+	_refresh_selection_ui()
 	if event.get("type") == &"operational_turn_started":
 		_begin_slide()
 		_show_new_report()
@@ -1875,9 +1973,11 @@ func _build_hud() -> void:
 	_hud.add_child(_card)
 	_installation_card = StaffMapInstallationCard.new()
 	_hud.add_child(_installation_card)
+	_unit_strip = StaffMapUnitStrip.new()
+	_hud.add_child(_unit_strip)
 	_panel = StaffMapFormationPanel.new()
 	_panel.place_namer = _place_name
-	_panel.close_requested.connect(func() -> void: select_formation(&""))
+	_panel.close_requested.connect(func() -> void: close_info())
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
 	_turn_bar.end_turn_pressed.connect(end_turn)
@@ -1890,9 +1990,10 @@ func _build_hud() -> void:
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
 	_order_ring = StaffMapOrderRing.new(
-		_hud, _execute, _screen_of_hex, _viewport_size, _can_order, _panel_rect, _clear_rect
+		_hud, _execute, _screen_of_hex, _viewport_size, _ring_valid, _panel_rect, _clear_rect
 	)
 	_order_ring.ordered.connect(_on_ring_ordered)
+	_order_ring.info_requested.connect(func(id: StringName) -> void: open_info(id))
 	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()
 	_hud.add_child(_toast)
@@ -2217,10 +2318,11 @@ func click_at(screen: Vector2) -> void:
 	var hit := _pick_counter(screen)
 	var target := _enemy_of_selected(hit)
 	if target != null:
-		if issue_order(target.coord):
+		if issue_order(target.coord, _pick_posture):
 			select_formation(&"")
 		return
 	if hit == &"":
+		close_info()  # a click on the bare map closes the full panel
 		var named := _politics.country_name_at(ground_at_screen(screen))
 		if named != &"":
 			open_country_card(named)
@@ -2229,30 +2331,75 @@ func click_at(screen: Vector2) -> void:
 	if hit == &"" and _selected_own() != null:
 		var hex := hex_at_screen(screen)
 		if _view.has_tile(hex):
-			if issue_order(hex):
+			if issue_order(hex, _pick_posture):
 				select_formation(&"")  # done with this one; the next click must not re-order it
 			return
 	select_formation(hit)
 
 
-## A right click on the map: with an own formation selected (and its side to play) opens the order
-## ring on the hex under `screen`; otherwise it only closes an open ring. Returns true when the
-## ring is open afterwards.
+## A right click on the map. On a counter (TASK-151): an own one is selected and gets the ring with
+## slot INFO only; a hostile one, with an own formation selected, gets the order ring on its hex
+## (ATTACK ..., INFO = the hostile's panel), else it opens the full panel directly. Elsewhere, with
+## an own formation selected (and its side to play), it opens the order ring on the hex under
+## `screen`; otherwise it only closes an open ring. Returns true when the ring is open afterwards.
 func right_click_at(screen: Vector2) -> bool:
 	if _counters == null:
 		return false
 	var was_open := _order_ring.is_open()
 	_order_ring.close()
+	var hit := _pick_counter(screen)
+	if hit != &"":
+		var enemy := _enemy_of_selected(hit)
+		if enemy == null or not _can_order(_selected_own().id):
+			return _right_click_counter(hit)
+		# An own formation is selected: the ring over the enemy counter (ATTACK ...), INFO = its.
+		var attacker := _selected_own()
+		_order_ring.open(
+			_simulation.state,
+			attacker,
+			enemy.coord,
+			StaffMapFormations.side_colour(_palette, viewer_player),
+			false,
+			enemy.id
+		)
+		return _order_ring.is_open()
 	var formation := _selected_own()
 	if formation == null or not _can_order(formation.id):
 		return false
 	var hex := hex_at_screen(screen)
 	if not _view.has_tile(hex):
 		return false
+	open_order_ring(hex)
+	return was_open or _order_ring.is_open()
+
+
+## Opens the order ring of the selected own formation on `hex`; false when it may not be ordered.
+func open_order_ring(hex: Vector2i) -> bool:
+	var formation := _selected_own()
+	if formation == null or not _can_order(formation.id) or not _view.has_tile(hex):
+		return false
 	_order_ring.open(
 		_simulation.state, formation, hex, StaffMapFormations.side_colour(_palette, viewer_player)
 	)
-	return was_open or _order_ring.is_open()
+	return _order_ring.is_open()
+
+
+func _right_click_counter(formation_id: StringName) -> bool:
+	var formation := _simulation.state.get_formation(formation_id)
+	if formation == null:
+		return false
+	if formation.owner_id != viewer_player:
+		open_info(formation_id)
+		return false
+	select_formation(formation_id)
+	_order_ring.open(
+		_simulation.state,
+		formation,
+		formation.coord,
+		StaffMapFormations.side_colour(_palette, viewer_player),
+		true
+	)
+	return _order_ring.is_open()
 
 
 ## The enemy formation behind counter `hit` when an own formation is selected; null otherwise.
@@ -2273,6 +2420,19 @@ func _can_order(formation_id: StringName) -> bool:
 		and formation.owner_id == viewer_player
 		and formation.owner_id == _simulation.state.current_player
 	)
+
+
+## The ring may stay open: a hex ring while its formation may be ordered, a counter ring (INFO)
+## while its own formation is selected.
+func _ring_valid(formation_id: StringName) -> bool:
+	if _order_ring.is_on_counter():
+		var formation := _simulation.state.get_formation(formation_id)
+		return (
+			formation != null
+			and formation.owner_id == viewer_player
+			and formation_id == selected_formation()
+		)
+	return _can_order(formation_id)
 
 
 func _on_ring_ordered(action: StringName) -> void:
@@ -2314,7 +2474,10 @@ func _update_hover() -> void:
 		return
 	_installation_card.hide()
 	_route.set_hex(c)
-	if c != _view.hovered() or not _card.visible:
+	if _counters != null and _counters.hovered() != &"":
+		_view.highlight(c)  # the counter wins the slot (_sync_unit_strip)
+		_card.hide()
+	elif c != _view.hovered() or not _card.visible:
 		_view.highlight(c)
 		_card.show_info(_card_info(c))
 	_last_mouse = mouse
@@ -2325,6 +2488,10 @@ func _hover_ring() -> void:
 	_card.hide()
 	if _counters != null:
 		_counters.set_hovered(&"")
+	if _order_ring.is_on_counter():  # the INFO ring has no target hex
+		_route.set_hex(StaffMapRoutePreview.OFF)
+		_view.highlight(StaffMapView.NO_HEX)
+		return
 	_route.set_posture(_order_ring.hovered_posture())
 	_route.set_hex(_order_ring.hex())
 	_view.highlight(_order_ring.hex())
@@ -2493,3 +2660,65 @@ func _on_save_and_exit() -> void:
 
 func _return_to_menu() -> void:
 	get_tree().change_scene_to_file(MENU_SCENE)
+
+
+## True while a posture or target is being picked (ring open, or key 1-3 pressed).
+func is_picking() -> bool:
+	return _order_ring.is_open() or _pick_posture != &""
+
+
+## Per frame: the left slot shows the formation under the cursor, else (when the cursor is on no
+## hex and no installation) the selected own one; the hex strip takes the slot otherwise.
+func _sync_unit_strip(modal: bool) -> void:
+	if _unit_strip == null or _counters == null:
+		return
+	var id := unit_strip_target(modal)
+	var formation := _simulation.state.get_formation(id) if id != &"" else null
+	if formation == null:
+		_unit_strip.hide()
+		return
+	_card.hide()
+	var armed := ""
+	if _pick_posture != &"" and id == selected_formation():
+		armed = tr("POSTURE_" + String(_pick_posture).to_upper()).to_upper()
+	_unit_strip.show_unit(
+		StaffMapUnitCardModel.build(formation, viewer_player, _place_name), _palette, armed
+	)
+
+
+## The formation the left slot shows: the hovered counter (not under the panel, not while a window
+## idles the map or the map is dragged), else the selected own formation when neither a hex nor
+## an installation is hovered. &"" = none.
+func unit_strip_target(modal := false) -> StringName:
+	if modal or is_sliding() or (_dragging and _drag_travel > CLICK_SLOP):
+		return &""
+	var viewport := get_viewport()
+	var mouse := viewport.get_mouse_position() if viewport != null else Vector2(-1, -1)
+	var over_panel := _panel.visible and _panel.get_global_rect().has_point(mouse)
+	var hovered := _counters.hovered()
+	if hovered != &"" and not over_panel:
+		return hovered
+	if _card.visible or _installation_card.visible:
+		return &""
+	var selected := _selected_own()
+	return selected.id if selected != null else &""
+
+
+func unit_strip() -> StaffMapUnitStrip:
+	return _unit_strip
+
+
+## Screenshot hook: shows `id` (or the selection when empty) in the strip as if hovered.
+func debug_unit_strip(id: StringName = &"") -> void:
+	var formation := _simulation.state.get_formation(id if id != &"" else selected_formation())
+	if formation == null:
+		return
+	_card.hide()
+	_unit_strip.show_unit(
+		StaffMapUnitCardModel.build(formation, viewer_player, _place_name), _palette
+	)
+
+
+## Screenshot / test hook: key 1-3 pick-a-target mode of the selected own formation.
+func pick_posture_number(number: int) -> void:
+	_pick_posture_key(number)

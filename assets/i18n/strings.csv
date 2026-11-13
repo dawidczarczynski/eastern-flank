@@ -759,3 +759,8 @@ Chernyakhovsk airfield,Chernyakhovsk airfield,Lotnisko Czerniachowsk
 Bialystok command post,Bialystok command post,Stanowisko dowodzenia Białystok
 Vilnius,Vilnius,Wilno
 Grodno depot,Grodno depot,Skład Grodno
+UNIT_CARD_EST,EST.,SZAC.
+UNIT_CARD_NO_ORDER,– NO ORDER –,– BRAK ROZKAZU –
+ORDER_RING_INFO,Info,Info
+ORDER_RING_INFO_TITLE,Unit info,Informacje o jednostce
+ORDER_RING_INFO_HINT,"Opens the full formation panel: strength, location and companies.","Otwiera pełny panel formacji: siła, lokalizacja i kompanie."
