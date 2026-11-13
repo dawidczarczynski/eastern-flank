@@ -232,13 +232,15 @@ static func _launch_country(
 
 
 ## "" when `player` may strike a `target_class` target on `coord`, else why not: `own_soil`,
-## `closed_country` or `roe_class`.
+## `closed_country` or `roe_class`. An enemy formation standing on own soil (an invader) may be
+## struck; only fixed targets there are refused as `own_soil`.
 static func strike_allowed(
 	state: OperationalState, player: int, coord: Vector2i, target_class: StringName
 ) -> String:
 	if CountryRules.relation(state, player, state.country_at(coord)) == &"own":
-		return "own_soil"
-	if not CountryRules.may_strike(state, player, coord):
+		if target_class != StrikeRules.FORMATION_CLASS:
+			return "own_soil"
+	elif not CountryRules.may_strike(state, player, coord):
 		return "closed_country"
 	if not state.ladder.strike_classes_at(state.escalation_level).has(target_class):
 		return "roe_class"

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="AirDefenceDefinition" load_steps=2 format=3]
+
+; Mobile air defence organic to a formation (shoulder-fired and vehicle-mounted systems that travel with the
+; battalion). Covers the formation's own hex and its neighbours; the chance scales with the formation's strength.
+; Values are [ASSUMPTION]s for TASK-103.
+
+[ext_resource type="Script" path="res://src/core/data/air_defence_definition.gd" id="1_ad"]
+
+[resource]
+script = ExtResource("1_ad")
+id = &"mobile"
+display_name = "Mobile air defence"
+examples = "Piorun MANPADS, Tor-M2, Osa"
+radius_hexes = 1
+intercept_pct = {
+&"cruise": 20,
+&"ballistic": 0,
+&"aeroballistic": 0,
+&"rocket": 15,
+&"drone": 35,
+&"loitering": 35
+}

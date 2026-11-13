@@ -13,4 +13,5 @@ faction = &"russia"
 echelon = &"battalion"
 formation_class = &"mechanised"
 move_points = 8
+ad_type = &"mobile"
 companies = Array[ExtResource("1_unit")]([ExtResource("3_ru_motor_rifle"), ExtResource("3_ru_motor_rifle"), ExtResource("3_ru_motor_rifle"), ExtResource("4_t72b3")])

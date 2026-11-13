@@ -99,6 +99,11 @@ static func _state(op: OperationDefinition = null, seed_value := 1) -> Operation
 		op if op != null else _definition(), seed_value, Politics._grid(), Politics._country_map()
 	)
 	if state != null:
+		# The shipped battalions carry mobile air defence; the strike tests count sites exactly, so
+		# they run on copies without it (a test that needs it sets `ad_type`).
+		for formation in state.formations:
+			formation.definition = formation.definition.duplicate()
+			formation.definition.ad_type = &""
 		Fixtures.add_generic_strike_means(state)
 		state.strike_means[&"sure"] = _means(&"sure")
 		state.strike_means[&"never"] = _means(&"never", 0)

@@ -15,6 +15,9 @@ extends Resource
 @export var formation_class: StringName
 ## Operational move points per turn.
 @export var move_points: int = 8
+## Organic mobile air defence (AirDefenceDefinition id, e.g. &"mobile"); &"" = none. The formation
+## then counts as an air-defence site against strikes on its own hex and the hexes around it.
+@export var ad_type: StringName = &""
 ## Companies in order; company n (from 1) gets the ref "<formation id>/<n>".
 @export var companies: Array[UnitDefinition] = []
 

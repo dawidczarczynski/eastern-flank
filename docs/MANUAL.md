@@ -432,7 +432,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 | 5 | Strategic alert | the same as Open war | no automatic effect; the highest level incidents and decisions can reach |
 | 6 | Nuclear attack | nothing | only by Russia's *Use nuclear weapon*; ends the operation |
 
-A strike is refused if its target is on your own soil, in a country that is closed to you, or of a kind the current level does not allow.
+A strike is refused if its target is an installation on your own soil (enemy units that stand on your soil can be struck), in a country that is closed to you, or of a kind the current level does not allow.
 
 **What raises it.** The rules are in place for: the first breach of an enemy sanctuary (Russian soil for NATO, and the other way round) raising the level by one, once per country and bloc, and a bloc's **first** strike on a town hex in the operation raising it by one (its later town strikes add nothing; the other bloc's first town strike still counts). The game records which bloc caused each rise. Strikes (see **Deep strikes**) are in the rules, launched in strike mode (key S); ground entry is described under **Borders and movement** below, and the level can also be changed from the debug panel.
 

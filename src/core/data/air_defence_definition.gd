@@ -6,7 +6,7 @@ extends Resource
 
 const DIR := "res://data/air_defence/"
 ## Types shipped in data/air_defence/, shortest reach first.
-const SHIPPED: Array[StringName] = [&"short", &"medium", &"long"]
+const SHIPPED: Array[StringName] = [&"mobile", &"short", &"medium", &"long"]
 
 @export var id: StringName
 ## Translation key (English), translated in the UI.

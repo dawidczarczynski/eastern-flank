@@ -23,12 +23,13 @@ func _type(id := &"x") -> AirDefenceDefinition:
 
 func test_shipped_types() -> void:
 	var table := {
+		&"mobile": [1, [20, 0, 0, 15, 35, 35]],
 		&"short": [4, [50, 0, 0, 40, 60, 60]],
 		&"medium": [10, [60, 20, 10, 50, 60, 50]],
 		&"long": [30, [55, 50, 30, 50, 40, 30]],
 	}
-	assert_eq(AirDefenceDefinition.SHIPPED.size(), 3)
-	assert_eq(AirDefenceDefinition.shipped().size(), 3, "unique ids")
+	assert_eq(AirDefenceDefinition.SHIPPED.size(), 4)
+	assert_eq(AirDefenceDefinition.shipped().size(), 4, "unique ids")
 	for id: StringName in table:
 		var type := AirDefenceDefinition.find(id)
 		assert_true(type != null, String(id))
@@ -102,6 +103,29 @@ func test_snapshot_carries_ad_type_and_suppression() -> void:
 		else:
 			assert_eq(entry["ad_type"], "")
 			assert_eq(entry["suppressed_rounds"], 0)
+
+
+# --- mobile air defence of formations ---
+
+
+func test_a_formation_with_mobile_air_defence_intercepts_around_itself() -> void:
+	var state := Strikes._state()
+	# Formation `r` (Russia, motor rifle battalion with `mobile`) stands next to the airfield.
+	var r := state.get_formation(&"r")
+	r.definition.ad_type = &"mobile"
+	assert_eq(load("res://data/formations/ru_motor_rifle_battalion.tres").ad_type, &"mobile")
+	var near := Hex.neighbors(r.coord)[0]
+	var sites := StrikeRules.interceptors(state, 0, &"strike_drone", near)
+	assert_eq(sites.size(), 1)
+	assert_eq(sites[0]["id"], &"r")
+	assert_eq(sites[0]["p"], 35, "full strength, drone 35 %")
+	assert_eq(StrikeRules.interceptors(state, 1, &"strike_drone", near).size(), 0, "own side")
+	r.companies[0].strength = 1
+	var weaker := StrikeRules.interceptors(state, 0, &"strike_drone", r.coord)
+	assert_true(int(weaker[0]["p"]) < 35, "a battered formation intercepts less")
+	var far := r.coord + Vector2i(3, 0)
+	assert_eq(StrikeRules.interceptors(state, 0, &"strike_drone", far).size(), 0, "out of reach")
+	assert_eq(StrikeRules.interceptors(state, 0, &"ballistic", r.coord).size(), 0, "0 % class")
 
 
 # --- interception chance ---

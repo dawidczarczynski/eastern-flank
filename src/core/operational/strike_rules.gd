@@ -182,7 +182,9 @@ static func capability(state: OperationalState, player: int, class_id: StringNam
 ## The air-defence sites that count against a weapon on `target_coord`, for a strike by
 ## `striker`: [{id, p}] in setup order. A site counts when it belongs to the enemy of `striker`,
 ## is not destroyed, not suppressed, covers the hex (the exact radius counts) and its chance
-## `p` = type chance for the weapon class x integrity / 100 (rounded down) is above 0.
+## `p` = type chance for the weapon class x integrity / 100 (rounded down) is above 0. After the
+## installations come the enemy formations with organic air defence (`FormationDefinition.ad_type`):
+## they count within their type's radius, `p` scaled by strength / max strength.
 static func interceptors(
 	state: OperationalState, striker: int, weapon_id: StringName, target_coord: Vector2i
 ) -> Array[Dictionary]:
@@ -204,6 +206,16 @@ static func interceptors(
 		var p := type.chance_against(means.weapon_class) * installation.integrity / 100
 		if p > 0:
 			sites.append({"id": installation.id, "p": p})
+	for formation in state.formations:
+		if formation.owner_id == striker or formation.definition.ad_type == &"":
+			continue
+		var type: AirDefenceDefinition = state.air_defence_types.get(formation.definition.ad_type)
+		if type == null or Hex.distance(formation.coord, target_coord) > type.radius_hexes:
+			continue
+		var max_strength := formation.max_strength()
+		var p := type.chance_against(means.weapon_class) * formation.strength() / maxi(max_strength, 1)
+		if p > 0:
+			sites.append({"id": formation.id, "p": p})
 	return sites
 
 
