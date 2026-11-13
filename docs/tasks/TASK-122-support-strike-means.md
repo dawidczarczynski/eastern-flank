@@ -1,6 +1,6 @@
 # TASK-122: Outside support – strike means as package effects (Chinese missile components, Iranian drones, allied cruise missiles) added to the side's strike stock
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (`src/core/operational/`, `src/core/data/`) + data + presentation (stock line in the Support tab)
 - **Depends on**: TASK-121, TASK-097a
 - **Model**: sonnet
