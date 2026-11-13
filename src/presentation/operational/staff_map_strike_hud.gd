@@ -412,12 +412,11 @@ func on_event(event: Dictionary) -> void:
 	match event.get("type"):
 		&"operational_turn_started", &"operational_turn_ended", &"operation_ended":
 			refresh()
-	if (
-		event.get("type") == &"operational_turn_started"
-		and int(event.get("player", -1)) == _viewer.call()
-	):
-		_reports.clear()  # the reports go with the trail at the viewer's turn start
-		_snapshot_names()
+	if event.get("type") == &"operational_turn_started":
+		if int(event.get("player", -1)) == _viewer.call():
+			_snapshot_names()
+		else:
+			_reports.clear()  # the enemy's turn starts: old reports go, its own strikes follow
 	if _open and event.get("type") in [&"strike_stock_changed", &"installation_changed"]:
 		refresh()
 

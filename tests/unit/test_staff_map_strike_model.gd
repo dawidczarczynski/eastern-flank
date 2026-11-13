@@ -348,7 +348,7 @@ func test_struck_air_defence_still_counts_as_interceptor() -> void:
 	assert_true(trail.bursts[1]["destroyed"])
 
 
-func test_strikes_are_capped_and_cleared_at_the_viewers_turn_start() -> void:
+func test_strikes_are_capped_and_cleared_at_their_sides_turn_start() -> void:
 	var state := _state(2)
 	var trail := StaffMapStrikeTrail.new()
 	for i in 10:

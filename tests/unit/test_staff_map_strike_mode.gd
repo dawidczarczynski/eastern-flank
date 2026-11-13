@@ -285,7 +285,7 @@ func test_the_mode_works_for_the_second_side() -> void:
 	assert_eq(hud.trail().traces[0]["player"], 1)
 
 
-func test_enemy_strike_leaves_a_trace_until_the_viewers_next_turn() -> void:
+func test_enemy_strike_leaves_a_trace_until_the_enemys_next_turn() -> void:
 	var state := _map.simulation().state
 	state.current_player = 1
 	state.escalation_level = 2
@@ -298,7 +298,9 @@ func test_enemy_strike_leaves_a_trace_until_the_viewers_next_turn() -> void:
 	var trail := _map.strike_hud().trail()
 	assert_true(trail.trace_count() >= 1, "the viewer sees the enemy's strike")
 	_map.simulation().event_emitted.emit({"type": &"operational_turn_started", "player": 0})
-	assert_eq(trail.trace_count(), 0, "gone at the viewer's turn start")
+	assert_true(trail.trace_count() >= 1, "still drawn on the viewer's turn")
+	_map.simulation().event_emitted.emit({"type": &"operational_turn_started", "player": 1})
+	assert_eq(trail.trace_count(), 0, "gone when the enemy's next turn starts")
 	assert_eq(trail.burst_count(), 0)
 
 
@@ -322,7 +324,7 @@ func test_a_strike_creates_one_report_card_and_x_dismisses_it() -> void:
 	assert_eq(reports.count(), 0)
 
 
-func test_the_chip_goes_with_the_trail() -> void:
+func test_the_chip_goes_when_the_enemys_turn_starts() -> void:
 	var state := _map.simulation().state
 	state.escalation_level = 2
 	var hud := _open(&"cruise")
@@ -335,8 +337,8 @@ func test_the_chip_goes_with_the_trail() -> void:
 	assert_true(
 		hud.reports().chip().text_of().begins_with("STRIKE"), hud.reports().chip().text_of()
 	)
-	_map.simulation().event_emitted.emit({"type": &"operational_turn_started", "player": 0})
-	assert_false(hud.reports().chip_visible(), "cleared with the trail at the viewer's turn start")
+	_map.simulation().event_emitted.emit({"type": &"operational_turn_started", "player": 1})
+	assert_false(hud.reports().chip_visible(), "cleared when the enemy's turn starts")
 	assert_eq(hud.reports().count(), 0)
 
 

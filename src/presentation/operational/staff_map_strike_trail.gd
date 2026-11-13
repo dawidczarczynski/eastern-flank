@@ -145,13 +145,22 @@ func on_event(state: OperationalState, viewer: int, event: Dictionary) -> bool:
 		&"strike_resolved":
 			return _add(state, event, viewer)
 		&"operational_turn_started":
-			if (
-				int(event.get("player", -1)) == viewer
-				and (not traces.is_empty() or not bursts.is_empty())
-			):
-				clear()
-				return true
+			# A side's strikes stay until its own next turn starts, so the AI's strikes (played
+			# synchronously just before the viewer's turn begins) are still drawn on the viewer's turn.
+			return _clear_side(int(event.get("player", -1)))
 	return false
+
+
+## Drops the traces, bursts and launcher markers of `player`'s earlier strikes; the clock restarts
+## when nothing is left. True when something was dropped.
+func _clear_side(player: int) -> bool:
+	var before := traces.size() + bursts.size() + launchers.size()
+	traces = traces.filter(func(t: Dictionary) -> bool: return int(t["player"]) != player)
+	bursts = bursts.filter(func(b: Dictionary) -> bool: return int(b["player"]) != player)
+	launchers = launchers.filter(func(m: Dictionary) -> bool: return int(m["player"]) != player)
+	if traces.is_empty() and bursts.is_empty():
+		clear()
+	return traces.size() + bursts.size() + launchers.size() != before
 
 
 func clear() -> void:
