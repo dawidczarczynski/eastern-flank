@@ -770,8 +770,9 @@ func selected_formation() -> StringName:
 
 
 ## Selects a formation (counter brackets + panel); &"" deselects. `refill` refreshes the panel
-## even when the selection did not change (language switch, events).
-func select_formation(formation_id: StringName, refill := false) -> void:
+## even when the selection did not change (language switch, events); `ease_camera` false keeps
+## the camera where it is (view restore).
+func select_formation(formation_id: StringName, refill := false, ease_camera := true) -> void:
 	if _counters == null:
 		return
 	var formation := _simulation.state.get_formation(formation_id)
@@ -796,7 +797,7 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	_panel.show_origin(origin.display_name if origin != null else "")
 	_show_order_ui(formation)
 	if new_selection:
-		_dock_panel_for(formation_id, appears)
+		_dock_panel_for(formation_id, appears, ease_camera)
 	else:
 		_place_panel()
 
@@ -1508,7 +1509,7 @@ func _apply_view_settings(settings: Dictionary) -> void:
 	_front.set_tint_visible(settings["front_tint"])
 	_view.countries().set_visible_layer(settings["borders"])
 	_apply_front_view()
-	select_formation(settings["selected"])
+	select_formation(settings["selected"], false, false)
 
 
 ## Enter / Esc close the battle result notice; true when it did.
@@ -1742,7 +1743,7 @@ func _place_panel() -> void:
 ## Docks the panel of a newly selected formation opposite its counter (left dock only when it is
 ## free), fading it in (120 ms) when it appears or changes side; then eases the counter into the
 ## clear zone when the panel or a bar covers it.
-func _dock_panel_for(formation_id: StringName, appears: bool) -> void:
+func _dock_panel_for(formation_id: StringName, appears: bool, ease_camera: bool) -> void:
 	var counter := (
 		counter_screen_position(formation_id) if _anchors.has(formation_id) else Vector2()
 	)
@@ -1761,7 +1762,8 @@ func _dock_panel_for(formation_id: StringName, appears: bool) -> void:
 		_panel_fade = create_tween()
 		_panel_fade.tween_property(_panel, "modulate:a", 1.0, PANEL_FADE)
 	_sync_insets()
-	_ease_into_clear_zone(counter)
+	if ease_camera:
+		_ease_into_clear_zone(counter)
 
 
 ## A window other than the formation panel holds the left dock.

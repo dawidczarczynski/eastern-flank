@@ -19,6 +19,7 @@ var _screen_of_hex: Callable  # (Vector2i) -> Vector2
 var _viewport: Callable  # () -> Vector2
 var _still_valid: Callable  # (StringName) -> bool: may that formation still be ordered?
 var _avoid: Callable  # () -> Rect2: docked panel the card must not cover (empty = none)
+var _clear: Callable  # () -> Rect2: screen part no bar / window covers (invalid = whole screen)
 
 
 func _init(
@@ -27,13 +28,15 @@ func _init(
 	screen_of_hex: Callable,
 	viewport: Callable,
 	still_valid: Callable,
-	avoid := Callable()
+	avoid := Callable(),
+	clear := Callable()
 ) -> void:
 	_execute = execute
 	_screen_of_hex = screen_of_hex
 	_viewport = viewport
 	_still_valid = still_valid
 	_avoid = avoid
+	_clear = clear
 	_ring = RadialRing.new()
 	_ring.name = "OrderRing"
 	_ring.hide()
@@ -156,13 +159,19 @@ func follow() -> void:
 		return
 	var viewport: Vector2 = _viewport.call()
 	var avoid: Rect2 = _avoid.call() if _avoid.is_valid() else Rect2()
+	var clear := Rect2(Vector2.ZERO, viewport)
+	if _clear.is_valid():
+		clear = _clear.call()
+	# Work in clear-zone coordinates so the ring and card stay clear of the bars and windows.
+	avoid.position -= clear.position
 	var center := RadialRingGeometry.clamp_center_avoiding(
-		_screen_of_hex.call(_model["hex"]), viewport, avoid
+		(_screen_of_hex.call(_model["hex"]) as Vector2) - clear.position, clear.size, avoid
 	)
-	_ring.set_center(center)
+	_ring.set_center(center + clear.position)
 	if _card.visible:
-		_card.position = RadialRingGeometry.card_position_avoiding(
-			center, viewport, _card.card_size(), avoid
+		_card.position = (
+			RadialRingGeometry.card_position_avoiding(center, clear.size, _card.card_size(), avoid)
+			+ clear.position
 		)
 
 

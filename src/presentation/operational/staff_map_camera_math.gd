@@ -25,6 +25,10 @@ const PITCH_KEY_SPEED := 60.0  # degrees per second while Q / E is held
 ## Distance of the camera from its target along the view axis, hex units (orthographic: only
 ## needs to clear the relief).
 const CAMERA_DISTANCE := 400.0
+## Screen px the HUD covers: Vector4(top, bottom, left, right). Top = turn bar + escalation chip.
+const TOP_INSET := 112.0
+const EASE_MARGIN := 40.0  # px between an eased-in counter and the clear zone edge
+const EASE_SECONDS := 0.28
 
 
 ## Smallest zoom: the whole `map` fits into the viewport (pass ground_viewport when tilted).
@@ -38,22 +42,52 @@ static func max_zoom(viewport: Vector2, hex_unit: float, smallest: float) -> flo
 	return maxf(minf(viewport.x, viewport.y) / rows_px, smallest)
 
 
-## `position` moved so that the visible rectangle stays inside `map` (centred on an axis where the
-## map is smaller than the view).
+## The part of the viewport no bar or docked window covers. `insets` = (top, bottom, left, right).
+static func clear_rect(viewport: Vector2, insets: Vector4) -> Rect2:
+	var origin := Vector2(insets.z, insets.x)
+	return Rect2(origin, viewport - origin - Vector2(insets.w, insets.y))
+
+
+## Insets for the ground plane: top and bottom stretch like ground_viewport (1 / cos pitch).
+static func ground_insets(insets: Vector4, pitch: float) -> Vector4:
+	var k := 1.0 / cos(deg_to_rad(pitch))
+	return Vector4(insets.x * k, insets.y * k, insets.z, insets.w)
+
+
+## `position` moved so that the clear zone (the viewport minus `insets`, same space as `viewport`)
+## stays inside `map`: the theatre edge can reach the clear-zone edge, so no unit stays under a
+## bar. Where the map is smaller than the clear zone it is centred in it.
 static func clamp_position(
-	position: Vector2, zoom: float, map: Rect2, viewport: Vector2
+	position: Vector2, zoom: float, map: Rect2, viewport: Vector2, insets := Vector4()
 ) -> Vector2:
-	var half := viewport / zoom * 0.5
+	var clear := clear_rect(viewport, insets)
+	var from := clear.position - viewport * 0.5  # clear-zone corners relative to the centre
+	var to := clear.end - viewport * 0.5
 	var result := position
 	for axis in 2:
-		var low := map.position[axis] + half[axis]
-		var high := map.end[axis] - half[axis]
+		var low := map.position[axis] - from[axis] / zoom
+		var high := map.end[axis] - to[axis] / zoom
 		result[axis] = (
-			(map.position[axis] + map.end[axis]) * 0.5
+			(map.position[axis] + map.end[axis] - (from[axis] + to[axis]) / zoom) * 0.5
 			if low > high
 			else clampf(position[axis], low, high)
 		)
 	return result
+
+
+## True when the formation panel docks on the left: the counter is on the right half and the
+## left dock is free; otherwise it stays on the right dock.
+static func panel_on_left(counter_x: float, viewport_width: float, left_free: bool) -> bool:
+	return left_free and counter_x > viewport_width * 0.5
+
+
+## Screen shift that brings `point` into `clear` (shrunk by `margin`) by the shortest way; zero
+## when it is already inside.
+static func ease_shift(point: Vector2, clear: Rect2, margin: float) -> Vector2:
+	var inner := clear.grow(-margin)
+	if not inner.has_area():
+		return Vector2.ZERO
+	return point.clamp(inner.position, inner.end) - point
 
 
 ## New camera position that keeps the world point under `cursor` (viewport pixels) fixed when the

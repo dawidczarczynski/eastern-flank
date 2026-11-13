@@ -620,7 +620,7 @@ Strength is the sum of the companies' hit points – the same units that fight w
 
 **Formation panel.** Clicking a counter opens the panel on the right edge: name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red – for now you see everything about them; reconnaissance and fog come later), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). **Tab** jumps to your next formation (the camera moves to it if it is off screen); Esc or a click on empty map closes the panel. The panel has an **✕** in its corner that does the same.
 
-**Docked windows.** The map options, the country card, strike reports and the formation panel share one frame: a tab, an ✕ in the corner, the same dark plate. Left-edge windows come one at a time (opening one closes the other); the formation panel sits on the right edge. A click on the map, **Esc** or the ✕ closes them, and the bottom-bar button that opened a window stays lit while it is open.
+**Docked windows.** The map options, the country card, strike reports and the formation panel share one frame: a tab, an ✕ in the corner, the same dark plate. Left-edge windows come one at a time (opening one closes the other); the formation panel docks on the side opposite the selected counter (on the right when the left edge is taken, then the map eases the unit clear of it), and the map never lets the top and bottom bars hide a unit: you can always pan it fully into view. A click on the map, **Esc** or the ✕ closes them, and the bottom-bar button that opened a window stays lit while it is open.
 
 ### Front line
 
