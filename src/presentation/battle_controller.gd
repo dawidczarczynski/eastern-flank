@@ -16,6 +16,11 @@ const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
 const TURRET_AIM_DURATION := VolleyPlayback.TURRET_AIM_DURATION
 
 const PREBUILD_GRASS_CHUNKS_PER_FRAME := 4
+## Gap above the terrain / unit strip slot in the bottom bar (the strips share one fixed height).
+const SLOT_PADDING_TOP := 9
+## The unit strip's tab ("JEDNOSTKA · WŁASNA") is wider than its title column: reserve that, so the
+## bar's centre zone does not shift when the strip replaces the terrain strip.
+const SLOT_WIDTH_SLACK := 12
 const WARM_UP_FRAME_S := 1.0 / 40.0  ## a frame faster than this counts as calm
 const WARM_UP_CALM_FRAMES := 8
 const WARM_UP_MAX_MS := 4000
@@ -59,6 +64,7 @@ var _portraits: PortraitRenderer
 var _target_ring := TargetRingController.new()  # TASK-089b: target tag, crosshair, target ring
 var _hud: BattleHud
 var _terrain_panel: TerrainPanel
+var _unit_strip: StaffMapUnitStrip  # a unit in the terrain strip's slot (as on the staff map)
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
 var _last_camera_transform := Transform3D()
 # Event playback: the simulation runs ahead synchronously, the view replays its events one by one.
@@ -528,6 +534,7 @@ func _set_hovered_hex(coord: Variant) -> void:
 ## Also feeds the terrain panel (hovered tile + path cost, -1 without a valid path).
 func _refresh_path_preview() -> void:
 	var cost := _draw_path_preview()
+	_sync_unit_strip()
 	if _hovered_hex == null:
 		_terrain_panel.clear()
 		return
@@ -616,13 +623,34 @@ func _refresh_hovered_unit() -> void:
 		if unit != null and _unit_views.has(unit.id):
 			id = unit.id
 	if id == _hovered_unit_id:
+		_sync_unit_strip()
 		return
 	if _unit_views.has(_hovered_unit_id):
 		(_unit_views[_hovered_unit_id] as UnitView).set_hovered(false)
 	_hovered_unit_id = id
 	if _unit_views.has(id):
 		(_unit_views[id] as UnitView).set_hovered(true)
+	_sync_unit_strip()
 	_refresh_range_overlay()
+
+
+## The unit strip takes the terrain strip's slot like the formation strip does on the staff map:
+## the unit under the cursor, else (no hex hovered) the selected unit; a bare hovered hex shows
+## its terrain.
+func _sync_unit_strip() -> void:
+	if _unit_strip == null:
+		return
+	var unit: Unit = null
+	if _hovered_hex == null:
+		unit = _sim.state.get_unit(_selected_unit_id)
+	else:
+		unit = _sim.state.unit_at(_hovered_hex)
+	if unit == null or not unit.is_alive():
+		_unit_strip.hide()
+		_terrain_panel.visible = true
+		return
+	_unit_strip.show_unit(UnitStripModel.build(_sim.state, unit, human_player))
+	_terrain_panel.visible = false
 
 
 ## Shows the attack range of the selected unit, or – with nothing selected – of the hovered unit
@@ -723,7 +751,22 @@ func _build_bottom_left_stack() -> void:
 	_hud.action_bar().add_left(operation)
 	_hud.action_bar().add_left_divider()
 	_terrain_panel = TerrainPanel.new()
-	_hud.action_bar().add_left(_terrain_panel)
+	_unit_strip = StaffMapUnitStrip.new()
+	# One slot for both strips so the bar keeps its width whichever one is shown.
+	var slot := MarginContainer.new()
+	slot.name = "TerrainSlot"
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_theme_constant_override(&"margin_top", SLOT_PADDING_TOP)
+	slot.custom_minimum_size.x = maxf(
+		_terrain_panel.get_combined_minimum_size().x,
+		StaffMapUnitStrip.SLOT_WIDTH + SLOT_WIDTH_SLACK
+	)
+	_terrain_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_unit_strip.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	slot.add_child(_terrain_panel)
+	slot.add_child(_unit_strip)
+	_hud.action_bar().add_left(slot)
+	slot.size_flags_vertical = Control.SIZE_FILL  # top-aligned: the tab row sits at a fixed y
 	_portraits = PortraitRenderer.new()
 	add_child(_portraits)
 	_portraits.setup(quality)

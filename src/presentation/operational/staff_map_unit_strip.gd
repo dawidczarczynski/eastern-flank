@@ -14,6 +14,14 @@ const NAME_SIZE := 12
 const TITLE_WIDTH := 124
 const COLUMN_WIDTHS: Array[int] = [108, 66, 130]
 const SEPARATION := 14
+## Height both bottom-bar strips (this one and the terrain strip) are fixed to, so the bar never
+## changes height when the cursor goes from a hex to a unit (docs/design/hud_v3 "07").
+const SLOT_HEIGHT := 56
+## Width of the whole strip (title, three columns and the gaps between them).
+const SLOT_WIDTH := (
+	TITLE_WIDTH + COLUMN_WIDTHS[0] + COLUMN_WIDTHS[1] + COLUMN_WIDTHS[2] + 3 * SEPARATION
+)
+const DEFAULT_CAPTIONS: Array[String] = ["STRENGTH", "POSTURE", "ORDER"]
 const TAB_SIZE := 9
 
 var formation_id: StringName = &""
@@ -23,6 +31,7 @@ var _tab_style: StyleBoxFlat
 var _name_label: Label
 var _gauge: StaffMapFormationPanel.Gauge
 var _values: Array[Label] = []
+var _captions: Array[Label] = []
 var _shown: Array = []
 
 
@@ -32,6 +41,7 @@ func _init() -> void:
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	add_theme_constant_override(&"separation", SEPARATION)
 	alignment = BoxContainer.ALIGNMENT_BEGIN
+	custom_minimum_size.y = SLOT_HEIGHT
 	var title := VBoxContainer.new()
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.add_theme_constant_override(&"separation", 1)
@@ -68,24 +78,42 @@ func _init() -> void:
 
 ## Shows `model` (StaffMapUnitCardModel.build). `armed_posture` (translated, "" = none) replaces
 ## the posture of the selected formation while key 1-3 armed a posture for the next click.
-func show_unit(model: Dictionary, palette: StaffMapPalette, armed_posture := "") -> void:
+##
+## The battle scene (no StaffMapPalette) passes `palette` null and a model with "side_color",
+## "gauge_color", "unlit_color", "kind" (tab word, default FORMATION) and "captions" (the three
+## column captions, translation keys) – see UnitStripModel.
+func show_unit(model: Dictionary, palette: StaffMapPalette = null, armed_posture := "") -> void:
 	var key := [model, palette, armed_posture]
 	if visible and key == _shown:
 		return
 	_shown = key
 	_palette = palette
 	formation_id = model["id"]
-	var side := StaffMapFormations.side_colour(palette, model["owner_id"])
+	var side: Color = (
+		model["side_color"]
+		if model.has("side_color")
+		else StaffMapFormations.side_colour(palette, model["owner_id"])
+	)
 	_tab_style.bg_color = side
-	_tab.text = ("%s · %s" % [tr("FORMATION"), model["side_text"]]).to_upper()
+	_tab.text = (
+		("%s · %s" % [tr(model.get("kind", "FORMATION") as String), model["side_text"]]).to_upper()
+	)
+	var captions: Array = model.get("captions", DEFAULT_CAPTIONS)
+	for i in _captions.size():
+		_captions[i].text = tr(captions[i] as String).to_upper()
 	_name_label.text = model["name"]
 	_gauge.visible = model["known"]
 	if model["known"]:
-		_gauge.set_value(
-			model["lit"],
-			StaffMapFormations.strength_colour(model["strength"], model["max_strength"], palette),
-			Color(palette.ui_muted, 0.3)
-		)
+		if model.has("gauge_color"):
+			_gauge.set_value(model["lit"], model["gauge_color"], model["unlit_color"])
+		else:
+			_gauge.set_value(
+				model["lit"],
+				StaffMapFormations.strength_colour(
+					model["strength"], model["max_strength"], palette
+				),
+				Color(palette.ui_muted, 0.3)
+			)
 	_values[0].text = model["strength_text"]
 	_values[1].text = armed_posture if armed_posture != "" else model["posture_text"]
 	_values[1].add_theme_color_override(
@@ -123,6 +151,7 @@ func _column(caption: String, width: int, with_gauge: bool) -> Control:
 	value.clip_text = true
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_values.append(value)
+	_captions.append(cap)
 	column.add_child(cap)
 	if with_gauge:
 		var row := HBoxContainer.new()

@@ -113,3 +113,9 @@ func test_a_long_name_is_shortened_to_the_strip_title() -> void:
 	var m := StaffMapUnitCardModel.build(f, 0)
 	assert_true(String(m["name"]).length() <= StaffMapUnitCardModel.NAME_MAX_CHARS)
 	assert_eq(m["name"], "1ST LITHUANIAN MECH BN")
+
+
+func test_abbreviate_polish_genitive_squad_name_fits_the_strip() -> void:
+	var name := "DRUŻYNA PIECHOTY ZMECHANIZOWANEJ"
+	var short := StaffMapUnitCardModel.abbreviate(name, StaffMapUnitCardModel.NAME_MAX_CHARS, "pl")
+	assert_eq(short, "DRUŻYNA PIECHOTY ZMECH")

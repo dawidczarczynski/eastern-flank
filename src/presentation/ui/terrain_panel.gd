@@ -29,7 +29,7 @@ var _path_box: PanelContainer
 func _init() -> void:
 	name = "TerrainPanel"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	custom_minimum_size = Vector2(MIN_WIDTH, 0)
+	custom_minimum_size = Vector2(MIN_WIDTH, StaffMapUnitStrip.SLOT_HEIGHT)
 	# Text is translated here; keep Labels from translating the composed strings again.
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_empty = _label(HudTheme.mono(500, 1), COLUMN_SIZE, UiPalette.HUD_MUTED)
