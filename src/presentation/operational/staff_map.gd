@@ -2403,8 +2403,9 @@ func click_at(screen: Vector2) -> void:
 		return
 	if hit == &"":
 		close_info()  # a click on the bare map closes the full panel
+		# With an own formation selected the click is an order, not a look at a country name.
 		var named := _politics.country_name_at(ground_at_screen(screen))
-		if named != &"":
+		if named != &"" and _selected_own() == null:
 			open_country_card(named)
 			return
 		_politics.close_card()
