@@ -1954,7 +1954,7 @@ func _left_dock_busy() -> bool:
 	return false
 
 
-## Visible docked windows (not the centred confirm dialogs).
+## Visible docked windows (not the centred confirm dialogs and the centred menu).
 func _docked_windows() -> Array[StaffMapWindow]:
 	var result: Array[StaffMapWindow] = []
 	if _hud == null:
@@ -1965,6 +1965,7 @@ func _docked_windows() -> Array[StaffMapWindow]:
 			window.visible
 			and not window is StaffMapExitConfirm
 			and not window is StaffMapStrikeConfirm
+			and not window is StaffMapMenuWindow
 		):
 			result.append(window)
 	return result

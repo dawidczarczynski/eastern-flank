@@ -39,6 +39,16 @@ func test_hamburger_opens_and_closes_the_menu() -> void:
 	_cleanup(map)
 
 
+func test_the_centred_menu_does_not_move_the_camera() -> void:
+	var map := _build()
+	map.toggle_menu()
+	map._sync_insets()
+	var insets := map._insets
+	assert_eq(insets.z, 0.0, "the centred menu is no left dock")
+	assert_eq(insets.w, 0.0, "the centred menu is no right dock")
+	_cleanup(map)
+
+
 func test_opening_the_options_closes_the_menu() -> void:
 	var map := _build()
 	map.toggle_menu()

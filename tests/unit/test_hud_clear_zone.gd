@@ -25,10 +25,18 @@ func test_clamp_without_insets_is_unchanged() -> void:
 	assert_eq(a, StaffMapCameraMath.clamp_position(Vector2(-500, 5000), 1.0, MAP, VIEW, Vector4()))
 
 
-func test_clamp_centres_the_clear_zone_when_the_map_is_smaller() -> void:
+func test_clamp_centres_the_clear_zone_vertically_when_the_map_is_smaller() -> void:
 	var p := StaffMapCameraMath.clamp_position(Vector2(10, 10), 0.25, MAP, VIEW, INSETS)
-	var centre := Vector2(510, 275)  # centre of the clear zone on screen
-	assert_eq(p + (centre - VIEW * 0.5) / 0.25, MAP.get_center())
+	var centre_y := 275.0  # centre of the clear zone on screen
+	assert_eq(p.y + (centre_y - VIEW.y * 0.5) / 0.25, MAP.get_center().y)
+
+
+func test_a_map_narrower_than_the_screen_stays_centred_whatever_docks() -> void:
+	var docked := Vector4(100, 50, 400, 0)
+	var a := StaffMapCameraMath.clamp_position(Vector2(10, 10), 0.25, MAP, VIEW, docked)
+	var b := StaffMapCameraMath.clamp_position(Vector2(10, 10), 0.25, MAP, VIEW, INSETS)
+	assert_eq(a.x, MAP.get_center().x)
+	assert_eq(b.x, MAP.get_center().x)
 
 
 func test_ground_insets_stretch_top_and_bottom_with_the_pitch() -> void:

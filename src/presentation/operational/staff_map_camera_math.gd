@@ -56,7 +56,8 @@ static func ground_insets(insets: Vector4, pitch: float) -> Vector4:
 
 ## `position` moved so that the clear zone (the viewport minus `insets`, same space as `viewport`)
 ## stays inside `map`: the theatre edge can reach the clear-zone edge, so no unit stays under a
-## bar. Where the map is smaller than the clear zone it is centred in it.
+## bar. Where the map is smaller than the clear zone it is centred in it (horizontally: centred on the
+## screen when it fits the screen width, windows then overlay it).
 static func clamp_position(
 	position: Vector2, zoom: float, map: Rect2, viewport: Vector2, insets := Vector4()
 ) -> Vector2:
@@ -65,6 +66,11 @@ static func clamp_position(
 	var to := clear.end - viewport * 0.5
 	var result := position
 	for axis in 2:
+		if axis == 0 and map.size.x * zoom <= viewport.x:
+			# The theatre is no wider than the screen: keep it centred on the screen, so a window
+			# docking left / right does not shove the whole map sideways (it just covers it).
+			result.x = map.get_center().x
+			continue
 		var low := map.position[axis] - from[axis] / zoom
 		var high := map.end[axis] - to[axis] / zoom
 		result[axis] = (
