@@ -42,3 +42,5 @@ docs/MANUAL.md: one line – the panel docks opposite the selected unit and the 
 - `_dock_panel_for` runs only on a new selection: side by `panel_on_left`, 120 ms fade when the panel appears or changes side, then `_ease_into_clear_zone` (280 ms cubic ease-out, shortest shift + 40 px margin). Opening a left window moves a left-docked panel back to the right.
 - `StaffMapOrderRing` takes an optional `clear` callable and clamps ring and card inside it.
 - Deviations from the mock: the fade is applied to the whole panel (no per-element); the ease also runs when the counter is under a bar, not only when the left dock is busy. A camera pan by the user does not cancel a running 280 ms ease.
+
+- Follow-up 2026-11-13: the compact turn bar (`docs/design/operational_map/compact_turn_bar.html`, variant B) lowers `TOP_INSET` from 112 to 92 px (bar + chip; guarded by `test_turn_bar_is_compact`).

@@ -26,7 +26,7 @@ const PITCH_KEY_SPEED := 60.0  # degrees per second while Q / E is held
 ## needs to clear the relief).
 const CAMERA_DISTANCE := 400.0
 ## Screen px the HUD covers: Vector4(top, bottom, left, right). Top = turn bar + escalation chip.
-const TOP_INSET := 112.0
+const TOP_INSET := 92.0
 const EASE_MARGIN := 40.0  # px between an eased-in counter and the clear zone edge
 const EASE_SECONDS := 0.28
 

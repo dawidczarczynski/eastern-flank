@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compact turn bar – proposal</title>
+<style>
+@font-face{font-family:Chakra;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-SemiBold.ttf);font-weight:600}
+@font-face{font-family:Chakra;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf);font-weight:700}
+@font-face{font-family:Mono;src:url(../../../assets/fonts/ibm_plex/IBMPlexMono-Medium.ttf);font-weight:500}
+@font-face{font-family:Mono;src:url(../../../assets/fonts/ibm_plex/IBMPlexMono-SemiBold.ttf);font-weight:600}
+:root{--void:#0b0d0b;--panel:rgba(8,11,8,.86);--line:rgba(232,176,74,.34);--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--desc:#b7bfae;--own:#5b93d6;--enemy:#d76a52;--ink:#0a0c09}
+*{box-sizing:border-box}.bar *{white-space:nowrap}
+body{margin:0;background:#0f1114;color:var(--text);font:14px/1.4 Chakra,sans-serif}
+.banner{background:var(--amber);color:var(--ink);font:700 12px Chakra;letter-spacing:.12em;padding:6px 16px}
+main{padding:0 16px 40px;max-width:1440px;margin:auto}
+h1{font-size:20px;margin:18px 0 4px}h2{font-size:15px;color:var(--amber);margin:30px 0 6px;letter-spacing:.06em}
+p{color:var(--desc);margin:4px 0;max-width:900px}
+.frame{position:relative;height:210px;overflow:hidden;background:linear-gradient(135deg,#1d211c 0 40%,#0f1820 40% 60%,#22302a 60%);border:1px solid #2e3329;margin:10px 0}
+.frame:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 80%,rgba(215,106,82,.12),transparent 50%)}
+.top{position:absolute;left:50%;top:0;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:5px}
+/* trapezoid: 26px slant, 1px line outline via nested clip-path */
+.bar{position:relative;display:flex;align-items:center;gap:18px;background:var(--line);clip-path:polygon(0 0,100% 0,calc(100% - 26px) 100%,26px 100%)}
+.bar>.in{display:flex;align-items:center;gap:18px;background:#10130f;margin:0 1px 1px;clip-path:polygon(0 0,100% 0,calc(100% - 26px) 100%,26px 100%)}
+.in{padding:var(--pt,12px) 44px var(--pb,12px)}
+.side{width:200px;display:flex;flex-direction:column;gap:var(--sg,6px)}
+.side .r{display:flex;align-items:center;gap:10px}.side.m .r{flex-direction:row-reverse;text-align:right}
+.flag{width:50px;height:34px;flex:none;border:1px solid rgba(255,255,255,.25)}
+.nato{background:#1d4a9c}.rus{background:linear-gradient(#e8ecef 33%,#2b4a9c 33% 66%,#c2392b 66%);opacity:.9}
+.nm{font-weight:600;font-size:15px;letter-spacing:.06em}.meta{font:500 10px Mono;color:var(--muted);letter-spacing:.06em}
+.hatch{height:4px;background:repeating-linear-gradient(115deg,var(--own) 0 5px,transparent 5px 8px)}
+.dim{opacity:.6}.dim .hatch{visibility:hidden}
+.div{width:1px;align-self:stretch;background:rgba(232,176,74,.34)}
+.mid{display:flex;flex-direction:column;align-items:center;gap:2px;padding:0 18px}
+.cap{font:500 10px Mono;letter-spacing:.3em;color:var(--muted)}.num{font:700 32px/1.1 Mono;color:var(--text)}
+.date{font:600 10px Mono;color:var(--desc);letter-spacing:.06em;display:flex;gap:5px;align-items:center}
+.sun{width:11px;height:11px;border-radius:50%;background:#e2c069;flex:none}
+.end{display:flex;align-items:center;gap:12px;background:var(--own);color:var(--ink);padding:0 22px 0 18px;height:var(--eh,46px);clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+.end b{font:700 14px Chakra;letter-spacing:.1em}.end i{font:600 10px Mono;font-style:normal;opacity:.75;letter-spacing:.06em}
+.chip{background:rgba(8,11,8,.9);border:1px solid var(--line);padding:2px 12px;font:600 10px Mono;color:var(--amber);letter-spacing:.08em;display:flex;gap:10px;align-items:center}
+.tk{display:flex;gap:2px}.tk u{width:12px;height:4px;background:#b9d38a;display:block}.tk u+u{background:rgba(141,149,133,.3)}
+.cur{position:absolute;left:0;right:0;border-top:1px dashed var(--amber);opacity:.7}
+.cur span{position:absolute;right:8px;top:2px;font:500 10px Mono;color:var(--amber)}
+table{border-collapse:collapse;margin:8px 0;font-size:13px}td,th{border:1px solid #2e3329;padding:4px 10px;text-align:left;color:var(--desc)}th{color:var(--amber)}
+.rec{color:var(--amber);font-weight:700}
+</style></head><body>
+<div class="banner">ACCEPTED 2026-11-13 · variant B · staff map and battle top turn bar, lower height (A and C rejected)</div>
+<main>
+<h1>Compact turn bar</h1>
+<p><b>Need.</b> After removing the "▸ NATO MOVING" line, the bar is still ≈ 98 px tall (12 px padding + a 74 px middle column of TURN / 01 / date + 13 px). The map under it is the thing to look at. Goal: the bar gets lower without losing: both sides + formation count + who moves (hatch + status word), turn number, date and day / night, escalation chip below. (End turn lives in the bottom bar since TASK-139 and is not part of this bar.) Frame, slant, colours, fonts stay the accepted HUD look; only spacing and arrangement change. Current: <b>≈ 98 px bar + 22 px chip = ≈ 120 px</b>; clear-zone top inset today 112 px (TASK-150).</p>
+
+<h2>CURRENT (reference) – 98 px</h2>
+<div class="frame"><div class="top">
+ <div class="bar"><div class="in">
+  <div class="side"><div class="r"><div class="flag nato"></div><div><div class="nm">NATO</div><div class="meta">YOUR MOVE · 8 FMN</div></div></div><div class="hatch"></div></div>
+  <div class="div"></div>
+  <div class="mid"><div class="cap">TURN</div><div class="num">01</div><div class="date"><span class="sun"></span>14 JUN 2027 · 06:00–18:00</div></div>
+  <div class="div"></div>
+  <div class="side m dim"><div class="r"><div class="flag rus"></div><div><div class="nm">RUSSIA</div><div class="meta">WAITING · 10 FMN</div></div></div><div class="hatch"></div></div>
+ </div></div>
+ <div class="chip">1 · LIMITED WAR <span class="tk"><u></u><u></u></span></div>
+</div></div>
+
+<h2>A – Tight stack · <span class="rec">recommended</span> · ≈ 70 px (−28)</h2>
+<p>Same three zones, same structure. "TURN" caption moves inline with the number (<b>TURN 01</b>, number Chakra/Mono 26 instead of 32), the date line stays under it. Side blocks: hatch bar moves from a separate 4 px row (+6 gap) to a 3 px underline 4 px below the text; Frame padding 12 → 7 px.</p>
+<div class="frame"><div class="top">
+ <div class="bar" style="--pt:7px;--pb:7px"><div class="in" style="--pt:7px;--pb:7px">
+  <div class="side" style="--sg:4px"><div class="r"><div class="flag nato" style="height:30px;width:44px"></div><div><div class="nm">NATO</div><div class="meta">YOUR MOVE · 8 FMN</div></div></div><div class="hatch" style="height:3px"></div></div>
+  <div class="div"></div>
+  <div class="mid" style="gap:1px"><div style="display:flex;gap:8px;align-items:baseline"><span class="cap" style="letter-spacing:.3em">TURN</span><span class="num" style="font-size:26px">01</span></div><div class="date"><span class="sun"></span>14 JUN 2027 · 06:00–18:00</div></div>
+  <div class="div"></div>
+  <div class="side m dim" style="--sg:4px"><div class="r"><div class="flag rus" style="height:30px;width:44px"></div><div><div class="nm">RUSSIA</div><div class="meta">WAITING · 10 FMN</div></div></div><div class="hatch" style="height:3px"></div></div>
+ </div></div>
+ <div class="chip">1 · LIMITED WAR <span class="tk"><u></u><u></u></span></div>
+</div><div class="cur" style="top:70px"><span>70 px</span></div></div>
+
+<h2>B – Single row · ≈ 52 px (−46)</h2>
+<p>Middle column becomes one line: <b>TURN 01 │ ☀ 14 JUN 2027 · 06:00–18:00</b> (number 24 px, date 10 px beside it, separated by a thin divider). Side blocks keep flag + name + meta (two lines, 28 px flag); hatch bar becomes a 3 px line along the bottom edge of the active side block. Most map visible, but the middle is wider (≈ 330 px instead of 190), the total width grows by ≈ 100 px (≈ 720 px at 1440 – clear of the top-left menu and the right FPS zone).</p>
+<div class="frame"><div class="top">
+ <div class="bar"><div class="in" style="--pt:6px;--pb:7px">
+  <div class="side" style="--sg:3px"><div class="r"><div class="flag nato" style="height:28px;width:42px"></div><div><div class="nm">NATO</div><div class="meta">YOUR MOVE · 8 FMN</div></div></div><div class="hatch" style="height:3px"></div></div>
+  <div class="div"></div>
+  <div class="mid" style="flex-direction:row;gap:12px"><span class="cap">TURN</span><span class="num" style="font-size:24px">01</span><span style="width:1px;height:22px;background:rgba(232,176,74,.34)"></span><div class="date"><span class="sun"></span>14 JUN 2027 · 06:00–18:00</div></div>
+  <div class="div"></div>
+  <div class="side m dim" style="--sg:3px"><div class="r"><div class="flag rus" style="height:28px;width:42px"></div><div><div class="nm">RUSSIA</div><div class="meta">WAITING · 10 FMN</div></div></div><div class="hatch" style="height:3px"></div></div>
+ </div></div>
+ <div class="chip">1 · LIMITED WAR <span class="tk"><u></u><u></u></span></div>
+</div><div class="cur" style="top:52px"><span>52 px</span></div></div>
+
+<h2>C – Minimal strip · ≈ 40 px (−58)</h2>
+<p>Like B, but the formation count and status move into the name line ("NATO · 8 FMN"), flags shrink to 30×20, so each side is one line; the hatch bar is the 3 px bottom edge. Reads fast, but the YOUR MOVE / WAITING words are dropped: who moves is shown only by the hatch and the dimming (60 %) – <b>weakest on colour-blind safety</b>, so it would need a ▸ marker before the active name.</p>
+<div class="frame"><div class="top">
+ <div class="bar"><div class="in" style="--pt:5px;--pb:6px;gap:14px">
+  <div class="side" style="width:170px;--sg:3px"><div class="r"><div class="flag nato" style="height:20px;width:30px"></div><div class="nm" style="font-size:14px">▸ NATO <span class="meta">· 8 FMN</span></div></div><div class="hatch" style="height:3px"></div></div>
+  <div class="div"></div>
+  <div class="mid" style="flex-direction:row;gap:10px"><span class="cap">T</span><span class="num" style="font-size:22px">01</span><div class="date"><span class="sun"></span>14 JUN · 06–18</div></div>
+  <div class="div"></div>
+  <div class="side m dim" style="width:170px;--sg:3px"><div class="r"><div class="flag rus" style="height:20px;width:30px"></div><div class="nm" style="font-size:14px">RUSSIA <span class="meta">· 10 FMN</span></div></div><div class="hatch" style="height:3px"></div></div>
+ </div></div>
+ <div class="chip">1 · LIMITED WAR <span class="tk"><u></u><u></u></span></div>
+</div><div class="cur" style="top:40px"><span>40 px</span></div></div>
+
+<h2>Specs</h2>
+<table><tr><th></th><th>Current</th><th>A</th><th>B</th><th>C</th></tr>
+<tr><td>Bar height (1440×900)</td><td>≈ 98</td><td>≈ 70</td><td>≈ 52</td><td>≈ 40</td></tr>
+<tr><td>Frame padding v (top / bottom)</td><td>12 / 13</td><td>7 / 8</td><td>6 / 7</td><td>5 / 6</td></tr>
+<tr><td>Turn number</td><td>Mono 700 32</td><td>Mono 700 26, "TURN" inline</td><td>24, one row with date</td><td>22, "T"</td></tr>
+<tr><td>Flag</td><td>≈ 50×34</td><td>44×30</td><td>42×28</td><td>30×20</td></tr>
+<tr><td>Hatch bar</td><td>4 px, own row</td><td>3 px, 4 px gap</td><td>3 px, 3 px gap</td><td>3 px</td></tr>
+<tr><td>Width</td><td>≈ 640</td><td>≈ 640</td><td>≈ 720</td><td>≈ 560</td></tr>
+<tr><td>Side meaning without colour</td><td>word + hatch</td><td>word + hatch</td><td>word + hatch</td><td>▸ + hatch</td></tr></table>
+<p>Unchanged in all variants: frame trapezoid (26 px slant, 1 px <code>ui.amber</code> 34 % outline, <code>PANEL</code> fill), colours / tokens, fonts (Chakra Petch labels, mono numbers), waiting side at 60 %, chip under the bar. <b>No new tokens.</b></p>
+<p><b>Godot notes.</b> <code>StaffMapTurnBar</code> + <code>TurnBarFrame.PADDING</code> (it is shared with the battle HUD – make the padding a parameter so only the staff map shrinks), <code>TURN_SIZE</code>, <code>SideFlag</code> size, side-block separation / hatch slot height in <code>_build_side</code>. B and C also change <code>_build_centre</code> from a column to a row. The HUD clear zone's top inset (112 px, TASK-150) shrinks by the same amount as the bar; the 160 px flip threshold of the closed-country plate follows.</p>
+<h2>Open questions</h2>
+<p>1) Is the battle HUD turn bar to shrink as well (it shares the frame) or only the staff map? 2) B / C make the bar wider than today – acceptable?</p>
+</main></body></html>

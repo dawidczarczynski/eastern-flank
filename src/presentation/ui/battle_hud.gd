@@ -268,7 +268,7 @@ func _build_top_bar() -> void:
 	column.anchor_right = 0.5
 	column.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(column)
-	var frame := TurnBarFrame.new()
+	var frame := TurnBarFrame.new(TurnBarFrame.COMPACT_PADDING)
 	frame.name = "TurnBarFrame"
 	column.add_child(frame)
 	var row := HBoxContainer.new()
@@ -294,7 +294,7 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	block.custom_minimum_size.x = SIDE_WIDTH
 	block.alignment = BoxContainer.ALIGNMENT_CENTER
-	block.add_theme_constant_override(&"separation", 6)
+	block.add_theme_constant_override(&"separation", 3)
 	parent.add_child(block)
 
 	var row := HBoxContainer.new()
@@ -342,9 +342,9 @@ func _build_side(parent: Control, index: int, mirrored: bool) -> Dictionary:
 	# The bar slot keeps its height when the hatch is hidden on the waiting side.
 	var slot := Control.new()
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.custom_minimum_size.y = 4
+	slot.custom_minimum_size.y = 3
 	block.add_child(slot)
-	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 4), true)
+	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 3), true)
 	bar.name = "ActiveBar"
 	bar.scrolling = true
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

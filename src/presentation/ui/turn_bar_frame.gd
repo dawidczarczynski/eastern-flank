@@ -5,14 +5,16 @@ extends MarginContainer
 
 const SLANT := 26.0
 const PADDING := Vector2(44, 12)
+## Compact bars (accepted 2026-11-13, docs/design/operational_map "Turn bar"): 6 px above and below.
+const COMPACT_PADDING := Vector2(44, 6)
 
 
-func _init() -> void:
+func _init(padding := PADDING) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_theme_constant_override(&"margin_left", int(PADDING.x) + 1)
-	add_theme_constant_override(&"margin_right", int(PADDING.x) + 1)
-	add_theme_constant_override(&"margin_top", int(PADDING.y))
-	add_theme_constant_override(&"margin_bottom", int(PADDING.y) + 1)
+	add_theme_constant_override(&"margin_left", int(padding.x) + 1)
+	add_theme_constant_override(&"margin_right", int(padding.x) + 1)
+	add_theme_constant_override(&"margin_top", int(padding.y))
+	add_theme_constant_override(&"margin_bottom", int(padding.y) + 1)
 
 
 func _draw() -> void:

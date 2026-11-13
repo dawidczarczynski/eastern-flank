@@ -29,7 +29,6 @@ func test_end_turn_flow() -> void:
 	var bar := _map.turn_bar()
 	assert_eq(bar.date_text(), "14 JUN 2027 · 06:00–18:00")
 	assert_true(bar.is_day_shown())
-	assert_true(bar.mover_text().contains("RUSSIA"), bar.mover_text())
 	assert_eq(bar.viewed_side_text(), "NATO")
 	assert_eq(bar.side_meta_text(0), "WAITING · 8 FMN")
 	assert_eq(bar.side_meta_text(1), "ENEMY MOVE · 10 FMN")
@@ -90,3 +89,12 @@ func test_turn_bar_shows_side_flags() -> void:
 		var side := SideDefinition.find(state.player_sides[i])
 		assert_true(bar.side_flag(i).visible)
 		assert_true(bar.side_flag(i).texture == side.flag)
+
+
+func test_turn_bar_is_compact() -> void:
+	# Compact bar (docs/design/operational_map "Turn bar"): frame ≈ 52–57 px + chip under it.
+	var bar := _map.turn_bar()
+	bar.reset_size()
+	var frame_height := (bar.get_child(0) as Control).get_combined_minimum_size().y
+	assert_true(frame_height <= 60.0, "frame height %s" % frame_height)
+	assert_true(bar.get_combined_minimum_size().y <= StaffMapCameraMath.TOP_INSET)

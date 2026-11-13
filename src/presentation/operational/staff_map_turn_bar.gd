@@ -14,7 +14,7 @@ signal escalation_pressed
 const SIDE_WIDTH := 200.0
 const ACTIVE_ALPHA := 1.0
 const INACTIVE_ALPHA := 0.6
-const TURN_SIZE := 32
+const TURN_SIZE := 24
 ## End turn button height in the staff map design (the battle HUD's is 52).
 const END_BUTTON_HEIGHT := 46.0
 const MONTHS: Array[String] = [
@@ -27,7 +27,6 @@ var _sides: Array[Dictionary] = []  # [viewer's side, opponent]
 var _turn_label: Label
 var _date_label: Label
 var _icon: DayNightIcon
-var _mover: Label
 var _chip: StaffMapEscalationChip
 var _end_button: EndTurnButton
 var _end_divider: ColorRect
@@ -68,7 +67,7 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	add_theme_constant_override(&"separation", 5)
-	var frame := TurnBarFrame.new()
+	var frame := TurnBarFrame.new(TurnBarFrame.COMPACT_PADDING)
 	frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(frame)
 	var row := HBoxContainer.new()
@@ -114,8 +113,6 @@ func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) 
 			OperationalClock.time_of_day(state.turn),
 		]
 	)
-	_mover.text = ("▸ %s" % tr("%s MOVING") % side_name(state, mover)).to_upper()
-	_mover.add_theme_color_override(&"font_color", _colour(mover))
 	_chip.show_state(state, palette)
 	_end_button.caption = tr("End turn").to_upper()
 	_end_button.fill = _colour(mover)
@@ -163,10 +160,6 @@ func date_text() -> String:
 
 func is_day_shown() -> bool:
 	return _day
-
-
-func mover_text() -> String:
-	return _mover.text
 
 
 func viewed_side_text() -> String:
@@ -236,7 +229,7 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	block.custom_minimum_size.x = SIDE_WIDTH
 	block.alignment = BoxContainer.ALIGNMENT_CENTER
-	block.add_theme_constant_override(&"separation", 6)
+	block.add_theme_constant_override(&"separation", 3)
 	parent.add_child(block)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -247,7 +240,7 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var texts := VBoxContainer.new()
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	texts.add_theme_constant_override(&"separation", 3)
+	texts.add_theme_constant_override(&"separation", 2)
 	texts.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var name_label := MenuStyle.label("", HudTheme.display(600, 1), 15, UiPalette.HUD_TEXT)
 	var meta := MenuStyle.label("", HudTheme.mono(500, 1), 10, UiPalette.HUD_MUTED)
@@ -265,9 +258,9 @@ func _build_side(parent: Control, mirrored: bool) -> Dictionary:
 	# The slot keeps its height when the hatch is hidden on the waiting side.
 	var slot := Control.new()
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.custom_minimum_size.y = 4
+	slot.custom_minimum_size.y = 3
 	block.add_child(slot)
-	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 4), true)
+	var bar := HatchBar.new(UiPalette.AMBER, Vector2(1, 3), true)
 	bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	slot.add_child(bar)
 	return {"block": block, "flag": flag, "name": name_label, "meta": meta, "bar": bar}
@@ -283,31 +276,28 @@ func _build_centre() -> Control:
 	margin.add_theme_constant_override(&"margin_left", 18)
 	margin.add_theme_constant_override(&"margin_right", 18)
 	group.add_child(margin)
-	var column := VBoxContainer.new()
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override(&"separation", 2)
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	margin.add_child(column)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 12)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	margin.add_child(row)
 	var caption := MenuStyle.label(
 		tr("TURN").to_upper(), HudTheme.mono(500, 3), 10, UiPalette.HUD_MUTED
 	)
-	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(caption)
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(caption)
 	_turn_label = MenuStyle.label("", HudTheme.mono(700), TURN_SIZE, UiPalette.HUD_TEXT)
-	_turn_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_turn_label)
+	row.add_child(_turn_label)
+	row.add_child(_divider())
 	var when := HBoxContainer.new()
 	when.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	when.alignment = BoxContainer.ALIGNMENT_CENTER
+	when.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	when.add_theme_constant_override(&"separation", 5)
 	_icon = DayNightIcon.new()
 	when.add_child(_icon)
 	_date_label = MenuStyle.label("", HudTheme.mono(600, 1), 10, UiPalette.HUD_DESC)
 	when.add_child(_date_label)
-	column.add_child(when)
-	_mover = MenuStyle.label("", HudTheme.mono(600, 1), 10, UiPalette.AMBER)
-	_mover.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_mover)
+	row.add_child(when)
 	group.add_child(_divider())
 	return group
 

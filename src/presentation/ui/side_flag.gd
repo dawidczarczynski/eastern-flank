@@ -6,7 +6,7 @@ extends Control
 const SMALL := Vector2(24, 18)
 const LARGE := Vector2(40, 30)
 ## Turn bar: replaces the faction badge.
-const BAR := Vector2(48, 36)
+const BAR := Vector2(42, 28)
 ## Battle turn bar: one or two per player (side + faction), TASK-130.
 const PAIR := Vector2(32, 24)
 
