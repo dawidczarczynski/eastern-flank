@@ -13,7 +13,7 @@ func before_all() -> void:
 	TranslationServer.set_locale("en")
 	_map = StaffMap.new()
 	_map.auto_build = false
-	_map.viewer_player = 0
+	_map.viewer_player = 1  # the human side moves first: Russia, as these tests were written
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
 

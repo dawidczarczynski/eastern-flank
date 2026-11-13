@@ -383,13 +383,13 @@ Decided by the human 2026-11-01: **both sides are playable** and they are **bloc
   | Off the map, by support packages (TASK-121 / 122) | NATO allies (USA, Germany, …): 2 battalions, extra cruise missiles | North Korea: 2 battalions; China: missile components (cruise missiles); Iran: strike drones |
 
   Allies' and supporters' formations use the side's formation types with their own names (e.g. "US Armored Battalion" as a `pl_tank_battalion`, "North Korean Infantry Battalion" as a `ru_motor_rifle_battalion`) until they become factions with their own rosters **[ASSUMPTION]**.
-- **The side choice changes nothing in the rules or the start situation**: the operation (order of battle, positions, start stances, start level *Limited war*, Russia moving first as the attacker) is the same whichever side the human plays; the choice only says which player the human controls and from whose point of view the staff map is drawn. It lives outside the operational state (session, `CampaignRecord`), so an operation and its replay are identical for both choices. Chosen when starting the operation (TASK-107; the staff map takes it as a parameter from the start, TASK-093); **NATO is listed first** in the choice **[ASSUMPTION – only the order]**.
+- **The side choice changes nothing in the rules or the start situation, except who moves first**: the operation (order of battle, positions, start stances, start level *Limited war*) is the same whichever side the human plays; the choice says which player the human controls, from whose point of view the staff map is drawn, and **the human's side always moves first** (`Operation.give_initiative`; a replay applies it from the record's `human_side`; AI-vs-AI runs and `--hotseat` keep the data's `first_player`, Russia). It lives outside the operational state (session, `CampaignRecord`), so an operation and its replay are identical for both choices. Chosen when starting the operation (TASK-107; the staff map takes it as a parameter from the start, TASK-093); **NATO is listed first** in the choice **[ASSUMPTION – only the order]**.
 - **What differs by side** – data, never code (no rule asks "is this NATO?"):
 
   | | NATO | Russia |
   |---|---|---|
   | Order of battle | 8 formations, 276 strength – quality (TASK-092b) | 10 formations, 332 – mass, two groups (Kaliningrad, Belarus) |
-  | Initiative | moves second | moves first (`first_player` 1) |
+  | Initiative | moves first when the human plays it, else second | moves first when the human plays it, else second (data `first_player` 1 only for AI-vs-AI) |
   | Aligned partner | Lithuania – **refuses an ultimatum** (a NATO member with allied troops on its soil, `accepts_ultimatum` false) **[ASSUMPTION]** | Belarus – accepts an ultimatum (a sovereign regime that prefers to stay out of a direct war) |
   | Enemy sanctuary to respect | the Kaliningrad oblast (Russian soil) | none on the map |
   | Off-map support | NATO allies: reinforcements, strike means | North Korea, China, Iran |

@@ -1,7 +1,8 @@
 class_name Operation
 extends RefCounted
 ## Builds an OperationalState from an OperationDefinition (TASK-092b). Takes no human-side
-## parameter: the operation is the same whichever side the human plays.
+## parameter: the operation is the same whichever side the human plays, except for the initiative
+## (`give_initiative`): the human's side always moves first.
 
 ## Operations shipped in data/operations/.
 const NAMES: Array[StringName] = [&"suwalki_gap"]
@@ -18,6 +19,16 @@ static func build(operation_id: StringName, seed_value: int) -> OperationalState
 		push_error("Operation: cannot load operation '%s'" % operation_id)
 		return null
 	return from_definition(definition, seed_value)
+
+
+## The initiative rule: the side the human plays moves first. Call it on a freshly built state
+## (before any command) with the human's player index; a negative index (nobody) keeps the
+## definition's `first_player`, which AI-vs-AI runs use.
+static func give_initiative(state: OperationalState, human_player: int) -> void:
+	if human_player < 0 or human_player >= state.player_sides.size():
+		return
+	state.first_player = human_player
+	state.current_player = human_player
 
 
 ## A state from the given data; `grid` = null loads the definition's map

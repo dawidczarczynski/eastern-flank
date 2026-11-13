@@ -578,7 +578,7 @@ Press **C**, or use the **Air defence cover** row in the map options, to show wh
 
 ### Turns
 
-The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: in "Suwałki Gap" Russia moves first, then NATO, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.
+The operation is played in turns of 12 hours. Each turn both blocs move, one after the other: the bloc you chose always moves first, then the other, and then the next turn begins. The **turn bar** at the top centre shows the bloc you are viewing with its number of formations, the turn number, the date, whether the turn is day (odd turns, 06:00–18:00, sun) or night (even turns, 18:00–06:00, moon), and which bloc is to move. **End turn** (or **Enter**) hands the move to the other bloc; a banner names the bloc to move. The button is greyed out, with a tooltip, while a contact battle is waiting to be fought.
 
 You can play both blocs. NATO is always blue and Russia always red, whoever is viewing. Your own formations are drawn as rectangles with a cut corner and the enemy's as diamonds; the view stays on the bloc you picked after each End turn. `--side=nato` or `--side=russia` picks the bloc you start with. Ending a turn carries out your orders (see **End of turn**); the enemy playing by itself comes later.
 

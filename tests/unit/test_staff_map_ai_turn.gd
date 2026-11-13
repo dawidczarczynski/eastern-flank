@@ -8,7 +8,7 @@ static var _calls: Array[int] = []
 func before_all() -> void:
 	_map = StaffMap.new()
 	_map.auto_build = false
-	_map.viewer_player = 0
+	_map.viewer_player = 1  # the human side moves first: Russia, as these tests were written
 	(Engine.get_main_loop() as SceneTree).root.add_child(_map)
 	assert_true(_map.build_now(), "staff map builds")
 
@@ -18,9 +18,10 @@ func after_all() -> void:
 	_map = null
 
 
-func _stub(sim: OperationalSimulation, player: int) -> Dictionary:
+func _stub(_sim: OperationalSimulation, player: int) -> Dictionary:
+	# Only records the call: ending the turn would advance `turn` when the AI side moves last
+	# and the once-per-turn guard would not trigger.
 	_calls.append(player)
-	sim.execute(EndOperationalTurnCommand.new())
 	return {}
 
 

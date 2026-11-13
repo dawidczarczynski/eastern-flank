@@ -20,10 +20,10 @@ func after_all() -> void:
 	TranslationServer.set_locale(_previous_locale)
 
 
-func _build() -> StaffMap:
+func _build(viewer := 0) -> StaffMap:
 	var map := StaffMap.new()
 	map.auto_build = false
-	map.viewer_player = 0
+	map.viewer_player = viewer
 	(Engine.get_main_loop() as SceneTree).root.add_child(map)
 	assert_true(map.build_now(), "staff map builds")
 	return map
@@ -162,7 +162,7 @@ func test_auto_resolve_stays_on_the_staff_map() -> void:
 ## around the replayed operation, viewed by the saved side, with the contact notice back.
 func test_save_and_continue_restore_the_pending_battle() -> void:
 	var dir := "user://test_staff_map_campaigns"
-	var map := _build()
+	var map := _build(1)  # Russia, the side that issues the order below, moves first
 	map.save_dir = dir
 	var simulation := map.simulation()
 	assert_true(simulation.execute(IssueOrderCommand.new(&"ru_mr_4", Vector2i(16, 52), &"advance")))

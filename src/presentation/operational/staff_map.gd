@@ -1135,6 +1135,10 @@ func _build_operation(definition: OperationDefinition) -> void:
 			viewer_player = state.current_player
 			if state.player_sides.has(chosen_side):  # the side picked in the menu (TASK-149)
 				viewer_player = state.player_sides.find(chosen_side)
+	if not _resumed:
+		# The human's side moves first; --hotseat and AI-less runs keep the data's order.
+		var human := viewer_player if not OS.get_cmdline_user_args().has("--hotseat") else -1
+		Operation.give_initiative(state, human)
 	if state.player_sides.size() == 2 and not OS.get_cmdline_user_args().has("--hotseat"):
 		ai_side = 1 - viewer_player
 	_cover = StaffMapAirDefenceLayer.new()  # under the markers and counters

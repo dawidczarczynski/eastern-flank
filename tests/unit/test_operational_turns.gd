@@ -88,3 +88,25 @@ func test_clock_date() -> void:
 	assert_eq(OperationalClock.date(61, "2027-06-14"), "2027-07-14")
 	assert_eq(OperationalClock.date(1, ""), "", "no start date, no date")
 	assert_eq(OperationalClock.date(1, "garbage"), "")
+
+
+func test_human_side_moves_first() -> void:
+	for human in [0, 1]:
+		var state := Operation.build(&"suwalki_gap", 1)
+		Operation.give_initiative(state, human)
+		assert_eq(state.first_player, human)
+		assert_eq(state.current_player, human)
+		var sim := OperationalSimulation.new(state)
+		assert_true(sim.execute(EndOperationalTurnCommand.new()))
+		assert_eq(sim.state.current_player, 1 - human)
+		assert_eq(sim.state.turn, 1)
+		assert_true(sim.execute(EndOperationalTurnCommand.new()))
+		assert_eq(sim.state.current_player, human)
+		assert_eq(sim.state.turn, 2)
+
+
+func test_no_human_keeps_the_data_order() -> void:
+	var state := Operation.build(&"suwalki_gap", 1)
+	var first := state.first_player
+	Operation.give_initiative(state, -1)
+	assert_eq(state.first_player, first)

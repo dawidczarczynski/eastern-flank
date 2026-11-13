@@ -210,6 +210,7 @@ func replay(full := false) -> Dictionary:
 func replay_on(state: OperationalState, full := false) -> Dictionary:
 	if human_player(state) < 0:
 		return _failure("invalid_side", -1, -1, String(human_side))
+	Operation.give_initiative(state, human_player(state))
 	var simulation := OperationalSimulation.new(state)
 	var events: Array[Dictionary] = []
 	var rejection: Array[String] = [""]

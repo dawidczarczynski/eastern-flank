@@ -272,6 +272,7 @@ static func _closed_chain_state() -> OperationalState:
 func test_a_gap_closed_record_replays_to_the_same_result() -> void:
 	var def := _closed_chain_definition()
 	var s := _closed_chain_state()
+	Operation.give_initiative(s, s.player_sides.find(&"red"))
 	var sim := OperationalSimulation.new(s)
 	for i in 4:
 		assert_true(sim.execute(EndOperationalTurnCommand.new()))

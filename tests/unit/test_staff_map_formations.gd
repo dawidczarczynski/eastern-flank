@@ -223,6 +223,7 @@ func test_scene_viewer_swap() -> void:
 func test_view_follows_the_side_to_play() -> void:
 	var state := _map.simulation().state
 	var mover := state.current_player
+	_map.ai_side = -1  # hot-seat: no AI side, so the view follows the side to play
 	_map.set_viewer(mover)
 	_map.call(&"_on_turn_started", {"type": &"operational_turn_started", "player": 1 - mover})
 	assert_eq(_map.viewer_player, 1 - mover, "hot-seat: the view moves to the bloc to play")

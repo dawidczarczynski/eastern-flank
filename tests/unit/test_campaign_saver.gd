@@ -48,9 +48,9 @@ static func _setup_dicts(state: OperationalState) -> Array:
 
 func test_save_and_load_with_a_pending_battle() -> void:
 	_contact()
-	var record := Session.record(0)
+	var record := Session.record(1)
 	assert_true(record != null)
-	assert_eq(record.human_side, _simulation.state.player_sides[0])
+	assert_eq(record.human_side, _simulation.state.player_sides[1])
 	var path := CampaignSaver.path_for(String(OPERATION), DIR)
 	assert_eq(path, DIR + "/suwalki_gap.json")
 	assert_eq(CampaignSaver.save(record, path), OK)
