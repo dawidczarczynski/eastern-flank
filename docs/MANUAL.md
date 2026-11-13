@@ -737,6 +737,23 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus Defence and Space, provided under Copernicus by the European Union and ESA. Full credits: `data/maps/CREDITS`.
 
+## 12c. Objectives, scoring and the end of an operation
+
+**Starting.** The side window lists **NATO first, then Russia**. The choice decides whose side you see and command; it changes nothing in the operation itself (same map, same forces, same rules; the AI plays the other side). Starting the game with `--side=nato` or `--side=russia` skips the window; an unknown value shows it as usual. A save remembers your side.
+
+**Who holds a hex.** The last side that had a formation on a hex holds it. Points are counted only when the operation ends.
+
+**Points** (from `data/operations/suwalki_gap.tres`):
+
+- Chernyakhovsk airfield 5 for NATO while NATO holds it; Białystok command post 5 and Vilnius 5 for Russia while Russia holds them.
+- Grodno depot 40 for whoever holds it at the end.
+- The **Gap road link** (the chain of road hexes through the Suwałki Gap): **open** at the end = 10 for NATO, **closed** (every hex of the chain held by Russia) = 10 for Russia.
+- **Escalation**: −3 for each net step of the ladder a side caused (steps it took back count against that).
+
+**Endings.** Russia wins at once when the Gap stays closed for **2 full rounds** in a row. After **30 rounds** the totals decide: the higher total wins; a difference under **5** is a draw. A nuclear attack ends the operation and nobody wins (a defeat for the side that used it).
+
+**The end notice.** When the operation ends a window shows the headline for your side – **Victory**, **Defeat**, **Draw** or, for the opponent's nuclear attack, **Nobody wins** – the reason, the rounds played and a table of points per side (objectives, escalation, total). **Review map** closes the window; the map stays readable but no orders can be given. **Back to menu** leaves the operation. Loading a save of an ended operation shows the same window once.
+
 ## 13. Not in the game yet
 
 To avoid confusion – these are **not** part of the current game: fog of war (you always see all enemy units), healing or repairing, elevation effects, ammunition, unit experience, vehicles carrying the infantry squads, different maps, choosing your country or army, choosing the battle in the menu (the objective battle is only a start option), victory points, a graphics settings menu, music, and saving/loading a match to continue later. On real-terrain maps: bridges over lakes and wide rivers (a road across water does not make it passable), houses in villages, and field or forest tracks as roads.

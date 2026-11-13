@@ -407,12 +407,29 @@ func _on_operation_pressed() -> void:
 		push_warning("Main menu: no playable operation '%s'" % StaffMap.DEFAULT_OPERATION)
 		get_tree().change_scene_to_file(STAFF_MAP_SCENE)
 		return
+	if side_from_args(OS.get_cmdline_user_args(), definition) != &"":
+		Session.chosen_side = side_from_args(OS.get_cmdline_user_args(), definition)
+		get_tree().change_scene_to_file(STAFF_MAP_SCENE)  # --side= skips the chooser
+		return
 	_side_select.present(definition, StaffMap.DEFAULT_SEED, get_viewport_rect().size)
 	_side_overlay.show()
 	_side_select.card(0).grab_focus()
 	if is_inside_tree():  # fade 150 ms
 		_side_overlay.modulate.a = 0.0
 		create_tween().tween_property(_side_overlay, "modulate:a", 1.0, 0.15)
+
+
+## The side id given by `--side=` when it is one of the operation's sides, else &"" (an unknown
+## value falls back to the chooser).
+static func side_from_args(args: PackedStringArray, definition: OperationDefinition) -> StringName:
+	for arg in args:
+		if arg.begins_with(StaffMapFormations.SIDE_ARG):
+			var wanted := StringName(arg.substr(StaffMapFormations.SIDE_ARG.length()).to_lower())
+			for side in definition.sides:
+				if side.id == wanted:
+					return wanted
+			return &""
+	return &""
 
 
 ## The side selection overlay: a scrim (a click on it goes back) and the window, hidden.

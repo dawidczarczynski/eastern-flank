@@ -105,3 +105,15 @@ func test_staff_map_plays_the_chosen_side_against_the_ai() -> void:
 	assert_eq(sides[map.ai_side], &"nato")
 	assert_eq(Session.chosen_side, &"", "taken by the staff map")
 	map.free()
+
+
+func test_chooser_lists_nato_first_then_russia() -> void:
+	assert_eq(_definition.sides[0].id, &"nato")
+	assert_eq(_definition.sides[1].id, &"russia")
+
+
+func test_side_argument_skips_the_chooser_unknown_value_does_not() -> void:
+	assert_eq(Menu.side_from_args(PackedStringArray(["--side=russia"]), _definition), &"russia")
+	assert_eq(Menu.side_from_args(PackedStringArray(["--side=NATO"]), _definition), &"nato")
+	assert_eq(Menu.side_from_args(PackedStringArray(["--side=mars"]), _definition), &"")
+	assert_eq(Menu.side_from_args(PackedStringArray(), _definition), &"")

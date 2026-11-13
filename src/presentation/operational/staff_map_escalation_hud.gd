@@ -9,6 +9,7 @@ signal menu_requested
 var _simulation: OperationalSimulation
 var _palette: StaffMapPalette
 var _toast: Callable  # (message: String, colour: Color)
+var _viewer := Callable()  # () -> int, the human's player
 var _end: StaffMapEndNotice
 var _changed_text := ""
 var _changed_colour := Color.WHITE
@@ -16,11 +17,16 @@ var _joined: Array[String] = []
 
 
 func _init(
-	simulation: OperationalSimulation, palette: StaffMapPalette, hud: CanvasLayer, toast: Callable
+	simulation: OperationalSimulation,
+	palette: StaffMapPalette,
+	hud: CanvasLayer,
+	toast: Callable,
+	viewer := Callable()
 ) -> void:
 	_simulation = simulation
 	_palette = palette
 	_toast = toast
+	_viewer = viewer
 	_end = StaffMapEndNotice.new()
 	_end.z_index = 100  # above the toasts, below nothing
 	_end.menu_pressed.connect(func() -> void: menu_requested.emit())
@@ -69,7 +75,23 @@ func on_event(event: Dictionary) -> void:
 
 func _show_end(event: Dictionary) -> void:
 	var state := _simulation.state
-	_end.present(StaffMapEscalation.end_lines(state, event), _palette)
+	var viewer: int = _viewer.call() if _viewer.is_valid() else 0
+	if event.get("reason") == &"nuclear_use":
+		_end.present(
+			StaffMapEscalation.end_lines(state, event),
+			_palette,
+			StaffMapEndModel.headline(state, event, viewer)
+		)
+		return
+	var lines: Array[String] = [
+		StaffMapEndModel.reason_line(state, event), StaffMapEndModel.detail_line(state, event)
+	]
+	_end.present_result(
+		StaffMapEndModel.headline(state, event, viewer),
+		lines,
+		StaffMapEndModel.table_rows(state, event),
+		_palette
+	)
 
 
 static func _ended_event(state: OperationalState) -> Dictionary:

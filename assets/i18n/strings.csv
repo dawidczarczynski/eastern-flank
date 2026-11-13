@@ -743,3 +743,19 @@ NUCLEAR OPTION,NUCLEAR OPTION,Opcja nuklearna
 FORMATIONS,FORMATIONS,Formacje
 START OPERATION,START OPERATION,Rozpocznij operację
 SEED,SEED,Ziarno
+Victory,Victory,Zwycięstwo
+Defeat,Defeat,Porażka
+Draw,Draw,Remis
+Nobody wins,Nobody wins,Nikt nie wygrywa
+Russia held the Gap road link long enough. The operation ends.,Russia held the Gap road link long enough. The operation ends.,Rosja utrzymała drogę przez Przesmyk wystarczająco długo. Operacja się kończy.
+The round limit was reached. The operation is scored.,The round limit was reached. The operation is scored.,Osiągnięto limit rund. Operacja zostaje rozliczona punktami.
+The operation has ended.,The operation has ended.,Operacja dobiegła końca.
+Rounds played: %d,Rounds played: %d,Rozegrane rundy: %d
+Total,Total,Razem
+Gap road link open,Gap road link open,Droga przez Przesmyk otwarta
+Gap road link closed,Gap road link closed,Droga przez Przesmyk zamknięta
+ESC_END_REVIEW,Review map,Przejrzyj mapę
+Chernyakhovsk airfield,Chernyakhovsk airfield,Lotnisko Czerniachowsk
+Bialystok command post,Bialystok command post,Stanowisko dowodzenia Białystok
+Vilnius,Vilnius,Wilno
+Grodno depot,Grodno depot,Skład Grodno

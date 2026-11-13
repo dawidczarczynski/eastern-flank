@@ -62,6 +62,7 @@ const DEFAULT_SEED := 1
 ## A left press released within this many pixels of travel is a click, not a drag.
 const CLICK_SLOP := 5.0
 const PANEL_MARGIN := Vector2(16, 16)
+const PANEL_FADE := 0.12  # s, the formation panel fading in on a new dock
 ## Viewport size assumed outside the scene tree (headless tests).
 const FALLBACK_VIEWPORT := Vector2(1280, 720)
 
@@ -155,6 +156,9 @@ var _km_per_unit := 1.0
 var _position := Vector2.ZERO
 var _zoom := 1.0
 var _raised_marker: StringName = &""  # installation drawn above the counters (_pick_counter)
+var _insets := Vector4()  # HUD-covered screen px (top, bottom, left, right), see _clear_insets
+var _ease: Tween  # camera ease that brings a selected counter into the clear zone
+var _panel_fade: Tween
 var _pitch := StaffMapCameraMath.PITCH_DEFAULT
 var _pitch_target := StaffMapCameraMath.PITCH_DEFAULT
 var _tilt := StaffMapCameraMath.PITCH_DEFAULT  # the last tilt, for V
@@ -238,6 +242,7 @@ func _process(delta: float) -> void:
 		_pan_by_keys_and_edge(delta)
 		_update_hover()
 	_sync_action_bar()
+	_sync_insets()
 	_tick_journal(delta)
 	advance_slide(delta)
 	play_ai_turn_if_due()
@@ -775,6 +780,8 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	if formation_id == _counters.selected() and not refill:
 		return
 	_order_ring.close()
+	var new_selection := formation_id != _counters.selected()
+	var appears := not _panel.visible
 	if _border_prompt != null and _border_prompt.pending().get("formation_id") != formation_id:
 		_border_prompt.take()
 	_counters.set_selected(formation_id)
@@ -788,7 +795,10 @@ func select_formation(formation_id: StringName, refill := false) -> void:
 	var origin := CountryDefinition.find(origin_country(formation_id))
 	_panel.show_origin(origin.display_name if origin != null else "")
 	_show_order_ui(formation)
-	_place_panel()
+	if new_selection:
+		_dock_panel_for(formation_id, appears)
+	else:
+		_place_panel()
 
 
 ## Posture / order rows of the panel: own formations only.
@@ -953,6 +963,9 @@ func open_country_card(country_id: StringName) -> void:
 
 
 func _claim_left_dock(owner: LeftWindow) -> void:
+	if _panel != null and _panel.dock_side == StaffMapWindow.Dock.LEFT:
+		_panel.dock_side = StaffMapWindow.Dock.RIGHT  # the left dock is taken: back to the right
+		_place_panel()
 	if owner != LeftWindow.OPTIONS and _options != null and _options.close():
 		_sync_action_bar()
 	if owner != LeftWindow.MENU:
@@ -1723,7 +1736,106 @@ func _panel_rect() -> Rect2:
 func _place_panel() -> void:
 	if _panel == null:
 		return
-	_panel.dock(_viewport_size().x)  # right dock, under the turn bar row
+	_panel.dock(_viewport_size().x)  # under the turn bar row
+
+
+## Docks the panel of a newly selected formation opposite its counter (left dock only when it is
+## free), fading it in (120 ms) when it appears or changes side; then eases the counter into the
+## clear zone when the panel or a bar covers it.
+func _dock_panel_for(formation_id: StringName, appears: bool) -> void:
+	var counter := (
+		counter_screen_position(formation_id) if _anchors.has(formation_id) else Vector2()
+	)
+	var left := StaffMapCameraMath.panel_on_left(
+		counter.x, _viewport_size().x, not _left_dock_busy()
+	)
+	var side := StaffMapWindow.Dock.LEFT if left else StaffMapWindow.Dock.RIGHT
+	var changed := side != _panel.dock_side
+	_panel.dock_side = side
+	_place_panel()
+	if _panel_fade != null:
+		_panel_fade.kill()
+	_panel.modulate.a = 1.0
+	if (changed or appears) and is_inside_tree():
+		_panel.modulate.a = 0.0
+		_panel_fade = create_tween()
+		_panel_fade.tween_property(_panel, "modulate:a", 1.0, PANEL_FADE)
+	_sync_insets()
+	_ease_into_clear_zone(counter)
+
+
+## A window other than the formation panel holds the left dock.
+func _left_dock_busy() -> bool:
+	for window in _docked_windows():
+		if window != _panel and window.dock_side == StaffMapWindow.Dock.LEFT:
+			return true
+	return false
+
+
+## Visible docked windows (not the centred confirm dialogs).
+func _docked_windows() -> Array[StaffMapWindow]:
+	var result: Array[StaffMapWindow] = []
+	if _hud == null:
+		return result
+	for node in _hud.find_children("*", "StaffMapWindow", true, false):
+		var window := node as StaffMapWindow
+		if (
+			window.visible
+			and not window is StaffMapExitConfirm
+			and not window is StaffMapStrikeConfirm
+		):
+			result.append(window)
+	return result
+
+
+## Screen px the HUD covers: turn bar + chip, the bottom bar and the open docked windows.
+func _clear_insets() -> Vector4:
+	var size := _viewport_size()
+	var left := 0.0
+	var right := 0.0
+	for window in _docked_windows():
+		var rect := window.get_global_rect()
+		if window.dock_side == StaffMapWindow.Dock.LEFT:
+			left = maxf(left, rect.end.x)
+		else:
+			right = maxf(right, size.x - rect.position.x)
+	return Vector4(StaffMapCameraMath.TOP_INSET, float(ActionBar.HEIGHT), left, right)
+
+
+## Screen rect no bar or window covers.
+func _clear_rect() -> Rect2:
+	return StaffMapCameraMath.clear_rect(_viewport_size(), _insets)
+
+
+## Re-clamps the camera when a window opened / closed.
+func _sync_insets() -> void:
+	var insets := _clear_insets()
+	if insets != _insets:
+		_insets = insets
+		_move_camera(_position)
+
+
+## Eases the camera so `counter` (screen px) lands inside the clear zone (280 ms ease-out).
+func _ease_into_clear_zone(counter: Vector2) -> void:
+	var shift := StaffMapCameraMath.ease_shift(
+		counter, _clear_rect(), StaffMapCameraMath.EASE_MARGIN
+	)
+	if shift == Vector2.ZERO:
+		return
+	var from := _position
+	var to := _position + StaffMapCameraMath.drag_delta(shift, _zoom, _pitch)
+	if _ease != null:
+		_ease.kill()
+	if not is_inside_tree():
+		_move_camera(to)
+		return
+	_ease = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_ease.tween_method(
+		func(t: float) -> void: _move_camera(from.lerp(to, t)),
+		0.0,
+		1.0,
+		StaffMapCameraMath.EASE_SECONDS
+	)
 
 
 ## Centres the camera on a formation whose counter is off screen (Tab).
@@ -1772,7 +1884,7 @@ func _build_hud() -> void:
 	_banner = TurnBanner.new()
 	_hud.add_child(_banner)
 	_order_ring = StaffMapOrderRing.new(
-		_hud, _execute, _screen_of_hex, _viewport_size, _can_order, _panel_rect
+		_hud, _execute, _screen_of_hex, _viewport_size, _can_order, _panel_rect, _clear_rect
 	)
 	_order_ring.ordered.connect(_on_ring_ordered)
 	_order_ring.closed.connect(_on_ring_closed)
@@ -1815,7 +1927,9 @@ func _build_hud() -> void:
 		OS.get_cmdline_user_args().has("--debug")
 	)
 	_politics.refresh(viewer_player)
-	_escalation = StaffMapEscalationHud.new(_simulation, _palette, _hud, _toast_message)
+	_escalation = StaffMapEscalationHud.new(
+		_simulation, _palette, _hud, _toast_message, func() -> int: return viewer_player
+	)
 	_escalation.menu_requested.connect(_return_to_menu)
 	_decisions = StaffMapDecisionsHud.new(
 		_simulation, _palette, _hud, func() -> int: return viewer_player
@@ -1888,7 +2002,13 @@ func _set_zoom(zoom_value: float) -> void:
 
 
 func _move_camera(position: Vector2) -> void:
-	_position = StaffMapCameraMath.clamp_position(position, _zoom, _bounds, _ground_viewport())
+	_position = StaffMapCameraMath.clamp_position(
+		position,
+		_zoom,
+		_bounds,
+		_ground_viewport(),
+		StaffMapCameraMath.ground_insets(_insets, _pitch)
+	)
 	_apply_camera()
 
 

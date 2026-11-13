@@ -1,6 +1,6 @@
 # TASK-107b: Side choice at the start of an operation and the end-of-operation notice
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation / docs
 - **Depends on**: TASK-107a (hard)
 - **Topic**: Two-layer game
@@ -52,4 +52,4 @@ Add to docs/MANUAL.md: a section on starting an operation (choosing the side, NA
 
 ## Implementation notes
 
-_Filled in by the agent when done: mockup used, decisions, known limitations._
+The side chooser already existed (TASK-149, `docs/design/operational_map/side_selection.html` variant A: NATO first, side stored in the session and `CampaignRecord.human_side`, Continue loads it). Added here: `--side=` skips the chooser (`MainMenu.side_from_args`, unknown value falls back to it); `StaffMapEndModel` (headline Victory / Defeat / Draw / Nobody wins, reason line with a generic fallback, rounds, points table from the `score` payload or recomputed for a resumed record); `StaffMapEndNotice.present_result` (light dim, table, **Review map** / **Back to menu**; nuclear keeps its fade and now shows the headline). **No mockup exists for the points table**: it reuses the end-notice frame with a mono 3-column grid – the human should judge it and, if wanted, run /design-ui. Known: the viewer's `Review map` has no way to reopen the notice; the points table was not seen in a screenshot.

@@ -281,6 +281,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapDecisionsHud` – The Politics screen of the staff map (TASK-117) behind a few calls: opens / closes it (ke… (`staff_map_decisions_hud.gd`)
 - `StaffMapDecisionsModel` – Pure view-model of the Decisions panel (TASK-117, docs/design/operational_map "Panels" –… (`staff_map_decisions_model.gd`)
 - `StaffMapDecisionsPanel` – The Politics screen of the staff map (TASK-117, docs/design/operational_map/ (`staff_map_decisions_panel.gd`)
+- `StaffMapEndModel` – Texts of the end-of-operation notice (TASK-107b): headline for the viewer's side, the end… (`staff_map_end_model.gd`)
 - `StaffMapEndNotice` – Full-screen notice when the operation ends (TASK-115, TASK-140): "Operation over", the si… (`staff_map_end_notice.gd`)
 - `StaffMapEscalation` – Pure texts and colours of the escalation ladder on the staff map (TASK-115): the chip, the (`staff_map_escalation.gd`)
 - `StaffMapEscalationChip` – Escalation chip under the turn bar (TASK-115, docs/design/operational_map "Turn bar"): th… (`staff_map_escalation_chip.gd`)
