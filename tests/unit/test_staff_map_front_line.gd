@@ -1,6 +1,6 @@
 extends TestCase
 ## The front line on the staff map (TASK-093c): drawn from the state, teeth towards the viewer's
-## enemy, recomputed only on a change, T tint, read-only. One StaffMap is shared by the tests.
+## enemy, recomputed only on a change, read-only. One StaffMap is shared by the tests.
 
 static var _map: StaffMap
 
@@ -75,14 +75,6 @@ func test_a_moved_formation_recomputes() -> void:
 	assert_eq(front.rebuild_count(), before + 1)
 	f.coord = origin
 	front.refresh(state, 0)
-
-
-func test_t_toggles_the_tint() -> void:
-	var front := _map.front_line()
-	var on := front.is_tint_visible()
-	front.set_tint_visible(not on)
-	assert_eq(front.is_tint_visible(), not on)
-	front.set_tint_visible(on)
 
 
 func test_exact_variant_with_the_grid_at_z2() -> void:

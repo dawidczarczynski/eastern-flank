@@ -105,7 +105,7 @@ func test_key_c_toggles_the_zones_of_both_sides() -> void:
 func test_options_row_follows_the_toggle() -> void:
 	var options := _map.options_window()
 	assert_true(options.option(StaffMap.ACTION_COVER) != null, "sixth row")
-	assert_eq(options.ids().size(), 6)
+	assert_eq(options.ids().size(), 7)
 	assert_false(options.option(StaffMap.ACTION_COVER).button_pressed)
 	options.option_toggled.emit(StaffMap.ACTION_COVER)
 	assert_true(_map.air_defence_cover().is_shown())
@@ -114,9 +114,13 @@ func test_options_row_follows_the_toggle() -> void:
 	assert_false(options.option(StaffMap.ACTION_COVER).button_pressed)
 
 
-func test_country_card_moved_to_k() -> void:
+func test_k_is_terrain_control_not_the_cover() -> void:
+	var on := _map.terrain_control().is_enabled()
 	_key(KEY_K)
 	assert_false(_map.air_defence_cover().is_shown(), "K is not the cover key")
+	assert_eq(_map.terrain_control().is_enabled(), not on)
+	_key(KEY_K)
+	assert_eq(_map.terrain_control().is_enabled(), on)
 
 
 func test_zones_are_cached_between_frames() -> void:

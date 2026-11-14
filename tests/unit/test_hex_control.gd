@@ -83,7 +83,7 @@ func test_installation_hex_is_held_with_its_hex() -> void:
 	assert_eq(HexControl.holder(s, objective.hex_in(s)), 0)
 
 
-func test_ending_a_move_takes_the_hex_passing_through_does_not() -> void:
+func test_a_move_takes_every_hex_it_walks_through() -> void:
 	var s := _strip()
 	var f := _red(s, &"r", Vector2i(7, 0))
 	s.hex_holders[Vector2i(5, 0)] = 0
@@ -94,7 +94,9 @@ func test_ending_a_move_takes_the_hex_passing_through_does_not() -> void:
 	_run(s, orders)
 	assert_eq(f.coord, Vector2i(4, 0))
 	assert_eq(HexControl.holder(s, Vector2i(4, 0)), 1, "the move ended there")
-	assert_eq(HexControl.holder(s, Vector2i(5, 0)), 0, "passed through")
+	assert_eq(HexControl.holder(s, Vector2i(5, 0)), 1, "passed through")
+	assert_eq(HexControl.holder(s, Vector2i(6, 0)), 1, "passed through")
+	assert_eq(HexControl.holder(s, Vector2i(7, 0)), 1, "the start hex stays held")
 	assert_eq(_changes().size(), 1)
 	assert_eq(_changes()[0]["hex"], Vector2i(4, 0))
 	assert_eq(_changes()[0]["holder"], 1)

@@ -26,6 +26,7 @@ var place_namer: Callable
 var _tab: Label
 var _name_label: Label
 var _values: Array[Label] = []
+var _captions: Array[Label] = []
 
 
 ## Untranslated facts about hex `c` (pure, tested): name, hex ("col·row", 1-based), elevation
@@ -94,12 +95,28 @@ func show_info(data: Dictionary) -> void:
 	_values[3].text = (
 		tr(StaffMapCountries.NAMES.get(country, country)).to_upper() if country != "" else "–"
 	)
-	_values[4].text = (
-		tr(RELATION_TEXT.get(data.get("relation", &"none"), "")).to_upper()
-		if country != ""
-		else "–"
-	)
+	var control: String = data.get("control", "")
+	_captions[4].text = tr("Control" if control != "" else "Stance").to_upper()
+	if control != "":
+		_values[4].text = tr(control_word(control)).to_upper()
+	else:
+		_values[4].text = (
+			tr(RELATION_TEXT.get(data.get("relation", &"none"), "")).to_upper()
+			if country != ""
+			else "–"
+		)
 	show()
+
+
+## The short word of a terrain control phrase ("NATO – captured from Russia" -> "Captured"): the
+## strip has room for one word; the full phrase is `TerrainControl.card_text`.
+static func control_word(control: String) -> String:
+	var tail := control.get_slice(" – ", 1)
+	return tail.get_slice(" ", 0).capitalize()
+
+
+func caption_text(row: int) -> String:
+	return _captions[row].text
 
 
 func name_text() -> String:
@@ -124,6 +141,7 @@ func _column(caption: String, width: int) -> Control:
 	var value := _label(HudTheme.mono(600), 12, UiPalette.HUD_TEXT)
 	value.clip_text = true
 	_values.append(value)
+	_captions.append(cap)
 	column.add_child(cap)
 	column.add_child(value)
 	return column

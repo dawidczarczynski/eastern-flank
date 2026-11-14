@@ -400,7 +400,8 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Place names on / off | N |
 | Country borders and names on / off | B (while no battle is pending) |
 | Air defence coverage on / off | C |
-| Country card | K |
+| Terrain control (occupied ground) on / off | K |
+| Country card | T |
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
 | Objectives on / off | O, or the **OBJECTIVES** button on the bottom bar; Esc or ✕ closes it |

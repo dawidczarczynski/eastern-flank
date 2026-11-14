@@ -2,8 +2,8 @@ class_name StaffMapFrontLine
 extends Node3D
 ## The front line of the staff map (TASK-093c, look: docs/design/operational_map "Front line"):
 ## a screen-space ribbon along `FrontLine.edges` with small teeth pointing to the enemy of the
-## viewer, and a faint tint of each side's zone (T). Smoothed (midpoints + Chaikin x3) by default,
-## the exact hex edges while the grid is shown at Z2. Read-only (rule 3).
+## viewer. Smoothed (midpoints + Chaikin x3) by default, the exact hex edges while the grid is
+## shown at Z2. Read-only (rule 3).
 ##
 ## Work happens only when something changed: `refresh` compares a signature of the formations,
 ## the viewer and the visibility, `set_view` the pixel scale, zoom level and variant – never per
@@ -15,8 +15,6 @@ const CASING_EXTRA_PX := 2.4
 const TOOTH_LENGTH_PX := 5.5
 const TOOTH_BASE_PX := 7.0
 const TOOTH_SPACING_PX := 15.0
-const TINT_ALPHA := 0.05
-const PRIORITY_TINT := 12
 const PRIORITY_CASING := 17
 const PRIORITY_LINE := 18
 
@@ -25,7 +23,6 @@ var _palette: StaffMapPalette
 var _casing: MeshInstance3D
 var _line: MeshInstance3D
 var _teeth: MeshInstance3D
-var _tint: MeshInstance3D
 var _lines: Array = []  # exact polylines (hex units), cached from the last refresh
 var _smooth_lines: Array = []
 var _signature := ""
@@ -33,7 +30,6 @@ var _viewer := 0
 var _scale_px := 0.0
 var _level := 1
 var _exact := false
-var _tint_on := true
 var _teeth_scale := -1.0
 var _rebuilds := 0
 var _tooth_total := 0
@@ -43,7 +39,6 @@ func _init(relief: StaffMapRelief, palette: StaffMapPalette) -> void:
 	name = "FrontLine"
 	_relief = relief
 	_palette = palette
-	_tint = _triangle_node("Tint", PRIORITY_TINT)
 	_casing = _line_node("Casing", Color(0.05, 0.06, 0.05, 0.8), PRIORITY_CASING)
 	_line = _line_node("Line", palette.ui_text, PRIORITY_LINE)
 	_teeth = _triangle_node("Teeth", PRIORITY_LINE)
@@ -66,7 +61,6 @@ func refresh(state: OperationalState, viewer: int, shown := true) -> void:
 	_smooth_lines = []
 	for line: PackedVector2Array in _lines:
 		_smooth_lines.append(FrontLine.smooth(line))
-	_tint.mesh = _tint_mesh(FrontLine.ownership(state))
 	_apply_lines()
 	_teeth_scale = -1.0
 	_apply_teeth()
@@ -85,15 +79,6 @@ func set_view(scale_px: float, level: int, exact: bool) -> void:
 		_teeth_scale = -1.0
 	if variant_changed or width_changed or absf(scale_px - _teeth_scale) > _teeth_scale * 0.02:
 		_apply_teeth()
-
-
-func set_tint_visible(value: bool) -> void:
-	_tint_on = value
-	_tint.visible = value
-
-
-func is_tint_visible() -> bool:
-	return _tint_on
 
 
 ## Number of recomputations so far (tests: nothing recomputes without a change).
@@ -194,32 +179,6 @@ static func teeth_of(
 			at += spacing
 		carried = at - segment
 	return teeth
-
-
-func _tint_mesh(owners: Dictionary) -> ArrayMesh:
-	var vertices := PackedVector3Array()
-	var colours := PackedColorArray()
-	var coords: Array = owners.keys()
-	coords.sort_custom(
-		func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y)
-	)
-	for coord: Vector2i in coords:
-		var colour := StaffMapFormations.side_colour(_palette, owners[coord] as int)
-		colour.a = TINT_ALPHA
-		var centre := Hex.to_world(coord, 1.0)
-		var middle := Vector2(centre.x, centre.z)
-		for k in 6:
-			var a := Vector2(centre.x, centre.z) + _corner_offset(k)
-			var b := Vector2(centre.x, centre.z) + _corner_offset(k + 1)
-			for point: Vector2 in [middle, a, b]:
-				vertices.append(_relief.surface_point(point))
-				colours.append(colour)
-	return _triangles(vertices, colours)
-
-
-static func _corner_offset(k: int) -> Vector2:
-	var angle := PI / 6.0 + k * PI / 3.0
-	return Vector2(cos(angle), sin(angle))
 
 
 func _drape(line: PackedVector2Array) -> PackedVector3Array:

@@ -2,10 +2,10 @@ class_name HexControl
 extends RefCounted
 ## Hex control of the operational layer (TASK-107a, GDD "Sides" Victory): a hex is held by the last
 ## side with a formation on it. Start: the side of the hex's country, a hex with a start formation
-## belongs to that formation's side. A formation takes a hex by ending its move there or by
-## winning the battle there (the attacker takes the defender's hex); passing through changes
-## nothing. No zones of control. Holders live in OperationalState (`hex_initial` static,
-## `hex_holders` the changes, saved). No randomness.
+## belongs to that formation's side. A formation takes every hex it walks through (the
+## whole route of a move, end hex included; human decision 2026-11-14) and the hex of a battle it
+## wins (the attacker takes the defender's hex). No zones of control. Holders live in
+## OperationalState (`hex_initial` static, `hex_holders` the changes, saved). No randomness.
 
 
 ## Fills `state.hex_initial` from the countries' sides and the formations standing now.

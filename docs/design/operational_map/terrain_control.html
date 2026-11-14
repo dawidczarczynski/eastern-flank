@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Terrain control – proposal</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf)}
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url(../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf)}
+@font-face{font-family:"JetBrains Mono";font-weight:100 800;src:url(../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf)}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url(../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf)}
+:root{--void:#0b0d0b;--land:#1d211c;--own:#5b93d6;--enemy:#d76a52;--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--card:#12150f;--edge:#2e3329;--border:#a9afa1}
+*{box-sizing:border-box}
+body{margin:0;background:#080a08;color:var(--text);font:500 14px "Plex Cond",sans-serif;padding:0 32px 48px}
+.banner{margin:0 -32px 24px;padding:10px 32px;background:#2a2210;border-bottom:2px solid var(--amber);font:700 13px "Chakra Petch";letter-spacing:.12em;color:var(--amber)}
+h1{font:700 26px "Chakra Petch";margin:8px 0}h2{font:700 18px "Chakra Petch";letter-spacing:.06em;color:var(--amber);margin:40px 0 8px}
+p,li{max-width:980px;line-height:1.5;color:#c4cbbb}
+.mono{font-family:"JetBrains Mono";font-size:12px}
+.row{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.frame{border:1px solid var(--edge);background:var(--void);width:760px;height:430px;position:relative;overflow:hidden}
+.frame svg{display:block}
+table{border-collapse:collapse;width:560px;font:500 12px "JetBrains Mono"}
+td,th{border:1px solid var(--edge);padding:5px 8px;text-align:left;vertical-align:top}th{color:var(--amber);font-weight:600;width:130px}
+.cap{font:600 11px "JetBrains Mono";color:var(--muted);margin:4px 0 0}
+.card{position:absolute;background:rgba(8,11,8,.93);border:1px solid #3a3f33;padding:8px 12px;width:250px;font:500 12px "JetBrains Mono"}
+.card b{font:700 11px "Chakra Petch";letter-spacing:.1em;display:block;margin-bottom:4px}
+.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--edge);background:var(--card);width:300px;height:36px;padding:0 10px;font:600 12px "JetBrains Mono";margin-top:6px}
+.opt i{width:16px;height:16px;border:1px solid var(--amber);color:var(--amber);display:grid;place-items:center;font-style:normal;font-size:11px}
+.opt span{margin-left:auto;color:var(--amber)}.opt kbd{border:1px solid var(--muted);padding:0 5px;color:var(--muted);font:inherit}
+</style></head><body>
+<div class="banner" style="background:#14230f;border-color:#b9d38a;color:#b9d38a">ACCEPTED 2026-11-14 · variant A (B and C rejected) · TASK-152</div>
+<h1>Terrain control on the operational map</h1>
+
+<h2>1 · The need</h2>
+<p><b>Today:</b> the map shows the country tint (stance, ~5 %), the dash-dot state border and the front line with a 5 % tint of "who is nearer". That tint is derived from the formations only (<span class="mono">FrontLine</span>, a display). It does not show <span class="mono">HexControl</span> – the real rule: a hex changes holder when a formation ends its move there or wins the battle there. So <b>captured ground is invisible</b>: after an advance you cannot see what you or the enemy took.</p>
+<p><b>Says:</b> which hexes are held by a side that is not the country's original side (occupied / captured), and by whom. <b>When:</b> always on at Z0–Z2 (toggle key, default on). <b>Data:</b> <span class="mono">HexControl.holder(hex) != initial side of the hex's country</span> (<span class="mono">hex_holders</span> vs <span class="mono">hex_initial</span>). <b>Must not hide:</b> counters, route ribbon, place names, border line, front line teeth. <b>Meaning by shape, not only colour:</b> own = blue, enemy = red, and the occupation pattern / contour differs from the plain country tint.</p>
+<p><b>Frames below</b> (simplified backdrop, viewer = NATO / own blue): country border dash-dot in the middle; left = own country (blue 5 % tint), right = enemy country (red 5.5 % tint). In the south-east, <b>own forces hold <span id=nOwn></span> enemy hexes</b>; in the north-west, <b>the enemy holds <span id=nEn></span> own hexes</b>. Counters are shown as simple hex tiles.</p>
+
+<div id="stage"></div>
+
+<h2>2 · Common to all variants</h2>
+<ul>
+<li><b>Layer</b> below counters, route, orders and labels, above the terrain and the country tint (the holder colour <i>replaces</i> the country tint on an occupied hex). <span class="mono">mouse_filter</span> IGNORE; rebuilt only on <span class="mono">control_changed</span> / <span class="mono">objective_changed</span>; contour smoothed like the front line (midpoints + Chaikin ×3), exact at Z2 grid.</li>
+<li><b>Toggle:</b> key <span class="mono">K</span> (free: P political, F front, O orders, T terrain, R rail, G grid, L labels, N names, B borders, C air defence); seventh row in Map options (below), default on.</li>
+<li><b>Hex card</b> (hover) gets the existing "control" row filled: <span class="mono">CONTROL  Russia – occupied (PL)</span> / <span class="mono">NATO – held</span> / <span class="mono">NATO – captured from Russia</span>.</li>
+<li><b>Colour-blind:</b> the pattern / contour <i>shape</i> says "occupied"; the side colour says by whom, and the card says it in words.</li>
+</ul>
+<div class="row">
+ <div>
+  <div class="opt"><i>✓</i>Terrain control<span>ON</span><kbd>K</kbd></div>
+  <div class="opt" style="opacity:.55"><i></i>Terrain control<span style="color:var(--muted)">OFF</span><kbd>K</kbd></div>
+  <p class="cap">Map options row, ON and OFF (toggle row, 36 px).</p>
+ </div>
+ <div style="position:relative;width:300px;height:90px"><div class="card" style="left:0;top:0"><b style="color:var(--enemy)">HEX · SUWAŁKI REGION</b>CONTROL <span style="color:var(--enemy)">◆ Russia – occupied</span><br>COUNTRY Poland (own)</div></div>
+ <div style="position:relative;width:300px;height:90px"><div class="card" style="left:0;top:0"><b style="color:var(--own)">HEX · SEJNY REGION</b>CONTROL <span style="color:var(--own)">▬ NATO – captured</span><br>COUNTRY Belarus (enemy)</div></div>
+</div>
+
+<h2>3 · Variants</h2>
+<div id="variants"></div>
+
+<h2>4 · Open questions</h2>
+<ul>
+<li>Show <b>all</b> held ground (every hex tinted by its holder, ~100 % of the map) or only <b>occupied</b> ground? The proposal shows only occupied: the country tint already says "whose country"; the new layer says "someone else holds it now".</li>
+<li>Should the existing front-line zone tint (5 %, by distance to formations) be removed once this exists? Recommended yes – two overlapping tints blur the message. The front line itself (ribbon + teeth) stays.</li>
+</ul>
+
+<script>
+const R=22,S=Math.sqrt(3);
+const NS="http://www.w3.org/2000/svg";
+const hc=(q,r)=>[40+1.5*R*q,50+S*R*(r+q/2)];
+const hexPts=(x,y,k=1)=>[...Array(6)].map((_,i)=>{const a=Math.PI/3*i;return (x+R*k*Math.cos(a)).toFixed(1)+","+(y+R*k*Math.sin(a)).toFixed(1)}).join(" ");
+const Q=[...Array(17).keys()],RR=[...Array(11).keys()];
+const border=y=>372+30*Math.sin(y/70)+(y/6);
+const hexes=[];for(const q of Q)for(const r of RR){const rr=r-Math.floor(q/2);const [x,y]=hc(q,rr);if(y>410||y<10||x>740)continue;hexes.push({q,r:rr,x,y,c:x<border(y)?"PL":"BY"});}
+const key=(q,r)=>q+","+r,idx={};hexes.forEach(h=>idx[key(h.q,h.r)]=h);
+// holders: enemy holds PL hexes in NW, own holds BY hexes in SE
+hexes.forEach(h=>{h.h=h.c=="PL"?"own":"enemy";
+ if(h.c=="PL"&&h.x>230&&h.x<372&&h.y<190&&h.y>60)h.h="enemy";
+ if(h.c=="BY"&&h.x>372&&h.x<520&&h.y>230&&h.y<350)h.h="own";});
+const occ=h=>(h.c=="PL"&&h.h=="enemy")||(h.c=="BY"&&h.h=="own");
+const DIRS=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+// boundary edges of occupied regions: edge i of hex between corner i and i+1; neighbour direction mapping for flat-top
+const EDGE_DIR=DIRS; // corner i -> i+1 (angles 0..60 = lower right)
+function edges(side){const out=[];hexes.filter(h=>occ(h)&&h.h==side).forEach(h=>{EDGE_DIR.forEach((d,i)=>{const n=idx[key(h.q+d[0],h.r+d[1])];if(n&&occ(n)&&n.h==side)return;
+ const a=Math.PI/3*i,b=Math.PI/3*(i+1);out.push([[h.x+R*Math.cos(a),h.y+R*Math.sin(a)],[h.x+R*Math.cos(b),h.y+R*Math.sin(b)],h,i]);});});return out}
+const C={own:"#5b93d6",enemy:"#d76a52"};
+function base(variant){
+ let s=`<svg xmlns="${NS}" width="760" height="430" viewBox="0 0 760 430"><defs>
+ <pattern id="hOwn${variant}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${C.own}" stroke-width="2" opacity=".55"/></pattern>
+ <pattern id="hEn${variant}" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="${C.enemy}" stroke-width="2" opacity=".55"/></pattern></defs>
+ <rect width="760" height="430" fill="#161a15"/>`;
+ // terrain noise: forest patches
+ [[90,320,50],[200,120,40],[600,100,55],[560,350,35],[310,300,30]].forEach(([x,y,r])=>s+=`<ellipse cx="${x}" cy="${y}" rx="${r*1.4}" ry="${r}" fill="#22302a" opacity=".7"/>`);
+ s+=`<path d="M0 250 C 120 230 240 300 380 260 S 640 200 760 240" stroke="#3a5c70" stroke-width="1.5" fill="none"/>`;
+ // country tints
+ hexes.forEach(h=>{if(h.c=="PL")s+=`<polygon points="${hexPts(h.x,h.y)}" fill="${C.own}" opacity=".05"/>`;else s+=`<polygon points="${hexPts(h.x,h.y)}" fill="${C.enemy}" opacity=".055"/>`});
+ return s}
+function borderPath(){let d="M"+border(0)+" 0";for(let y=0;y<=430;y+=10)d+=` L${border(y).toFixed(1)} ${y}`;return `<path d="${d}" stroke="#0d100d" stroke-width="3.6" fill="none"/><path d="${d}" stroke="#a9afa1" stroke-width="1.4" stroke-dasharray="9 3 2 3" fill="none"/>`}
+function front(){return `<path d="M300 250 L338 232 L378 268 L420 262 L470 300" stroke="#0d100d" stroke-width="5" fill="none" opacity=".8"/><path d="M300 250 L338 232 L378 268 L420 262 L470 300" stroke="#dfe5d6" stroke-width="2.4" fill="none"/>`}
+function counters(){let s="";const T=(x,y,side)=>{const f=side=="own"?C.own:C.enemy;const shape=side=="own"?`<rect x="${x-12}" y="${y-8}" width="24" height="16" fill="${f}"/>`:`<polygon points="${x},${y-12} ${x+12},${y} ${x},${y+12} ${x-12},${y}" fill="${f}"/>`;
+ return `<polygon points="${hexPts(x,y,.95)}" fill="#4a4f44" stroke="#0b0d0b" stroke-width="1"/>${shape}`};
+ s+=T(300,150,"enemy")+T(268,110,"enemy")+T(470,300,"own")+T(430,260,"own")+T(150,200,"own")+T(560,150,"enemy");
+ s+=`<text x="486" y="298" font-family="Plex Cond" font-weight="500" font-size="11" fill="#dfe5d6">Sejny</text><text x="190" y="206" font-family="Plex Cond" font-weight="500" font-size="11" fill="#dfe5d6">Suwałki</text>`;return s}
+const regionCentre=side=>{const hs=hexes.filter(h=>occ(h)&&h.h==side);return [hs.reduce((a,h)=>a+h.x,0)/hs.length,hs.reduce((a,h)=>a+h.y,0)/hs.length,hs.length]};
+function legend(txt){return `<g font-family="JetBrains Mono" font-size="10" font-weight="600"><rect x="10" y="404" width="300" height="20" fill="#080b08" opacity=".9" stroke="#3a3f33"/><text x="18" y="418" fill="#8d9585">${txt}</text></g>`}
+function chip(x,y,side,txt){const f=C[side];const shape=side=="own"?`<rect x="${x+6}" y="${y+5}" width="12" height="8" fill="${f}"/>`:`<polygon points="${x+12},${y+3} ${x+18},${y+9} ${x+12},${y+15} ${x+6},${y+9}" fill="${f}"/>`;
+ return `<rect x="${x}" y="${y}" width="${28+txt.length*7}" height="18" fill="#080b08" opacity=".92" stroke="${f}" stroke-opacity=".6"/>${shape}<text x="${x+24}" y="${y+13}" font-family="Chakra Petch" font-weight="700" font-size="10.5" letter-spacing="1" fill="#dfe5d6">${txt}</text>`}
+const V={
+A:()=>{let s=base("A");
+ hexes.filter(occ).forEach(h=>s+=`<polygon points="${hexPts(h.x,h.y)}" fill="${C[h.h]}" opacity=".13"/><polygon points="${hexPts(h.x,h.y)}" fill="url(#${h.h=="own"?"hOwn":"hEn"}A)"/>`);
+ ["own","enemy"].forEach(sd=>edges(sd).forEach(e=>s+=`<line x1="${e[0][0]}" y1="${e[0][1]}" x2="${e[1][0]}" y2="${e[1][1]}" stroke="#0b0d0b" stroke-width="4" opacity=".7"/>`));
+ ["own","enemy"].forEach(sd=>edges(sd).forEach(e=>s+=`<line x1="${e[0][0]}" y1="${e[0][1]}" x2="${e[1][0]}" y2="${e[1][1]}" stroke="${C[sd]}" stroke-width="2" stroke-linecap="round"/>`));
+ s+=borderPath()+front()+counters()+legend("A · hatch 45° + solid contour 2 px · occupied");return s+"</svg>"},
+B:()=>{let s=base("B");
+ hexes.filter(occ).forEach(h=>s+=`<polygon points="${hexPts(h.x,h.y)}" fill="${C[h.h]}" opacity=".2"/>`);
+ ["own","enemy"].forEach(sd=>edges(sd).forEach(e=>{const [a,b,h,i]=e;const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy);const nx=(h.x-(a[0]+b[0])/2),ny=(h.y-(a[1]+b[1])/2),nl=Math.hypot(nx,ny);
+  s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#0b0d0b" stroke-width="4" opacity=".7"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${C[sd]}" stroke-width="2"/>`;
+  // inward ticks (pointing into held ground), 2 per edge
+  for(const t of [.3,.7]){const px=a[0]+dx*t,py=a[1]+dy*t;s+=`<line x1="${px}" y1="${py}" x2="${px+nx/nl*7}" y2="${py+ny/nl*7}" stroke="${C[sd]}" stroke-width="1.6"/>`}}));
+ s+=borderPath()+front()+counters();
+ const e=regionCentre("enemy"),o=regionCentre("own");
+ s+=chip(e[0]-40,e[1]-60,"enemy","OCCUPIED · "+e[2])+chip(o[0]-40,o[1]+42,"own","HELD · "+o[2]);
+ return s+legend("B · 20% fill + contour with inward ticks + count chip")+"</svg>"},
+C:()=>{let s=base("C");
+ ["own","enemy"].forEach(sd=>edges(sd).forEach(e=>s+=`<line x1="${e[0][0]}" y1="${e[0][1]}" x2="${e[1][0]}" y2="${e[1][1]}" stroke="#0b0d0b" stroke-width="3.4" opacity=".7"/><line x1="${e[0][0]}" y1="${e[0][1]}" x2="${e[1][0]}" y2="${e[1][1]}" stroke="${C[sd]}" stroke-width="1.6" stroke-dasharray="1.5 4" stroke-linecap="round"/>`));
+ s+=borderPath()+front()+counters();
+ return s+legend("C · dotted contour only, no fill")+"</svg>"}
+};
+const specs={
+A:{name:"A · Hatch + contour (closest to the accepted look)",
+ why:"Reuses the air-defence hatch language (45°, 5–6 px) and the plain contour of the front line. Hatch = 'held by someone else'; colour = who.",
+ rows:[["Fill","holder colour 13 % + 45° hatch 6 px, 2 px lines, holder colour 55 %"],["Contour","2 px solid, holder colour, 0.7 casing 4 px <code>map.void</code>, along merged region edges (smoothed, round caps)"],["Tokens","<code>side.own</code> / <code>side.enemy</code> only – no new tokens"],["Zoom","Z0 contour + 13 % fill only (hatch fades in at Z1 so it does not moire); Z1/Z2 full; fixed screen-px widths"],["Reads at a glance","strong: the hatched area stands out from the plain 5 % country tint at every zoom"],["Godot notes","new <code>StaffMapControlLayer</code> next to <code>StaffMapFrontLine</code> (reuse <code>StaffMapLines</code>, front-line smoothing; hatch via the air-defence overlay shader); data from <code>HexControl</code>"]]},
+B:{name:"B · Tint + inward ticks + count chip",
+ why:"Heaviest: names the region and counts hexes – useful for victory scoring, but adds labels that compete with place names.",
+ rows:[["Fill","holder colour 20 % flat"],["Contour","2 px solid + two 7 px ticks per edge pointing into the held ground (reverse of front-line teeth: 'we are inside')"],["Chip","18 px high plate, side shape + Chakra Petch 700 10.5 'OCCUPIED · n' / 'HELD · n', one per connected region ≥ 3 hexes, Z0/Z1 only"],["Tokens","none new"],["Reads at a glance","very strong, but busier; chip may collide with names (collision rule: hide chip first)"],["Godot notes","as A plus region labelling (flood fill, cached) and a chip drawn in the screen-space label layer"]]},
+C:{name:"C · Dotted contour only",
+ why:"Minimal: no fill, the map stays as quiet as today. Weakest signal; large captured areas read less clearly.",
+ rows:[["Fill","none"],["Contour","1.6 px dotted (1.5 / 4, round), holder colour, casing 3.4 px"],["Tokens","none new"],["Reads at a glance","medium; shape (dots) is distinct from the border dash-dot and the solid front line"],["Godot notes","only the contour part of A"]]}};
+let html="";
+for(const k of ["A","B","C"]){const sp=specs[k];html+=`<h2 style="margin-top:32px">${sp.name}</h2><p>${sp.why}</p><div class="row"><div><div class="frame">${V[k]()}</div><p class="cap">1440×900 crop at Z1 · own (blue, NATO) holds ${regionCentre('own')[2]} hexes east of the border, enemy (red) holds ${regionCentre('enemy')[2]} in the north-west</p></div><table>${sp.rows.map(r=>`<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join("")}</table></div>`}
+document.getElementById("variants").innerHTML=html;nOwn.textContent=regionCentre("own")[2];nEn.textContent=regionCentre("enemy")[2];
+</script>
+</body></html>

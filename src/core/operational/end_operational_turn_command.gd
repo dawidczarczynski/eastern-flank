@@ -113,7 +113,8 @@ static func _execute_order(
 			)
 		)
 	if not steps.is_empty():
-		events.append_array(HexControl.take(state, formation.coord, formation.owner_id))
+		for step in steps:
+			events.append_array(HexControl.take(state, step, formation.owner_id))
 		events.append_array(EscalationRules.on_steps(state, formation, steps, walk_from))
 	if stop == OperationalRoutes.STOP_ARRIVED:
 		formation.order = null

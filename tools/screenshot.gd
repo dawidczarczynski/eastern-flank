@@ -374,6 +374,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## posture), unit[:<formation id>] (the unit strip in the bottom bar slot: the formation named,
 ## else the selected one), e.g.
 ## nohud (hides the whole HUD, the map and counters stay: the main menu backdrop),
+## occupy:<player>:<col>:<row>[:<radius>] (that player holds the hexes within the radius of the
+## hex, default 0: the terrain control layer, TASK-152),
 ## cover (the air defence cover overlay), suppress:<installation id>[:<rounds>] (silences a site),
 ## country:<id> (the country card, TASK-114), options (the map options window),
 ## journal[:<strikes|battles|moves|politics>] (the journal window with that chip, TASK-148b),
@@ -475,6 +477,20 @@ func _contact_setup(spec: String) -> BattleSetup:
 	)
 	print("Contact map: ", " | ".join(preview.lines()))
 	return preview.setup if picked else null
+
+
+## Token occupy: gives the hexes within `radius` of (col, row) to a player in the state.
+func _occupy(map: StaffMap, parts: PackedStringArray) -> void:
+	if parts.size() < 4:
+		printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token occupy")
+		return
+	var state := map.simulation().state
+	var centre := MapGenerator.offset_to_axial(parts[2].to_int(), parts[3].to_int())
+	var radius := parts[4].to_int() if parts.size() > 4 else 0
+	for hex: Vector2i in state.hex_initial.keys():
+		if Hex.distance(centre, hex) <= radius:
+			state.hex_holders[hex] = parts[1].to_int()
+	map.terrain_control().refresh(state, map.viewer_player)
 
 
 ## Staff map scene: tokens of SCREENSHOT_STAFF_MAP; processing stops afterwards so that the real
@@ -653,6 +669,8 @@ func _apply_staff_map_state(spec: String) -> void:
 				unit_strip_id = StringName(parts[1]) if parts.size() > 1 else &""
 			"nohud":
 				no_hud = true
+			"occupy":
+				_occupy(map, parts)
 			"pitch":
 				if parts.size() != 2 or not parts[1].is_valid_float():
 					printerr("ERROR: invalid SCREENSHOT_STAFF_MAP token '%s'" % token)

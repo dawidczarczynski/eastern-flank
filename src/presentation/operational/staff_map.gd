@@ -44,6 +44,7 @@ const ACTION_BORDERS := &"borders"
 const ACTION_POLITICS := &"politics"
 const ACTION_FLAT := &"flat"
 const ACTION_COVER := &"cover"
+const ACTION_CONTROL := &"control"
 const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
@@ -124,6 +125,7 @@ var _route: StaffMapRoutePreview
 var _route_marks: StaffMapRouteMarks
 var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
+var _control: StaffMapControlLayer  # terrain control (TASK-152), under the front line
 var _order_ring: StaffMapOrderRing
 var _unit_strip: StaffMapUnitStrip  # a formation in the hex strip's slot (TASK-151)
 var _pick_posture: StringName = &""  # key 1-3: the posture the next click on the map orders
@@ -316,7 +318,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_G:
 				toggle_grid()
 			KEY_T:
-				toggle_front_tint()
+				open_country_card(_card_hex_country())
 			KEY_B:
 				if _contacts.is_active():
 					_play_battle()
@@ -337,7 +339,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_C:
 				toggle_air_defence_cover()
 			KEY_K:
-				open_country_card(_card_hex_country())
+				toggle_terrain_control()
 			KEY_V:
 				toggle_flat_view()
 			KEY_I:
@@ -413,6 +415,7 @@ func _build_options_window() -> void:
 	_options.add_option(ACTION_POLITICS, tr("POLITICAL TINT"), "P")
 	_options.add_option(ACTION_FLAT, tr("VIEW"), "V", tr("FLAT"), tr("TILTED"))
 	_options.add_option(ACTION_COVER, tr("AIR DEFENCE COVER"), "C")
+	_options.add_option(ACTION_CONTROL, tr("TERRAIN CONTROL"), "K")
 	_options.option_toggled.connect(_on_action_pressed)
 	_options.close_requested.connect(close_options)
 	_hud.add_child(_options)
@@ -576,6 +579,8 @@ func _on_action_pressed(id: StringName) -> void:
 			toggle_flat_view()
 		ACTION_COVER:
 			toggle_air_defence_cover()
+		ACTION_CONTROL:
+			toggle_terrain_control()
 		ACTION_NEXT:
 			select_next_formation()
 		ACTION_CANCEL:
@@ -600,6 +605,7 @@ func _sync_action_bar() -> void:
 	_options.set_active(ACTION_POLITICS, _politics.tint_enabled())
 	_options.set_active(ACTION_FLAT, _pitch_target <= 0.5)
 	_options.set_active(ACTION_COVER, _cover_on)
+	_options.set_active(ACTION_CONTROL, _control.is_enabled())
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
 	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
@@ -613,8 +619,9 @@ func toggle_grid() -> void:
 	_apply_front_view()
 
 
-func toggle_front_tint() -> void:
-	_front.set_tint_visible(not _front.is_tint_visible())
+func toggle_terrain_control() -> void:
+	_control.set_enabled(not _control.is_enabled())
+	_sync_action_bar()
 
 
 func toggle_borders() -> void:
@@ -687,6 +694,7 @@ func _card_info(c: Vector2i) -> Dictionary:
 	data["relation"] = CountryRules.relation(
 		_simulation.state, viewer_player, _simulation.state.country_at(c)
 	)
+	data["control"] = TerrainControl.card_text(_simulation.state, c, viewer_player)
 	return data
 
 
@@ -728,6 +736,10 @@ func route_preview() -> StaffMapRoutePreview:
 
 
 ## The front line layer (TASK-093c).
+func terrain_control() -> StaffMapControlLayer:
+	return _control
+
+
 func front_line() -> StaffMapFrontLine:
 	return _front
 
@@ -1315,6 +1327,7 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_support_ghosts.show_ghosts(StaffMapSupportModel.ghosts(state, viewer_player))
 	_orders.refresh(state, viewer_player)
 	_front.refresh(state, viewer_player)
+	_control.refresh(state, viewer_player)
 	_apply_front_view()
 	_update_anchors()
 	if not _resumed and OS.get_cmdline_user_args().has("--pending-battle"):
@@ -1322,6 +1335,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 
 
 func _build_route_preview() -> void:
+	_control = StaffMapControlLayer.new(_view.relief(), _palette)
+	_view.add_child(_control)
 	_front = StaffMapFrontLine.new(_view.relief(), _palette)
 	_view.add_child(_front)
 	var order_ribbon := StaffMapRouteRibbon.new("OrderRibbon")
@@ -1628,7 +1643,7 @@ func auto_resolve() -> bool:
 
 
 ## What the human set up on the map and gets back after a battle: camera (position, zoom, pitch),
-## viewer and follow, the selection, the grid / front tint / borders toggles and the joined
+## viewer and follow, the selection, the grid / terrain control / borders toggles and the joined
 ## formations' countries of origin.
 func view_settings() -> Dictionary:
 	return {
@@ -1640,7 +1655,7 @@ func view_settings() -> Dictionary:
 		"viewer": viewer_player,
 		"selected": selected_formation(),
 		"grid": _view.grid_visible(),
-		"front_tint": _front.is_tint_visible(),
+		"terrain_control": _control.is_enabled(),
 		"borders": _view.countries().is_visible_layer(),
 		"origins": _origins.duplicate(),
 	}
@@ -1683,7 +1698,7 @@ func _apply_view_settings(settings: Dictionary) -> void:
 	_zoom = clampf(settings["zoom"], _min_zoom, _max_zoom)
 	_move_camera(settings["position"])
 	_view.set_grid_visible(settings["grid"])
-	_front.set_tint_visible(settings["front_tint"])
+	_control.set_enabled(settings.get("terrain_control", true))
 	_view.countries().set_visible_layer(settings["borders"])
 	_apply_front_view()
 	select_formation(settings["selected"], false, false)
@@ -1778,12 +1793,15 @@ func _finish_slide() -> void:
 func _refresh_orders() -> void:
 	_orders.refresh(_simulation.state, -1 if is_sliding() else viewer_player)
 	_front.refresh(_simulation.state, viewer_player, not is_sliding())
+	_control.refresh(_simulation.state, viewer_player, not is_sliding())
 	_apply_front_view()
 
 
 ## The front line follows the camera scale, the zoom level and the grid (exact hex edges at Z2).
 func _apply_front_view() -> void:
-	_front.set_view(_scale(), _view.zoom_level(), _view.grid_visible() and _view.zoom_level() == 2)
+	var exact := _view.grid_visible() and _view.zoom_level() == 2
+	_front.set_view(_scale(), _view.zoom_level(), exact)
+	_control.set_view(_view.zoom_level())
 
 
 ## Opens the report panel with the viewed side's last report.
