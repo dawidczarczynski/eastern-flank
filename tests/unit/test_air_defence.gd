@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## Air defence and SEAD (TASK-098a): the three types, per-site coverage by weapon class, layered
 ## interception, suppression by a hit and its countdown, the shipped operation.

@@ -550,7 +550,7 @@ Accuracy is the chance that a missile that was not intercepted hits. "Intercepti
 
 The launch point is the nearest own site within the weapon's range of the target: an airfield for fighters and bombers, an artillery formation for truck launchers, a sea hex next to your coast for ships (a ship is always shown at sea). If there is no such site, the weapon fires from a standoff point at about its range from your home border. Drones always use the standoff point.
 
-**Stock and resupply.** At the end of each full round (after both blocs have moved) each side receives more of some weapons: NATO 1 JASSM-ER, 1 Homar-K and 1 Warmate; Russia 1 Kh-101 and 2 Geran-2. The other weapons are not resupplied, so use them with care. There is no upper limit.
+**Stock and resupply.** At the end of each full round (after both blocs have moved) each side receives more of some weapons: NATO 4 JASSM-ER, 6 Homar-K and 6 Warmate; Russia 3 Kh-101 and 8 Geran-2. The other weapons are not resupplied, so use them with care. There is no upper limit.
 
 **Strikes per turn.** Each bloc may make 2 strikes per turn (one strike is one salvo of 1 to the largest salvo at one target). Strikes are separate from the political decisions of the turn. The count is restored when the bloc's turn begins.
 

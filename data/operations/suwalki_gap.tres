@@ -506,7 +506,7 @@ script = ExtResource("14_aigoal")
 id = &"ru_hold_grodno"
 player = 1
 objective_id = &"grodno"
-weight = 4
+weight = 7
 role = &"hold"
 
 [sub_resource type="Resource" id="Support_us_armor_1"]
@@ -659,7 +659,7 @@ support_packages = Array[ExtResource("16_package")]([SubResource("Package_allied
 formations = Array[ExtResource("2_placement")]([SubResource("Resource_pl_mech_1"), SubResource("Resource_pl_tank_1"), SubResource("Resource_pl_mech_2"), SubResource("Resource_pl_mech_3"), SubResource("Resource_pl_mlrs_1"), SubResource("Resource_pl_mech_4"), SubResource("Resource_pl_tank_2"), SubResource("Resource_pl_mlrs_2"), SubResource("Resource_ru_mr_1"), SubResource("Resource_ru_mr_2"), SubResource("Resource_ru_mr_3"), SubResource("Resource_ru_tank_1"), SubResource("Resource_ru_mlrs_1"), SubResource("Resource_ru_mr_4"), SubResource("Resource_ru_mr_5"), SubResource("Resource_ru_mr_6"), SubResource("Resource_ru_tank_2"), SubResource("Resource_ru_mlrs_2")])
 installations = Array[ExtResource("13_install")]([SubResource("Inst_nato_airfield_olsztyn"), SubResource("Inst_nato_airfield_bialystok"), SubResource("Inst_nato_depot_elk"), SubResource("Inst_nato_depot_kaunas"), SubResource("Inst_nato_c2_bialystok"), SubResource("Inst_nato_ad_bialystok"), SubResource("Inst_nato_ad_suwalki"), SubResource("Inst_nato_ad_olsztyn"), SubResource("Inst_ru_airfield_chernyakhovsk"), SubResource("Inst_ru_airfield_lida"), SubResource("Inst_ru_depot_kaliningrad"), SubResource("Inst_ru_depot_grodno"), SubResource("Inst_ru_c2_kaliningrad"), SubResource("Inst_ru_ad_kaliningrad"), SubResource("Inst_ru_ad_grodno"), SubResource("Inst_ru_ad_chernyakhovsk")])
 strike_stock = Array[Dictionary]([{&"jassm_er": 24, &"atacms": 12, &"prsm": 8, &"homar_k": 36, &"warmate": 40, &"storm_shadow": 0, &"tomahawk": 0}, {&"iskander_m": 18, &"kinzhal": 6, &"kalibr": 20, &"kh101": 20, &"geran_2": 40}])
-strike_resupply = Array[Dictionary]([{&"jassm_er": 6, &"homar_k": 10, &"warmate": 10}, {&"kh101": 2, &"geran_2": 4}])
+strike_resupply = Array[Dictionary]([{&"jassm_er": 4, &"homar_k": 6, &"warmate": 6}, {&"kh101": 3, &"geran_2": 8}])
 ai_goals = Array[ExtResource("14_aigoal")]([SubResource("Goal_nato_hold_suwalki"), SubResource("Goal_nato_hold_bialystok"), SubResource("Goal_nato_hold_elk"), SubResource("Goal_nato_take_grodno"), SubResource("Goal_ru_take_suwalki"), SubResource("Goal_ru_take_elk"), SubResource("Goal_ru_take_kaunas"), SubResource("Goal_ru_hold_grodno")])
 objectives = Array[ExtResource("15_objective")]([SubResource("Objective_chernyakhovsk"), SubResource("Objective_bialystok"), SubResource("Objective_vilnius"), SubResource("Objective_grodno")])
 gap_chain = Array[Vector2i]([Vector2i(17, 34), Vector2i(18, 33), Vector2i(19, 32), Vector2i(20, 31), Vector2i(21, 30), Vector2i(22, 29), Vector2i(23, 28), Vector2i(24, 27), Vector2i(25, 26), Vector2i(26, 25), Vector2i(27, 24), Vector2i(28, 23), Vector2i(29, 22)])

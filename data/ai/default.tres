@@ -14,6 +14,7 @@ max_commands = 40
 destination_search_radius = 3
 contact_range = 2
 escalate_min_goal_gap = 2
+escalate_max_net_steps = 4
 declare_min_strength_ratio = 1.5
 ultimatum_enabled = true
 support_min_affordable_level_margin = 1

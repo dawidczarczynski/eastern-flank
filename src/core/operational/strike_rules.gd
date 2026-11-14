@@ -213,7 +213,9 @@ static func interceptors(
 		if type == null or Hex.distance(formation.coord, target_coord) > type.radius_hexes:
 			continue
 		var max_strength := formation.max_strength()
-		var p := type.chance_against(means.weapon_class) * formation.strength() / maxi(max_strength, 1)
+		var p := (
+			type.chance_against(means.weapon_class) * formation.strength() / maxi(max_strength, 1)
+		)
 		if p > 0:
 			sites.append({"id": formation.id, "p": p})
 	return sites

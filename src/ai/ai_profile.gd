@@ -35,6 +35,9 @@ static var _default: AiProfile
 }
 ## Political rules (TASK-102b). Escalate only while at least this many `take` goals are untaken.
 @export var escalate_min_goal_gap: int = 2
+## The AI stops taking *Escalate* once its net escalation steps (caused - de-escalated) reach
+## this: every step costs victory points, and the enemy may stand down again and again.
+@export var escalate_max_net_steps: int = 4
 ## Declare hostilities without a casus belli only when own present strength is at least this
 ## multiple of the enemy's.
 @export var declare_min_strength_ratio: float = 1.5
@@ -72,6 +75,8 @@ func problem() -> String:
 func _political_problem() -> String:
 	if escalate_min_goal_gap < 0 or support_min_affordable_level_margin < 0:
 		return "escalate_min_goal_gap and support_min_affordable_level_margin must be >= 0"
+	if escalate_max_net_steps < 0:
+		return "escalate_max_net_steps must be >= 0"
 	if stand_down_level < 0 or stand_down_goal_range < 0 or declare_min_strength_ratio < 0.0:
 		return "stand_down_level, stand_down_goal_range, declare_min_strength_ratio must be >= 0"
 	if cap_incident_aggression < 0.0 or cap_incident_aggression > 1.0:

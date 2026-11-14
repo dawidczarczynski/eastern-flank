@@ -287,6 +287,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapContactPreview` – Pure model of the staff map's debug "Contact map" panel (TASK-094b, F9, only with --debug… (`staff_map_contact_preview.gd`)
 - `StaffMapContactQueue` – Contact queue of the staff map (TASK-094a, mockup 03 "CONTACTS"): at the left edge one ro… (`staff_map_contact_queue.gd`)
 - `StaffMapContacts` – The contact view of the staff map (TASK-094a): keeps the queue of pending battles from the (`staff_map_contacts.gd`)
+- `StaffMapControlLayer` – The terrain control layer of the staff map (TASK-152, docs/design/operational_map/ (`staff_map_control_layer.gd`)
 - `StaffMapCounter` – One formation counter of the staff map (TASK-092b, TASK-142; look: docs/design/operationa… (`staff_map_counter.gd`)
 - `StaffMapCounters` – The formation counters of the staff map (TASK-092b) in screen space: one StaffMapCounter… (`staff_map_counters.gd`)
 - `StaffMapCountries` – Pure helpers of the staff map's country layer (TASK-113): the dash-dot pattern cut into a (`staff_map_countries.gd`)
@@ -369,6 +370,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapWindow` – The one docked window of the staff map (docs/design/operational_map/bottom_bar_windows.ht… (`staff_map_window.gd`)
 - `StanceTint` – How the staff map tints the countries for one viewer (TASK-114): the single view function (`stance_tint.gd`)
 - `StrikeWeaponLook` – How one strike weapon looks on the staff map (TASK-141b): its glyph, the colour shade, sp… (`strike_weapon_look.gd`)
+- `TerrainControl` – View model of the staff map's terrain control layer (TASK-152, docs/design/operational_ma… (`terrain_control.gd`)
 - `WeaponBlueprint` – Blueprint-style side drawing of a strike weapon (TASK-146, docs/design/operational_map/ (`weapon_blueprint.gd`)
 
 ## src/presentation/ui/

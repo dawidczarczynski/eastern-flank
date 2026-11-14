@@ -76,3 +76,29 @@ Weights were doubled so single steps are finer (a step of 1 swung NATO from 30 %
 **Test**: tests/unit/test_operation_balance.gd – `in_band` helper (checked with hand-made result lists) and a 20-seed run asserting each side 35–65 % of decided and undecided ≤ 40 %, plus a determinism replay. **It takes ~190 s, above the 120 s in the criteria** (a 30-round match is ~9 s); shortening it would mean fewer seeds or a lower round cap, which changes what is measured.
 
 **Limits**: the result is very sensitive to the goal weights (single-point changes swing NATO from 30 % to 80 %) because the provisional score is a few discrete weights; it is a stopgap until TASK-107's victory replaces it, then re-measure. Only data changed apart from the zero-strength fix and the new test.
+
+### Re-balance 2026-11-14 (human request: "solve the balance problem between Russia and NATO")
+
+The band had drifted after TASK-107a: strikes on invaders on own soil (d8c75be), outside support and the orders-per-turn limit (0325384) came later. Seeds 1..100, battles auto, cap 30:
+
+| | NATO | Russia | draws | note |
+|---|---|---|---|---|
+| as found | 85 | 0 | 15 (`nuclear`) | Russia caused 21.6 escalation steps per operation |
+| AI: *Escalate* only for a new strike class | 99 | 0 | 1 | NATO holds Grodno in 99 |
+| + `ru_hold_grodno` 4 → 7 | 99 | 0 | 1 | Russia holds Grodno in 19, still loses them to the penalty |
+| + AI: escalation budget (`escalate_max_net_steps` 4) | 81 | 19 | 0 | |
+| + Russian strike resupply restored (final) | **50** | **50** | 0 | seeds 1..20: 9 / 11; seeds 101..200: 46 / 54 |
+
+**Causes.** (1) The Russian AI took *Escalate* about 20 times per operation: NATO (often in collapse, so "weary") stood down every time for free and Russia bought the step again at 3 points each, ending at -30 … -75 whatever happened on the map – also above *Open war*, where a step authorises nothing new. (2) Each AI sends every free formation to its top-weight goal; Grodno (40 points, decides the operation) was defended by one battalion and its `hold` weight (4) was below `ru_take_suwalki` (6), so Russia never tried to retake it. (3) NATO may now strike invaders on its own soil, while Russia's strike resupply was still the value cut in the first pass.
+
+**Changes**
+| file | field | old → new |
+|---|---|---|
+| src/ai/operational_politics.gd | `_escalate` | only when the next level authorises a new strike class, and while net caused steps < `escalate_max_net_steps` (tests in test_operational_ai_politics.gd) |
+| src/ai/ai_profile.gd, data/ai/default.tres | `escalate_max_net_steps` | new, 4 |
+| data/operations/suwalki_gap.tres | goal weight `ru_hold_grodno` | 4 → 7 |
+| | strike_resupply NATO `jassm_er` / `homar_k` / `warmate` | 6 / 10 / 10 → 4 / 6 / 6 |
+| | strike_resupply Russia `kh101` / `geran_2` | 2 / 4 → 3 / 8 |
+
+**Limits**: the result still hangs on Grodno (whoever holds it at the end wins in all 200 measured operations); the NATO resupply cut alone moved 3 of 100 operations, the Russian resupply 31. The AI still has no goals for Vilnius, Chernyakhovsk or the Gap chain (TASK-107a note). AI-vs-AI only – how it feels for a human on either side is for a playtest.
+

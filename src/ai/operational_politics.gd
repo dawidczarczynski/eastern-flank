@@ -6,8 +6,10 @@ extends RefCounted
 ## command already passes `validate()` against it. Outside support (TASK-121 / 122) is not
 ## planned yet – there is no such command.
 ##
-## Priority: Stand down, Demand neutrality, Invoke alliance, Declare hostilities, Escalate; Use
-## nuclear weapon only when none of them applies.
+## Priority: Stand down, Demand neutrality, Invoke alliance, Declare hostilities, Escalate (only
+## while the next level authorises a new strike class and within the profile's budget of net
+## steps – a step costs victory points); Use nuclear
+## weapon only when none of them applies.
 
 
 ## The decision `player` takes this turn, or null when there is none worth taking. `goals` are
@@ -22,7 +24,7 @@ static func decide(
 		_demand_neutrality(state, player, profile),
 		_invoke_alliance(state, player, goals),
 		_declare_hostilities(state, player, profile, untaken),
-		_escalate(state, profile, untaken),
+		_escalate(state, player, profile, untaken),
 	]
 	for choice in choices:
 		if choice != null:
@@ -128,12 +130,28 @@ static func _declare_hostilities(
 
 
 static func _escalate(
-	state: OperationalState, profile: AiProfile, untaken: Array[Dictionary]
+	state: OperationalState, player: int, profile: AiProfile, untaken: Array[Dictionary]
 ) -> PoliticalDecisionCommand:
 	if untaken.size() < profile.escalate_min_goal_gap:
 		return null
+	var net := state.escalation_caused[player] - state.escalation_deescalated[player]
+	if net >= profile.escalate_max_net_steps:
+		return null  # the budget is spent: the enemy keeps standing down
+	if not _widens_strikes(state):
+		return null  # a step costs victory points and buys nothing
 	var command := EscalateCommand.new()
 	return command if _valid(state, command) else null
+
+
+## Whether the level *Escalate* leads to authorises a strike class the current one does not.
+static func _widens_strikes(state: OperationalState) -> bool:
+	var ladder := state.ladder
+	var now := ladder.strike_classes_at(state.escalation_level)
+	var next := state.escalation_level + ladder.decision_escalation
+	for target_class in ladder.strike_classes_at(next):
+		if not now.has(target_class):
+			return true
+	return false
 
 
 static func _nuclear_strike(state: OperationalState) -> PoliticalDecisionCommand:

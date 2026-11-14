@@ -94,6 +94,16 @@ func test_escalate_conditions() -> void:
 		1
 	)
 	assert_eq(_type(_state(own, enemy, two, 5)), "", "never at the cap")
+	# Escalating costs victory points, so the AI pays only for a wider strike authorisation.
+	assert_eq(_type(_state(own, enemy, two, 0)), "escalate", "limited war opens depots")
+	for level in [2, 3, 4]:
+		assert_eq(_type(_state(own, enemy, two, level)), "", "level %d opens no class" % level)
+	# ... and stops buying steps the enemy keeps taking back (a step costs victory points).
+	var spent := _state(own, enemy, two)
+	spent.escalation_caused[0] = AiProfile.shipped().escalate_max_net_steps
+	assert_eq(_type(spent), "", "escalation budget spent")
+	spent.escalation_deescalated[0] = 1
+	assert_eq(_type(spent), "escalate", "a step taken back by the side itself frees the budget")
 	var standing := _state(own, enemy, two)
 	standing.stand_down_until[0] = 3
 	assert_eq(_type(standing), "", "standing down")
