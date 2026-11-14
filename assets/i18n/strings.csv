@@ -732,8 +732,8 @@ Sanctuary entered - %s,Sanctuary entered - %s,Wkroczenie na zaplecze - %s
 %s sends reinforcements to %s,%s sends reinforcements to %s,%s wysyła posiłki dla %s
 All levels,All levels,Wszystkie poziomy
 Hide levels,Hide levels,Ukryj poziomy
-"Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.","Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.","Obrona Przesmyku suwalskiego i utrzymanie połączenia z Bałtykiem. Obrońca z pierwszym ruchem i posiłkami sojuszników."
-"Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.","Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.","Przecięcie korytarza między Kaliningradem a Białorusią, zanim NATO się zwiąże. Atakujący z inicjatywą i opcją nuklearną."
+Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.,Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements.,Obrona Przesmyku suwalskiego i utrzymanie połączenia z Bałtykiem. Obrońca z pierwszym ruchem i posiłkami sojuszników.
+Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.,Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option.,"Przecięcie korytarza między Kaliningradem a Białorusią, zanim NATO się zwiąże. Atakujący z inicjatywą i opcją nuklearną."
 SELECT YOUR SIDE,SELECT YOUR SIDE,Wybierz stronę
 YOU COMMAND,YOU COMMAND,Dowodzisz
 OPPONENT · AI,OPPONENT · AI,Przeciwnik · SI
@@ -764,6 +764,27 @@ UNIT_CARD_NO_ORDER,– NO ORDER –,– BRAK ROZKAZU –
 ORDER_RING_INFO,Info,Info
 ORDER_RING_INFO_TITLE,Unit info,Informacje o jednostce
 ORDER_RING_INFO_HINT,"Opens the full formation panel: strength, location and companies.","Otwiera pełny panel formacji: siła, lokalizacja i kompanie."
+Command points,Command points,Punkty dowodzenia
+Fire support,Fire support,Wsparcie ogniowe
+unlimited,unlimited,bez limitu
+none,none,brak
+reduced,reduced,zmniejszone
+FIRE SUPPORT USED,FIRE SUPPORT USED,UŻYTO WSPARCIA OGNIOWEGO
+NOT YOUR TURN,NOT YOUR TURN,NIE TWOJA TURA
+NO FIRE SUPPORT LEFT,NO FIRE SUPPORT LEFT,BRAK WSPARCIA OGNIOWEGO
+FIRE SUPPORT ALREADY USED THIS TURN,FIRE SUPPORT ALREADY USED THIS TURN,WSPARCIE OGNIOWE JUŻ UŻYTE W TEJ TURZE
+TARGET NOT VISIBLE,TARGET NOT VISIBLE,CEL NIEWIDOCZNY
+FIRE SUPPORT,FIRE SUPPORT,WSPARCIE OGNIOWE
+CALL FIRE SUPPORT,CALL FIRE SUPPORT,WEZWIJ WSPARCIE OGNIOWE
+Select a visible enemy company,Select a visible enemy company,Wybierz widoczną kompanię wroga
+TIP_FIRE_SUPPORT,"Calls an off-map artillery or air mission on a visible enemy company. One mission per turn, no command point, no counter-fire.","Wzywa misję artylerii lub lotnictwa na widoczną kompanię wroga. Jedna misja na turę, bez punktu dowodzenia, bez ognia zaporowego wroga."
+ORDERS LEFT %d / %d,ORDERS LEFT %d / %d,POZOSTAŁE ROZKAZY %d / %d
+ORDER_REJECTED_NO_ORDERS_LEFT,No orders left this turn.,Brak rozkazów w tej turze.
+Fire support battle,Fire support battle,Bitwa z wsparciem ogniowym
+HEALTH,HEALTH,ZDROWIE
+STATUS,STATUS,STAN
+UNIT_STRIP_READY,READY,GOTOWA
+UNIT_STRIP_DONE,DONE,WYKONAŁA
 Request support,Request support,Poproś o wsparcie
 Support,Support,Wsparcie
 Available,Available,Dostępne
@@ -816,10 +837,6 @@ NATO allies,NATO allies,Sojusznicy NATO
 North Korea,North Korea,Korea Północna
 China,China,Chiny
 Iran,Iran,Iran
-HEALTH,HEALTH,ZDROWIE
-STATUS,STATUS,STAN
-UNIT_STRIP_READY,READY,GOTOWA
-UNIT_STRIP_DONE,DONE,WYKONAŁA
 Strike means: %s,Strike means: %s,Środki uderzeniowe: %s
 %s has arrived: %s,%s has arrived: %s,%s dotarło: %s
 Chinese missile components,Chinese missile components,Chińskie komponenty rakietowe

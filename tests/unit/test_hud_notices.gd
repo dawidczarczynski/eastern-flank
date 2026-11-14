@@ -127,7 +127,11 @@ func test_reject_toasts_match_command_reasons() -> void:
 	var toasts: Dictionary = load("res://src/presentation/battle_controller.gd").REJECT_TOASTS
 	for reason: String in toasts:
 		var found := false
-		for path in ["attack_command", "move_unit_command"]:
+		for path in ["attack_command", "move_unit_command", "fire_support_command"]:
 			var source := FileAccess.get_file_as_string("res://src/core/commands/%s.gd" % path)
-			found = found or source.contains('return "%s"' % reason)
+			found = (
+				found
+				or source.contains('return "%s"' % reason)
+				or source.contains('problem = "%s"' % reason)
+			)
 		assert_true(found, "no command returns the reason '%s'" % reason)

@@ -8,6 +8,15 @@ const SIZE := 38.0
 const ICON_SIZE := 20.0
 const STROKE := 1.1
 const TEXT_SIZE := 12
+const BADGE_SIZE := 11
+
+## A small count in the top-right corner (the fire-support missions left); "" = none.
+var badge := "":
+	set(value):
+		badge = value
+		queue_redraw()
+## Why the button is off, appended to the tooltip; "" = no reason.
+var reason := ""
 
 var _label_key := ""
 var _key_key := ""
@@ -52,7 +61,10 @@ func key_text() -> String:
 
 
 func tip_text() -> String:
-	return tr(_tip_key) if _tip_key != "" else ""
+	var tip := tr(_tip_key) if _tip_key != "" else ""
+	if reason != "":
+		tip = (tip + "\n" + tr(reason)).strip_edges()
+	return tip
 
 
 func icon_id() -> StringName:
@@ -79,6 +91,7 @@ func _draw() -> void:
 		)
 		draw_string(font, at, glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, TEXT_SIZE, color)
 		return
+	_draw_badge(color)
 	var scale_factor := ICON_SIZE / ActionIcons.GRID
 	var origin := (size - Vector2.ONE * ICON_SIZE) * 0.5
 	for line in ActionIcons.polylines(_icon_id):
@@ -86,6 +99,15 @@ func _draw() -> void:
 		for p in line:
 			points.append(origin + p * scale_factor)
 		draw_polyline(points, color, STROKE, true)
+
+
+func _draw_badge(color: Color) -> void:
+	if badge == "":
+		return
+	var font := HudTheme.mono(700, 1)
+	var width := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_LEFT, -1, BADGE_SIZE).x
+	var at := Vector2(size.x - width - 3.0, font.get_ascent(BADGE_SIZE) + 1.0)
+	draw_string(font, at, badge, HORIZONTAL_ALIGNMENT_LEFT, -1, BADGE_SIZE, color)
 
 
 func _notification(what: int) -> void:

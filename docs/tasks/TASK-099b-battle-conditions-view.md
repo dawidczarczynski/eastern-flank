@@ -1,6 +1,6 @@
 # TASK-099b: Battle conditions – contact notice, fire-support button, manual
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-099a (hard); soft: design check (first acceptance criterion – `/design-ui` if no mockup fits)
 - **Topic**: Two-layer game
@@ -27,7 +27,7 @@ The player sees what the operation did to each side's command and fire support b
 
 ## Look
 
-_To be filled after the design step (mockup path or chosen `/design-ui` variant)._
+Design check (first criterion): similar components exist, so no `/design-ui` run. The button is an icon button of the bottom action bar (docs/design/hud_v3/README.md "Bottom bar": 38x38 line icon, hover tooltip), with a count badge in its top-right corner. The target mode uses the targeting bar (HUD v3 "06 Notices", top 118) and the existing red attack-target hex markers. The notice lines sit under the strength line of each side card of the contact notice (mockup 03); a reduced value is drawn in the alert colour with a "reduced" tag. Deviation: the fire-support icon (shell on a ground line) and the badge are new line art in the existing style.
 
 ## Playtest (for the human)
 
@@ -46,4 +46,8 @@ docs/MANUAL.md, chapter on the two-layer game / battles: how command posts set t
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `ConditionsModel` (notice lines, reduced flags vs `BattleConditionsRules.shipped()`) and `FireSupportModel` (counter, button problem, visible targets, click -> command, report text), both pure in `src/presentation/`; tests in `test_battle_conditions_view.gd`, `test_battle_hud.gd`, `test_staff_map_contacts.gd`.
+- `StaffMapContactNotice`: two condition lines per side card. `BattleHud`: Fire support action-bar button (key F, badge = missions left, tooltip carries the reason when off), hidden unless the setup gave missions (`set_fire_support_start`); the end banner appends "FIRE SUPPORT USED n".
+- `BattleController`: target mode (`toggle_fire_support`, `cancel_fire_support`, `fire_support_click`), Esc / RMB cancel, rejection toasts, `fire_support_used` playback (craters + scorch, impact sound, hit feedback via `target_hp`, added to the event and ARCHITECTURE). `_play_attack` split out of `_play_event` for the lint return limit.
+- Not covered by a test: the controller wiring itself (no controller test harness exists); its click logic is `FireSupportModel.click_command`. README screenshot not refreshed: the shipped battle scenario has no missions, so the battle scene looks the same. Not seen in the running game.
+- Change (human, 2026-11-13): the contact notice shows only the Fire support line (`ConditionsModel.command_text`/`command_reduced` removed); the turn bar shows `ORDERS LEFT n / N` (`StaffMapOrders.orders_left_text`) and the order ring/toast shows `no_orders_left`.

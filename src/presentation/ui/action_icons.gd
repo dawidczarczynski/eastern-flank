@@ -18,9 +18,11 @@ const IDS: Array[StringName] = [
 	&"cancel",
 	&"report",
 	&"journal",
+	&"objectives",
 	&"decisions",
 	&"strike",
 	&"map_options",
+	&"fire_support",
 ]
 
 ## Icons drawn as text instead of lines: id -> [text when off, text when on] (the view toggle
@@ -121,6 +123,26 @@ static func polylines(id: StringName) -> Array[PackedVector2Array]:
 			)
 			lines.append(_poly([Vector2(3, 12), Vector2(12, 17), Vector2(21, 12)]))
 			lines.append(_poly([Vector2(3, 16), Vector2(12, 21), Vector2(21, 16)]))
+		&"fire_support":  # a shell falling on a ground line, with impact rays
+			lines.append(_poly([Vector2(12, 2), Vector2(12, 13)]))
+			lines.append(_poly([Vector2(8, 9), Vector2(12, 13.5), Vector2(16, 9)]))
+			lines.append(_poly([Vector2(3, 20), Vector2(21, 20)]))
+			lines.append(_poly([Vector2(6, 17), Vector2(8, 15.5)]))
+			lines.append(_poly([Vector2(18, 17), Vector2(16, 15.5)]))
+		&"objectives":  # a flag on a pole planted on the ground line
+			lines.append(_poly([Vector2(6, 21), Vector2(6, 3)]))
+			lines.append(
+				_poly(
+					[
+						Vector2(6, 4),
+						Vector2(19, 4),
+						Vector2(15, 8.5),
+						Vector2(19, 13),
+						Vector2(6, 13)
+					]
+				)
+			)
+			lines.append(_poly([Vector2(3, 21), Vector2(12, 21)]))
 		&"journal":  # a log book: spine, cover and entries
 			lines.append(
 				_poly(

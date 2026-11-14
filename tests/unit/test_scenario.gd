@@ -254,7 +254,13 @@ func test_build_by_name() -> void:
 	assert_eq(
 		Scenario.NAMES,
 		(
-			["default_battle", "objective_battle", "command_points_battle", "suwalki_battle"]
+			[
+				"default_battle",
+				"objective_battle",
+				"command_points_battle",
+				"fire_support_battle",
+				"suwalki_battle"
+			]
 			as Array[String]
 		)
 	)

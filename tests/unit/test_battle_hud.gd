@@ -96,10 +96,12 @@ func test_only_the_end_button_takes_the_mouse() -> void:
 	_hud.refresh(_state)
 	var offenders: Array[String] = []
 	_collect_mouse_takers(_hud, offenders)
-	for name in ["ActionBar", "grid", "reset_view", "deselect", "save"]:
+	for name in [
+		"ActionBar", "grid", "reset_view", "deselect", "save", "fire_support", "objectives"
+	]:
 		assert_true(offenders.has(name), name)
 	offenders.erase("ActionBar")
-	for name in ["grid", "reset_view", "deselect", "save"]:
+	for name in ["grid", "reset_view", "deselect", "save", "fire_support", "objectives"]:
 		offenders.erase(name)
 	assert_eq(offenders, ["EndTurnButton"])
 
@@ -118,7 +120,7 @@ func test_action_bar_buttons_are_labelled_and_translated() -> void:
 	var hud := BattleHud.new()
 	hud.setup(0)
 	var bar := hud.action_bar()
-	assert_eq(bar.ids().size(), 4)
+	assert_eq(bar.ids().size(), 6)
 	assert_eq(bar.button(BattleHud.ACTION_GRID).key_text(), "G")
 	assert_false(bar.button(BattleHud.ACTION_SAVE).label_text().contains("SAVE"))
 	var pressed: Array[StringName] = []
@@ -210,4 +212,51 @@ func test_action_button_has_tooltip_parts() -> void:
 	var tip := b._make_custom_tooltip("") as Control
 	assert_true(tip != null)
 	tip.free()
+	hud.free()
+
+
+func test_fire_support_button_shows_the_counter_and_the_reason() -> void:
+	var button := _hud.action_bar().button(BattleHud.ACTION_FIRE_SUPPORT)
+	assert_false(button.visible, "hidden without missions at the start")
+	_state.fire_support_left[0] = 2
+	_hud.set_fire_support_start(2)
+	_hud.refresh(_state)
+	assert_true(button.visible)
+	assert_eq(button.badge, "2")
+	assert_false(button.disabled)
+	_state.fire_support_left[0] = 1
+	_state.fire_support_used_turn[0] = true
+	_hud.refresh(_state)
+	assert_eq(button.badge, "1")
+	assert_true(button.disabled, "used this turn")
+	assert_true(button.tip_text().contains("ALREADY USED"), button.tip_text())
+
+
+func test_command_points_text_for_a_destroyed_c2_and_unlimited() -> void:
+	_state.set_command_points_per_turn([1, 0] as Array[int])
+	assert_eq(HudModel.command_points_text(_state, 0), "C2 1/1")
+	_state.current_player = 1
+	assert_eq(HudModel.command_points_text(_state, 1), "", "unlimited shows nothing")
+
+
+func test_objectives_button_only_in_a_campaign_battle() -> void:
+	var hud := BattleHud.new()
+	hud.setup(0)
+	assert_false(hud.action_bar().button(BattleHud.ACTION_OBJECTIVES).visible)
+	hud.set_campaign("Take the hex")
+	assert_true(hud.action_bar().button(BattleHud.ACTION_OBJECTIVES).visible)
+	hud.free()
+
+
+func test_hud_mission_line_click_emits() -> void:
+	var hud := BattleHud.new()
+	hud.setup(0)
+	var fired := [false]
+	hud.mission_pressed.connect(func() -> void: fired[0] = true)
+	hud.set_campaign("Take the hex")
+	var click := InputEventMouseButton.new()
+	click.pressed = true
+	click.button_index = MOUSE_BUTTON_LEFT
+	hud._on_mission_input(click)
+	assert_true(fired[0])
 	hud.free()

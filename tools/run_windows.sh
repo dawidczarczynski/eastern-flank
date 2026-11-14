@@ -3,7 +3,7 @@
 # under WSLg with an old Mesa the Linux build falls back to software rendering (llvmpipe).
 # Usage: tools/run_windows.sh [--editor] [--import] [--local] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]
 #   --quality  force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
-#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle); a user argument
+#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, fire_support_battle, suwalki_battle); a user argument
 #   --scene   open a scene directly: staff_map, battle, menu (as in run.sh)
 #   --side    the side the staff map is viewed as: nato (default) or russia; a user argument
 #   --debug   debug mode: the F9 panel on the staff map; a user argument

@@ -7,7 +7,8 @@ extends SceneTree
 const SimulateOptions := preload("res://tools/simulate_options.gd")
 const USAGE := (
 	"Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--factions=A,B]"
-	+ " [--scenario=default_battle|objective_battle|command_points_battle|suwalki_battle] [--verbose]"
+	+ " [--scenario=default_battle|objective_battle|command_points_battle|fire_support_battle"
+	+ "|suwalki_battle] [--verbose]"
 	+ "\n       tools/simulate.sh N --mode=operation [--seed=S] [--max-rounds=R]"
 	+ " [--scenario=<operation id>] [--battles=auto|played] [--out=file.csv] [--verbose]"
 )

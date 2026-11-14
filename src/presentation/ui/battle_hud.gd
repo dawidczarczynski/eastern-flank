@@ -8,6 +8,8 @@ extends Control
 
 signal end_turn_pressed
 signal report_pressed
+## The mission line was clicked: the owner shows the briefing again.
+signal mission_pressed
 ## A button of the bottom action bar (ids: ACTION_*).
 signal action_pressed(id: StringName)
 
@@ -15,6 +17,8 @@ const ACTION_GRID := &"grid"
 const ACTION_RESET_VIEW := &"reset_view"
 const ACTION_DESELECT := &"deselect"
 const ACTION_SAVE := &"save"
+const ACTION_FIRE_SUPPORT := &"fire_support"
+const ACTION_OBJECTIVES := &"objectives"
 
 const SHADE_HEIGHT := 120
 const TOAST_BOTTOM := ActionBar.HEIGHT + ActionBar.NOTICE_GAP
@@ -33,6 +37,7 @@ const TURN_LIMIT_SIZE := 16
 const REPORT_BUTTON_OFFSET := 120
 
 var _human_player := 0
+var _fire_support_start := 0
 var _action_bar: ActionBar
 var _sides: Array[Dictionary] = []  # per player: {block, flags, name, meta, bar, tween}
 var _turn_label: Label
@@ -75,11 +80,31 @@ func setup(human_player: int) -> void:
 ## Full refresh from the current simulation state (the view has caught up with it).
 func refresh(state: GameState) -> void:
 	_apply(state, HudModel.top_bar(state, _human_player))
+	_refresh_fire_support(state)
 	var result := HudModel.result_banner(state, _human_player)
 	if result != "":
 		_show_result(result, state)
 	else:
 		_hide_result()
+
+
+## Missions the human side started the battle with (Conditions.fire_support): 0 hides the button.
+func set_fire_support_start(missions: int) -> void:
+	_fire_support_start = missions
+	var button := _action_bar.button(ACTION_FIRE_SUPPORT)
+	button.visible = FireSupportModel.shown(missions)
+
+
+func _refresh_fire_support(state: GameState) -> void:
+	if not FireSupportModel.shown(_fire_support_start):
+		return
+	var button := _action_bar.button(ACTION_FIRE_SUPPORT)
+	var problem := FireSupportModel.problem(state, _human_player)
+	button.badge = FireSupportModel.counter_text(state, _human_player)
+	button.reason = problem
+	_action_bar.set_enabled(ACTION_FIRE_SUPPORT, problem == "")
+	if problem != "":
+		_action_bar.set_active(ACTION_FIRE_SUPPORT, false)
 
 
 ## A `turn_started` event is being played back: show the banner and the turn/side it names.
@@ -102,7 +127,18 @@ func set_campaign(mission: String) -> void:
 	if _report_button == null:
 		_build_report_button()
 	_mission_line.text = mission.to_upper()
+	_action_bar.button(ACTION_OBJECTIVES).visible = true
 	_mission_line.visible = mission != ""
+	# Only a campaign battle has a briefing to reopen.
+	_mission_line.mouse_filter = (
+		Control.MOUSE_FILTER_STOP if mission != "" else Control.MOUSE_FILTER_IGNORE
+	)
+
+
+func _on_mission_input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		mission_pressed.emit()
 
 
 func mission_line() -> String:
@@ -203,13 +239,11 @@ func _show_result(result: String, state: GameState) -> void:
 		_report_button.visible = true
 	# A draw has no winner: faction_color(-1) is the neutral colour.
 	var color := UiPalette.faction_color(state, state.winner)
-	var reason := HudModel.result_reason(state, _human_player)
-	_banner.show_held(
-		caption.to_upper(),
-		tr(result).to_upper(),
-		color,
-		tr(reason).to_upper() if reason != "" else ""
-	)
+	var reason := tr(HudModel.result_reason(state, _human_player)).to_upper()
+	var fire := FireSupportModel.report_text(state, _human_player, _fire_support_start)
+	if fire != "":
+		reason = fire.to_upper() if reason == "" else "%s · %s" % [reason, fire.to_upper()]
+	_banner.show_held(caption.to_upper(), tr(result).to_upper(), color, reason)
 
 
 func _hide_result() -> void:
@@ -285,6 +319,9 @@ func _build_top_bar() -> void:
 	_mission_line.name = "MissionLine"
 	_mission_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_mission_line.visible = false
+	_mission_line.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_mission_line.tooltip_text = tr("TIP_MISSION")
+	_mission_line.gui_input.connect(_on_mission_input)
 	column.add_child(_mission_line)
 
 
@@ -451,6 +488,15 @@ func _build_action_bar() -> void:
 	_action_bar.add_action(ACTION_RESET_VIEW, "RESET VIEW", "HOME", false, "TIP_RESET_VIEW")
 	_action_bar.add_action(ACTION_DESELECT, "DESELECT", "ESC", false, "TIP_DESELECT")
 	_action_bar.add_action(ACTION_SAVE, "SAVE MATCH", "F5", false, "TIP_SAVE_MATCH")
+	var objectives := _action_bar.add_action(
+		ACTION_OBJECTIVES, "OBJECTIVES", "O", false, "TIP_MISSION"
+	)
+	objectives.visible = false  # only a campaign battle has a briefing (set_campaign)
+	_action_bar.add_separator()
+	var fire := _action_bar.add_action(
+		ACTION_FIRE_SUPPORT, "FIRE SUPPORT", "F", true, "TIP_FIRE_SUPPORT"
+	)
+	fire.visible = false  # shown once the side has missions (set_fire_support_start)
 	_action_bar.action_pressed.connect(func(id: StringName) -> void: action_pressed.emit(id))
 	add_child(_action_bar)
 

@@ -39,14 +39,27 @@ The normal battle has no turn limit. A battle with a turn limit (such as the obj
 
 ### Command points
 
-Some battles limit how many units each side can command per turn. The normal battle and the objective battle have **no limit**: every unit can act every turn.
+Some scenario battles limit how many units each side can command per turn. The normal battle and the objective battle have **no limit**: every unit can act every turn, and so does every battle that starts from the operation (there the formation commander commands, not the staff – the command network limits your orders on the staff map instead, see Operation).
 
 - In a limited battle a side gets **N command points** at the start of each of its turns (unused points are not saved).
 - A unit's **first move or attack of the turn costs 1 point** – it "activates" the unit. Everything else that unit does this turn (further moves, its attack) is free.
 - **Counterattacks never cost points.**
 - With 0 points left, a unit that has not acted yet this turn can't move or attack; trying it shows "NO COMMAND POINTS LEFT THIS TURN". Units already activated keep acting normally.
 - The turn bar shows the points left, e.g. `C2 1/2` (see Screen).
+- In a battle fought from the operational map the points come from the battle conditions (see Contact).
 - To try it, start the game with `--scenario=command_points_battle` (for example `tools/run.sh --scenario=command_points_battle`), then pick **Start scenario** and **Start** (the option preselects its entry): the normal battle with **N = 2** for both sides. It is a test battle; later, an operation's battle conditions will set N.
+
+### Fire support
+
+To try fire support without an operation, pick **Fire support battle** in the scenario list (or start with `--scenario=fire_support_battle`): both sides have 2 missions.
+
+In a battle fought from the operational map each side has a number of fire-support missions (shown in the contact notice). Scenario battles have none, and then the button is hidden.
+
+- The **Fire support** button (bottom action bar, key **F**) carries a badge with the missions left. Pressing it enters target mode: red markers appear on the enemy companies you know of (no line of sight is needed; once the fog of war exists, only enemies you have spotted) and a targeting bar is shown.
+- **Left-click** an enemy company to call the mission. **Esc** or **right-click** cancels.
+- One mission per turn. It costs no command point, the target does not counter-fire, and it needs a target your side can see.
+- Refusals show a message: no missions left, already used this turn.
+- The end-of-battle banner adds **FIRE SUPPORT USED n** when missions were used.
 
 ## 4. Units
 
@@ -390,6 +403,7 @@ The terrain is drawn from real geography, not from the hexes: the coastline, the
 | Country card | K |
 | Play the pending battle | B, or **Play battle** on the contact card |
 | Close the battle result card | Enter or Esc, or **Continue** |
+| Objectives on / off | O, or the **OBJECTIVES** button on the bottom bar; Esc or ✕ closes it |
 | Journal on / off | J, or the **JRN** (log book) button on the bottom bar; Esc or ✕ closes it |
 | End turn | Enter, or the **End turn** button |
 | Save the operation | F5, or **SAVE** in the menu (hamburger, top left) |
@@ -475,19 +489,6 @@ A strike is refused if its target is an installation on your own soil (enemy uni
 
 The log and the countries list show **effects only** and never say who decided; only the ladder footer shows what each side caused. The overview refreshes whenever you open the screen and after every political event.
 
-### Deep strikes
-
-As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. You launch strikes in **strike mode** on the staff map (see below); the debug panel (F9, `--debug`, block **Strikes**) still works for testing, and **+stock** adds missiles. A hit-chance forecast comes later.
-
-**Weapons.** Strikes use real, named weapons. **A weapon belongs to one side**: NATO and Russia each have their own list, and a side can never fire or be given the other side's weapons. **Stock is per side**: each side keeps its own count of each of its weapons. A strike spends the missiles it launches whether or not they hit. One hex is about 5 km; a range above 120 hexes means "anywhere on the operation map".
-
-NATO:
-
-| Weapon | Type | Range | Largest salvo | Accuracy | Interception | Damage (installation / formation, per hit) | Start stock |
-|---|---|---|---|---|---|---|---|
-| JASSM-ER | air-launched cruise missile | 925 km (185 hexes, whole map) | 4 | very high (90%) | fairly easy (70% of the normal chance) | 40 / 2 | 6 |
-| ATACMS | ballistic missile | 300 km (60 hexes) | 2 | good (80%) | hard (45%) | 35 / 3 | 4 |
-| PrSM | ballistic missile | 500 km (100 hexes) | 2 | very high (85%) | hard (40%) | 40 / 3 | 2 |
 **Outside support.** Beyond the countries on the map, each bloc has **supporters** off the map: NATO has the **NATO allies**; Russia has **North Korea**, **China** and **Iran**. A supporter can send a **package** of formations to its side. The **Decisions panel** (H) has two tabs, **Decisions** and **Support**; **Tab** switches between them.
 
 - **Supporters.** The Support tab lists the supporters of your side with a status: **Supporting** (a package of theirs has been taken), **Considering** (they would send help, but no package is available yet) or **Uninvolved**.
@@ -501,7 +502,6 @@ NATO:
 | Allied reinforcements (US armour and a NATO mechanised battalion) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
 | North Korean expeditionary force (infantry and artillery) | Russia | 2-3 | 1 | 4 turns | through Belarus |
 
-**North Korean troops and Belarus.** The North Korean force enters through Belarus. While Belarus is closed to Russia, the ghost counter reads "waiting – Belarus closed" and the troops do not arrive until it opens. If Belarus is only **aligned** (not at war) when they arrive, NATO gets a **casus belli** against it, shown as a toast.
 **Strike means packages.** Some packages bring long-range **strike means** (missiles and drones) instead of formations. Your stock is shown on the Support tab as a **Strike means** line (e.g. Kh-101 x4). Arrival is announced by a toast.
 
 | Package | Side | Level band | Delay | Strike means |
@@ -513,7 +513,21 @@ NATO:
 - **China is conditional.** It can be requested only while Russia has caused at most 1 net escalation step. If the conditions lapse before delivery, the package is **withdrawn**; its card then shows the reason.
 - **Allied answer.** The NATO allied strike means can be taken **free** as the answer to the Chinese or Iranian package.
 
+**North Korean troops and Belarus.** The North Korean force enters through Belarus. While Belarus is closed to Russia, the ghost counter reads "waiting – Belarus closed" and the troops do not arrive until it opens. If Belarus is only **aligned** (not at war) when they arrive, NATO gets a **casus belli** against it, shown as a toast.
 
+### Deep strikes
+
+As leader you can hit the enemy far behind the front with missiles and drones. A strike is not a battle: it is resolved at once, damages an installation or a formation, and always raises the tension. You launch strikes in **strike mode** on the staff map (see below); the debug panel (F9, `--debug`, block **Strikes**) still works for testing, and **+stock** adds missiles. A hit-chance forecast comes later.
+
+**Weapons.** Strikes use real, named weapons. **A weapon belongs to one side**: NATO and Russia each have their own list, and a side can never fire or be given the other side's weapons. **Stock is per side**: each side keeps its own count of each of its weapons. A strike spends the missiles it launches whether or not they hit. One hex is about 5 km; a range above 120 hexes means "anywhere on the operation map".
+
+NATO:
+
+| Weapon | Type | Range | Largest salvo | Accuracy | Interception | Damage (installation / formation, per hit) | Start stock |
+|---|---|---|---|---|---|---|---|
+| JASSM-ER | air-launched cruise missile | 925 km (185 hexes, whole map) | 4 | very high (90%) | fairly easy (70% of the normal chance) | 40 / 2 | 6 |
+| ATACMS | ballistic missile | 300 km (60 hexes) | 2 | good (80%) | hard (45%) | 35 / 3 | 4 |
+| PrSM | ballistic missile | 500 km (100 hexes) | 2 | very high (85%) | hard (40%) | 40 / 3 | 2 |
 | Homar-K | rocket artillery | 290 km (58 hexes) | 6 | moderate (70%) | almost normal (90%) | 20 / 2 | 6 |
 | Warmate | loitering munition (drone) | 50 km (10 hexes) | 6 | low (60%) | easy (130%) | 8 / 1 | 6 |
 | Storm Shadow | cruise missile | 560 km (110 hexes) | 3 | very high (85%) | fairly easy (85%) | 40 / 2 | 0, arrives only from allies |
@@ -674,6 +688,7 @@ With one of your formations selected, point at a hex to see how it would get the
 | 2 ATTACK | go there and attack, entering enemy zones and stopping in contact |
 | 3 DEFEND | go there in the defensive posture, around enemy zones |
 | 4 CANCEL ORDER | only while the formation has an order: drop it |
+| 5 INFO | open the full formation panel (key **5** or **I**) |
 
 Hovering a segment shows a card with what the posture does, the route cost, the points per turn, the number of turns and how the route ends (arrived / contact / no progress), and the route preview on the map switches to that posture. Click a segment or press **1-4** to give the order (**5** shows the info); **Esc**, a click elsewhere or another right click closes the ring. On an enemy-held hex only ATTACK is available; a segment that cannot be used is dimmed and its card says why (UNAVAILABLE and the reason). A short message confirms "Order given", or says why the order was refused:
 
@@ -685,7 +700,6 @@ Hovering a segment shows a card with what the posture does, the route cost, the 
 - no route in this posture (for example, the way is blocked by enemy zones of control while marching);
 - already in this posture (when you pick the posture it already has);
 - the country is closed to you (neutral or hostile; see **Borders and movement** under Politics).
-| 5 INFO | open the full formation panel (key **5** or **I**) |
 
 **Attacking.** Select your formation and **left click** the enemy counter (or its hex), or right click the enemy hex and choose 2 ATTACK. The formation marches towards it, never enters the enemy hex, stops next to it ("contact") and the battle starts at the end of your turn. If it is already next to the enemy, it does not move and fights at the end of the turn. The order stays after the battle, so an undecided fight is repeated next turn. If the enemy has moved away by then, the formation simply goes to the hex it left; if one of your own formations stands there, the order is dropped.
 
@@ -720,6 +734,8 @@ An order stays on the formation: it keeps following it on later turns until one 
 
 **Turn report.** After the turn, press **R** to open (or close) the turn report: one row per order carried out, with what happened to it. Click a row to centre the map on that formation.
 
+**Objectives.** Press **O** (or the **OBJECTIVES** button on the bottom bar) at any time to see what the operation is scored on: each objective with its points and who holds it now (green = your side, red = the enemy), the Gap road link, and the round counter. It sits on the left dock like the journal.
+
 **Journal.** Press **J** (or the log book button on the bottom bar) to read what happened to your side, turn by turn. The window sits on the left edge like the turn report; only one such window is open at a time. Entries are grouped under a header for each turn (`TURN 5`, the date and DAY or NIGHT with its hours; the current turn carries **NOW**), newest turn first, and every entry of the operation is kept. Each entry has a shape (a square for your side, a diamond for the enemy, a circle for politics), a tag (STR strikes, BTL battles, MOV moves, POL politics), a sentence in your side's words ("We struck the enemy airfield with Iskander-M ×2: 2 hit, 1 intercepted", "Enemy … on our depot") and the place. The journal writes down everything your side did and what the enemy did **to you** (a strike or a battle against you, an enemy halted in contact with your formation); enemy moves far away are not written. Political lines are bare facts (a country moved to a side, the escalation level changed, a decision taken) and never say who decided. The chips **ALL / STRIKES / BATTLES / MOVES / POLITICS** filter the list. Click an entry that has a place and the map centres on it and rings the hex for two seconds. Entries added since you last closed the window carry a thin amber bar on the left until you point at them. In a strike report, **Enter** (or a click on the card or chip) opens the journal at that strike's line.
 
 ### The opponent's leader
@@ -737,6 +753,10 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **The contact notice.** When a battle is pending the camera centres on the defender's hex and the map dims. A card appears in the middle of the screen (a dashed ring marks the hex), titled "Attack – Suwałki, 5 km east" (you attack) or "Enemy attack – …" (the enemy attacks you) – the place is the nearest town or village of the map with the distance and direction from it (the bare name when it is closer than 1.5 km; the hex number when the map has no places). It shows both sides (your frame is a rectangle, the enemy's a diamond), with their names, role, posture and strength, the forces as a ratio of attacker to defender strength, the place and the attacker's mission.
 
+**Battle conditions.** Under each side the notice lists **Fire support m** – how many fire-support missions that side has in the coming battle (base 2, lower when the side's airfields are damaged). A value below the base is tagged **reduced** in the alert colour. There is no command-point limit in a battle that starts from the operation. An auto-resolved battle uses the same conditions.
+
+**Orders per turn.** Each turn a side may give a limited number of orders (a new order, or one that replaces an earlier one): 4 with its command posts intact, fewer when they are damaged (by deep strikes), never fewer than 1. Cancelling an order and changing a posture are free. The top bar shows `ORDERS LEFT n / N`; at 0 the number turns red and a further order is refused with "No orders left this turn.". The count starts anew at the beginning of your turn.
+
 **The queue.** If several battles start in one turn, a list on the left shows them (for example `1 OF 2`) with the active one marked. The notice always shows the first; when it is settled, the next appears.
 
 **What you can do.** While a battle is pending you cannot give orders or end the turn. Press **Play battle** (or **B**) to fight it yourself. Started with `--debug`, the card also has **Resolve as draw (debug)**, which settles the battle as a draw with every company at its starting strength; the dimming ends and End turn works again.
@@ -745,7 +765,7 @@ A **contact** starts a battle. At the end of a turn, after all orders are carrie
 
 **Two roles, one player.** On the staff map you are the **leader** – the government and general staff: you give the formations their orders and decide which battles to fight. In a battle you are the **commander** of the companies on the field: you move and fight them to carry out the mission the leader's order gave you, and you cannot change the forces, the terrain, the objectives or anything on the staff map from there. The result of the battle is your report back to the leader.
 
-**Playing the battle.** The 3D battle opens on the real terrain around the contact, with exactly the companies of the two formations at their current strength (the formation panel on the staff map lists the same ones). You command the side you were viewing on the staff map; the enemy is played by the computer. A **briefing** opens first: the formation you command, your **Mission** – the task (Attack, Defend or Hold out) and the objectives in words (take or hold the objective hex, or destroy every enemy company, and the turn the battle ends) – and the **Intent**, the leader's order behind it (for example "Advance to hex 06·01"). Press **Take command** (or **Enter**) to start. During the battle a line under the turn bar reminds you of the mission.
+**Playing the battle.** The 3D battle opens on the real terrain around the contact, with exactly the companies of the two formations at their current strength (the formation panel on the staff map lists the same ones). You command the side you were viewing on the staff map; the enemy is played by the computer. A **briefing** opens first: the formation you command, your **Mission** – the task (Attack, Defend or Hold out) and the objectives in words (take or hold the objective hex, or destroy every enemy company, and the turn the battle ends) – and the **Intent**, the leader's order behind it (for example "Advance to hex 06·01"). Press **Take command** (or **Enter**) to start. During the battle a line under the turn bar reminds you of the mission; click it, press **O** or use the **OBJECTIVES** button on the bottom bar to open the briefing again and re-read the objectives.
 
 **How a battle ends.** As any battle: the attacker takes the objective, one side destroys the other, or the turn limit runs out (then the defender holds the field). The end screen is your **commander's report** with the result; press **Report to staff** (or **Enter**).
 

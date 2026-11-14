@@ -70,6 +70,8 @@ func test_contact_shows_notice_and_resolving_closes_it() -> void:
 	assert_true(notice.odds_line().begins_with("1 : "), notice.odds_line())
 	assert_true(notice.role_text(0).ends_with("ATTACKER"), notice.role_text(0))
 	assert_true(notice.row_text("MISSION").begins_with("ATTACK"), notice.row_text("MISSION"))
+	for side in 2:  # TASK-099b: both sides' conditions are listed before the choice
+		assert_true(notice.conditions_text(side, 0).begins_with("FIRE SUPPORT"))
 	assert_true(notice.play_enabled(), "Play battle is on (TASK-094c)")
 	assert_eq(notice.reason_text(), "")
 	assert_false(notice.resolve_visible(), "no debug button without --debug")

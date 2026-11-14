@@ -10,6 +10,7 @@ const LABELS := {
 	"default_battle": "Iron Shore",
 	"objective_battle": "Objective battle",
 	"command_points_battle": "Command points battle",
+	"fire_support_battle": "Fire support battle",
 	"suwalki_battle": "Szurpily Lakes",
 }
 

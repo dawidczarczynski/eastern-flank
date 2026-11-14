@@ -30,12 +30,11 @@ static func hit_on(state: GameState, target: Unit, rules: BattleConditionsRules 
 	return mini(maxi(1, rules.fire_support_attack - defence), rules.fire_support_die)
 
 
-## Whether a living unit of `player` has line of sight to `coord`.
-static func seen_by(state: GameState, player: int, coord: Vector2i) -> bool:
-	for unit in state.units_of(player):
-		if unit.is_alive() and LineOfSight.visible(state.grid, unit.coord, coord):
-			return true
-	return false
+## Whether `player` knows what stands on `coord`. Fire support is tied to the fog of war, not to
+## a unit's line of sight (an off-map shooter needs no line from the front): until the fog exists
+## (TASK-100) every enemy is known, so this is always true. The fog will answer here.
+static func seen_by(_state: GameState, _player: int, _coord: Vector2i) -> bool:
+	return true
 
 
 func to_dict() -> Dictionary:
@@ -86,6 +85,7 @@ func apply(state: GameState) -> Array[Dictionary]:
 			"player": player,
 			"target_id": target_id,
 			"hits": hits,
+			"target_hp": target.hp,
 			"remaining": state.fire_support_left[player],
 		},
 	]

@@ -15,8 +15,14 @@ const RIVER_FORDS := [2, 7]
 const OPERATION_NAME := "Iron Shore"
 ## Scenario names a MatchRecord can name (Scenario.build).
 const NAMES: Array[String] = [
-	"default_battle", "objective_battle", "command_points_battle", "suwalki_battle"
+	"default_battle",
+	"objective_battle",
+	"command_points_battle",
+	"fire_support_battle",
+	"suwalki_battle",
 ]
+## Fire-support missions of both players in the fire support test battle (TASK-099b).
+const FIRE_SUPPORT_BATTLE_MISSIONS := 2
 ## Command points per turn of both players in the command points test battle (TASK-091).
 const COMMAND_POINTS_BATTLE_POINTS := 2
 ## Objectives of the objective test battle (TASK-088).
@@ -38,6 +44,8 @@ static func build(scenario_name: String, seed_value: int, factions: Array[String
 			return objective_battle(seed_value, factions)
 		"command_points_battle":
 			return command_points_battle(seed_value, factions)
+		"fire_support_battle":
+			return fire_support_battle(seed_value, factions)
 		"suwalki_battle":
 			return suwalki_battle(seed_value, factions)
 	return null
@@ -58,6 +66,25 @@ static func objective_battle(
 	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
 ) -> GameState:
 	return from_setup(objective_battle_setup(seed_value, factions))
+
+
+## Fire support test battle (TASK-099b): the default battle where each player has
+## FIRE_SUPPORT_BATTLE_MISSIONS fire-support missions, so the button can be tried without an
+## operation (whose airfields the strikes keep destroying).
+static func fire_support_battle(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> GameState:
+	return from_setup(fire_support_battle_setup(seed_value, factions))
+
+
+## fire_support_battle as a BattleSetup.
+static func fire_support_battle_setup(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> BattleSetup:
+	var setup := default_battle_setup(seed_value, factions)
+	for side in setup.conditions:
+		side.fire_support = FIRE_SUPPORT_BATTLE_MISSIONS
+	return setup
 
 
 ## Command points test battle: the default battle where each player has

@@ -27,6 +27,8 @@ var _counter_boxes: Array[Control] = []
 var _names: Array[Label] = []
 var _roles: Array[Label] = []
 var _strengths: Array[Label] = []
+var _conditions: Array[Array] = []  # per card: [fire support Label]
+var _conditions_reduced: Array[bool] = [false, false]
 var _odds: Label
 var _rows := {}  # row key -> value Label
 var _captions := {}  # row key -> caption Label
@@ -272,6 +274,28 @@ func _fill_card(
 	_strengths[i].text = (
 		("%s · %s" % ["%s %d%%" % [tr("CONTACT_STRENGTH"), percent], posture]).to_upper()
 	)
+	_fill_conditions(i, setup.conditions[formation.owner_id])
+
+
+## The fire support line of card `i` (TASK-099b); a reduced value is tagged and drawn in the
+## alert colour. Command points are not shown: the C2 limits orders on the staff map, not a battle.
+func _fill_conditions(i: int, conditions: BattleSetup.Conditions) -> void:
+	var reduced := ConditionsModel.fire_support_reduced(conditions)
+	_conditions_reduced[i] = reduced
+	var label := _conditions[i][0] as Label
+	var text := ConditionsModel.fire_support_text(conditions)
+	label.text = (text + (" · " + tr("reduced") if reduced else "")).to_upper()
+	label.add_theme_color_override(&"font_color", ALERT if reduced else UiPalette.HUD_TEXT)
+
+
+## Line `line` (0 = fire support) of card `side`, as shown.
+func conditions_text(side: int, line: int) -> String:
+	return (_conditions[side][line] as Label).text
+
+
+## Whether card `side` shows a reduced value.
+func conditions_reduced(side: int) -> bool:
+	return _conditions_reduced[side]
 
 
 func _build_sides() -> Control:
@@ -325,6 +349,13 @@ func _build_card() -> Control:
 	strength.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(strength)
 	_strengths.append(strength)
+	var lines: Array[Label] = []
+	var line := MenuStyle.label("", HudTheme.mono(500, 0), 10, UiPalette.HUD_TEXT)
+	line.name = "Conditions0"
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(line)
+	lines.append(line)
+	_conditions.append(lines)
 	return panel
 
 

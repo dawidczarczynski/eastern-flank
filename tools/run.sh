@@ -2,7 +2,7 @@
 # Runs the game (needs a graphical environment – in WSL2 it works through WSLg).
 # Usage: tools/run.sh [--editor] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]
 #   --quality  force the graphics quality (default: auto-detected; LOW on software rendering)
-#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, suwalki_battle)
+#   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, fire_support_battle, suwalki_battle)
 #   --scene    open a scene directly instead of the main menu: staff_map (the operational staff map, TASK-093a), battle, menu
 #   --debug    debug mode: the F9 panel on the staff map (user argument)
 #   --side     the side the staff map is viewed as: nato (default) or russia (TASK-092b)

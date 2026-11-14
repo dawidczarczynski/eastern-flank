@@ -31,6 +31,10 @@ const REJECT_TOASTS := {
 	"already_attacked": "ALREADY ATTACKED THIS TURN",
 	"not_an_enemy": "NOT AN ENEMY",
 	"no_command_points": "NO COMMAND POINTS LEFT THIS TURN",
+	"no_fire_support": "NO FIRE SUPPORT LEFT",
+	"fire_support_used_this_turn": "FIRE SUPPORT ALREADY USED THIS TURN",
+	"target_not_visible": "TARGET NOT VISIBLE",
+	"not_your_turn": "NOT YOUR TURN",
 }
 
 ## Active graphics quality switches (GraphicsQuality.features); views read them before use.
@@ -63,6 +67,7 @@ var _target_ring := TargetRingController.new()  # TASK-089b: target tag, crossha
 var _hud: BattleHud
 var _terrain_panel: TerrainPanel
 var _unit_strip: StaffMapUnitStrip  # a unit in the terrain strip's slot (as on the staff map)
+var _fire_support_mode := false  # TASK-099b: waiting for a click on a visible enemy company
 var _hovered_hex: Variant = null  # Vector2i of the tile under the cursor, or null
 var _last_camera_transform := Transform3D()
 # Event playback: the simulation runs ahead synchronously, the view replays its events one by one.
@@ -269,7 +274,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if key.keycode == KEY_ENTER:
 		_end_human_turn()
 	elif key.keycode == KEY_ESCAPE:
-		_select(-1)
+		if not cancel_fire_support():
+			_select(-1)
+	elif key.keycode == KEY_F and not (key.ctrl_pressed or key.alt_pressed or key.meta_pressed):
+		toggle_fire_support()
 
 
 ## Esc closes the menu (or its question), then deselects; with nothing left to close it opens the
@@ -313,7 +321,21 @@ func _campaign_key(keycode: Key) -> bool:
 	if campaign and _sim.state.is_over() and keycode in [KEY_ENTER, KEY_KP_ENTER]:
 		report_to_staff()
 		return true
+	if keycode == KEY_O:
+		return show_briefing()
 	return false
+
+
+## O / the OBJECTIVES button / a click on the mission line: the briefing again, to check the
+## objectives at any time of a campaign battle. False when there is none or the player cannot act.
+func show_briefing() -> bool:
+	if not campaign or _briefing == null or _briefing.visible or not _input_allowed():
+		return false
+	if _menu != null and _menu.is_open():
+		return false
+	_briefing.present(setup, human_player)
+	_place_briefing()
+	return true
 
 
 ## The end screen's Report to staff (campaign battle, game over): the result goes into the
@@ -464,6 +486,12 @@ func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 	if not _input_allowed():
 		return
 	var coord: Variant = _pick_hex(screen_position)
+	if _fire_support_mode:
+		if button == MOUSE_BUTTON_RIGHT:
+			cancel_fire_support()
+		elif coord != null:
+			fire_support_click(coord)
+		return
 	if _target_ring.handle_click(button, coord, _selected_unit_id):
 		return
 	if button == MOUSE_BUTTON_RIGHT:
@@ -585,9 +613,63 @@ func _on_hex_clicked(coord: Vector2i) -> void:
 	# The selection UI is refreshed when the resulting events have been played (_on_queue_drained).
 
 
+## The Fire support button / key F (TASK-099b): enters the target mode (red markers on the visible
+## enemy companies, targeting bar) or leaves it; a reason toast when no mission can be called.
+func toggle_fire_support() -> void:
+	if _fire_support_mode:
+		cancel_fire_support()
+		return
+	if not _input_allowed():
+		return
+	var problem := FireSupportModel.problem(_sim.state, human_player)
+	if problem != "":
+		_hud.show_toast(problem)
+		_audio.play_ui(&"rejected")
+		return
+	_fire_support_mode = true
+	_target_ring.close()
+	var coords: Array[Vector2i] = []
+	for id in FireSupportModel.targets(_sim.state, human_player):
+		coords.append(_sim.state.get_unit(id).coord)
+	_map_view.show_attack_targets(coords)
+	_hud.show_targeting(
+		"FIRE SUPPORT",
+		"%s %s" % [tr("FIRE SUPPORT"), FireSupportModel.counter_text(_sim.state, human_player)],
+		"Select a visible enemy company"
+	)
+	_hud.action_bar().set_active(BattleHud.ACTION_FIRE_SUPPORT, true)
+
+
+## Esc / right click in the target mode: back to the normal state without a command. True when the
+## mode was on.
+func cancel_fire_support() -> bool:
+	if not _fire_support_mode:
+		return false
+	_fire_support_mode = false
+	_hud.hide_targeting()
+	_hud.action_bar().set_active(BattleHud.ACTION_FIRE_SUPPORT, false)
+	_refresh_selection_ui()  # restores the selected unit's own attack markers
+	return true
+
+
+## A click on `coord` in the target mode: an enemy company there gets the mission (the command
+## decides about visibility and limits; a rejection shows its toast), anything else is ignored.
+## True when a command was sent.
+func fire_support_click(coord: Vector2i) -> bool:
+	var command := FireSupportModel.click_command(_sim.state, human_player, coord)
+	if not _fire_support_mode or command == null:
+		return false
+	var sent := _sim.execute(command)
+	cancel_fire_support()
+	if sent:
+		_audio.play_ui(&"attack_order")
+	return true
+
+
 ## Runs the end of the human turn and every AI turn synchronously; their events are queued in
 ## _on_event and replayed afterwards as one burst.
 func _end_human_turn() -> void:
+	cancel_fire_support()
 	_target_ring.close()
 	_sim.execute(EndTurnCommand.new())
 	_run_ai_turns()
@@ -723,6 +805,7 @@ func _build_hud_root() -> void:
 	_hud = BattleHud.new()
 	_hud_root.add_child(_hud)
 	_hud.setup(human_player)
+	_hud.set_fire_support_start(_sim.state.fire_support_left[human_player])
 	_hud.end_turn_pressed.connect(_on_end_turn_pressed)
 	_hud.action_pressed.connect(_on_action_pressed)
 	_hud.action_bar().set_active(BattleHud.ACTION_GRID, true)  # the grid starts on (auto)
@@ -732,6 +815,7 @@ func _build_hud_root() -> void:
 	if campaign:
 		_hud.set_campaign(BattleBriefing.reminder(setup, human_player))
 		_hud.report_pressed.connect(report_to_staff)
+		_hud.mission_pressed.connect(show_briefing)
 		_audio.hook_button(_hud.report_button())
 	_hud_root.add_child(FpsCounter.new())
 	_briefing = BattleBriefing.new()
@@ -914,39 +998,48 @@ func _play_next_event() -> void:
 
 ## Starts the animation of one event and returns its tween, or null for instant events.
 ## Uses only event fields (the simulation state may already be further ahead).
+## A direct attack: the volley, the direct-fire or the plain hit playback (null without a view).
+func _play_attack(event: Dictionary) -> Tween:
+	var target: UnitView = _unit_views.get(event["target_id"])
+	var shooter: UnitView = _unit_views.get(event["attacker_id"])
+	if (
+		target != null
+		and shooter != null
+		and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
+	):
+		return _play_volley(shooter, target, event["target_hp"], event)
+	if (
+		target != null
+		and shooter != null
+		and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_DIRECT_FIRE
+	):
+		return _play_direct_fire(shooter, target, event["target_hp"], event)
+	if target != null:
+		_add_impact_marks(event, target, shooter)
+		_audio.play_attack(_definition_of(event), shooter, target, event["damage"])
+		return target.play_hit(event["target_hp"])
+	return null
+
+
 func _play_event(event: Dictionary) -> Tween:
 	_event_serial += 1
 	match event["type"]:
 		&"unit_moved":
 			var view: UnitView = _unit_views.get(event["unit_id"])
+			var move: Tween = null
 			if view != null:
 				var points := _move_points(event)
 				_play_track_marks(event["unit_id"], points, view.facing_yaw())
-				var move := view.move_along(points, _map_view.surface().ground_height)
+				move = view.move_along(points, _map_view.surface().ground_height)
 				if move != null:
 					_audio.follow_move(move, _sim.state.get_unit(event["unit_id"]), view)
 					# A unit that ends its move on a wreck's tile hides the wreck.
 					move.finished.connect(_wrecks.on_unit_moved.bind(event["to"]), CONNECT_ONE_SHOT)
-				return move
+			return move
 		&"unit_attacked":
-			var target: UnitView = _unit_views.get(event["target_id"])
-			var shooter: UnitView = _unit_views.get(event["attacker_id"])
-			if (
-				target != null
-				and shooter != null
-				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
-			):
-				return _play_volley(shooter, target, event["target_hp"], event)
-			if (
-				target != null
-				and shooter != null
-				and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_DIRECT_FIRE
-			):
-				return _play_direct_fire(shooter, target, event["target_hp"], event)
-			if target != null:
-				_add_impact_marks(event, target, shooter)
-				_audio.play_attack(_definition_of(event), shooter, target, event["damage"])
-				return target.play_hit(event["target_hp"])
+			return _play_attack(event)
+		&"fire_support_used":
+			return _play_fire_support(event)
 		&"unit_died":
 			return _on_unit_died(event["unit_id"])
 		&"turn_ended":
@@ -960,6 +1053,33 @@ func _play_event(event: Dictionary) -> Tween:
 		&"game_over":
 			_select(-1)
 	return null
+
+
+## A fire-support volley (TASK-099b): craters and scorch round the target tile, the impact sound
+## and the usual hit feedback on the company (its HP steps down); a kill follows as `unit_died`.
+func _play_fire_support(event: Dictionary) -> Tween:
+	var target: UnitView = _unit_views.get(event["target_id"])
+	if target == null or not is_instance_valid(target):
+		return null
+	if _marks.is_active():
+		var center := _map_view.tile_top_position(
+			Hex.from_world(target.global_position, _map_view.hex_size)
+		)
+		var marks := GroundMarks.craters(
+			_event_serial, center, GroundMarks.INDIRECT_RANGE, GroundMarks.INDIRECT_DISTANCE, false
+		)
+		marks.append_array(
+			GroundMarks.impact_scorch(
+				_event_serial,
+				center,
+				GroundMarks.INDIRECT_RANGE,
+				GroundMarks.INDIRECT_DISTANCE,
+				false
+			)
+		)
+		_marks.add_marks(marks)
+	_audio.play_impact(event["hits"], false, true, target.global_position)
+	return target.play_hit(event["target_hp"])
 
 
 ## Turn the launcher towards the target, fire the salvo from its tubes (the target's HP steps down
@@ -1212,10 +1332,14 @@ func _on_action_pressed(id: StringName) -> void:
 		BattleHud.ACTION_RESET_VIEW:
 			_camera_rig.reset_tilt()
 		BattleHud.ACTION_DESELECT:
-			if _input_allowed():
+			if _input_allowed() and not cancel_fire_support():
 				_select(-1)
+		BattleHud.ACTION_FIRE_SUPPORT:
+			toggle_fire_support()
 		BattleHud.ACTION_SAVE:
 			_save_match()
+		BattleHud.ACTION_OBJECTIVES:
+			show_briefing()
 
 
 func _on_end_turn_pressed() -> void:

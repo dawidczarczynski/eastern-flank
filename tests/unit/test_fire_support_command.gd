@@ -54,12 +54,12 @@ func test_one_per_turn() -> void:
 	assert_eq(sim.state.fire_support_left[0], 0)
 
 
-func test_unseen_target() -> void:
+func test_target_behind_cover_is_still_known() -> void:
+	# No fog of war yet (TASK-100): terrain blocking the line of sight does not hide a target.
 	var grid := sim.state.grid
 	for q in range(1, 3):
 		grid.set_terrain(Vector2i(q, 0), Terrain.Type.FOREST)
-	assert_false(_fire())
-	assert_eq(rejection, "target_not_visible")
+	assert_true(_fire())
 
 
 func test_apply_events_and_no_side_effects() -> void:
@@ -71,6 +71,7 @@ func test_apply_events_and_no_side_effects() -> void:
 	assert_eq(events[0]["player"], 0)
 	assert_eq(events[0]["target_id"], enemy.id)
 	assert_eq(events[0]["remaining"], 1)
+	assert_eq(events[0]["target_hp"], enemy.hp)
 	assert_eq(enemy.hp, maxi(0, hp_before - (events[0]["hits"] as int)))
 	assert_eq(own.hp, Fixtures.infantry().max_hp, "no counter-fire")
 	assert_eq(sim.state.command_points, 0)
