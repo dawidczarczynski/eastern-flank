@@ -127,6 +127,17 @@ func _print_result(out: String) -> void:
 			]
 		)
 	)
+	# What the model costs the renderer (UnitRenderRules, ADR 0023): must print "violations=[]".
+	print(
+		(
+			"Render rules: far_triangles=%d (max %d) violations=%s"
+			% [
+				UnitRenderRules.far_triangles(_model),
+				UnitRenderRules.MAX_FAR_TRIANGLES,
+				UnitRenderRules.violations(_model),
+			]
+		)
+	)
 	var real := RenderUnitOptions.real_line(aabb_m, _options["real"])
 	if real != "":
 		print(real)

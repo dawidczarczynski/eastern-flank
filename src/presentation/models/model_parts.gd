@@ -16,7 +16,7 @@ const STEEL := [Color("#55564f"), 0.42, 0.75]
 const RUBBER := [Color("#171715"), 0.95, 0.0]
 const GLASS := [Color("#0b1820"), 0.06, 0.9]
 const TRACK := [Color("#2f2d28"), 0.7, 0.55]
-## Soldiers' skin (TASK-085: the skin shader with baked AO and subsurface scattering, `skin()`).
+## Soldiers' skin (TASK-085: the skin shader with baked AO, `skin()`).
 const SKIN := [Color("#a2785f"), 0.6, 0.0]
 const GUN := [Color("#1b1c19"), 0.45, 0.55]
 ## Default chamfer of the part helpers (box, cylinder, prism, loft, lathe rims), model units
@@ -94,6 +94,7 @@ static func cached(key: String, builder: Callable, wear_seed := 0.0) -> Node3D:
 		if built == null:
 			return null
 		MeshLods.apply(built)
+		MeshLods.flush()
 		_prototypes[key] = built
 	var prototype := _prototypes[key] as Node3D
 	var copy := prototype.duplicate() as Node3D
@@ -225,7 +226,7 @@ static func weathered_paint(key: String, values: Dictionary) -> ShaderMaterial:
 	return _materials[cache_key]
 
 
-## Soldiers' skin: the skin shader (vertex-mask AO, subsurface scattering) in the SKIN palette
+## Soldiers' skin: the skin shader (vertex-mask AO) in the SKIN palette
 ## colour, shared.
 static func skin() -> ShaderMaterial:
 	if not _materials.has("skin"):

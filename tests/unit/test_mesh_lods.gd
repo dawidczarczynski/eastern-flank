@@ -57,3 +57,84 @@ func test_built_unit_models_carry_levels_of_detail() -> void:
 			with_levels += 1
 	assert_true(with_levels > 10, "%d meshes with levels" % with_levels)
 	model.free()
+
+
+## Kit geometry: hundreds of separate primitives in one mesh. Chamfers collapse, a primitive
+## smaller than a pixel is dropped, and the corners keep original vertices (their colour masks).
+func test_levels_simplify_primitives_and_drop_tiny_ones() -> void:
+	var kit := MeshKit.new()
+	kit.cbox(Vector3.ZERO, Vector3(0.4, 0.2, 0.3), 0.004)
+	for i in 8:
+		kit.bolt(Vector3(-0.15 + 0.04 * i, 0.1, 0.0), Vector3.UP)
+	kit.rod(Vector3(0.0, 0.3, 0.0), Vector3.RIGHT, 0.03, 0.5, 24, 0.003)
+	var st := SurfaceTool.new()
+	st.create_from(kit.commit(), 0)
+	st.index()
+	var arrays := st.commit_to_arrays()
+	var vertices := (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var full := (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size()
+	var lods := MeshLods.levels(arrays)
+	assert_true(lods.size() >= 2, "%d levels" % lods.size())
+	var errors := lods.keys()
+	errors.sort()
+	var last := full
+	for error: float in errors:
+		var indices: PackedInt32Array = lods[error]
+		assert_true(indices.size() < last, "each level is coarser")
+		last = indices.size()
+		for index in indices:
+			if index < 0 or index >= vertices:
+				_fail("index %d outside the vertex buffer" % index)
+				return
+	# The coarsest level still has the box and the rod (12 + a few triangles), not the bolts.
+	assert_true(last >= 12 * 3, "the large primitives stay: %d indices" % last)
+	assert_true(last < full / 4, "%d of %d indices" % [last, full])
+
+
+## A thin plate must not fold through its thickness: every face of every level still points the
+## way a face of the full mesh does.
+func test_a_thin_plate_keeps_both_faces() -> void:
+	var kit := MeshKit.new()
+	kit.cbox(Vector3.ZERO, Vector3(0.6, 0.004, 0.3), 0.001)
+	for i in 30:
+		kit.cbox(Vector3(-0.28 + 0.02 * i, 0.01, 0.0), Vector3(0.01, 0.01, 0.2), 0.002)
+	var st := SurfaceTool.new()
+	st.create_from(kit.commit(), 0)
+	st.index()
+	var arrays := st.commit_to_arrays()
+	var vertices := arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array
+	var lods := MeshLods.levels(arrays)
+	assert_true(lods.size() > 0, "levels")
+	for error: float in lods:
+		var indices: PackedInt32Array = lods[error]
+		var up := 0.0
+		var down := 0.0
+		for i in range(0, indices.size(), 3):
+			var a := vertices[indices[i]]
+			var face := (vertices[indices[i + 2]] - a).cross(vertices[indices[i + 1]] - a)
+			if maxf(absf(a.y), 0.0) <= 0.0021:  # the plate
+				up += maxf(face.y, 0.0)
+				down += maxf(-face.y, 0.0)
+		assert_true(up > 0.3 and down > 0.3, "level %.4f: top %.3f bottom %.3f" % [error, up, down])
+
+
+func test_levels_come_back_from_the_disk_cache() -> void:
+	var dir := "user://test_mesh_lods_cache"
+	MeshLods.cache_dir = dir
+	MeshLods._stored = {}
+	MeshLods._stored_read = false
+	var first := MeshLods.with_lods(_rod()) as ArrayMesh
+	MeshLods.flush()
+	assert_true(FileAccess.file_exists(MeshLods.cache_path()), "written")
+	MeshLods._stored = {}
+	MeshLods._stored_read = false
+	var again := MeshLods.with_lods(_rod()) as ArrayMesh
+	assert_eq(MeshLods._stored.size(), 1, "read back")
+	assert_false(MeshLods._dirty, "nothing new to write")
+	assert_eq(again.get_meta(MeshLods.META_LOD_LEVELS), first.get_meta(MeshLods.META_LOD_LEVELS))
+	assert_eq(again.surface_get_arrays(0), first.surface_get_arrays(0))
+	DirAccess.remove_absolute(MeshLods.cache_path())
+	DirAccess.remove_absolute(dir)
+	MeshLods.cache_dir = ""
+	MeshLods._stored = {}
+	MeshLods._stored_read = false

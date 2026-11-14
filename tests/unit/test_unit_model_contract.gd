@@ -139,6 +139,22 @@ func test_every_model_meets_the_contract_for_every_faction() -> void:
 				violated.append("body_meshes")
 			if UnitModels.label_height(id) < box.end.y:
 				violated.append("label")
+			# Render rules (UnitRenderRules, ADR 0023): materials that stay in the opaque pass and
+			# need no full-screen pass, and the triangles drawn in the battle view.
+			var render := UnitRenderRules.violations(root)
+			print(
+				(
+					"[model] %s: far_triangles=%d (max %d) render_violations=%s"
+					% [
+						label,
+						UnitRenderRules.far_triangles(root),
+						UnitRenderRules.MAX_FAR_TRIANGLES,
+						render
+					]
+				)
+			)
+			if not render.is_empty():
+				violated.append("render")
 			_check_waivers(id, label, violated)
 			root.free()
 
