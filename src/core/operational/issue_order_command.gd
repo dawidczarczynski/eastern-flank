@@ -3,7 +3,8 @@ extends OperationalCommand
 ## Gives a formation of the current player an order (TASK-092d): go to `destination` in
 ## `posture` (an enemy-held destination is an attack order, only for a posture that does not avoid
 ## contact). Replaces any earlier order; the formation does not move now (TASK-092e executes
-## orders at the end of the turn).
+## orders at the end of the turn). Counts against the side's orders per turn (C2 integrity,
+## `no_orders_left`).
 
 const TYPE := "issue_order"
 
@@ -22,6 +23,8 @@ func _init(
 
 func validate(state: OperationalState) -> String:
 	var reason := OperationalOrders.formation_problem(state, formation_id)
+	if reason == "" and state.orders_left() <= 0:
+		reason = "no_orders_left"
 	if reason != "":
 		return reason
 	var data := OperationalPosture.find(posture)
@@ -68,6 +71,7 @@ func _target_problem(
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var formation := state.get_formation(formation_id)
 	var data := OperationalPosture.find(posture)
+	state.orders_issued += 1
 	formation.posture = posture
 	formation.order = FormationOrder.new(destination)
 	var forecast := OperationalRoutes.forecast(

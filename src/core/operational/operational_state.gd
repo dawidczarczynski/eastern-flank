@@ -70,6 +70,9 @@ var installations: Array[Installation] = []
 var strike_stock: Array[Dictionary] = [{}, {}]
 ## Strikes the current player may still launch this turn; reset when the turn passes on.
 var strikes_left: int = 2
+## Orders (IssueOrderCommand) the current player has issued this turn; reset when the turn passes
+## on. The limit is `orders_per_turn` (C2 integrity).
+var orders_issued: int = 0
 ## Means by id (static, not in the snapshot; the shipped ones, tests may add more).
 var strike_means: Dictionary = {}
 ## Per player: {means id: count} gained at each round boundary (static).
@@ -101,6 +104,16 @@ var pending_battles: Array[BattleSetup] = []
 var political_log := PoliticalLog.new()
 ## Per-side journal of everything that happened (TASK-148a); filled by OperationalSimulation.
 var journal := OperationalJournal.new()
+
+
+## Orders `player` may issue per turn, from the current integrity of their command posts.
+func orders_per_turn(player: int) -> int:
+	return BattleConditionsRules.orders_per_turn(installations, player)
+
+
+## Orders the current player may still issue this turn.
+func orders_left() -> int:
+	return maxi(0, orders_per_turn(current_player) - orders_issued)
 
 
 ## The formation with this id; null if there is none.
@@ -164,7 +177,7 @@ func formation_at(coord: Vector2i) -> Formation:
 ## formations: [Formation.snapshot() sorted by id],
 ## installations: [Installation.snapshot() sorted by id],
 ## support: [SupportState.snapshot() sorted by id], strike_stock, strikes_left,
-## fielded_strength, hex_holders, gap_closed_rounds}.
+## fielded_strength, hex_holders, gap_closed_rounds, orders_issued (only when above 0)}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
 	sorted.sort_custom(_id_before)
@@ -215,6 +228,8 @@ func snapshot() -> Dictionary:
 		"political_log": political_log.to_dict()["entries"],
 		"journal": journal.to_dict()["entries"],
 	}
+	if orders_issued > 0:  # only when used: older snapshots stay unchanged
+		snapshot["orders_issued"] = orders_issued
 	return snapshot
 
 

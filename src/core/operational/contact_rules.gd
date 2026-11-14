@@ -103,6 +103,7 @@ static func _build_setup(
 	for player in 2:
 		var formation := sides[player]
 		var posture := OperationalPosture.find(formation.posture)
+		# Only fire support is set; the battle has no limit on activations (points stay 0).
 		var conditions := BattleConditionsRules.for_side(state.installations, player)
 		conditions.posture = formation.posture
 		conditions.position_bonus = 0 if posture == null else posture.position_bonus

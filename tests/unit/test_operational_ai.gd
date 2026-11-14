@@ -219,7 +219,8 @@ func test_both_sides_use_the_same_code() -> void:
 func test_max_commands() -> void:
 	var state := _orders_state(10)
 	var profile := _profile()
-	assert_eq(OperationalAi.plan(state, 0, profile).size(), 12)
+	var limit := state.orders_per_turn(0)  # 12 formations want orders, the C2 allows 4
+	assert_eq(OperationalAi.plan(state, 0, profile).size(), limit)
 	profile.max_commands = 3
 	var plan := OperationalAi.plan(state, 0, profile)
 	assert_eq(plan.size(), 3)

@@ -1,6 +1,6 @@
 extends TestCase
-## Battle conditions from installations (TASK-099a): BattleConditionsRules data and mapping, and
-## the conditions ContactRules._build_setup fills.
+## Battle conditions from installations (TASK-099a): orders per turn from C2, fire support from
+## airfields, and the conditions ContactRules._build_setup fills.
 
 const TestContact := preload("res://tests/unit/test_contact.gd")
 
@@ -22,7 +22,7 @@ static func _list(items: Array) -> Array[Installation]:
 
 
 func _points(items: Array, player := 0) -> int:
-	return BattleConditionsRules.for_side(_list(items), player).command_points
+	return BattleConditionsRules.orders_per_turn(_list(items), player)
 
 
 func _missions(items: Array, player := 0) -> int:
@@ -32,8 +32,8 @@ func _missions(items: Array, player := 0) -> int:
 func test_shipped_data() -> void:
 	var rules := BattleConditionsRules.shipped()
 	assert_eq(rules.problem(), "")
-	assert_eq(rules.command_points_base, 4)
-	assert_eq(rules.command_points_floor, 25)
+	assert_eq(rules.orders_base, 4)
+	assert_eq(rules.orders_floor, 25)
 	assert_eq(rules.fire_support_base, 2)
 	assert_eq(rules.fire_support_floor, 0)
 	assert_eq(rules.fire_support_attack, 4)
@@ -44,7 +44,7 @@ func test_one_c2_scales_with_integrity() -> void:
 	assert_eq(_points([_inst(&"c2", 0, 100)]), 4)
 	assert_eq(_points([_inst(&"c2", 0, 50)]), 2)
 	assert_eq(_points([_inst(&"c2", 0, 10)]), 1)
-	assert_eq(_points([_inst(&"c2", 0, 0)]), 1, "floor, never 0 (0 = unlimited)")
+	assert_eq(_points([_inst(&"c2", 0, 0)]), 1, "floor, never 0")
 
 
 func test_mean_over_several_c2() -> void:
@@ -102,8 +102,8 @@ func test_contact_battle_gets_conditions_from_installations() -> void:
 	var attacker := state.formation_at(Vector2i.ZERO)
 	var defender := state.formation_at(Vector2i(4, 1))
 	var setup := ContactRules._build_setup(state, attacker, defender)
-	assert_eq(setup.conditions[0].command_points, 4)
-	assert_eq(setup.conditions[1].command_points, 1)
+	assert_eq(setup.conditions[0].command_points, 0, "a battle has no command-point limit")
+	assert_eq(setup.conditions[1].command_points, 0)
 	assert_eq(setup.conditions[0].fire_support, 1)
 	assert_eq(setup.conditions[1].fire_support, 2)
 	assert_eq(setup.conditions[0].posture, attacker.posture)

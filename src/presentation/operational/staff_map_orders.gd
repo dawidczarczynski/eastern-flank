@@ -30,6 +30,14 @@ func _init(
 	marks.ink = Color(0.05, 0.06, 0.05)
 
 
+## "ORDERS LEFT 3 / 4": the orders `player` may still issue this turn of the C2 limit (the whole
+## limit while it is the other side's move). Translated, upper case.
+static func orders_left_text(state: OperationalState, player: int) -> String:
+	var total := state.orders_per_turn(player)
+	var left := state.orders_left() if player == state.current_player else total
+	return (TranslationServer.translate("ORDERS LEFT %d / %d") % [left, total]).to_upper()
+
+
 ## Ordered formations of `player` (the number n of "ORDERS n / m").
 static func ordered_count(state: OperationalState, player: int) -> int:
 	var n := 0

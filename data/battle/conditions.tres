@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_rules")
-command_points_base = 4
-command_points_floor = 25
+orders_base = 4
+orders_floor = 25
 fire_support_base = 2
 fire_support_floor = 0
 fire_support_attack = 4

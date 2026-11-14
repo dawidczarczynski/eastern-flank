@@ -32,6 +32,7 @@ func _reset() -> void:
 	for formation in _map.simulation().state.formations:
 		formation.order = null
 		formation.posture = &"defend"
+	_map.simulation().state.orders_issued = 0  # the C2 limit counts per turn
 	_map.select_formation(&"")
 	_map.set_viewer(_map.simulation().state.current_player)
 

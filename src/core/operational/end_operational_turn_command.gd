@@ -144,6 +144,7 @@ static func _execute_order(
 static func _switch_side(state: OperationalState) -> void:
 	state.current_player = 1 - state.current_player
 	state.strikes_left = state.strikes_per_turn
+	state.orders_issued = 0
 	state.decisions_left = state.ladder.decisions_per_turn
 	if state.current_player == state.first_player:
 		state.turn += 1

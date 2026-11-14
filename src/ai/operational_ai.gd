@@ -92,7 +92,22 @@ static func _plan_orders(
 			commands.append(command)
 	if commands.size() > limit:
 		commands.resize(limit)
-	return commands
+	return _within_orders_left(state, commands)
+
+
+## `commands` without the orders beyond what the side may still issue this turn (C2 limit).
+static func _within_orders_left(
+	state: OperationalState, commands: Array[OperationalCommand]
+) -> Array[OperationalCommand]:
+	var left := state.orders_left()
+	var kept: Array[OperationalCommand] = []
+	for command in commands:
+		if command is IssueOrderCommand:
+			if left <= 0:
+				continue
+			left -= 1
+		kept.append(command)
+	return kept
 
 
 static func _formations_of(state: OperationalState, player: int) -> Array[Formation]:

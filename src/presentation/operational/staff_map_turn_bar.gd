@@ -26,6 +26,7 @@ var _viewer := 0
 var _sides: Array[Dictionary] = []  # [viewer's side, opponent]
 var _turn_label: Label
 var _date_label: Label
+var _orders_label: Label
 var _icon: DayNightIcon
 var _chip: StaffMapEscalationChip
 var _end_button: EndTurnButton
@@ -113,6 +114,11 @@ func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) 
 			OperationalClock.time_of_day(state.turn),
 		]
 	)
+	_orders_label.text = StaffMapOrders.orders_left_text(state, viewer)
+	var exhausted := state.current_player == viewer and state.orders_left() <= 0
+	_orders_label.add_theme_color_override(
+		&"font_color", palette.ui_alert if exhausted else UiPalette.HUD_DESC
+	)
 	_chip.show_state(state, palette)
 	_end_button.caption = tr("End turn").to_upper()
 	_end_button.fill = _colour(mover)
@@ -160,6 +166,11 @@ func date_text() -> String:
 
 func is_day_shown() -> bool:
 	return _day
+
+
+## "ORDERS LEFT 3 / 4" of the viewed side (the C2 limit on orders per turn).
+func orders_left_text() -> String:
+	return _orders_label.text
 
 
 func viewed_side_text() -> String:
@@ -298,6 +309,10 @@ func _build_centre() -> Control:
 	_date_label = MenuStyle.label("", HudTheme.mono(600, 1), 10, UiPalette.HUD_DESC)
 	when.add_child(_date_label)
 	row.add_child(when)
+	row.add_child(_divider())
+	_orders_label = MenuStyle.label("", HudTheme.mono(600, 1), 10, UiPalette.HUD_DESC)
+	_orders_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_orders_label)
 	group.add_child(_divider())
 	return group
 
