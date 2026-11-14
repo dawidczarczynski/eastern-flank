@@ -16,8 +16,9 @@ const int PARCEL_KINDS = 9;
 const float WEIGHT_EPSILON = 0.004;
 
 uniform sampler2DArray albedo_height : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2DArray normal_maps : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2DArray roughness_ao : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+// Normal x, y (OpenGL, z is rebuilt) in RG, roughness in B, ambient occlusion in A. Trilinear:
+// anisotropic filtering only pays on the albedo (~0.35 ms on the target GPU for no visible gain).
+uniform sampler2DArray normal_rough_ao : hint_default_white, filter_linear_mipmap, repeat_enable;
 // World units per texture repeat, and a linear albedo tint, per layer.
 uniform float layer_repeat[7];
 uniform vec3 layer_tint[7];
@@ -96,55 +97,97 @@ void vertex() {
 	vertex_tint = UV2;
 }
 
-// One planar sample of `layer` at texture coordinate `uv` with gradients dx / dy.
-void sample_at(int layer, vec2 uv, vec2 dx, vec2 dy, out vec4 ah, out vec3 n, out vec2 ra) {
-	vec3 p = vec3(uv, float(layer));
-	ah = textureGrad(albedo_height, p, dx, dy);
-	n = textureGrad(normal_maps, p, dx, dy).xyz * 2.0 - 1.0;
-	ra = textureGrad(roughness_ao, p, dx, dy).rg;
+// Planar texture coordinates of one sample: the near scale, and with anti-tiling the larger,
+// rotated second one (far_rot rotates world (x, z) into its frame).
+struct Planar {
+	vec3 near;
+	vec2 near_dx;
+	vec2 near_dy;
+	vec3 far;
+	vec2 far_dx;
+	vec2 far_dy;
+};
+
+Planar planar_coords(int layer, vec2 xz, vec2 dx, vec2 dy, mat2 far_rot) {
+	float inv = 1.0 / layer_repeat[layer];
+	float far_inv = inv / far_scale;
+	Planar c;
+	c.near = vec3(xz * inv, float(layer));
+	c.near_dx = dx * inv;
+	c.near_dy = dy * inv;
+	c.far = vec3(far_rot * xz * far_inv, float(layer));
+	c.far_dx = far_rot * dx * far_inv;
+	c.far_dy = far_rot * dy * far_inv;
+	return c;
 }
 
-// Planar (x, z) sample of `layer`, with the anti-tiling second scale mixed in by far_mix.
-void sample_planar(int layer, vec2 xz, vec2 dx, vec2 dy, float far_mix, out vec4 ah, out vec3 n, out vec2 ra) {
-	float inv = 1.0 / layer_repeat[layer];
-	sample_at(layer, xz * inv, dx * inv, dy * inv, ah, n, ra);
-	if (anti_tiling && far_mix > 0.0) {
-		float c = cos(far_rotation);
-		float s = sin(far_rotation);
-		mat2 rot = mat2(vec2(c, s), vec2(-s, c));
-		float far_inv = inv / far_scale;
-		vec4 ah2;
-		vec3 n2;
+// Tangent-space normal (xyz) and roughness / AO (out) of one fetch of normal_rough_ao.
+vec3 unpack_normal(vec4 texel, out vec2 ra) {
+	vec2 xy = texel.rg * 2.0 - 1.0;
+	ra = texel.ba;
+	return vec3(xy, sqrt(max(1.0 - dot(xy, xy), 0.0)));
+}
+
+// Albedo / height of a planar sample; far_mix 0 = only the near scale, 1 = only the far one
+// (the scale that does not show is not fetched).
+vec4 planar_albedo(Planar c, float far_mix) {
+	vec4 ah = vec4(0.0);
+	if (far_mix < 1.0) {
+		ah = textureGrad(albedo_height, c.near, c.near_dx, c.near_dy);
+	}
+	if (far_mix > 0.0) {
+		ah = mix(ah, textureGrad(albedo_height, c.far, c.far_dx, c.far_dy), far_mix);
+	}
+	return ah;
+}
+
+// Normal and roughness / AO of a planar sample, as planar_albedo.
+vec3 planar_detail(Planar c, float far_mix, mat2 far_rot, out vec2 ra) {
+	vec3 n = vec3(0.0);
+	ra = vec2(0.0);
+	if (far_mix < 1.0) {
+		n = unpack_normal(textureGrad(normal_rough_ao, c.near, c.near_dx, c.near_dy), ra);
+	}
+	if (far_mix > 0.0) {
 		vec2 ra2;
-		sample_at(layer, rot * xz * far_inv, rot * dx * far_inv, rot * dy * far_inv, ah2, n2, ra2);
+		vec3 n2 = unpack_normal(textureGrad(normal_rough_ao, c.far, c.far_dx, c.far_dy), ra2);
 		// The far sample's tangent frame is rotated by far_rotation: rotate its normal back into
 		// the planar frame (x, -z). Undoing rot in world (x, z) is transpose(rot); with green
 		// along -v on both sides (F = diag(1, -1)) that becomes F * transpose(rot) * F = rot.
-		n2.xy = rot * n2.xy;
-		ah = mix(ah, ah2, far_mix);
+		n2.xy = far_rot * n2.xy;
 		n = mix(n, n2, far_mix);
 		ra = mix(ra, ra2, far_mix);
 	}
+	return n;
 }
 
-// Triplanar rock: albedo/height and roughness/AO blended over the three projections, and the
-// world-space normal (whiteout blend per projection).
-void sample_triplanar(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out vec4 ah, out vec3 world_n, out vec2 ra) {
-	float inv = 1.0 / layer_repeat[ROCK];
+// Triplanar blend weights of the three projections (x, y, z) for the world normal `wn`.
+vec3 triplanar_blend(vec3 wn) {
 	vec3 blend = pow(abs(wn), vec3(4.0));
-	blend /= blend.x + blend.y + blend.z;
-	vec4 ahx;
-	vec4 ahy;
-	vec4 ahz;
-	vec3 nx;
-	vec3 ny;
-	vec3 nz;
+	return blend / (blend.x + blend.y + blend.z);
+}
+
+// Triplanar rock: albedo / height blended over the three projections.
+vec4 triplanar_albedo(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn) {
+	float inv = 1.0 / layer_repeat[ROCK];
+	vec3 blend = triplanar_blend(wn);
+	float l = float(ROCK);
+	return textureGrad(albedo_height, vec3(pos.zy * inv, l), dpx.zy * inv, dpy.zy * inv) * blend.x
+		+ textureGrad(albedo_height, vec3(pos.xz * inv, l), dpx.xz * inv, dpy.xz * inv) * blend.y
+		+ textureGrad(albedo_height, vec3(pos.xy * inv, l), dpx.xy * inv, dpy.xy * inv) * blend.z;
+}
+
+// Triplanar rock: the world-space normal (whiteout blend per projection) and roughness / AO.
+vec3 triplanar_detail(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out vec2 ra) {
+	float inv = 1.0 / layer_repeat[ROCK];
+	vec3 blend = triplanar_blend(wn);
+	float l = float(ROCK);
 	vec2 rax;
 	vec2 ray;
 	vec2 raz;
-	sample_at(ROCK, pos.zy * inv, dpx.zy * inv, dpy.zy * inv, ahx, nx, rax);
-	sample_at(ROCK, pos.xz * inv, dpx.xz * inv, dpy.xz * inv, ahy, ny, ray);
-	sample_at(ROCK, pos.xy * inv, dpx.xy * inv, dpy.xy * inv, ahz, nz, raz);
+	vec3 nx = unpack_normal(textureGrad(normal_rough_ao, vec3(pos.zy * inv, l), dpx.zy * inv, dpy.zy * inv), rax);
+	vec3 ny = unpack_normal(textureGrad(normal_rough_ao, vec3(pos.xz * inv, l), dpx.xz * inv, dpy.xz * inv), ray);
+	vec3 nz = unpack_normal(textureGrad(normal_rough_ao, vec3(pos.xy * inv, l), dpx.xy * inv, dpy.xy * inv), raz);
 	// OpenGL green points to -v. The planar (x, z) frame has its binormal along -z, so green
 	// must point to -z on the y projection; on the x (zy) and z (xy) projections v runs along
 	// world +y, so green must point to +y: flip it there.
@@ -156,9 +199,8 @@ void sample_triplanar(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out vec4 ah, out ve
 	nx = vec3(nx.xy + wn.zy, abs(nx.z) * wn.x);
 	ny = vec3(ny.xy + wn.xz, abs(ny.z) * wn.y);
 	nz = vec3(nz.xy + wn.xy, abs(nz.z) * wn.z);
-	world_n = normalize(nx.zyx * blend.x + ny.xzy * blend.y + nz.xyz * blend.z);
-	ah = ahx * blend.x + ahy * blend.y + ahz * blend.z;
 	ra = rax * blend.x + ray * blend.y + raz * blend.z;
+	return normalize(nx.zyx * blend.x + ny.xzy * blend.y + nz.xyz * blend.z);
 }
 
 void fragment() {
@@ -171,40 +213,33 @@ void fragment() {
 	if (anti_tiling) {
 		far_mix = smoothstep(0.3, 0.7, value_noise(xz * anti_tiling_frequency));
 	}
+	float far_c = cos(far_rotation);
+	float far_s = sin(far_rotation);
+	mat2 far_rot = mat2(vec2(far_c, far_s), vec2(-far_s, far_c));
 	float tri = 0.0;
 	if (triplanar) {
 		tri = smoothstep(triplanar_slope - triplanar_band, triplanar_slope + triplanar_band, 1.0 - wn.y);
 	}
 
+	// First the albedo / height of every layer with a weight: the heights decide which layers
+	// survive the height blending.
 	vec4 ah[7];
-	vec3 nt[7];
-	vec2 ra[7];
 	float best = -1.0;
 	for (int i = 0; i < LAYER_COUNT; i++) {
 		ah[i] = vec4(0.0);
-		nt[i] = vec3(0.0, 0.0, 1.0);
-		ra[i] = vec2(1.0);
 		if (w[i] > WEIGHT_EPSILON) {
 			if (i != ROCK || tri < 1.0) {
-				sample_planar(i, xz, dpx.xz, dpy.xz, far_mix, ah[i], nt[i], ra[i]);
+				ah[i] = planar_albedo(planar_coords(i, xz, dpx.xz, dpy.xz, far_rot), far_mix);
 			}
 			if (i == ROCK && tri > 0.0) {
-				vec4 tah;
-				vec3 twn;
-				vec2 tra;
-				sample_triplanar(world_pos, dpx, dpy, wn, tah, twn, tra);
-				// World normal -> tangent space of this fragment (view-space TBN).
-				vec3 v = (VIEW_MATRIX * vec4(twn, 0.0)).xyz;
-				vec3 tn = vec3(dot(v, TANGENT), dot(v, BINORMAL), dot(v, NORMAL));
-				ah[i] = mix(ah[i], tah, tri);
-				nt[i] = mix(nt[i], tn, tri);
-				ra[i] = mix(ra[i], tra, tri);
+				ah[i] = mix(ah[i], triplanar_albedo(world_pos, dpx, dpy, wn), tri);
 			}
 			best = max(best, w[i] + ah[i].a);
 		}
 	}
 
-	// Height blending: sharp edges where the higher material pokes through.
+	// Height blending: sharp edges where the higher material pokes through. Only the surviving
+	// layers (most pixels: one) fetch their normal and roughness / AO.
 	vec3 albedo = vec3(0.0);
 	vec3 n = vec3(0.0);
 	vec2 rough_ao = vec2(0.0);
@@ -212,10 +247,25 @@ void fragment() {
 	for (int i = 0; i < LAYER_COUNT; i++) {
 		if (w[i] > WEIGHT_EPSILON) {
 			float hw = max(0.0, w[i] + ah[i].a - best + height_blend);
-			albedo += ah[i].rgb * layer_tint[i] * hw;
-			n += nt[i] * hw;
-			rough_ao += ra[i] * hw;
-			total += hw;
+			if (hw > 0.0) {
+				vec3 nt = vec3(0.0, 0.0, 1.0);
+				vec2 ra = vec2(1.0);
+				if (i != ROCK || tri < 1.0) {
+					nt = planar_detail(planar_coords(i, xz, dpx.xz, dpy.xz, far_rot), far_mix, far_rot, ra);
+				}
+				if (i == ROCK && tri > 0.0) {
+					vec2 tra;
+					vec3 twn = triplanar_detail(world_pos, dpx, dpy, wn, tra);
+					// World normal -> tangent space of this fragment (view-space TBN).
+					vec3 v = (VIEW_MATRIX * vec4(twn, 0.0)).xyz;
+					nt = mix(nt, vec3(dot(v, TANGENT), dot(v, BINORMAL), dot(v, NORMAL)), tri);
+					ra = mix(ra, tra, tri);
+				}
+				albedo += ah[i].rgb * layer_tint[i] * hw;
+				n += nt * hw;
+				rough_ao += ra * hw;
+				total += hw;
+			}
 		}
 	}
 	total = max(total, 1e-5);

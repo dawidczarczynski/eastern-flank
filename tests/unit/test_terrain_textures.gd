@@ -81,7 +81,9 @@ func test_packed_images_come_back_from_the_disk_cache() -> void:
 	var cached := TerrainTextures.arrays(CACHE_TEST_SIZE)
 	assert_eq(TerrainTextures.last_source, "cache")
 	assert_eq(cached["average_colors"], packed["average_colors"])
-	assert_eq((cached["normal"] as Texture2DArray).get_layers(), TerrainTextures.LAYERS.size())
+	assert_eq(
+		(cached["normal_rough_ao"] as Texture2DArray).get_layers(), TerrainTextures.LAYERS.size()
+	)
 	_drop_test_cache()
 
 
@@ -111,3 +113,22 @@ func test_a_cache_file_of_another_key_or_a_damaged_one_is_packed_again() -> void
 func test_no_cache_key_when_the_cache_is_off() -> void:
 	TerrainTextures.cache_dir = ""
 	assert_eq(TerrainTextures.cache_key(CACHE_TEST_SIZE), "")
+
+
+## One array carries the normal's x, y and roughness / AO: a ground sample is two fetches.
+func test_normal_array_carries_roughness_in_blue_and_ao_in_alpha() -> void:
+	var job := TerrainTextures._Job.new(CACHE_TEST_SIZE)
+	job.pack_layer(0)
+	var packed: Image = job.images[0]["normal_rough_ao"]
+	assert_eq(packed.get_format(), Image.FORMAT_RGBA8)
+	assert_true(packed.has_mipmaps(), "mipmaps")
+	var normal := TerrainTextures._load_map(0, "normal_gl", CACHE_TEST_SIZE, Image.FORMAT_RGBA8)
+	var rough := TerrainTextures._load_map(0, "roughness", CACHE_TEST_SIZE, Image.FORMAT_L8)
+	var ao := TerrainTextures._load_map(0, "ao", CACHE_TEST_SIZE, Image.FORMAT_L8)
+	var data := packed.get_data()
+	var pixels := CACHE_TEST_SIZE * CACHE_TEST_SIZE
+	for i: int in [0, pixels / 2 + 3, pixels - 1]:
+		assert_eq(data[i * 4], normal.get_data()[i * 4], "normal x")
+		assert_eq(data[i * 4 + 1], normal.get_data()[i * 4 + 1], "normal y")
+		assert_eq(data[i * 4 + 2], rough.get_data()[i], "roughness")
+		assert_eq(data[i * 4 + 3], ao.get_data()[i], "ambient occlusion")

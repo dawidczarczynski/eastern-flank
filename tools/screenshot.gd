@@ -6,6 +6,7 @@ extends SceneTree
 
 const ScreenshotOptions := preload("res://tools/screenshot_options.gd")
 const ScreenshotImage := preload("res://tools/screenshot_image.gd")
+const PerfProfile := preload("res://tools/perf_profile.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
 const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
 const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
@@ -30,6 +31,8 @@ var _measure_samples: Array[int] = []
 ## Viewport render time (RenderingServer measure_render_time) summed over the timed frames, ms.
 var _measure_gpu_ms := 0.0
 var _measure_cpu_ms := 0.0
+## Frame cost breakdown (SCREENSHOT_PROFILE=1, tools/perf.sh), run after the frame-time probe.
+var _profile: PerfProfile
 
 
 func _initialize() -> void:
@@ -147,6 +150,11 @@ func _process(_delta: float) -> bool:
 		if _measure_left > 0:
 			_measure_frame()
 			return false
+		if _is_battle and OS.get_environment("SCREENSHOT_PROFILE") != "":
+			if _profile == null:
+				_profile = PerfProfile.new(root, _battle, OS.get_environment("SCREENSHOT_PROFILE"))
+			if not _profile.step():
+				return false
 		_finished = true
 		_capture()
 	return false

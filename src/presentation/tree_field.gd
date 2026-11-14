@@ -6,8 +6,12 @@ extends Node3D
 ## chunk centre (visibility ranges measure from the node origin, so whole chunks switch).
 ## LOD0 (TreeMeshes.lod0: bark + leaf cards) is drawn up to LOD_DISTANCE from the camera, LOD1
 ## (TreeMeshes.lod1: bark + solid crown) up to LOD2_DISTANCE, LOD2 (TreeMeshes.lod2, coarser,
-## trees only – scrub keeps LOD1) beyond; all fade over their margin
-## (VISIBILITY_RANGE_FADE_SELF) and cast shadows (the cards' shadows are alpha-scissored).
+## trees only – scrub keeps LOD1) beyond, and all cast shadows (the cards' shadows are
+## alpha-scissored). The LODs hand over per tree in the vertex shader: each tree switches at its
+## own random point of the margin around the distance, measured from its base (`lod_bands`), so
+## a stand changes gradually and no tree is drawn twice. The nodes' visibility ranges only cull
+## whole chunks: RANGE_SLACK wider than the bands and without Godot's own range fade (which
+## draws fading instances alpha-blended without the depth prepass, ~5 ms on the target GPU).
 ## Backdrop trees farther than BACKDROP_LOD0_REACH outside the playable tiles get only a
 ## "far" node with the LOD1 mesh and no range, which keeps the LOD0 triangles within the budget
 ## (LOD0_TRIANGLE_BUDGET within BUDGET_RADIUS of any playable tile centre).
@@ -22,6 +26,9 @@ const LOD_MARGIN := 4.0
 ## thousands of distant LOD1 crowns were tiny triangles that cost ~2 ms on the target GPU.
 const LOD2_DISTANCE := 46.0
 const LOD2_MARGIN := 4.0
+## A node's visibility range (measured from the chunk centre at y = 0) reaches this much past the
+## switch band of its trees (measured per tree): no tree is farther from its chunk's centre.
+const RANGE_SLACK := 8.0
 ## LOD_DISTANCE + LOD_MARGIN + CameraMath.MIN_DISTANCE: the worst case at full zoom-in.
 const BUDGET_RADIUS := 41.0
 const LOD0_TRIANGLE_BUDGET := 1100000
@@ -36,6 +43,8 @@ const SCRUB_LOD_MARGIN := 2.0
 const CLUSTER_SEED := 11
 const NEEDLE_SEED := 23
 const SHADER := preload("res://assets/shaders/foliage.gdshader")
+## LOD1 / LOD2: the opaque variant (solid crown, no alpha, no wind).
+const SOLID_SHADER := preload("res://assets/shaders/foliage_solid.gdshader")
 ## Species leaf colours (sRGB) and bark colours; the instance variation shifts them.
 const LEAF_COLORS := {
 	&"pine": Color("#41623f"),
@@ -58,6 +67,9 @@ const BARK_COLORS := {
 ## LOD1 crown albedo relative to the card texture's mean luminance (the cards' shadowed
 ## interior shows through the gaps, so the solid crown is darker than the texture itself).
 const SOLID_LUMINANCE_FACTOR := 0.68
+## Shader defaults of lod_band_in / lod_band_out: always in, never out.
+const NO_LOD_IN := Vector2(-2.0, -1.0)
+const NO_LOD_OUT := Vector2(1.0e8, 1.0e9)
 
 static var _textures: Dictionary = {}
 
@@ -246,57 +258,67 @@ func _add_group(key: String, group: Dictionary) -> void:
 	var instance := MultiMeshInstance3D.new()
 	instance.name = "Trees_" + key
 	instance.multimesh = multi
-	instance.material_override = _material(species, lod != Lod.NEAR)
+	instance.material_override = _material(species, lod)
 	instance.position = origin
 	instance.set_meta(&"species", species)
 	instance.set_meta(&"backdrop", group["backdrop"])
-	var distance := lod_distance(species)
-	var margin := lod_margin(species)
 	instance.cast_shadow = (
 		GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		if species in NO_SHADOW_SPECIES or group["backdrop"]
 		else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	)
-	match lod:
-		Lod.NEAR:
-			instance.visibility_range_end = distance
-			instance.visibility_range_end_margin = margin
-			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-		Lod.FAR_RANGE:
-			instance.visibility_range_begin = distance
-			instance.visibility_range_begin_margin = margin
-			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-			if has_lod2(species):
-				instance.visibility_range_end = LOD2_DISTANCE
-				instance.visibility_range_end_margin = LOD2_MARGIN
-		Lod.DISTANT:
-			instance.visibility_range_begin = LOD2_DISTANCE
-			instance.visibility_range_begin_margin = LOD2_MARGIN
-			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	var bands := lod_bands(species, lod)
+	var band_in: Vector2 = bands["in"]
+	var band_out: Vector2 = bands["out"]
+	if band_in != NO_LOD_IN:
+		instance.visibility_range_begin = maxf(band_in.x - RANGE_SLACK, 0.0)
+	if band_out != NO_LOD_OUT:
+		instance.visibility_range_end = band_out.y + RANGE_SLACK
 	add_child(instance)
 	(_nodes[lod] as Array).append(instance)
 	_local_transforms[instance] = local
 
 
-func _material(species: StringName, solid: bool) -> ShaderMaterial:
-	var key := "%s_%s" % [species, solid]
+## The shader's switch bands of a species' LOD: {in, out}, each (begin, end) as the distance of a
+## tree's base from the camera (a tree switches at its own point of the band); NO_LOD_IN /
+## NO_LOD_OUT where the LOD has no such limit.
+static func lod_bands(species: StringName, lod: Lod) -> Dictionary:
+	var near := Vector2(
+		lod_distance(species) - lod_margin(species), lod_distance(species) + lod_margin(species)
+	)
+	var far := Vector2(LOD2_DISTANCE - LOD2_MARGIN, LOD2_DISTANCE + LOD2_MARGIN)
+	match lod:
+		Lod.NEAR:
+			return {"in": NO_LOD_IN, "out": near}
+		Lod.FAR_RANGE:
+			return {"in": near, "out": far if has_lod2(species) else NO_LOD_OUT}
+		Lod.DISTANT:
+			return {"in": far, "out": NO_LOD_OUT}
+	return {"in": NO_LOD_IN, "out": NO_LOD_OUT}
+
+
+func _material(species: StringName, lod: Lod) -> ShaderMaterial:
+	var solid := lod != Lod.NEAR
+	var key := "%s_%d" % [species, lod]
 	if _materials.has(key):
 		return _materials[key]
 	var conifer := TreeSpecies.is_conifer(species)
 	var texture := leaf_texture(conifer)
 	var material := ShaderMaterial.new()
-	material.shader = SHADER
+	material.shader = SOLID_SHADER if solid else SHADER
 	material.set_shader_parameter(&"leaf_texture", texture)
 	material.set_shader_parameter(
 		&"leaf_color", LookPreset.leaf_color(species, LEAF_COLORS[species])
 	)
 	material.set_shader_parameter(&"bark_color", BARK_COLORS[species])
 	material.set_shader_parameter(&"birch_bark", species == &"birch")
-	material.set_shader_parameter(&"solid_crown", solid)
 	material.set_shader_parameter(
 		&"solid_luminance", _textures["%s_lum" % conifer] * SOLID_LUMINANCE_FACTOR
 	)
 	material.set_shader_parameter(&"tree_height", TreeMeshes.TREE_HEIGHT)
+	var bands := lod_bands(species, lod)
+	material.set_shader_parameter(&"lod_in", bands["in"])
+	material.set_shader_parameter(&"lod_out", bands["out"])
 	_materials[key] = material
 	return material
 

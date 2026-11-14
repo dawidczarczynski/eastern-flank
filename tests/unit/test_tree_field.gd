@@ -87,39 +87,67 @@ func _expected_shadow(node: MultiMeshInstance3D) -> GeometryInstance3D.ShadowCas
 	return GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 
-func test_lod_ranges_fade_and_shadows() -> void:
+## The LODs hand over per tree in the shader (lod_in / lod_out bands); the nodes' visibility
+## ranges only cull whole chunks, RANGE_SLACK wider than the bands and without Godot's range fade.
+func test_lod_bands_ranges_and_shadows() -> void:
 	_use_forest()
 	var trees := _view.trees()
 	assert_true(trees.lod0_nodes().size() > 0)
 	assert_true(trees.lod1_nodes().size() > 0)
+	var none := GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 	for node in trees.lod0_nodes():
 		var species: StringName = node.get_meta(&"species")
-		assert_eq(node.visibility_range_end, TreeField.lod_distance(species))
-		assert_eq(node.visibility_range_end_margin, TreeField.lod_margin(species))
+		var near := TreeField.lod_distance(species) + TreeField.lod_margin(species)
+		assert_eq(node.visibility_range_end, near + TreeField.RANGE_SLACK)
 		assert_eq(node.visibility_range_begin, 0.0)
-		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		assert_eq(node.visibility_range_fade_mode, none)
 		assert_eq(node.cast_shadow, _expected_shadow(node))
+		assert_eq(_band(node, &"lod_in"), TreeField.NO_LOD_IN)
+		assert_eq(_band(node, &"lod_out").y, near, "LOD0 ends where LOD1 has fully taken over")
 	for node in trees.lod1_nodes():
 		var species: StringName = node.get_meta(&"species")
-		assert_eq(node.visibility_range_begin, TreeField.lod_distance(species))
-		assert_eq(node.visibility_range_begin_margin, TreeField.lod_margin(species))
-		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		var near := TreeField.lod_distance(species) - TreeField.lod_margin(species)
+		assert_eq(node.visibility_range_begin, maxf(near - TreeField.RANGE_SLACK, 0.0))
+		assert_eq(node.visibility_range_fade_mode, none)
 		assert_eq(node.cast_shadow, _expected_shadow(node))
-		var end := TreeField.LOD2_DISTANCE if TreeField.has_lod2(species) else 0.0
+		assert_eq(_band(node, &"lod_in").x, near, "the band LOD0 leaves by")
+		var far := TreeField.LOD2_DISTANCE + TreeField.LOD2_MARGIN
+		var end := far + TreeField.RANGE_SLACK if TreeField.has_lod2(species) else 0.0
 		assert_eq(node.visibility_range_end, end, "LOD1 hands over to LOD2 (trees only)")
+		if TreeField.has_lod2(species):
+			assert_eq(_band(node, &"lod_out").y, far)
+		else:
+			assert_eq(_band(node, &"lod_out"), TreeField.NO_LOD_OUT)
 	assert_true(trees.lod2_nodes().size() > 0)
 	for node in trees.lod2_nodes():
 		var species: StringName = node.get_meta(&"species")
 		assert_true(TreeField.has_lod2(species), "no LOD2 for scrub")
-		assert_eq(node.visibility_range_begin, TreeField.LOD2_DISTANCE)
-		assert_eq(node.visibility_range_begin_margin, TreeField.LOD2_MARGIN)
+		var far := TreeField.LOD2_DISTANCE - TreeField.LOD2_MARGIN
+		assert_eq(node.visibility_range_begin, far - TreeField.RANGE_SLACK)
 		assert_eq(node.visibility_range_end, 0.0)
+		assert_eq(_band(node, &"lod_in").x, far)
+		assert_eq(_band(node, &"lod_out"), TreeField.NO_LOD_OUT)
 		assert_eq(node.cast_shadow, _expected_shadow(node))
 		assert_true(node.multimesh.mesh == TreeMeshes.lod2(species))
 	for node in trees.far_nodes():
 		assert_eq(node.visibility_range_begin, 0.0)
 		assert_eq(node.visibility_range_end, 0.0)
 		assert_eq(node.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "backdrop")
+
+
+## Neighbouring LODs share their band, so exactly one of them draws each tree.
+func test_neighbouring_lods_share_their_switch_band() -> void:
+	for species: StringName in [&"pine", &"birch", &"shrub"]:
+		var near: Dictionary = TreeField.lod_bands(species, TreeField.Lod.NEAR)
+		var mid: Dictionary = TreeField.lod_bands(species, TreeField.Lod.FAR_RANGE)
+		assert_eq(near["out"], mid["in"], "%s LOD0 -> LOD1" % species)
+		if TreeField.has_lod2(species):
+			var distant: Dictionary = TreeField.lod_bands(species, TreeField.Lod.DISTANT)
+			assert_eq(mid["out"], distant["in"], "%s LOD1 -> LOD2" % species)
+
+
+func _band(node: MultiMeshInstance3D, param: StringName) -> Vector2:
+	return (node.material_override as ShaderMaterial).get_shader_parameter(param)
 
 
 func test_chunk_origins_and_instances_inside_the_chunk() -> void:
@@ -220,16 +248,28 @@ func test_low_quality_has_no_meadow_scrub_or_flowers() -> void:
 	assert_eq(_view.grass().flower_nodes().size(), 0)
 
 
-func test_foliage_shader_loads_and_the_material_instantiates() -> void:
-	var shader := load("res://assets/shaders/foliage.gdshader") as Shader
-	assert_true(shader != null, "shader loads")
-	assert_eq(shader.get_mode(), Shader.MODE_SPATIAL)
-	var names: Array[String] = []
-	for u: Dictionary in shader.get_shader_uniform_list():
-		names.append(u["name"])
-	for uniform in ["leaf_texture", "leaf_color", "bark_color", "solid_crown", "tree_height"]:
-		assert_true(names.has(uniform), "%s uniform" % uniform)
-	assert_true(shader.code.contains("wind.gdshaderinc"), "shared wind include")
+## The card shader (LOD0) and the opaque solid-crown one (LOD1 / LOD2) share one body.
+func test_foliage_shaders_load_with_their_uniforms() -> void:
+	var body := FileAccess.get_file_as_string("res://assets/shaders/foliage_body.gdshaderinc")
+	assert_true(body.contains("wind.gdshaderinc"), "shared wind include")
+	for path: String in [
+		"res://assets/shaders/foliage.gdshader", "res://assets/shaders/foliage_solid.gdshader"
+	]:
+		var shader := load(path) as Shader
+		assert_true(shader != null, "%s loads" % path)
+		assert_eq(shader.get_mode(), Shader.MODE_SPATIAL)
+		assert_true(shader.code.contains("foliage_body.gdshaderinc"), "shared body")
+		var names: Array[String] = []
+		for u: Dictionary in shader.get_shader_uniform_list():
+			names.append(u["name"])
+		for uniform in ["leaf_color", "bark_color", "tree_height", "lod_in", "lod_out"]:
+			assert_true(names.has(uniform), "%s: %s uniform" % [path, uniform])
+	# Leaf cards stay in the opaque pass (depth prepass): alpha scissor only, no alpha antialiasing.
+	var cards := (load("res://assets/shaders/foliage.gdshader") as Shader).code
+	assert_false(cards.contains("alpha_to_coverage"), "no alpha to coverage")
+	assert_false(body.contains("ALPHA_ANTIALIASING_EDGE"), "no alpha antialiasing")
+	var solid := (load("res://assets/shaders/foliage_solid.gdshader") as Shader).code
+	assert_true(solid.contains("#define SOLID_CROWN"), "solid variant")
 
 
 func test_wind_offset_unchanged() -> void:

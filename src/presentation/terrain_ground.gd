@@ -73,8 +73,7 @@ static func material(quality: Dictionary) -> ShaderMaterial:
 	material.shader = SHADER
 	var maps := TerrainTextures.arrays(texture_size(quality))
 	material.set_shader_parameter(&"albedo_height", maps["albedo_height"])
-	material.set_shader_parameter(&"normal_maps", maps["normal"])
-	material.set_shader_parameter(&"roughness_ao", maps["roughness_ao"])
+	material.set_shader_parameter(&"normal_rough_ao", maps["normal_rough_ao"])
 	var repeats := PackedFloat32Array()
 	for metres in TerrainTextures.SOURCE_METRES:
 		repeats.append(metres / METRES_PER_UNIT * REPEAT_SCALE)

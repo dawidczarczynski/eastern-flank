@@ -253,6 +253,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `occlusion_bake` – Analytic ambient occlusion baked into MeshKit meshes (TASK-085): the caller describes the (`occlusion_bake.gd`)
 - `soldier` – Shared soldier for the infantry squad models (pl_mech_infantry, ru_motor_rifle), soldier… (`soldier.gd`)
 - `soldier_body` – Body of the shared soldier (TASK-085, soldier v4 stage A): torso, legs, boots, neck and h… (`soldier_body.gd`)
+- `MeshLods` – Levels of detail for the procedural unit models: `with_lods(mesh)` returns the same geome… (`mesh_lods.gd`)
 - `SoldierPose` – Static pose of one soldier (TASK-085, soldier v4 stage A): the skeleton's joints in metres (`soldier_pose.gd`)
 - `tracked_running_gear` – Shared tracked running gear for the tank / IFV models (TASK-031): per side a track loop w… (`tracked_running_gear.gd`)
 - `vehicle_frame` – Real-vehicle measurements -> model space for the detailed models: `x` metres from the hull (`vehicle_frame.gd`)

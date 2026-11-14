@@ -5,11 +5,13 @@ extends RefCounted
 ## had a map-sized AABB, so every bush and rock was drawn every frame wherever the camera looked
 ## (on the 6x larger imported maps ~3 M triangles, ~5 ms on the target GPU); chunks are frustum
 ## culled. With a far mesh each chunk gets a near node up to BUSH_LOD_DISTANCE from the camera
-## (measured from the chunk centre, faded over BUSH_LOD_MARGIN) and a "<name>Far_<x>_<z>" node
-## from there on.
+## (measured from the chunk centre) and a "<name>Far_<x>_<z>" node from there on. The switch is
+## hard (BUSH_LOD_MARGIN is only its hysteresis): the two meshes differ by one subdivision of a
+## blob a dozen pixels wide, while Godot's range fade draws both alpha-blended without the depth
+## prepass (~0.6 ms on the target GPU), and the near mesh out to 28 units cost another ~1.8 ms.
 
-const BUSH_LOD_DISTANCE := 28.0
-const BUSH_LOD_MARGIN := 3.0
+const BUSH_LOD_DISTANCE := 16.0
+const BUSH_LOD_MARGIN := 2.0
 
 
 ## The parent node `node_name` with the chunk nodes "<node_name>_<x>_<z>" (and the far ones).
@@ -38,12 +40,10 @@ static func build(
 			continue
 		near.visibility_range_end = BUSH_LOD_DISTANCE
 		near.visibility_range_end_margin = BUSH_LOD_MARGIN
-		near.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		var far := _chunk(far_mesh, material, transforms, colors, members, origin)
 		far.name = "%sFar_%d_%d" % [node_name, chunk.x, chunk.y]
 		far.visibility_range_begin = BUSH_LOD_DISTANCE
 		far.visibility_range_begin_margin = BUSH_LOD_MARGIN
-		far.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		parent.add_child(far)
 	return parent
 

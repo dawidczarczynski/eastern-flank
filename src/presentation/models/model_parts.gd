@@ -93,6 +93,7 @@ static func cached(key: String, builder: Callable, wear_seed := 0.0) -> Node3D:
 		var built: Node3D = builder.call()
 		if built == null:
 			return null
+		MeshLods.apply(built)
 		_prototypes[key] = built
 	var prototype := _prototypes[key] as Node3D
 	var copy := prototype.duplicate() as Node3D

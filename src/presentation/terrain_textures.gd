@@ -1,12 +1,13 @@
 class_name TerrainTextures
 extends RefCounted
 ## The seven CC0 ground layers of the terrain shader (TASK-055, credits in
-## assets/third_party/credits.json), packed into three Texture2DArrays with one layer each, in
-## TerrainSplat order: `albedo_height` (RGB albedo, height in alpha), `normal` (OpenGL normal
-## map) and `roughness_ao` (R roughness, G ambient occlusion). Packing decodes and merges
-## 35 images, so `request(size)` starts it on the WorkerThreadPool (MapView calls it before
-## building the terrain mesh, which hides the cost) and `arrays(size)` waits for it and caches
-## the result per size for the rest of the run. The packed images are also kept on disk
+## assets/third_party/credits.json), packed into two Texture2DArrays with one layer each, in
+## TerrainSplat order: `albedo_height` (RGB albedo, height in alpha) and `normal_rough_ao` (RG the
+## x, y of the OpenGL normal map – the shader rebuilds z –, B roughness, A ambient occlusion; one
+## array instead of two, so a ground sample costs two texture fetches, not three). Packing decodes
+## and merges 35 images, so `request(size)` starts it on the WorkerThreadPool (MapView calls it
+## before building the terrain mesh, which hides the cost) and `arrays(size)` waits for it and
+## caches the result per size for the rest of the run. The packed images are also kept on disk
 ## (`cache_dir`, one file per size, keyed by the source files' modification times and the look's
 ## layer tints), so only the first run after a texture change pays for the packing: later runs
 ## read the file on a worker thread.
@@ -21,18 +22,16 @@ const SOURCE_METRES: Array[float] = [1.4, 2.0, 2.0, 1.3, 2.0, 1.5, 3.0]
 ## The maps of a layer folder (`<name>.jpg`).
 const SOURCE_MAPS: Array[String] = ["albedo", "height", "normal_gl", "roughness", "ao"]
 ## The packed arrays, in cache file order, with their image formats.
-const PACKED_MAPS: Array[String] = ["albedo_height", "normal", "roughness_ao"]
-const PACKED_FORMATS: Array[Image.Format] = [
-	Image.FORMAT_RGBA8, Image.FORMAT_RGBA8, Image.FORMAT_RG8
-]
+const PACKED_MAPS: Array[String] = ["albedo_height", "normal_rough_ao"]
+const PACKED_FORMATS: Array[Image.Format] = [Image.FORMAT_RGBA8, Image.FORMAT_RGBA8]
 ## Bump when the packing changes, so older cache files are packed again.
-const CACHE_VERSION := 1
+const CACHE_VERSION := 2
 
 ## Folder of the packed-image cache; "" switches the cache off (the tests).
 static var cache_dir := "user://cache"
 ## "cache" or "packed": where the last arrays() that built a size got its images (tests).
 static var last_source := ""
-## size -> {"albedo_height", "normal", "roughness_ao": Texture2DArray}
+## size -> {"albedo_height", "normal_rough_ao": Texture2DArray, "average_colors"}
 static var _cache: Dictionary = {}
 ## size -> _Job still running
 static var _jobs: Dictionary = {}
@@ -79,7 +78,7 @@ static func _stored_key(size: int) -> String:
 	return file.get_pascal_string() if file != null else ""
 
 
-## The three arrays at `size` (waits for request(size), or packs them now).
+## The two arrays at `size` (waits for request(size), or packs them now).
 static func arrays(size: int) -> Dictionary:
 	if _cache.has(size):
 		return _cache[size]
@@ -97,7 +96,7 @@ static func arrays(size: int) -> Dictionary:
 	last_source = "cache" if job.reading else "packed"
 	_jobs.erase(size)
 	var result := {"average_colors": job.averages}
-	for key: String in ["albedo_height", "normal", "roughness_ao"]:
+	for key: String in PACKED_MAPS:
 		var images: Array[Image] = []
 		for layer in LAYERS.size():
 			images.append(job.images[layer][key])
@@ -176,7 +175,7 @@ class _Job:
 	var key := ""
 	var reading := false
 	var failed := false
-	## Per layer: {"albedo_height", "normal", "roughness_ao": Image}
+	## Per layer: {"albedo_height", "normal_rough_ao": Image}
 	var images: Array = []
 	## Per layer: the mean albedo (linear) times TerrainGround.LAYER_TINTS (what the shader shows).
 	var averages: Array[Color] = []
@@ -197,22 +196,24 @@ class _Job:
 			data[i * 4 + 3] = heights[i]
 		var albedo_height := Image.create_from_data(size, size, false, Image.FORMAT_RGBA8, data)
 		albedo_height.generate_mipmaps()
+		# The normal's mipmaps are renormalised, those of roughness / AO plain averages: build
+		# both chains, then put roughness and AO into the normal's blue and alpha.
 		var normal := TerrainTextures._load_map(layer, "normal_gl", size, Image.FORMAT_RGBA8)
 		normal.generate_mipmaps(true)
-		var rough := TerrainTextures._load_map(layer, "roughness", size, Image.FORMAT_L8).get_data()
-		var ao := TerrainTextures._load_map(layer, "ao", size, Image.FORMAT_L8).get_data()
-		var packed := PackedByteArray()
-		packed.resize(rough.size() * 2)
-		for i in rough.size():
-			packed[i * 2] = rough[i]
-			packed[i * 2 + 1] = ao[i]
-		var roughness_ao := Image.create_from_data(size, size, false, Image.FORMAT_RG8, packed)
-		roughness_ao.generate_mipmaps()
+		var rough := TerrainTextures._load_map(layer, "roughness", size, Image.FORMAT_L8)
+		rough.generate_mipmaps()
+		var ao := TerrainTextures._load_map(layer, "ao", size, Image.FORMAT_L8)
+		ao.generate_mipmaps()
+		var packed := normal.get_data()
+		var rough_data := rough.get_data()
+		var ao_data := ao.get_data()
+		for i in rough_data.size():
+			packed[i * 4 + 2] = rough_data[i]
+			packed[i * 4 + 3] = ao_data[i]
+		var normal_rough_ao := Image.create_from_data(size, size, true, Image.FORMAT_RGBA8, packed)
 		_mutex.lock()
 		averages[layer] = average
-		images[layer] = {
-			"albedo_height": albedo_height, "normal": normal, "roughness_ao": roughness_ao
-		}
+		images[layer] = {"albedo_height": albedo_height, "normal_rough_ao": normal_rough_ao}
 		_mutex.unlock()
 
 	## Reads the images and averages write_cache() stored (runs on a worker thread).

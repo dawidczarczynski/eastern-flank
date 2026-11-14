@@ -54,7 +54,10 @@ func test_bushes_get_near_and_far_nodes() -> void:
 			near += node.multimesh.instance_count
 			assert_eq(node.visibility_range_end, ScatterChunks.BUSH_LOD_DISTANCE)
 			assert_true(node.multimesh.mesh == FoliageMeshes.bush())
-		assert_eq(node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF)
+		# A hard switch: Godot's range fade draws both meshes alpha-blended, without the prepass.
+		assert_eq(
+			node.visibility_range_fade_mode, GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		)
 	assert_eq(near, transforms.size())
 	assert_eq(far, transforms.size())
 	root.free()

@@ -47,11 +47,11 @@ func test_terrain_mesh_has_uvs_scaled_by_detail_tile() -> void:
 	assert_true(uvs[7].is_equal_approx(Vector2(v.x, v.z) / MapView.DETAIL_TILE))
 
 
-func test_terrain_material_is_the_splat_shader_with_three_layer_arrays() -> void:
+func test_terrain_material_is_the_splat_shader_with_its_layer_arrays() -> void:
 	var material := _surface_mesh("Terrain").surface_get_material(0) as ShaderMaterial
 	assert_true(material != null, "ShaderMaterial")
 	assert_eq(material.shader.resource_path, "res://assets/shaders/terrain.gdshader")
-	for param: StringName in [&"albedo_height", &"normal_maps", &"roughness_ao"]:
+	for param: StringName in [&"albedo_height", &"normal_rough_ao"]:
 		var array := material.get_shader_parameter(param) as Texture2DArray
 		assert_true(array != null, "%s is a Texture2DArray" % param)
 		if array != null:
