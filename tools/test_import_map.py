@@ -1190,6 +1190,28 @@ class BorderPolylinesTest(unittest.TestCase):
         self.assertEqual(lines, self._lines(dict(reversed(list(ways.items())))))
         self.assertEqual([round(line[0][0]) for line in lines], [1, 6])
 
+    def test_a_road_keeps_its_class_through_a_junction_free_joint(self) -> None:
+        def way(highway: str, a: int, b: int) -> tuple:
+            return ({"highway": highway}, [(0.0, 0.0), (1.0, 0.0)], (a, b))
+
+        def long_way(highway: str, a: int, b: int) -> tuple:
+            return ({"highway": highway}, [(0.0, 0.0), (90000.0, 0.0)], (a, b))
+
+        ways = {1: long_way("trunk", 1, 2), 2: way("primary", 2, 3), 3: way("primary", 3, 4), 4: way("secondary", 4, 5)}
+        self.assertEqual(import_map.road_classes(ways), {1: 1, 2: 1, 3: 1, 4: 3})
+        self.assertEqual(import_map.road_classes({1: way("trunk", 1, 2)}), {1: 2}, "a short stub is class 2")
+        ways[5] = way("primary", 3, 9)  # a junction at node 3: the chain stops there
+        self.assertEqual(import_map.road_classes(ways)[3], 2)
+        self.assertEqual(import_map.road_classes({1: way("primary", 1, 2), 2: way("primary", 2, 3)}), {1: 2, 2: 2})
+
+    def test_a_river_class_grows_downstream_whatever_its_name(self) -> None:
+        def way(name: str, a: int, b: int, km: float) -> tuple:
+            return ({"name": name}, [(0.0, 0.0), (km * 1000.0, 0.0)], (a, b))
+
+        ways = {1: way("Lyna", 1, 2, 60.0), 2: way("Lava", 2, 3, 30.0), 3: way("Brook", 7, 3, 5.0)}
+        classes = import_map.river_classes(ways)
+        self.assertEqual((classes[1], classes[2], classes[3]), (1, 2, 0))
+
     def test_the_tres_has_real_road_and_river_lines_with_classes_and_tactical_has_none(self) -> None:
         text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
         for key in ("road", "river"):

@@ -772,13 +772,15 @@ def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, L
 
 
 ROAD_CLASS_BY_HIGHWAY = {"motorway": 1, "trunk": 1, "primary": 2}  # drawn road class; the rest (secondary) is 3
-RIVER_MAJOR_M = 80000.0  # a named river with at least this much length on the map is class 2 (major), named = 1
+RIVER_MAJOR_M = 80000.0  # a river with a course (length from its source) of at least this is class 2 (major)
+ROAD_T1_MIN_M = 80000.0  # a connected class-1 road network shorter than this is drawn as class 2
+RIVER_NAMED_M = 30000.0  # ... at least this is class 1
 LINE_TOLERANCE = 0.04  # Douglas-Peucker tolerance of the drawn road / river lines, hex units (~115 m at 5 km hexes)
 
 
-def osm_line_ways(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, int, Dict[str, str], list]]:
-    """(ROAD or RIVER, way id, tags, [(lat, lon), ...]) of every road and river way, like `osm_lines` but keeping what
-    the drawn lines need (the road class, the river name)."""
+def osm_line_ways(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, int, Dict[str, str], list, tuple]]:
+    """(ROAD or RIVER, way id, tags, [(lat, lon), ...], (first node id, last node id)) of every road and river way,
+    like `osm_lines` but keeping what the drawn lines need (the tags, the end nodes that join the ways)."""
     nodes: Dict[int, Tuple[float, float]] = {}
     ways = []
     for el in osm.get("elements", []):
@@ -792,33 +794,102 @@ def osm_line_ways(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[st
         kind = line_kind(tags, profile)
         points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
         if kind and len(points) >= 2:
-            found.append((kind, way["id"], tags, points))
+            found.append((kind, way["id"], tags, points, (way["nodes"][0], way["nodes"][-1])))
     found.sort(key=lambda line: line[:2])
     return found
 
 
-def drawn_lines(layout: "HexLayout", ways: Dict[int, Tuple[Dict[str, str], list]],
-                kind: str) -> Tuple[List[list], List[int]]:  # fmt: skip
-    """The real roads (`kind` ROAD: class 1 = motorway / trunk, 2 = primary, 3 = secondary) or rivers (RIVER: 2 = a named
-    river with >= RIVER_MAJOR_M of ways on the map, 1 = named, 0 = the rest) for drawing: way id -> (tags, projected
-    points), clipped, chained and simplified per class like the borders (`border_polylines`). Returns the lines in
-    world units and their classes, ordered by class, then like `border_polylines`."""
+def road_classes(ways: Dict[int, tuple]) -> Dict[int, int]:
+    """Class of every road way: 1 = motorway / trunk, 2 = primary, 3 = secondary, then a way takes the better class of a
+    neighbour it continues without a junction (two ways of class <= 2 meet at an end node), repeated until stable - so
+    a road that changes its tag along its course (a trunk bypass between primary stretches) is one class from end to
+    end and never shows up alone when the lesser classes are hidden."""
+    cls = {}
+    for way_id, (tags, _, _) in ways.items():
+        highway = tags.get("highway", "")
+        if highway.endswith("_link"):
+            highway = highway[: -len("_link")]
+        cls[way_id] = ROAD_CLASS_BY_HIGHWAY.get(highway, 3)
+    at_node: Dict[int, List[int]] = {}
+    for way_id, (_, _, ends) in ways.items():
+        if cls[way_id] <= 2:
+            for node in set(ends):
+                at_node.setdefault(node, []).append(way_id)
+    changed = True
+    while changed:
+        changed = False
+        for owners in at_node.values():
+            if len(owners) == 2:
+                best = min(cls[owners[0]], cls[owners[1]])
+                for way_id in owners:
+                    if cls[way_id] != best:
+                        cls[way_id] = best
+                        changed = True
+    # A short, unconnected class-1 corridor (an expressway bypass whose neighbours are lesser roads) would stand
+    # alone on the far zoom level: it is shown with the primary roads instead.
+    parent = {w: w for w in ways if cls[w] == 1}
+
+    def find(w: int) -> int:
+        while parent[w] != w:
+            parent[w] = parent[parent[w]]
+            w = parent[w]
+        return w
+
+    first_at: Dict[int, int] = {}
+    for way_id in sorted(parent):
+        for node in set(ways[way_id][2]):
+            if node in first_at:
+                parent[find(way_id)] = find(first_at[node])
+            else:
+                first_at[node] = way_id
+    total: Dict[int, float] = {}
+    for way_id in parent:
+        line = ways[way_id][1]
+        total[find(way_id)] = total.get(find(way_id), 0.0) + sum(math.dist(p, q) for p, q in zip(line, line[1:]))
+    for way_id in parent:
+        if total[find(way_id)] < ROAD_T1_MIN_M:
+            cls[way_id] = 2
+    return cls
+
+
+def river_classes(ways: Dict[int, tuple]) -> Dict[int, int]:
+    """Class of every river way from the length of its course (projected metres, the longest way up the river from
+    its far end, which OSM draws downstream): 2 = at least RIVER_MAJOR_M, 1 = at least RIVER_NAMED_M, 0 = the rest.
+    The class never drops downstream, so a river does not vanish where its name or country changes."""
+    length = {w: sum(math.dist(a, b) for a, b in zip(line, line[1:])) for w, (_, line, _) in ways.items()}
+    ending_at: Dict[int, List[int]] = {}
+    for way_id, (_, _, ends) in ways.items():
+        ending_at.setdefault(ends[1], []).append(way_id)
+    course: Dict[int, float] = {}
+    for start in sorted(ways):
+        stack = [start]
+        on_path = {start}
+        while stack:
+            way_id = stack[-1]
+            if way_id in course:
+                stack.pop()
+                continue
+            pending = [u for u in ending_at.get(ways[way_id][2][0], []) if u not in course and u not in on_path]
+            if pending:
+                stack.append(pending[0])
+                on_path.add(pending[0])
+                continue
+            up = [course[u] for u in ending_at.get(ways[way_id][2][0], []) if u in course and u != way_id]
+            course[way_id] = length[way_id] + (max(up) if up else 0.0)
+            on_path.discard(way_id)
+            stack.pop()
+    return {w: 2 if c >= RIVER_MAJOR_M else (1 if c >= RIVER_NAMED_M else 0) for w, c in course.items()}
+
+
+def drawn_lines(layout: "HexLayout", ways: Dict[int, tuple], kind: str) -> Tuple[List[list], List[int]]:
+    """The real roads (`kind` ROAD, classes by `road_classes`) or rivers (RIVER, `river_classes`) for drawing: way id ->
+    (tags, projected points, end node ids), clipped, chained and simplified per class like the borders
+    (`border_polylines`). Returns the lines in world units and their classes, ordered by class, then like
+    `border_polylines`."""
+    cls_of = road_classes(ways) if kind == ROAD else river_classes(ways)
     by_class: Dict[int, Dict[int, list]] = {}
-    if kind == ROAD:
-        for way_id, (tags, line) in ways.items():
-            highway = tags.get("highway", "")
-            if highway.endswith("_link"):
-                highway = highway[: -len("_link")]
-            by_class.setdefault(ROAD_CLASS_BY_HIGHWAY.get(highway, 3), {})[way_id] = line
-    else:
-        length: Dict[str, float] = {}
-        for tags, line in ways.values():
-            name = tags.get("name", "")
-            length[name] = length.get(name, 0.0) + sum(math.dist(a, b) for a, b in zip(line, line[1:]))
-        for way_id, (tags, line) in ways.items():
-            name = tags.get("name", "")
-            cls = 0 if not name else (2 if length[name] >= RIVER_MAJOR_M else 1)
-            by_class.setdefault(cls, {})[way_id] = line
+    for way_id, (_, line, _) in ways.items():
+        by_class.setdefault(cls_of[way_id], {})[way_id] = line
     lines: List[list] = []
     classes: List[int] = []
     for cls in sorted(by_class):
@@ -1556,8 +1627,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         for kind, line in osm_lines(data, profile):
             links[kind].update(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m))
         if operational:
-            for kind, way_id, tags, line in osm_line_ways(data, profile):
-                line_ways[kind][way_id] = (tags, [to_utm(lat, lon, zone) for lat, lon in line])
+            for kind, way_id, tags, line, ends in osm_line_ways(data, profile):
+                line_ways[kind][way_id] = (tags, [to_utm(lat, lon, zone) for lat, lon in line], ends)
             for way_id, line in osm_coastlines(data):
                 coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
         if country_seeds:

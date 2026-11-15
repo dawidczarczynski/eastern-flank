@@ -91,7 +91,8 @@ const RELIEF_FLAT := 180
 ## The real roads and rivers for drawing (operational maps): smooth polylines from the OSM ways,
 ## clipped to the map, in the same world units as `border_lines`, simplified to ~0.04 hex. The
 ## parallel `*_line_classes` give each line's class: roads 1 = motorway / trunk,
-## 2 = primary, 3 = secondary; rivers 2 = major (named, >= 80 km), 1 = named, 0 = the rest.
+## 2 = primary, 3 = secondary (a class carries on through a junction-free joint); rivers 2 = major,
+## 1 = medium, 0 = the rest by the length of their course from the source (>= 80 / >= 30 km).
 ## `road_rows` / `river_rows` stay the rules' data; these lines are view data only. Empty = none
 ## (tactical maps, older maps: the view then draws the hex links).
 @export var road_lines: Array[PackedVector2Array]
