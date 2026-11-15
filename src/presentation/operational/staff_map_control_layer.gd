@@ -3,15 +3,15 @@ extends Node3D
 ## The terrain control layer of the staff map (TASK-152, docs/design/operational_map/
 ## terrain_control.html variant A, contour dropped after the playtest 2026-11-14): hexes held by a
 ## side other than their country's original one get the holder colour as a fill with a 45 degree
-## hatch (6 px pitch, 2 px lines, 30 %). The fill is 10 % (22 % zoomed out, toned down for
+## hatch (6 px pitch, 2 px lines, 30 %). The fill is 8 % (14 % zoomed out, toned down for
 ## the dark glow look); the hatch fades in at Z1. Sits under counters, orders and the front line,
 ## ignores the mouse, read-only (rule 3).
 ##
 ## Work happens only when something changed: `refresh` compares a signature of the holders, the
 ## viewer and the visibility, `set_view` the zoom level – never per frame.
 
-const FILL_ALPHA := 0.10
-const FAR_FILL_ALPHA := 0.22
+const FILL_ALPHA := 0.08
+const FAR_FILL_ALPHA := 0.14
 const PRIORITY_FILL := 13
 const SHADER := preload("res://assets/shaders/staff_map_control.gdshader")
 

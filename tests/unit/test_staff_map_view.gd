@@ -22,10 +22,10 @@ func _grid() -> HexGrid:
 
 func test_palette_has_the_reference_colours() -> void:
 	assert_true(_palette != null)
-	assert_eq(_palette.map_land, Color("#0b1015"))
+	assert_eq(_palette.map_land, Color("#12181f"))
 	assert_eq(_palette.fill(Terrain.Type.PLAINS), _palette.map_land)
 	assert_eq(_palette.fill(Terrain.Type.MARSH), _palette.map_land, "marsh = land + hatch")
-	assert_eq(_palette.fill(Terrain.Type.FOREST), Color("#0b1015"))
+	assert_eq(_palette.fill(Terrain.Type.FOREST), Color("#12181f"))
 	assert_eq(_palette.fill(StaffMapPalette.SEA), Color("#06090c"))
 	assert_eq(_palette.road_t1_widths, PackedFloat32Array([1.4, 1.6, 2.0]))
 	assert_eq(_palette.edge(Terrain.Type.PLAINS).a, 0.0)

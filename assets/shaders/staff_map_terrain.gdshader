@@ -188,7 +188,6 @@ void fragment() {
 	}
 	float shore_max = max(max(shore_color.r, shore_color.g), max(shore_color.b, 0.001));
 	vec3 hot = shore_color.rgb * (shore_peak / shore_max);
-	// The blend above runs in sRGB; the framebuffer wants linear, so dark palette colours look as
-	// dark as the palette says (the lines' source_color colours are converted the same way).
-	ALBEDO = to_linear(shore_peak > 1.0 ? mix(colour, hot, shore) : colour);
+	// The blend runs in sRGB and the output is shown as is (no conversion), like the CSS reference.
+	ALBEDO = shore_peak > 1.0 ? mix(colour, hot, shore) : colour;
 }

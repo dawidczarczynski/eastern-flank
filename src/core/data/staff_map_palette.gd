@@ -13,18 +13,18 @@ const SEA := 100
 
 @export_group("Map")
 @export var map_void := Color("#06090c")
-@export var map_land := Color("#0b1015")
-@export var map_forest := Color("#0b1015")
+@export var map_land := Color("#12181f")
+@export var map_forest := Color("#12181f")
 @export var map_forest_edge := Color("#2b3d31", 0.0)
-@export var map_urban := Color("#161c23")
+@export var map_urban := Color("#222b35")
 @export var map_urban_edge := Color("#8d9585", 0.0)
 ## Marsh: land with a hatch of this colour (7 x 5 px tile, one 1 px dash per tile).
-@export var map_marsh := Color("#0b1015")
+@export var map_marsh := Color("#12181f")
 @export var marsh_hatch_tile := Vector2(7.0, 5.0)
 
 @export_group("Water")
 @export var water_sea := Color("#06090c")
-@export var water_lake := Color("#0a141b")
+@export var water_lake := Color("#0b141c")
 @export var water_shore := Color("#6fa7d8")
 @export var water_label := Color("#6f95ab")
 ## Water below this height (metres) connected to the map edge is sea, the rest lakes.
@@ -103,14 +103,14 @@ const SEA := 100
 ## Brightness (max channel) from which a pixel glows, and the width of the ramp up to full glow.
 @export var glow_threshold := 0.6
 @export var glow_feather := 0.3
-@export var glow_intensity := 2.0
+@export var glow_intensity := 1.3
 @export var glow_strength := 1.0
 @export var glow_coast := 1.3
 @export var glow_river_major := 1.0
 @export var glow_river_named := 1.0
 @export var glow_road_t1 := 1.1
-@export var glow_front := 1.8
-@export var glow_orders := 1.5
+@export var glow_front := 1.15
+@export var glow_orders := 1.15
 
 @export_group("Relief")
 ## Vertical exaggeration of the ground mesh over true scale.
