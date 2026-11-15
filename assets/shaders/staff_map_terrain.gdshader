@@ -112,6 +112,24 @@ void fragment() {
 	);
 	float forest = coverage(classes.x);
 	float urban = coverage(classes.y);
+	float urban_edge_mask = 1.0;
+	// Zoomed out (< ~1 screen px per 250 m texel) small settlements are specks: keep only
+	// built-up areas whose density within ~7 screen px is high (towns and cities).
+	float texel_px = 1.0 / max(fwidth(p.x) + fwidth(p.y), 0.00001) * 2.0;
+	float far = 1.0 - smoothstep(1.0, 1.8, texel_px);
+	if (far > 0.001) {
+		float reach = 7.0 / texel_px;
+		float density = cover_bilinear(p, size).y;
+		for (int k = 0; k < 8; k++) {
+			float a = float(k) * 0.785398;
+			vec2 d = vec2(cos(a), sin(a));
+			density += cover_bilinear(p + d * reach, size).y;
+			density += cover_bilinear(p + d * reach * 0.5, size).y;
+		}
+		density /= 17.0;
+		urban_edge_mask = mix(1.0, smoothstep(0.22, 0.4, density), far);
+		urban *= urban_edge_mask;
+	}
 	float marsh = coverage(classes.z);
 	float wet = coverage(water);
 
@@ -119,7 +137,7 @@ void fragment() {
 	colour = mix(colour, forest_color.rgb, forest);
 	colour = mix(colour, urban_color.rgb, urban);
 	float forest_edge = contour(classes.x, edge_px) * forest_edge_color.a * cover_edge_alpha;
-	float urban_edge = contour(classes.y, edge_px) * urban_edge_color.a * cover_edge_alpha;
+	float urban_edge = contour(classes.y, edge_px) * urban_edge_color.a * cover_edge_alpha * urban_edge_mask;
 	colour = mix(colour, forest_edge_color.rgb, forest_edge);
 	colour = mix(colour, urban_edge_color.rgb, urban_edge);
 

@@ -6,7 +6,7 @@ extends RefCounted
 ## (the importer's tie-break order), so the same input always gives the same output.
 
 ## Font sizes in px per rank (city, town, village); fixed at every zoom and tilt.
-const FONT_SIZES: Array[int] = [17, 12, 10]
+const FONT_SIZES: Array[int] = [19, 13, 10]
 ## At the widest zoom level the largest towns (first in list order) are labelled too.
 const WIDE_TOWNS := 30
 ## Empty space kept between two labels, px.

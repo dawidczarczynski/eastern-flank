@@ -15,8 +15,8 @@ const SEA := 100
 @export var map_land := Color("#1d211c")
 @export var map_forest := Color("#22302a")
 @export var map_forest_edge := Color("#2b3d31")
-@export var map_urban := Color("#363931")
-@export var map_urban_edge := Color("#4b4e45")
+@export var map_urban := Color("#5c5849")
+@export var map_urban_edge := Color("#9d967f")
 ## Marsh: land with a hatch of this colour (7 x 5 px tile, one 1 px dash per tile).
 @export var map_marsh := Color("#46677a")
 @export var marsh_hatch_tile := Vector2(7.0, 5.0)

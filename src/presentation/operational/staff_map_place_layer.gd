@@ -5,10 +5,10 @@ extends Control
 ## the zoom level or the toggle changed; idle frames cost nothing. Sits below the counters.
 
 const FONT_FILE := "IBMPlexSansCondensed-SemiBold"
-const TEXT := Color("eef2e6")
+const TEXT := Color("fbfdf4")
 const LATIN_SCALE := 0.85
 const HALO := Color("111411")
-const HALO_PX := 3
+const HALO_PX := 4
 
 ## How many times the visible set was recomputed (tests).
 var rebuild_count := 0
