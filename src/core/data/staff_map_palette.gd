@@ -108,7 +108,7 @@ const SEA := 100
 @export var glow_coast := 1.3
 @export var glow_river_major := 1.0
 @export var glow_river_named := 1.0
-@export var glow_road_t1 := 1.1
+@export var glow_road_t1 := 1.0
 @export var glow_front := 1.15
 @export var glow_orders := 1.15
 
