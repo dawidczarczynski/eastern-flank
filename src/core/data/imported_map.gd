@@ -88,6 +88,17 @@ const RELIEF_FLAT := 180
 ## space), simplified to 0.1 hex. They are never snapped to hexes; the per-hex `country_rows`
 ## are for the rules only. Empty = none (tactical maps, old maps).
 @export var border_lines: Array[PackedVector2Array]
+## The real roads and rivers for drawing (operational maps): smooth polylines from the OSM ways,
+## clipped to the map, in the same world units as `border_lines`, simplified to ~0.04 hex. The
+## parallel `*_line_classes` give each line's class: roads 1 = motorway / trunk,
+## 2 = primary, 3 = secondary (a class carries on through a junction-free joint); rivers 2 = major,
+## 1 = medium, 0 = the rest by the length of their course from the source (>= 80 / >= 30 km).
+## `road_rows` / `river_rows` stay the rules' data; these lines are view data only. Empty = none
+## (tactical maps, older maps: the view then draws the hex links).
+@export var road_lines: Array[PackedVector2Array]
+@export var road_line_classes: PackedInt32Array
+@export var river_lines: Array[PackedVector2Array]
+@export var river_line_classes: PackedInt32Array
 ## Place names for the staff map's labels (TASK-112), three parallel arrays (index = one place), in
 ## the importer's order (rank, then population, name, OSM id; a view may rely on it). Names are the
 ## local OSM `name` (diacritics kept); positions are world units like `border_lines`; ranks are
@@ -225,13 +236,31 @@ func _country_row_problem(row: int) -> String:
 
 ## Every border line needs at least two finite points.
 func _border_lines_problem() -> String:
-	for index in border_lines.size():
-		var line := border_lines[index]
+	var problem := _lines_problem(border_lines, "border line")
+	if problem == "":
+		problem = _lines_problem(road_lines, "road line")
+	if problem == "":
+		problem = _lines_problem(river_lines, "river line")
+	if problem == "" and road_line_classes.size() != road_lines.size():
+		problem = (
+			"%d road line classes for %d road lines" % [road_line_classes.size(), road_lines.size()]
+		)
+	if problem == "" and river_line_classes.size() != river_lines.size():
+		problem = (
+			"%d river line classes for %d river lines"
+			% [river_line_classes.size(), river_lines.size()]
+		)
+	return problem
+
+
+func _lines_problem(lines: Array[PackedVector2Array], label: String) -> String:
+	for index in lines.size():
+		var line := lines[index]
 		if line.size() < 2:
-			return "border line %d has %d points, expected at least 2" % [index, line.size()]
+			return "%s %d has %d points, expected at least 2" % [label, index, line.size()]
 		for point in line:
 			if not (is_finite(point.x) and is_finite(point.y)):
-				return "border line %d has a non-finite point" % index
+				return "%s %d has a non-finite point" % [label, index]
 	return ""
 
 

@@ -96,4 +96,6 @@ func _material(palette: StaffMapPalette) -> ShaderMaterial:
 	m.set_shader_parameter(&"relief_flat", ImportedMap.RELIEF_FLAT / 255.0)
 	m.set_shader_parameter(&"shade_strength", palette.hillshade_strength)
 	m.set_shader_parameter(&"hatch_tile_px", palette.marsh_hatch_tile)
+	m.set_shader_parameter(&"edge_px", palette.edge_widths[0])
+	m.set_shader_parameter(&"shore_peak", palette.glow_coast if palette.glow_enabled else 1.0)
 	return m

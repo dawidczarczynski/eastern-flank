@@ -20,6 +20,11 @@ func _init(p_name := "RouteRibbon") -> void:
 	hide()
 
 
+## HDR gain of the line colour (the casing stays dark): above 1.0 the bloom makes it glow.
+func set_glow(gain: float) -> void:
+	(_line.material_override as ShaderMaterial).set_shader_parameter(&"glow", gain)
+
+
 ## Shows the line through `points` (3D, already on the relief) in `colour`.
 func show_line(points: PackedVector3Array, colour: Color) -> void:
 	show_lines([points], colour)

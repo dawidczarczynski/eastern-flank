@@ -40,9 +40,12 @@ func _init(relief: StaffMapRelief, palette: StaffMapPalette) -> void:
 	_relief = relief
 	_palette = palette
 	_casing = _line_node("Casing", Color(0.05, 0.06, 0.05, 0.8), PRIORITY_CASING)
-	_line = _line_node("Line", palette.ui_text, PRIORITY_LINE)
+	_line = _line_node("Line", palette.ui_amber, PRIORITY_LINE)
 	_teeth = _triangle_node("Teeth", PRIORITY_LINE)
-	(_teeth.material_override as StandardMaterial3D).albedo_color = palette.ui_text
+	var gain := palette.glow_front if palette.glow_enabled else 1.0
+	(_teeth.material_override as StandardMaterial3D).albedo_color = Color(
+		palette.ui_amber.r * gain, palette.ui_amber.g * gain, palette.ui_amber.b * gain
+	)
 
 
 ## Recomputes the line from `state` for `viewer` when the formations, the viewer or `shown`
@@ -216,7 +219,9 @@ static func _flat_material(colour: Color, priority: int) -> StandardMaterial3D:
 func _line_node(node_name: String, colour: Color, priority: int) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.name = node_name
-	node.material_override = StaffMapLines.material(colour, WIDTH_PX[1], priority)
+	node.material_override = StaffMapLines.material(
+		colour, WIDTH_PX[1], priority, _palette.glow_front if _palette.glow_enabled else 1.0
+	)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.extra_cull_margin = 16384.0
 	add_child(node)

@@ -54,14 +54,16 @@ static func polylines_mesh(lines: Array) -> ArrayMesh:
 	return mesh
 
 
-## A line material: colour, width in pixels, layer order (higher draws later).
-static func material(colour: Color, width_px: float, priority: int) -> ShaderMaterial:
+## A line material: colour, width in pixels, layer order (higher draws later); `glow` > 1 makes
+## the colour HDR so the environment bloom lights the line.
+static func material(colour: Color, width_px: float, priority: int, glow := 1.0) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = SHADER
 	m.render_priority = priority
 	m.set_shader_parameter(&"line_color", colour)
 	m.set_shader_parameter(&"width_px", width_px)
 	m.set_shader_parameter(&"opacity", 1.0)
+	m.set_shader_parameter(&"glow", glow)
 	return m
 
 

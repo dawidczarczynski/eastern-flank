@@ -6,6 +6,9 @@ extends Control
 
 const FONT_FILE := "IBMPlexSansCondensed-SemiBold"
 const TEXT := Color("fbfdf4")
+## Label colour by rank (city, town, village): only the big places are white, the smaller ones are
+## greyed so the map stays calm.
+const TEXT_BY_RANK: Array[Color] = [Color("fbfdf4"), Color("8e9588"), Color("646b60")]
 const LATIN_SCALE := 0.85
 const HALO := Color("111411")
 const HALO_PX := 4
@@ -127,16 +130,17 @@ func _draw() -> void:
 	for i in _shown:
 		var size := StaffMapPlaceFilter.FONT_SIZES[_ranks[i]]
 		var top := _points[i] - _sizes[i] * 0.5
-		_text_line(_names[i], size, top, _sizes[i].x)
+		var colour := TEXT_BY_RANK[_ranks[i]]
+		_text_line(_names[i], size, top, _sizes[i].x, colour)
 		if not _latin[i].is_empty():
 			var small := _latin_size(_ranks[i])
 			var second := top + Vector2(0.0, _font.get_height(size))
-			_text_line(_latin[i], small, second, _sizes[i].x)
+			_text_line(_latin[i], small, second, _sizes[i].x, colour)
 
 
 ## One centred line of text whose top-left box corner is `top`, with the halo underneath.
-func _text_line(text: String, size: int, top: Vector2, width: float) -> void:
+func _text_line(text: String, size: int, top: Vector2, width: float, colour: Color) -> void:
 	var line_w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var origin := top + Vector2((width - line_w) * 0.5, _font.get_ascent(size))
 	draw_string_outline(_font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, HALO_PX, HALO)
-	draw_string(_font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, TEXT)
+	draw_string(_font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, colour)

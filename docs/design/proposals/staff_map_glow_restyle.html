@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Staff map restyle – minimal glow</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:500;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Medium.ttf")}
+@font-face{font-family:"IBM Plex Sans Condensed";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+@font-face{font-family:"JetBrains Mono";font-weight:100 800;src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+:root{--void:#0b0d0b;--text:#dfe5d6;--muted:#8d9585;--amber:#e8b04a;--own:#5b93d6;--enemy:#d76a52;--line:#3a3f33}
+*{box-sizing:border-box}
+body{margin:0;background:#080a08;color:var(--text);font:14px/1.5 "IBM Plex Sans Condensed",sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding:0 20px 60px}
+.banner{background:var(--amber);color:#1a1405;font:700 13px "Chakra Petch";letter-spacing:.14em;padding:8px 20px;text-align:center}
+h1{font:700 30px "Chakra Petch";margin:28px 0 6px}
+h2{font:700 20px "Chakra Petch";margin:40px 0 4px;color:var(--amber);letter-spacing:.04em}
+h3{font:700 13px "Chakra Petch";margin:18px 0 6px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+p,li{max-width:900px}
+.mono{font-family:"JetBrains Mono",monospace;font-size:12px}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.row>*{flex:1 1 420px;min-width:0}
+svg.f{display:block;width:100%;height:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;max-width:900px;margin-top:6px}
+td,th{border-bottom:1px solid #22261f;padding:4px 8px;text-align:left;vertical-align:top;font-size:13px}
+th{font:700 11px "Chakra Petch";color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+td:first-child{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--amber);white-space:nowrap}
+.note{border-left:3px solid var(--amber);padding:4px 12px;background:#11140f;max-width:900px}
+.rec{color:#b9d38a}
+
+/* ---------- shared map classes, fed by per-variant custom properties ---------- */
+.land{fill:var(--land)}
+.tint-w{fill:var(--tint-own)} .tint-e{fill:var(--tint-enemy)}
+.coast{fill:none;stroke:var(--coast);stroke-width:var(--coast-w);filter:var(--f-coast)}
+.forest{fill:var(--forest);opacity:var(--o-forest)}
+.urban{fill:var(--urban);opacity:var(--o-urban);filter:var(--f-urban)}
+.lake{fill:var(--lake);stroke:var(--lake-edge);stroke-width:1;opacity:var(--o-lake)}
+.river{fill:none;stroke:var(--river);stroke-width:var(--river-w);opacity:var(--o-river);filter:var(--f-river);stroke-linecap:round}
+.road1{fill:none;stroke:var(--road);stroke-width:1.4;opacity:var(--o-road1);filter:var(--f-road)}
+.road2{fill:none;stroke:var(--road);stroke-width:1;opacity:var(--o-road2)}
+.rail{fill:none;stroke:var(--road);stroke-width:1;stroke-dasharray:1 5;opacity:var(--o-rail)}
+.border{fill:none;stroke:var(--border);stroke-width:1.4;stroke-dasharray:8 3 1.5 3;opacity:var(--o-border);filter:var(--f-border)}
+.front{fill:none;stroke:var(--front);stroke-width:var(--front-w);filter:var(--f-front);stroke-linejoin:round}
+.grid{fill:none;stroke:#fff;stroke-width:1}
+.cname{font:700 30px "Chakra Petch";letter-spacing:.42em;opacity:var(--o-cname)}
+.city{font:500 12px "IBM Plex Sans Condensed";fill:var(--text);letter-spacing:.06em;opacity:var(--o-city)}
+.dot{fill:var(--text);filter:var(--f-dot)}
+.co{fill:var(--c-own-fill);stroke:var(--own);stroke-width:var(--c-stroke);filter:var(--f-own)}
+.ce{fill:var(--c-enemy-fill);stroke:var(--enemy);stroke-width:var(--c-stroke);filter:var(--f-enemy)}
+.glyph{stroke:var(--text);stroke-width:1.6;fill:none}
+.seg{fill:#b9d38a}
+.route{fill:none;stroke:var(--amber);stroke-width:2;stroke-dasharray:7 5;filter:var(--f-route)}
+.sel{fill:none;stroke:var(--amber);stroke-width:2;filter:var(--f-route)}
+.contact{fill:none;stroke:#e07c5e;stroke-width:1.6;stroke-dasharray:4 3;filter:var(--f-route)}
+.hov{fill:rgba(232,176,74,.10);stroke:var(--amber);stroke-width:1.6}
+.hud{fill:rgba(8,11,8,.93);stroke:var(--line)}
+.hudt{font:700 12px "Chakra Petch";fill:var(--text);letter-spacing:.1em}
+.hudm{font:600 11px "JetBrains Mono";fill:var(--muted)}
+
+/* ---------- variant A  "Neon contour" ---------- */
+.vA{--bg:#06090c;--land:#0b1015;--tint-own:rgba(91,147,214,.05);--tint-enemy:rgba(215,106,82,.055);
+ --coast:#6fa7d8;--coast-w:1.6;--f-coast:url(#g2);--forest:#2b3d31;--o-forest:.0;--urban:#8d9585;--o-urban:.9;--f-urban:url(#g1);
+ --lake:#0a141b;--lake-edge:#46728c;--o-lake:1;--river:#5384a0;--river-w:1.6;--o-river:.95;--f-river:url(#g1);
+ --road:#b4ac98;--o-road1:.8;--f-road:url(#g1);--o-road2:.45;--o-rail:.5;--border:#a9afa1;--o-border:.7;--f-border:none;
+ --front:#e8b04a;--front-w:2.6;--f-front:url(#g3);--o-grid:.0;--o-cname:.5;--o-city:.9;--f-dot:url(#g1);
+ --c-own-fill:#0a1624;--c-enemy-fill:#2a110b;--c-stroke:1.8;--f-own:url(#g2);--f-enemy:url(#g2);--f-route:url(#g2)}
+/* ---------- variant B  "Glow field" ---------- */
+.vB{--bg:#080a10;--land:#10141c;--tint-own:rgba(91,147,214,.17);--tint-enemy:rgba(215,106,82,.17);
+ --coast:#2b4454;--coast-w:1.2;--f-coast:url(#g1);--forest:#0a0d14;--o-forest:.55;--urban:#dfe5d6;--o-urban:.55;--f-urban:url(#g2);
+ --lake:#080b12;--lake-edge:#2b4454;--o-lake:1;--river:#5384a0;--river-w:1.3;--o-river:.55;--f-river:none;
+ --road:#b4ac98;--o-road1:.5;--f-road:none;--o-road2:.3;--o-rail:.3;--border:#dfe5d6;--o-border:.9;--f-border:url(#g2);
+ --front:#e8b04a;--front-w:3.4;--f-front:url(#g3);--o-grid:.0;--o-cname:.6;--o-city:.85;--f-dot:url(#g2);
+ --c-own-fill:#5b93d6;--c-enemy-fill:#d76a52;--c-stroke:0;--f-own:url(#g2);--f-enemy:url(#g2);--f-route:url(#g2)}
+/* ---------- variant C  "Signal only" ---------- */
+.vC{--bg:#080a08;--land:#0d100d;--tint-own:rgba(91,147,214,.0);--tint-enemy:rgba(215,106,82,.0);
+ --coast:#8d9585;--coast-w:1;--f-coast:none;--forest:#0d100d;--o-forest:0;--urban:#dfe5d6;--o-urban:.0;--f-urban:none;
+ --lake:#0b0e0b;--lake-edge:#2b4454;--o-lake:1;--river:#5384a0;--river-w:1;--o-river:.0;--f-river:none;
+ --road:#b4ac98;--o-road1:.35;--f-road:none;--o-road2:0;--o-rail:0;--border:#a9afa1;--o-border:.55;--f-border:none;
+ --front:#e8b04a;--front-w:2;--f-front:url(#g2);--o-grid:.07;--o-cname:.35;--o-city:.8;--f-dot:url(#g2);
+ --c-own-fill:#0f1a26;--c-enemy-fill:#2a110b;--c-stroke:1.5;--f-own:url(#g1);--f-enemy:url(#g1);--f-route:url(#g1)}
+</style></head><body>
+<div class="banner">PROPOSAL – not accepted · 2026-11-15 · no task yet (follow-up of the staff-map restyle, replaces the "baked relief" look of TASK-125 if accepted)</div>
+<div class="wrap">
+
+<!-- ====================== shared drawing ====================== -->
+<svg width="0" height="0" style="position:absolute"><defs>
+ <filter id="g1" filterUnits="userSpaceOnUse" x="-1500" y="-1500" width="4500" height="4000"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="g2" filterUnits="userSpaceOnUse" x="-1500" y="-1500" width="4500" height="4000"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <filter id="g3" filterUnits="userSpaceOnUse" x="-1500" y="-1500" width="4500" height="4000"><feGaussianBlur stdDeviation="3" result="a"/><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="a"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <pattern id="hexgrid" width="84" height="48.5" patternUnits="userSpaceOnUse"><path class="grid" d="M0,24.25H14L28,0H56L70,24.25H84M14,24.25L28,48.5H56L70,24.25"/></pattern>
+ <clipPath id="west"><path d="M742,66C790,190 690,300 745,420S850,640 800,900H0V0H742Z"/></clipPath>
+ <clipPath id="east"><path d="M742,66C790,190 690,300 745,420S850,640 800,900H1440V0H742Z"/></clipPath>
+ <clipPath id="landclip"><path id="landp" d="M0,140C110,120 210,185 330,165C440,145 520,70 650,62C760,55 900,80 1440,70V900H0Z"/></clipPath>
+
+ <g id="geo">
+  <rect width="1440" height="900" fill="var(--bg)"/>
+  <use href="#landp" class="land"/>
+  <g clip-path="url(#landclip)">
+   <rect width="1440" height="900" class="tint-w" clip-path="url(#west)"/>
+   <rect width="1440" height="900" class="tint-e" clip-path="url(#east)"/>
+   <rect width="1440" height="900" fill="url(#hexgrid)" style="opacity:var(--o-grid)"/>
+   <g class="forest"><ellipse cx="250" cy="380" rx="70" ry="34" transform="rotate(-12 250 380)"/><ellipse cx="520" cy="250" rx="60" ry="40"/><ellipse cx="950" cy="520" rx="80" ry="44" transform="rotate(20 950 520)"/><ellipse cx="1150" cy="200" rx="70" ry="36"/><ellipse cx="380" cy="770" rx="70" ry="40"/><ellipse cx="1200" cy="730" rx="60" ry="40"/><ellipse cx="640" cy="760" rx="50" ry="30"/></g>
+   <path class="rail" d="M0,420C200,400 400,440 620,400S1000,380 1180,420S1380,520 1440,500"/>
+   <path class="road2" d="M200,300C330,330 450,300 560,420M1020,300C1100,330 1200,300 1300,330M820,700C960,720 1120,700 1250,760"/>
+   <path class="river" d="M300,900C340,820 440,800 500,720" style="stroke-width:1"/>
+   <path class="river" d="M120,880C200,760 300,740 360,640S470,500 560,420S690,330 742,300"/>
+   <path class="river" d="M900,60C930,200 1020,260 1010,380S1100,520 1180,620S1300,800 1330,900"/>
+   <g><ellipse class="lake" cx="1040" cy="210" rx="50" ry="26"/><ellipse class="lake" cx="450" cy="170" rx="34" ry="18"/><ellipse class="lake" cx="1260" cy="450" rx="30" ry="20"/></g>
+   <path class="road1" d="M60,700C240,640 420,600 600,560S900,500 1100,470S1300,380 1440,360M600,560C640,400 620,250 680,100M470,540C500,700 640,800 760,900"/>
+   <path class="border" d="M420,150C430,300 400,420 470,540C500,640 480,760 520,900M180,520C300,500 360,560 470,540S640,470 700,500M1000,900C1010,700 1100,600 1090,430S1200,250 1230,60"/>
+   <g class="urban"><rect x="598" y="408" width="14" height="10" rx="3"/><rect x="408" y="690" width="16" height="12" rx="3"/><rect x="290" y="296" width="14" height="10" rx="3"/><rect x="920" y="494" width="12" height="9" rx="3"/><rect x="994" y="774" width="12" height="9" rx="3"/></g>
+  </g>
+  <use href="#landp" class="coast"/>
+  <!-- labels -->
+  <text class="cname" x="130" y="580" fill="var(--own)">POLAND</text>
+  <text class="cname" x="1040" y="570" fill="var(--enemy)">BELARUS</text>
+  <text class="cname" x="470" y="115" fill="var(--own)" style="font-size:24px">LITHUANIA</text>
+  <g class="city"><text x="310" y="300">Olsztyn</text><text x="624" y="402">Suwałki</text><text x="432" y="700">Białystok</text><text x="942" y="500">Grodno</text><text x="1016" y="784">Brześć</text></g>
+  <g class="dot"><circle cx="297" cy="296" r="2.5"/><circle cx="615" cy="400" r="3.5"/><circle cx="415" cy="696" r="3.5"/><circle cx="927" cy="498" r="3"/><circle cx="1001" cy="778" r="3"/></g>
+  <!-- front -->
+  <path class="front" d="M742,66C790,190 690,300 745,420S850,640 800,900"/>
+  <!-- orders -->
+  <path class="route" d="M560,520C620,470 680,440 735,418"/>
+  <circle cx="735" cy="418" r="4" fill="var(--amber)"/>
+  <path class="contact" d="M780,392l14,-24h28l14,24l-14,24h-28z"/>
+  <!-- counters -->
+  <g id="own"><path class="co" d="M-20,-13H14L20,-7V13H-20Z"/><path class="glyph" d="M-9,-6L9,6M9,-6L-9,6"/><g class="seg"><rect x="-20" y="17" width="6" height="2.5"/><rect x="-12" y="17" width="6" height="2.5"/><rect x="-4" y="17" width="6" height="2.5"/><rect x="4" y="17" width="6" height="2.5"/><rect x="12" y="17" width="6" height="2.5"/></g></g>
+  <g id="enemy"><path class="ce" d="M0,-19L19,0L0,19L-19,0Z"/><path class="glyph" d="M-5,-5L5,5M5,-5L-5,5"/><g class="seg"><rect x="-14" y="23" width="5" height="2.5"/><rect x="-7" y="23" width="5" height="2.5"/><rect x="0" y="23" width="5" height="2.5"/><rect x="7" y="23" width="5" height="2.5"/></g></g>
+  <use href="#own" x="560" y="520"/><use href="#own" x="470" y="430"/><use href="#own" x="640" y="640"/><use href="#own" x="330" y="470"/><use href="#own" x="690" y="260"/>
+  <use href="#enemy" x="880" y="380"/><use href="#enemy" x="960" y="610"/><use href="#enemy" x="870" y="250"/><use href="#enemy" x="1080" y="700"/>
+  <path class="sel" d="M532,498v-8h8M580,490h8v8M588,542v8h-8M540,550h-8v-8" transform="translate(-0,0)"/>
+  <path class="hov" d="M640,478l14,-24h28l14,24l-14,24h-28z" transform="translate(40,60)"/>
+ </g>
+ <g id="hudbits">
+  <path class="hud" d="M540,14h360v44h-348l-12,-12z"/><text class="hudt" x="560" y="40">NATO · 5 FORMATIONS</text><text class="hudt" x="745" y="40" fill="#e8b04a">TURN 3</text><text class="hudm" x="810" y="40">12 NOV · DAY</text>
+  <path class="hud" d="M16,846h520v38h-508l-12,-12z"/><text class="hudm" x="34" y="870">1 MARCH   2 ATTACK   3 DEFEND   ⌫ CANCEL</text>
+ </g>
+</defs></svg>
+
+<h1>Staff map restyle – minimal, modern, glow</h1>
+<p>Written for: the project owner, deciding the look of the operational map.</p>
+
+<h2>1 · The need</h2>
+<p>The current Z0/Z1 map (baked hillshade, forest and marsh textures, three road weights, relief, noise) is realistic but <b>hard to read</b>: roads, rivers, borders and the front fight with the terrain texture and with each other, and the counters are the only thing that pops. Goal: a <b>minimal, modern look with a glow effect</b> – near-black land, only the lines that matter drawn as thin light, the front line and the orders as the brightest things on the screen.</p>
+<div class="note"><b>Geometry does not change.</b> Coastlines, lakes, rivers, roads and borders still come from the real OSM/Copernicus import (rule "hexes are mechanics only" stays: nothing is bent to hexes). Only the <i>rendering</i> changes: no hillshade, no land-cover textures, fewer layers per zoom level, additive glow on the few lines that carry meaning. Counters (TASK-142 hex tiles), panels, turn bar and all accepted HUD components stay as they are – the proposal shows simplified counters only so the map can be judged in context.</div>
+
+<h3>Common rules (all variants)</h3>
+<ul>
+ <li>Hierarchy by <b>brightness</b>, not by texture: front &gt; orders &gt; counters &gt; borders &gt; roads t1 &gt; rivers/coast &gt; everything else.</li>
+ <li>Colours stay the existing tokens (<span class="mono">side.own #5b93d6</span>, <span class="mono">side.enemy #d76a52</span>, <span class="mono">ui.amber #e8b04a</span>, <span class="mono">road.t1</span>, <span class="mono">river.major</span>, <span class="mono">border</span>…). New tokens listed per variant.</li>
+ <li>Meaning never rests on colour alone: own = rectangle, enemy = diamond, front = line with teeth towards the enemy, border = dash-dot, rail = dotted.</li>
+ <li>Zoom levels Z0/Z1/Z2 unchanged; the glow lowers with zoom-in (Z2: ~60 % of Z0) so close-up stays crisp.</li>
+ <li>Glow is <b>one screen-space bloom</b> (see Godot notes), not per-line blur meshes – near zero cost, stays within the 60 FPS budget.</li>
+</ul>
+
+<!-- ====================== A ====================== -->
+<h2>Variant A · "Neon contour" <span class="rec">– recommended</span></h2>
+<p>Land is a flat near-black plate with a barely visible country tint (5 %). The <b>coast glows</b> in a cool blue-cyan, major rivers and t1 roads are thin glowing filaments, the border is a quiet dash-dot, the front is a fat amber beam. No forest/relief at all – forests only reappear at Z2 as a 6 % dotted texture. Reads like a radar / HUD map.</p>
+<div class="row"><svg class="f vA" viewBox="0 0 1440 900"><use href="#geo"/><use href="#hudbits"/></svg></div>
+<h3>Detail crop (Z1 look, 2.9× of the frame above)</h3>
+<div class="row"><svg class="f vA" viewBox="480 330 500 310"><use href="#geo"/></svg></div>
+<table>
+<tr><th>Element</th><th>Spec</th></tr>
+<tr><td>land</td><td>#0b1015 flat, no texture · country tint own 5 % / enemy 5.5 % (as now)</td></tr>
+<tr><td>coast / lake edge</td><td>1.6 px <b>NEW TOKEN water.glow #6fa7d8</b> (brighter than shore #2b4454, which is too dim to glow) + glow σ 4 px; lake fill #0a141b</td></tr>
+<tr><td>rivers</td><td>major 1.6 px river.major + glow σ 2; named 1.2 (Z1); minor only Z2</td></tr>
+<tr><td>roads</td><td>t1 1.4 px road.t1 80 % + glow σ 2; t2 1 px 45 % (Z1); rail dotted 1/5 px 50 %; t3 Z2 only</td></tr>
+<tr><td>border</td><td>1.4 px dash-dot border 70 %, no glow (so it never competes with the front)</td></tr>
+<tr><td>front</td><td>2.6 px ui.amber + double glow (σ 3 and σ 9); teeth 5.5 px every 15 px stay (shape channel)</td></tr>
+<tr><td>towns</td><td>glowing 3.5 px dot (capital 5 px) + label IBM Plex Sans Condensed as now; built-up area drawn as small grey plate only on Z1+</td></tr>
+<tr><td>counters</td><td>hollow glowing outline (stroke 1.8 px side colour, fill = side ink #0a1624 / #2a110b), HP segments unchanged. <i>Interaction with TASK-142 hex tiles: tile stays the counter body; the glow only wraps its silhouette (rim light) – no change to the tile art.</i></td></tr>
+<tr><td>orders / selection</td><td>amber dashed route + amber glow, 2 px corner brackets on the selected counter, dashed ui.alert hex ring = contact</td></tr>
+</table>
+
+<!-- ====================== B ====================== -->
+<h2>Variant B · "Glow field"</h2>
+<p>Countries become <b>soft luminous fields</b> (own blue / enemy red, 17 %), so who holds what is readable at one glance without any label. Borders are bright white glowing lines, the front is the seam where the two fields meet, coast is dim. Roads and rivers recede to 30–55 %. Counters are solid, filled and glowing. More colour and "atmosphere" than A, but the tint competes a bit with the counters' own colour.</p>
+<div class="row"><svg class="f vB" viewBox="0 0 1440 900"><use href="#geo"/><use href="#hudbits"/></svg></div>
+<table>
+<tr><th>Element</th><th>Spec</th></tr>
+<tr><td>land</td><td>#10141c with country field: <b>NEW TOKEN field.own</b> = side.own 17 % and <b>field.enemy</b> = side.enemy 17 %, vertical soft gradient (denser at the front)</td></tr>
+<tr><td>border</td><td>1.4 px #dfe5d6 (ui.text) 90 % + glow σ 4 – the main structural line</td></tr>
+<tr><td>coast</td><td>1.2 px water.shore #2b4454, glow σ 2</td></tr>
+<tr><td>forest</td><td>darker patches (−55 % opacity), no outline</td></tr>
+<tr><td>roads / rivers</td><td>t1 50 %, t2 30 %, rivers 55 %, no glow</td></tr>
+<tr><td>front</td><td>3.4 px amber, double glow, sits on the seam of the two fields</td></tr>
+<tr><td>counters</td><td>solid side fill with glow σ 4, no outline</td></tr>
+</table>
+
+<!-- ====================== C ====================== -->
+<h2>Variant C · "Signal only"</h2>
+<p>The most minimal: a flat charcoal plate, a 7 % hex grid as the only texture, borders and the front, t1 roads at 35 %. No rivers or lakes on Z0 (they appear on Z1). Glow <b>only</b> on the front, the route and towns. Maximum readability of the operational picture; the map stops looking like a place and becomes a diagram.</p>
+<div class="row"><svg class="f vC" viewBox="0 0 1440 900"><use href="#geo"/><use href="#hudbits"/></svg></div>
+<table>
+<tr><th>Element</th><th>Spec</th></tr>
+<tr><td>land</td><td>#0d100d flat, no tint, coast 1 px ui.muted without glow</td></tr>
+<tr><td>hex grid</td><td>7 % white at every zoom (helper, rules grid) – in the current game only Z2 or <span class="mono">G</span></td></tr>
+<tr><td>border / roads</td><td>border 55 %, t1 35 %, nothing else on Z0</td></tr>
+<tr><td>front / route / towns</td><td>the only glowing elements; front 2 px amber, glow σ 4</td></tr>
+<tr><td>counters</td><td>thin outline, small glow σ 2</td></tr>
+</table>
+
+<h2>Comparison</h2>
+<table>
+<tr><th></th><th>A Neon contour</th><th>B Glow field</th><th>C Signal only</th></tr>
+<tr><td>Readability</td><td>high</td><td>high (colour fields), busiest</td><td>highest</td></tr>
+<tr><td>"Modern + glow"</td><td>strongest</td><td>soft / atmospheric</td><td>sparse</td></tr>
+<tr><td>Still looks like a map</td><td>yes (coast, rivers)</td><td>yes</td><td>weakly</td></tr>
+<tr><td>Realistic geography kept</td><td>coast, rivers, lakes, roads</td><td>same, dimmer</td><td>borders and t1 roads only</td></tr>
+<tr><td>New tokens</td><td>water.glow</td><td>field.own, field.enemy</td><td>none</td></tr>
+</table>
+<p><b>Recommendation: A.</b> Keeps the geography recognisable, makes the front and the orders the brightest elements, and needs only one new token. Elements of B (country fields) can be a Map-options toggle later (layer "P political" already exists).</p>
+
+<h2>Godot notes</h2>
+<ul>
+ <li><b>Glow:</b> <span class="mono">WorldEnvironment</span> glow (bloom, HDR threshold ~1.0, intensity ~0.8, blend additive) on the staff-map viewport; the glowing lines get an emission colour &gt; 1.0 (e.g. front colour × 2.2) in the line shader, everything else stays ≤ 1.0. One full-screen pass – counters and HUD (CanvasLayer) are not blurred, only the map layer; check on HIGH quality at 60 FPS, put the bloom behind a quality level if it costs frames.</li>
+ <li><b>Palette:</b> extend <span class="mono">StaffMapPalette</span> with the new tokens and a "glow" strength per zoom level; drop hillshade (soft-light 0.8) and land-cover textures from the base texture; keep the importer data untouched.</li>
+ <li><b>Layers:</b> reuse <span class="mono">StaffMapLayers</span> line meshes (one per class); per-variant differences are colour, width, emission and layer visibility per zoom – no new geometry.</li>
+ <li><b>Tilt:</b> glow works with the 2.5D camera (screen-space), line widths stay constant under zoom as today.</li>
+</ul>
+
+<h2>Open questions</h2>
+<ol>
+ <li>Which variant (or A with B's country fields as a toggle)?</li>
+ <li>The battle scene and menu backdrop (<span class="mono">assets/menu/staff_map.png</span>) get re-rendered with the new look – OK?</li>
+ <li>Should the hex grid in A stay Z2-only (as now) or follow C and show at 7 % always?</li>
+</ol>
+<p class="mono" style="color:var(--muted)">Frames are a stylised theatre drawn for the proposal, not the real import. Bloom in Godot will look slightly softer than these SVG blurs.</p>
+</div></body></html>

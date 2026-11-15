@@ -483,6 +483,19 @@ func test_problem_reports_malformed_border_lines() -> void:
 	assert_true(map.problem().contains("non-finite"), "NaN: " + map.problem())
 
 
+func test_road_and_river_lines_are_validated_with_their_classes() -> void:
+	var map := _country_map()
+	assert_eq(map.road_lines.size(), 0, "none by default")
+	map.road_lines = [PackedVector2Array([Vector2(0, 0), Vector2(2, 1)])]
+	assert_true(map.problem().contains("road line classes"), map.problem())
+	map.road_line_classes = PackedInt32Array([1])
+	map.river_lines = [PackedVector2Array([Vector2(0, 0), Vector2(1, 1)])]
+	map.river_line_classes = PackedInt32Array([2])
+	assert_eq(map.problem(), "")
+	map.river_lines = [PackedVector2Array([Vector2(0, 0)])]
+	assert_true(map.problem().contains("river line 0"), map.problem())
+
+
 # --- TASK-112: place names ---
 
 

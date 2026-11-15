@@ -6,8 +6,8 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blend_mix,
 	shadows_disabled, fog_disabled;
 
-uniform float fill_alpha = 0.13;
-uniform float line_alpha = 0.55;
+uniform float fill_alpha = 0.08;
+uniform float line_alpha = 0.3;
 uniform float pitch_px = 6.0;
 uniform float line_px = 2.0;
 uniform float hatch = 1.0;
