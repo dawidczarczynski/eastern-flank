@@ -681,7 +681,15 @@ A thick light line with small teeth runs between the two blocs. It is a **displa
 
 With one of your formations selected, point at a hex to see how it would get there, and left click to order it there. A formation has at most one order; a new order replaces the old one. Orders are carried out when you end your turn (see **End of turn**).
 
-**Giving an order.** With one of your formations selected (on your turn), **left click** a hex to send it there: the default order is **March**, whatever the formation did before. **Right click** a hex to open the **order ring** on it, the same ring as the unit ring in battle (it follows the hex when you pan, zoom or tilt, and stays on screen):
+**Giving an order.** With one of your formations selected (on your turn), **left click** a hex to send it there: the default order is **March**, whatever the formation did before. Giving an order is a two-click gesture:
+
+1. **Click your counter** to select it (it is now "armed"). Clicking the selected counter again deselects it.
+2. **Move the cursor** over the map: a live line runs from the counter to the hex under the cursor. A label at the cursor shows the cost, the number of turns, where the route stops, and **ORDERS LEFT n / m**. If the target is not allowed (water, a closed country, ...) the label gives the reason; with no orders left it says so, and a click does nothing.
+3. **Click the hex** to issue the order; the line settles into the faded line of an issued order.
+
+Keys **1-3** change the posture (March, Attack, Defend) while the formation is selected or while you aim, and the line follows. **Esc** steps back one level at a time: a chosen posture, then a pending confirmation (see the preview section below), then aiming, then the selection. Panning with the left mouse button on empty ground, the wheel, WASD and the screen edges all work while you aim. Dragging the cursor instead of clicking twice is not supported.
+
+**Right click** a hex to open the **order ring** on it (it works also while you aim and does not deselect), the same ring as the unit ring in battle (it follows the hex when you pan, zoom or tilt, and stays on screen):
 
 | Segment | Order |
 |---|---|
@@ -716,7 +724,7 @@ Giving a new order replaces the old one.
 
 **Cancelling.** With the formation selected, choose 4 CANCEL ORDER in the ring, or press **Delete**, **Backspace** or **X**. The message "Order cancelled" appears, or "No order to cancel" if it had none.
 
-**Reading the orders.** March orders are drawn as a dashed line, attack orders as a solid line. A defend order is a line that ends in a defence arc at the destination. Each **+n** cross-bar marks where the formation will stand after n turns (the per-turn stops). Orders you have issued are drawn slightly faded (82 % opacity) so they differ from the preview; the enemy's orders are never shown. A counter with an order carries a small amber tab. The **End turn** button shows **ORDERS n / m**: n of your m formations have an order.
+**Reading the orders.** March orders are drawn as a dashed line, attack orders as a solid line. A defend order is a line that ends in a defence arc at the destination. Each **+n** cross-bar marks where the formation will stand after n turns (the per-turn stops). Orders you have issued are drawn slightly faded (82 % opacity) so they differ from the preview; the enemy's orders are never shown. While you aim, the dashes of a march line flow along it; an Attack line is a double rail with an arrowhead at the target and four red brackets around the enemy counter. A **ghost** of the counter (dashed outline) at the target shows where the formation ends up, with **T+n**, the turn it arrives. A thin faint second line shows the route of the other posture (March or Attack) when it differs. If another of your formations already has an order to the same hex, an amber warning triangle with a short note appears there: the second formation to arrive will find the hex taken and its order is cancelled. When zoomed far out, a short order is still drawn as a short stub with an arrowhead, so it stays visible. A counter with an order carries a small amber tab. The **End turn** button shows **ORDERS n / m**: n of your m formations have an order.
 
 **Step costs.** Road 1, open ground and towns 2, forest and hills 3, marsh 4. Crossing a river without a bridge costs +2 more. Lakes cannot be crossed. Only one formation can stand in a hex, but you can pass through your own formations. The zone of control is the ring of hexes next to an enemy formation. Unused points are lost at the end of the turn, and a formation can always move at least one hex per turn, even if that costs more than its points.
 

@@ -128,7 +128,13 @@ var _front: StaffMapFrontLine
 var _control: StaffMapControlLayer  # terrain control (TASK-152), under the front line
 var _order_ring: StaffMapOrderRing
 var _unit_strip: StaffMapUnitStrip  # a formation in the hex strip's slot (TASK-151)
-var _pick_posture: StringName = &""  # key 1-3: the posture the next click on the map orders
+var _gesture := StaffMapOrderGesture.new()  # click own counter, aim, click hex (TASK-153)
+var _route_ribbon: StaffMapRouteRibbon
+var _order_ribbon: StaffMapRouteRibbon
+var _fresh_ribbon: StaffMapRouteRibbon  # the order just issued settles here
+var _aim_key := []  # [hex, posture, formation id, orders left] of the cached hover verdict
+var _aim_verdict := {}
+var _movement := OperationalMovement.shipped()
 var _toast: Toast
 var _border_prompt: StaffMapBorderPrompt
 var _join_notice: StaffMapJoinNotice
@@ -260,6 +266,7 @@ func _process(delta: float) -> void:
 		_strike.tick(delta)
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
+	_tick_gesture(delta)
 
 
 ## Per frame: the journal is rebuilt once after new events while open; the ring follows the camera.
@@ -298,7 +305,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					or _politics.close_card()
 					or _decisions.close()
 					or close_info()
-					or _cancel_pick()
+					or _cancel_gesture()
 				):
 					return
 				if selected_formation() != &"":
@@ -751,6 +758,16 @@ func orders() -> StaffMapOrders:
 	return _orders
 
 
+## The order gesture state machine (TASK-153): armed = an own formation selected on its side's turn.
+func order_gesture() -> StaffMapOrderGesture:
+	return _gesture
+
+
+## The route preview's marks layer (cursor label, target marks).
+func route_marks() -> StaffMapRouteMarks:
+	return _route_marks
+
+
 func order_ring() -> StaffMapOrderRing:
 	return _order_ring
 
@@ -823,8 +840,15 @@ func _answer_border_prompt(keycode: Key) -> bool:
 		var command := IssueOrderCommand.new(
 			order["formation_id"], order["destination"], order["posture"]
 		)
+		_orders.mark_fresh(order["formation_id"])
+		_gesture.confirm()
 		if _simulation.execute(command):
 			select_formation(&"")
+		else:
+			_orders.mark_fresh(&"")
+			_gesture.fail()
+	else:
+		_gesture.cancel()  # back to aiming
 	return true
 
 
@@ -940,30 +964,76 @@ func toggle_info() -> void:
 		open_info(id)
 
 
-## Keys 1-3 with an own formation selected: the next click on the map orders in that posture
-## (the same key or Esc drops it); the brief card shrinks to the chip meanwhile.
+## Keys 1-3 with an own formation armed: the next click on the map orders in that posture (the
+## same key or Esc drops it); the brief card shrinks to the chip meanwhile.
 func _pick_posture_key(number: int) -> void:
 	var formation := _selected_own()
 	if formation == null or not _can_order(formation.id):
 		return
-	var posture := StaffMapRoute.posture_for_key(number)
-	_pick_posture = &"" if posture == _pick_posture else posture
-	_route.set_posture(_pick_posture)
+	_sync_gesture()
+	_gesture.pick_posture(StaffMapRoute.posture_for_key(number))
+	_route.set_posture(_gesture.posture())
+	_aim_key = []
 
 
 func _clear_pick() -> void:
-	if _pick_posture == &"":
+	if _gesture.posture() == &"":
 		return
-	_pick_posture = &""
+	_gesture.clear_posture()
+	_aim_key = []
 	if _route != null:
 		_route.set_posture(&"")
 
 
-func _cancel_pick() -> bool:
-	if _pick_posture == &"":
-		return false
-	_clear_pick()
-	return true
+## Esc: steps the order gesture back (a picked posture, then aiming, then the arming); true when
+## it consumed the key. Disarming deselects, as the Esc fallback does for any selection.
+func _cancel_gesture() -> bool:
+	_sync_gesture()
+	var before := _gesture.state()
+	var had_posture := _gesture.posture() != &""
+	var intent := _gesture.cancel()
+	if had_posture:
+		_route.set_posture(&"")
+	_aim_key = []
+	if intent["type"] == StaffMapOrderGesture.DISARM:
+		select_formation(&"")
+		return true
+	return (
+		before != StaffMapOrderGesture.State.IDLE and before != StaffMapOrderGesture.State.COMMITTED
+	)
+
+
+## Feeds the gesture what disables it and the selection (idempotent, cheap): strike mode, a modal,
+## the counter slide and a turn that is not the viewer's turn drop it to IDLE.
+func _sync_gesture() -> void:
+	if _simulation == null or _counters == null:
+		return
+	_gesture.set_context(
+		_strike_mode_open(),
+		_modal_open(),
+		is_sliding(),
+		_simulation.state.current_player == viewer_player
+	)
+	var formation := _selected_own()
+	if (
+		_gesture.state() == StaffMapOrderGesture.State.CONFIRM
+		and (_border_prompt == null or not _border_prompt.is_open())
+	):
+		_gesture.cancel()  # the prompt was dropped by something else
+	_gesture.select(formation.id if formation != null else &"")
+
+
+## Per frame: gesture context, the flowing dashes (only while aiming) and the commit settle.
+func _tick_gesture(delta: float) -> void:
+	_sync_gesture()
+	_gesture.tick(delta)
+	if _route != null:
+		_route.set_flowing(_gesture.is_aiming())
+	if _gesture.state() == StaffMapOrderGesture.State.COMMITTED:
+		_orders.settle(_gesture.settle())
+	elif _orders.has_fresh():
+		_orders.mark_fresh(&"")
+		_refresh_orders()  # the settled line joins the other orders
 
 
 ## Posture / order rows of the panel: own formations only.
@@ -1355,21 +1425,40 @@ func _build_route_preview() -> void:
 	_view.add_child(_control)
 	_front = StaffMapFrontLine.new(_view.relief(), _palette)
 	_view.add_child(_front)
-	var order_ribbon := StaffMapRouteRibbon.new("OrderRibbon")
-	order_ribbon.set_glow(_orders_glow())
-	_view.add_child(order_ribbon)
+	_order_ribbon = StaffMapRouteRibbon.new("OrderRibbon")
+	_order_ribbon.set_glow(_orders_glow())
+	_view.add_child(_order_ribbon)
+	_fresh_ribbon = StaffMapRouteRibbon.new("FreshOrderRibbon")
+	_fresh_ribbon.set_glow(_orders_glow())
+	_view.add_child(_fresh_ribbon)
 	var order_marks := StaffMapRouteMarks.new()
 	order_marks.name = "OrderMarks"
 	order_marks.set_projector(_project)
 	_counter_layer.add_child(order_marks)
-	_orders = StaffMapOrders.new(order_ribbon, order_marks, _view.relief(), _palette)
-	var ribbon := StaffMapRouteRibbon.new()
-	ribbon.set_glow(_orders_glow())
-	_view.add_child(ribbon)
+	_orders = StaffMapOrders.new(_order_ribbon, order_marks, _view.relief(), _palette)
+	_orders.set_fresh_ribbon(_fresh_ribbon)
+	_route_ribbon = StaffMapRouteRibbon.new()
+	_route_ribbon.set_glow(_orders_glow())
+	_view.add_child(_route_ribbon)
+	var alt_ribbon := StaffMapRouteRibbon.new("AltRouteRibbon")
+	_view.add_child(alt_ribbon)
 	_route_marks = StaffMapRouteMarks.new()
 	_route_marks.set_projector(_project)
 	_counter_layer.add_child(_route_marks)
-	_route = StaffMapRoutePreview.new(ribbon, _route_marks, _view.relief(), _palette)
+	_route = StaffMapRoutePreview.new(_route_ribbon, _route_marks, _view.relief(), _palette)
+	_route.set_alt_ribbon(alt_ribbon)
+	_update_line_scale()
+
+
+## Screen pixels per map unit on the ground at the view centre: the shader cuts the dashes of the
+## order lines in pixels from it, so their pitch does not change with the zoom.
+func _update_line_scale() -> void:
+	if _route == null:
+		return
+	var centre := _target()
+	var px := _project(centre).distance_to(_project(centre + Vector3.RIGHT))
+	_route.set_line_scale(px)
+	_orders.set_line_scale(px)
 
 
 func _orders_glow() -> float:
@@ -1393,6 +1482,7 @@ func _layout_counters() -> void:
 	if _route_marks != null:
 		_route_marks.refresh()
 		_orders.refresh_projection()
+		_update_line_scale()
 		if _order_ring != null:
 			_order_ring.follow()
 	if _contacts != null:
@@ -2452,10 +2542,11 @@ func _edge_direction() -> Vector2:
 	)
 
 
-## A left click on the map: with the order ring open it only closes it; otherwise selects the
-## counter under `screen`. With an own formation selected a click on a hex gives it a MARCH order
-## there (and deselects it), a click on an enemy counter or hex an ATTACK order; elsewhere it
-## deselects.
+## A left click on the map: with the order ring open it only closes it; otherwise it drives the
+## order gesture (TASK-153, StaffMapOrderGesture): a click on the armed own counter disarms it,
+## with an own formation armed a click on a hex gives it a MARCH order there (and deselects it), a
+## click on an enemy counter or hex an ATTACK order (or the picked posture); elsewhere it selects
+## the counter under `screen` or deselects.
 func click_at(screen: Vector2) -> void:
 	if _counters == null:
 		return
@@ -2464,27 +2555,78 @@ func click_at(screen: Vector2) -> void:
 		return
 	if _mode_click(screen):
 		return
+	_sync_gesture()
 	var hit := _pick_counter(screen)
 	var target := _enemy_of_selected(hit)
+	if _disarm_by_click(hit):
+		return
 	if target != null:
-		if issue_order(target.coord, _pick_posture):
+		_gesture_click_hex(target.coord)
+	elif hit == &"":
+		_click_bare_map(screen)
+	else:
+		select_formation(hit)
+		_sync_gesture()
+
+
+## A click on the armed own counter disarms it; true then.
+func _disarm_by_click(hit: StringName) -> bool:
+	if hit == &"" or hit != selected_formation() or _selected_own() == null:
+		return false
+	if _gesture.click_own_counter(hit)["type"] != StaffMapOrderGesture.DISARM:
+		return false
+	select_formation(&"")
+	return true
+
+
+## A click on no counter: with an own formation armed it is the order on that hex; else it closes
+## the panels and the country card or opens one, and deselects.
+func _click_bare_map(screen: Vector2) -> void:
+	close_info()  # a click on the bare map closes the full panel
+	# With an own formation selected the click is an order, not a look at a country name.
+	var named := _politics.country_name_at(ground_at_screen(screen))
+	if named != &"" and _selected_own() == null:
+		open_country_card(named)
+		return
+	_politics.close_card()
+	var hex := hex_at_screen(screen)
+	if _selected_own() != null and _view.has_tile(hex):
+		_gesture_click_hex(hex)
+		return
+	select_formation(&"")
+	_sync_gesture()
+
+
+## The click on `hex` with an own formation armed: the gesture decides (issue, ask the border
+## prompt first, or refuse); the command is the existing IssueOrderCommand (rule 2).
+func _gesture_click_hex(hex: Vector2i) -> void:
+	var formation := _selected_own()
+	if formation == null:
+		return
+	if _gesture.is_blocked():  # not the viewer's turn: the command's rejection says why
+		if issue_order(hex):
 			select_formation(&"")
 		return
-	if hit == &"":
-		close_info()  # a click on the bare map closes the full panel
-		# With an own formation selected the click is an order, not a look at a country name.
-		var named := _politics.country_name_at(ground_at_screen(screen))
-		if named != &"" and _selected_own() == null:
-			open_country_card(named)
-			return
-		_politics.close_card()
-	if hit == &"" and _selected_own() != null:
-		var hex := hex_at_screen(screen)
-		if _view.has_tile(hex):
-			if issue_order(hex, _pick_posture):
+	var posture := _gesture.posture()
+	if posture == &"":
+		posture = StaffMapOrderRingModel.default_posture(_simulation.state, formation, hex)
+	var preview := StaffMapRoute.preview_in_posture(
+		_simulation.state, formation, hex, posture, _movement
+	)
+	var verdict := StaffMapRoutePreview.verdict_of(_simulation.state, formation, preview)
+	var intent := _gesture.click_hex(hex, verdict, _simulation.state.orders_left())
+	match intent["type"]:
+		StaffMapOrderGesture.ISSUE:
+			_orders.mark_fresh(formation.id)
+			if issue_order(hex, posture):
 				select_formation(&"")  # done with this one; the next click must not re-order it
-			return
-	select_formation(hit)
+			else:
+				_orders.mark_fresh(&"")
+				_gesture.fail()
+		StaffMapOrderGesture.CONFIRM_NEEDED:
+			issue_order(hex, posture)  # the border prompt opens; Enter / Esc answer it
+		StaffMapOrderGesture.REJECT:
+			_aim_key = []  # the label already says why; no command is sent
 
 
 ## A right click on the map. On a counter (TASK-151): an own one is selected and gets the ring with
@@ -2623,7 +2765,10 @@ func _update_hover() -> void:
 		_view.highlight(StaffMapView.NO_HEX)
 		return
 	_installation_card.hide()
-	_route.set_hex(c)
+	_aim_hex(c)
+	_route.set_hex(
+		StaffMapRoutePreview.OFF if _gesture.state() == StaffMapOrderGesture.State.ARMED else c
+	)
 	if _counters != null and _counters.hovered() != &"":
 		_view.highlight(c)  # the counter wins the slot (_sync_unit_strip)
 		_card.hide()
@@ -2631,6 +2776,25 @@ func _update_hover() -> void:
 		_view.highlight(c)
 		_card.show_info(_card_info(c))
 	_last_mouse = mouse
+
+
+## The cursor is over `hex`: the armed gesture aims there. The verdict is the cheap reachability
+## check, cached until the hex, posture, formation or orders left change.
+func _aim_hex(hex: Vector2i) -> void:
+	var formation := _selected_own()
+	if formation == null or _simulation == null:
+		return
+	_sync_gesture()
+	var state := _simulation.state
+	var posture := _gesture.posture()
+	if posture == &"":
+		posture = StaffMapOrderRingModel.default_posture(state, formation, hex)
+	var left := state.orders_left()
+	var key := [hex, posture, formation.id, left]
+	if key != _aim_key:
+		_aim_key = key
+		_aim_verdict = StaffMapRoutePreview.quick_verdict(state, formation, hex, posture)
+	_gesture.hover(hex, _aim_verdict, left)
 
 
 ## While the order ring is open the route preview shows its hex in the hovered posture.
@@ -2714,6 +2878,7 @@ func _clear_hover() -> void:
 		_installation_card.hide()
 	if _route != null:
 		_route.set_hex(StaffMapRoutePreview.OFF)
+	_gesture.hover(StaffMapOrderGesture.NO_HEX, {}, 0)
 	_view.highlight(StaffMapView.NO_HEX)
 	if _counters != null:
 		_counters.set_hovered(&"")
@@ -2814,7 +2979,7 @@ func _return_to_menu() -> void:
 
 ## True while a posture or target is being picked (ring open, or key 1-3 pressed).
 func is_picking() -> bool:
-	return _order_ring.is_open() or _pick_posture != &""
+	return _order_ring.is_open() or _gesture.posture() != &""
 
 
 ## Per frame: the left slot shows the formation under the cursor, else (when the cursor is on no
@@ -2829,8 +2994,8 @@ func _sync_unit_strip(modal: bool) -> void:
 		return
 	_card.hide()
 	var armed := ""
-	if _pick_posture != &"" and id == selected_formation():
-		armed = tr("POSTURE_" + String(_pick_posture).to_upper()).to_upper()
+	if _gesture.posture() != &"" and id == selected_formation():
+		armed = tr("POSTURE_" + String(_gesture.posture()).to_upper()).to_upper()
 	_unit_strip.show_unit(
 		StaffMapUnitCardModel.build(formation, viewer_player, _place_name), _palette, armed
 	)

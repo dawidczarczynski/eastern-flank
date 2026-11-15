@@ -6,6 +6,8 @@ extends RefCounted
 ## Hover is debounced: a new hex is planned at most every DEBOUNCE_MSEC, the last one always.
 
 const DEBOUNCE_MSEC := 60
+const ALT_LINE_PX := 1.3
+const ALT_OPACITY := 0.6
 const OFF := Vector2i(-100000, -100000)
 
 var _ribbon: StaffMapRouteRibbon
@@ -22,6 +24,10 @@ var _dirty := false
 var _last_msec := -DEBOUNCE_MSEC
 var _shown := {}  # the last preview() result (for tests and the panel)
 var _plans := 0
+var _flowing := false
+var _alt_ribbon: StaffMapRouteRibbon  # the thin line of the other posture (TASK-153 stage 2)
+var _alt_plans := 0
+var _extras := {}  # the last shown {ghost, conflict, alternative}
 
 
 func _init(
@@ -71,6 +77,35 @@ func set_posture(posture: StringName) -> void:
 	_request()
 
 
+## The ribbon of the alternative-posture line (thin and faint, under the main line).
+func set_alt_ribbon(ribbon: StaffMapRouteRibbon) -> void:
+	_alt_ribbon = ribbon
+	ribbon.set_thin(ALT_LINE_PX)
+
+
+## The ghost / conflict / alternative of the last shown preview ({} entries when absent).
+func extras() -> Dictionary:
+	return _extras
+
+
+func alt_plans_made() -> int:
+	return _alt_plans
+
+
+## The dashes flow while the player is aiming (TASK-153); idle previews stand still.
+func set_flowing(flowing: bool) -> void:
+	_flowing = flowing
+	if _ribbon.visible:
+		_ribbon.set_flowing(flowing)
+
+
+## Screen pixels per map unit (the flowing dashes keep their pitch on screen).
+func set_line_scale(px_per_unit: float) -> void:
+	_ribbon.set_scale_px(px_per_unit)
+	if _alt_ribbon != null:
+		_alt_ribbon.set_scale_px(px_per_unit)
+
+
 ## The posture of the last shown preview.
 func shown_posture() -> StringName:
 	return _shown_posture
@@ -111,6 +146,9 @@ func rebuild(now_msec := Time.get_ticks_msec()) -> void:
 	_shown = preview
 	if preview["route"].is_empty():
 		_ribbon.clear()
+		_extras = {}
+		if _alt_ribbon != null:
+			_alt_ribbon.clear()
 		var reason: String = preview["reason"]
 		var closed := (
 			StaffMapBorders.closed_info(_state, formation, _hex)
@@ -151,6 +189,49 @@ static func label_text(preview: Dictionary) -> String:
 	)
 
 
+## The cursor label of the aimed route: "<cost> PTS · <turns> · <stop>" and, while the side to
+## move aims, "ORDERS LEFT n / m"; with no orders left the reason instead (the click is refused).
+static func cursor_label(
+	state: OperationalState, formation: Formation, preview: Dictionary
+) -> String:
+	if formation.owner_id != state.current_player:
+		return label_text(preview)
+	if state.orders_left() <= 0:
+		return StaffMapOrderRingModel.reason_text(StaffMapOrderGesture.REASON_NO_ORDERS).to_upper()
+	return (
+		"%s · %s"
+		% [label_text(preview), StaffMapOrders.orders_left_text(state, formation.owner_id)]
+	)
+
+
+## The gesture's verdict of a full `preview` (StaffMapRoute.preview_in_posture, {} = the
+## formation's own hex): {valid, reason, incident} with `incident` = the route has border
+## warnings (the prompt must confirm). View-only reading of the planner, no rule.
+static func verdict_of(
+	state: OperationalState, formation: Formation, preview: Dictionary
+) -> Dictionary:
+	if preview.is_empty():
+		return {"valid": false, "reason": StaffMapRoute.REASON_NO_ROUTE, "incident": false}
+	var route: Array[Vector2i] = preview["route"]
+	if route.is_empty():
+		return {"valid": false, "reason": preview["reason"], "incident": false}
+	return {
+		"valid": true,
+		"reason": "",
+		"incident": not StaffMapBorders.warnings(state, formation, route).is_empty(),
+	}
+
+
+## The cheap verdict of hovering `hex` (no route search: only the reachability rules).
+static func quick_verdict(
+	state: OperationalState, formation: Formation, hex: Vector2i, posture_id: StringName
+) -> Dictionary:
+	var posture := OperationalPosture.find(posture_id)
+	var avoids := posture == null or posture.avoids_contact
+	var reason := StaffMapRoute.unreachable_reason(state, formation, hex, avoids)
+	return {"valid": reason == "", "reason": reason, "incident": false}
+
+
 static func tr_reason(reason: String) -> String:
 	return _tr_static(reason)
 
@@ -160,17 +241,53 @@ static func _tr_static(key: String) -> String:
 
 
 func _show_route(formation: Formation, preview: Dictionary) -> void:
-	var style := StaffMapRoute.style(_shown_posture, false)
-	var geometry := geometry_of(_relief, formation, preview, style)
-	_ribbon.show_lines(geometry["lines"], _marks.colour)
+	var verdict := verdict_of(_state, formation, preview)
+	_extras = {}
+	var extras := {}
+	var ghost := StaffMapOrderExtras.ghost(preview, verdict)
+	if not ghost.is_empty():
+		_extras["ghost"] = ghost
+		extras["ghost"] = {"at": _anchor(ghost["hex"]), "text": ghost["text"]}
+	var conflict := StaffMapOrderExtras.conflict(_state, formation, _hex)
+	if not conflict.is_empty():
+		_extras["conflict"] = conflict
+		extras["conflict"] = {"at": _anchor(_hex), "text": conflict["text"]}
+	_show_alternative(formation, preview)
+	var attack := StaffMapRoute.is_attack(_state, formation, _hex, _shown_posture)
+	var style := StaffMapRoute.style(_shown_posture, false, attack)
+	var geometry := geometry_of(_relief, formation, preview)
+	_ribbon.show_lines(geometry["lines"], _marks.colour, 1.0, StaffMapRouteRibbon.kind_of(style))
+	_ribbon.set_flowing(_flowing)
 	_marks.show_route(
 		geometry["dots"],
 		geometry["stops"],
 		geometry["target"],
-		label_text(preview),
+		cursor_label(_state, formation, preview),
 		geometry["before"],
 		style,
-		warning_marks(_state, _relief, formation, preview["route"])
+		warning_marks(_state, _relief, formation, preview["route"]),
+		extras
+	)
+
+
+## The thin line of the other posture (march vs advance) when its route differs; its plan runs
+## here, so it is debounced with the main one (DEBOUNCE_MSEC).
+func _show_alternative(formation: Formation, preview: Dictionary) -> void:
+	if _alt_ribbon == null:
+		return
+	_alt_plans += 1
+	var alt := StaffMapOrderExtras.alternative(
+		_state, formation, _hex, _shown_posture, preview, _movement
+	)
+	if alt.is_empty():
+		_alt_ribbon.clear()
+		return
+	_extras["alternative"] = alt
+	var attack := StaffMapRoute.is_attack(_state, formation, _hex, alt["posture"])
+	var style := StaffMapRoute.style(alt["posture"], false, attack)
+	var geometry := geometry_of(_relief, formation, alt["preview"])
+	_alt_ribbon.show_lines(
+		geometry["lines"], _marks.colour, ALT_OPACITY, StaffMapRouteRibbon.kind_of(style)
 	)
 
 
@@ -210,22 +327,17 @@ static func warning_marks(
 
 
 ## The drawable geometry of a previewed or issued route of `formation` on `relief`: {lines
-## (Array of PackedVector3Array: the smoothed line, cut into dashes for a dashed style), dots,
+## (Array of one PackedVector3Array: the smoothed line), dots,
 ## stops (Array of {at, before, after, text}), target, before (the point before the target)}.
 static func geometry_of(
-	relief: StaffMapRelief, formation: Formation, preview: Dictionary, style: Dictionary
+	relief: StaffMapRelief, formation: Formation, preview: Dictionary
 ) -> Dictionary:
 	var route: Array[Vector2i] = preview["route"]
 	var smooth := StaffMapRoute.smoothed_line(formation.coord, route)
-	var pieces: Array = [smooth]
-	if style["dashed"]:
-		pieces = StaffMapRoute.dashes(smooth, StaffMapRoute.DASH_ON, StaffMapRoute.DASH_OFF)
-	var lines: Array = []
-	for piece: PackedVector2Array in pieces:
-		var line := PackedVector3Array()
-		for p in piece:
-			line.append(relief.surface_point(p))
-		lines.append(line)
+	var line := PackedVector3Array()
+	for p in smooth:
+		line.append(relief.surface_point(p))
+	var lines: Array = [line]  # the dashes are cut in the shader, in screen pixels
 	var dots := PackedVector3Array()
 	for hex in route:
 		dots.append(_anchor_at(relief, hex))
@@ -252,6 +364,7 @@ static func geometry_of(
 		)
 	return {
 		"lines": lines,
+		"start": _anchor_at(relief, formation.coord),
 		"dots": dots,
 		"stops": stops,
 		"target": _anchor_at(relief, route[route.size() - 1]),
@@ -292,7 +405,10 @@ func _show_closed(formation: Formation, info: Dictionary) -> void:
 
 
 func _hide() -> void:
+	_extras = {}
 	_ribbon.clear()
+	if _alt_ribbon != null:
+		_alt_ribbon.clear()
 	_marks.clear()
 
 

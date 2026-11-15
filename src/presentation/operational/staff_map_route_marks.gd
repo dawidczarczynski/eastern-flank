@@ -20,6 +20,10 @@ const MIN_DOT_SPACING := 5.0
 const ARC_RADIUS := 15.0
 const ARC_SPAN := 1.1
 ## Border incident markers: gate bar half length / width, casus belli triangle, plate metrics.
+const BRACKET_HALF := 17.0  # the four corner brackets round the attacked counter (TASK-153)
+const BRACKET_LEG := 7.0
+const BRACKET_WIDTH := 2.4
+const SPEAR_GAP := 21.0  # the spear tip stands this far before the target centre
 const GATE_HALF := 11.0
 const GATE_WIDTH := 4.0
 const CB_SIZE := Vector2(26, 23)
@@ -73,7 +77,9 @@ func set_projector(project: Callable) -> void:
 
 ## Shows the planning preview: `dots` = hex centres on the relief (without the start), `stops` =
 ## Array of {at, before, after, text}, `target` = destination, `before` = the point before it,
-## `label` = the cursor label, `style` = StaffMapRoute.style(posture, false).
+## `label` = the cursor label, `style` = StaffMapRoute.style(posture, false), `extras` = {ghost
+## {at, text}, conflict {at, text}} of the aimed order (TASK-153 stage 2). An entry may also carry
+## `start` (the formation's point): an order shorter than a stub on screen is drawn as a stub.
 func show_route(
 	dots: PackedVector3Array,
 	stops: Array[Dictionary],
@@ -81,7 +87,8 @@ func show_route(
 	label: String,
 	before := Vector3.ZERO,
 	style := {},
-	warnings: Array[Dictionary] = []
+	warnings: Array[Dictionary] = [],
+	extras := {}
 ) -> void:
 	_label = label
 	show_routes(
@@ -95,6 +102,7 @@ func show_route(
 				"colour": colour,
 				"style": style if not style.is_empty() else StaffMapRoute.style(&"advance", false),
 				"warnings": warnings,
+				"extras": extras,
 			}
 		]
 	)
@@ -179,6 +187,11 @@ func warning_texts(index := 0) -> PackedStringArray:
 	return out
 
 
+## The extras ({ghost, conflict}) of route `index` (tests).
+func extras_of(index := 0) -> Dictionary:
+	return _routes[index].get("extras", {}) if index < _routes.size() else {}
+
+
 func dot_count(index := 0) -> int:
 	if index >= _routes.size():
 		return 0
@@ -220,21 +233,89 @@ func _draw_route(route: Dictionary) -> void:
 	var style: Dictionary = route["style"]
 	_alpha = style["alpha"]
 	var line_colour: Color = route["colour"]
+	var extras: Dictionary = route.get("extras", {})
+	if extras.has("ghost"):
+		var ghost: Dictionary = extras["ghost"]
+		StaffMapOrderExtrasPaint.ghost(
+			self, _project.call(ghost["at"]), ghost["text"], _c(line_colour), ink, _bar_font
+		)
+	_draw_stub(route, style, line_colour)
 	if style["dots"]:
 		_draw_dots(route["dots"], line_colour)
 	for stop: Dictionary in route["stops"]:
 		_draw_stop(stop, line_colour)
 	var target: Vector2 = _project.call(route["target"])
 	var accent: Color = amber if style["amber_target"] else line_colour
-	draw_circle(target, TARGET_RADIUS + 2.0, _c(ink, 0.85))
-	draw_arc(target, TARGET_RADIUS, 0.0, TAU, 24, _c(accent), 2.0, true)
-	draw_circle(target, 2.6, _c(accent))
+	if style.get("rail", false):
+		accent = alert
+		_draw_spear_and_brackets(target, _project.call(route["before"]), line_colour)
+	else:
+		draw_circle(target, TARGET_RADIUS + 2.0, _c(ink, 0.85))
+		draw_arc(target, TARGET_RADIUS, 0.0, TAU, 24, _c(accent), 2.0, true)
+		draw_circle(target, 2.6, _c(accent))
 	if style["defend_arc"]:
 		_draw_defence_arc(target, _project.call(route["before"]), line_colour)
 	if route["label"] != "":
 		_label = route["label"]
 		_draw_label(target, accent)
 	_draw_warnings(route.get("warnings", []), style["amber_target"])
+	if extras.has("conflict"):
+		StaffMapOrderExtrasPaint.conflict(
+			self,
+			_project.call(extras["conflict"]["at"]),
+			extras["conflict"]["text"],
+			amber,
+			ink,
+			panel,
+			text_colour,
+			_bar_font,
+			get_viewport_rect().size if is_inside_tree() else size_fallback()
+		)
+
+
+## Far zoom: an order shorter than its counter on screen still shows as a stub with a head.
+func _draw_stub(route: Dictionary, style: Dictionary, line_colour: Color) -> void:
+	if not route.has("start"):
+		return
+	var stub := StaffMapOrderExtras.stub(
+		_project.call(route["start"]), _project.call(route["target"])
+	)
+	if stub.is_empty():
+		return
+	var colour := alert if style.get("rail", false) else line_colour
+	StaffMapOrderExtrasPaint.stub(self, stub, _c(colour), ink)
+
+
+## The attack mark (docs/design/operational_map/order_lines.html D3): a spear head in front of the
+## target pointing along the line, and four corner brackets in `alert` round the attacked counter.
+func _draw_spear_and_brackets(target: Vector2, before: Vector2, line_colour: Color) -> void:
+	var along := target - before
+	along = along.normalized() if along.length() > 0.5 else Vector2.UP
+	var side := Vector2(-along.y, along.x)
+	var tip := target - along * SPEAR_GAP
+	var head := PackedVector2Array(
+		[
+			tip - along * 15.0 - side * 9.0,
+			tip + along * 2.0,
+			tip - along * 15.0 + side * 9.0,
+			tip - along * 10.0,
+		]
+	)
+	draw_colored_polygon(head, _c(line_colour))
+	var outline := head.duplicate()
+	outline.append(head[0])
+	draw_polyline(outline, _c(ink, 0.9), 1.0, true)
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var at := target + corner * BRACKET_HALF
+		var bracket := PackedVector2Array(
+			[
+				at - Vector2(corner.x * BRACKET_LEG, 0.0),
+				at,
+				at - Vector2(0.0, corner.y * BRACKET_LEG),
+			]
+		)
+		draw_polyline(bracket, _c(ink, 0.8), BRACKET_WIDTH + 2.0, true)
+		draw_polyline(bracket, _c(alert), BRACKET_WIDTH, true)
 
 
 ## Border incidents (design border_warnings.html): a sanctuary breach is a 4 px gate bar across the

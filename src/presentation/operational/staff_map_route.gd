@@ -16,6 +16,8 @@ const ISSUED_ALPHA := 0.82
 ## Dash and gap of a march line, in hex units.
 const DASH_ON := 0.28
 const DASH_OFF := 0.18
+## Douglas-Peucker tolerance of the route polyline before smoothing, in hex units (TASK-153).
+const SIMPLIFY_TOLERANCE := 0.35
 
 
 ## Chaikin corner cutting: every pass replaces each segment by points at 1/4 and 3/4 of it and
@@ -133,7 +135,44 @@ static func smoothed_line(start: Vector2i, route: Array[Vector2i]) -> PackedVect
 	points.append(centre(start))
 	for hex in route:
 		points.append(centre(hex))
-	return chaikin(points)
+	return chaikin(simplify(points, SIMPLIFY_TOLERANCE))
+
+
+## Douglas-Peucker: `points` without those closer than `tolerance` to the chord of their
+## neighbours; the first and last point always stay.
+static func simplify(points: PackedVector2Array, tolerance: float) -> PackedVector2Array:
+	if points.size() < 3:
+		return points
+	var keep := PackedByteArray()
+	keep.resize(points.size())
+	keep[0] = 1
+	keep[points.size() - 1] = 1
+	var pending: Array[Vector2i] = [Vector2i(0, points.size() - 1)]
+	while not pending.is_empty():
+		var span: Vector2i = pending.pop_back()
+		var worst := -1.0
+		var index := -1
+		for i in range(span.x + 1, span.y):
+			var d := _distance_to_chord(points[i], points[span.x], points[span.y])
+			if d > worst:
+				worst = d
+				index = i
+		if index >= 0 and worst > tolerance:
+			keep[index] = 1
+			pending.append(Vector2i(span.x, index))
+			pending.append(Vector2i(index, span.y))
+	var out := PackedVector2Array()
+	for i in points.size():
+		if keep[i] == 1:
+			out.append(points[i])
+	return out
+
+
+static func _distance_to_chord(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var chord := b - a
+	if chord.length_squared() < 0.000001:
+		return p.distance_to(a)
+	return absf(chord.cross(p - a)) / chord.length()
 
 
 ## Centre of hex `c` in map units (the xz plane of Hex.to_world at unit size).
@@ -173,15 +212,30 @@ static func preview_in_posture(
 
 ## How a route is drawn. Posture = line style (march dashed, advance solid, defend ends in a
 ## defence arc); a planning preview is opaque with a dot on every hex and an amber target, an
-## issued order is ISSUED_ALPHA without dots (docs/design/operational_map "Orders").
-static func style(posture_id: StringName, issued: bool) -> Dictionary:
+## issued order is ISSUED_ALPHA without dots (docs/design/operational_map "Orders"). `attack` (the
+## target hex holds an enemy) adds the rail, the spear head and the brackets and drops the dashes
+## (TASK-153); march / advance / defend keep the TASK-092d looks.
+static func style(posture_id: StringName, issued: bool, attack := false) -> Dictionary:
 	return {
-		"dashed": posture_id == &"march",
+		"dashed": posture_id == &"march" and not attack,
+		"rail": attack,
 		"defend_arc": posture_id == &"defend",
 		"alpha": ISSUED_ALPHA if issued else 1.0,
 		"dots": not issued,
 		"amber_target": not issued,
 	}
+
+
+## True when an order of `formation` to `destination` in `posture_id` is an attack: an enemy
+## formation holds the hex and the posture does not avoid contact (view-only reading).
+static func is_attack(
+	state: OperationalState, formation: Formation, destination: Vector2i, posture_id: StringName
+) -> bool:
+	var posture := OperationalPosture.find(posture_id)
+	if posture == null or posture.avoids_contact:
+		return false
+	var other := state.formation_at(destination)
+	return other != null and other.owner_id != formation.owner_id
 
 
 ## `points` cut into dashes: `on` units drawn, `off` units skipped, along the line (units of the

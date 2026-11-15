@@ -17,6 +17,7 @@ static func segments_mesh(segments: PackedVector3Array) -> ArrayMesh:
 
 
 ## Mesh of `lines` (Array of PackedVector3Array): a quad per segment, joints mitred in the shader.
+## UV.x = side (+1 / -1), UV.y = length along the line (map units, for the shader's dashes).
 static func polylines_mesh(lines: Array) -> ArrayMesh:
 	var vertices := PackedVector3Array()
 	var previous := PackedFloat32Array()
@@ -25,6 +26,9 @@ static func polylines_mesh(lines: Array) -> ArrayMesh:
 	for raw: PackedVector3Array in lines:
 		var line := _without_repeats(raw)
 		var n := line.size()
+		var length_at := PackedFloat32Array([0.0])  # length along the line at each point
+		for k in range(1, n):
+			length_at.append(length_at[k - 1] + line[k - 1].distance_to(line[k]))
 		for i in n - 1:
 			# Quad (i, +) (i, -) (i+1, +) / (i+1, +) (i, -) (i+1, -).
 			for corner: Array in [
@@ -36,7 +40,7 @@ static func polylines_mesh(lines: Array) -> ArrayMesh:
 				vertices.append(line[k])
 				previous.append_array([before.x, before.y, before.z])
 				following.append_array([after.x, after.y, after.z])
-				uvs.append(Vector2(corner[1], 0.0))
+				uvs.append(Vector2(corner[1], length_at[k]))
 	var mesh := ArrayMesh.new()
 	if vertices.is_empty():
 		return mesh

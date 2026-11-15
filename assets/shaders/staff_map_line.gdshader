@@ -17,7 +17,19 @@ uniform float opacity = 1.0;
 // environment's bloom turns into a glow; 1.0 = the plain colour.
 uniform float glow = 1.0;
 
+// Dashes in screen pixels (TASK-153): UV.y carries the length along the line in map units, so the
+// pitch is `dash_on_px + dash_off_px` pixels under any zoom; `flow_px` slides them along the line
+// (animated by the ribbon only while aiming). dash_on_px = 0 draws a solid line.
+uniform float dash_on_px = 0.0;
+uniform float dash_off_px = 0.0;
+uniform float px_per_unit = 1.0;
+uniform float flow_px = 0.0;
+// Hollow core (the attack rail): the centre band of this width in pixels is left transparent;
+// 0 = a plain line.
+uniform float hollow_px = 0.0;
+
 varying float across;  // signed distance from the centre line, pixels
+varying float along;   // length along the line, map units
 
 vec2 to_screen(vec4 clip, vec2 half_size) {
 	return clip.xy / clip.w * half_size;
@@ -51,12 +63,21 @@ void vertex() {
 		offset += dir_in * half_w;
 	}
 	across = UV.x * outer;
+	along = UV.y;
 	POSITION = here + vec4(offset / half_size * here.w, 0.0, 0.0);
 }
 
 void fragment() {
 	float half_w = width_px * 0.5;
 	float coverage = clamp(half_w + 0.5 - abs(across), 0.0, 1.0);
+	if (dash_on_px > 0.0) {
+		float pitch = dash_on_px + dash_off_px;
+		float phase = mod(along * px_per_unit - flow_px, pitch);
+		coverage *= clamp(phase + 0.5, 0.0, 1.0) * clamp(dash_on_px - phase + 0.5, 0.0, 1.0);
+	}
+	if (hollow_px > 0.0) {
+		coverage *= clamp(abs(across) - hollow_px * 0.5 + 0.5, 0.0, 1.0);
+	}
 	float peak = max(max(line_color.r, line_color.g), max(line_color.b, 0.001));
 	ALBEDO = glow > 1.0 ? line_color.rgb * (glow / peak) : line_color.rgb;
 	ALPHA = line_color.a * opacity * coverage;

@@ -783,6 +783,7 @@ CALL FIRE SUPPORT,CALL FIRE SUPPORT,WEZWIJ WSPARCIE OGNIOWE
 Select a visible enemy company,Select a visible enemy company,Wybierz widoczną kompanię wroga
 TIP_FIRE_SUPPORT,"Calls an off-map artillery or air mission on a visible enemy company. One mission per turn, no command point, no counter-fire.","Wzywa misję artylerii lub lotnictwa na widoczną kompanię wroga. Jedna misja na turę, bez punktu dowodzenia, bez ognia zaporowego wroga."
 ORDERS LEFT %d / %d,ORDERS LEFT %d / %d,POZOSTAŁE ROZKAZY %d / %d
+%s IS ORDERED HERE – THE SECOND TO ARRIVE IS HALTED,%s IS ORDERED HERE – THE SECOND TO ARRIVE IS HALTED,"%s MA TU ROZKAZ – DRUGI, KTÓRY DOTRZE, ZOSTANIE ZATRZYMANY"
 ORDER_REJECTED_NO_ORDERS_LEFT,No orders left this turn.,Brak rozkazów w tej turze.
 Fire support battle,Fire support battle,Bitwa z wsparciem ogniowym
 HEALTH,HEALTH,ZDROWIE

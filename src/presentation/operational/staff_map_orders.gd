@@ -11,6 +11,8 @@ var _relief: StaffMapRelief
 var _palette: StaffMapPalette
 var _movement: OperationalMovement
 var _shown: Array[StringName] = []  # formation ids with a drawn route, in draw order
+var _fresh_ribbon: StaffMapRouteRibbon  # the order just issued settles here (TASK-153)
+var _fresh_id: StringName = &""
 
 
 func _init(
@@ -47,10 +49,40 @@ static func ordered_count(state: OperationalState, player: int) -> int:
 	return n
 
 
+## The ribbon of the order issued last: it is drawn at full opacity and settles to the issued one.
+func set_fresh_ribbon(ribbon: StaffMapRouteRibbon) -> void:
+	_fresh_ribbon = ribbon
+
+
+## The next `refresh` draws the order of `formation_id` on the fresh ribbon (&"" = none).
+func mark_fresh(formation_id: StringName) -> void:
+	_fresh_id = formation_id
+
+
+func has_fresh() -> bool:
+	return _fresh_id != &""
+
+
+## Settle progress 0 … 1: the fresh line goes from full opacity to the issued one; at 1 it joins the
+## other orders again.
+func settle(progress: float) -> void:
+	if _fresh_ribbon == null or _fresh_id == &"":
+		return
+	_fresh_ribbon.set_opacity(lerpf(1.0, StaffMapRoute.ISSUED_ALPHA, clampf(progress, 0.0, 1.0)))
+
+
+## Screen pixels per map unit for the dash pitch.
+func set_line_scale(px_per_unit: float) -> void:
+	_ribbon.set_scale_px(px_per_unit)
+	if _fresh_ribbon != null:
+		_fresh_ribbon.set_scale_px(px_per_unit)
+
+
 ## Redraws the orders of `viewer`'s formations from `state`.
 func refresh(state: OperationalState, viewer: int) -> void:
 	_shown = []
-	var lines: Array = []
+	var groups := {}
+	var fresh_groups := {}
 	var entries: Array[Dictionary] = []
 	var colour := StaffMapFormations.side_colour(_palette, viewer).lightened(0.3)
 	var opacity := 1.0
@@ -62,15 +94,24 @@ func refresh(state: OperationalState, viewer: int) -> void:
 		)
 		if preview.is_empty() or preview["route"].is_empty():
 			continue  # the route vanished (blocked since): nothing to draw
-		var style := StaffMapRoute.style(formation.posture, true)
-		var geometry := StaffMapRoutePreview.geometry_of(_relief, formation, preview, style)
-		lines.append_array(geometry["lines"])
+		var attack := StaffMapRoute.is_attack(
+			state, formation, formation.order.destination, formation.posture
+		)
+		var style := StaffMapRoute.style(formation.posture, true, attack)
+		var geometry := StaffMapRoutePreview.geometry_of(_relief, formation, preview)
+		var is_fresh := formation.id == _fresh_id and _fresh_ribbon != null
+		var target_groups := fresh_groups if is_fresh else groups
+		var kind := StaffMapRouteRibbon.kind_of(style)
+		if not target_groups.has(kind):
+			target_groups[kind] = []
+		target_groups[kind].append_array(geometry["lines"])
 		opacity = style["alpha"]
 		_shown.append(formation.id)
 		(
 			entries
 			. append(
 				{
+					"start": geometry["start"],
 					"dots": geometry["dots"],
 					"stops": geometry["stops"],
 					"target": geometry["target"],
@@ -85,9 +126,19 @@ func refresh(state: OperationalState, viewer: int) -> void:
 		)
 	if entries.is_empty():
 		_ribbon.clear()
+		if _fresh_ribbon != null:
+			_fresh_ribbon.clear()
 		_marks.clear()
 		return
-	_ribbon.show_lines(lines, colour, opacity)
+	if groups.is_empty():
+		_ribbon.clear()
+	else:
+		_ribbon.show_groups(groups, colour, opacity)
+	if _fresh_ribbon != null:
+		if fresh_groups.is_empty():
+			_fresh_ribbon.clear()
+		else:
+			_fresh_ribbon.show_groups(fresh_groups, colour, 1.0)
 	_marks.show_routes(entries)
 
 
