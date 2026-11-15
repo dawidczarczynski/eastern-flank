@@ -157,37 +157,23 @@ void fragment() {
 		colour = mix(colour, marsh_color.rgb, row * dash * 0.85 * marsh);
 	}
 	colour = mix(colour, water_color.rgb, wet);
-	// Zoomed out, ponds and rivers in the water mask are specks: only the sea and the larger
-	// lakes keep a (glowing) shore - the mean water share within ~8 screen px must be high.
-	float shore_keep = 1.0;
-	if (far > 0.001) {
-		float reach = 8.0 / texel_px;
-		vec2 wp = uv;
-		vec2 wstep = reach / vec2(size);
-		float share = water;
-		for (int k = 0; k < 8; k++) {
-			float a = float(k) * 0.785398;
-			vec2 d = vec2(cos(a), sin(a)) * wstep;
-			share += texture(water_tex, wp + d).r + texture(water_tex, wp + d * 0.5).r;
-		}
-		share /= 17.0;
-		shore_keep = mix(1.0, smoothstep(0.3, 0.45, share), far);
-	}
-	float shore = contour(water, edge_px) * shore_color.a * shore_keep;
-	// The sea and big lakes glow; small lakes keep a dim plain shore. "Big" = the mean water share
-	// within 6 km (24 texels, zoom independent) is high.
+	// Only the sea has a shore line (and glow); lakes and ponds are just dark fill, no outline.
+	// "Sea" = the mean water share within 10-40 km (160 texels, zoom independent) is high.
+	float shore = contour(water, edge_px) * shore_color.a;
 	float big_water = 0.0;
 	if (shore > 0.01) {
 		vec2 ws = 1.0 / vec2(textureSize(water_tex, 0));
-		float share24 = water;
+		float total = water;
 		for (int k = 0; k < 8; k++) {
 			float ang = float(k) * 0.785398;
 			vec2 dir = vec2(cos(ang), sin(ang)) * ws;
-			share24 += texture(water_tex, uv + dir * 12.0).r + texture(water_tex, uv + dir * 24.0).r;
+			total += texture(water_tex, uv + dir * 40.0).r + texture(water_tex, uv + dir * 80.0).r
+				+ texture(water_tex, uv + dir * 160.0).r;
 		}
-		big_water = smoothstep(0.22, 0.4, share24 / 17.0);
+		big_water = smoothstep(0.36, 0.46, total / 25.0);
 	}
-	colour = mix(colour, shore_color.rgb * mix(0.55, 1.0, big_water), shore);
+	shore *= big_water;
+	colour = mix(colour, shore_color.rgb, shore);
 	if (politics_on > 0.5) {
 		vec4 share = texture(country_tex, uv);
 		float land = 1.0 - wet;
@@ -202,5 +188,7 @@ void fragment() {
 	}
 	float shore_max = max(max(shore_color.r, shore_color.g), max(shore_color.b, 0.001));
 	vec3 hot = shore_color.rgb * (shore_peak / shore_max);
-	ALBEDO = shore_peak > 1.0 ? mix(colour, hot, shore * big_water) : colour;
+	// The blend above runs in sRGB; the framebuffer wants linear, so dark palette colours look as
+	// dark as the palette says (the lines' source_color colours are converted the same way).
+	ALBEDO = to_linear(shore_peak > 1.0 ? mix(colour, hot, shore) : colour);
 }
