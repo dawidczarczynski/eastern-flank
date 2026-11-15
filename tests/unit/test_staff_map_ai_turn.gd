@@ -52,3 +52,18 @@ func test_no_ai_turn_while_a_battle_is_pending_or_in_hot_seat() -> void:
 	_map.ai_side = -1
 	assert_false(_map.play_ai_turn_if_due(), "hot-seat")
 	assert_eq(_calls.size(), 0)
+
+
+func test_ai_waits_for_the_battle_result_notice_to_be_closed() -> void:
+	_calls.clear()
+	var state := _map.simulation().state
+	_map.ai_turn = _stub
+	_map.ai_side = 1 - _map.viewer_player
+	state.turn += 5
+	state.current_player = _map.ai_side
+	_map.result_notice().visible = true
+	assert_false(_map.play_ai_turn_if_due(), "the summary is still open")
+	assert_eq(_calls.size(), 0)
+	_map.result_notice().visible = false
+	assert_true(_map.play_ai_turn_if_due(), "Continue clicked")
+	assert_eq(_calls.size(), 1)

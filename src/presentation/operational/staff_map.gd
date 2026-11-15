@@ -1004,13 +1004,16 @@ func turn_banner() -> TurnBanner:
 	return _banner
 
 
-## Lets the AI play its side once per turn (TASK-102c), when it is to move, no battle waits and
-## no slide is running; the usual end-of-turn marks (report, slide, strike reports) follow from
-## the events. It never plays or auto-resolves a battle (the notice asks the human only).
+## Lets the AI play its side once per turn (TASK-102c), when it is to move, no battle waits, no
+## slide is running and no battle result notice is open (the human clicks Continue first); the
+## usual end-of-turn marks (report, slide, strike reports) follow from the events. It never plays
+## or auto-resolves a battle (the notice asks the human only).
 ## True when the AI turn ran.
 func play_ai_turn_if_due() -> bool:
 	if _simulation == null or ai_side < 0 or is_sliding():
 		return false
+	if _result_notice != null and _result_notice.visible:
+		return false  # the AI moves only after the human clicks Continue on the battle summary
 	var state := _simulation.state
 	if state.current_player != ai_side or not state.result.is_empty():
 		return false
