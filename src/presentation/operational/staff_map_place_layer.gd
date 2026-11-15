@@ -8,7 +8,7 @@ const FONT_FILE := "IBMPlexSansCondensed-SemiBold"
 const TEXT := Color("fbfdf4")
 ## Label colour by rank (city, town, village): only the big places are white, the smaller ones are
 ## greyed so the map stays calm.
-const TEXT_BY_RANK: Array[Color] = [Color("fbfdf4"), Color("b9bfb2"), Color("8f968a")]
+const TEXT_BY_RANK: Array[Color] = [Color("fbfdf4"), Color("8e9588"), Color("646b60")]
 const LATIN_SCALE := 0.85
 const HALO := Color("111411")
 const HALO_PX := 4
