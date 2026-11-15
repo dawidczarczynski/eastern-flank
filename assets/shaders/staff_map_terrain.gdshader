@@ -174,7 +174,20 @@ void fragment() {
 		shore_keep = mix(1.0, smoothstep(0.3, 0.45, share), far);
 	}
 	float shore = contour(water, edge_px) * shore_color.a * shore_keep;
-	colour = mix(colour, shore_color.rgb, shore);
+	// The sea and big lakes glow; small lakes keep a dim plain shore. "Big" = the mean water share
+	// within 6 km (24 texels, zoom independent) is high.
+	float big_water = 0.0;
+	if (shore > 0.01) {
+		vec2 ws = 1.0 / vec2(textureSize(water_tex, 0));
+		float share24 = water;
+		for (int k = 0; k < 8; k++) {
+			float ang = float(k) * 0.785398;
+			vec2 dir = vec2(cos(ang), sin(ang)) * ws;
+			share24 += texture(water_tex, uv + dir * 12.0).r + texture(water_tex, uv + dir * 24.0).r;
+		}
+		big_water = smoothstep(0.22, 0.4, share24 / 17.0);
+	}
+	colour = mix(colour, shore_color.rgb * mix(0.55, 1.0, big_water), shore);
 	if (politics_on > 0.5) {
 		vec4 share = texture(country_tex, uv);
 		float land = 1.0 - wet;
@@ -189,5 +202,5 @@ void fragment() {
 	}
 	float shore_max = max(max(shore_color.r, shore_color.g), max(shore_color.b, 0.001));
 	vec3 hot = shore_color.rgb * (shore_peak / shore_max);
-	ALBEDO = shore_peak > 1.0 ? mix(colour, hot, shore) : colour;
+	ALBEDO = shore_peak > 1.0 ? mix(colour, hot, shore * big_water) : colour;
 }

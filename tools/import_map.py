@@ -771,6 +771,63 @@ def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, L
     return [(kind, points) for kind, _, points in lines]
 
 
+ROAD_CLASS_BY_HIGHWAY = {"motorway": 1, "trunk": 1, "primary": 2}  # drawn road class; the rest (secondary) is 3
+RIVER_MAJOR_M = 80000.0  # a named river with at least this much length on the map is class 2 (major), named = 1
+LINE_TOLERANCE = 0.04  # Douglas-Peucker tolerance of the drawn road / river lines, hex units (~115 m at 5 km hexes)
+
+
+def osm_line_ways(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, int, Dict[str, str], list]]:
+    """(ROAD or RIVER, way id, tags, [(lat, lon), ...]) of every road and river way, like `osm_lines` but keeping what
+    the drawn lines need (the road class, the river name)."""
+    nodes: Dict[int, Tuple[float, float]] = {}
+    ways = []
+    for el in osm.get("elements", []):
+        if el.get("type") == "node":
+            nodes[el["id"]] = (el["lat"], el["lon"])
+        elif el.get("type") == "way":
+            ways.append(el)
+    found = []
+    for way in ways:
+        tags = way.get("tags", {})
+        kind = line_kind(tags, profile)
+        points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
+        if kind and len(points) >= 2:
+            found.append((kind, way["id"], tags, points))
+    found.sort(key=lambda line: line[:2])
+    return found
+
+
+def drawn_lines(layout: "HexLayout", ways: Dict[int, Tuple[Dict[str, str], list]],
+                kind: str) -> Tuple[List[list], List[int]]:  # fmt: skip
+    """The real roads (`kind` ROAD: class 1 = motorway / trunk, 2 = primary, 3 = secondary) or rivers (RIVER: 2 = a named
+    river with >= RIVER_MAJOR_M of ways on the map, 1 = named, 0 = the rest) for drawing: way id -> (tags, projected
+    points), clipped, chained and simplified per class like the borders (`border_polylines`). Returns the lines in
+    world units and their classes, ordered by class, then like `border_polylines`."""
+    by_class: Dict[int, Dict[int, list]] = {}
+    if kind == ROAD:
+        for way_id, (tags, line) in ways.items():
+            highway = tags.get("highway", "")
+            if highway.endswith("_link"):
+                highway = highway[: -len("_link")]
+            by_class.setdefault(ROAD_CLASS_BY_HIGHWAY.get(highway, 3), {})[way_id] = line
+    else:
+        length: Dict[str, float] = {}
+        for tags, line in ways.values():
+            name = tags.get("name", "")
+            length[name] = length.get(name, 0.0) + sum(math.dist(a, b) for a, b in zip(line, line[1:]))
+        for way_id, (tags, line) in ways.items():
+            name = tags.get("name", "")
+            cls = 0 if not name else (2 if length[name] >= RIVER_MAJOR_M else 1)
+            by_class.setdefault(cls, {})[way_id] = line
+    lines: List[list] = []
+    classes: List[int] = []
+    for cls in sorted(by_class):
+        for line in border_polylines(layout, by_class[cls], LINE_TOLERANCE):
+            lines.append(line)
+            classes.append(cls)
+    return lines, classes
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # Hex grid in projected metres.
 
@@ -1488,6 +1545,7 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     if len(country_seeds) > 10:
         raise ValueError("at most 10 countries (one digit each in country_rows)")
     border_lines: Dict[int, List[Tuple[float, float]]] = {}
+    line_ways: Dict[str, Dict[int, tuple]] = {ROAD: {}, RIVER: {}}  # operational: the ways drawn as real lines
     for index, source in enumerate(sources):
         if len(sources) > 1:
             print("OSM tile %d/%d %s" % (index + 1, len(sources), getattr(source, "name", "")), file=sys.stderr)
@@ -1498,6 +1556,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         for kind, line in osm_lines(data, profile):
             links[kind].update(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m))
         if operational:
+            for kind, way_id, tags, line in osm_line_ways(data, profile):
+                line_ways[kind][way_id] = (tags, [to_utm(lat, lon, zone) for lat, lon in line])
             for way_id, line in osm_coastlines(data):
                 coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
         if country_seeds:
@@ -1611,7 +1671,11 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     if heights is not None:
         layers = graphic_layers(cover, heights, min_e, min_n, step, settings.canopy, settings.relief_z,
                                 settings.relief_step)  # fmt: skip
-    return {"tiles": tiles, "reference_m": low, "vertical_scale": scale, "sea_points": sea_points,
+    lines_out = {}
+    if operational:
+        for kind, key in ((ROAD, "road"), (RIVER, "river")):
+            lines_out[key] = drawn_lines(layout, line_ways[kind], kind)
+    return {"tiles": tiles, "reference_m": low, "drawn_lines": lines_out, "vertical_scale": scale, "sea_points": sea_points,
             "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn, "layers": layers,
             "places": select_places(found_places, layout, zone)}  # fmt: skip
 
@@ -1930,6 +1994,16 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
             lines[at + 2:at + 2] = ["border_lines = Array[PackedVector2Array]([%s])" % ", ".join(
                 "PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(x, 3), _f(z, 3)) for x, z in line)
                 for line in result["border_lines"])]  # fmt: skip
+    for key in ("road", "river"):
+        drawn_key = result.get("drawn_lines", {}).get(key)
+        if drawn_key and drawn_key[0]:
+            at = lines.index("elevation_m = PackedFloat32Array(%s)" % ", ".join(metres))
+            lines[at:at] = [
+                "%s_lines = Array[PackedVector2Array]([%s])" % (key, ", ".join(
+                    "PackedVector2Array(%s)" % ", ".join("%s, %s" % (_f(x, 3), _f(z, 3)) for x, z in line)
+                    for line in drawn_key[0])),
+                "%s_line_classes = PackedInt32Array(%s)" % (key, ", ".join(str(c) for c in drawn_key[1])),
+            ]  # fmt: skip
     if result.get("places"):
         at = lines.index("elevation_m = PackedFloat32Array(%s)" % ", ".join(metres))
         places = result["places"]

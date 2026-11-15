@@ -42,6 +42,9 @@ var _gain := 1.0
 var _gain_from := 1.0
 var _gain_to := 1.0
 
+## The imported map (real road / river lines), null for a bare grid.
+var _map: ImportedMap
+
 ## Fully covered rectangle: ground and lines are clipped to it so the left / right edge is straight.
 var _edge_rect := Rect2()
 
@@ -59,6 +62,7 @@ func build(
 ) -> void:
 	_grid = grid
 	_palette = palette
+	_map = map
 	var unit_m := hex_spacing_m / Hex.SQRT3
 	_relief = StaffMapRelief.new(
 		grid,
@@ -364,25 +368,16 @@ func _build_edges(borders: Dictionary) -> void:
 
 func _build_strokes(km_per_step: float) -> void:
 	var rivers := {"RiverMinor": [], "RiverNamed": [], "RiverMajor": []}
-	for stroke in StaffMapLayers.strokes(_grid, true, _palette.smoothing):
-		var km: float = stroke["steps"] * km_per_step
-		var key := (
-			"RiverMajor"
-			if km >= _palette.river_major_min_km
-			else ("RiverNamed" if km >= _palette.river_named_min_km else "RiverMinor")
-		)
-		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
-			rivers[key].append(_drape_line(piece))
 	var roads := {"RoadT3": [], "RoadT2": [], "RoadT1": []}
-	for stroke in StaffMapLayers.strokes(_grid, false, _palette.smoothing):
-		var km: float = stroke["steps"] * km_per_step
-		var key := (
-			"RoadT1"
-			if km >= _palette.road_t1_min_km
-			else ("RoadT2" if km >= _palette.road_t2_min_km else "RoadT3")
-		)
-		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
-			roads[key].append(_drape_line(piece))
+	# Real OSM lines (world units) when the map carries them; otherwise chains of hex links.
+	if _map != null and not _map.river_lines.is_empty():
+		_add_real_rivers(rivers)
+	else:
+		_add_link_rivers(rivers, km_per_step)
+	if _map != null and not _map.road_lines.is_empty():
+		_add_real_roads(roads)
+	else:
+		_add_link_roads(roads, km_per_step)
 	var p := _palette
 	_add_layer(
 		"RiverMinor", _lines_mesh(rivers["RiverMinor"]), p.river_minor, p.river_minor_widths, 0.0, 4
@@ -410,6 +405,47 @@ func _build_strokes(km_per_step: float) -> void:
 	var t1 := _lines_mesh(roads["RoadT1"])
 	_add_layer("RoadT1Casing", t1, p.road_t1_casing, p.road_t1_widths, p.road_t1_casing_px, 9)
 	_add_layer("RoadT1", t1, p.road_t1, p.road_t1_widths, 0.0, 10, _glow(p.glow_road_t1))
+
+
+func _add_real_rivers(rivers: Dictionary) -> void:
+	var keys := ["RiverMinor", "RiverNamed", "RiverMajor"]
+	for i in _map.river_lines.size():
+		var key: String = keys[clampi(_map.river_line_classes[i], 0, 2)]
+		for piece in StaffMapLayers.clip_polyline(_map.river_lines[i], _edge_rect):
+			rivers[key].append(_drape_line(piece))
+
+
+func _add_real_roads(roads: Dictionary) -> void:
+	var roads_keys := ["RoadT1", "RoadT2", "RoadT3"]
+	for i in _map.road_lines.size():
+		var key: String = roads_keys[clampi(_map.road_line_classes[i], 1, 3) - 1]
+		for piece in StaffMapLayers.clip_polyline(_map.road_lines[i], _edge_rect):
+			roads[key].append(_drape_line(piece))
+
+
+## Fallback without real lines: chains of hex links, classed by their length.
+func _add_link_rivers(rivers: Dictionary, km_per_step: float) -> void:
+	for stroke in StaffMapLayers.strokes(_grid, true, _palette.smoothing):
+		var km: float = stroke["steps"] * km_per_step
+		var key := (
+			"RiverMajor"
+			if km >= _palette.river_major_min_km
+			else ("RiverNamed" if km >= _palette.river_named_min_km else "RiverMinor")
+		)
+		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
+			rivers[key].append(_drape_line(piece))
+
+
+func _add_link_roads(roads: Dictionary, km_per_step: float) -> void:
+	for stroke in StaffMapLayers.strokes(_grid, false, _palette.smoothing):
+		var km: float = stroke["steps"] * km_per_step
+		var key := (
+			"RoadT1"
+			if km >= _palette.road_t1_min_km
+			else ("RoadT2" if km >= _palette.road_t2_min_km else "RoadT3")
+		)
+		for piece in StaffMapLayers.clip_polyline(stroke["points"], _edge_rect):
+			roads[key].append(_drape_line(piece))
 
 
 ## The HDR gain of a glowing line class: 1.0 (plain) when the glow look is off.

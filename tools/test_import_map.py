@@ -1190,6 +1190,15 @@ class BorderPolylinesTest(unittest.TestCase):
         self.assertEqual(lines, self._lines(dict(reversed(list(ways.items())))))
         self.assertEqual([round(line[0][0]) for line in lines], [1, 6])
 
+    def test_the_tres_has_real_road_and_river_lines_with_classes_and_tactical_has_none(self) -> None:
+        text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
+        for key in ("road", "river"):
+            self.assertIn("\n%s_lines = Array[PackedVector2Array]([PackedVector2Array(" % key, text)
+            self.assertIn("\n%s_line_classes = PackedInt32Array(" % key, text)
+            self.assertLess(text.index("border_lines ="), text.index("%s_lines =" % key))
+            self.assertLess(text.index("%s_line_classes =" % key), text.index("elevation_m ="))
+        self.assertNotIn("road_lines", SAMPLE_MAP.read_text(encoding="utf-8"))
+
     def test_the_tres_has_border_lines_in_world_units_and_tactical_has_none(self) -> None:
         text = SAMPLE_OP_MAP.read_text(encoding="utf-8")
         self.assertIn("\nborder_lines = Array[PackedVector2Array]([PackedVector2Array(", text)
