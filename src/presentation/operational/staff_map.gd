@@ -143,6 +143,7 @@ var _strike: StaffMapStrikeHud  # strike mode, trail (TASK-097b)
 var _decision_lines: Array[String] = []  # log of the decisions since the last report
 var _contact_debug: StaffMapContactDebug  # F9 contact-map preview, --debug only (TASK-094b)
 var _report: StaffMapTurnReport
+var _left_column_y := 130.0
 var _contacts: StaffMapContacts
 var _result_notice: StaffMapBattleResult
 var _resumed := false  # the simulation came back from a played battle (Session)
@@ -251,6 +252,7 @@ func _process(delta: float) -> void:
 	_sync_unit_strip(modal)
 	_sync_action_bar()
 	_sync_insets()
+	_sync_left_column()
 	_tick_journal(delta)
 	advance_slide(delta)
 	play_ai_turn_if_due()
@@ -1761,13 +1763,36 @@ func _place_result_notice() -> void:
 	)
 
 
+## Top of the left column: 130 px, or under the strike report card / chip while one shows.
+func _left_column_top() -> float:
+	var top := 130.0
+	if _strike != null:
+		var reports := _strike.reports()
+		for node: Control in [reports.card(), reports.chip()]:
+			if node.visible:
+				top = maxf(top, node.position.y + node.size.y + 12.0)
+	return top
+
+
+## The turn report and the queue follow the strike report as it comes and goes (no overlap).
+func _sync_left_column() -> void:
+	var top := _left_column_top()
+	if is_equal_approx(top, _left_column_y):
+		return
+	_left_column_y = top
+	if _report != null and _report.visible:
+		_place_report()
+	if _contacts != null:
+		_place_queue()
+
+
 ## The queue sits at the left edge, under the turn report when that is open.
 func _place_queue() -> void:
 	var queue := _contacts.queue
 	if not queue.visible:
 		return
 	queue.reset_size()
-	var top := 130.0
+	var top := _left_column_top()
 	if _report != null and _report.visible:
 		top = _report.position.y + _report.size.y + 12.0
 	queue.position = Vector2(PANEL_MARGIN.x, top)
@@ -1817,10 +1842,16 @@ func _show_report() -> void:
 		_objectives.close()
 	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
 	_report.show()
+	_place_report()
+
+
+func _place_report() -> void:
 	_report.reset_size()
-	_report.position = Vector2(PANEL_MARGIN.x, 130.0)
+	var top := _left_column_top()
 	var report_floor := _viewport_size().y - float(ActionBar.HEIGHT) - PANEL_MARGIN.y
-	_report.position.y = clampf(130.0, 8.0, maxf(report_floor - _report.size.y, 8.0))
+	_report.position = Vector2(
+		PANEL_MARGIN.x, clampf(top, 8.0, maxf(report_floor - _report.size.y, 8.0))
+	)
 
 
 ## Opens the report of the viewed side's last move once, when it is new (not during the slide).
