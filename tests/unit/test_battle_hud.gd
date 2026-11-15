@@ -48,7 +48,7 @@ func test_both_blocks_show_names_and_counts() -> void:
 	assert_eq(_visible_flags("Side0"), 2, "Poland: NATO + Poland")
 	assert_eq(_visible_flags("Side1"), 1, "Russia: one flag")
 	assert_eq((_find("TurnNumber") as Label).text, "01")
-	assert_eq((_find("ActiveSide") as Label).text, _t("Poland").to_upper())
+	assert_true(_find("ActiveSide") == null, "no active side name under the turn number")
 
 
 func test_hatch_only_on_the_active_side_and_inactive_is_dimmed() -> void:

@@ -44,8 +44,6 @@ var _turn_label: Label
 var _turn_limit_label: Label  # "/08" after the turn number; hidden without a turn limit
 var _turn_row: HBoxContainer
 var _turn_box: Control
-var _active_label: Label
-var _active_arrow: Label
 var _points_label: Label  # "C2 2/3" under the active side; hidden without command points
 var _ready_value: Label
 var _ready_blocks: ReadyBlocks
@@ -174,12 +172,9 @@ func _apply(state: GameState, bar: Dictionary) -> void:
 	_turn_limit_label.text = bar["turn_limit_text"]
 	_turn_limit_label.get_parent().visible = _turn_limit_label.text != ""
 	_turn_box.custom_minimum_size.x = _turn_row.get_combined_minimum_size().x
-	_active_label.text = tr(active["name"] as String).to_upper()
-	_active_label.add_theme_color_override(&"font_color", color)
 	_points_label.text = bar["command_points_text"]
 	_points_label.visible = _points_label.text != ""
 	_points_label.add_theme_color_override(&"font_color", color)
-	_active_arrow.add_theme_color_override(&"font_color", color)
 	_ready_value.text = "%d / %d" % [active["ready"], active["units"]]
 	_ready_blocks.set_counts(active["ready"], active["units"], color)
 	_end_button.fill = color
@@ -418,20 +413,6 @@ func _build_centre() -> Control:
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(caption)
 	column.add_child(_build_turn_number())
-	_active_label = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
-	_active_label.name = "ActiveSide"
-	_active_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(_active_label)
-	# The arrow hangs to the left of the name so the name (not arrow + name) is what is centred.
-	_active_arrow = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
-	_active_arrow.name = "ActiveArrow"
-	_active_arrow.text = "▸"
-	_active_arrow.anchor_left = 0.0
-	_active_arrow.anchor_right = 0.0
-	_active_arrow.offset_left = 0.0
-	_active_arrow.offset_right = -5.0
-	_active_arrow.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_active_label.add_child(_active_arrow)
 	_points_label = _label_font(HudTheme.mono(600, 1), 10, UiPalette.HUD_MUTED)
 	_points_label.name = "CommandPoints"
 	_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
