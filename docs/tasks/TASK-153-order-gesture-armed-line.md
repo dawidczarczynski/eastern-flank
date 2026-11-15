@@ -1,6 +1,6 @@
 # TASK-153: Staff map – order gesture "Armed line" (stages 1 + 2: MVP and preview)
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: – (soft: TASK-154 free re-aim; the MVP works without it)
 - **Sections**: GDD "Orders and postures"; design/operational_map/order_lines_analysis.md sections 4, 5, 7 (the spec); order_lines.html (variant D); operational_map README ("Order gesture")
@@ -23,19 +23,19 @@ Stage 1 – MVP
 - [x] Transitions as in analysis section 4: LMB on an own counter IDLE → ARMED; cursor over a hex → AIMING; click on a valid hex → COMMITTED (or CONFIRM when the route has a border incident: Enter → COMMITTED, Esc → AIMING); click on an invalid hex stays in AIMING and exposes the reason; Esc or a second click on the counter → ARMED / IDLE; COMMITTED → IDLE after 120 ms.
 - [x] Keys 1–3 change the posture in ARMED and AIMING; RMB still opens the order ring (no disarm on RMB); the ring path is unchanged.
 - [x] Gesture disabled (stays IDLE) in strike mode, under a modal, during the counter slide and outside the viewer's turn; one test per case.
-- [ ] LMB drag pans the camera when the press was not on an own counter; wheel zoom, WASD and edge pan work while armed. Drag-to-aim is not built (decision 3). The inline click logic in `StaffMap` is replaced by calls into the gesture class.
+- [x] LMB drag pans the camera when the press was not on an own counter; wheel zoom, WASD and edge pan work while armed. Drag-to-aim is not built (decision 3). The inline click logic in `StaffMap` is replaced by calls into the gesture class.
 - [x] Line dashes flow in screen pixels (pitch independent of zoom): `staff_map_line.gdshader` gets the along-line length in `UV.y` and `px_per_unit` / `flow` uniforms; animated only while aiming. Path simplified (tolerance about 0.35 hex) before Chaikin.
-- [ ] Attack line: hollow rail (core hollowed in the fragment shader with `across`), spear head at the target, four corner brackets on the target counter; no rail on march / advance / defend.
+- [x] Attack line: hollow rail (core hollowed in the fragment shader with `across`), spear head at the target, four corner brackets on the target counter; no rail on march / advance / defend.
 - [x] Cursor label shows "cost · turns · stop" plus "orders left n" (from `OperationalState.orders_left()`); at 0 left the label reads the `no_orders_left` reason and the click is refused without a command.
-- [ ] Commit animation: the issued line settles to 82 % opacity over 120 ms.
+- [x] Commit animation: the issued line settles to 82 % opacity over 120 ms.
 - [x] Simulation untouched (`OperationalState.snapshot()` identical with and without the gesture); the command is the existing `IssueOrderCommand`.
 
 Stage 2 – preview
 
 - [x] Destination ghost at the target hex with "T+n" (turn of arrival from the forecast); hidden for an invalid target.
-- [ ] Alternative-posture line: a thin faint second line for the other contact-relevant posture (march vs advance) when its route differs; second plan call debounced 60 ms; absent when the routes are equal.
-- [ ] Goal-conflict mark: when another own formation already has an order to the same hex, a mark at the hex (view-only scan of `formation.order`); no rule change.
-- [ ] Far-zoom stub: at Z0 an order shorter than a minimum screen length still draws a stub of at least 8 px with its head.
+- [x] Alternative-posture line: a thin faint second line for the other contact-relevant posture (march vs advance) when its route differs; second plan call debounced 60 ms; absent when the routes are equal.
+- [x] Goal-conflict mark: when another own formation already has an order to the same hex, a mark at the hex (view-only scan of `formation.order`); no rule change.
+- [x] Far-zoom stub: at Z0 an order shorter than a minimum screen length still draws a stub of at least 8 px with its head.
 - [x] Alternative line, ghost and conflict mark each have a pure model function with a headless test (hand-made state).
 
 ## Playtest (for the human)
@@ -83,3 +83,4 @@ _Large task: split at the Stage 1 / Stage 2 boundary._
 - The conflict text now says what the rules do (`end_operational_turn_command.gd`: a destination held by an own formation interrupts the later order with `destination_occupied`): "%s IS ORDERED HERE – THE SECOND TO ARRIVE IS HALTED" (EN key, PL in strings.csv, MANUAL). This deviates from the accepted mockup D5 caption ("ONE HALTS SHORT") on purpose; the mockup was not edited.
 - Added view test for RMB: the ring opens and the formation stays selected. **Not covered by a headless test**: LMB-drag pan (the `_input` path is unchanged), the 82 % settle opacity (only `has_fresh()` is asserted), drawing of the spear head / brackets / Z0 stub (only the pure `is_attack` / `stub` have tests). These go to the playtest.
 - Known approximations: dash pitch uses one `px_per_unit` at the view centre, so under a steep tilt the pitch varies across the screen; while the gesture is blocked (strike mode, modal, slide, not the viewer's turn) a hex click still goes straight to `issue_order` so the command gives its rejection toast; a REJECT while aiming (invalid hex, no orders left) shows its reason in the cursor label and no toast. `StaffMapRouteRibbon._process` builds a small lambda per frame while aiming (3 kinds x 2 materials); negligible, worth caching if profiling ever asks.
+- Playtested by the human 2026-11-15: OK.

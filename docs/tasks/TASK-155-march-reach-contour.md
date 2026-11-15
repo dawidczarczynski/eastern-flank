@@ -1,6 +1,6 @@
 # TASK-155: Staff map – T+1 reach contour for the march posture (stage 3)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core (pure query) + presentation
 - **Depends on**: TASK-153
 - **Sections**: GDD "Orders and postures", GDD "Movement costs"; order_lines_analysis.md sections 3, 5, 7 (decision 5); `StaffMapControlLayer` as the pattern
