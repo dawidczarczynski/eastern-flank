@@ -1247,6 +1247,17 @@ func _build_environment() -> void:
 	environment.background_color = _palette.map_void
 	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
+	if _palette.glow_enabled:
+		# Bloom of the bright lines only (peak above the threshold); ground and 2D HUD stay as is.
+		environment.glow_enabled = true
+		environment.glow_hdr_threshold = _palette.glow_threshold
+		environment.glow_hdr_scale = _palette.glow_feather
+		environment.glow_intensity = _palette.glow_intensity
+		environment.glow_strength = _palette.glow_strength
+		environment.glow_bloom = 0.0
+		environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+		for level in [1, 2, 3, 4]:
+			environment.set_glow_level(level, 1.0)
 	var world := WorldEnvironment.new()
 	world.name = "Environment"
 	world.environment = environment
@@ -1345,6 +1356,7 @@ func _build_route_preview() -> void:
 	_front = StaffMapFrontLine.new(_view.relief(), _palette)
 	_view.add_child(_front)
 	var order_ribbon := StaffMapRouteRibbon.new("OrderRibbon")
+	order_ribbon.set_glow(_orders_glow())
 	_view.add_child(order_ribbon)
 	var order_marks := StaffMapRouteMarks.new()
 	order_marks.name = "OrderMarks"
@@ -1352,11 +1364,16 @@ func _build_route_preview() -> void:
 	_counter_layer.add_child(order_marks)
 	_orders = StaffMapOrders.new(order_ribbon, order_marks, _view.relief(), _palette)
 	var ribbon := StaffMapRouteRibbon.new()
+	ribbon.set_glow(_orders_glow())
 	_view.add_child(ribbon)
 	_route_marks = StaffMapRouteMarks.new()
 	_route_marks.set_projector(_project)
 	_counter_layer.add_child(_route_marks)
 	_route = StaffMapRoutePreview.new(ribbon, _route_marks, _view.relief(), _palette)
+
+
+func _orders_glow() -> float:
+	return _palette.glow_orders if _palette.glow_enabled else 1.0
 
 
 func _update_anchors() -> void:

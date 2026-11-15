@@ -358,7 +358,8 @@ func _build_edges(borders: Dictionary) -> void:
 		var mesh := StaffMapLines.segments_mesh(
 			_drape(StaffMapLayers.clip_segments(segments, _edge_rect))
 		)
-		_add_layer(entry[0], mesh, colour, _palette.edge_widths, 0.0, entry[2])
+		var glow := _glow(_palette.glow_coast) if entry[0] == "Shore" else 1.0
+		_add_layer(entry[0], mesh, colour, _palette.edge_widths, 0.0, entry[2], glow)
 
 
 func _build_strokes(km_per_step: float) -> void:
@@ -387,16 +388,33 @@ func _build_strokes(km_per_step: float) -> void:
 		"RiverMinor", _lines_mesh(rivers["RiverMinor"]), p.river_minor, p.river_minor_widths, 0.0, 4
 	)
 	_add_layer(
-		"RiverNamed", _lines_mesh(rivers["RiverNamed"]), p.river_named, p.river_named_widths, 0.0, 5
+		"RiverNamed",
+		_lines_mesh(rivers["RiverNamed"]),
+		p.river_named,
+		p.river_named_widths,
+		0.0,
+		5,
+		_glow(p.glow_river_named)
 	)
 	_add_layer(
-		"RiverMajor", _lines_mesh(rivers["RiverMajor"]), p.river_major, p.river_major_widths, 0.0, 6
+		"RiverMajor",
+		_lines_mesh(rivers["RiverMajor"]),
+		p.river_major,
+		p.river_major_widths,
+		0.0,
+		6,
+		_glow(p.glow_river_major)
 	)
 	_add_layer("RoadT3", _lines_mesh(roads["RoadT3"]), p.road_t3, p.road_t3_widths, 0.0, 7)
 	_add_layer("RoadT2", _lines_mesh(roads["RoadT2"]), p.road_t2, p.road_t2_widths, 0.0, 8)
 	var t1 := _lines_mesh(roads["RoadT1"])
 	_add_layer("RoadT1Casing", t1, p.road_t1_casing, p.road_t1_widths, p.road_t1_casing_px, 9)
-	_add_layer("RoadT1", t1, p.road_t1, p.road_t1_widths, 0.0, 10)
+	_add_layer("RoadT1", t1, p.road_t1, p.road_t1_widths, 0.0, 10, _glow(p.glow_road_t1))
+
+
+## The HDR gain of a glowing line class: 1.0 (plain) when the glow look is off.
+func _glow(gain: float) -> float:
+	return gain if _palette.glow_enabled else 1.0
 
 
 func _lines_mesh(lines: Array) -> ArrayMesh:
@@ -409,9 +427,10 @@ func _add_layer(
 	colour: Color,
 	widths: PackedFloat32Array,
 	extra: float,
-	priority: int
+	priority: int,
+	glow := 1.0
 ) -> void:
-	var node := _add_line_node(layer_name, mesh, colour, 1.0, priority)
+	var node := _add_line_node(layer_name, mesh, colour, 1.0, priority, glow)
 	var start := widths[1] + extra if widths.size() > 1 and widths[1] > 0.0 else 1.0
 	_layers[layer_name] = {
 		"node": node,
@@ -428,12 +447,12 @@ func _add_layer(
 
 
 func _add_line_node(
-	node_name: String, mesh: ArrayMesh, colour: Color, width: float, priority: int
+	node_name: String, mesh: ArrayMesh, colour: Color, width: float, priority: int, glow := 1.0
 ) -> MeshInstance3D:
 	var node := MeshInstance3D.new()
 	node.name = node_name
 	node.mesh = mesh
-	node.material_override = StaffMapLines.material(colour, width, priority)
+	node.material_override = StaffMapLines.material(colour, width, priority, glow)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# The shader moves the vertices in screen space: never cull the mesh by its bounds.
 	node.extra_cull_margin = 16384.0

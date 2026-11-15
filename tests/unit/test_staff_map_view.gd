@@ -22,12 +22,12 @@ func _grid() -> HexGrid:
 
 func test_palette_has_the_reference_colours() -> void:
 	assert_true(_palette != null)
-	assert_eq(_palette.map_land, Color("#1d211c"))
+	assert_eq(_palette.map_land, Color("#0b1015"))
 	assert_eq(_palette.fill(Terrain.Type.PLAINS), _palette.map_land)
 	assert_eq(_palette.fill(Terrain.Type.MARSH), _palette.map_land, "marsh = land + hatch")
-	assert_eq(_palette.fill(Terrain.Type.FOREST), Color("#22302a"))
-	assert_eq(_palette.fill(StaffMapPalette.SEA), Color("#0f1820"))
-	assert_eq(_palette.road_t1_widths, PackedFloat32Array([1.3, 1.9, 2.4]))
+	assert_eq(_palette.fill(Terrain.Type.FOREST), Color("#0b1015"))
+	assert_eq(_palette.fill(StaffMapPalette.SEA), Color("#06090c"))
+	assert_eq(_palette.road_t1_widths, PackedFloat32Array([1.4, 1.6, 2.0]))
 	assert_eq(_palette.edge(Terrain.Type.PLAINS).a, 0.0)
 
 
@@ -57,7 +57,7 @@ func test_zoom_levels_fade_layers_and_widths() -> void:
 	view.set_zoom_level(0, true)
 	assert_eq(view.layer_opacity("RoadT3"), 0.0)
 	assert_eq(view.layer_opacity("RoadT1"), 1.0)
-	assert_true(absf(view.layer_width("RoadT1") - 1.3) < 0.001)
+	assert_true(absf(view.layer_width("RoadT1") - 1.4) < 0.001)
 	assert_true(absf(view.hillshade_gain() - _palette.hillshade_far_gain) < 0.001)
 	view.set_zoom_level(2)
 	assert_eq(view.layer_opacity("RoadT3"), 0.0, "fades, does not jump")
@@ -66,8 +66,8 @@ func test_zoom_levels_fade_layers_and_widths() -> void:
 	assert_true(half > 0.0 and half < 1.0, str(half))
 	view._process(_palette.fade_seconds)
 	assert_eq(view.layer_opacity("RoadT3"), 1.0)
-	assert_true(absf(view.layer_width("RoadT1") - 2.4) < 0.001)
-	assert_true(absf(view.layer_width("RoadT1Casing") - 2.4 - _palette.road_t1_casing_px) < 0.001)
+	assert_true(absf(view.layer_width("RoadT1") - 2.0) < 0.001)
+	assert_true(absf(view.layer_width("RoadT1Casing") - 2.0 - _palette.road_t1_casing_px) < 0.001)
 	view.free()
 
 

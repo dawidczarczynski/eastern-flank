@@ -75,7 +75,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `OrderDefinition` – Numbers and class availability of one unit order (TASK-081a, GDD "Unit orders"), kept in (`order_definition.gd`)
 - `SideDefinition` – A side of an operation (TASK-092b, GDD "Sides"): a player and a bloc. Instances are kept… (`side_definition.gd`)
 - `SoundBank` – Sound id -> audio files table and the sound tuning numbers (TASK-123, rule 5), kept in (`sound_bank.gd`)
-- `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TAS… (`staff_map_palette.gd`)
+- `StaffMapPalette` – Colours, line widths, zoom levels and relief of the staff map (TASK-093a, TASK-125, flat… (`staff_map_palette.gd`)
 - `StrikeMeansDefinition` – A means of deep strike (TASK-097a, TASK-141a, GDD "Deep strikes"): one real named weapon (`strike_means_definition.gd`)
 - `SupportPackage` – One package of outside support (TASK-121, GDD "Outside support"), a sub-resource of (`support_package.gd`)
 - `SupporterDefinition` – An off-map supporter (TASK-121, GDD "Outside support"): a third party that can send help… (`supporter_definition.gd`)

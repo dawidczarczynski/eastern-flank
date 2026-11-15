@@ -13,6 +13,9 @@ render_mode unshaded, cull_disabled, depth_test_disabled, depth_draw_never, blen
 uniform vec4 line_color : source_color = vec4(1.0);
 uniform float width_px = 1.0;
 uniform float opacity = 1.0;
+// Glow: above 1.0 the colour keeps its hue but is lifted to this peak brightness (HDR), which the
+// environment's bloom turns into a glow; 1.0 = the plain colour.
+uniform float glow = 1.0;
 
 varying float across;  // signed distance from the centre line, pixels
 
@@ -54,6 +57,7 @@ void vertex() {
 void fragment() {
 	float half_w = width_px * 0.5;
 	float coverage = clamp(half_w + 0.5 - abs(across), 0.0, 1.0);
-	ALBEDO = line_color.rgb;
+	float peak = max(max(line_color.r, line_color.g), max(line_color.b, 0.001));
+	ALBEDO = glow > 1.0 ? line_color.rgb * (glow / peak) : line_color.rgb;
 	ALPHA = line_color.a * opacity * coverage;
 }

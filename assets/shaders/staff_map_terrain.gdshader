@@ -44,6 +44,8 @@ uniform float shade_gain = 1.0;
 // Edge lines (forest, town, shore) in screen pixels; 0 hides them. The land-cover edges are
 // fainter than the shore (many small patches).
 uniform float edge_px = 1.0;
+// Peak brightness of the shore line (HDR, the bloom makes the coast glow); <= 1 = plain colour.
+uniform float shore_peak = 1.0;
 uniform float cover_edge_alpha = 0.85;
 uniform vec2 hatch_tile_px = vec2(7.0, 5.0);
 uniform vec2 hatch_tile_world = vec2(0.35, 0.25);
@@ -155,7 +157,24 @@ void fragment() {
 		colour = mix(colour, marsh_color.rgb, row * dash * 0.85 * marsh);
 	}
 	colour = mix(colour, water_color.rgb, wet);
-	colour = mix(colour, shore_color.rgb, contour(water, edge_px) * shore_color.a);
+	// Zoomed out, ponds and rivers in the water mask are specks: only the sea and the larger
+	// lakes keep a (glowing) shore - the mean water share within ~8 screen px must be high.
+	float shore_keep = 1.0;
+	if (far > 0.001) {
+		float reach = 8.0 / texel_px;
+		vec2 wp = uv;
+		vec2 wstep = reach / vec2(size);
+		float share = water;
+		for (int k = 0; k < 8; k++) {
+			float a = float(k) * 0.785398;
+			vec2 d = vec2(cos(a), sin(a)) * wstep;
+			share += texture(water_tex, wp + d).r + texture(water_tex, wp + d * 0.5).r;
+		}
+		share /= 17.0;
+		shore_keep = mix(1.0, smoothstep(0.3, 0.45, share), far);
+	}
+	float shore = contour(water, edge_px) * shore_color.a * shore_keep;
+	colour = mix(colour, shore_color.rgb, shore);
 	if (politics_on > 0.5) {
 		vec4 share = texture(country_tex, uv);
 		float land = 1.0 - wet;
@@ -168,5 +187,7 @@ void fragment() {
 			colour = mix(colour, tint.rgb, country_closed[i] * hatch * 0.16 * inside);
 		}
 	}
-	ALBEDO = colour;
+	float shore_max = max(max(shore_color.r, shore_color.g), max(shore_color.b, 0.001));
+	vec3 hot = shore_color.rgb * (shore_peak / shore_max);
+	ALBEDO = shore_peak > 1.0 ? mix(colour, hot, shore) : colour;
 }

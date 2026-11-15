@@ -1,7 +1,8 @@
 class_name StaffMapPalette
 extends Resource
-## Colours, line widths, zoom levels and relief of the staff map (TASK-093a, restyled in TASK-125
-## after the Claude Design reference, docs/design/operational_map/README.md; names follow its
+## Colours, line widths, zoom levels and relief of the staff map (TASK-093a, TASK-125, flat glow
+## look since 2026-11-15; reference:
+## docs/design/operational_map/README.md; names follow its
 ## "map.land", "road.t1" … keys with "_" for "."). One resource,
 ## data/operational/staff_map_palette.tres; the scene has no colour literals. Line widths are
 ## screen pixels per zoom level [Z0, Z1, Z2]; 0 = not drawn at that level.
@@ -11,20 +12,20 @@ const PATH := "res://data/operational/staff_map_palette.tres"
 const SEA := 100
 
 @export_group("Map")
-@export var map_void := Color("#0b0d0b")
-@export var map_land := Color("#1d211c")
-@export var map_forest := Color("#22302a")
-@export var map_forest_edge := Color("#2b3d31")
-@export var map_urban := Color("#5c5849")
-@export var map_urban_edge := Color("#9d967f")
+@export var map_void := Color("#06090c")
+@export var map_land := Color("#0b1015")
+@export var map_forest := Color("#0b1015")
+@export var map_forest_edge := Color("#2b3d31", 0.0)
+@export var map_urban := Color("#161c23")
+@export var map_urban_edge := Color("#8d9585", 0.0)
 ## Marsh: land with a hatch of this colour (7 x 5 px tile, one 1 px dash per tile).
-@export var map_marsh := Color("#46677a")
+@export var map_marsh := Color("#0b1015")
 @export var marsh_hatch_tile := Vector2(7.0, 5.0)
 
 @export_group("Water")
-@export var water_sea := Color("#0f1820")
-@export var water_lake := Color("#132029")
-@export var water_shore := Color("#2b4454")
+@export var water_sea := Color("#06090c")
+@export var water_lake := Color("#0a141b")
+@export var water_shore := Color("#6fa7d8")
 @export var water_label := Color("#6f95ab")
 ## Water below this height (metres) connected to the map edge is sea, the rest lakes.
 @export var sea_max_m := 5.0
@@ -34,22 +35,22 @@ const SEA := 100
 @export var river_named := Color("#46728c")
 @export var river_minor := Color("#3a5c70")
 @export var road_t1 := Color("#b4ac98")
-@export var road_t1_casing := Color("#0d100d")
+@export var road_t1_casing := Color("#0d100d", 0.0)
 @export var road_t2 := Color("#7f7a6c")
 @export var road_t3 := Color("#55534a")
 @export var rail := Color("#70746b")
 @export var border := Color("#a9afa1")
-@export var road_t1_widths := PackedFloat32Array([1.3, 1.9, 2.4])
+@export var road_t1_widths := PackedFloat32Array([1.4, 1.6, 2.0])
 ## Extra casing width around road t1 (both sides together), pixels.
 @export var road_t1_casing_px := 2.0
 @export var road_t2_widths := PackedFloat32Array([0.0, 1.3, 1.6])
 @export var road_t3_widths := PackedFloat32Array([0.0, 0.0, 0.9])
 @export var rail_widths := PackedFloat32Array([0.0, 1.0, 1.0])
-@export var river_major_widths := PackedFloat32Array([1.8, 2.2, 3.0])
+@export var river_major_widths := PackedFloat32Array([1.6, 1.8, 2.4])
 @export var river_named_widths := PackedFloat32Array([0.0, 1.4, 1.8])
 @export var river_minor_widths := PackedFloat32Array([0.0, 0.0, 1.2])
 ## Land-cover edges and the shore line, pixels on every level.
-@export var edge_widths := PackedFloat32Array([1.0, 1.0, 1.0])
+@export var edge_widths := PackedFloat32Array([1.6, 1.6, 1.6])
 ## Road / river classes from the link data (no OSM classes yet, TASK-112): a road stroke (chain
 ## of links continued straight through junctions) at least this long is t1 / t2, shorter ones
 ## t3; rivers likewise major / named / minor. Tuned on the Suwalki theatre (17 000 km of road
@@ -94,6 +95,23 @@ const SEA := 100
 ## Seconds a layer takes to fade in / out and lines to change width.
 @export var fade_seconds := 0.15
 
+@export_group("Glow")
+## "Neon contour" look (docs/design/proposals/staff_map_glow_restyle.html, variant A): the lines
+## that matter are drawn with an HDR colour (same hue, lifted to the peak brightness below) and
+## the 3D environment's bloom glows everything above the threshold. 1.0 = no glow on that class.
+@export var glow_enabled := true
+## Brightness (max channel) from which a pixel glows, and the width of the ramp up to full glow.
+@export var glow_threshold := 0.6
+@export var glow_feather := 0.3
+@export var glow_intensity := 2.0
+@export var glow_strength := 1.0
+@export var glow_coast := 1.3
+@export var glow_river_major := 1.2
+@export var glow_river_named := 1.0
+@export var glow_road_t1 := 1.1
+@export var glow_front := 1.8
+@export var glow_orders := 1.5
+
 @export_group("Relief")
 ## Vertical exaggeration of the ground mesh over true scale.
 @export var relief_exaggeration := 20.0
@@ -102,7 +120,7 @@ const SEA := 100
 ## the shade value and its gain at the far zoom level Z0.
 @export var hillshade_azimuth := 315.0
 @export var hillshade_altitude := 38.0
-@export var hillshade_strength := 0.8
+@export var hillshade_strength := 0.0
 @export var hillshade_z_factor := 20.0
 @export var hillshade_contrast := 1.0
 @export var hillshade_far_gain := 1.4
