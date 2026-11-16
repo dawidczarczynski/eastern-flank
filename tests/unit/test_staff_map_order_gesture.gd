@@ -223,3 +223,113 @@ func test_a_context_that_becomes_blocked_drops_an_armed_gesture() -> void:
 	var gesture := _aiming()
 	gesture.set_context(true, false, false, true)
 	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
+
+
+# --- EDITING (TASK-157) ---
+
+
+func _editing() -> StaffMapOrderGesture:
+	var gesture := StaffMapOrderGesture.new()
+	gesture.set_context(false, false, false, true)
+	gesture.click_head(&"a")
+	return gesture
+
+
+func test_click_head_enters_editing() -> void:
+	var gesture := StaffMapOrderGesture.new()
+	gesture.set_context(false, false, false, true)
+	var intent := gesture.click_head(&"a")
+	assert_eq(intent["type"], StaffMapOrderGesture.EDIT)
+	assert_eq(intent["id"], &"a")
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+	assert_eq(gesture.formation_id(), &"a")
+	assert_eq(gesture.edited_from(), &"a")
+	assert_false(gesture.is_aiming())
+	gesture.hover(HEX, OK, 3)
+	assert_true(gesture.is_aiming())
+	assert_eq(gesture.aim(), StaffMapOrderGesture.Aim.SNAPPED)
+
+
+func test_editing_hover_invalid_reason_is_as_in_aiming() -> void:
+	var gesture := _editing()
+	gesture.hover(HEX, BAD, 3)
+	assert_eq(gesture.aim(), StaffMapOrderGesture.Aim.INVALID)
+	assert_eq(gesture.reason(), "ROUTE_WATER")
+
+
+func test_editing_click_issues_and_settles_to_idle() -> void:
+	var gesture := _editing()
+	var intent := gesture.click_hex(HEX, OK, 3)
+	assert_eq(intent["type"], StaffMapOrderGesture.ISSUE)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.COMMITTED)
+	assert_eq(gesture.edited_from(), &"")
+	gesture.tick(StaffMapOrderGesture.SETTLE_SEC)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
+
+
+func test_editing_border_incident_confirms_and_esc_returns_to_editing() -> void:
+	var gesture := _editing()
+	assert_eq(gesture.click_hex(HEX, BORDER, 3)["type"], StaffMapOrderGesture.CONFIRM_NEEDED)
+	gesture.cancel()
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+
+
+func test_editing_esc_steps_back_then_disarms() -> void:
+	var gesture := _editing()
+	gesture.hover(HEX, OK, 3)
+	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.NONE)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+	assert_false(gesture.is_aiming())
+	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.DISARM)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
+	assert_eq(gesture.edited_from(), &"")
+
+
+func test_editing_fail_returns_to_editing() -> void:
+	var gesture := _editing()
+	gesture.hover(HEX, OK, 3)
+	gesture.click_hex(HEX, OK, 3)
+	gesture.fail()
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+	assert_eq(gesture.edited_from(), &"a")
+
+
+func test_click_head_while_blocked_does_nothing() -> void:
+	var gesture := StaffMapOrderGesture.new()
+	gesture.set_context(true, false, false, true)
+	assert_eq(gesture.click_head(&"a")["type"], StaffMapOrderGesture.NONE)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
+
+
+func test_click_head_switches_formation_and_clears_posture() -> void:
+	var gesture := _armed()
+	gesture.pick_posture(&"advance")
+	gesture.click_head(&"b")
+	assert_eq(gesture.formation_id(), &"b")
+	assert_eq(gesture.posture(), &"")
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+
+
+func test_editing_posture_key_is_in_the_issue_details() -> void:
+	var gesture := _editing()
+	gesture.hover(HEX, OK, 3)
+	gesture.pick_posture(&"advance")
+	assert_eq(gesture.click_hex(HEX, OK, 3)["posture"], &"advance")
+
+
+func test_editing_selection_sync_keeps_editing() -> void:
+	var gesture := _editing()
+	gesture.select(&"a")
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
+
+
+func test_editing_no_orders_left_rejects() -> void:
+	var gesture := _editing()
+	gesture.hover(HEX, OK, 0)
+	assert_eq(gesture.reason(), StaffMapOrderGesture.REASON_NO_ORDERS)
+	assert_eq(gesture.click_hex(HEX, OK, 0)["type"], StaffMapOrderGesture.REJECT)
+
+
+func test_edit_cost_label() -> void:
+	assert_eq(StaffMapOrderGesture.edit_cost_label(true), "FREE")
+	assert_eq(StaffMapOrderGesture.edit_cost_label(false), "COSTS 1 ORDER")

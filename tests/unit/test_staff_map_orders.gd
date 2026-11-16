@@ -535,3 +535,24 @@ func test_right_click_on_an_enemy_counter_with_own_selected_opens_the_order_ring
 	ring.info_requested.connect(func(id: StringName) -> void: asked.append(id))
 	ring.activate(StaffMapOrderRingModel.SLOT_INFO)
 	assert_eq(asked, [enemy.id] as Array[StringName], "INFO is about the hostile counter")
+
+
+# --- head hit-test (TASK-157) ---
+
+
+func test_head_at_radius() -> void:
+	var heads := {&"a": Vector2(100, 100)}
+	assert_eq(StaffMapOrders.head_at(Vector2(113, 100), heads), &"a")
+	assert_eq(StaffMapOrders.head_at(Vector2(115, 100), heads), &"")
+
+
+func test_head_at_nearest_wins_and_tie_is_the_smaller_id() -> void:
+	var heads := {&"b": Vector2(100, 100), &"a": Vector2(106, 100)}
+	assert_eq(StaffMapOrders.head_at(Vector2(104, 100), heads), &"a")
+	assert_eq(StaffMapOrders.head_at(Vector2(102, 100), heads), &"b")
+	var tie := {&"b": Vector2(100, 100), &"a": Vector2(110, 100)}
+	assert_eq(StaffMapOrders.head_at(Vector2(105, 100), tie), &"a")
+
+
+func test_head_at_empty() -> void:
+	assert_eq(StaffMapOrders.head_at(Vector2.ZERO, {}), &"")

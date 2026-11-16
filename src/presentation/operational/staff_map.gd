@@ -815,7 +815,12 @@ func cancel_order() -> bool:
 	var formation := _selected_own()
 	if formation == null:
 		return false
-	return _execute(CancelOrderCommand.new(formation.id))
+	var cancelled := _execute(CancelOrderCommand.new(formation.id))
+	if cancelled and _gesture.edited_from() != &"":
+		_gesture.cancel()  # the aim, then the editing itself
+		_gesture.cancel()
+		select_formation(&"")
+	return cancelled
 
 
 func _selected_own() -> Formation:
@@ -1104,6 +1109,7 @@ func _refresh_reach() -> void:
 	var shown := (
 		gesture_state == StaffMapOrderGesture.State.ARMED
 		or gesture_state == StaffMapOrderGesture.State.AIMING
+		or gesture_state == StaffMapOrderGesture.State.EDITING
 	)
 	_reach.refresh(_simulation.state, _selected_own() if shown else null, shown)
 
@@ -1115,6 +1121,9 @@ func _tick_gesture(delta: float) -> void:
 	_refresh_reach()
 	if _route != null:
 		_route.set_flowing(_gesture.is_aiming())
+		_route.set_editing(_gesture.edited_from() != &"")
+	if _orders.set_ghost(_gesture.edited_from()):
+		_refresh_orders()
 	if _gesture.state() == StaffMapOrderGesture.State.COMMITTED:
 		_orders.settle(_gesture.settle())
 	elif _orders.has_fresh():
@@ -2662,6 +2671,8 @@ func click_at(screen: Vector2) -> void:
 	var target := _enemy_of_selected(hit)
 	if _disarm_by_click(hit):
 		return
+	if target == null and hit == &"" and _grab_head(screen):
+		return
 	if target != null:
 		_gesture_click_hex(target.coord)
 	elif hit == &"":
@@ -2669,6 +2680,29 @@ func click_at(screen: Vector2) -> void:
 	else:
 		select_formation(hit)
 		_sync_gesture()
+
+
+## A click on the head of an own issued order starts re-aiming it (TASK-157): that formation is
+## selected and the gesture edits; the old order stays until a replacement is issued. True then.
+func _grab_head(screen: Vector2) -> bool:
+	if _gesture.is_blocked() or _orders == null:
+		return false
+	var id := StaffMapOrders.head_at(screen, _orders.heads_on_screen())
+	if id == &"" or id == _gesture.edited_from():
+		return false
+	var formation := _simulation.state.get_formation(id)
+	if (
+		formation == null
+		or formation.order == null
+		or formation.owner_id != viewer_player
+		or formation.owner_id != _simulation.state.current_player
+	):
+		return false
+	select_formation(id)
+	_gesture.click_head(id)
+	_aim_key = []
+	_sync_gesture()
+	return true
 
 
 ## A click on the armed own counter disarms it; true then.
@@ -2716,7 +2750,7 @@ func _gesture_click_hex(hex: Vector2i) -> void:
 		_simulation.state, formation, hex, posture, _movement
 	)
 	var verdict := StaffMapRoutePreview.verdict_of(_simulation.state, formation, preview)
-	var intent := _gesture.click_hex(hex, verdict, _simulation.state.orders_left())
+	var intent := _gesture.click_hex(hex, verdict, _effective_orders_left(formation))
 	match intent["type"]:
 		StaffMapOrderGesture.ISSUE:
 			_orders.mark_fresh(formation.id)
@@ -2902,12 +2936,19 @@ func _aim_hex(hex: Vector2i) -> void:
 	var posture := _gesture.posture()
 	if posture == &"":
 		posture = StaffMapOrderRingModel.default_posture(state, formation, hex)
-	var left := state.orders_left()
+	var left := _effective_orders_left(formation)
 	var key := [hex, posture, formation.id, left]
 	if key != _aim_key:
 		_aim_key = key
 		_aim_verdict = StaffMapRoutePreview.quick_verdict(state, formation, hex, posture)
 	_gesture.hover(hex, _aim_verdict, left)
+
+
+## The orders the aim may count on: an order given this turn is re-aimed for free (TASK-154), so
+## at least 1 even when none are left.
+func _effective_orders_left(formation: Formation) -> int:
+	var left := _simulation.state.orders_left()
+	return maxi(left, 1) if _simulation.state.ordered_this_turn.has(formation.id) else left
 
 
 ## While the order ring is open the route preview shows its hex in the hovered posture.

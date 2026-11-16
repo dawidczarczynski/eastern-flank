@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name StaffMapOrderGesture
 extends RefCounted
 ## The order gesture of the staff map (TASK-153, docs/design/operational_map/order_lines_analysis.md
@@ -8,7 +9,7 @@ extends RefCounted
 ## executes the intents it returns, so the rules stay in the core (architecture rule 3).
 ## Click-click is the primary gesture; press-drag-release aiming is not built (decision 3).
 
-enum State { IDLE, ARMED, AIMING, CONFIRM, COMMITTED }
+enum State { IDLE, ARMED, AIMING, CONFIRM, COMMITTED, EDITING }
 enum Aim { NONE, SNAPPED, INVALID }
 
 ## Intent types (the `type` key of what the input methods return).
@@ -19,6 +20,7 @@ const ISSUE := &"issue"  # {hex, posture}: execute IssueOrderCommand
 const CONFIRM_NEEDED := &"confirm"  # {hex, posture}: execute it; the border prompt answers
 const REJECT := &"reject"  # {reason}: refused without a command
 const POSTURE := &"posture"  # {posture}: the picked posture changed
+const EDIT := &"edit"  # {id}: the head of that issued order was grabbed (TASK-157)
 
 const NO_HEX := Vector2i(-100000, -100000)
 const SETTLE_SEC := 0.12  # the issued line settles from full to its issued opacity
@@ -33,6 +35,8 @@ var _posture: StringName = &""
 var _suppressed_hex := NO_HEX  # after Esc: this hex does not aim again until the cursor leaves
 var _elapsed := 0.0
 var _blocked := true
+var _was_editing := false  # the COMMITTED / CONFIRM order was an edit (fail() resumes it)
+var _editing := false  # the armed formation's issued order is being re-aimed (EDITING)
 
 
 ## What disables the gesture: strike mode, a modal window, the counter slide, or a turn that is
@@ -77,7 +81,17 @@ func posture() -> StringName:
 
 ## True while the cursor is being used to aim (AIMING or CONFIRM): the line flows then.
 func is_aiming() -> bool:
-	return _state == State.AIMING or _state == State.CONFIRM
+	return _state == State.AIMING or _state == State.CONFIRM or (_editing and _hex != NO_HEX)
+
+
+## The formation whose issued order is being re-aimed (&"" unless EDITING / its CONFIRM).
+func edited_from() -> StringName:
+	return _id if _editing else &""
+
+
+## "FREE" for an order given this turn, "COSTS 1 ORDER" for an older one (TASK-157).
+static func edit_cost_label(is_free: bool) -> String:
+	return "FREE" if is_free else "COSTS 1 ORDER"
 
 
 ## 0 … 1 progress of the COMMITTED settle (0 outside it).
@@ -96,6 +110,7 @@ func select(id: StringName) -> void:
 		return
 	if id != _id:
 		_posture = &""
+		_editing = false
 		_clear_aim()
 		if _state != State.COMMITTED:
 			_state = State.ARMED
@@ -115,10 +130,26 @@ func click_own_counter(id: StringName) -> Dictionary:
 	if id != _id:
 		_posture = &""
 	_id = id
+	_editing = false
 	_clear_aim()
 	_state = State.ARMED
 	_elapsed = 0.0
 	return _intent(ARM, {"id": id})
+
+
+## LMB click on the head of the issued order of `id`: its re-aiming starts (EDITING); the old
+## order stays until a replacement is issued (TASK-157).
+func click_head(id: StringName) -> Dictionary:
+	if _blocked:
+		return _intent(NONE)
+	if id != _id:
+		_posture = &""
+	_id = id
+	_editing = true
+	_clear_aim()
+	_state = State.EDITING
+	_elapsed = 0.0
+	return _intent(EDIT, {"id": id})
 
 
 ## The cursor is over `hex` (NO_HEX = off the map); `verdict` = {valid, reason, incident} of an
@@ -130,9 +161,9 @@ func hover(hex: Vector2i, verdict: Dictionary, orders_left: int) -> void:
 		_suppressed_hex = NO_HEX
 	if hex == NO_HEX or hex == _suppressed_hex:
 		_clear_aim()
-		_state = State.ARMED
+		_state = _idle_aim_state()
 		return
-	_state = State.AIMING
+	_state = _aim_state()
 	_hex = hex
 	_set_aim(verdict, orders_left)
 
@@ -142,7 +173,7 @@ func hover(hex: Vector2i, verdict: Dictionary, orders_left: int) -> void:
 func click_hex(hex: Vector2i, verdict: Dictionary, orders_left: int) -> Dictionary:
 	if _blocked or _state == State.IDLE or _state == State.COMMITTED or _state == State.CONFIRM:
 		return _intent(NONE)
-	_state = State.AIMING
+	_state = _aim_state()
 	_hex = hex
 	_set_aim(verdict, orders_left)
 	if _aim == Aim.INVALID:
@@ -167,7 +198,7 @@ func cancel() -> Dictionary:
 	if _blocked or _state == State.IDLE or _state == State.COMMITTED:
 		return _intent(NONE)
 	if _state == State.CONFIRM:
-		_state = State.AIMING
+		_state = _aim_state()
 		return _intent(NONE)
 	if _posture != &"":
 		_posture = &""
@@ -177,6 +208,13 @@ func cancel() -> Dictionary:
 			_suppressed_hex = _hex
 			_clear_aim()
 			_state = State.ARMED
+		State.EDITING:
+			if _hex != NO_HEX:
+				_suppressed_hex = _hex
+				_clear_aim()
+			else:
+				_reset()
+				return _intent(DISARM)
 		State.ARMED:
 			_reset()
 			return _intent(DISARM)
@@ -186,7 +224,7 @@ func cancel() -> Dictionary:
 ## Key 1-3: the posture the next order is given in; the same key again drops it. Only while
 ## ARMED or AIMING.
 func pick_posture(posture: StringName) -> Dictionary:
-	if _blocked or (_state != State.ARMED and _state != State.AIMING):
+	if _blocked or not (_state in [State.ARMED, State.AIMING, State.EDITING]):
 		return _intent(NONE)
 	_posture = &"" if posture == _posture else posture
 	return _intent(POSTURE, {"posture": _posture})
@@ -200,7 +238,8 @@ func clear_posture() -> void:
 ## The order was refused after all (the command rejected it): back to aiming.
 func fail() -> void:
 	if _state == State.COMMITTED or _state == State.CONFIRM:
-		_state = State.AIMING if _hex != NO_HEX else State.ARMED
+		_editing = _editing or _was_editing
+		_state = _aim_state() if _hex != NO_HEX else _idle_aim_state()
 		_elapsed = 0.0
 
 
@@ -213,7 +252,17 @@ func tick(delta: float) -> void:
 		_reset()
 
 
+func _aim_state() -> State:
+	return State.EDITING if _editing else State.AIMING
+
+
+func _idle_aim_state() -> State:
+	return State.EDITING if _editing else State.ARMED
+
+
 func _commit() -> void:
+	_was_editing = _editing
+	_editing = false
 	_state = State.COMMITTED
 	_elapsed = 0.0
 	_clear_aim()
@@ -238,6 +287,8 @@ func _clear_aim() -> void:
 
 
 func _reset() -> void:
+	_editing = false
+	_was_editing = false
 	_state = State.IDLE
 	_id = &""
 	_posture = &""

@@ -18,6 +18,7 @@ var _movement: OperationalMovement
 var _state: OperationalState
 var _formation_id: StringName = &""
 var _hex := OFF
+var _editing := false  # the aimed line re-aims an issued order: the label says its cost
 var _posture_override: StringName = &""
 var _shown_posture: StringName = &""
 var _dirty := false
@@ -65,6 +66,14 @@ func set_hex(hex: Vector2i) -> void:
 	if hex == _hex:
 		return
 	_hex = hex
+	_request()
+
+
+## The aim re-aims an issued order (EDITING): the cursor label shows FREE / COSTS 1 ORDER.
+func set_editing(editing: bool) -> void:
+	if editing == _editing:
+		return
+	_editing = editing
 	_request()
 
 
@@ -192,12 +201,18 @@ static func label_text(preview: Dictionary) -> String:
 ## The cursor label of the aimed route: "<cost> PTS · <turns> · <stop>" and, while the side to
 ## move aims, "ORDERS LEFT n / m"; with no orders left the reason instead (the click is refused).
 static func cursor_label(
-	state: OperationalState, formation: Formation, preview: Dictionary
+	state: OperationalState, formation: Formation, preview: Dictionary, editing := false
 ) -> String:
 	if formation.owner_id != state.current_player:
 		return label_text(preview)
-	if state.orders_left() <= 0:
+	var free := state.ordered_this_turn.has(formation.id)
+	if state.orders_left() <= 0 and not free:
 		return StaffMapOrderRingModel.reason_text(StaffMapOrderGesture.REASON_NO_ORDERS).to_upper()
+	if editing:
+		return (
+			"%s · %s"
+			% [label_text(preview), _tr_static(StaffMapOrderGesture.edit_cost_label(free))]
+		)
 	return (
 		"%s · %s"
 		% [label_text(preview), StaffMapOrders.orders_left_text(state, formation.owner_id)]
@@ -262,7 +277,7 @@ func _show_route(formation: Formation, preview: Dictionary) -> void:
 		geometry["dots"],
 		geometry["stops"],
 		geometry["target"],
-		cursor_label(_state, formation, preview),
+		cursor_label(_state, formation, preview, _editing),
 		geometry["before"],
 		style,
 		warning_marks(_state, _relief, formation, preview["route"]),

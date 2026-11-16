@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## The order gesture wired into the staff map (TASK-153 stage 1): click-click ordering, the
 ## no-orders-left refusal, the cursor label, the attack look, the simulation left untouched.
@@ -27,6 +28,7 @@ func after_each() -> void:
 	for formation in _map.simulation().state.formations:
 		formation.order = null
 	_map.simulation().state.orders_issued = 0
+	_map.simulation().state.ordered_this_turn.clear()
 	_map.select_formation(&"")
 	_map.set_viewer(_map.simulation().state.current_player)
 	_map.order_gesture().tick(1.0)
@@ -256,3 +258,37 @@ func test_the_alternative_plan_is_made_once_per_debounced_rebuild() -> void:
 	assert_eq(route.alt_plans_made(), plans, "hovering alone plans nothing")
 	route.rebuild()
 	assert_eq(route.alt_plans_made(), plans + 1)
+
+
+func test_clicking_a_head_edits_the_order_for_free() -> void:
+	var formation := _own()
+	var first := _far_hex(formation)
+	assert_true(first != StaffMapRoutePreview.OFF, "a reachable hex")
+	_map.select_formation(formation.id)
+	_click_hex(first)
+	_map.order_gesture().tick(1.0)
+	var state := _map.simulation().state
+	var left := state.orders_left()
+	var heads := _map.orders().heads_on_screen()
+	assert_true(heads.has(formation.id), "the issued order has a head")
+	_map.click_at(heads[formation.id])
+	assert_eq(_map.order_gesture().state(), StaffMapOrderGesture.State.EDITING)
+	assert_eq(_map.order_gesture().edited_from(), formation.id)
+	assert_eq(formation.order.destination, first, "the old order stays until replaced")
+	var second := _far_hex(formation, 2)
+	if second != StaffMapRoutePreview.OFF and second != first:
+		_click_hex(second)
+		assert_eq(formation.order.destination, second)
+		assert_eq(state.orders_left(), left, "re-aiming this turn's order is free")
+
+
+func test_esc_while_editing_keeps_the_order() -> void:
+	var formation := _own()
+	var first := _far_hex(formation)
+	_map.select_formation(formation.id)
+	_click_hex(first)
+	_map.order_gesture().tick(1.0)
+	_map.click_at(_map.orders().heads_on_screen()[formation.id])
+	assert_true(_map._cancel_gesture(), "no hex aimed: Esc ends the editing")
+	assert_eq(_map.order_gesture().state(), StaffMapOrderGesture.State.IDLE)
+	assert_eq(formation.order.destination, first)

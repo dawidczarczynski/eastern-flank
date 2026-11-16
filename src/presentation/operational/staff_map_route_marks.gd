@@ -206,6 +206,11 @@ func style_of(index := 0) -> Dictionary:
 	return _routes[index]["style"] if index < _routes.size() else {}
 
 
+## The screen position of a 3D anchor point (the projector set by the map).
+func project_point(point: Vector3) -> Vector2:
+	return _project.call(point) if _project.is_valid() else Vector2.ZERO
+
+
 ## Camera moved: re-project.
 func refresh() -> void:
 	if _kind != 0:
