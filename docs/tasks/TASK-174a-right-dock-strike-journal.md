@@ -1,6 +1,6 @@
 # TASK-174a: Right-hand tabbed dock (framework + STRIKE and JOURNAL tabs) that shrinks the map
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-150 (soft: TASK-162)
 - **Sections**: docs/design/operational_map/README.md "Slide-in side panels", "Docked windows", "HUD clear zone"; docs/design/operational_map/slide_in_panels.html (variant B); TASK-150 and TASK-162 implementation notes

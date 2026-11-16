@@ -132,7 +132,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-159](TASK-159-battle-end-exit.md) | Single battle (outside an operation): exit option after the battle ends | 💡 idea | – |
 | [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | Lithuanian and Belarusian factions (identity only) with national flags | 🟣 to playtest | – |
 | [TASK-161](TASK-161-theatre-name-polish-i18n.md) | Missing Polish translation of the theatre name at operation start | 💡 idea | – |
-| [TASK-162](TASK-162-airfield-click-through-window.md) | Strike panel covers eastern targets (Lida airfield): count it in the HUD clear zone | 🟣 to playtest | TASK-150 |
+| [TASK-162](TASK-162-airfield-click-through-window.md) | Strike panel covers eastern targets (Lida airfield): count it in the HUD clear zone | 🔵 done | TASK-150 |
 | [TASK-163](TASK-163-defender-deployment-near-objective.md) | Tactical battle deployment: defender placed around the objective | 💡 idea | – |
 | [TASK-164](TASK-164-operation-end-conditions.md) | Operation ends when all enemy units are destroyed and objectives are reached | 💡 idea | – |
 | [TASK-165](TASK-165-objective-rules-readability.md) | Operation objectives: make hold-condition readable (held for N turns vs at the end) | 💡 idea | TASK-164 |
@@ -144,8 +144,8 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-171](TASK-171-map-water-cutoff-check.md) | Tactical map generation: avoid units cut off by water | 💡 idea | – |
 | [TASK-172](TASK-172-staff-map-counter-national-flag.md) | National flag on staff-map counters and the formation panel | 💡 idea | TASK-160 |
 | [TASK-173](TASK-173-allied-factions-within-a-side.md) | Allied factions within a side: Russia and Belarus as separate allied states, not one party (naming, notice, result window) | 💡 idea | TASK-160 |
-| [TASK-174a](TASK-174a-right-dock-strike-journal.md) | Right-hand tabbed dock (strike + journal tabs) that shrinks the map instead of covering it; replaces the TASK-162 strike-panel inset | 🟣 to playtest | TASK-150 (soft: TASK-162) |
-| [TASK-174b](TASK-174b-right-dock-politics-tab.md) | POLITICS tab of the right dock: narrow single column with DECISIONS / OVERVIEW / SUPPORT sub-tabs, retires the full-screen politics sheet | 🔴 blocked | TASK-174a |
+| [TASK-174a](TASK-174a-right-dock-strike-journal.md) | Right-hand tabbed dock (strike + journal tabs) that shrinks the map instead of covering it; replaces the TASK-162 strike-panel inset | 🔵 done | TASK-150 (soft: TASK-162) |
+| [TASK-174b](TASK-174b-right-dock-politics-tab.md) | POLITICS tab of the right dock: narrow single column with DECISIONS / OVERVIEW / SUPPORT sub-tabs, retires the full-screen politics sheet | 🟢 ready | TASK-174a |
 | [TASK-142](TASK-142-staff-map-counter-depth.md) | Staff map counters and installation markers as hex game tiles (hexagon base, side shape on a raised plate) (design `unit_tokens_hex.html`, variant D accepted 2026-11-11); pitch decides flat / tilted look| 🔵 done | – |
 | [TASK-143](TASK-143-escalation-ladder-window.md) | Escalation ladder window: horizontal axis of 7 levels with tick matrix of strike classes, trigger chips, collapse strips; X / Esc / click-outside close, closes other windows (design `escalation_ladder_window.html`, variant B accepted 2026-11-11) | 🔵 done (window removed by TASK-119b) | – |
 | TASK-100 | Reconnaissance and operational fog: targets known / unknown / stale, recon means | 💡 idea | TASK-092b |

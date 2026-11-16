@@ -1,6 +1,6 @@
 # TASK-162: Lida airfield cannot be attacked: covered by the strike panel
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-150 (done)
 - **Sections**: docs/design/operational_map/README.md "HUD clear zone"
