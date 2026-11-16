@@ -57,7 +57,7 @@ static func line(
 		"tag": TAGS.get(entry.category, ""),
 		"side": _side(entry, viewer, state),
 		"parts": parts,
-		"place": place_line(entry, namer),
+		"place": _battle_name_line(entry, viewer, namer),
 		"category": entry.category,
 		"kind": entry.kind,
 	}
@@ -91,6 +91,18 @@ static func place_line(entry: OperationalJournal.Entry, namer: Callable) -> Stri
 		return ""
 	var named := StaffMapPlaceName.named(namer, entry.coord)
 	return named if named != "" else StaffMapTurnReport.place_text(entry.coord)
+
+
+## The place line of an entry; a battle entry carries the one-line battle name instead
+## ("Contact with the enemy · Suwałki, 5 km east", TASK-168).
+static func _battle_name_line(
+	entry: OperationalJournal.Entry, viewer: int, namer: Callable
+) -> String:
+	if entry.has_coord and (entry.kind == &"battle_pending" or entry.kind == &"battle_resolved"):
+		var key := BattleNameText.key_of(entry.args, viewer)
+		if key != &"":
+			return BattleNameText.line_for(key, namer, entry.coord)
+	return place_line(entry, namer)
 
 
 ## True when `entry` passes the chip `filter` ("" = all).

@@ -11,6 +11,7 @@ signal closed
 const WIDTH := 560.0
 
 var _title: Label
+var _battle_name: Label
 var _role: Label
 var _captions := {}  # row key -> caption Label
 var _values := {}  # row key -> value Label
@@ -33,6 +34,10 @@ func _init() -> void:
 	_title = MenuStyle.label("", HudTheme.display(700, 1), 22, UiPalette.HUD_TEXT)
 	_title.name = "Title"
 	column.add_child(_title)
+	_battle_name = MenuStyle.label("", HudTheme.mono(500, 1), 12, UiPalette.HUD_DESC)
+	_battle_name.name = "BattleName"
+	_battle_name.visible = false
+	column.add_child(_battle_name)
 	_role = MenuStyle.label("", HudTheme.mono(500, 1), 11, UiPalette.AMBER)
 	_role.name = "Role"
 	column.add_child(_role)
@@ -103,11 +108,14 @@ static func reminder(setup: BattleSetup, player: int) -> String:
 
 
 ## Fills the panel for `player` and shows it.
-func present(setup: BattleSetup, player: int) -> void:
+## `name_lines`: the battle's two-line name (BattleNameText), shown under the formation title.
+func present(setup: BattleSetup, player: int, name_lines: Array[String] = []) -> void:
 	tab_text = tr("BRIEFING").to_upper()
 	tab_right_text = setup.operation_name.to_upper()
 	var mission := setup.missions[player] if has_mission(setup, player) else null
 	_title.text = tr(mission.formation_name).to_upper() if mission != null else ""
+	_battle_name.text = "\n".join(name_lines).to_upper()
+	_battle_name.visible = not name_lines.is_empty()
 	_role.text = tr("BRIEF_COMMANDER").to_upper()
 	_captions["MISSION"].text = tr("CONTACT_MISSION").to_upper()
 	_captions["INTENT"].text = tr("BRIEF_INTENT").to_upper()
@@ -116,6 +124,10 @@ func present(setup: BattleSetup, player: int) -> void:
 	_button.text = tr("BRIEF_TAKE_COMMAND").to_upper() + "  [↵]"
 	show()
 	reset_size()
+
+
+func name_text() -> String:
+	return _battle_name.text if _battle_name.visible else ""
 
 
 func title_text() -> String:

@@ -179,8 +179,8 @@ Wrecks (TASK-065) are view-only too; no new event types. A vehicle's `unit_died`
 | `formation_halted` | `formation_id`, `at`, `reason` (`contact` – an advancing formation stopped next to an enemy; the order is kept) | EndOperationalTurnCommand |
 | `formation_order_completed` | `formation_id`, `destination` (order removed, posture unchanged) | EndOperationalTurnCommand |
 | `formation_order_interrupted` | `formation_id`, `reason` (`destination_occupied` – a formation stands on the destination; `no_route` – none left; `closed_country` – the destination lies in a country closed to the player; `blocked` – not one step fits the budget, e.g. own formations ahead), `at` (its hex; order removed, no move) | EndOperationalTurnCommand |
-| `battle_pending` | `attacker_id`, `defender_id` (formation ids), `at` (the defender's hex), `index` (position in `pending_battles`) | EndOperationalTurnCommand (via `ContactRules.start_battles`, after `formation_halted`) |
-| `battle_resolved` | `attacker_id`, `defender_id`, `winner` (−1 = draw), `reason` | ResolveBattleCommand |
+| `battle_pending` | `attacker_id`, `defender_id` (formation ids), `at` (the defender's hex), `index` (position in `pending_battles`), `situation` (`BattleName.situations`: key per player, TASK-168) | EndOperationalTurnCommand (via `ContactRules.start_battles`, after `formation_halted`) |
+| `battle_resolved` | `attacker_id`, `defender_id`, `at` (defender's hex before the consequences), `situation` (as in `battle_pending`), `winner` (−1 = draw), `reason` | ResolveBattleCommand |
 | `formation_destroyed` (cause `battle`) | same fields as the strike's (`formation_id`, `player`, `at`, `before`, `after` 0); a formation with no company left after a battle | ResolveBattleCommand (`BattleConsequences`) |
 | `formation_retreated` | `formation_id`, `from`, `to` (Vector2i), `blocked` (true: no free hex, `to` = `from`); the loser falls back one hex | ResolveBattleCommand |
 | `formation_order_interrupted` (reason `retreated`) | as above; the retreating formation's order is dropped | ResolveBattleCommand |

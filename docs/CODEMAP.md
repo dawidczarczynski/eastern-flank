@@ -90,6 +90,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/operational/
 
 - `BattleConsequences` – What a finished contact battle does to the operation (TASK-095, GDD "Battle hand-off and (`battle_consequences.gd`)
+- `BattleName` – The two-line name of a battle (TASK-168): a situation phrase ("Contact with the enemy") f… (`battle_name.gd`)
 - `CampaignRecord` – A whole campaign (TASK-094d, ADR 0015 §4) as operation id + seed + the executed operation… (`campaign_record.gd`)
 - `CancelOrderCommand` – Removes the standing order of a formation of the current player (TASK-092d); its posture… (`cancel_order_command.gd`)
 - `CollapseRules` – Pure collapse rules of the operational layer (TASK-140, GDD "Escalation ladder"): whether… (`collapse_rules.gd`)
@@ -271,6 +272,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/presentation/operational/
 
+- `BattleNameText` – Translated battle names (TASK-168): the situation phrase from `BattleName` and the nearest (`battle_name_text.gd`)
 - `PlaceTransliteration` – Latin transcription of Cyrillic place names (Belarusian / Russian), shown under the origi… (`place_transliteration.gd`)
 - `StaffMap` – The operational staff map scene (TASK-093a, 2.5D restyle TASK-125): the theatre as a dark (`staff_map.gd`)
 - `StaffMapAirDefence` – Pure models and texts of the air defence on the staff map (TASK-098b, docs/design/ (`staff_map_air_defence.gd`)

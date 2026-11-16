@@ -272,8 +272,13 @@ REPORT_EMPTY,No orders were carried out.,Nie wykonano żadnych rozkazów.
 JOIN_SHOW,Show,Pokaż
 CONTACT,Contact,Zetknięcie
 CONTACTS,Contacts,Zetknięcia
-CONTACT_TITLE_ATTACK,Attack,Atak
-CONTACT_TITLE_DEFEND,Enemy attack,Atak wroga
+BATTLE_NAME_ASSAULT,Assault,Szturm
+BATTLE_NAME_ASSAULT_TOWN,Assault on the town,Szturm na miasto
+BATTLE_NAME_ASSAULT_FOREST,Forest assault,Szturm w lesie
+BATTLE_NAME_ASSAULT_RIVER,River crossing,Forsowanie rzeki
+BATTLE_NAME_DEFENCE,Defence,Obrona
+BATTLE_NAME_DEFENCE_TOWN,Defence of the town,Obrona miasta
+BATTLE_NAME_CONTACT_ENEMY,Contact with the enemy,Spotkanie z wrogiem
 "%s, %d km %s","%s, %d km %s","%s, %d km na %s"
 DIR_N,north,północ
 DIR_NE,north-east,północny wschód

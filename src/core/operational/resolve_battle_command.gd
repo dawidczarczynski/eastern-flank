@@ -37,15 +37,19 @@ func validate(state: OperationalState) -> String:
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var setup: BattleSetup = state.pending_battles.pop_front()
 	var ids := ContactBattle.formation_ids(setup)
+	var defender := state.get_formation(ids[1])
 	var events: Array[Dictionary] = [
 		{
 			"type": &"battle_resolved",
 			"attacker_id": ids[0],
 			"defender_id": ids[1],
+			"situation": BattleName.situations(setup),
 			"winner": result.winner,
 			"reason": result.reason,
 		}
 	]
+	if defender != null:
+		events[0]["at"] = defender.coord
 	events.append_array(BattleConsequences.apply(state, setup, result))
 	return events
 

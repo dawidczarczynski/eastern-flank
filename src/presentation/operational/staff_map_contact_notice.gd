@@ -79,16 +79,12 @@ func present(
 	tab_color = ALERT
 	line_color = Color(ALERT, 0.45)
 	tab_right_text = ("%s %02d · %d/%d" % [tr("TURN"), state.turn, queue.x, queue.y])
-	var attacking_viewer := attacker.owner_id == viewer
 	var place := place_name if place_name != "" else tr("HEX %s") % hex_text(at)
+	var name_lines := BattleNameText.lines_for(
+		BattleName.situation(setup, viewer), func(_c: Vector2i) -> String: return place_name, at
+	)
 	_title.text = (
-		(
-			"%s – %s"
-			% [
-				tr("CONTACT_TITLE_ATTACK") if attacking_viewer else tr("CONTACT_TITLE_DEFEND"),
-				place
-			]
-		)
+		("\n".join(name_lines) if not name_lines.is_empty() else "%s – %s" % [tr("CONTACT"), place])
 		. to_upper()
 	)
 	var sides: Array[Formation] = [attacker, defender]

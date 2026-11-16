@@ -220,6 +220,8 @@ func test_pending_battle_blocks_turns_until_resolved() -> void:
 	assert_eq(_events[0]["defender_id"], &"e")
 	assert_eq(_events[0]["winner"], 0)
 	assert_eq(_events[0]["reason"], &"turn_limit")
+	assert_eq(_events[0]["situation"], BattleName.situations(setup))
+	assert_true(_events[0].has("at"))
 	assert_true(sim.execute(EndOperationalTurnCommand.new()))
 
 

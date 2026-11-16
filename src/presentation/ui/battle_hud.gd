@@ -120,11 +120,13 @@ func on_turn_started(state: GameState, turn: int, player: int) -> void:
 
 ## Campaign battle (TASK-094c): `mission` is the one-line reminder under the turn bar; the end
 ## screen becomes the commander's report.
-func set_campaign(mission: String) -> void:
+func set_campaign(mission: String, battle_name := "") -> void:
 	_report_mode = true
 	if _report_button == null:
 		_build_report_button()
-	_mission_line.text = mission.to_upper()
+	_mission_line.text = (
+		("%s  |  %s" % [battle_name, mission] if battle_name != "" else mission).to_upper()
+	)
 	_action_bar.button(ACTION_OBJECTIVES).visible = true
 	_mission_line.visible = mission != ""
 	# Only a campaign battle has a briefing to reopen.

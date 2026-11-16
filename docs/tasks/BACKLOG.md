@@ -138,7 +138,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-165](TASK-165-objective-rules-readability.md) | Operation objectives: make hold-condition readable (held for N turns vs at the end) | 💡 idea | TASK-164 |
 | [TASK-166](TASK-166-rebuild-resources.md) | Rebuilding resources (e.g. command centres) after damage | 💡 idea | – |
 | [TASK-167](TASK-167-territory-control-areas.md) | Territory control as whole areas instead of strips | 💡 idea | TASK-152 |
-| [TASK-168](TASK-168-immersive-battle-names.md) | More immersive battle names (e.g. 'Contact with the enemy 5 km east of Suwałki') | 💡 idea | – |
+| [TASK-168](TASK-168-immersive-battle-names.md) | More immersive battle names (e.g. 'Contact with the enemy 5 km east of Suwałki') | 🔵 done | – |
 | [TASK-169](TASK-169-move-air-defence.md) | Relocating air-defence units/sites on the operational map | 💡 idea | TASK-098a |
 | [TASK-170](TASK-170-battalion-battle-groups.md) | Battalion battle groups (BG/BTG): balanced combined-arms forces in tactical battles | 💡 idea | – |
 | [TASK-171](TASK-171-map-water-cutoff-check.md) | Tactical map generation: avoid units cut off by water | 💡 idea | – |

@@ -288,7 +288,9 @@ func present(
 	tab_text = tr("BATTLE_RESULT").to_upper()
 	tab_color = UiPalette.AMBER
 	tab_right_text = "%s %02d" % [tr("TURN"), state.turn]
-	_title.text = winner_text(state, report)
+	var name_key := _name_key(events, viewer)
+	var name_lines := BattleNameText.lines_for(name_key, place_namer, _name_hex(events))
+	_title.text = name_lines[0] if not name_lines.is_empty() else winner_text(state, report)
 	var title_colour := UiPalette.HUD_TEXT
 	if report.winner >= 0 and report.winner < state.player_sides.size():
 		title_colour = StaffMapFormations.side_colour(palette, report.winner)
@@ -297,7 +299,11 @@ func present(
 	if report.winner >= 0 and report.winner < state.player_sides.size():
 		winner_side = SideDefinition.find(state.player_sides[report.winner])
 	_title_flag.setup(winner_side, title_colour)
-	_subtitle.text = reason_text(report)
+	_subtitle.text = (
+		"%s · %s · %s" % [name_lines[1], winner_text(state, report), reason_text(report)]
+		if not name_lines.is_empty()
+		else reason_text(report)
+	)
 	_clear(_outcome_box)
 	var lines := outcome_lines(state, report)
 	_outcome_count = lines.size()
@@ -445,6 +451,20 @@ func _fill_aftermath(
 			UiPalette.HUD_TEXT
 		)
 	)
+
+
+func _name_key(events: Array, viewer: int) -> StringName:
+	for event: Dictionary in events:
+		if event.get("type") == &"battle_resolved":
+			return BattleNameText.key_of(event, viewer)
+	return &""
+
+
+func _name_hex(events: Array) -> Vector2i:
+	for event: Dictionary in events:
+		if event.get("type") == &"battle_resolved" and event.get("at") is Vector2i:
+			return event["at"]
+	return Vector2i.ZERO
 
 
 func _place_text(c: Vector2i) -> String:

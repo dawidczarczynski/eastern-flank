@@ -164,10 +164,11 @@ func on_event(state: OperationalState, event: Dictionary) -> void:
 		&"battle_pending":
 			_both(e, &"battle", &"battle_pending", _owner(state, event["attacker_id"]))
 			_at(e, event["at"])
-			_args(e, event, ["attacker_id", "defender_id", "index"])
+			_args(e, event, ["attacker_id", "defender_id", "index", "situation"])
 		&"battle_resolved":
 			_both(e, &"battle", &"battle_resolved", -1)
-			_args(e, event, ["attacker_id", "defender_id", "winner", "reason"])
+			_at(e, event.get("at"))
+			_args(e, event, ["attacker_id", "defender_id", "winner", "reason", "situation"])
 		&"battle_consequences":
 			_both(e, &"battle", &"battle_consequences", -1)
 			_args(

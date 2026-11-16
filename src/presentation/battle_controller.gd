@@ -148,7 +148,7 @@ func _ready() -> void:
 	loading.finish()
 	is_built = true
 	if campaign:
-		_briefing.present(setup, human_player)
+		_briefing.present(setup, human_player, _battle_name()["lines"])
 		_place_briefing()
 	else:
 		_start_play()
@@ -326,6 +326,15 @@ func _campaign_key(keycode: Key) -> bool:
 	return false
 
 
+## The campaign battle's name for the human ({lines, line}, TASK-168): computed from the pending
+## contact battle of the running operation, as the cut setup has no operational hex.
+func _battle_name() -> Dictionary:
+	var state: OperationalState = null
+	if Session.simulation != null:
+		state = Session.simulation.state
+	return BattleNameText.pending(state, human_player)
+
+
 ## O / the OBJECTIVES button / a click on the mission line: the briefing again, to check the
 ## objectives at any time of a campaign battle. False when there is none or the player cannot act.
 func show_briefing() -> bool:
@@ -333,7 +342,7 @@ func show_briefing() -> bool:
 		return false
 	if _menu != null and _menu.is_open():
 		return false
-	_briefing.present(setup, human_player)
+	_briefing.present(setup, human_player, _battle_name()["lines"])
 	_place_briefing()
 	return true
 
@@ -813,7 +822,7 @@ func _build_hud_root() -> void:
 		_audio.hook_button(_hud.action_bar().button(id))
 	_audio.hook_button(_hud.end_button())
 	if campaign:
-		_hud.set_campaign(BattleBriefing.reminder(setup, human_player))
+		_hud.set_campaign(BattleBriefing.reminder(setup, human_player), _battle_name()["line"])
 		_hud.report_pressed.connect(report_to_staff)
 		_hud.mission_pressed.connect(show_briefing)
 		_audio.hook_button(_hud.report_button())

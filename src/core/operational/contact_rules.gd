@@ -55,6 +55,7 @@ static func start_battles(state: OperationalState, events: Array[Dictionary]) ->
 			"defender_id": defender.id,
 			"at": defender.coord,
 			"index": state.pending_battles.size() - 1,
+			"situation": BattleName.situations(state.pending_battles[-1]),
 		}
 		events.append(pending)
 
