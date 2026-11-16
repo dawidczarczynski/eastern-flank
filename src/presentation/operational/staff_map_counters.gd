@@ -95,6 +95,13 @@ func refresh() -> void:
 	for formation in _state.formations:
 		counter(formation.id).set_strength(formation.strength(), formation.max_strength())
 		counter(formation.id).has_order = formation.order != null
+		counter(formation.id).posture = formation.posture
+
+
+## Shows or hides the posture badges of the own tiles (zoom level 1 and closer, TASK-158).
+func set_posture_badges(shown: bool) -> void:
+	for id: StringName in _counters:
+		counter(id).show_posture = shown
 
 
 ## Moved / in-contact marks (TASK-092e) from the turn view-model.

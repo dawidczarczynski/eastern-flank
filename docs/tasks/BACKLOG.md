@@ -128,7 +128,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-155](TASK-155-march-reach-contour.md) | Staff map T+1 reach contour for the march posture (stage 3): pure reach query in `OperationalRoutes` + `StaffMapReachLayer` | 🔵 done | TASK-153 |
 | TASK-156 | Several attackers on one target: should the rules reward a converging attack? Open questions; the UI tally x n waits for this | 💡 idea | – |
 | TASK-157 | Staff map: edit an issued order by dragging / clicking its head (stage 4) | 💡 idea | TASK-153, TASK-154 |
-| [TASK-158](TASK-158-posture-badge-switcher.md) | Staff map posture badge on every own counter + mouse-first posture switcher strip (variant A of posture_badge_switcher.html): click MARCH / ADVANCE / DEFEND for a selected formation or an issued order, keys 1–3 optional | 🟢 ready | TASK-153, TASK-154 |
+| [TASK-158](TASK-158-posture-badge-switcher.md) | Staff map posture badge on every own counter + mouse-first posture switcher strip (variant A of posture_badge_switcher.html): click MARCH / ADVANCE / DEFEND for a selected formation or an issued order, keys 1–3 optional | 🔵 done | TASK-153, TASK-154 |
 | [TASK-159](TASK-159-battle-end-exit.md) | Single battle (outside an operation): exit option after the battle ends | 💡 idea | – |
 | [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | National flags for Lithuanian and Belarusian units | 💡 idea | – |
 | [TASK-161](TASK-161-theatre-name-polish-i18n.md) | Missing Polish translation of the theatre name at operation start | 💡 idea | – |

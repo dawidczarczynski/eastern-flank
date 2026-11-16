@@ -156,6 +156,8 @@ var _result_notice: StaffMapBattleResult
 var _resumed := false  # the simulation came back from a played battle (Session)
 var _marks := StaffMapTurnMarks.new()
 var _ai_turn_key := -1  # turn * 2 + player of the AI turn already played
+var _posture_switcher: StaffMapPostureSwitcher  # the posture strip under the selected counter
+var _posture_key := []  # the last state handed to the strip (no work while it is unchanged)
 var _slide := StaffMapSlide.new()  # the counters' slide after End turn
 ## True: the view switches to the side to play after each End turn (hot-seat).
 var _anchors := {}  # formation id -> Vector3 hex centre on the relief (hex units)
@@ -268,6 +270,7 @@ func _process(delta: float) -> void:
 	if _route != null:
 		_route.tick(Time.get_ticks_msec())
 	_tick_gesture(delta)
+	_sync_posture_switcher()
 
 
 ## Per frame: the journal is rebuilt once after new events while open; the ring follows the camera.
@@ -893,6 +896,7 @@ func select_formation(formation_id: StringName, refill := false, ease_camera := 
 	if _border_prompt != null and _border_prompt.pending().get("formation_id") != formation_id:
 		_border_prompt.take()
 	_counters.set_selected(formation_id)
+	_sync_posture_switcher()
 	if formation == null:
 		_route.set_formation(_simulation.state, &"")
 		return
@@ -980,6 +984,68 @@ func _pick_posture_key(number: int) -> void:
 	_gesture.pick_posture(StaffMapRoute.posture_for_key(number))
 	_route.set_posture(_gesture.posture())
 	_aim_key = []
+	_sync_posture_switcher()
+
+
+## A click on a segment of the posture strip (TASK-158): a formation with an order gets a
+## SetPostureCommand (the order is kept and re-planned); without one the posture is armed for the
+## next target click, exactly as keys 1-3 do. False when nothing changed.
+func pick_posture_segment(posture: StringName) -> bool:
+	var formation := _selected_own()
+	if formation == null or not _can_order(formation.id) or is_sliding() or _modal_open():
+		return false
+	_sync_gesture()
+	var action := StaffMapPostureSwitcherModel.click_action(
+		formation.order != null, formation.posture, _gesture.posture(), posture
+	)
+	match action:
+		StaffMapPostureSwitcherModel.SET:
+			return set_posture(posture)
+		StaffMapPostureSwitcherModel.ARM, StaffMapPostureSwitcherModel.DISARM:
+			_pick_posture_key(OperationalPosture.NAMES.find(posture) + 1)
+			return true
+	return false
+
+
+func posture_switcher() -> StaffMapPostureSwitcher:
+	return _posture_switcher
+
+
+## Per frame (cheap, cached): posture badges at zoom level 1 and closer, and the strip under the
+## selected own formation. Reads the state only.
+func _sync_posture_switcher() -> void:
+	if _counters == null or _posture_switcher == null or _simulation == null:
+		return
+	var zoomed := _view.zoom_level() >= 1
+	_counters.set_posture_badges(zoomed)
+	var formation := _selected_own()
+	var counter := _counters.counter(formation.id) if formation != null else null
+	if not zoomed or counter == null or not counter.visible:
+		_posture_key = []
+		_posture_switcher.clear()
+		return
+	var state := _simulation.state
+	var has_order := formation.order != null
+	var armed := _gesture.posture() if not has_order else &""
+	var active := StaffMapPostureSwitcherModel.active_posture(formation.posture, armed)
+	var dest_y := 0.0
+	if has_order:
+		dest_y = _screen_of_hex(formation.order.destination).y
+	var flipped := StaffMapPostureSwitcherModel.flip_above(
+		counter.position.y, has_order, dest_y, _viewport_size().y
+	)
+	var enabled := StaffMapPostureSwitcherModel.enabled(
+		true,
+		state.current_player == viewer_player,
+		_modal_open(),
+		is_sliding(),
+		_strike_mode_open()
+	)
+	var key := [counter.position, active, flipped, enabled]
+	if key == _posture_key and _posture_switcher.visible:
+		return
+	_posture_key = key
+	_posture_switcher.present(counter.position, active, flipped, enabled)
 
 
 func _clear_pick() -> void:
@@ -1365,10 +1431,17 @@ func _build_camera() -> void:
 		_camera.make_current()
 	_position = _bounds.get_center()
 	_update_limits()
-	_set_zoom(_min_zoom)
+	_set_zoom(_default_zoom())
 	_view.set_zoom_level(_view.zoom_level(), true)
 	if is_inside_tree():
 		get_viewport().size_changed.connect(_on_viewport_resized)
+
+
+## The zoom a fresh map opens at: zoom level 1 (counters, orders, badges readable), a little above
+## the threshold so the hysteresis does not drop it to level 0; never beyond the zoom limits.
+func _default_zoom() -> float:
+	var px_per_km := _palette.zoom_level_px_per_km.x * (1.0 + 2.0 * _palette.zoom_hysteresis)
+	return clampf(px_per_km * _km_per_unit / StaffMapView.UNIT, _min_zoom, _max_zoom)
 
 
 ## The operational state, its simulation and the counters (TASK-092b).
@@ -1425,6 +1498,10 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_counter_layer.add_child(_support_ghosts)
 	_counters = StaffMapCounters.new()
 	_counter_layer.add_child(_counters)
+	_posture_switcher = StaffMapPostureSwitcher.new()  # over the counters
+	_posture_switcher.setup(_palette)
+	_posture_switcher.posture_picked.connect(pick_posture_segment)
+	_counter_layer.add_child(_posture_switcher)
 	_counters.set_depth(StaffMapCounter.depth_for_pitch(_pitch))
 	_installations.set_depth(StaffMapCounter.depth_for_pitch(_pitch))
 	_build_route_preview()  # after the counters: its cross and label draw over them
@@ -1467,6 +1544,8 @@ func _build_route_preview() -> void:
 	_route_marks = StaffMapRouteMarks.new()
 	_route_marks.set_projector(_project)
 	_counter_layer.add_child(_route_marks)
+	if _posture_switcher != null:  # the strip stays above the order marks and labels
+		_counter_layer.move_child(_posture_switcher, -1)
 	_route = StaffMapRoutePreview.new(_route_ribbon, _route_marks, _view.relief(), _palette)
 	_route.set_alt_ribbon(alt_ribbon)
 	_update_line_scale()
@@ -1528,6 +1607,7 @@ func _layout_counters() -> void:
 		points[id] = _project(_anchors[id])
 	_counters.layout(points)
 	_layout_places()
+	_sync_posture_switcher()
 
 
 func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
@@ -2771,8 +2851,8 @@ func _update_hover() -> void:
 	if not get_viewport().get_visible_rect().has_point(mouse):
 		_clear_hover()
 		return
-	if _panel != null and _panel.visible and _panel.get_global_rect().has_point(mouse):
-		_clear_hover()  # the panel covers the map
+	if _covered_by_hud(mouse):
+		_clear_hover()  # the panel or the posture strip covers the map: no aim line through it
 		return
 	if _strike != null and _strike.is_open():
 		_strike.set_hover(&"" if _strike.covers(mouse) else _strike_target_at(mouse))
@@ -2798,6 +2878,17 @@ func _update_hover() -> void:
 		_view.highlight(c)
 		_card.show_info(_card_info(c))
 	_last_mouse = mouse
+
+
+## True while the cursor is over a HUD control that takes the mouse (bars, windows, the posture
+## strip, panels): clicks do not reach the map there, so the order line must not aim through it.
+func _covered_by_hud(mouse: Vector2) -> bool:
+	if get_viewport().gui_get_hovered_control() != null:
+		return true
+	for control: Control in [_panel, _posture_switcher]:
+		if control != null and control.visible and control.get_global_rect().has_point(mouse):
+			return true
+	return false
 
 
 ## The cursor is over `hex`: the armed gesture aims there. The verdict is the cheap reachability

@@ -1,6 +1,6 @@
 # TASK-158: Staff map – posture badge on counters and one-click posture switcher
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-153, TASK-154
 - **Sections**: GDD "Orders and postures"; design/operational_map/posture_badge_switcher.html (variant A, accepted 2026-11-16) and the README bullet "Posture badge and switcher"; `StaffMapCounter`, `StaffMapUnitStrip`, `StaffMapOrderGesture` as the nearest parts
@@ -39,4 +39,7 @@ Orders: every own formation shows its posture as a badge; select it and click MA
 
 ## Implementation notes
 
-(to fill in)
+- New in `src/presentation/operational/`: `StaffMapPostureGlyphs` (polygon glyphs + `draw`), `StaffMapPostureSwitcherModel` (pure: segments, active, flip, enabled, click meaning SET / ARM / DISARM / NONE, caption, tooltip), `StaffMapPostureSwitcher` (strip Control: 52x34 segments, 250 ms tooltip, 120 ms fade-in, 35 % and inert when disabled). Badge drawn in `StaffMapCounter` (own tiles only, Z1+); `StaffMap` hosts the strip and `_sync_posture_switcher()` (cached). Click with an order -> `SetPostureCommand`; without -> same arm path as keys 1-3.
+- Deviations from the mockup: segment names come from the existing posture strings (ADVANCE shows as "ATTACK", localised); tooltip key on the title line; no 150 ms line cross-fade; with no order and nothing armed a click on the active segment arms it (default posture would otherwise mislead); strip also flips above when there is no room below.
+- Not seen: fade-in, flip, tooltip and disabled state (screenshot tool does not tick `_process`) - check in the playtest. docs/MANUAL.md "Giving an order" updated; menu staff-map image refreshed.
+- Playtest fixes (2026-11-16): a fresh map opens at zoom level 1 (`StaffMap._default_zoom`, saved camera settings still win); the strip is moved above the route marks in the counter layer; the aim line / route preview is cleared while the cursor is over any HUD control that takes the mouse (`_covered_by_hud`, `gui_get_hovered_control`), so it no longer runs through the strip, bars or windows. Further rules for hiding an unissued line were declined (decision: only cursor off the map / over the HUD; selection stays until click or Esc).

@@ -58,6 +58,12 @@ const STACK_STEP := 8.0
 const STACK_DARKEN := 0.25
 const PULSE_SECONDS := 1.6
 const PULSE_GROW := 26.0
+const POSTURE_BADGE_CENTRE := Vector2(-23, 18)  # from the tile centre, screen px
+const POSTURE_BADGE_RADIUS := 9.0
+const POSTURE_BADGE_HALO := 1.2
+const POSTURE_BADGE_FILL_DARKEN := 0.55
+const POSTURE_GLYPH_SIZE := 10.0
+const POSTURE_GLYPH_STROKE := 1.7
 
 static var _shadow_texture: GradientTexture2D
 
@@ -109,6 +115,18 @@ var stack_count := 1:
 	set(value):
 		if stack_count != value:
 			stack_count = value
+			queue_redraw()
+## Posture badge (TASK-158): the formation's posture, drawn on own tiles while `show_posture`
+## (zoom level 1 and closer).
+var posture: StringName = &"":
+	set(value):
+		if posture != value:
+			posture = value
+			queue_redraw()
+var show_posture := false:
+	set(value):
+		if show_posture != value:
+			show_posture = value
 			queue_redraw()
 ## 0 = flat map (flat hexagon, no wall / shadow), 1 = tilted map; see depth_for_pitch.
 var depth := 1.0:
@@ -370,6 +388,8 @@ func _draw() -> void:
 	_draw_designation(tile)
 	if stack_count > 1:
 		_draw_badge(tile)
+	if show_posture and is_own() and posture != &"":
+		_draw_posture_badge(-step * (tiles - 1))
 	if country_tag != "":
 		_draw_country_tag(tile)
 	if pulse_left > 0.0:
@@ -576,6 +596,20 @@ func _draw_badge(tile: Rect2) -> void:
 	var baseline := box.position.y + (box.size.y + font.get_ascent(size_px)) * 0.5 - 1.5
 	var at := Vector2(box.position.x + (box.size.x - text_w) * 0.5, baseline)
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, _palette.ui_amber)
+
+
+## Posture badge (TASK-158): a dark disc with the posture glyph at the tile's lower left, on the
+## top tile of a stack (`lift` = its upward shift).
+func _draw_posture_badge(lift_px: float) -> void:
+	var c := POSTURE_BADGE_CENTRE + Vector2(0.0, lift_px)
+	draw_circle(c, POSTURE_BADGE_RADIUS + POSTURE_BADGE_HALO, _palette.map_void)
+	draw_circle(c, POSTURE_BADGE_RADIUS, _palette.ui_muted)
+	draw_circle(
+		c, POSTURE_BADGE_RADIUS - 1.0, _base_colour().lerp(Color.BLACK, POSTURE_BADGE_FILL_DARKEN)
+	)
+	StaffMapPostureGlyphs.draw(
+		self, posture, c, POSTURE_GLYPH_SIZE, _palette.ui_text, POSTURE_GLYPH_STROKE
+	)
 
 
 ## A small amber tab with an arrow at the tile's upper-left corner.

@@ -205,6 +205,7 @@ POSTURE,POSTURE,POSTAWA
 POSTURE_HINT_MARCH,Goes around enemy zones of control.,Omija strefy kontroli wroga.
 POSTURE_HINT_ADVANCE,Enters enemy zones and stops in contact.,Wchodzi w strefy wroga i staje w styku.
 POSTURE_HINT_DEFEND,Goes around enemy zones. Best in defence.,Omija strefy wroga. Najlepsza w obronie.
+Key %d,Key %d,Klawisz %d
 ORDER_RING_CANCEL,Cancel,Anuluj
 ORDER_RING_ORDER,order,rozkaz
 ORDER_RING_CANCEL_TITLE,Cancel order,Anuluj rozkaz
