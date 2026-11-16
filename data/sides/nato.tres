@@ -10,5 +10,5 @@ display_name = "NATO"
 alliance_decision_name = "Invoke collective defence"
 briefing = "Hold the Suwałki Gap and keep the Baltic link open. Defender with the first move and allied reinforcements."
 lead_faction = &"poland"
-factions = Array[StringName]([&"poland"])
+factions = Array[StringName]([&"poland", &"lithuania"])
 flag = ExtResource("2_flag")

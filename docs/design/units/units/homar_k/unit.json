@@ -5,7 +5,8 @@
   "class": "mlrs",
   "mobility": "wheeled",
   "operators": [
-    "poland"
+    "poland",
+    "lithuania"
   ],
   "in_service": "2023-present",
   "country_of_origin": "South Korea / Poland (Hanwha launcher, Jelcz chassis)",

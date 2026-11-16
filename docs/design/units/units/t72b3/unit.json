@@ -5,7 +5,8 @@
   "class": "tank",
   "mobility": "tracked",
   "operators": [
-    "russia"
+    "russia",
+    "belarus"
   ],
   "in_service": "2011-present",
   "country_of_origin": "Russia",

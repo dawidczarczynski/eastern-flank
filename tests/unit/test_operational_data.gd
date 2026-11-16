@@ -61,10 +61,10 @@ func test_sides() -> void:
 	assert_true(nato != null and russia != null)
 	assert_eq(nato.display_name, "NATO")
 	assert_eq(nato.lead_faction, &"poland")
-	assert_eq(nato.factions, [&"poland"] as Array[StringName])
+	assert_eq(nato.factions, [&"poland", &"lithuania"] as Array[StringName])
 	assert_eq(russia.display_name, "Russia")
 	assert_eq(russia.lead_faction, &"russia")
-	assert_eq(russia.factions, [&"russia"] as Array[StringName])
+	assert_eq(russia.factions, [&"russia", &"belarus"] as Array[StringName])
 	assert_true(SideDefinition.find(&"nobody") == null)
 	assert_true(SideDefinition.find(&"../factions/poland") == null)
 

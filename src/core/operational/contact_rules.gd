@@ -98,6 +98,9 @@ static func _build_setup(
 	var sides: Array[Formation] = [null, null]
 	sides[attacker.owner_id] = attacker
 	sides[defender.owner_id] = defender
+	for player in 2:
+		if sides[player].faction != &"":
+			setup.factions[player] = sides[player].faction
 	setup.conditions.resize(2)
 	setup.missions.resize(2)
 	for player in 2:

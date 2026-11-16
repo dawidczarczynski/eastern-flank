@@ -5,7 +5,8 @@
   "class": "infantry",
   "mobility": "foot",
   "operators": [
-    "poland"
+    "poland",
+    "lithuania"
   ],
   "in_service": "present",
   "country_of_origin": "Poland",

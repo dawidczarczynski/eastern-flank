@@ -5,7 +5,8 @@
   "class": "tank",
   "mobility": "tracked",
   "operators": [
-    "poland"
+    "poland",
+    "lithuania"
   ],
   "in_service": "2025-present (Polish Army deliveries)",
   "country_of_origin": "USA",

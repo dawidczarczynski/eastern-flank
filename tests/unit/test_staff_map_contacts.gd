@@ -152,3 +152,15 @@ func test_debug_contact_map_outlines_the_cut_and_opens_it() -> void:
 	debug.toggle(Vector2.ZERO)
 	assert_false(debug.is_open())
 	assert_eq(debug.outline_line().point_count(), 0, "closing removes the outline")
+
+
+## TASK-160: a formation fighting under a national faction shows that flag on the notice.
+func test_notice_shows_the_national_flag_of_a_formation() -> void:
+	var pair := _pair(1)
+	pair[0].faction = &"belarus"
+	pair[1].faction = &"lithuania"
+	_contact(pair[0], pair[1])
+	var notice := _map.contacts().notice
+	assert_true(notice.visible)
+	assert_eq(notice.role_flag(0).texture, FactionRegistry.get_faction(&"belarus").flag)
+	assert_eq(notice.role_flag(1).texture, FactionRegistry.get_faction(&"lithuania").flag)

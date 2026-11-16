@@ -553,6 +553,12 @@ static func _placement_problem(
 	var faction := FactionRegistry.get_faction(type.faction)
 	if faction == null:
 		return "unknown faction '%s'" % type.faction
+	if placement.faction != &"":
+		if not FactionRegistry.has_faction(placement.faction):
+			return "unknown placement faction '%s'" % placement.faction
+		if not side.factions.has(placement.faction):
+			return "faction '%s' is not on side '%s'" % [placement.faction, side.id]
+		faction = FactionRegistry.get_faction(placement.faction)
 	if type.companies.is_empty():
 		return "no companies"
 	for unit in type.companies:

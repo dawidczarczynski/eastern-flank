@@ -217,6 +217,9 @@ static func draft(
 	result.operation_name = state.operation_name
 	result.factions = state.player_factions.duplicate()
 	result.attacker = attacker_formation.owner_id
+	for formation in [attacker_formation, defender_formation]:
+		if formation.faction != &"":
+			result.factions[formation.owner_id] = formation.faction
 	result.terrain = Terrain.definition(state.grid.get_terrain(defender_formation.coord)).id
 	result.conditions = [BattleSetup.Conditions.new(), BattleSetup.Conditions.new()]
 	for formation in [attacker_formation, defender_formation]:

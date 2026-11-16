@@ -266,7 +266,12 @@ func _fill_card(
 		("%s · %s" % [tr(side.display_name) if side != null else "?", tr(role)]).to_upper()
 	)
 	_roles[i].add_theme_color_override(&"font_color", colour)
-	_role_flags[i].setup(side, colour)
+	# A formation fighting under its own national faction (TASK-160) shows that flag, not the side's.
+	var national := FactionRegistry.get_faction(formation.faction)
+	if national != null and national.flag != null:
+		_role_flags[i].show_texture(national.flag, colour)
+	else:
+		_role_flags[i].setup(side, colour)
 	var percent := 100 * formation.strength() / maxi(formation.max_strength(), 1)
 	var posture := TranslationServer.translate(
 		"POSTURE_" + String(setup.conditions[formation.owner_id].posture).to_upper()

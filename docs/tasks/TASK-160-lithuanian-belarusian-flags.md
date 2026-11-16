@@ -1,6 +1,6 @@
 # TASK-160: National flags for Lithuanian and Belarusian units
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: core (data) + presentation
 - **Depends on**: –
 - **Sections**: GDD "Factions and units (decided 2026-10-18)", GDD "Sides", GDD "Countries and stances"
@@ -58,4 +58,8 @@ MANUAL.md mentions flags only in passing (objective flags, camouflage lines). Ad
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- New factions `lithuania` / `belarus` (`data/factions/`, registered in `FactionRegistry._PATHS`), same rosters as Poland / Russia, own flags (`assets/flags/lithuania.svg`, `belarus.svg`) and colours; added to the `nato` / `russia` side `factions` lists (so the side flag still shows first via `HudModel.flags_of`).
+- `FormationPlacement.faction` (default `&""` = the side's lead faction) -> `Formation.faction`; `ContactRules._build_setup` and the staff-map contact preview draft set the battle faction of that player from the formation. `Operation` validation rejects an unknown faction id or one not on the side. `suwalki_gap.tres`: the 3 LT and 3 BY contribution placements carry the new factions.
+- Catalog files `docs/design/units/factions/{lithuania,belarus}.json` added and `lithuania`/`belarus` appended to the `operators` of the reused units (required by the catalog consistency tests; identity only).
+- Tests: `tests/unit/test_lt_by_factions.gd`; `test_factions.gd`, `test_operational_data.gd` updated to 4 factions / new side lists.
+- Not seen in game: flags in the HUD / result / contact notice / side-select window are unchecked visually. Staff-map counter flag stays TASK-172.

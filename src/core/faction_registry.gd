@@ -8,6 +8,8 @@ extends RefCounted
 const _PATHS: Array[String] = [
 	"res://data/factions/poland.tres",
 	"res://data/factions/russia.tres",
+	"res://data/factions/lithuania.tres",
+	"res://data/factions/belarus.tres",
 ]
 
 ## Faction ids of players 0, 1, ... when nothing else is chosen.

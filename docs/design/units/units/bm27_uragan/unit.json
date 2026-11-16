@@ -5,7 +5,8 @@
   "class": "mlrs",
   "mobility": "wheeled",
   "operators": [
-    "russia"
+    "russia",
+    "belarus"
   ],
   "in_service": "1977-present",
   "country_of_origin": "Soviet Union",

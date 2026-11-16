@@ -56,8 +56,10 @@ func test_unknown_faction_is_null() -> void:
 
 
 func test_registry_ids_and_order() -> void:
-	assert_eq(FactionRegistry.ids(), [&"poland", &"russia"] as Array[StringName])
-	assert_eq(FactionRegistry.all().size(), 2)
+	assert_eq(
+		FactionRegistry.ids(), [&"poland", &"russia", &"lithuania", &"belarus"] as Array[StringName]
+	)
+	assert_eq(FactionRegistry.all().size(), 4)
 	assert_eq(FactionRegistry.DEFAULT_IDS, [&"poland", &"russia"] as Array[StringName])
 
 

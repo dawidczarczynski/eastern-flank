@@ -197,6 +197,7 @@ display_name = "1st Lithuanian Mechanised Battalion"
 parent = "Iron Wolf Mechanised Infantry Brigade"
 player = 0
 definition = ExtResource("6_pl_mech_battalion")
+faction = &"lithuania"
 coord = Vector2i(40, 13)
 
 [sub_resource type="Resource" id="Resource_lt_iron_wolf_2"]
@@ -206,6 +207,7 @@ display_name = "2nd Lithuanian Mechanised Battalion"
 parent = "Iron Wolf Mechanised Infantry Brigade"
 player = 0
 definition = ExtResource("6_pl_mech_battalion")
+faction = &"lithuania"
 coord = Vector2i(46, 8)
 
 [sub_resource type="Resource" id="Resource_nato_bde_lt"]
@@ -215,6 +217,7 @@ display_name = "Lithuanian Tank Battalion"
 parent = "NATO Brigade Lithuania"
 player = 0
 definition = ExtResource("7_pl_tank_battalion")
+faction = &"lithuania"
 coord = Vector2i(56, 17)
 
 [sub_resource type="Resource" id="Resource_by_6_mech_1"]
@@ -224,6 +227,7 @@ display_name = "1st Belarusian Motor Rifle Battalion"
 parent = "6th Mechanised Brigade"
 player = 1
 definition = ExtResource("9_ru_motor_rifle_battalion")
+faction = &"belarus"
 coord = Vector2i(26, 45)
 
 [sub_resource type="Resource" id="Resource_by_6_mech_2"]
@@ -233,6 +237,7 @@ display_name = "2nd Belarusian Motor Rifle Battalion"
 parent = "6th Mechanised Brigade"
 player = 1
 definition = ExtResource("9_ru_motor_rifle_battalion")
+faction = &"belarus"
 coord = Vector2i(47, 38)
 
 [sub_resource type="Resource" id="Resource_by_6_tank"]
@@ -242,6 +247,7 @@ display_name = "Belarusian Tank Battalion"
 parent = "6th Mechanised Brigade"
 player = 1
 definition = ExtResource("10_ru_tank_battalion")
+faction = &"belarus"
 coord = Vector2i(37, 41)
 
 [sub_resource type="Resource" id="Setup_poland"]

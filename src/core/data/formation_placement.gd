@@ -11,5 +11,8 @@ extends Resource
 ## Owning player (index into OperationDefinition.sides).
 @export var player: int
 @export var definition: FormationDefinition
+## Battle faction the formation fights under (identity: flag, colours); &"" = the side's lead
+## faction. Must be one of the side's factions and field the same units as the type's faction.
+@export var faction: StringName = &""
 ## Start hex, axial coordinates on the operation's map.
 @export var coord: Vector2i

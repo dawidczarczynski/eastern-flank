@@ -10,6 +10,6 @@ display_name = "Russia"
 alliance_decision_name = "Invoke the Union State"
 briefing = "Cut the corridor between Kaliningrad and Belarus before NATO consolidates. Attacker with the initiative and a nuclear option."
 lead_faction = &"russia"
-factions = Array[StringName]([&"russia"])
+factions = Array[StringName]([&"russia", &"belarus"])
 flag = ExtResource("2_flag")
 may_use_nuclear = true

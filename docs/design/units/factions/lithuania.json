@@ -1,0 +1,13 @@
+{
+  "id": "lithuania",
+  "name": "Lithuania",
+  "iso_code": "LT",
+  "color": "#b8c740",
+  "camo": [
+    "#4b5320",
+    "#3b2f22",
+    "#1e1f1a"
+  ],
+  "vest_color": "#4f5934",
+  "notes": "Identity only (TASK-160): fields the same units as Poland."
+}

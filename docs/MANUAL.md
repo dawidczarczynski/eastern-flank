@@ -81,7 +81,7 @@ Roles in short: **infantry squads** are tough and slow but barely scratch a tank
 
 Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name – **INF** for the infantry squads (PIECH in the Polish version), the real designation for vehicles (**M1A2**, **HOMAR**, **T-72B3**, **BM-27**) – and an HP bar that turns from green to yellow to red as the unit loses HP.
 
-The units themselves wear their army's camouflage: Polish vehicles and soldiers in olive green, brown and black, Russian ones in green, near-black and sand.
+The units themselves wear their army's camouflage: Polish vehicles and soldiers in olive green, brown and black, Russian ones in green, near-black and sand. Lithuanian and Belarusian formations (the allied battalions that join the Suwałki operation) fight under their own flag and colour (Lithuania yellow-green, Belarus green) but are the same units as Poland's and Russia's respectively, with the same camouflage and stats; their flag shows next to the player's name in a battle, beside the side's flag.
 
 ## 5. The map and terrain
 

@@ -1,0 +1,13 @@
+{
+  "id": "belarus",
+  "name": "Belarus",
+  "iso_code": "BY",
+  "color": "#4a9e57",
+  "camo": [
+    "#4d5a3a",
+    "#23221d",
+    "#8a8466"
+  ],
+  "vest_color": "#7a7354",
+  "notes": "Identity only (TASK-160): fields the same units as Russia."
+}

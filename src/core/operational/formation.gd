@@ -28,6 +28,8 @@ var display_name: String
 var parent: String
 var owner_id: int
 var definition: FormationDefinition
+## Battle faction override (FormationPlacement.faction); &"" = the owner's faction.
+var faction: StringName = &""
 var coord: Vector2i
 var companies: Array[Company] = []
 ## OperationalPosture id.
@@ -50,6 +52,7 @@ static func from_placement(
 	f.parent = placement.parent
 	f.owner_id = placement.player
 	f.definition = placement.definition
+	f.faction = placement.faction
 	f.coord = placement.coord
 	f.posture = initial_posture
 	var n := 0
