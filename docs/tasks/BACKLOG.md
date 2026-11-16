@@ -129,6 +129,19 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | TASK-156 | Several attackers on one target: should the rules reward a converging attack? Open questions; the UI tally x n waits for this | 💡 idea | – |
 | TASK-157 | Staff map: edit an issued order by dragging / clicking its head (stage 4) | 💡 idea | TASK-153, TASK-154 |
 | [TASK-158](TASK-158-posture-badge-switcher.md) | Staff map posture badge on every own counter + mouse-first posture switcher strip (variant A of posture_badge_switcher.html): click MARCH / ADVANCE / DEFEND for a selected formation or an issued order, keys 1–3 optional | 🟢 ready | TASK-153, TASK-154 |
+| [TASK-159](TASK-159-battle-end-exit.md) | Single battle (outside an operation): exit option after the battle ends | 💡 idea | – |
+| [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | National flags for Lithuanian and Belarusian units | 💡 idea | – |
+| [TASK-161](TASK-161-theatre-name-polish-i18n.md) | Missing Polish translation of the theatre name at operation start | 💡 idea | – |
+| [TASK-162](TASK-162-airfield-click-through-window.md) | Lida airfield cannot be attacked: covered by a window | 💡 idea | TASK-150 |
+| [TASK-163](TASK-163-defender-deployment-near-objective.md) | Tactical battle deployment: defender placed around the objective | 💡 idea | – |
+| [TASK-164](TASK-164-operation-end-conditions.md) | Operation ends when all enemy units are destroyed and objectives are reached | 💡 idea | – |
+| [TASK-165](TASK-165-objective-rules-readability.md) | Operation objectives: make hold-condition readable (held for N turns vs at the end) | 💡 idea | TASK-164 |
+| [TASK-166](TASK-166-rebuild-resources.md) | Rebuilding resources (e.g. command centres) after damage | 💡 idea | – |
+| [TASK-167](TASK-167-territory-control-areas.md) | Territory control as whole areas instead of strips | 💡 idea | TASK-152 |
+| [TASK-168](TASK-168-immersive-battle-names.md) | More immersive battle names (e.g. 'Contact with the enemy 5 km east of Suwałki') | 💡 idea | – |
+| [TASK-169](TASK-169-move-air-defence.md) | Relocating air-defence units/sites on the operational map | 💡 idea | TASK-098a |
+| [TASK-170](TASK-170-battalion-battle-groups.md) | Battalion battle groups (BG/BTG): balanced combined-arms forces in tactical battles | 💡 idea | – |
+| [TASK-171](TASK-171-map-water-cutoff-check.md) | Tactical map generation: avoid units cut off by water | 💡 idea | – |
 | [TASK-142](TASK-142-staff-map-counter-depth.md) | Staff map counters and installation markers as hex game tiles (hexagon base, side shape on a raised plate) (design `unit_tokens_hex.html`, variant D accepted 2026-11-11); pitch decides flat / tilted look| 🔵 done | – |
 | [TASK-143](TASK-143-escalation-ladder-window.md) | Escalation ladder window: horizontal axis of 7 levels with tick matrix of strike classes, trigger chips, collapse strips; X / Esc / click-outside close, closes other windows (design `escalation_ladder_window.html`, variant B accepted 2026-11-11) | 🔵 done (window removed by TASK-119b) | – |
 | TASK-100 | Reconnaissance and operational fog: targets known / unknown / stale, recon means | 💡 idea | TASK-092b |
