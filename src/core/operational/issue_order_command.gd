@@ -3,8 +3,9 @@ extends OperationalCommand
 ## Gives a formation of the current player an order (TASK-092d): go to `destination` in
 ## `posture` (an enemy-held destination is an attack order, only for a posture that does not avoid
 ## contact). Replaces any earlier order; the formation does not move now (TASK-092e executes
-## orders at the end of the turn). Counts against the side's orders per turn (C2 integrity,
-## `no_orders_left`).
+## orders at the end of the turn). The first order a formation gets in a turn counts against the
+## side's orders per turn (C2 integrity, `no_orders_left`); re-aiming an order given this turn is
+## free (TASK-154).
 
 const TYPE := "issue_order"
 
@@ -23,7 +24,7 @@ func _init(
 
 func validate(state: OperationalState) -> String:
 	var reason := OperationalOrders.formation_problem(state, formation_id)
-	if reason == "" and state.orders_left() <= 0:
+	if reason == "" and not _is_free(state) and state.orders_left() <= 0:
 		reason = "no_orders_left"
 	if reason != "":
 		return reason
@@ -40,6 +41,11 @@ func validate(state: OperationalState) -> String:
 	if OperationalRoutes.plan(state, formation, destination, data.avoids_contact).is_empty():
 		return "no_route"
 	return ""
+
+
+## True when the formation already holds an order paid for this turn.
+func _is_free(state: OperationalState) -> bool:
+	return state.ordered_this_turn.has(formation_id)
 
 
 ## `invalid_destination` or `closed_country` (TASK-116), else "".
@@ -71,7 +77,10 @@ func _target_problem(
 func apply(state: OperationalState) -> Array[Dictionary]:
 	var formation := state.get_formation(formation_id)
 	var data := OperationalPosture.find(posture)
-	state.orders_issued += 1
+	var free := _is_free(state)
+	if not free:
+		state.orders_issued += 1
+		state.ordered_this_turn[formation_id] = true
 	formation.posture = posture
 	formation.order = FormationOrder.new(destination)
 	var forecast := OperationalRoutes.forecast(
@@ -88,6 +97,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 			"destination": destination,
 			"posture": posture,
 			"forecast": forecast,
+			"free": free,
 		}
 	]
 

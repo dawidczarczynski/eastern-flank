@@ -186,7 +186,7 @@ Wrecks (TASK-065) are view-only too; no new event types. A vehicle's `unit_died`
 | `formation_order_interrupted` (reason `retreated`) | as above; the retreating formation's order is dropped | ResolveBattleCommand |
 | `battle_consequences` | `attacker_id`, `defender_id`, `losses` (`[int, int]` strength lost per player), `strength` (`[[before, after], …]` per player, formation total), `readiness` (`[[before, after], …]` per player; after 0 when destroyed), `field_holder`, `retreat` (player or −1); last event of the resolution, for the after-action report | ResolveBattleCommand |
 | `formation_readiness_changed` | `formation_id`, `before`, `after` (a quiet formation regained readiness at the start of its owner's turn) | EndOperationalTurnCommand (`BattleConsequences.recover_readiness`) |
-| `formation_order_issued` | `formation_id`, `destination` (Vector2i), `posture`, `forecast` (`Array[Vector2i]`, end hex of each turn) | IssueOrderCommand |
+| `formation_order_issued` | `formation_id`, `destination` (Vector2i), `posture`, `forecast` (`Array[Vector2i]`, end hex of each turn), `free` (bool, re-aim of an order given this turn) | IssueOrderCommand |
 | `formation_order_cancelled` | `formation_id` | CancelOrderCommand |
 | `formation_posture_changed` | `formation_id`, `posture`, `previous` | SetPostureCommand |
 | `country_stance_changed` | `country` (id), `stance`, `side` (−1 = neutral), `previous_stance`, `previous_side`, `cause` (StringName tag of the decision / rule), `by` (acting player or −1) | `CountryRules.set_stance` (called by the rules of TASK-115 / 117 / 118) |

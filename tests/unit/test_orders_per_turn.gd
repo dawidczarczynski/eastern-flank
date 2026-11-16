@@ -70,15 +70,60 @@ func test_orders_are_counted_and_the_next_is_rejected() -> void:
 	assert_eq(_order(4).validate(state), "no_orders_left")
 
 
-func test_replacing_an_order_counts_again() -> void:
+func test_reaiming_an_order_of_this_turn_is_free() -> void:
+	var state := _state(5)
+	var sim := OperationalSimulation.new(state)
+	var reasons: Array[String] = []
+	sim.command_rejected.connect(func(_c: OperationalCommand, r: String) -> void: reasons.append(r))
+	var events: Array[Dictionary] = []
+	sim.event_emitted.connect(func(e: Dictionary) -> void: events.append(e))
+	for i in 4:
+		assert_true(sim.execute(_order(i)))
+	assert_false(events.back()["free"])
+	assert_true(sim.execute(IssueOrderCommand.new(&"f0", Vector2i(8, 1), &"march")))
+	assert_true(events.back()["free"])
+	assert_eq(state.orders_left(), 0)
+	assert_false(sim.execute(_order(4)))
+	assert_eq(reasons, ["no_orders_left"])
+
+
+func test_cancelling_an_order_of_this_turn_refunds_it() -> void:
+	var state := _state(2)
+	var sim := OperationalSimulation.new(state)
+	sim.execute(_order(0))
+	assert_eq(state.orders_left(), 3)
+	assert_true(sim.execute(CancelOrderCommand.new(&"f0")))
+	assert_eq(state.orders_left(), 4)
+	assert_true(sim.execute(_order(0)))
+	assert_eq(state.orders_left(), 3, "issuing again costs 1")
+
+
+func test_an_order_from_an_earlier_turn_costs_when_replaced_and_refunds_nothing() -> void:
 	var state := _state(1)
 	var sim := OperationalSimulation.new(state)
-	for i in 4:
-		assert_true(sim.execute(IssueOrderCommand.new(&"f0", Vector2i(i + 1, 0), &"march")))
-	assert_eq(state.orders_left(), 0)
+	sim.execute(_order(0))
+	sim.execute(EndOperationalTurnCommand.new())
+	sim.execute(EndOperationalTurnCommand.new())
+	assert_true(state.ordered_this_turn.is_empty())
+	assert_true(sim.execute(CancelOrderCommand.new(&"f0")))
+	assert_eq(state.orders_left(), 4, "cancelling an old order refunds nothing")
+	state.formations[0].order = FormationOrder.new(Vector2i(5, 0))  # carried over
+	assert_true(sim.execute(IssueOrderCommand.new(&"f0", Vector2i(6, 0), &"march")))
+	assert_eq(state.orders_left(), 3)
+	assert_true(sim.execute(CancelOrderCommand.new(&"f0")))
+	assert_eq(state.orders_left(), 4)
 
 
-func test_cancel_and_posture_stay_free() -> void:
+func test_an_invalid_reaim_changes_nothing() -> void:
+	var state := _state(1)
+	var sim := OperationalSimulation.new(state)
+	sim.execute(_order(0))
+	assert_false(sim.execute(IssueOrderCommand.new(&"f0", Vector2i(99, 99), &"march")))
+	assert_eq(state.orders_left(), 3)
+	assert_true(state.ordered_this_turn.has(&"f0"))
+
+
+func test_posture_is_free_and_cancel_refunds() -> void:
 	var state := _state(5)
 	var sim := OperationalSimulation.new(state)
 	for i in 4:
@@ -86,7 +131,7 @@ func test_cancel_and_posture_stay_free() -> void:
 	assert_eq(state.orders_left(), 0)
 	assert_true(sim.execute(SetPostureCommand.new(&"f0", &"defend")))
 	assert_true(sim.execute(CancelOrderCommand.new(&"f0")))
-	assert_eq(state.orders_left(), 0)
+	assert_eq(state.orders_left(), 1, "cancelling an order of this turn refunds it")
 
 
 func test_a_rejected_order_is_not_counted() -> void:
@@ -124,6 +169,9 @@ func test_snapshot_only_carries_the_count_when_used() -> void:
 	assert_false(state.snapshot().has("orders_issued"), "old snapshots stay unchanged")
 	OperationalSimulation.new(state).execute(_order(0))
 	assert_eq(state.snapshot()["orders_issued"], 1)
+	assert_eq(state.snapshot()["ordered_this_turn"], ["f0"])
+	state.ordered_this_turn.clear()
+	assert_false(state.snapshot().has("ordered_this_turn"))
 
 
 func test_the_ai_stays_within_the_limit_and_ends_the_turn() -> void:

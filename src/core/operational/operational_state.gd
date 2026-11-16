@@ -73,6 +73,9 @@ var strikes_left: int = 2
 ## Orders (IssueOrderCommand) the current player has issued this turn; reset when the turn passes
 ## on. The limit is `orders_per_turn` (C2 integrity).
 var orders_issued: int = 0
+## Ids of the formations holding an order paid for this turn (TASK-154): re-aiming one is free,
+## cancelling it refunds the order. Emptied together with `orders_issued`.
+var ordered_this_turn: Dictionary = {}
 ## Means by id (static, not in the snapshot; the shipped ones, tests may add more).
 var strike_means: Dictionary = {}
 ## Per player: {means id: count} gained at each round boundary (static).
@@ -177,7 +180,8 @@ func formation_at(coord: Vector2i) -> Formation:
 ## formations: [Formation.snapshot() sorted by id],
 ## installations: [Installation.snapshot() sorted by id],
 ## support: [SupportState.snapshot() sorted by id], strike_stock, strikes_left,
-## fielded_strength, hex_holders, gap_closed_rounds, orders_issued (only when above 0)}.
+## fielded_strength, hex_holders, gap_closed_rounds, orders_issued and ordered_this_turn (both
+## only when non-empty)}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
 	sorted.sort_custom(_id_before)
@@ -230,6 +234,10 @@ func snapshot() -> Dictionary:
 	}
 	if orders_issued > 0:  # only when used: older snapshots stay unchanged
 		snapshot["orders_issued"] = orders_issued
+	if not ordered_this_turn.is_empty():
+		var ids: Array = ordered_this_turn.keys().map(func(k: Variant) -> String: return String(k))
+		ids.sort()
+		snapshot["ordered_this_turn"] = ids
 	return snapshot
 
 

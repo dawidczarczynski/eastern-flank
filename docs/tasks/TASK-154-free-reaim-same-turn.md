@@ -1,6 +1,6 @@
 # TASK-154: Orders – re-aiming or cancelling an order given this turn is free
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core
 - **Depends on**: –
 - **Sections**: GDD "Orders and postures"; GDD "Battle hand-off and auto-resolve" (Orders per turn bullet only)
@@ -44,4 +44,8 @@ Orders chapter: re-aiming or cancelling an order issued this turn is free and ca
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `OperationalState.ordered_this_turn` (Dictionary used as a set); cleared with `orders_issued` in `EndOperationalTurnCommand._switch_side`; in the snapshot only when non-empty (sorted id list).
+- `IssueOrderCommand`: free for a formation in the set (skips `no_orders_left`), otherwise costs 1 and joins the set; the event carries `free`.
+- `CancelOrderCommand` refunds 1 when the formation was in the set.
+- GDD "Orders per turn" sentence and ARCHITECTURE event table aligned. Tests in `tests/unit/test_orders_per_turn.gd`; `tools/check.sh` passes.
+- docs/MANUAL.md "Orders per turn" updated.

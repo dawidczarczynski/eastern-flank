@@ -1,6 +1,7 @@
 class_name CancelOrderCommand
 extends OperationalCommand
 ## Removes the standing order of a formation of the current player (TASK-092d); its posture stays.
+## An order given this turn is refunded (TASK-154); one from an earlier turn refunds nothing.
 
 const TYPE := "cancel_order"
 
@@ -22,6 +23,8 @@ func validate(state: OperationalState) -> String:
 
 func apply(state: OperationalState) -> Array[Dictionary]:
 	state.get_formation(formation_id).order = null
+	if state.ordered_this_turn.erase(formation_id):
+		state.orders_issued = maxi(0, state.orders_issued - 1)
 	return [{"type": &"formation_order_cancelled", "formation_id": formation_id}]
 
 
