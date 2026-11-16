@@ -1,6 +1,6 @@
 # TASK-174b: POLITICS tab in the right dock (narrow column, retire the full-screen sheet)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation
 - **Depends on**: TASK-174a
 - **Sections**: docs/design/operational_map/README.md "Slide-in side panels"; docs/design/operational_map/slide_in_panels.html (variant B); TASK-174a (dock framework)
