@@ -136,6 +136,8 @@ func layout(viewport: Vector2) -> void:
 		var window: StaffMapWindow = _panels[tab]
 		window.custom_minimum_size = Vector2(StaffMapRightDock.WIDTH, height)
 		window.reset_size()
+		window.size.x = StaffMapRightDock.WIDTH  # content never widens it over the tab strip
+		window.clip_contents = true
 		window.position = StaffMapWindow.dock_position(
 			StaffMapWindow.Dock.TABBED, viewport.x, window.size.x
 		)

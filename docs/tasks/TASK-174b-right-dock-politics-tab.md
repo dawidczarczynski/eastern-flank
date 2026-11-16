@@ -1,6 +1,6 @@
 # TASK-174b: POLITICS tab in the right dock (narrow column, retire the full-screen sheet)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-174a
 - **Sections**: docs/design/operational_map/README.md "Slide-in side panels"; docs/design/operational_map/slide_in_panels.html (variant B); TASK-174a (dock framework)
@@ -52,4 +52,8 @@ docs/MANUAL.md politics section (key H): the politics screen is now the POLITICS
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- `StaffMapRightDock.Tab` is now `{ STRIKE, POLITICS, JOURNAL }` (strip order). `StaffMapDecisionsPanel` is a `StaffMapWindow` (`Dock.TABBED`, dock width) registered in `StaffMapRightDockView` as the POLITICS section; scrim, `SHEET_MARGIN`, the title row, the two-column layout and `OVERVIEW_WIDTH` are gone. Sub-tabs DECISIONS / OVERVIEW / SUPPORT (`TAB_*`; SUPPORT only with packages; Tab cycles), each a single 388 px scrolling column from the same `StaffMapDecisionsModel` / `StaffMapOverviewModel` / `StaffMapSupportModel` data; the budget row and the country chips wrap (HFlowContainer); the overview's country rows are two-line.
+- `StaffMapDecisionsHud` no longer owns a screen: `open()` fills the panel, `close()` / the X / Esc / H emit `close_requested`, which `StaffMap` turns into `close_dock()`. `StaffMap.toggle_decisions()` / `open_decisions()` mirror the journal (leave the strike mode, close the right info panel). `_modal_open()` no longer includes politics: the map stays live (wheel, drag, S / J / P work). `handle_key` consumes only the tab's own keys (Esc, H, Tab, 1-6, arrows, Enter) and returns false otherwise.
+- Tests: `test_staff_map_right_dock.gd` (POLITICS in the model), `test_staff_map_right_dock_view.gd` (H / S / J / P / Esc / selection / sub-tabs / sub-tab memory), `test_politics_screen.gd` (the old "wheel idles the map" test now says the map stays live). Screenshot tool: `decisions:overview`.
+- Manual updated (H, POLITICS tab, sub-tabs, no full-screen sheet; the Escalation ladder stays full screen).
+- Known limitations: slide / fade not covered by tests; on windows shorter than about 790 px the content just scrolls. README gameplay shot unchanged (battle scene not affected).

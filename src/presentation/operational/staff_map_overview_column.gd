@@ -7,18 +7,21 @@ extends VBoxContainer
 
 signal ladder_toggled
 
+enum Part { ALL, LADDER, OVERVIEW }
+
 const LOG_SHOWN := 60
 const ROW_SEPARATION := 2
 
 ## Whether the ladder table shows all levels (else only the current one); the panel keeps it.
 var ladder_expanded := false
+## Which blocks the column shows: all, only the ladder part, or only the countries and the log.
+var part := Part.ALL
 
 
 func _init() -> void:
 	name = "Overview"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	custom_minimum_size.x = StaffMapDecisionsPanel.OVERVIEW_WIDTH
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	add_theme_constant_override(&"separation", 10)
 
@@ -29,15 +32,17 @@ func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) 
 		remove_child(child)
 		child.queue_free()
 	var model := StaffMapOverviewModel.build(state, viewer)
-	add_child(_caption(tr("Escalation ladder")))
-	add_child(_ladder(model["ladder"], state, palette))
-	add_child(_ladder_toggle())
-	add_child(_footer(model["footer"]))
-	add_child(_collapse_strip(state, palette, viewer))
-	add_child(_caption(tr("Countries")))
-	add_child(_countries(model["countries"], palette))
-	add_child(_caption(tr("Event log")))
-	add_child(_log(model["log"]))
+	if part != Part.OVERVIEW:
+		add_child(_caption(tr("Escalation ladder")))
+		add_child(_ladder(model["ladder"], state, palette))
+		add_child(_ladder_toggle())
+		add_child(_footer(model["footer"]))
+		add_child(_collapse_strip(state, palette, viewer))
+	if part != Part.LADDER:
+		add_child(_caption(tr("Countries")))
+		add_child(_countries(model["countries"], palette))
+		add_child(_caption(tr("Event log")))
+		add_child(_log(model["log"]))
 
 
 func _caption(text: String) -> Label:
@@ -71,9 +76,10 @@ func _ladder(rows: Array, state: OperationalState, palette: StaffMapPalette) -> 
 		var line := VBoxContainer.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_constant_override(&"separation", 0)
-		var head := HBoxContainer.new()
+		var head := HFlowContainer.new()  # the event tag wraps under a long name
 		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		head.add_theme_constant_override(&"separation", 8)
+		head.add_theme_constant_override(&"h_separation", 8)
+		head.add_theme_constant_override(&"v_separation", 0)
 		head.add_child(MenuStyle.label(str(row["level"]), HudTheme.mono(700, 0), 12, colour))
 		var name_label := MenuStyle.label(
 			String(row["name"]).to_upper(),
@@ -97,6 +103,7 @@ func _ladder(rows: Array, state: OperationalState, palette: StaffMapPalette) -> 
 			"%s: %s" % [tr("ESC_ROE"), row["roe"]], HudTheme.mono(500, 0), 10, UiPalette.HUD_MUTED
 		)
 		roe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		roe.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(roe)
 		chip.add_child(line)
 		box.add_child(chip)
@@ -113,6 +120,7 @@ func _footer(rows: Array) -> Control:
 		)
 		var label := MenuStyle.label(text, HudTheme.mono(500, 0), 10, UiPalette.HUD_TEXT)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		box.add_child(label)
 	return box
 
@@ -121,28 +129,35 @@ func _countries(rows: Array, palette: StaffMapPalette) -> Control:
 	var box := _box()
 	box.name = "Countries"
 	for row: Dictionary in rows:
-		var line := HBoxContainer.new()
+		var line := VBoxContainer.new()
 		line.name = String(row["id"])
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		line.add_theme_constant_override(&"separation", 6)
+		line.add_theme_constant_override(&"separation", 0)
+		var head := HBoxContainer.new()
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		head.add_theme_constant_override(&"separation", 6)
+		line.add_child(head)
 		var relation: StringName = &"neutral"
 		if row["stance"] == &"own" or row["stance"] == &"allied":
 			relation = &"own"
 		elif row["stance"] == &"hostile" or row["stance"] == &"enemy":
 			relation = &"hostile"
-		line.add_child(StaffMapDecisionParts.Shape.new(relation, palette))
+		head.add_child(StaffMapDecisionParts.Shape.new(relation, palette))
 		var name_label := MenuStyle.label(
 			row["name"], HudTheme.mono(500, 0), 11, UiPalette.HUD_TEXT
 		)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(name_label)
+		head.add_child(name_label)
 		var access := tr("open") if row["open"] else tr("closed")
 		var text := "%s · %s · %d / %d" % [row["stance_text"], access, row["own"], row["enemy"]]
 		if row["pending"] > 0:
 			text += " · " + tr("%d formations when it joins") % row["pending"]
-		line.add_child(
-			MenuStyle.label(text.to_upper(), HudTheme.mono(500, 0), 9, UiPalette.HUD_MUTED)
+		var detail := MenuStyle.label(
+			text.to_upper(), HudTheme.mono(500, 0), 9, UiPalette.HUD_MUTED
 		)
+		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(detail)
 		box.add_child(line)
 	return box
 
@@ -198,5 +213,6 @@ func _collapse_strip(state: OperationalState, palette: StaffMapPalette, viewer: 
 		colour
 	)
 	label.name = "CollapseStrip"
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label

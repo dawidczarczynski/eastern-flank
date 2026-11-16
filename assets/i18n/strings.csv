@@ -445,6 +445,8 @@ TIP_CANCEL,Cancels the order of the selected formation.,Anuluje rozkaz zaznaczon
 TIP_REPORT,Opens or closes the report of the last turn.,Otwiera lub zamyka raport z ostatniej tury.
 TIP_DECISIONS,"Opens or closes the political decisions: escalate, stand down, declare hostilities, invoke an alliance or demand neutrality.","Otwiera lub zamyka decyzje polityczne: eskalacja, deeskalacja, wypowiedzenie wojny, powołanie sojuszu lub żądanie neutralności."
 Decisions,Decisions,Decyzje
+Overview,Overview,Przegląd
+Ladder,Ladder,Drabina
 DECISIONS,Decisions,Decyzje
 Decisions: %d of %d,Decisions: %d of %d,Decyzje: %d z %d
 Level %s,Level %s,Poziom %s

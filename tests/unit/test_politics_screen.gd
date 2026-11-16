@@ -123,7 +123,7 @@ func test_open_key_closes_and_is_not_a_pan_key() -> void:
 	map.free()
 
 
-func test_wheel_does_not_zoom_the_map_while_the_screen_is_open() -> void:
+func test_wheel_still_zooms_the_map_while_the_tab_is_open() -> void:
 	var map := _open_map()
 	var zoom := map.zoom()
 	var wheel := InputEventMouseButton.new()
@@ -131,8 +131,5 @@ func test_wheel_does_not_zoom_the_map_while_the_screen_is_open() -> void:
 	wheel.pressed = true
 	wheel.position = Vector2(640, 360)
 	map._unhandled_input(wheel)
-	assert_eq(map.zoom(), zoom, "the Politics screen idles the map")
-	map.decisions_hud().close()
-	map._unhandled_input(wheel)
-	assert_true(map.zoom() != zoom, "the wheel zooms again once it is closed")
+	assert_true(map.zoom() != zoom, "the map stays live beside the POLITICS tab")
 	map.free()

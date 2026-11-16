@@ -78,3 +78,17 @@ func test_inset_is_420_open_and_0_closed() -> void:
 func test_minimum_map_width_is_viewport_minus_the_dock() -> void:
 	assert_eq(StaffMapRightDock.min_map_width(1440.0), 1020.0)
 	assert_eq(StaffMapRightDock.min_map_width(1920.0), 1500.0)
+
+
+func test_politics_tab_switches_with_the_others() -> void:
+	var dock := StaffMapRightDock.new()
+	dock.open(StaffMapRightDock.Tab.STRIKE)
+	dock.open(StaffMapRightDock.Tab.POLITICS)
+	assert_true(dock.is_tab_open(StaffMapRightDock.Tab.POLITICS))
+	assert_false(dock.is_tab_open(StaffMapRightDock.Tab.STRIKE), "never two sections")
+	dock.open(StaffMapRightDock.Tab.JOURNAL)
+	assert_false(dock.is_tab_open(StaffMapRightDock.Tab.POLITICS))
+	dock.open(StaffMapRightDock.Tab.POLITICS)
+	assert_eq(dock.inset(), StaffMapRightDock.WIDTH)
+	dock.close()
+	assert_eq(dock.remembered_tab(), StaffMapRightDock.Tab.POLITICS, "POLITICS is remembered")

@@ -2,11 +2,10 @@ class_name StaffMapRightDock
 extends RefCounted
 ## Pure model of the right-hand tabbed dock of the staff map (TASK-174a, variant B of
 ## docs/design/operational_map/slide_in_panels.html): one 420 px dock, one section at a time
-## (STRIKE, JOURNAL; POLITICS follows in TASK-174b). `open` / `toggle` open or switch the tab,
-## `close` closes, a selection closes the dock (not in strike mode) and it then stays closed until
-## a key or a bar button opens it; the last open tab is remembered for the next open. No node.
-
-enum Tab { STRIKE, JOURNAL }
+## tab, `close` closes, a selection closes the dock (not in strike mode) and it then stays
+## closed until a key or a bar button opens it; the last open tab is remembered for the next
+## open. No node.
+enum Tab { STRIKE, POLITICS, JOURNAL }
 
 const WIDTH := 420.0
 

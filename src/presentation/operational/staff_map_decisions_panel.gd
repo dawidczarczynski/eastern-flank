@@ -1,34 +1,31 @@
 class_name StaffMapDecisionsPanel
-extends Control
-## The Politics screen of the staff map (TASK-117, docs/design/operational_map/
-## political_decisions.html variant B): a full-screen sheet over the dimmed map. Left: the five
-## decision cards in two groups (key chip, title, cost chip, one-line effect, country chips with
-## stance word and shape, reason + Take, inline confirmation with the new level on the ladder
-## ticks). Russia's side (SideDefinition.may_use_nuclear) also gets the red *Use nuclear weapon*
-## card under "Last resort" with a heavy red confirmation (TASK-140). Header: budget, stand-down
-## counter, result line. Right: the read-only overview (StaffMapOverviewColumn, TASK-119b).
-## Everything shown comes from StaffMapDecisionsModel; the panel only emits
-## `decision_chosen`, the hud issues the command. Built on open and on a state change only (never
-## per frame).
+extends StaffMapWindow
+## The POLITICS tab of the right dock of the staff map (TASK-117, TASK-174b; docs/design/
+## operational_map/political_decisions.html variant B, in the narrow single-column form of
+## slide_in_panels.html): a StaffMapWindow of the dock width (388 px column). Header: side, budget,
+## level, stand-down counter, result line. Sub-tabs DECISIONS (the five decision cards in two
+## groups: key chip, title, cost chip, one-line effect, country chips with stance word and shape,
+## reason + Take, inline confirmation with the new level on the ladder ticks; Russia's side
+## (SideDefinition.may_use_nuclear) also gets the red *Use nuclear weapon* card under "Last
+## resort", TASK-140), OVERVIEW (the read-only StaffMapOverviewColumn, TASK-119b) and SUPPORT
+## (TASK-121, only when the operation has packages). Everything shown comes from
+## StaffMapDecisionsModel; the panel only emits `decision_chosen`, the hud issues the command.
+## Built on open and on a state change only (never per frame).
 
 signal decision_chosen(id: StringName, country: StringName)
-signal close_requested
 
 const OPEN_KEY := KEY_H
-const SHEET_MARGIN := Vector4(70, 36, 70, 28)  # left, top, right, bottom
-const CARD_WIDTH := 340.0  # minimum; the cards grow to 394 px on a 1440 px screen
-const OVERVIEW_WIDTH := 400.0
-const FADE_SECONDS := 0.15
+const COLUMN_WIDTH := 388.0  # the content column; fits the 420 px dock frame
 const NUMBER_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 const KEYPAD_KEYS := [KEY_KP_1, KEY_KP_2, KEY_KP_3, KEY_KP_4, KEY_KP_5, KEY_KP_6]
 # gdlint: disable=max-line-length
 const RULES_TEXT := "One decision per turn. A decision that raises the level asks to confirm and shows the new level. Standing down locks escalating for %d turns."
 # gdlint: enable=max-line-length
 const TAB_DECISIONS := &"decisions"
+const TAB_LADDER := &"ladder"
+const TAB_OVERVIEW := &"overview"
 const TAB_SUPPORT := &"support"
-const SHEET_FILL := Color(11 / 255.0, 13 / 255.0, 11 / 255.0, 0.97)
 
-var _sheet := FramedPanel.new()
 var _content := VBoxContainer.new()
 var _palette: StaffMapPalette
 var _state: OperationalState
@@ -41,40 +38,18 @@ var _result_id := &""  # the decision taken in this sitting (result line)
 var _buttons := {}  # decision id -> the Take / Confirm button (tests)
 var _reasons := {}  # decision id -> the reason Label (tests)
 var _ladder_expanded := false  # the overview's ladder table shows every level
-var _fade: Tween
 var _tab := TAB_DECISIONS  # the open tab (TASK-121: Support next to the decisions)
 
 
 func _init() -> void:
+	super(tr("POLITICS"), WIDTH_REPORT)
 	name = "DecisionsPanel"
-	mouse_filter = Control.MOUSE_FILTER_STOP  # the dimmed map takes no input
-	auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	offset_bottom = -ActionBar.HEIGHT  # the command bar stays live
-	var scrim := ColorRect.new()
-	scrim.color = UiPalette.SCRIM_SCREEN
-	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(scrim)
-	_sheet.name = "Sheet"
-	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
-	_sheet.chamfers = Vector4(0, 9, 0, 9)
-	_sheet.padding = Vector2(24, 18)
-	_sheet.fill = SHEET_FILL
-	_sheet.line_color = Color(UiPalette.AMBER, 0.45)
-	_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_sheet.offset_left = SHEET_MARGIN.x
-	_sheet.offset_top = SHEET_MARGIN.y
-	_sheet.offset_right = -SHEET_MARGIN.z
-	_sheet.offset_bottom = -SHEET_MARGIN.w
-	add_child(_sheet)
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_content.add_theme_constant_override(&"separation", 12)
-	_sheet.add_child(_content)
-	hide()
+	_content.add_theme_constant_override(&"separation", 10)
+	add_child(_content)
 
 
-## Rebuilds the cards from the state as seen by `viewer` and shows the sheet (fade-in).
+## Rebuilds the cards from the state as seen by `viewer` and shows the tab (the dock fades it in).
 func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) -> void:
 	_state = state
 	_palette = palette
@@ -84,20 +59,11 @@ func show_state(state: OperationalState, palette: StaffMapPalette, viewer: int) 
 	_result_id = &""
 	_rebuild()
 	show()
-	if _fade != null:
-		_fade.kill()
-	modulate.a = 0.0
-	if is_inside_tree():
-		_fade = create_tween()
-		_fade.tween_property(self, "modulate:a", 1.0, FADE_SECONDS)
-	else:
-		modulate.a = 1.0
+	modulate.a = 1.0
 
 
-## Ends the fade-in at once (screenshots, where the tree does not process).
+## Kept for the screenshot tool and tests (the dock does the fading now).
 func finish_fade() -> void:
-	if _fade != null:
-		_fade.kill()
 	modulate.a = 1.0
 
 
@@ -125,8 +91,8 @@ func reason_of(id: StringName) -> String:
 	return "" if label == null else label.text
 
 
-## Opens the tab `tab` (TAB_DECISIONS / TAB_SUPPORT); the support tab only exists when the
-## operation has packages.
+## Opens the sub-tab `tab` (TAB_DECISIONS / TAB_LADDER / TAB_OVERVIEW / TAB_SUPPORT); the support
+## tab only exists when the operation has packages.
 func open_tab(tab: StringName) -> void:
 	if tab == TAB_SUPPORT and (_state == null or _state.support.is_empty()):
 		return
@@ -163,10 +129,12 @@ func select_card(id: StringName) -> void:
 	refresh()
 
 
-## Keys while the sheet is open: Esc cancels a confirmation, else closes; 1-6 pick a card, left /
-## right the country, Enter takes / confirms, the open key closes. Always consumes the key (the map
-## below takes none).
+## Keys while the tab is open: Esc cancels a confirmation, else closes; 1-6 pick a card, left /
+## right the country, Enter takes / confirms, Tab cycles the sub-tabs, the open key closes. The
+## keys the tab does not use (S, J, P, ...) fall through to the map; false when it is closed.
 func handle_key(keycode: Key) -> bool:
+	if not visible:
+		return false
 	if keycode == KEY_ESCAPE:
 		if is_confirming():
 			cancel_confirmation()
@@ -177,20 +145,31 @@ func handle_key(keycode: Key) -> bool:
 		close_requested.emit()
 		return true
 	if keycode == KEY_TAB:
-		open_tab(TAB_DECISIONS if _tab == TAB_SUPPORT else TAB_SUPPORT)
+		var tabs := _tab_ids()
+		open_tab(tabs[(tabs.find(_tab) + 1) % tabs.size()])
 		return true
+	return _tab_key(keycode)
+
+
+## The keys of the open sub-tab (cards, countries, Enter); OVERVIEW has none.
+func _tab_key(keycode: Key) -> bool:
 	var number := NUMBER_KEYS.find(keycode)
 	if number < 0:
 		number = KEYPAD_KEYS.find(keycode)
-	if _tab == TAB_SUPPORT:
-		if keycode == KEY_ENTER or keycode == KEY_KP_ENTER:
-			_activate()
+	var enter := keycode == KEY_ENTER or keycode == KEY_KP_ENTER
+	var used := enter
+	if _tab == TAB_DECISIONS:
+		used = enter or number >= 0 or keycode == KEY_LEFT or keycode == KEY_RIGHT
+	elif _tab != TAB_SUPPORT:
+		used = false
+	if not used:
+		return false
+	if enter:
+		_activate()
 	elif number >= 0:
 		select_card(_id_of_key(number + 1))
-	elif keycode == KEY_LEFT or keycode == KEY_RIGHT:
+	else:
 		_step_country(-1 if keycode == KEY_LEFT else 1)
-	elif keycode == KEY_ENTER or keycode == KEY_KP_ENTER:
-		_activate()
 	return true
 
 
@@ -238,6 +217,13 @@ func _choices_of(id: StringName) -> Array:
 	return []
 
 
+func _tab_ids() -> Array[StringName]:
+	var ids: Array[StringName] = [TAB_DECISIONS, TAB_LADDER, TAB_OVERVIEW]
+	if _state != null and not _state.support.is_empty():
+		ids.append(TAB_SUPPORT)
+	return ids
+
+
 func _rebuild() -> void:
 	for child in _content.get_children():
 		_content.remove_child(child)
@@ -246,58 +232,29 @@ func _rebuild() -> void:
 	_reasons.clear()
 	_rows = StaffMapDecisionsModel.rows(_state, _viewer)
 	var head := StaffMapDecisionsModel.header(_state, _viewer)
-	_content.add_child(_title_row())
 	_content.add_child(_budget_row(head))
 	if _result_id != &"":
 		_content.add_child(_result_row())
-	if _state.support.is_empty():
+	if _state.support.is_empty() and _tab == TAB_SUPPORT:
 		_tab = TAB_DECISIONS
-	else:
-		_content.add_child(_tab_row())
-	var body := HBoxContainer.new()
-	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override(&"separation", 20)
-	if _tab == TAB_SUPPORT:
-		body.add_child(_supporters_column())
-		body.add_child(_other_bloc_column())
-	else:
-		body.add_child(_decisions_column())
-		body.add_child(_overview_column())
-	_content.add_child(body)
-
-
-func _title_row() -> Control:
-	var row := HBoxContainer.new()
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override(&"separation", 16)
-	var title := MenuStyle.label(
-		tr("Politics").to_upper(), HudTheme.display(700, 4), 24, UiPalette.HUD_TEXT
-	)
-	title.name = "Title"
-	row.add_child(title)
-	var spacer := Control.new()
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
-	var hint := MenuStyle.label(
-		"ESC · %s" % OS.get_keycode_string(OPEN_KEY), HudTheme.mono(500, 0), 11, UiPalette.HUD_MUTED
-	)
-	row.add_child(hint)
-	var close := MenuStyle.button("X")
-	close.name = "Close"
-	close.focus_mode = Control.FOCUS_NONE
-	close.custom_minimum_size = Vector2(28, 28)
-	close.tooltip_text = tr("CLOSE")
-	close.pressed.connect(close_requested.emit)
-	row.add_child(close)
-	return row
+	_content.add_child(_tab_row())
+	match _tab:
+		TAB_SUPPORT:
+			_content.add_child(_support_body())
+		TAB_LADDER:
+			_content.add_child(_overview_body(StaffMapOverviewColumn.Part.LADDER))
+		TAB_OVERVIEW:
+			_content.add_child(_overview_body(StaffMapOverviewColumn.Part.OVERVIEW))
+		_:
+			_content.add_child(_decisions_body())
 
 
 func _budget_row(head: Dictionary) -> Control:
-	var row := HBoxContainer.new()
+	var row := HFlowContainer.new()
+	row.name = "Budget"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override(&"separation", 14)
+	row.add_theme_constant_override(&"h_separation", 14)
+	row.add_theme_constant_override(&"v_separation", 4)
 	var side := HBoxContainer.new()
 	side.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	side.add_theme_constant_override(&"separation", 7)
@@ -309,7 +266,7 @@ func _budget_row(head: Dictionary) -> Control:
 	)
 	row.add_child(side)
 	var budget := HBoxContainer.new()
-	budget.name = "Budget"
+	budget.name = "BudgetCount"
 	budget.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	budget.add_theme_constant_override(&"separation", 7)
 	var budget_text := tr("Decisions %d of %d") % [head["left"], head["per_turn"]]
@@ -362,14 +319,10 @@ func _result_row() -> Control:
 	return chip
 
 
-## Left: the two card groups side by side, then the one-line rules under the second group.
-func _decisions_column() -> Control:
-	var columns := HBoxContainer.new()
-	columns.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	columns.add_theme_constant_override(&"separation", 12)
-	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.size_flags_stretch_ratio = 1.9
+## DECISIONS: the two card groups one under the other, then the rules and the keys.
+func _decisions_body() -> Control:
+	var column := _scroll_column()
+	column.add_theme_constant_override(&"separation", 12)
 	var widen := _group(tr("Widen the war"), StaffMapDecisionsModel.WIDEN)
 	var small := _group(tr("Keep it small"), StaffMapDecisionsModel.KEEP_SMALL)
 	if _choices_of(StaffMapDecisionsModel.NUCLEAR).size() > 0:
@@ -390,15 +343,14 @@ func _decisions_column() -> Control:
 	)
 	keys.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	small.add_child(keys)
-	columns.add_child(widen)
-	columns.add_child(small)
-	return columns
+	column.add_child(widen)
+	column.add_child(small)
+	return column.get_meta(&"scroll")
 
 
 func _group(caption: String, ids: Array[StringName]) -> VBoxContainer:
 	var group := VBoxContainer.new()
 	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	group.custom_minimum_size.x = CARD_WIDTH
 	group.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	group.add_theme_constant_override(&"separation", 10)
 	_add_cards(group, caption, ids)
@@ -416,27 +368,21 @@ func _add_cards(group: VBoxContainer, caption: String, ids: Array[StringName]) -
 				group.add_child(_card(row))
 
 
-## Right column: the read-only politics overview (TASK-119b).
-func _overview_column() -> Control:
-	var wrap := HBoxContainer.new()
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_theme_constant_override(&"separation", 20)
-	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var line := ColorRect.new()
-	line.color = Color("#2a2e27")
-	line.custom_minimum_size.x = 1.0
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(line)
-	var column := StaffMapOverviewColumn.new()
-	column.ladder_expanded = _ladder_expanded
-	column.ladder_toggled.connect(
+## LADDER / OVERVIEW: the read-only politics overview (TASK-119b) in two parts: the escalation
+## ladder, and the countries with the event log.
+func _overview_body(part: StaffMapOverviewColumn.Part) -> Control:
+	var column := _scroll_column()
+	var overview := StaffMapOverviewColumn.new()
+	overview.part = part
+	overview.ladder_expanded = _ladder_expanded
+	overview.ladder_toggled.connect(
 		func() -> void:
-			_ladder_expanded = column.ladder_expanded
+			_ladder_expanded = overview.ladder_expanded
 			refresh()
 	)
-	column.show_state(_state, _palette, _viewer)
-	wrap.add_child(column)
-	return wrap
+	overview.show_state(_state, _palette, _viewer)
+	column.add_child(overview)
+	return column.get_meta(&"scroll")
 
 
 func _card(row: Dictionary) -> Control:
@@ -454,7 +400,6 @@ func _card(row: Dictionary) -> Control:
 	card.padding = Vector2(12, 7)
 	card.fill = UiPalette.CARD
 	card.line_color = _edge_of(id, usable, confirming_here, picked)
-	card.custom_minimum_size.x = CARD_WIDTH
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override(&"separation", 4)
@@ -535,10 +480,11 @@ func _card_head(row: Dictionary, chosen: Dictionary, usable: bool, picked: bool)
 ## Country chips: shape, name, stance word; the picked one amber, the ones that cannot be chosen
 ## dashed. A click picks the country (its reason then shows on the card).
 func _picker(id: StringName, choices: Array, chosen: Dictionary) -> Control:
-	var row := HBoxContainer.new()
+	var row := HFlowContainer.new()
 	row.name = "Target"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override(&"separation", 6)
+	row.add_theme_constant_override(&"h_separation", 6)
+	row.add_theme_constant_override(&"v_separation", 4)
 	var caption := tr("Ally") if id == StaffMapDecisionsModel.INVOKE else tr("Target")
 	row.add_child(
 		MenuStyle.label(caption.to_upper(), HudTheme.display(700, 2), 10, UiPalette.HUD_MUTED)
@@ -746,12 +692,21 @@ func _take(id: StringName, chosen: Dictionary) -> void:
 # --- Support tab (TASK-121) ---
 
 
+func _tab_entries() -> Array:
+	var entries: Array = [
+		[TAB_DECISIONS, "Decisions"], [TAB_LADDER, "Ladder"], [TAB_OVERVIEW, "Overview"]
+	]
+	if not _state.support.is_empty():
+		entries.append([TAB_SUPPORT, "Support"])
+	return entries
+
+
 func _tab_row() -> Control:
 	var row := HBoxContainer.new()
 	row.name = "Tabs"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override(&"separation", 8)
-	for entry: Array in [[TAB_DECISIONS, "Decisions"], [TAB_SUPPORT, "Support"]]:
+	for entry: Array in _tab_entries():
 		var current: bool = entry[0] == _tab
 		var chip := StaffMapDecisionParts.Chip.new(true)
 		chip.name = "Tab" + String(entry[0]).capitalize()
@@ -768,13 +723,13 @@ func _tab_row() -> Control:
 	return row
 
 
-func _scroll_column(ratio: float) -> VBoxContainer:
+func _scroll_column() -> VBoxContainer:
 	var scroll := ScrollContainer.new()
 	scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.size_flags_stretch_ratio = ratio
+	scroll.custom_minimum_size.x = COLUMN_WIDTH
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -784,9 +739,9 @@ func _scroll_column(ratio: float) -> VBoxContainer:
 	return column
 
 
-## Left: each supporter of the viewer's side with its status and package cards.
-func _supporters_column() -> Control:
-	var column := _scroll_column(1.9)
+## SUPPORT: each supporter of the viewer's side with its status and package cards.
+func _support_body() -> Control:
+	var column := _scroll_column()
 	column.name = "Supporters"
 	var found := StaffMapSupportModel.supporters(_state, _viewer)
 	if found.is_empty():
@@ -804,6 +759,7 @@ func _supporters_column() -> Control:
 		column.add_child(_supporter_head(supporter))
 		for package: Dictionary in supporter["packages"]:
 			column.add_child(_package_card(package))
+	_add_other_bloc(column)
 	return column.get_meta(&"scroll")
 
 
@@ -830,19 +786,8 @@ func _supporter_head(supporter: Dictionary) -> Control:
 	return row
 
 
-## Right: what the other bloc asked for and the free answers it opens (cards with Take).
-func _other_bloc_column() -> Control:
-	var wrap := HBoxContainer.new()
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_theme_constant_override(&"separation", 20)
-	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var line := ColorRect.new()
-	line.color = Color("#2a2e27")
-	line.custom_minimum_size.x = 1.0
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(line)
-	var column := _scroll_column(1.0)
-	column.name = "OtherBloc"
+## Below the supporters: what the other bloc asked for and the free answers it opens.
+func _add_other_bloc(column: VBoxContainer) -> void:
 	column.add_child(
 		MenuStyle.label(
 			tr("Requests of the other bloc").to_upper(),
@@ -866,8 +811,6 @@ func _other_bloc_column() -> Control:
 		column.add_child(head)
 		for answer: Dictionary in request["responses"]:
 			column.add_child(_package_card(answer))
-	wrap.add_child(column.get_meta(&"scroll"))
-	return wrap
 
 
 func _note(text: String) -> Label:
@@ -895,7 +838,6 @@ func _package_card(pack: Dictionary) -> Control:
 		card.line_color = UiPalette.AMBER
 	elif open and not usable:
 		card.line_color = StaffMapDecisionParts.WARN_EDGE
-	card.custom_minimum_size.x = CARD_WIDTH
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_theme_constant_override(&"separation", 4)

@@ -186,3 +186,92 @@ func test_opening_keeps_the_centre_of_the_visible_map() -> void:
 	_press(KEY_J)
 	var back := _map.ground_at_screen(Vector2(width * 0.5, 300))
 	assert_true(before.distance_to(back) < 0.01, "and again after closing")
+
+
+# --- POLITICS tab (TASK-174b) ---
+
+
+func test_h_opens_politics_and_h_again_closes() -> void:
+	_press(KEY_H)
+	assert_true(_dock().is_tab_open(StaffMapRightDock.Tab.POLITICS))
+	assert_true(_map.decisions_hud().is_open())
+	assert_eq(_map.dock_inset(), StaffMapRightDock.WIDTH)
+	_press(KEY_H)
+	assert_false(_dock().is_open())
+	assert_false(_map.decisions_hud().is_open())
+
+
+func test_s_and_j_switch_from_politics_and_p_does_not_open_the_dock() -> void:
+	_press(KEY_H)
+	_press(KEY_J)
+	assert_true(_dock().is_tab_open(StaffMapRightDock.Tab.JOURNAL))
+	assert_false(_map.decisions_hud().is_open())
+	_press(KEY_H)
+	_press(KEY_S)
+	assert_true(_dock().is_tab_open(StaffMapRightDock.Tab.STRIKE))
+	assert_false(_map.decisions_hud().is_open())
+	_map.close_dock()
+	var tint := _map.politics_hud().tint_enabled()
+	_press(KEY_P)
+	assert_false(_dock().is_open(), "P is only the tint toggle")
+	assert_eq(_map.politics_hud().tint_enabled(), not tint)
+	_press(KEY_P)
+
+
+func test_politics_tab_fits_the_dock_and_has_three_sub_tabs() -> void:
+	_press(KEY_H)
+	var panel := _map.decisions_hud().panel()
+	assert_true(StaffMapDecisionsPanel.COLUMN_WIDTH <= 388.0)
+	assert_true(panel.size.x <= StaffMapRightDock.WIDTH)
+	assert_eq(panel.tab(), StaffMapDecisionsPanel.TAB_DECISIONS, "DECISIONS first")
+	var state := _map.simulation().state
+	var wanted := 3 if state.support.is_empty() else 4
+	assert_eq(panel.find_child("Tabs", true, false).get_child_count() - 1, wanted)
+	panel.open_tab(StaffMapDecisionsPanel.TAB_OVERVIEW)
+	assert_true(panel.find_child("Overview", true, false) != null)
+	_map.close_dock()
+	_press(KEY_H)
+	assert_eq(panel.tab(), StaffMapDecisionsPanel.TAB_OVERVIEW, "the sub-tab is kept")
+	panel.open_tab(StaffMapDecisionsPanel.TAB_DECISIONS)
+
+
+func test_selecting_a_unit_closes_politics() -> void:
+	_press(KEY_H)
+	var own := _map.simulation().state.formations[0]
+	_map.select_formation(own.id)
+	assert_false(_dock().is_open())
+	assert_false(_map.decisions_hud().is_open())
+	_map.select_formation(&"")
+
+
+func test_esc_closes_politics_and_the_tab_strip_has_three_tabs() -> void:
+	_press(KEY_H)
+	assert_true(_map.right_dock_view().tab_button(StaffMapRightDock.Tab.POLITICS) != null)
+	_press(KEY_ESCAPE)
+	assert_false(_dock().is_open())
+
+
+func test_politics_tab_never_widens_over_the_tab_strip() -> void:
+	_press(KEY_H)
+	var panel := _map.decisions_hud().panel()
+	panel.open_tab(StaffMapDecisionsPanel.TAB_LADDER)
+	var overview := panel.find_child("Overview", true, false) as StaffMapOverviewColumn
+	overview.ladder_expanded = true
+	overview.ladder_toggled.emit()
+	_map.right_dock_view().layout(_viewport())
+	assert_eq(panel.size.x, StaffMapRightDock.WIDTH)
+	var tab := _map.right_dock_view().tab_button(StaffMapRightDock.Tab.POLITICS)
+	assert_true(tab.position.x + tab.size.x <= panel.position.x + 0.5, "the tabs stay beside it")
+	panel.open_tab(StaffMapDecisionsPanel.TAB_DECISIONS)
+
+
+func test_level_chip_opens_the_ladder_sub_tab_and_a_second_click_closes() -> void:
+	_map.toggle_ladder()
+	assert_true(_dock().is_tab_open(StaffMapRightDock.Tab.POLITICS))
+	var panel := _map.decisions_hud().panel()
+	assert_eq(panel.tab(), StaffMapDecisionsPanel.TAB_LADDER)
+	assert_true(panel.find_child("Ladder", true, false) != null)
+	assert_true(panel.find_child("Countries", true, false) == null, "countries are on OVERVIEW")
+	_map.toggle_ladder()
+	assert_false(_dock().is_open())
+	panel.open_tab(StaffMapDecisionsPanel.TAB_DECISIONS)

@@ -388,8 +388,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## turn:<player> (hands the turn to that player in the state, a still-image shortcut),
 ## support[:russia][:ghost] (Support tab of the Politics screen; with ghost a package request
 ## and its ghost counters, TASK-121),
-## decisions[:confirm[:<card key 1-6>]] (the Politics screen, optionally with the
-## confirmation of that card, default 1), ladder[:<level>] (removed)
+## decisions[:overview|:confirm[:<card key 1-6>]] (the POLITICS tab of the right dock, the
+## OVERVIEW sub-tab, or the confirmation of that card, default 1), ladder[:<level>] (removed)
 ## the tooltip of that level), endturn (after the orders:
 ## ends the move, skips the slide, TASK-092e),
 ## contact:<attacker id>:<defender id> (moves the attacker next to the defender and starts the
@@ -649,6 +649,8 @@ func _apply_staff_map_state(spec: String) -> void:
 			"decisions":
 				map.toggle_decisions()
 				var sheet := map.decisions_hud().panel()
+				if parts.size() > 1 and parts[1] == "overview":  # the OVERVIEW sub-tab
+					sheet.open_tab(StaffMapDecisionsPanel.TAB_OVERVIEW)
 				if parts.size() > 1 and parts[1] == "confirm":  # a card asks its confirmation
 					var card_key := parts[2].to_int() if parts.size() > 2 else 1
 					sheet.handle_key((KEY_1 + card_key - 1) as Key)

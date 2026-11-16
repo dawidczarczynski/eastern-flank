@@ -256,7 +256,7 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	if not is_built:
 		return
-	var modal := _modal_open()  # the Politics screen / ladder window idle the map
+	var modal := _modal_open()  # the exit prompt idles the map
 	if not modal:
 		_pitch_by_keys(delta)
 	_follow_pitch(delta)
@@ -292,8 +292,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
-		# The open Politics screen takes every key (the map below is dimmed and idle); Esc closes
-		# the ring, 1-4 pick a slot; Enter / Esc close the result notice.
+		# The open POLITICS tab takes its own keys (cards, arrows, Enter, Tab); Esc closes the ring,
+		# 1-4 pick a slot; Enter / Esc close the result notice.
 		if (
 			(_decisions != null and _decisions.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_key(key.keycode))
@@ -312,7 +312,6 @@ func _unhandled_input(event: InputEvent) -> void:
 					or _close_dock_key()
 					or _close_objectives_key()
 					or _politics.close_card()
-					or _decisions.close()
 					or close_info()
 					or _cancel_gesture()
 				):
@@ -366,7 +365,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_pick_posture_key(key.keycode - KEY_1 + 1)
 		return
 	if _modal_open():
-		_dragging = false  # the Politics screen idles the map: no wheel zoom, drag or click
+		_dragging = false  # a full-screen prompt idles the map: no wheel zoom, drag or click
 	var button := event as InputEventMouseButton
 	if button != null:
 		if not _modal_open():
@@ -561,10 +560,13 @@ func dock_inset() -> float:
 
 ## The bar button of the dock (STR / JRN with no section open): the last tab opens.
 func _on_dock_tab_pressed(tab: StaffMapRightDock.Tab) -> void:
-	if tab == StaffMapRightDock.Tab.STRIKE:
-		toggle_strike_mode()
-	else:
-		toggle_journal()
+	match tab:
+		StaffMapRightDock.Tab.STRIKE:
+			toggle_strike_mode()
+		StaffMapRightDock.Tab.POLITICS:
+			toggle_decisions()
+		_:
+			toggle_journal()
 
 
 ## Brings the panels, tab strip, bar lights and the slide in line with the model after it changed
@@ -747,7 +749,7 @@ func _sync_action_bar() -> void:
 	_options.set_active(ACTION_CONTROL, _control.is_enabled())
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
 	_bar.set_active(ACTION_STRIKE, _dock.is_tab_open(StaffMapRightDock.Tab.STRIKE))
-	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
+	_bar.set_active(ACTION_DECISIONS, _dock.is_tab_open(StaffMapRightDock.Tab.POLITICS))
 	_bar.set_active(ACTION_JOURNAL, _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL))
 	_bar.set_active(ACTION_OBJECTIVES, _objectives != null and _objectives.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
@@ -2240,12 +2242,9 @@ func _place_turn_bar() -> void:
 	_turn_bar.position = Vector2((_viewport_size().x - _turn_bar.size.x) / 2.0, 0.0)
 
 
-## True while a full-screen window (Politics screen, ladder window) dims the map.
+## True while a full-screen window (the exit prompt) idles the map.
 func _modal_open() -> bool:
-	return (
-		(_decisions != null and _decisions.is_open())
-		or (_exit_confirm != null and _exit_confirm.visible)
-	)
+	return _exit_confirm != null and _exit_confirm.visible
 
 
 ## The ladder window opens: every other staff-map window closes.
@@ -2254,7 +2253,6 @@ func _close_other_windows() -> void:
 	_options.close()
 	close_dock()
 	_objectives.close()
-	_decisions.close()
 	if _strike != null:
 		_strike.reports().suspend()
 		_strike.close()
@@ -2262,11 +2260,49 @@ func _close_other_windows() -> void:
 	_close_debug_panels()
 
 
-## Key H / the Decisions button: the Politics screen (closes the ladder card).
+## Key H / the Decisions button: the POLITICS tab of the right dock (the key of the open tab
+## closes it).
 func toggle_decisions() -> void:
 	if _decisions == null:
 		return
-	_decisions.toggle()
+	if _dock.is_tab_open(StaffMapRightDock.Tab.POLITICS):
+		close_dock()
+	else:
+		open_decisions()
+
+
+## The level chip under the turn bar: the LADDER sub-tab of POLITICS (a second click closes).
+func toggle_ladder() -> void:
+	if _decisions == null:
+		return
+	var panel := _decisions.panel()
+	if (
+		_dock.is_tab_open(StaffMapRightDock.Tab.POLITICS)
+		and panel.tab() == StaffMapDecisionsPanel.TAB_LADDER
+	):
+		close_dock()
+		return
+	if not _dock.is_tab_open(StaffMapRightDock.Tab.POLITICS):
+		open_decisions()
+	panel.open_tab(StaffMapDecisionsPanel.TAB_LADDER)
+
+
+## Opens the POLITICS tab (leaves the strike mode, closes a right-docked formation panel).
+func open_decisions() -> void:
+	var was_open := _dock.is_open()
+	var was_tab := _dock.tab()
+	_dock.open(StaffMapRightDock.Tab.POLITICS)
+	if _strike != null and _strike.is_open():
+		_strike.close()  # its open_changed(false) finds the tab already switched
+	_close_right_info_panel()
+	_decisions.open()
+	_dock_changed(was_open, was_tab)
+
+
+## The tab's own X / Esc / H: closes the dock when POLITICS is the open tab.
+func _close_politics_tab() -> void:
+	if _dock.is_tab_open(StaffMapRightDock.Tab.POLITICS):
+		close_dock()
 
 
 func decisions_hud() -> StaffMapDecisionsHud:
@@ -2278,7 +2314,6 @@ func toggle_strike_mode() -> void:
 	if _strike == null:
 		return
 	if not _strike.is_open():
-		_decisions.close()
 		select_formation(&"")
 	_strike.toggle()
 	_sync_action_bar()
@@ -2464,7 +2499,7 @@ func _build_hud() -> void:
 	_hud.add_child(_panel)
 	_turn_bar = StaffMapTurnBar.new()
 	_turn_bar.end_turn_pressed.connect(end_turn)
-	_turn_bar.escalation_pressed.connect(func() -> void: toggle_decisions())
+	_turn_bar.escalation_pressed.connect(toggle_ladder)
 	_hud.add_child(_turn_bar)
 	_report = StaffMapTurnReport.new()
 	_report.entry_chosen.connect(_on_report_entry)
@@ -2522,8 +2557,9 @@ func _build_hud() -> void:
 	)
 	_escalation.menu_requested.connect(_return_to_menu)
 	_decisions = StaffMapDecisionsHud.new(
-		_simulation, _palette, _hud, func() -> int: return viewer_player
+		_simulation, _palette, func() -> int: return viewer_player
 	)
+	_decisions.close_requested.connect(_close_politics_tab)
 	_strike = StaffMapStrikeHud.new(
 		_simulation,
 		_palette,
@@ -2547,6 +2583,7 @@ func _build_right_dock() -> void:
 	_dock_view = StaffMapRightDockView.new()
 	_hud.add_child(_dock_view)
 	_dock_view.add_section(StaffMapRightDock.Tab.STRIKE, tr("STRIKE"), _strike.panel())
+	_dock_view.add_section(StaffMapRightDock.Tab.POLITICS, tr("POLITICS"), _decisions.panel())
 	_dock_view.add_section(StaffMapRightDock.Tab.JOURNAL, tr("JOURNAL"), _journal)
 	_journal.max_list_height = maxf(
 		_viewport_size().y - 92.0 - float(ActionBar.HEIGHT) - 130.0, 200.0
