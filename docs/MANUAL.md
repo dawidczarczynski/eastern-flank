@@ -687,6 +687,8 @@ With one of your formations selected, point at a hex to see how it would get the
 2. **Move the cursor** over the map: a live line runs from the counter to the hex under the cursor. A label at the cursor shows the cost, the number of turns, where the route stops, and **ORDERS LEFT n / m**. If the target is not allowed (water, a closed country, ...) the label gives the reason; with no orders left it says so, and a click does nothing.
 3. **Click the hex** to issue the order; the line settles into the faded line of an issued order.
 
+While a formation is armed (and while you aim) a thin **reach contour** surrounds the hexes it can get to in **one march turn**: it stretches along roads, stays short in forest and marsh, stops at water, and does not run through the zone next to an enemy (you can end a turn on a hex next to him, not pass it). It is always the march reach, also when you pick Attack or Defend with keys 2-3. It disappears with **Esc**, after the order is issued, or when you deselect the formation.
+
 Keys **1-3** change the posture (March, Attack, Defend) while the formation is selected or while you aim, and the line follows. **Esc** steps back one level at a time: a chosen posture, then a pending confirmation (see the preview section below), then aiming, then the selection. Panning with the left mouse button on empty ground, the wheel, WASD and the screen edges all work while you aim. Dragging the cursor instead of clicking twice is not supported.
 
 **Right click** a hex to open the **order ring** on it (it works also while you aim and does not deselect), the same ring as the unit ring in battle (it follows the hex when you pan, zoom or tilt, and stays on screen):

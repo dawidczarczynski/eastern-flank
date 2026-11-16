@@ -183,6 +183,70 @@ static func forecast(
 	return stops
 
 
+## Where `formation` can end one turn with `budget` move points (TASK-155; the march contour of
+## the staff map): hex -> move points spent to get there. Same rules as `forecast` with a posture
+## that avoids contact: the cheapest route by step cost, enemy hexes and closed countries
+## impassable, a hex next to an enemy can be ended on but not passed (the walk halts there), own
+## formations' hexes are passed but never an ending, and the first step is always made (so a
+## neighbour is reachable by a direct step whatever it costs). The start is not in the result.
+## For every hex, `forecast(.., budget, true)` finishes there in one turn exactly when it is in
+## the result.
+static func reach(
+	state: OperationalState, formation: Formation, budget: int, movement: OperationalMovement = null
+) -> Dictionary:
+	if movement == null:
+		movement = OperationalMovement.shipped()
+	var start := formation.coord
+	var blocked := {}
+	for other in state.formations:
+		if other.owner_id != formation.owner_id:
+			blocked[other.coord] = true
+	var zone := _zone_of_control(state, formation)
+	var closed := closed_countries(state, formation.owner_id, start)
+	if not closed.is_empty():
+		for hex: Vector2i in state.country_map:
+			if closed.has(state.country_map[hex]):
+				blocked[hex] = true
+	var costs := {start: 0}
+	var parents := {}
+	var settled := {}
+	var buckets: Array = [[start]]
+	var result := {}
+	var cost_now := 0
+	while cost_now < buckets.size():
+		var bucket: Array = buckets[cost_now]
+		for hex: Vector2i in bucket:
+			if settled.has(hex) or int(costs[hex]) != cost_now:
+				continue
+			settled[hex] = true
+			if hex != start:
+				var holder := state.formation_at(hex)
+				if (
+					(cost_now <= budget or parents[hex] == start)
+					and (holder == null or holder == formation)
+				):
+					result[hex] = cost_now
+			# A hex next to an enemy ends the walk (never expanded); beyond the budget only the
+			# first step is taken, so only the start expands then.
+			if cost_now > budget or (hex != start and zone.has(hex)):
+				continue
+			for n in Hex.neighbors(hex):
+				if blocked.has(n) or settled.has(n):
+					continue
+				var step := movement.step_cost(state.grid, hex, n)
+				if step == Terrain.IMPASSABLE:
+					continue
+				var new_cost := cost_now + step
+				if not costs.has(n) or new_cost < int(costs[n]):
+					costs[n] = new_cost
+					parents[n] = hex
+					while buckets.size() <= new_cost:
+						buckets.append([])
+					(buckets[new_cost] as Array).append(n)
+		cost_now += 1
+	return result
+
+
 ## Hexes next to a formation of the other player(s), as a set.
 static func _zone_of_control(state: OperationalState, formation: Formation) -> Dictionary:
 	var zone := {}

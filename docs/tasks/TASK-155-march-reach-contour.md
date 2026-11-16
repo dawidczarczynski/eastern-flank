@@ -1,6 +1,6 @@
 # TASK-155: Staff map – T+1 reach contour for the march posture (stage 3)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (pure query) + presentation
 - **Depends on**: TASK-153
 - **Sections**: GDD "Orders and postures", GDD "Movement costs"; order_lines_analysis.md sections 3, 5, 7 (decision 5); `StaffMapControlLayer` as the pattern
@@ -34,4 +34,7 @@ Orders: while a formation is armed a contour shows how far it gets on a march in
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Core: `OperationalRoutes.reach(state, formation, budget, movement)` (hex -> cost). The zone-of-control hexes are endings but never expanded, which is exactly what `forecast` with an avoid-contact posture does, so the query has no `avoids_contact` parameter (advance would give the same set: its walk halts on entering the zone). Neighbours are reachable by the always-made first step even above the budget. `FrontLine.outline(hexes)` gives the closed outer boundary loops (reused by the layer). Tests: `tests/unit/test_operational_reach.gd` (incl. the consistency test against `forecast` over a whole mixed-terrain grid).
+- Presentation: `StaffMapReachLayer` (`src/presentation/operational/`), 1.5 px line (`StaffMapLines`), smoothed with `FrontLine.smooth`, priority 15 (under the front line and counters), march budget from `OperationalOrders.budget` with the shipped `march` posture, so the contour stays the march one for any picked posture. `StaffMap._refresh_reach` shows it only in gesture states ARMED and AIMING (hidden in CONFIRM, COMMITTED, IDLE) and the layer rebuilds only when the armed formation or the formation positions / turn change. Tests: `tests/unit/test_staff_map_reach_layer.gd`.
+- Colour: the own-side colour at 70 % (no mockup exists for this line; the analysis only asks for a thin contour like the control one) – to judge in the playtest.
+- docs/MANUAL.md "Giving an order" updated.

@@ -340,6 +340,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapPolitics` – The political tint of the staff map (TASK-114): feeds the terrain shader the country cove… (`staff_map_politics.gd`)
 - `StaffMapPoliticsHud` – Everything political on the staff map (TASK-114) behind a few calls, so StaffMap stays sm… (`staff_map_politics_hud.gd`)
 - `StaffMapPoliticsPanel` – Debug politics panel of the staff map (TASK-114, F9, only with --debug): one row per coun… (`staff_map_politics_panel.gd`)
+- `StaffMapReachLayer` – The T+1 reach contour of the staff map (TASK-155, order_lines_analysis.md decision 5): wh… (`staff_map_reach_layer.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
 - `StaffMapRoute` – Route preview maths of the staff map (TASK-092c): the numbers behind the ribbon, stops an… (`staff_map_route.gd`)
 - `StaffMapRouteMarks` – Screen-space markers of the route preview (TASK-092c, look: docs/design/operational_map (`staff_map_route_marks.gd`)

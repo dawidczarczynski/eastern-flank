@@ -61,6 +61,34 @@ static func edges(state: OperationalState) -> Array:
 	return lines
 
 
+## The outer boundary of a set of hexes (`hexes`: a Dictionary whose keys are the hexes) as closed
+## polylines of hex-unit points (first point == last point) along the hex edges, each hex on the
+## right of the travel. Edges between members are not part of it; sorted deterministically.
+## Used by the staff map's reach contour (TASK-155).
+static func outline(hexes: Dictionary) -> Array:
+	var starts := {}  # corner key -> Array of segments [from, to] leaving that corner
+	var keys: Array[Vector2i] = []
+	for coord: Vector2i in hexes:
+		keys.append(coord)
+	keys.sort_custom(_coord_before)
+	for coord in keys:
+		for direction in Hex.DIRECTIONS:
+			if hexes.has(coord + direction):
+				continue
+			var segment := _segment(coord, direction)
+			var from_key := _key(segment[0])
+			if not starts.has(from_key):
+				starts[from_key] = []
+			(starts[from_key] as Array).append(segment)
+	var loops: Array = []
+	var all_keys: Array = starts.keys()
+	all_keys.sort_custom(_coord_before)
+	for key: Vector2i in all_keys:
+		while not (starts[key] as Array).is_empty():
+			loops.append(_walk(starts, key))
+	return loops
+
+
 ## Normal pointing to the right of the direction a → b (x right, z down): player 0's side.
 static func right_normal(a: Vector2, b: Vector2) -> Vector2:
 	var d := (b - a).normalized()

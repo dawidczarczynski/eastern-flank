@@ -126,6 +126,7 @@ var _route_marks: StaffMapRouteMarks
 var _orders: StaffMapOrders
 var _front: StaffMapFrontLine
 var _control: StaffMapControlLayer  # terrain control (TASK-152), under the front line
+var _reach: StaffMapReachLayer  # T+1 march contour of the armed formation (TASK-155)
 var _order_ring: StaffMapOrderRing
 var _unit_strip: StaffMapUnitStrip  # a formation in the hex strip's slot (TASK-151)
 var _gesture := StaffMapOrderGesture.new()  # click own counter, aim, click hex (TASK-153)
@@ -749,6 +750,11 @@ func terrain_control() -> StaffMapControlLayer:
 	return _control
 
 
+## The T+1 march reach contour of the armed formation (TASK-155).
+func reach_contour() -> StaffMapReachLayer:
+	return _reach
+
+
 func front_line() -> StaffMapFrontLine:
 	return _front
 
@@ -1023,10 +1029,24 @@ func _sync_gesture() -> void:
 	_gesture.select(formation.id if formation != null else &"")
 
 
+## The reach contour shows while a formation is armed or aimed (not at the prompt, committed or
+## idle); it recomputes only when the formation or the map changed (TASK-155).
+func _refresh_reach() -> void:
+	if _reach == null or _simulation == null:
+		return
+	var gesture_state := _gesture.state()
+	var shown := (
+		gesture_state == StaffMapOrderGesture.State.ARMED
+		or gesture_state == StaffMapOrderGesture.State.AIMING
+	)
+	_reach.refresh(_simulation.state, _selected_own() if shown else null, shown)
+
+
 ## Per frame: gesture context, the flowing dashes (only while aiming) and the commit settle.
 func _tick_gesture(delta: float) -> void:
 	_sync_gesture()
 	_gesture.tick(delta)
+	_refresh_reach()
 	if _route != null:
 		_route.set_flowing(_gesture.is_aiming())
 	if _gesture.state() == StaffMapOrderGesture.State.COMMITTED:
@@ -1423,6 +1443,8 @@ func _build_operation(definition: OperationDefinition) -> void:
 func _build_route_preview() -> void:
 	_control = StaffMapControlLayer.new(_view.relief(), _palette)
 	_view.add_child(_control)
+	_reach = StaffMapReachLayer.new(_view.relief(), _palette)
+	_view.add_child(_reach)
 	_front = StaffMapFrontLine.new(_view.relief(), _palette)
 	_view.add_child(_front)
 	_order_ribbon = StaffMapRouteRibbon.new("OrderRibbon")
