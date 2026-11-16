@@ -1776,21 +1776,39 @@
    }
   },
   "TASK-099a": {
-   "active_hours": 0.16,
-   "cost": 1.2069,
+   "active_hours": 1.08,
+   "cost": 3.7692,
    "first": "2026-11-11T20:29:25.280Z",
-   "last": "2026-11-11T20:38:47.342Z",
-   "main_cost": 0.1716,
+   "last": "2026-11-13T11:30:35.455Z",
+   "main_cost": 0.8637,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 2,
+   "tokens": {
+    "cache_read": 6403117,
+    "cache_write": 259543,
+    "input": 206,
+    "output": 58290
+   }
+  },
+  "TASK-099b": {
+   "active_hours": 3.02,
+   "cost": 6.4826,
+   "first": "2026-11-13T11:30:47.484Z",
+   "last": "2026-11-13T14:32:01.127Z",
+   "main_cost": 4.5533,
    "models": [
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
    "sessions": 1,
    "tokens": {
-    "cache_read": 1765414,
-    "cache_write": 91889,
-    "input": 58,
-    "output": 22168
+    "cache_read": 14319501,
+    "cache_write": 281037,
+    "input": 286,
+    "output": 75465
    }
   },
   "TASK-101": {
@@ -1812,21 +1830,111 @@
    }
   },
   "TASK-102a": {
-   "active_hours": 0.12,
-   "cost": 1.6456,
+   "active_hours": 0.54,
+   "cost": 4.0193,
    "first": "2026-11-11T20:19:10.198Z",
-   "last": "2026-11-11T20:26:28.854Z",
-   "main_cost": 0.1476,
+   "last": "2026-11-12T11:58:12.488Z",
+   "main_cost": 0.4741,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 2,
+   "tokens": {
+    "cache_read": 5541116,
+    "cache_write": 298358,
+    "input": 150,
+    "output": 82511
+   }
+  },
+  "TASK-102b": {
+   "active_hours": 0.26,
+   "cost": 2.0679,
+   "first": "2026-11-12T12:13:49.533Z",
+   "last": "2026-11-12T12:29:25.522Z",
+   "main_cost": 0.3024,
    "models": [
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
    "sessions": 1,
    "tokens": {
-    "cache_read": 1860756,
-    "cache_write": 146067,
-    "input": 54,
-    "output": 35964
+    "cache_read": 3860687,
+    "cache_write": 120350,
+    "input": 110,
+    "output": 30536
+   }
+  },
+  "TASK-102c": {
+   "active_hours": 0.49,
+   "cost": 2.1013,
+   "first": "2026-11-12T12:29:34.933Z",
+   "last": "2026-11-12T12:58:57.449Z",
+   "main_cost": 0.597,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 3003232,
+    "cache_write": 218335,
+    "input": 124,
+    "output": 25411
+   }
+  },
+  "TASK-103a": {
+   "active_hours": 0.58,
+   "cost": 3.205,
+   "first": "2026-11-12T18:12:45.039Z",
+   "last": "2026-11-12T18:47:29.752Z",
+   "main_cost": 0.5636,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 5276190,
+    "cache_write": 271087,
+    "input": 162,
+    "output": 40340
+   }
+  },
+  "TASK-103b": {
+   "active_hours": 3.19,
+   "cost": 3.3104,
+   "first": "2026-11-12T18:59:51.330Z",
+   "last": "2026-11-12T22:11:16.716Z",
+   "main_cost": 3.3104,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 7709036,
+    "cache_write": 106755,
+    "input": 194,
+    "output": 39784
+   }
+  },
+  "TASK-107a": {
+   "active_hours": 9.95,
+   "cost": 5.8438,
+   "first": "2026-11-12T22:11:57.799Z",
+   "last": "2026-11-13T08:08:52.727Z",
+   "main_cost": 0.6935,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 12314398,
+    "cache_write": 294606,
+    "input": 232,
+    "output": 69602
    }
   },
   "TASK-108b": {
@@ -2121,6 +2229,24 @@
     "output": 10063
    }
   },
+  "TASK-119b": {
+   "active_hours": 0.94,
+   "cost": 2.3166,
+   "first": "2026-11-12T12:59:58.671Z",
+   "last": "2026-11-12T13:56:40.486Z",
+   "main_cost": 2.3166,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 4898948,
+    "cache_write": 108062,
+    "input": 104,
+    "output": 29422
+   }
+  },
   "TASK-120": {
    "active_hours": 3.57,
    "cost": 7.9651,
@@ -2140,21 +2266,39 @@
    }
   },
   "TASK-121": {
-   "active_hours": 0.14,
-   "cost": 2.7131,
+   "active_hours": 2.25,
+   "cost": 11.4574,
    "first": "2026-11-11T21:15:57.832Z",
-   "last": "2026-11-11T21:24:27.201Z",
-   "main_cost": 0.1952,
+   "last": "2026-11-13T16:38:33.272Z",
+   "main_cost": 1.4636,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 2,
+   "tokens": {
+    "cache_read": 22963072,
+    "cache_write": 585992,
+    "input": 496,
+    "output": 157966
+   }
+  },
+  "TASK-122": {
+   "active_hours": 1.27,
+   "cost": 3.764,
+   "first": "2026-11-13T16:54:37.303Z",
+   "last": "2026-11-13T18:11:07.947Z",
+   "main_cost": 1.008,
    "models": [
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
    "sessions": 1,
    "tokens": {
-    "cache_read": 4590234,
-    "cache_write": 167085,
-    "input": 104,
-    "output": 47275
+    "cache_read": 7216697,
+    "cache_write": 224886,
+    "input": 220,
+    "output": 50337
    }
   },
   "TASK-123": {
@@ -2417,21 +2561,113 @@
    }
   },
   "TASK-146": {
-   "active_hours": 0.01,
-   "cost": 0.1891,
+   "active_hours": 1.06,
+   "cost": 1.8163,
    "first": "2026-11-11T22:35:11.003Z",
-   "last": "2026-11-11T22:35:31.733Z",
-   "main_cost": 0.1891,
+   "last": "2026-11-12T15:00:47.644Z",
+   "main_cost": 1.8163,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 2,
+   "tokens": {
+    "cache_read": 3054806,
+    "cache_write": 105186,
+    "input": 94,
+    "output": 33675
+   }
+  },
+  "TASK-147": {
+   "active_hours": 2.47,
+   "cost": 28.9688,
+   "first": "2026-11-12T15:01:03.995Z",
+   "last": "2026-11-12T17:29:09.765Z",
+   "main_cost": 3.9523,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 35938648,
+    "cache_write": 1491550,
+    "input": 670,
+    "output": 181625
+   }
+  },
+  "TASK-150": {
+   "active_hours": 0.35,
+   "cost": 1.2922,
+   "first": "2026-11-13T08:32:16.187Z",
+   "last": "2026-11-13T08:52:59.930Z",
+   "main_cost": 0.2461,
    "models": [
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
    "sessions": 1,
    "tokens": {
-    "cache_read": 231629,
-    "cache_write": 24817,
-    "input": 12,
-    "output": 1770
+    "cache_read": 2061049,
+    "cache_write": 93799,
+    "input": 66,
+    "output": 21465
+   }
+  },
+  "TASK-153": {
+   "active_hours": 2.15,
+   "cost": 13.6546,
+   "first": "2026-11-15T19:09:10.426Z",
+   "last": "2026-11-15T21:18:16.884Z",
+   "main_cost": 2.0169,
+   "models": [
+    "claude-fable-5-2",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 25417623,
+    "cache_write": 646362,
+    "input": 512,
+    "output": 180286
+   }
+  },
+  "TASK-154": {
+   "active_hours": 0.15,
+   "cost": 0.5537,
+   "first": "2026-11-15T21:23:54.390Z",
+   "last": "2026-11-15T21:32:52.931Z",
+   "main_cost": 0.5537,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 974288,
+    "cache_write": 40301,
+    "input": 36,
+    "output": 7348
+   }
+  },
+  "TASK-155": {
+   "active_hours": 1.82,
+   "cost": 1.7355,
+   "first": "2026-11-16T07:44:16.685Z",
+   "last": "2026-11-16T09:33:37.234Z",
+   "main_cost": 1.7355,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 3851340,
+    "cache_write": 58598,
+    "input": 96,
+    "output": 24005
    }
   }
  },
