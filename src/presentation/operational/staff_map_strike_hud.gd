@@ -265,7 +265,6 @@ func click(target_id: StringName) -> bool:
 		_confirm.present(
 			StaffMapStrike.confirm_model(state, player, target_id, _means, _salvo, _confirm_raised)
 		)
-		_panel.hide()
 		_sync_cursor()
 	else:
 		_toast.call(view["reason_text"], _palette.ui_alert)
@@ -297,14 +296,12 @@ func confirm() -> void:
 	if struck:
 		close()
 		return
-	_panel.show()
 	refresh()
 
 
 ## Cancel / Esc on the confirm card: back to the mode.
 func cancel() -> void:
 	_confirm.hide()
-	_panel.show()
 	refresh()
 
 
@@ -397,8 +394,6 @@ func covers(point: Vector2) -> bool:
 func layout(viewport: Vector2, top: float) -> void:
 	_layer.layout()
 	_reports.layout(viewport, top)
-	_panel.reset_size()
-	_panel.position = Vector2(viewport.x - 16.0 - _panel.size.x, top)
 	_confirm.reset_size()
 	_confirm.position = Vector2((viewport.x - _confirm.size.x) / 2.0, viewport.y * 0.22)
 

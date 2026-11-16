@@ -88,7 +88,7 @@ func _sample() -> void:
 	_add(3, &"battle", &"battle_consequences", -1, null, {"losses": [1, 2], "field_holder": 0})
 
 
-func test_the_jrn_button_and_key_j_open_and_close_it_on_the_left_dock() -> void:
+func test_the_jrn_button_and_key_j_open_and_close_it_in_the_right_dock() -> void:
 	var button := _map.action_bar().button(StaffMap.ACTION_JOURNAL)
 	assert_true(button != null, "JRN button")
 	var window := _map.journal_window()
@@ -96,7 +96,8 @@ func test_the_jrn_button_and_key_j_open_and_close_it_on_the_left_dock() -> void:
 	_key(KEY_J)
 	assert_true(window.is_open(), "J opens")
 	assert_true(button.button_pressed, "button lit while open")
-	assert_eq(window.position, Vector2(16, 110))
+	assert_eq(window.get_global_rect().end.x, _map.call(&"_viewport_size").x, "flush right")
+	assert_eq(window.position.y, 92.0, "under the turn bar")
 	assert_eq(window.size.x, StaffMapWindow.WIDTH_REPORT)
 	assert_true(window.tab_text.begins_with("JOURNAL"), window.tab_text)
 	_key(KEY_J)
@@ -111,16 +112,17 @@ func test_the_jrn_button_and_key_j_open_and_close_it_on_the_left_dock() -> void:
 	assert_false(window.is_open(), "X closes")
 
 
-func test_one_left_window_at_a_time() -> void:
+func test_the_journal_and_a_left_window_are_open_together() -> void:
 	var window := _map.journal_window()
 	_map.toggle_journal()
 	_map.toggle_options()
-	assert_false(window.is_open(), "map options take the dock")
-	_map.toggle_journal()
-	assert_true(window.is_open())
-	assert_false(_map.options_window().is_open(), "and the journal takes it back")
+	assert_true(window.is_open(), "the journal is in the right dock, not on the left")
+	assert_true(_map.options_window().is_open())
 	_map.close_docked_windows()
-	assert_false(window.is_open(), "a click on the map closes it")
+	assert_false(_map.options_window().is_open(), "a click on the map closes the left windows")
+	assert_true(window.is_open(), "but not the dock")
+	_map.close_journal()
+	assert_false(window.is_open())
 
 
 func test_rows_are_grouped_by_turn_newest_first_with_now_on_the_current_turn() -> void:
@@ -282,7 +284,7 @@ func test_enter_on_a_strike_report_opens_the_journal_at_the_strike_entry() -> vo
 	assert_true(hud.handle_report_key(KEY_ENTER))
 	var window := _map.journal_window()
 	assert_true(window.is_open(), "Enter opens the journal")
-	assert_false(hud.reports().card_visible(), "and the card steps aside")
+	assert_true(hud.reports().card_visible(), "the card stays on the left")
 	var lit := -1
 	for i in window.row_count():
 		if window.row(i).lit:

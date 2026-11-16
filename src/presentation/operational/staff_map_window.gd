@@ -12,7 +12,9 @@ extends FramedPanel
 
 signal close_requested
 
-enum Dock { LEFT, RIGHT }
+## TABBED = the right-hand tabbed dock (TASK-174a): flush with the right edge under the turn bar,
+## placed inside the dock view, which slides it in.
+enum Dock { LEFT, RIGHT, TABBED }
 
 const WIDTH_DEFAULT := 330.0
 const WIDTH_REPORT := 420.0
@@ -60,6 +62,8 @@ func close() -> bool:
 
 ## Top-left corner of a window of `width` docked on `side` in a viewport `viewport_width` wide.
 static func dock_position(side: Dock, viewport_width: float, width: float) -> Vector2:
+	if side == Dock.TABBED:
+		return Vector2(viewport_width - width, StaffMapCameraMath.TOP_INSET)
 	if side == Dock.RIGHT:
 		return Vector2(viewport_width - MARGIN - width, TOP)
 	return Vector2(MARGIN, TOP)
@@ -70,7 +74,7 @@ func dock(viewport_width: float) -> void:
 	reset_size()
 	position = dock_position(dock_side, viewport_width, size.x)
 	var parent := get_parent_control()
-	if parent != null:  # keep clear of the bottom bar
+	if parent != null and dock_side != Dock.TABBED:  # keep clear of the bottom bar
 		var floor_y := parent.size.y - float(ActionBar.HEIGHT) - MARGIN
 		position.y = clampf(position.y, 8.0, maxf(floor_y - size.y, 8.0))
 

@@ -716,6 +716,7 @@ func _apply_staff_map_state(spec: String) -> void:
 			"strikes": &"strike", "battles": &"battle", "moves": &"move", "politics": &"politics"
 		}
 		map.journal_window().set_filter(chip.get(journal_filter, &""))
+	map.settle_dock()  # no frames run: the dock slide (TASK-174a) is jumped to its end
 	if select_id != &"" or not orders.is_empty():
 		map.select_formation(select_id)
 	if route_posture > 0:

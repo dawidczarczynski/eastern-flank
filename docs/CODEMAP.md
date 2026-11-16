@@ -345,6 +345,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapPostureSwitcherModel` – Pure model of the posture strip under the selected own counter (TASK-158, docs/design/ (`staff_map_posture_switcher_model.gd`)
 - `StaffMapReachLayer` – The T+1 reach contour of the staff map (TASK-155, order_lines_analysis.md decision 5): wh… (`staff_map_reach_layer.gd`)
 - `StaffMapRelief` – The stylised relief of the staff map (TASK-125), pure: per-hex ground height (hex units,… (`staff_map_relief.gd`)
+- `StaffMapRightDock` – Pure model of the right-hand tabbed dock of the staff map (TASK-174a, variant B of (`staff_map_right_dock.gd`)
+- `StaffMapRightDockView` – The view of the right-hand tabbed dock (TASK-174a, docs/design/operational_map/ (`staff_map_right_dock_view.gd`)
 - `StaffMapRoute` – Route preview maths of the staff map (TASK-092c): the numbers behind the ribbon, stops an… (`staff_map_route.gd`)
 - `StaffMapRouteMarks` – Screen-space markers of the route preview (TASK-092c, look: docs/design/operational_map (`staff_map_route_marks.gd`)
 - `StaffMapRoutePreview` – Route preview of the staff map (TASK-092c): for the selected own formation and the hex un… (`staff_map_route_preview.gd`)

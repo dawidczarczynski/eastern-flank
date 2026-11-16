@@ -61,6 +61,8 @@ func _init() -> void:
 	var texts := VBoxContainer.new()
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texts.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # takes the room the stock leaves
+	texts.clip_contents = true
 	texts.add_theme_constant_override(&"separation", 1)
 	line.add_child(texts)
 	_name = MenuStyle.label("", HudTheme.display(700, 0), 15, UiPalette.HUD_TEXT)
@@ -68,6 +70,7 @@ func _init() -> void:
 	texts.add_child(_name)
 	var sub := HBoxContainer.new()
 	sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sub.clip_contents = true
 	sub.add_theme_constant_override(&"separation", 4)
 	texts.add_child(sub)
 	for i in 3:
@@ -75,10 +78,9 @@ func _init() -> void:
 		part.name = "Sub%d" % i
 		sub.add_child(part)
 		_sub.append(part)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(spacer)
+	# a long translated tail ("ONLY FROM ALLIES") is trimmed instead of pushing the stock out
+	_sub[2].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sub[2].text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var stock := VBoxContainer.new()
 	stock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stock.size_flags_vertical = Control.SIZE_SHRINK_CENTER

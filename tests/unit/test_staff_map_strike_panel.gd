@@ -157,6 +157,18 @@ func test_panel_rows_follow_the_list_and_grey_stock_zero() -> void:
 	panel.free()
 
 
+func test_a_long_translated_row_does_not_push_the_stock_out() -> void:
+	var panel := _panel(_state())
+	var row := panel.row(&"tomahawk")
+	var line := row.get_child(0)
+	var texts: Control = line.get_child(1)
+	var tail: Label = texts.get_child(1).get_child(2)
+	tail.text = "· " + "TYLKO OD SOJUSZNIKÓW ".repeat(3)
+	# the text block may shrink to nothing, so the stock column always keeps its room
+	assert_true(texts.get_combined_minimum_size().x < 260.0, str(texts.get_combined_minimum_size()))
+	panel.free()
+
+
 func test_clicking_a_greyed_row_does_not_pick_it() -> void:
 	var panel := _panel(_state())
 	var picks: Array[StringName] = []

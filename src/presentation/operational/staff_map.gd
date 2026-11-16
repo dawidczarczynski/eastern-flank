@@ -32,7 +32,7 @@ extends Node3D
 
 ## The windows that share the left edge of the screen: only one is open at a time, opening one
 ## closes the others (a strike report is only hidden – J brings it back).
-enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU, JOURNAL, OBJECTIVES }
+enum LeftWindow { REPORT, COUNTRY_CARD, DEBUG, OPTIONS, MENU, OBJECTIVES }
 ## (The ladder window is a full-screen overlay: opening it closes all of them, see
 ## `_close_other_windows`; opening any of them closes it.)
 
@@ -41,6 +41,7 @@ const CARD_SLOT_WIDTH := 470
 const ACTION_GRID := &"grid"
 const ACTION_NAMES := &"names"
 const ACTION_BORDERS := &"borders"
+const DOCK_SLIDE_SECONDS := 0.2  # the dock slides and the map follows (ease-out)
 const ACTION_POLITICS := &"politics"
 const ACTION_FLAT := &"flat"
 const ACTION_COVER := &"cover"
@@ -106,6 +107,10 @@ var _options: StaffMapOptionsWindow  # map layer toggles under the MAP button
 var _journal: StaffMapJournalWindow  # the operational journal (JRN, J)
 var _journal_ring: StaffMapJournalRing
 var _journal_dirty := false
+var _dock := StaffMapRightDock.new()  # the right tabbed dock: strike + journal (TASK-174a)
+var _dock_view: StaffMapRightDockView
+var _dock_inset := 0.0  # animated screen px the dock covers (0 .. StaffMapRightDock.WIDTH)
+var _dock_tween: Tween
 var _objectives: StaffMapObjectivesWindow  # what the operation is scored on (O)
 var _bar: ActionBar
 var _hud: CanvasLayer
@@ -304,7 +309,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					cancel_exit()
 					or close_menu()
 					or _close_options_key()
-					or _close_journal_key()
+					or _close_dock_key()
 					or _close_objectives_key()
 					or _politics.close_card()
 					or _decisions.close()
@@ -440,7 +445,7 @@ func _build_journal() -> void:
 	_journal.place_namer = _place_name
 	_journal.close_requested.connect(close_journal)
 	_journal.entry_chosen.connect(_on_journal_entry)
-	_hud.add_child(_journal)
+	_hud.add_child(_journal)  # moved into the right dock by _build_right_dock
 	_journal_ring = StaffMapJournalRing.new()
 	_hud.add_child(_journal_ring)
 	_journal.show_journal(_simulation.state, viewer_player)
@@ -495,33 +500,154 @@ func journal_ring() -> StaffMapJournalRing:
 	return _journal_ring
 
 
-## J / the JRN button: the journal for the viewed side (closes the other left windows).
+## J / the JRN button: the journal tab of the right dock (the key of the open tab closes it).
 func toggle_journal() -> void:
-	if _journal.is_open():
+	if _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL):
 		close_journal()
 	else:
 		open_journal()
 
 
-## Opens the journal; `focus` (an entry of the viewed side) is scrolled to and lit.
+## Opens the journal tab for the viewed side (leaves the strike mode); `focus` (an entry of the
+## viewed side) is scrolled to and lit.
 func open_journal(focus: OperationalJournal.Entry = null) -> void:
-	_claim_left_dock(LeftWindow.JOURNAL)
+	var was_open := _dock.is_open()
+	var was_tab := _dock.tab()
+	_dock.open(StaffMapRightDock.Tab.JOURNAL)
+	if _strike != null and _strike.is_open():
+		_strike.close()  # its open_changed(false) finds the tab already switched
+	_close_right_info_panel()
 	_journal.show_journal(_simulation.state, viewer_player, focus)
 	_journal.show()
-	_journal.dock(_viewport_size().x)
-	_sync_action_bar()
+	_dock_changed(was_open, was_tab)
 
 
-func _close_journal_key() -> bool:
-	if not _journal.is_open():
+func _close_dock_key() -> bool:
+	if not _dock.is_open():
 		return false
-	close_journal()
+	close_dock()
 	return true
 
 
 func close_journal() -> void:
-	_journal.close()
+	if _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL):
+		close_dock()
+
+
+## Esc / X / a selection / leaving the strike mode: closes the dock (the map slides back).
+func close_dock() -> bool:
+	var was_tab := _dock.tab()
+	if not _dock.close():
+		return false
+	if was_tab == StaffMapRightDock.Tab.STRIKE and _strike != null and _strike.is_open():
+		_strike.close()
+	_dock_changed(true, was_tab)
+	return true
+
+
+## The dock model (tests, screenshots).
+func right_dock() -> StaffMapRightDock:
+	return _dock
+
+
+func right_dock_view() -> StaffMapRightDockView:
+	return _dock_view
+
+
+## Screen px the dock covers right now (animated 0 .. 420).
+func dock_inset() -> float:
+	return _dock_inset
+
+
+## The bar button of the dock (STR / JRN with no section open): the last tab opens.
+func _on_dock_tab_pressed(tab: StaffMapRightDock.Tab) -> void:
+	if tab == StaffMapRightDock.Tab.STRIKE:
+		toggle_strike_mode()
+	else:
+		toggle_journal()
+
+
+## Brings the panels, tab strip, bar lights and the slide in line with the model after it changed
+## (`was_open` / `was_tab`: what it was before).
+func _dock_changed(was_open: bool, was_tab: StaffMapRightDock.Tab) -> void:
+	if _dock_view == null:
+		return
+	var open := _dock.is_open()
+	var tab := _dock.tab()
+	_dock_view.set_active_tab(int(tab) if open else -1)
+	_dock_view.show_tabs(open)
+	if open:
+		_dock_view.layout(_viewport_size())
+		if tab != StaffMapRightDock.Tab.JOURNAL:
+			_journal.close()  # counts what it showed as seen
+		for other: StaffMapRightDock.Tab in StaffMapRightDock.Tab.values():
+			if other != tab:
+				_dock_view.panel(other).hide()
+		var panel := _dock_view.panel(tab)
+		panel.show()
+		if was_open and was_tab != tab:
+			_dock_view.fade_in(panel)
+		else:
+			panel.modulate.a = 1.0
+		_animate_dock(1.0)
+	else:
+		# the sections vanish at once; the map slides back over the freed area
+		_journal.close()  # counts what it showed as seen
+		for tab_id: StaffMapRightDock.Tab in StaffMapRightDock.Tab.values():
+			_dock_view.panel(tab_id).hide()
+		_animate_dock(0.0)
 	_sync_action_bar()
+
+
+## Slides the dock (and so the free map area) to `target` 0 / 1 in 200 ms, ease-out.
+func _animate_dock(target: float) -> void:
+	var goal := StaffMapRightDock.WIDTH * target
+	if _dock_tween != null:
+		_dock_tween.kill()
+	if not is_inside_tree() or absf(goal - _dock_inset) < 0.5:
+		_set_dock_inset(goal)
+		_dock_finished()
+		return
+	_dock_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_dock_tween.tween_method(_set_dock_inset, _dock_inset, goal, DOCK_SLIDE_SECONDS)
+	_dock_tween.tween_callback(_dock_finished)
+
+
+## One animation step: the dock holder moves and the camera keeps the centre of the visible map.
+func _set_dock_inset(inset: float) -> void:
+	var delta := inset - _dock_inset
+	_dock_inset = inset
+	_dock_view.set_progress(inset / StaffMapRightDock.WIDTH)
+	if delta != 0.0:
+		_position += StaffMapCameraMath.drag_delta(Vector2(-delta * 0.5, 0.0), _zoom, _pitch)
+	_insets = _clear_insets()
+	_move_camera(_position)
+
+
+## Test / screenshot aid: jumps a running dock slide to its end.
+func settle_dock() -> void:
+	if _dock_tween != null:
+		_dock_tween.kill()
+	_set_dock_inset(_dock.inset())
+	_dock_finished()
+
+
+func _dock_finished() -> void:
+	_dock_view.set_progress(_dock_inset / StaffMapRightDock.WIDTH)
+
+
+## A unit was selected (selection, INFO ring, key I): the dock closes and stays closed, except in
+## the strike mode, where a map click is a target pick.
+func _close_dock_on_selection() -> void:
+	var was_tab := _dock.tab()
+	if _dock.on_selection(_strike_mode_open()):
+		_dock_changed(true, was_tab)
+
+
+## The formation panel on the right would sit under the dock: it closes when the dock opens.
+func _close_right_info_panel() -> void:
+	if _panel != null and _panel.visible and _panel.dock_side == StaffMapWindow.Dock.RIGHT:
+		close_info()
 
 
 ## A click on a journal entry: the map centres on its place and rings the hex.
@@ -620,9 +746,9 @@ func _sync_action_bar() -> void:
 	_options.set_active(ACTION_COVER, _cover_on)
 	_options.set_active(ACTION_CONTROL, _control.is_enabled())
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
-	_bar.set_active(ACTION_STRIKE, _strike != null and _strike.is_open())
+	_bar.set_active(ACTION_STRIKE, _dock.is_tab_open(StaffMapRightDock.Tab.STRIKE))
 	_bar.set_active(ACTION_DECISIONS, _decisions.is_open())
-	_bar.set_active(ACTION_JOURNAL, _journal != null and _journal.is_open())
+	_bar.set_active(ACTION_JOURNAL, _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL))
 	_bar.set_active(ACTION_OBJECTIVES, _objectives != null and _objectives.is_open())
 	_bar.set_enabled(ACTION_CANCEL, _selected_own() != null)
 
@@ -898,6 +1024,8 @@ func select_formation(formation_id: StringName, refill := false, ease_camera := 
 	var new_selection := formation_id != _counters.selected()
 	if new_selection:
 		_clear_pick()
+		if formation_id != &"":
+			_close_dock_on_selection()
 	if _border_prompt != null and _border_prompt.pending().get("formation_id") != formation_id:
 		_border_prompt.take()
 	_counters.set_selected(formation_id)
@@ -950,6 +1078,7 @@ func open_info(formation_id: StringName) -> bool:
 	if formation == null or _panel == null:
 		return false
 	var appears := not _panel.visible
+	_close_dock_on_selection()
 	_fill_panel(formation)
 	_panel.show()
 	_dock_panel_for(formation_id, appears, true)
@@ -1145,7 +1274,7 @@ func set_viewer(player: int) -> void:
 	if _counters == null:
 		return
 	_refresh_turn_bar()
-	if _journal != null and _journal.is_open():
+	if _journal != null and _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL):
 		_journal.show_journal(_simulation.state, player)
 	if _politics != null:
 		_politics.refresh(player)
@@ -1302,14 +1431,9 @@ func _claim_left_dock(owner: LeftWindow) -> void:
 		_sync_action_bar()
 	if owner != LeftWindow.MENU:
 		close_menu()
-	if owner != LeftWindow.JOURNAL and _journal != null and _journal.close():
-		_sync_action_bar()
 	if owner != LeftWindow.OBJECTIVES and _objectives != null and _objectives.close():
 		_sync_action_bar()
-	if (
-		owner in [LeftWindow.OPTIONS, LeftWindow.MENU, LeftWindow.JOURNAL, LeftWindow.OBJECTIVES]
-		and _report != null
-	):
+	if owner in [LeftWindow.OPTIONS, LeftWindow.MENU, LeftWindow.OBJECTIVES] and _report != null:
 		_report.close()
 	if owner != LeftWindow.REPORT and _strike != null:
 		_strike.reports().suspend()
@@ -1631,7 +1755,7 @@ func _on_command_rejected(command: OperationalCommand, reason: String) -> void:
 
 func _on_operational_event(event: Dictionary) -> void:
 	_unsaved = true
-	_journal_dirty = _journal_dirty or (_journal != null and _journal.is_open())
+	_journal_dirty = _journal_dirty or _dock.is_tab_open(StaffMapRightDock.Tab.JOURNAL)
 	_add_new_counters()
 	_contacts.on_event(event)
 	if event.get("type") == &"formation_joined":
@@ -2054,8 +2178,6 @@ func _apply_front_view() -> void:
 func _show_report() -> void:
 	if _contacts != null and _contacts.is_active():
 		return
-	if _journal != null:
-		_journal.close()
 	if _objectives != null:
 		_objectives.close()
 	_report.show_report(_simulation.state, _marks.report_of(viewer_player), _decision_lines)
@@ -2130,7 +2252,7 @@ func _modal_open() -> bool:
 func _close_other_windows() -> void:
 	close_menu()
 	_options.close()
-	_journal.close()
+	close_dock()
 	_objectives.close()
 	_decisions.close()
 	if _strike != null:
@@ -2167,6 +2289,15 @@ func strike_hud() -> StaffMapStrikeHud:
 
 
 func _on_strike_open_changed(open: bool) -> void:
+	var was_open := _dock.is_open()
+	var was_tab := _dock.tab()
+	if open and not _dock.is_tab_open(StaffMapRightDock.Tab.STRIKE):
+		_dock.open(StaffMapRightDock.Tab.STRIKE)  # opening the mode (key S) leaves the journal
+		_close_right_info_panel()
+		_dock_changed(was_open, was_tab)
+	elif not open and _dock.is_tab_open(StaffMapRightDock.Tab.STRIKE):
+		_dock.close()  # leaving the mode (S, X, Esc, a made strike) closes the tab
+		_dock_changed(true, was_tab)
 	_sync_action_bar()
 	if not open:
 		_installation_card.set_note("")
@@ -2200,6 +2331,7 @@ func _dock_panel_for(formation_id: StringName, appears: bool, ease_camera: bool)
 	var left := StaffMapCameraMath.panel_on_left(
 		counter.x, _viewport_size().x, not _left_dock_busy()
 	)
+	left = left or _dock.is_open()  # the right dock (strike mode keeps it) is never covered
 	var side := StaffMapWindow.Dock.LEFT if left else StaffMapWindow.Dock.RIGHT
 	var changed := side != _panel.dock_side
 	_panel.dock_side = side
@@ -2233,6 +2365,7 @@ func _docked_windows() -> Array[StaffMapWindow]:
 		var window := node as StaffMapWindow
 		if (
 			window.visible
+			and window.dock_side != StaffMapWindow.Dock.TABBED
 			and not window is StaffMapExitConfirm
 			and not window is StaffMapStrikeConfirm
 			and not window is StaffMapMenuWindow
@@ -2252,6 +2385,7 @@ func _clear_insets() -> Vector4:
 			left = maxf(left, rect.end.x)
 		else:
 			right = maxf(right, size.x - rect.position.x)
+	right = maxf(right, _dock_inset)  # the tabbed dock: its animated width, not its panels' rects
 	return Vector4(StaffMapCameraMath.TOP_INSET, float(ActionBar.HEIGHT), left, right)
 
 
@@ -2403,8 +2537,22 @@ func _build_hud() -> void:
 	_strike.cover_wanted_changed.connect(func(_wanted: bool) -> void: _apply_cover())
 	_strike.reports().shown.connect(func() -> void: _claim_left_dock(LeftWindow.REPORT))
 	_strike.reports().log_requested.connect(_on_strike_log_requested)
+	_build_right_dock()
 	if OS.get_cmdline_user_args().has("--debug"):
 		contact_debug()
+
+
+## The right tabbed dock (TASK-174a): the strike panel and the journal move into it.
+func _build_right_dock() -> void:
+	_dock_view = StaffMapRightDockView.new()
+	_hud.add_child(_dock_view)
+	_dock_view.add_section(StaffMapRightDock.Tab.STRIKE, tr("STRIKE"), _strike.panel())
+	_dock_view.add_section(StaffMapRightDock.Tab.JOURNAL, tr("JOURNAL"), _journal)
+	_journal.max_list_height = maxf(
+		_viewport_size().y - 92.0 - float(ActionBar.HEIGHT) - 130.0, 200.0
+	)
+	_dock_view.tab_pressed.connect(_on_dock_tab_pressed)
+	_dock_view.layout(_viewport_size())
 
 
 ## F9 (--debug): the politics and the contact-map panels open and close together, the contact
@@ -2436,7 +2584,9 @@ func contact_debug() -> StaffMapContactDebug:
 
 
 func _update_limits() -> void:
-	_min_zoom = StaffMapCameraMath.min_zoom(_bounds, _ground_viewport())
+	var ground := _ground_viewport()  # the map never gets narrower than beside the open dock
+	ground.x = StaffMapRightDock.min_map_width(ground.x)
+	_min_zoom = StaffMapCameraMath.min_zoom(_bounds, ground)
 	_max_zoom = StaffMapCameraMath.max_zoom(_viewport_size(), StaffMapView.UNIT, _min_zoom)
 
 
@@ -2448,6 +2598,8 @@ func _on_viewport_resized() -> void:
 	_update_limits()
 	_set_zoom(_zoom)
 	_place_panel()
+	if _dock_view != null:
+		_dock_view.layout(_viewport_size())
 	if _turn_bar != null:
 		_place_turn_bar()
 
@@ -2463,7 +2615,8 @@ func _move_camera(position: Vector2) -> void:
 		_zoom,
 		_bounds,
 		_ground_viewport(),
-		StaffMapCameraMath.ground_insets(_insets, _pitch)
+		StaffMapCameraMath.ground_insets(_insets, _pitch),
+		_dock_inset
 	)
 	_apply_camera()
 
@@ -2586,7 +2739,6 @@ func _on_mouse_button(event: InputEventMouseButton) -> void:
 func close_docked_windows() -> void:
 	var closed := close_menu()
 	closed = _options.close() or closed
-	closed = _journal.close() or closed
 	closed = _objectives.close() or closed
 	closed = _politics.close_card() or closed
 	if _report != null and _report.visible:

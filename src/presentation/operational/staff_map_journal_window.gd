@@ -20,6 +20,8 @@ const HEADER_HEIGHT := 28.0
 const TEXT_WIDTH := 316.0
 const BG := Color("#0a0d0a")
 
+## Tallest the scrolling list may grow (TASK-174a: the right dock gives it more room).
+var max_list_height := VIEWPORT_HEIGHT
 ## (Vector2i) -> String place namer, set by the owner; "" = the hex number.
 var place_namer: Callable
 
@@ -251,7 +253,7 @@ func fit() -> void:
 	_fit_pending = false
 	if not visible or _list.get_child_count() == 0:
 		return
-	var wanted := clampf(_list.get_combined_minimum_size().y, 60.0, VIEWPORT_HEIGHT)
+	var wanted := clampf(_list.get_combined_minimum_size().y, 60.0, max_list_height)
 	if absf(wanted - _frame.custom_minimum_size.y) > 2.0:
 		_frame.custom_minimum_size.y = wanted
 		dock_again()
@@ -521,7 +523,7 @@ func _estimate_height() -> float:
 	if _items.is_empty():
 		return 48.0
 	if _built < _items.size():
-		return VIEWPORT_HEIGHT
+		return max_list_height
 	var total := 0.0
 	var row_index := 0
 	for item in _items:
@@ -531,7 +533,7 @@ func _estimate_height() -> float:
 		var length := _rows[row_index].sentence.length()
 		row_index += 1
 		total += 14.0 + 17.0 * ceilf(float(length) * 5.8 / TEXT_WIDTH) + 12.0
-	return clampf(total, 60.0, VIEWPORT_HEIGHT)
+	return clampf(total, 60.0, max_list_height)
 
 
 func _queue_fit() -> void:

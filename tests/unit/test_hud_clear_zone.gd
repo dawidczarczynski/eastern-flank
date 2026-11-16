@@ -57,3 +57,27 @@ func test_ease_shift_is_zero_inside_and_minimal_outside() -> void:
 	assert_eq(StaffMapCameraMath.ease_shift(Vector2(500, 300), clear, 40.0), Vector2.ZERO)
 	assert_eq(StaffMapCameraMath.ease_shift(Vector2(500, 80), clear, 40.0), Vector2(0, 60))
 	assert_eq(StaffMapCameraMath.ease_shift(Vector2(990, 520), clear, 40.0), Vector2(-30, -60))
+
+
+func test_a_narrow_map_is_centred_in_the_area_beside_the_dock() -> void:
+	var view := Vector2(1440, 900)
+	var map := Rect2(0, 0, 1000, 800)
+	var insets := Vector4(92, 76, 0, 420)
+	var p := StaffMapCameraMath.clamp_position(Vector2(9, 9), 1.0, map, view, insets, 420.0)
+	# the map centre lands in the middle of the free 1020 px
+	assert_eq((map.get_center().x - p.x) + view.x * 0.5, 510.0)
+	var closed := StaffMapCameraMath.clamp_position(Vector2(9, 9), 1.0, map, view)
+	assert_eq((map.get_center().x - closed.x) + view.x * 0.5, 720.0)
+
+
+func test_eastmost_target_reaches_the_free_area_with_the_dock_inset() -> void:
+	var view := Vector2(1440, 900)
+	var map := Rect2(0, 0, 4000, 2000)
+	var insets := Vector4(92, 76, 0, StaffMapRightDock.WIDTH)
+	var p := StaffMapCameraMath.clamp_position(Vector2(9000, 1000), 1.0, map, view, insets, 420.0)
+	var east_x := map.end.x - 10.0  # a target 10 px inside the east edge
+	var screen_x := (east_x - p.x) + view.x * 0.5
+	assert_true(screen_x <= StaffMapCameraMath.clear_rect(view, insets).end.x)
+	# without the inset the same target stays under the dock
+	var q := StaffMapCameraMath.clamp_position(Vector2(9000, 1000), 1.0, map, view, Vector4())
+	assert_true((east_x - q.x) + view.x * 0.5 > 1020.0)
