@@ -260,6 +260,17 @@ static func _parts(entry: OperationalJournal.Entry, viewer: int, state: Operatio
 			return _plain(
 				_t("Casus belli over %s") % _country(state, StringName(a.get("country", "")))
 			)
+		&"objective":
+			var event := {
+				"kind": StringName(a.get("kind", "")),
+				"objective_id": StringName(a.get("objective_id", "")),
+				"old": a.get("old"),
+				"new": a.get("new"),
+			}
+			if event["kind"] in [&"gap", &"gap_counter"] and a.get("old") is String:
+				event["old"] = StringName(a["old"])
+				event["new"] = StringName(a["new"])
+			return _plain(StaffMapObjectivesModel.journal_text(state, viewer, event))
 		&"operation_ended":
 			var winner := int(a.get("winner", -1))
 			if winner < 0:

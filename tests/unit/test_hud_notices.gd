@@ -135,3 +135,15 @@ func test_reject_toasts_match_command_reasons() -> void:
 				or source.contains('problem = "%s"' % reason)
 			)
 		assert_true(found, "no command returns the reason '%s'" % reason)
+
+
+func test_toast_enqueue_shows_messages_in_order() -> void:
+	var toast := Toast.new()
+	toast.enqueue("FIRST")
+	toast.enqueue("SECOND")
+	assert_eq(toast.message(), "FIRST")
+	toast.advance(Toast.SECONDS)
+	assert_eq(toast.message(), "SECOND")
+	toast.advance(Toast.SECONDS)
+	assert_false(toast.remaining() > 0.0)
+	toast.free()

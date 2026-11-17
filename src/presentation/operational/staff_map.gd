@@ -1001,7 +1001,10 @@ func border_prompt() -> StaffMapBorderPrompt:
 
 
 func _toast_message(message: String, colour: Color) -> void:
-	_toast.show_message(message, colour)
+	_toast.show_message(message, colour)  # `shown` re-centres it
+
+
+func _center_toast() -> void:
 	_toast.reset_size()
 	_toast.position = Vector2(
 		(_viewport_size().x - _toast.size.x) / 2.0, _viewport_size().y - 130.0
@@ -1777,6 +1780,8 @@ func _on_operational_event(event: Dictionary) -> void:
 		_decision_lines.append(StaffMapDecisionsModel.log_text(_simulation.state, event))
 	_decisions.refresh()
 	_on_support_event(event)
+	if event.get("type") == &"objective_changed":
+		_on_objective_changed(event)
 	if event.get("type") == &"casus_belli_gained":
 		_toast_message(
 			StaffMapBorders.casus_belli_event_text(_simulation.state, event), _palette.ui_amber
@@ -1811,6 +1816,16 @@ func _on_support_event(event: Dictionary) -> void:
 	var text := StaffMapSupportModel.toast_text(state, viewer_player, event)
 	if text != "":
 		_toast_message(text, _palette.ui_amber)
+
+
+## An objective changed (hex holder, Gap open / closed, closed-round counter): a toast in the
+## viewer's words, queued behind earlier ones, and the open objectives window refreshes.
+func _on_objective_changed(event: Dictionary) -> void:
+	var text := StaffMapObjectivesModel.event_text(_simulation.state, viewer_player, event)
+	if text != "":
+		_toast.enqueue(text, _palette.ui_amber)
+	if _objectives != null and _objectives.is_open():
+		_objectives.show_objectives(_simulation.state, viewer_player)
 
 
 func support_ghosts() -> StaffMapSupportGhosts:
@@ -2516,6 +2531,7 @@ func _build_hud() -> void:
 	_order_ring.info_requested.connect(func(id: StringName) -> void: open_info(id))
 	_order_ring.closed.connect(_on_ring_closed)
 	_toast = Toast.new()
+	_toast.shown.connect(_center_toast)
 	_hud.add_child(_toast)
 	_border_prompt = StaffMapBorderPrompt.new(
 		_palette, float(ActionBar.HEIGHT + ActionBar.NOTICE_GAP)

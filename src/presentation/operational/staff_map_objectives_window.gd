@@ -43,9 +43,27 @@ func show_objectives(state: OperationalState, viewer: int) -> void:
 				value.add_theme_color_override(&"font_color", UiPalette.HP_HIGH)
 			StaffMapObjectivesModel.THEIRS:
 				value.add_theme_color_override(&"font_color", UiPalette.HP_LOW)
-		_rows_box.add_child(line)
+		var block := VBoxContainer.new()
+		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		block.add_theme_constant_override(&"separation", 1)
+		block.add_child(line)
+		block.add_child(_small_line(row["rule"], UiPalette.HUD_MUTED))
+		if row["progress"] != "":
+			block.add_child(_small_line(row["progress"], UiPalette.AMBER))
+		if row["hint"] != "":
+			block.add_child(_small_line(row["hint"], UiPalette.HUD_MUTED))
+		_rows_box.add_child(block)
 	_round.text = StaffMapObjectivesModel.round_line(state)
 	reset_size()
+
+
+## A second, smaller text line under a row (mono 10, wrapped to the window).
+func _small_line(text: String, colour: Color) -> Label:
+	var label := MenuStyle.label(text, HudTheme.mono(400), 10, colour)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(240, 0)
+	return label
 
 
 ## The row nodes' count (tests).

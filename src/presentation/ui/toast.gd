@@ -4,10 +4,14 @@ extends FramedPanel
 ## faction colour and a mono 11.5 px text. Hides itself after SECONDS; a new message restarts
 ## the countdown. Anchored by its owner (BattleHud: bottom 130, centred). Ignores the mouse.
 
+## Emitted whenever a message is put on screen (the owner re-centres the new width).
+signal shown
+
 const SECONDS := 2.8
 const TEXT_SIZE := 11.5
 
 var _remaining := 0.0
+var _queue: Array[Dictionary] = []
 var _marker: Label
 var _text: Label
 
@@ -39,6 +43,16 @@ func show_message(message: String, color: Color = UiPalette.AMBER) -> void:
 	_remaining = SECONDS
 	show()
 	set_process(true)
+	shown.emit()
+
+
+## Like `show_message`, but a message already on screen is not cut off: this one waits its turn
+## (several events of one action show one after the other, in order).
+func enqueue(message: String, color: Color = UiPalette.AMBER) -> void:
+	if _remaining > 0.0:
+		_queue.append({"message": message, "color": color})
+	else:
+		show_message(message, color)
 
 
 func message() -> String:
@@ -55,6 +69,10 @@ func advance(delta: float) -> void:
 	_remaining -= delta
 	if _remaining <= 0.0:
 		_remaining = 0.0
+		if not _queue.is_empty():
+			var next: Dictionary = _queue.pop_front()
+			show_message(next["message"], next["color"])
+			return
 		hide()
 		set_process(false)
 

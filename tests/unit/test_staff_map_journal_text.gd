@@ -20,6 +20,7 @@ func _state() -> OperationalState:
 	var state := Contact._state()
 	state.player_sides = [&"nato", &"russia"]
 	state.start_date = "2027-06-14"
+	state.definition = OperationDefinition.new()
 	return state
 
 
@@ -222,6 +223,16 @@ func _cases() -> Array:
 			"Casus belli over ru"
 		],
 		[
+			_entry(
+				&"objective",
+				&"move",
+				-1,
+				{"kind": "gap_counter", "objective_id": "gap", "old": 1, "new": 0, "round": 3}
+			),
+			"Gap chain broken - counter reset",
+			"Gap chain broken - counter reset"
+		],
+		[
 			_entry(&"operation_ended", &"politics", -1, {"winner": 0}),
 			"The operation ended: we won",
 			"The operation ended: we lost"
@@ -255,6 +266,27 @@ func test_the_cases_cover_every_journal_kind_but_the_order_interruption() -> voi
 		if kind in [&"order_interrupted", &"level_changed", &"formation_halted"]:
 			continue
 		assert_true(seen.has(kind), "a case for %s" % kind)
+
+
+func test_objective_entries_use_us_and_the_enemy() -> void:
+	var state := Operation.build(&"suwalki_gap", 7)
+	var objective := state.definition.objectives[0]
+	var holder := _entry(
+		&"objective",
+		&"move",
+		-1,
+		{"kind": "holder", "objective_id": String(objective.id), "old": 0, "new": 1, "round": 2}
+	)
+	var name := TranslationServer.translate(objective.display_name)
+	assert_eq(_text(holder, 0, state), "%s taken by the enemy" % name)
+	assert_eq(_text(holder, 1, state), "%s taken by us" % name)
+	var gap := _entry(
+		&"objective",
+		&"move",
+		-1,
+		{"kind": "gap", "objective_id": "gap", "old": "open", "new": "closed", "round": 2}
+	)
+	assert_eq(_text(gap, 0, state), "The Gap is closed")
 
 
 func test_an_order_interruption_names_the_reason() -> void:

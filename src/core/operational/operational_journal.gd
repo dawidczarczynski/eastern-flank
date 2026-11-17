@@ -29,6 +29,7 @@ const KINDS: Array[StringName] = [
 	&"sanctuary_breach",
 	&"casus_belli",
 	&"operation_ended",
+	&"objective",
 ]
 
 var entries: Array[Entry] = []
@@ -232,6 +233,11 @@ func on_event(state: OperationalState, event: Dictionary) -> void:
 			_politics(e, &"casus_belli")
 			_at(e, event.get("at"))
 			_args(e, event, ["country"])
+		&"objective_changed":
+			e.category = &"move"
+			e.kind = &"objective"
+			_at(e, event.get("hex"))
+			_args(e, event, ["kind", "objective_id", "old", "new", "round"])
 		&"operation_ended":
 			_politics(e, &"operation_ended")
 			_args(e, event, ["winner", "reason"])

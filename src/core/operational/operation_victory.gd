@@ -104,15 +104,34 @@ static func end_round(state: OperationalState, round_number: int) -> Array[Dicti
 	var wiped_out := annihilation(state)
 	if not wiped_out.is_empty():
 		return wiped_out
+	var previous := state.gap_closed_rounds
 	if gap_status(state, def) == CLOSED and not def.gap_chain.is_empty():
 		state.gap_closed_rounds += 1
 	else:
 		state.gap_closed_rounds = 0
+	var events: Array[Dictionary] = []
+	if state.gap_closed_rounds != previous:
+		events.append(gap_event(&"gap_counter", previous, state.gap_closed_rounds, round_number))
 	if state.gap_closed_rounds >= def.closed_rounds_to_win:
-		return end(state, 1, &"gap_closed", 1)
-	if round_number >= def.round_limit:
-		return end(state, winner_of(score(state, def), def), &"round_limit", -1)
-	return []
+		events.append_array(end(state, 1, &"gap_closed", 1))
+	elif round_number >= def.round_limit:
+		events.append_array(end(state, winner_of(score(state, def), def), &"round_limit", -1))
+	return events
+
+
+## Event `objective_changed` for the Gap: kind `gap` (old / new = OPEN / CLOSED) or `gap_counter`
+## (old / new = closed rounds in a row). Carries no side wording.
+static func gap_event(
+	kind: StringName, old: Variant, new: Variant, round_number: int
+) -> Dictionary:
+	return {
+		"type": &"objective_changed",
+		"kind": kind,
+		"objective_id": &"gap",
+		"old": old,
+		"new": new,
+		"round": round_number,
+	}
 
 
 ## Ends the operation: sets `state.result` {winner, reason, by} and returns the `operation_ended`

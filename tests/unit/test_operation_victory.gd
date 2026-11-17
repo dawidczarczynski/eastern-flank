@@ -114,16 +114,21 @@ func test_closed_gap_scores_for_side_one() -> void:
 # --- endings ---
 
 
+## The events without the `gap_counter` notices (TASK-165; see test_objective_events).
+static func _without_counter(events: Array[Dictionary]) -> Array[Dictionary]:
+	return events.filter(func(e: Dictionary) -> bool: return e.get("kind") != &"gap_counter")
+
+
 func test_closed_rounds_to_win() -> void:
 	var s := _state()
 	_hold_chain(s, 1)
-	assert_eq(OperationVictory.end_round(s, 7), [] as Array[Dictionary])
+	assert_eq(_without_counter(OperationVictory.end_round(s, 7)), [] as Array[Dictionary])
 	assert_eq(s.gap_closed_rounds, 1)
-	var events := OperationVictory.end_round(s, 8)
+	var events := _without_counter(OperationVictory.end_round(s, 8))
 	assert_eq(events.size(), 1)
 	assert_eq(events[0]["type"], &"operation_ended")
 	assert_eq(events[0]["winner"], 1)
-	assert_eq(events[0]["reason"], &"gap_closed")
+	assert_eq(events.back()["reason"], &"gap_closed")
 	assert_eq(s.result["winner"], 1)
 	assert_eq(events[0]["score"][1]["total"], 10)
 
@@ -133,11 +138,11 @@ func test_a_lost_chain_resets_the_counter() -> void:
 	_hold_chain(s, 1)
 	OperationVictory.end_round(s, 7)
 	_hold(s, CHAIN[2], 0)
-	assert_eq(OperationVictory.end_round(s, 8), [] as Array[Dictionary])
+	assert_eq(_without_counter(OperationVictory.end_round(s, 8)), [] as Array[Dictionary])
 	assert_eq(s.gap_closed_rounds, 0)
 	assert_eq(s.snapshot()["gap_closed_rounds"], 0)
 	_hold(s, CHAIN[2], 1)
-	assert_eq(OperationVictory.end_round(s, 9), [] as Array[Dictionary])
+	assert_eq(_without_counter(OperationVictory.end_round(s, 9)), [] as Array[Dictionary])
 	assert_eq(s.gap_closed_rounds, 1)
 	assert_eq(s.snapshot()["gap_closed_rounds"], 1)
 
@@ -184,7 +189,7 @@ func test_gap_closed_is_checked_before_the_round_limit() -> void:
 	_hold_chain(s, 1)
 	s.gap_closed_rounds = 1
 	var events := OperationVictory.end_round(s, 30)
-	assert_eq(events[0]["reason"], &"gap_closed")
+	assert_eq(events.back()["reason"], &"gap_closed")
 
 
 func test_no_ending_before_the_limit_and_nothing_after_it_ended() -> void:

@@ -37,13 +37,34 @@ static func is_objective_hex(state: OperationalState, hex: Vector2i) -> bool:
 	return false
 
 
-## `side` takes `hex`. Event `objective_changed` {hex, holder, previous} when the holder changed
-## and the hex carries an objective or is a chain hex; [] otherwise.
+## `side` takes `hex`. One event `objective_changed` {kind `holder`, objective_id, old, new, round,
+## hex, holder, previous} per objective on the hex when the holder changed (a hex that is only on
+## the Gap chain gives none: `OperationalSimulation.execute` reports the chain's open / closed);
+## [] otherwise. `old` / `new` / `holder` / `previous` are sides (-1 = unheld).
 static func take(state: OperationalState, hex: Vector2i, side: int) -> Array[Dictionary]:
 	var previous := holder(state, hex)
 	if previous == side:
 		return []
 	state.hex_holders[hex] = side
-	if not is_objective_hex(state, hex):
-		return []
-	return [{"type": &"objective_changed", "hex": hex, "holder": side, "previous": previous}]
+	var events: Array[Dictionary] = []
+	if state.definition == null:
+		return events
+	for objective in state.definition.objectives:
+		if objective.hex_in(state) == hex:
+			(
+				events
+				. append(
+					{
+						"type": &"objective_changed",
+						"kind": &"holder",
+						"objective_id": objective.id,
+						"old": previous,
+						"new": side,
+						"round": state.turn,
+						"hex": hex,
+						"holder": side,
+						"previous": previous,
+					}
+				)
+			)
+	return events

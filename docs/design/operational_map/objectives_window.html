@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Objectives window and layer</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-weight:400;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Regular.ttf")}
+@font-face{font-family:"Chakra Petch";font-weight:700;src:url("../../../assets/fonts/chakra_petch/ChakraPetch-Bold.ttf")}
+@font-face{font-family:"JetBrains Mono";font-weight:100 800;src:url("../../../assets/fonts/jetbrains_mono/JetBrainsMono.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:500;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Medium.ttf")}
+@font-face{font-family:"Plex Cond";font-weight:700;src:url("../../../assets/fonts/ibm_plex/IBMPlexSansCondensed-Bold.ttf")}
+:root{--panel:rgba(8,11,8,.93);--line:rgba(232,176,74,.34);--amber:#e8b04a;--text:#dfe5d6;--muted:#8d9585;--alert:#e07c5e;--own:#5b93d6;--enemy:#d76a52}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:13px "Chakra Petch",sans-serif}
+.banner{background:var(--alert);color:#0a0c09;font:700 12px "Chakra Petch";letter-spacing:.12em;padding:6px 16px}
+h1{font:700 22px "Chakra Petch";margin:18px 16px 4px}
+h2{font:700 15px "Chakra Petch";margin:28px 16px 6px;color:var(--amber);letter-spacing:.06em}
+p,li{max-width:1000px;margin:4px 16px;color:var(--muted);line-height:1.5}li{margin-left:36px}
+b{color:var(--text)}
+table{border-collapse:collapse;margin:8px 16px;font:12px "JetBrains Mono";max-width:1100px}
+td,th{border:1px solid #2e3329;padding:4px 10px;text-align:left;vertical-align:top}th{color:var(--amber)}
+.frame{position:relative;width:1000px;height:600px;margin:8px 16px;overflow:hidden;background:radial-gradient(ellipse at 65% 45%,#222a1e,#11140f 75%);border:1px solid #2e3329}
+.frame:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px),repeating-linear-gradient(-60deg,transparent 0 38px,rgba(255,255,255,.025) 38px 39px)}
+.frame>svg{position:absolute;inset:0}
+.bar{position:absolute;left:0;right:0;bottom:0;height:56px;background:var(--panel);border-top:1px solid var(--line)}
+.win{position:absolute;background:var(--line);width:420px;left:16px;top:20px;clip-path:polygon(0 0,calc(100% - 16px) 0,100% 16px,100% 100%,16px 100%,0 calc(100% - 16px))}
+.win.w330{width:330px}
+.wi{background:#0a0d0a;margin:1px;position:relative;clip-path:polygon(0 0,calc(100% - 15.4px) 0,100% 15.4px,100% 100%,15.4px 100%,0 calc(100% - 15.4px))}
+.tab{height:32px;display:flex;align-items:center;padding:0 10px;font:700 11px "Chakra Petch";letter-spacing:.12em;color:#0a0c09;background:var(--own);width:max-content}
+.x{position:absolute;right:12px;top:0;width:32px;height:32px;display:grid;place-items:center;font:700 18px "JetBrains Mono";color:var(--muted)}
+.body{padding:6px 12px 8px}
+.hint{font:11px "JetBrains Mono";color:var(--muted);padding:7px 12px;border-top:1px solid #2e3329}
+/* shapes: own rectangle, enemy diamond, neutral circle */
+.sd{flex:none;width:14px;height:14px;background:var(--own)}
+.sd.en{background:var(--enemy);transform:rotate(45deg) scale(.72)}
+.sd.nu{background:var(--muted);border-radius:50%}
+/* section header */
+.th{display:flex;align-items:center;gap:8px;height:26px;margin-top:4px;border-bottom:1px solid rgba(232,176,74,.3);font:700 11px "Chakra Petch";letter-spacing:.1em;color:var(--amber)}
+.th .d{font:600 10px "JetBrains Mono";color:var(--muted);letter-spacing:.04em;margin-left:auto}
+/* rule block (variant A) */
+.rules{margin:6px 0 4px;padding:8px 10px;border-left:3px solid var(--amber);background:rgba(232,176,74,.07);font:500 12.5px "Plex Cond";line-height:1.4;color:var(--text)}
+.rules b{color:var(--amber);font-weight:700}
+/* objective row */
+.ob{display:flex;gap:10px;align-items:center;padding:8px 8px;border-bottom:1px solid rgba(255,255,255,.06);min-height:46px}
+.ob:hover,.ob.hv{background:rgba(255,255,255,.07)}
+.ob.sel{background:rgba(232,176,74,.12);box-shadow:inset 3px 0 0 var(--amber)}
+.ob .nm{font:700 14px "Chakra Petch";color:var(--text);line-height:1.15}
+.ob .sub{font:500 11.5px "Plex Cond";color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.ob .grow{flex:1;min-width:0}
+.pt{font:700 15px "JetBrains Mono";color:var(--text);min-width:44px;text-align:right}
+.pt small{font:600 10px "JetBrains Mono";color:var(--muted);display:block;letter-spacing:.06em}
+.chip{font:700 10.5px "Chakra Petch";letter-spacing:.1em;padding:3px 7px;border:1px solid;white-space:nowrap}
+.chip.own{color:var(--own);border-color:var(--own);background:rgba(91,147,214,.12)}
+.chip.en{color:var(--enemy);border-color:var(--enemy);background:rgba(215,106,82,.12)}
+.chip.nu{color:var(--muted);border-color:#555c50}
+.go{font:700 12px "JetBrains Mono";color:var(--muted)}
+.ob.sel .go,.ob:hover .go{color:var(--amber)}
+/* gap progress */
+.seg{display:flex;gap:3px;margin-top:6px}
+.seg i{flex:1;height:7px;background:#1b201a;border:1px solid #3a3f33;transform:skewX(-20deg)}
+.seg i.on{background:var(--enemy);border-color:var(--enemy)}
+.chain{display:flex;gap:2px;margin-top:6px}
+.chain i{flex:1;height:5px;background:#1b201a}.chain i.en{background:var(--enemy)}.chain i.own{background:var(--own)}
+.round{display:flex;justify-content:space-between;align-items:baseline;padding:8px 8px 4px;font:700 12px "JetBrains Mono";color:var(--amber);letter-spacing:.06em}
+.round span{color:var(--muted);font-weight:600}
+.score{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:8px 8px;margin:4px 0;background:rgba(255,255,255,.04)}
+.score .s{font:700 22px "JetBrains Mono"}.score .own{color:var(--own)}.score .en{color:var(--enemy);text-align:right}
+.score .l{font:500 11px "Plex Cond";color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.score .mid{font:600 10px "JetBrains Mono";color:var(--muted);text-align:center}
+.tbl{width:100%;margin:2px 0;font:12px "JetBrains Mono"}
+.tbl td{border:0;border-bottom:1px solid rgba(255,255,255,.06);padding:7px 4px}
+.tbl .nm{font:700 13.5px "Chakra Petch";color:var(--text)}
+.tbl tr.sel td{background:rgba(232,176,74,.12)}
+.note{position:absolute;font:11px "JetBrains Mono";color:var(--amber);max-width:260px;line-height:1.35}
+.cap{font:700 10px "JetBrains Mono";fill:#0a0c09;letter-spacing:.04em}
+.tok{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:6px}
+.tok.sq{background:var(--amber)}.tok.sw{background:#d9cfa8}.tok.sx{background:#8d9585}
+</style></head><body>
+<div class="banner" style="background:#b9d38a">ACCEPTED 2026-11-17 · variant A (B and C rejected) with the main / side split · TASK-175</div>
+<h1>Objectives window and objectives map layer</h1>
+<p>Source: the human's playtest of TASK-165 (screenshot, 2026-11-17): <b>the objectives window is unreadable</b>. Asked for: a redesign of the window, an <b>objectives layer on the map</b> (toggleable), and <b>click an objective in the window → the map centres on it and highlights it</b>.</p>
+
+<h2>1 · What is wrong today (from the screenshot)</h2>
+<ul>
+<li><b>No hierarchy.</b> Every row is the same size; name, points and holder compete; the Gap row looks like the others.</li>
+<li><b>The rule is repeated four times</b> ("Scored at the end, round 30" under every hex objective) in 10 px mono muted grey – noise, and still hard to read. All four hex objectives share one rule; it should be said once.</li>
+<li><b>Colour alone carries the holder.</b> Green / red words use the HP colours (not the own blue / enemy red of the map) and nothing but the word differs. Accepted rule: <b>shape + word carry meaning, colour is the second channel</b> (own rectangle, enemy diamond, neutral circle).</li>
+<li><b>Gap progress is a tiny amber text line</b> – the most important rule (win at once after 2 rounds) is the least visible.</li>
+<li>Nothing connects a row to the map: the player cannot see <i>where</i> the objectives are.</li>
+</ul>
+
+<h2>2 · Shared by all variants</h2>
+<table>
+<tr><th>Item</th><th>Spec</th></tr>
+<tr><td>Frame</td><td><code>StaffMapWindow</code> left dock, 420 px (<code>WIDTH_REPORT</code>, the wider text needs it; today 330), x 16 / y 110, tab "OBJECTIVES · NATO" in the side colour, X 32 px. No new tokens.</td></tr>
+<tr><td>Holder</td><td>side shape 14 px (own rectangle / enemy diamond / neutral circle) + word chip in <code>side.own</code> / <code>side.enemy</code> / <code>ui.muted</code>: "HELD BY US", "HELD BY ENEMY", "NOBODY" (the viewer's words, like the journal). Replaces the HP green / red.</td></tr>
+<tr><td>Fonts</td><td>name Chakra Petch 700 14 · points JetBrains Mono 700 15 (with "PTS" 10 muted) · rule and sub-lines IBM Plex Sans Condensed 500 12.5 in <code>ui.text</code> (not muted – the rule is the point) · counters mono 700.</td></tr>
+<tr><td>Click a row</td><td>Row = button (hover white 7 %, hand cursor, "›" affordance at the right). Click → the camera <b>centres on the objective hex</b> (ease 300 ms, inside the HUD clear zone, zoom kept; if closer than Z1 it zooms to Z1) and the hex gets the <b>journal ring</b> (amber ring r 30, 2 px) <b>pulsing for 2 s</b> and then a steady thin amber hex outline (1.6 px, 10 % fill – the hover grammar) while the row stays selected (amber 12 % + 3 px amber left bar). Click another row or the bare map = deselect. Hover a row = faint ring on the map without moving the camera.</td></tr>
+<tr><td>Gap row click</td><td>Centres on the middle of the chain and fits the whole chain in the clear zone; chain highlighted (see layer).</td></tr>
+<tr><td>Window open</td><td>The layer is shown while the window is open even when the toggle is off (same pattern as the air-defence layer in strike mode); the previous state is restored on close.</td></tr>
+<tr><td>Keyboard</td><td>↑ / ↓ select, Enter centres, Esc closes (existing).</td></tr>
+</table>
+
+<h2>3 · The map layer (same for A / B / C)</h2>
+<p>New toggle row <b>"Objectives · M"</b> (key M is free; open question below) in Map options, <b>default on</b>. Layer under counters, route and labels, above terrain and control hatch; <code>mouse_filter</code> IGNORE except the marker plate (click = open the window with that row selected); redraw only on <code>objective_changed</code> / zoom; fixed screen size (readable at every zoom, like counters).</p>
+<div class="frame" style="width:1000px;height:360px">
+<svg width="1000" height="360" viewBox="0 0 1000 360">
+ <path d="M60 250 C200 200 330 230 470 180 S760 110 940 150" stroke="#46728c" stroke-width="2" fill="none" opacity=".6"/>
+ <!-- Gap chain -->
+ <g stroke-linecap="round" fill="none">
+  <path d="M120 270 C190 262 250 270 330 252 S420 236 470 232" stroke="#0b0d0b" stroke-width="9"/>
+  <path d="M120 270 C190 262 250 270 330 252 S420 236 470 232" stroke="#d76a52" stroke-width="5"/>
+  <path d="M470 232 C520 228 570 214 620 205" stroke="#0b0d0b" stroke-width="9"/>
+  <path d="M470 232 C520 228 570 214 620 205" stroke="#e8b04a" stroke-width="5" stroke-dasharray="1 9"/>
+ </g>
+ <g transform="translate(120 270)"><circle r="6" fill="#0b0d0b" stroke="#e8b04a" stroke-width="2"/></g>
+ <g transform="translate(620 205)"><circle r="6" fill="#0b0d0b" stroke="#e8b04a" stroke-width="2"/></g>
+ <g transform="translate(370 246)"><rect x="-58" y="-34" width="116" height="20" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/><text x="0" y="-20" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="10.5" fill="#dfe5d6">THE GAP  ▪ 7/13  +10</text></g>
+ <!-- own objective (enemy holds it: attack target) -->
+ <g transform="translate(790 120)">
+  <circle r="19" fill="rgba(11,13,11,.7)" stroke="#e8b04a" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <g transform="rotate(45)"><rect x="-6.5" y="-6.5" width="13" height="13" fill="#d76a52"/></g>
+  <rect x="-24" y="23" width="48" height="16" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/>
+  <text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#e8b04a">+5</text>
+  <text x="0" y="55" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="11.5" fill="#dfe5d6" stroke="#0b0d0b" stroke-width="3" paint-order="stroke">CHERNYAKHOVSK</text>
+ </g>
+ <!-- held by us -->
+ <g transform="translate(330 100)">
+  <circle r="19" fill="rgba(11,13,11,.7)" stroke="#e8b04a" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <rect x="-7" y="-5.5" width="14" height="11" fill="#5b93d6"/>
+  <rect x="-24" y="23" width="48" height="16" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/>
+  <text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#e8b04a">+5</text>
+  <text x="0" y="55" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="11.5" fill="#dfe5d6" stroke="#0b0d0b" stroke-width="3" paint-order="stroke">BIAŁYSTOK</text>
+ </g>
+ <!-- neutral / any-holder -->
+ <g transform="translate(560 90)">
+  <circle r="19" fill="rgba(11,13,11,.7)" stroke="#e8b04a" stroke-width="1.6" stroke-dasharray="5 4"/>
+  <circle r="6" fill="#8d9585"/>
+  <rect x="-24" y="23" width="48" height="16" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/>
+  <text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#e8b04a">+40</text>
+  <text x="0" y="55" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="11.5" fill="#dfe5d6" stroke="#0b0d0b" stroke-width="3" paint-order="stroke">GRODNO</text>
+ </g>
+ <!-- selected + ring -->
+ <g transform="translate(790 120)"><circle r="30" fill="none" stroke="#e8b04a" stroke-width="2"/></g>
+</svg>
+<div class="note" style="left:830px;top:14px">selected: pulsing amber ring r 30, 2 s, then hex outline</div>
+<div class="note" style="left:36px;top:300px">Gap chain: ribbon 5 px with 2 px halo; hexes held by Russia filled <b>enemy</b>, the rest dotted amber; caps at both ends</div>
+<div class="note" style="left:700px;top:250px">marker holder = shape (rectangle / diamond / circle) + colour; dashed amber ring = "objective"; points plate</div>
+<div class="note" style="left:60px;top:50px">own side holds: blue rectangle</div>
+</div>
+<table>
+<tr><th>Marker part</th><th>Spec</th></tr>
+<tr><td>Ring</td><td>r 19, 1.6 px <code>ui.amber</code> dashed 5/4, disc <code>map.void</code> 70 %; the dashed amber ring is the one thing that means "objective" (installation markers are hex tiles, never rings)</td></tr>
+<tr><td>Holder glyph</td><td>13 px own rectangle <code>side.own</code> / enemy diamond <code>side.enemy</code> / neutral circle <code>ui.muted</code></td></tr>
+<tr><td>Points plate</td><td>48×16, <code>PANEL_STRONG</code> + 1 px amber 60 %, mono 700 11 amber "+5" (own side's rule: scoring for the viewer or "any")</td></tr>
+<tr><td>Name</td><td>Plex Cond 500 11.5 caps <code>ui.text</code> with 3 px <code>map.void</code> halo (the place-label grammar); hidden at Z0 for collisions, shown for the selected one</td></tr>
+<tr><td>Gap chain</td><td>ribbon along the chain hexes; Russia-held part solid <code>side.enemy</code>, free part dotted amber (1/9 px round dots); end caps r 6; tag "THE GAP ▪ 7/13 +10" (hexes held by Russia / chain length, points); when Russia holds the whole chain the ribbon is solid and the tag adds "CLOSED 1/5" in <code>ui.alert</code></td></tr>
+<tr><td>Selected</td><td>journal-style ring r 30 / 2 px amber (reuse <code>StaffMapJournalRing</code>), 2 s, then 1.6 px hex outline + 10 % fill</td></tr>
+<tr><td>Off-screen</td><td>none (the window row centres the map); no edge arrows (out of scope)</td></tr>
+</table>
+
+<h2>4 · Variant A – "Cards" – ACCEPTED with the main / side split</h2><p><b>Decided by the human 2026-11-17:</b> objectives split into <b>MAIN</b> (the Gap road: Russia connects Kaliningrad with Belarus, NATO keeps the road open – <b>5 closed rounds in a row</b> decide at once; was 2) and <b>SIDE</b> (the hex objectives, scored at the end, round 30). The "scores for" line is shown <b>only for the viewer’s own objectives</b> (enemy rows show the points muted with the word ENEMY). Layer key <b>M</b>, default on; names on the map from Z1, the selected one always. The frame below is the accepted layout.</p>
+<p>The rule sits in the main card; every objective is a clear 2-line row (name + points, holder chip + what it means for you); the Gap is its own section with a 5-segment progress bar, the one thing that can end the game at once. Round counter at the bottom.</p>
+<div class="frame" style="height:640px">
+<div class="bar"></div>
+<div class="win"><div class="wi">
+ <div class="tab">OBJECTIVES · NATO</div><div class="x">×</div>
+ <div class="body">
+  <div class="th">MAIN OBJECTIVE<span class="d">DECIDES THE OPERATION AT ONCE</span></div>
+  <div class="ob" style="display:block"><div style="display:flex;gap:10px;align-items:center"><span class="sd nu"></span><div class="grow"><div class="nm">Keep the Gap road open</div><div class="sub">Russia holds 7 of 13 road hexes</div></div><span class="chip own">OPEN</span><span class="go">›</span></div>
+   <div class="chain"><i class="en"></i><i class="en"></i><i class="en"></i><i class="en"></i><i class="en"></i><i class="en"></i><i class="en"></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+   <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><span style="font:700 11px 'Chakra Petch';letter-spacing:.1em;color:var(--muted)">CLOSED IN A ROW</span><div class="seg" style="flex:1;margin:0"><i></i><i></i><i></i><i></i><i></i></div><span style="font:700 13px 'JetBrains Mono'">0 / 5</span></div>
+   <div class="rules" style="margin:8px 0 2px"><b>Russia wins at once</b> if it holds the whole road for <b>5 rounds in a row</b>. Break the chain to reset the count.</div></div>
+  <div class="th" style="margin-top:10px">SIDE OBJECTIVES<span class="d">SCORED AT THE END · ROUND 30</span></div>
+  <div class="ob"><span class="sd en"></span><div class="grow"><div class="nm">Chernyakhovsk airfield</div><div class="sub">ours · take it</div></div><span class="chip en">HELD BY ENEMY</span><div class="pt">+5<small>PTS</small></div><span class="go">›</span></div>
+  <div class="ob"><span class="sd nu"></span><div class="grow"><div class="nm">Grodno depot</div><div class="sub">whoever holds it scores</div></div><span class="chip nu">NOBODY</span><div class="pt">+40<small>PTS</small></div><span class="go">›</span></div>
+  <div class="ob"><span class="sd"></span><div class="grow"><div class="nm">Białystok command post</div></div><span class="chip own">HELD BY US</span><div class="pt" style="color:var(--muted)">+5<small>ENEMY</small></div><span class="go">›</span></div>
+  <div class="ob sel"><span class="sd"></span><div class="grow"><div class="nm">Vilnius</div></div><span class="chip own">HELD BY US</span><div class="pt" style="color:var(--muted)">+5<small>ENEMY</small></div><span class="go">›</span></div>
+  <div class="round">ROUND 1 / 30<span>29 LEFT</span></div>
+ </div>
+ <div class="hint">↑ ↓ select · Enter centre · Esc closes</div>
+</div></div>
+<svg width="1000" height="640" viewBox="0 0 1000 640" style="left:0">
+ <g transform="translate(660 250)"><circle r="19" fill="rgba(11,13,11,.7)" stroke="#e8b04a" stroke-width="1.6" stroke-dasharray="5 4"/><rect x="-7" y="-5.5" width="14" height="11" fill="#5b93d6"/><rect x="-24" y="23" width="48" height="16" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/><text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#e8b04a">+5</text><circle r="30" fill="none" stroke="#e8b04a" stroke-width="2"/><text x="0" y="55" text-anchor="middle" font-family="IBM Plex Sans Condensed" font-weight="500" font-size="11.5" fill="#dfe5d6" stroke="#0b0d0b" stroke-width="3" paint-order="stroke">VILNIUS</text></g>
+ <g transform="translate(850 420)"><circle r="19" fill="rgba(11,13,11,.7)" stroke="#e8b04a" stroke-width="1.6" stroke-dasharray="5 4"/><circle r="6" fill="#8d9585"/><rect x="-24" y="23" width="48" height="16" fill="#0a0d0a" stroke="#e8b04a" stroke-opacity=".6"/><text x="0" y="35" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="11" fill="#e8b04a">+40</text></g>
+</svg>
+<div class="note" style="left:560px;top:330px">Vilnius row selected → camera centred on Vilnius (clear zone), ring pulses</div>
+</div>
+<p><b>Why:</b> closest to the accepted journal / strike window grammar (rows with side shape, chips, sub-lines); fixes every point of section 1; the rule is read once. <b>Cost:</b> tallest (~600 px; fits 900 px with the bar, scrolls if more objectives are added).</p>
+
+<h2>5 · Variant B – "Standing first" (score strip + grouped by holder)</h2>
+<p>Leads with the question the player has: <i>who is winning now?</i> A score strip (current totals by <code>OperationVictory.score</code>) above rows grouped "TO TAKE" / "TO KEEP"; the Gap as a compact row. Needs one extra data line (current totals), no rule change.</p>
+<div class="frame" style="height:600px">
+<div class="bar"></div>
+<div class="win"><div class="wi">
+ <div class="tab">OBJECTIVES · NATO</div><div class="x">×</div>
+ <div class="body">
+  <div class="score"><div><div class="l">NATO now</div><div class="s own">15</div></div><div class="mid">AT ROUND 30<br>DRAW UNDER 5</div><div><div class="l" style="text-align:right">RUSSIA now</div><div class="s en">50</div></div></div>
+  <div class="th">TO TAKE<span class="d">HELD BY THE ENEMY</span></div>
+  <div class="ob"><span class="sd en"></span><div class="grow"><div class="nm">Chernyakhovsk airfield</div></div><div class="pt">+5</div><span class="go">›</span></div>
+  <div class="th">TO KEEP<span class="d">HELD BY US</span></div>
+  <div class="ob"><span class="sd"></span><div class="grow"><div class="nm">Białystok command post</div></div><div class="pt">+5</div><span class="go">›</span></div>
+  <div class="th">CONTESTED<span class="d">SCORES FOR THE HOLDER</span></div>
+  <div class="ob sel"><span class="sd nu"></span><div class="grow"><div class="nm">Grodno depot</div><div class="sub">nobody holds it</div></div><div class="pt">+40</div><span class="go">›</span></div>
+  <div class="th">THE GAP ROAD<span class="d">+10 TO THE SIDE THAT WINS IT</span></div>
+  <div class="ob"><span class="sd nu"></span><div class="grow"><div class="nm">Open · Russia 7/13</div><div class="seg" style="margin-top:6px;max-width:150px"><i></i><i></i></div></div><div class="pt">0/2</div><span class="go">›</span></div>
+  <div class="rules" style="margin-top:8px"><b>Russia wins at once</b> after 2 closed rounds in a row. Otherwise scored at round 30. <span style="color:var(--muted)">ROUND 1 / 30</span></div>
+ </div>
+</div></div>
+<div class="note" style="left:470px;top:60px">Score now = new feature (pure read of OperationVictory.score) – the GDD does not forbid it; out of TASK-165, would be its own task</div>
+</div>
+<p><b>Why / cost:</b> the most useful at a glance, but the rule drops to the bottom, the row meaning ("scores for whom") is lost, and the totals are new content (and could tempt reading them as a forecast – they are not: only what is held <i>now</i>).</p>
+
+<h2>6 · Variant C – "Table" (minimal change)</h2>
+<p>Keep a single list, but as an aligned table (name · holder shape + word · points), the rule once in a footer, the Gap as the last row with a progress bar. Smallest implementation; still 330 px wide possible.</p>
+<div class="frame" style="height:470px">
+<div class="bar"></div>
+<div class="win w330"><div class="wi">
+ <div class="tab">OBJECTIVES · NATO</div><div class="x">×</div>
+ <div class="body">
+  <table class="tbl" style="border:0">
+   <tr><td><span class="sd en"></span></td><td class="nm">Chernyakhovsk</td><td style="color:var(--enemy);font-weight:700">ENEMY</td><td style="text-align:right;font-weight:700">+5</td></tr>
+   <tr><td><span class="sd"></span></td><td class="nm">Białystok</td><td style="color:var(--own);font-weight:700">US</td><td style="text-align:right;font-weight:700">+5</td></tr>
+   <tr class="sel"><td><span class="sd"></span></td><td class="nm">Vilnius</td><td style="color:var(--own);font-weight:700">US</td><td style="text-align:right;font-weight:700">+5</td></tr>
+   <tr><td><span class="sd nu"></span></td><td class="nm">Grodno</td><td style="color:var(--muted);font-weight:700">NOBODY</td><td style="text-align:right;font-weight:700">+40</td></tr>
+   <tr><td><span class="sd nu"></span></td><td class="nm">The Gap</td><td style="color:var(--own);font-weight:700">OPEN</td><td style="text-align:right;font-weight:700">+10</td></tr>
+  </table>
+  <div class="seg"><i></i><i></i></div>
+  <div style="font:700 11px 'JetBrains Mono';color:var(--amber);margin-top:5px">GAP CLOSED 0 / 2 ROUNDS</div>
+  <div class="rules" style="margin-top:8px;font-size:12px">Scored at the end, round 30. Russia wins at once after 2 closed rounds.</div>
+  <div class="round">ROUND 1 / 30</div>
+ </div>
+</div></div>
+</div>
+<p><b>Why / cost:</b> smallest and shortest, but the holder is a bare word, the "scores for whom" and the Gap's chain progress are gone; the least explanatory.</p>
+
+<h2>7 · Recommendation and open questions</h2>
+<ul>
+<li><b>A</b> for the window (rule once, holder by shape + word, Gap with chain + closed-round bars), <b>click row → centre + ring</b>, plus the marker layer of section 3. B's score strip can be a later task.</li>
+<li><b>New tokens:</b> none. Deviation from today: holder colours change from HP green / red to <code>side.own</code> / <code>side.enemy</code> + shapes; window width 330 → 420.</li>
+<li><b>Open:</b> (1) layer key <b>M</b> and default <b>on</b>? (2) show the objective name on the map always or only from Z1 (proposed: from Z1; the selected one always)? (3) in variant A, show "scores for NATO / Russia" for every row (proposed) or only the viewer's own?</li>
+</ul>
+<h2>8 · Godot notes</h2>
+<ul>
+<li>Window: extend <code>StaffMapObjectivesWindow</code> / <code>StaffMapObjectivesModel</code> (rows get <code>hex</code>, <code>chain</code> for the Gap, <code>selected</code>); rows become buttons using <code>StaffMapWindow.info_row</code> parts; width <code>WIDTH_REPORT</code>.</li>
+<li>Layer: new <code>StaffMapObjectivesLayer</code> modelled on <code>StaffMapAirDefenceLayer</code> / <code>StaffMapControlLayer</code> (cached, redraw on <code>objective_changed</code>), toggle row in <code>StaffMapOptionsWindow</code>; ring reuses <code>StaffMapJournalRing</code> (+ steady outline).</li>
+<li>Centre on a hex: the journal-click path (centre + ring) already exists; reuse it.</li>
+</ul>
+</body></html>

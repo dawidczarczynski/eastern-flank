@@ -861,3 +861,21 @@ ROUND %d / %d,ROUND %d / %d,RUNDA %d / %d
 NOBODY,NOBODY,NIKT
 OPEN,OPEN,OTWARTA
 TIP_MISSION,"Click, press O or use the OBJECTIVES button to read the briefing and the objectives again.","Kliknij, naciśnij O lub użyj przycisku CELE, aby ponownie przeczytać odprawę i cele."
+"Scored at the end, round %d","Scored at the end, round %d","Rozliczany na końcu, runda %d"
+%s wins after %d consecutive closed rounds; otherwise scored at the end,%s wins after %d consecutive closed rounds; otherwise scored at the end,%s wygrywa po %d kolejnych rundach z zamkniętą drogą; poza tym rozliczane na końcu
+Any chain hex lost resets it,Any chain hex lost resets it,Utrata dowolnego pola łańcucha zeruje licznik
+%s taken by %s,%s taken by %s,%s zajęte przez: %s
+you,you,ciebie
+The Gap is closed,The Gap is closed,Przesmyk jest zamknięty
+The Gap is open again,The Gap is open again,Przesmyk znów jest otwarty
+Gap chain broken - counter reset,Gap chain broken - counter reset,Łańcuch przerwany - licznik wyzerowany
+The Gap was held %d/%d rounds,The Gap was held %d/%d rounds,Przesmyk utrzymany przez %d/%d rund
+"Gap closed - %d/%d rounds, %s","Gap closed - %d/%d rounds, %s","Przesmyk zamknięty - %d/%d rund, %s"
+"%s holds the Gap - %d/%d rounds, break the chain","%s holds the Gap - %d/%d rounds, break the chain","%s trzyma Przesmyk - %d/%d rund, przerwij łańcuch"
+Closed %d/%d rounds,Closed %d/%d rounds,Zamknięty %d/%d rund
+Closed %d/%d rounds - %s,Closed %d/%d rounds - %s,Zamknięty %d/%d rund - %s
+%s: closed %d/%d rounds - break the chain,%s: closed %d/%d rounds - break the chain,%s: zamknięty %d/%d rund - przerwij łańcuch
+hold it one more round,hold it one more round,utrzymaj jeszcze jedną rundę
+hold it %d more rounds,hold it %d more rounds,utrzymaj jeszcze %d rund
+us,us,nas
+the enemy,the enemy,wroga
