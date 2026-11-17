@@ -12,9 +12,11 @@ extends RefCounted
 ##   owner), the attacker must take it (TAKE_HEXES, immediate win), the defender wins when it
 ##   still owns it at the turn limit (HOLD_HEXES); otherwise the result is a draw, which leaves
 ##   the field to the defender; ELIMINATE for both.
-## - Deployment (`deploy`): the cut is split into thirds along the attacker -> defender
-##   direction; each side's companies, in setup order, take the passable free tile nearest the
-##   middle of their third, at least `deploy_spacing` hexes from every placed company.
+## - Deployment (`deploy`): the attacker's companies, in setup order, take the passable free tile
+##   nearest the middle of the cut's third on its side (along the attacker -> defender direction),
+##   at least `deploy_spacing` hexes from every placed company. The defender's companies cluster
+##   around the objective (TASK-163): within `defender_radius` hexes, best terrain defence bonus
+##   first, then nearest the objective; see `_deploy_defender`.
 
 
 ## `setup` (a pending contact battle of TASK-094a; `map_id` = the operational map) on the real
@@ -61,7 +63,14 @@ static func build_with(
 	var objective := objective_hex(grid, cut)
 	var direction := attack_direction(attacker_hex, defender_hex)
 	var coords := deploy(
-		grid, cut, direction, result.companies, setup.attacker, objective, settings.deploy_spacing
+		grid,
+		cut,
+		direction,
+		result.companies,
+		setup.attacker,
+		objective,
+		settings.deploy_spacing,
+		settings.defender_radius
 	)
 	if coords.size() != result.companies.size():
 		push_error("ContactMap: no room to deploy every company in %s" % region)
@@ -142,9 +151,10 @@ static func objectives(attacker: int, hex: Vector2i, turn_limit: int) -> BattleO
 
 ## Local axial tile of each company (same order); shorter than `companies` when one cannot be
 ## placed. The attacker's companies go to the third of the cut nearest the attacker (along
-## `direction`, attacker -> defender), the others to the opposite third; each takes the free
-## passable tile (not `objective`) nearest the middle of its third that is at least `spacing`
-## hexes from every placed company – then any free tile of the third, then of the whole cut.
+## `direction`, attacker -> defender); each takes the free passable tile (not `objective`) nearest
+## the middle of its third that is at least `spacing` hexes from every placed company – then any
+## free tile of the third, then of the whole cut. The defender's companies (the other player) are
+## placed after the attacker's by `_deploy_defender` around the objective within `radius`.
 ## Ties: row, then column. Deterministic.
 static func deploy(
 	grid: HexGrid,
@@ -153,7 +163,8 @@ static func deploy(
 	companies: Array[BattleSetup.Company],
 	attacker: int,
 	objective: Vector2i,
-	spacing: int
+	spacing: int,
+	radius: int = 3
 ) -> Array[Vector2i]:
 	@warning_ignore("integer_division")
 	var centre := _xz(MapGenerator.offset_to_axial(cut.x / 2, cut.y / 2))
@@ -165,26 +176,88 @@ static func deploy(
 			low = minf(low, p)
 			high = maxf(high, p)
 	var third := (high - low) / 3.0
-	var sides := {}
-	for attacking: bool in [true, false]:
-		var anchor := centre + direction * (low + third * 0.5 if attacking else high - third * 0.5)
-		sides[attacking] = _candidates(
-			grid, cut, centre, direction, anchor, objective, low + third, high - third, attacking
-		)
+	var anchor := centre + direction * (low + third * 0.5)
+	var lists := _candidates(
+		grid, cut, centre, direction, anchor, objective, low + third, high - third, true
+	)
+	var placed: Array = []
+	placed.resize(companies.size())
 	var taken: Array[Vector2i] = []
-	var result: Array[Vector2i] = []
-	for company in companies:
-		var lists: Array = sides[company.player == attacker]
+	for i in companies.size():
+		if companies[i].player != attacker:
+			continue
 		var tile: Variant = _pick(lists[0], taken, spacing)
 		if tile == null:
 			tile = _pick(lists[0], taken, 1)
 		if tile == null:
 			tile = _pick(lists[1], taken, 1)
 		if tile == null:
-			return result
+			return _placed_prefix(placed)
 		taken.append(tile)
+		placed[i] = tile
+	var ranked := _defender_ranking(grid, cut, objective)
+	for i in companies.size():
+		if companies[i].player == attacker:
+			continue
+		var tile: Variant = _deploy_defender(ranked, taken, spacing, radius)
+		if tile == null:
+			return _placed_prefix(placed)
+		taken.append(tile)
+		placed[i] = tile
+	return _placed_prefix(placed)
+
+
+## The leading tiles of `placed` (Variant entries, null = not placed yet) as a typed array; it
+## stops at the first gap, so a failed placement yields fewer coords than companies.
+static func _placed_prefix(placed: Array) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for tile: Variant in placed:
+		if tile == null:
+			break
 		result.append(tile)
 	return result
+
+
+## Every passable tile of the cut except `objective`, best defensive ground first: [defence
+## bonus descending, distance to the objective, row, column] -> entries [tile, distance].
+static func _defender_ranking(grid: HexGrid, cut: Vector2i, objective: Vector2i) -> Array:
+	var entries: Array = []
+	for r in cut.y:
+		for c in cut.x:
+			var tile := MapGenerator.offset_to_axial(c, r)
+			if tile == objective or not _passable(grid, tile):
+				continue
+			var bonus := Terrain.definition(grid.get_terrain(tile)).defense_bonus
+			entries.append([-bonus, Hex.distance(tile, objective), r, c, tile])
+	entries.sort()
+	return entries
+
+
+## The tile for one defender company: from `radius` outwards (ring by ring up to the whole cut)
+## the best free tile within that distance of the objective, first at least `spacing` hexes from
+## every taken tile, then (same radius) at least 1; null when nothing is free.
+static func _deploy_defender(
+	ranked: Array, taken: Array[Vector2i], spacing: int, radius: int
+) -> Variant:
+	var farthest := 0
+	for entry: Array in ranked:
+		farthest = maxi(farthest, entry[1] as int)
+	for reach in range(radius, maxi(farthest, radius) + 1):
+		for min_gap: int in [spacing, 1]:
+			for entry: Array in ranked:
+				if (entry[1] as int) > reach:
+					continue
+				var tile: Vector2i = entry[4]
+				if _is_free(tile, taken, min_gap):
+					return tile
+	return null
+
+
+static func _is_free(tile: Vector2i, taken: Array[Vector2i], spacing: int) -> bool:
+	for other in taken:
+		if Hex.distance(tile, other) < spacing:
+			return false
+	return true
 
 
 ## [tiles of the side's third, all tiles of the cut], each passable, not the objective, nearest

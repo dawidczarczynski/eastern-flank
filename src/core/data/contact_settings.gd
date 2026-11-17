@@ -15,6 +15,9 @@ static var _default: ContactSettings
 ## Smallest hex distance between two deployed companies (2 = at least one free hex between them);
 ## relaxed to 1 only when a side's third has no such tile left.
 @export var deploy_spacing: int = 2
+## Hex distance around the objective within which the defender's companies deploy (TASK-163);
+## widens ring by ring when that area is too small.
+@export var defender_radius: int = 3
 ## Operational map id -> id of its tactical layer (data/maps/<id>/layer.tres).
 @export var tactical_layers: Dictionary = {}
 
@@ -34,6 +37,8 @@ func problem() -> String:
 		return "turn_limit must be at least 1"
 	if deploy_spacing < 1:
 		return "deploy_spacing must be at least 1"
+	if defender_radius < 1:
+		return "defender_radius must be at least 1"
 	for key: Variant in tactical_layers:
 		if (
 			not (key is StringName or key is String)

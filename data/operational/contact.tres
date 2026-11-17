@@ -8,6 +8,7 @@ width = 40
 height = 30
 turn_limit = 12
 deploy_spacing = 2
+defender_radius = 3
 tactical_layers = {
 &"suwalki_theatre": &"suwalki_tactical"
 }

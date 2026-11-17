@@ -31,7 +31,7 @@ func test_resolve_command_checks_auto_results() -> void:
 
 
 func _end_turns_until_contact(sim: OperationalSimulation) -> void:
-	for i in 8:
+	for i in 20:
 		if not sim.state.pending_battles.is_empty():
 			return
 		assert_true(sim.execute(EndOperationalTurnCommand.new()))
@@ -42,6 +42,9 @@ func test_record_with_played_and_auto_battle() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
 	var sim := OperationalSimulation.new(state)
 	assert_true(sim.execute(IssueOrderCommand.new(&"ru_mr_4", Vector2i(16, 52), &"advance")))
+	# a second formation follows for the second contact (the defender around the objective wins
+	# the played battle, TASK-163, so the first attacker may be gone)
+	assert_true(sim.execute(IssueOrderCommand.new(&"ru_mr_5", Vector2i(16, 52), &"advance")))
 	_end_turns_until_contact(sim)
 	var prepared := ContactBattle.prepare(state)
 	var battle := GameSimulation.new(Scenario.from_setup(prepared))

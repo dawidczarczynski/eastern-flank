@@ -133,7 +133,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | Lithuanian and Belarusian factions (identity only) with national flags | 🟣 to playtest | – |
 | [TASK-161](TASK-161-theatre-name-polish-i18n.md) | Missing Polish translation of the theatre name at operation start | 💡 idea | – |
 | [TASK-162](TASK-162-airfield-click-through-window.md) | Strike panel covers eastern targets (Lida airfield): count it in the HUD clear zone | 🔵 done | TASK-150 |
-| [TASK-163](TASK-163-defender-deployment-near-objective.md) | Tactical battle deployment: defender placed around the objective | 💡 idea | – |
+| [TASK-163](TASK-163-defender-deployment-near-objective.md) | Contact battle deployment: defender placed around the objective | 🔵 done | – |
 | [TASK-164](TASK-164-operation-end-conditions.md) | Operation ends when all enemy units are destroyed and objectives are reached | 💡 idea | – |
 | [TASK-165](TASK-165-objective-rules-readability.md) | Operation objectives: make hold-condition readable (held for N turns vs at the end) | 💡 idea | TASK-164 |
 | [TASK-166](TASK-166-rebuild-resources.md) | Rebuilding resources (e.g. command centres) after damage | 💡 idea | – |

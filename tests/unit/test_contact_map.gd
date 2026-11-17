@@ -224,7 +224,8 @@ func test_the_attacker_deploys_in_the_third_nearest_its_hex() -> void:
 	var north_south := _build(_layer(), _setup(3, 3), Vector2i(0, -1), Vector2i(-1, 1))
 	for company in north_south.companies:
 		var row := MapGenerator.axial_to_offset(company.coord).y
-		assert_true(row < 10 if company.player == 0 else row >= 20, "row %d" % row)
+		# the defender clusters around the objective (TASK-163), the attacker keeps its edge
+		assert_true(row < 10 if company.player == 0 else row >= 10 and row < 20, "row %d" % row)
 
 
 func _world_x(c: Vector2i) -> float:
