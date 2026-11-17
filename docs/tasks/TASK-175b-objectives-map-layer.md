@@ -1,6 +1,6 @@
 # TASK-175b: Objectives map layer (key M)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-175a
 - **Topic**: Two-layer game
@@ -43,4 +43,7 @@ docs/MANUAL.md 12b: layer M and its Map options row.
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+- New `StaffMapObjectivesLayer` (screen-space Control in the counter layer, over the air-defence zones, ignores the mouse). Rows come from `StaffMapObjectivesModel.rows`; it is recomputed only by `refresh` (on `objective_changed` and at build), a zoom-level change or a selection change (`redraw_count`, tested: 0 on unrelated events, 1 per match). Camera moves only re-project the cached rows (`layout`, not counted).
+- Wiring in `StaffMap`: key M / "Objectives · M" row in Map options (default on), forced visible while the objectives window is open (via its `visibility_changed`, so every close path restores the toggle), selected row passed from `selection_changed`, click on a plate / ring / Gap tag (`_click_objective_marker`, after the counter pick) opens the window and `activate_row` centres it. Tests: `test_staff_map_objectives_layer.gd`; option-count tests bumped 7 → 8. MANUAL 12b and the Polish "THE GAP" string added.
+- Colours follow the window: holder glyph and ribbon by status for the viewer (`side.own` / `side.enemy`), as the task text says; the counters themselves colour by side index, so with Russia as viewer the layer's "own" blue differs from Russia's red counters - to decide with the human.
+- Deviations from variant A: the Gap ribbon end caps and the tag are drawn in the layer's code with the mono font; the name sits 13 px under the plate; no 10 % hex fill under the marker (the selected-hex outline is the existing journal ring). Only one zoomed-in screenshot was seen (ring, glyph, plate, name at an airfield); the Gap ribbon was not seen by the agent.

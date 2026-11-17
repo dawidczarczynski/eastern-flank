@@ -325,6 +325,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapMenuWindow` – The operation menu of the staff map (opened by the hamburger in the top-left corner): a (`staff_map_menu_window.gd`)
 - `StaffMapMoveAnimation` – The cosmetic slide of counters at the end of a move (TASK-092e), pure timing and path mat… (`staff_map_move_animation.gd`)
 - `StaffMapNuclearPictogram` – Flat pictogram of a mushroom cloud (TASK-140) above the operation-over notice, after the… (`staff_map_nuclear_pictogram.gd`)
+- `StaffMapObjectivesLayer` – The objectives layer of the staff map (TASK-175b, key M; variant A of (`staff_map_objectives_layer.gd`)
 - `StaffMapObjectivesModel` – Texts of the objectives window of the staff map: what the viewer's side is scored on, who… (`staff_map_objectives_model.gd`)
 - `StaffMapObjectivesWindow` – The objectives window of the staff map (OBJECTIVES button, key O; TASK-175a, variant A of (`staff_map_objectives_window.gd`)
 - `StaffMapOddsRow` – The interception odds line of a planned strike (TASK-098b, docs/design/operational_map/ (`staff_map_odds_row.gd`)

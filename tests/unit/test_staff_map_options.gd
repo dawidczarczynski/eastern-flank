@@ -28,7 +28,9 @@ func test_map_toggles_live_in_the_options_window() -> void:
 	_map.toggle_options()
 	assert_true(window.visible)
 	assert_eq(
-		window.ids().size(), 7, "grid, names, borders, politics, view, air defence cover, control"
+		window.ids().size(),
+		8,
+		"grid, names, borders, politics, view, air defence cover, control, objectives"
 	)
 	var before := _map.view().grid_visible()
 	window.option(StaffMap.ACTION_GRID).pressed.emit()

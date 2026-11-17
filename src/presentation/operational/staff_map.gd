@@ -46,6 +46,7 @@ const ACTION_POLITICS := &"politics"
 const ACTION_FLAT := &"flat"
 const ACTION_COVER := &"cover"
 const ACTION_CONTROL := &"control"
+const ACTION_OBJECTIVE_LAYER := &"objective_layer"  # key M (TASK-175b)
 const ACTION_NEXT := &"next"
 const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
@@ -122,6 +123,7 @@ var _places: StaffMapPlaceLayer  # place-name labels (TASK-112), N toggles
 var _installations: StaffMapInstallations
 var _support_ghosts: StaffMapSupportGhosts  # arrivals of outside support on the way (TASK-121)
 var _cover: StaffMapAirDefenceLayer  # air defence coverage zones (TASK-098b), under the markers
+var _objective_layer: StaffMapObjectivesLayer  # objective markers and the Gap ribbon (M)
 var _cover_on := false  # the player's toggle (key C); strike mode adds it while a weapon is picked
 var _installation_card: StaffMapInstallationCard
 var _installation_anchors := {}  # installation id -> point on the relief
@@ -362,6 +364,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_air_defence_cover()
 			KEY_K:
 				toggle_terrain_control()
+			KEY_M:
+				toggle_objective_layer()
 			KEY_V:
 				toggle_flat_view()
 			KEY_I:
@@ -438,6 +442,7 @@ func _build_options_window() -> void:
 	_options.add_option(ACTION_FLAT, tr("VIEW"), "V", tr("FLAT"), tr("TILTED"))
 	_options.add_option(ACTION_COVER, tr("AIR DEFENCE COVER"), "C")
 	_options.add_option(ACTION_CONTROL, tr("TERRAIN CONTROL"), "K")
+	_options.add_option(ACTION_OBJECTIVE_LAYER, tr("OBJECTIVES"), "M")
 	_options.option_toggled.connect(_on_action_pressed)
 	_options.close_requested.connect(close_options)
 	_hud.add_child(_options)
@@ -463,6 +468,7 @@ func _build_objectives() -> void:
 	_objectives.close_requested.connect(close_objectives)
 	_objectives.centre_requested.connect(_on_objective_centre)
 	_objectives.selection_changed.connect(_on_objective_selected)
+	_objectives.visibility_changed.connect(_on_objectives_visibility)
 	_hud.add_child(_objectives)
 
 
@@ -507,10 +513,27 @@ func _on_objective_centre(hexes: Array[Vector2i]) -> void:
 
 ## The selected row changed: its hexes stay outlined; none (window closed) removes the outline.
 func _on_objective_selected(hexes: Array[Vector2i]) -> void:
+	if _objective_layer != null:
+		_objective_layer.set_selected(_objectives.selected_row())
 	if hexes.is_empty():
 		_journal_ring.clear_outline()
 	else:
 		_ring_hexes(hexes)
+
+
+func _on_objectives_visibility() -> void:
+	if _objective_layer != null:
+		_objective_layer.set_forced(_objectives.is_open())
+
+
+## A click on an objective marker opens the window on that row and centres it (TASK-175b).
+func _click_objective_marker(screen: Vector2) -> bool:
+	var index := -1 if _objective_layer == null else _objective_layer.marker_at(screen)
+	if index < 0:
+		return false
+	open_objectives()
+	_objectives.activate_row(index)
+	return true
 
 
 func _ring_hexes(hexes: Array[Vector2i]) -> void:
@@ -755,6 +778,8 @@ func _on_action_pressed(id: StringName) -> void:
 			toggle_air_defence_cover()
 		ACTION_CONTROL:
 			toggle_terrain_control()
+		ACTION_OBJECTIVE_LAYER:
+			toggle_objective_layer()
 		ACTION_NEXT:
 			select_next_formation()
 		ACTION_CANCEL:
@@ -780,6 +805,8 @@ func _sync_action_bar() -> void:
 	_options.set_active(ACTION_FLAT, _pitch_target <= 0.5)
 	_options.set_active(ACTION_COVER, _cover_on)
 	_options.set_active(ACTION_CONTROL, _control.is_enabled())
+	if _objective_layer != null:
+		_options.set_active(ACTION_OBJECTIVE_LAYER, _objective_layer.is_enabled())
 	_bar.set_active(ACTION_MAP_OPTIONS, _options.is_open())
 	_bar.set_active(ACTION_STRIKE, _dock.is_tab_open(StaffMapRightDock.Tab.STRIKE))
 	_bar.set_active(ACTION_DECISIONS, _dock.is_tab_open(StaffMapRightDock.Tab.POLITICS))
@@ -796,6 +823,17 @@ func toggle_grid() -> void:
 func toggle_terrain_control() -> void:
 	_control.set_enabled(not _control.is_enabled())
 	_sync_action_bar()
+
+
+## Key M / the "Objectives" row: markers and the Gap ribbon (default on; forced on while the
+## objectives window is open, the toggle is kept underneath).
+func toggle_objective_layer() -> void:
+	_objective_layer.set_enabled(not _objective_layer.is_enabled())
+	_sync_action_bar()
+
+
+func objectives_layer() -> StaffMapObjectivesLayer:
+	return _objective_layer
 
 
 func toggle_borders() -> void:
@@ -1660,6 +1698,11 @@ func _build_operation(definition: OperationDefinition) -> void:
 	_cover = StaffMapAirDefenceLayer.new()  # under the markers and counters
 	_cover.setup(_palette, _ground_to_screen)
 	_counter_layer.add_child(_cover)
+	_objective_layer = StaffMapObjectivesLayer.new()  # over the zones, under the counters
+	_objective_layer.setup(_palette, _screen_of_hex)
+	_counter_layer.add_child(_objective_layer)
+	_objective_layer.set_level(_view.zoom_level())
+	_objective_layer.refresh(state, viewer_player)
 	_cover.set_zones(StaffMapAirDefence.zones(state))
 	_installations = StaffMapInstallations.new()  # under the counters
 	_counter_layer.add_child(_installations)
@@ -1764,6 +1807,8 @@ func _layout_counters() -> void:
 		_strike.layout(_viewport_size(), _turn_bar.size.y + PANEL_MARGIN.y / 2.0)
 	if _cover != null:
 		_cover.layout()
+	if _objective_layer != null:
+		_objective_layer.layout()
 	if _installations != null:
 		var spots := {}
 		for id: StringName in _installation_anchors:
@@ -1855,6 +1900,8 @@ func _on_objective_changed(event: Dictionary) -> void:
 	var text := StaffMapObjectivesModel.event_text(_simulation.state, viewer_player, event)
 	if text != "":
 		_toast.enqueue(text, _palette.ui_amber)
+	if _objective_layer != null:
+		_objective_layer.refresh(_simulation.state, viewer_player)
 	if _objectives != null and _objectives.is_open():
 		_objectives.show_objectives(_simulation.state, viewer_player)
 
@@ -2785,6 +2832,8 @@ func _apply_camera() -> void:
 			_palette.zoom_hysteresis
 		)
 	)
+	if _objective_layer != null:
+		_objective_layer.set_level(_view.zoom_level())
 	_layout_places()
 	if _strike != null:  # launcher labels at Z1 / Z2 like the counter labels (TASK-147)
 		_strike.layer().set_labels(_view.zoom_level() >= 1)
@@ -2969,6 +3018,8 @@ func click_at(screen: Vector2) -> void:
 		return
 	_sync_gesture()
 	var hit := _pick_counter(screen)
+	if hit == &"" and _click_objective_marker(screen):
+		return
 	var target := _enemy_of_selected(hit)
 	if _disarm_by_click(hit):
 		return

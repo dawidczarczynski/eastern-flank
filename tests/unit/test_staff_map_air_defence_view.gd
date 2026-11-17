@@ -105,7 +105,7 @@ func test_key_c_toggles_the_zones_of_both_sides() -> void:
 func test_options_row_follows_the_toggle() -> void:
 	var options := _map.options_window()
 	assert_true(options.option(StaffMap.ACTION_COVER) != null, "sixth row")
-	assert_eq(options.ids().size(), 7)
+	assert_eq(options.ids().size(), 8)
 	assert_false(options.option(StaffMap.ACTION_COVER).button_pressed)
 	options.option_toggled.emit(StaffMap.ACTION_COVER)
 	assert_true(_map.air_defence_cover().is_shown())
