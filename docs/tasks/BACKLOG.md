@@ -141,7 +141,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-168](TASK-168-immersive-battle-names.md) | More immersive battle names (e.g. 'Contact with the enemy 5 km east of Suwałki') | 🔵 done | – |
 | [TASK-169](TASK-169-move-air-defence.md) | Relocating air-defence units/sites on the operational map | 💡 idea | TASK-098a |
 | [TASK-170a](TASK-170a-battle-group-templates.md) | Battalion battle groups (1/2): 7-company combined-arms templates (tanks + infantry + own MLRS company) for the four battalion types, standalone MLRS formations removed, Suwałki order of battle rebalanced | 🔵 done | – |
-| [TASK-170b](TASK-170b-battle-group-ai-balance.md) | Battalion battle groups (2/2): tactical AI use of artillery companies, balance via simulate.sh, 7 v 7 performance | 🟢 ready | TASK-170a |
+| [TASK-170b](TASK-170b-battle-group-ai-balance.md) | Battalion battle groups (2/2): tactical AI use of artillery companies, balance via simulate.sh, 7 v 7 performance | 🟣 to playtest | TASK-170a |
 | [TASK-171](TASK-171-map-water-cutoff-check.md) | Tactical map generation: avoid units cut off by water | 💡 idea | – |
 | [TASK-172](TASK-172-staff-map-counter-national-flag.md) | National flag on staff-map counters and the formation panel | 💡 idea | TASK-160 |
 | [TASK-173](TASK-173-allied-factions-within-a-side.md) | Allied factions within a side: Russia and Belarus as separate allied states, not one party (naming, notice, result window) | 💡 idea | TASK-160 |

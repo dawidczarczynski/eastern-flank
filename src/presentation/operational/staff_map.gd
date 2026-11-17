@@ -351,6 +351,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				toggle_decisions()
 			KEY_F9:
 				toggle_debug_panels()
+			KEY_F10:
+				debug_force_contact()
 			KEY_F5:
 				save_campaign()
 			KEY_C:
@@ -2590,6 +2592,22 @@ func _build_right_dock() -> void:
 	)
 	_dock_view.tab_pressed.connect(_on_dock_tab_pressed)
 	_dock_view.layout(_viewport_size())
+
+
+## F10 (--debug): the nearest formation of the player to move is placed next to an enemy and the
+## contact battle starts at once (ContactRules.force_contact) – saves clicking the way there.
+func debug_force_contact() -> void:
+	if not OS.get_cmdline_user_args().has("--debug") or _simulation == null:
+		return
+	var state := _simulation.state
+	if not state.pending_battles.is_empty():
+		return
+	var events := ContactRules.force_contact(state, state.current_player)
+	if events.is_empty():
+		_toast_message("No formation can reach an enemy", _palette.ui_alert)
+		return
+	for event in events:
+		_simulation.event_emitted.emit(event)
 
 
 ## F9 (--debug): the politics and the contact-map panels open and close together, the contact

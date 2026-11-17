@@ -4,7 +4,8 @@ extends RefCounted
 ##                               "--scenario=objective_battle", "--verbose"])
 ## -> {"count", "seed", "max_turns", "factions", "scenario", "verbose", "error"}; "error" is "" on
 ## success. "--factions=<p0>,<p1>" takes exactly two known faction ids (FactionRegistry);
-## "--scenario=<name>" one of Scenario.NAMES (default "default_battle").
+## "--scenario=<name>" one of Scenario.NAMES or Scenario.SIMULATION_NAMES (default
+## "default_battle").
 ## TASK-103a: "--mode=tactical|operation" (default tactical). Operation mode adds "--max-rounds=R"
 ## (int >= 1; result "max_rounds", 0 = the operation's own cap), "--battles=auto|played" and
 ## "--out=<path>"; "--scenario" is then an operation id (default "suwalki_gap", checked at run
@@ -97,7 +98,7 @@ static func parse(args: PackedStringArray) -> Dictionary:
 		for prefix in OPERATION_ONLY:
 			if seen.has(prefix):
 				return _with_error(result, "wrong_mode_option")
-		if not Scenario.NAMES.has(result["scenario"]):
+		if not (Scenario.NAMES + Scenario.SIMULATION_NAMES).has(result["scenario"]):
 			return _with_error(result, "invalid_scenario")
 	return result
 

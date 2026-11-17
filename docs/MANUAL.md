@@ -627,7 +627,7 @@ You can play both blocs. NATO is always blue and Russia always red, whoever is v
 
 ### Formations
 
-The operation "Suwałki Gap" places 14 battalions on the map: six Polish (NATO, four mechanised and two tank, strength 396 in all) in north-eastern Poland facing the Kaliningrad oblast, the Gap and Belarus, and eight Russian (six motor rifle and two tank, strength 488 in all), four in the Kaliningrad oblast and four in Belarus around Grodno. There are no artillery counters: the rocket artillery is part of every battalion. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
+The operation "Suwałki Gap" places 13 battalions on the map: six Polish (NATO, four mechanised and two tank, strength 396 in all) in north-eastern Poland facing the Kaliningrad oblast, the Gap and Belarus, and seven Russian (five motor rifle and two tank, strength 416 in all), split between the Kaliningrad oblast and Belarus around Grodno. There are no artillery counters: the rocket artillery is part of every battalion. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
 
 **Counters.** Each formation is a counter of fixed size on screen (it does not grow or shrink with the zoom), standing on its hex:
 
@@ -653,10 +653,10 @@ Pointing at a counter brightens it; the hex card keeps working underneath.
 |---|---|---|---|
 | Mechanised Battalion | NATO | 4 × Mechanised Infantry Squad, 2 × M1A2 SEPv3 Abrams, 1 × Homar-K | 66 |
 | Tank Battalion | NATO | 4 × M1A2 SEPv3 Abrams, 2 × Mechanised Infantry Squad, 1 × Homar-K | 66 |
-| Motor Rifle Battalion | Russia | 4 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan | 62 |
+| Motor Rifle Battalion | Russia | 3 × Motor Rifle Squad, 3 × T-72B3, 1 × 9K57 Uragan | 60 |
 | Tank Battalion | Russia | 4 × T-72B3, 2 × Motor Rifle Squad, 1 × 9K57 Uragan | 58 |
 
-Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own; there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**.
+Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own; there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**. Rocket artillery is meant to fire from **behind the front**, and the enemy AI uses it that way: its rocket company stays back and shells your units in range instead of rushing forward. A defending AI also **holds around its objective** rather than marching out to meet you.
 
 **Formation panel.** The full panel shows the name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). Of a hostile formation it shows only what you know: estimated figures marked **EST.** and **?** for the rest. Selecting a counter no longer opens it; see **Unit info** below for how to open it. While open it follows the selection, so clicking another counter switches it. **Tab** jumps to your next formation (the camera moves to it if it is off screen). **✕**, **Esc**, **I** or a click on empty map closes the panel.
 

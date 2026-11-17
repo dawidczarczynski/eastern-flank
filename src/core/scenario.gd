@@ -21,6 +21,20 @@ const NAMES: Array[String] = [
 	"fire_support_battle",
 	"suwalki_battle",
 ]
+## Headless-only scenarios (AI-vs-AI simulation, tools/simulate.sh), not offered in the menu.
+const SIMULATION_NAMES: Array[String] = ["contact_battle"]
+## The default contact battle (TASK-170b): each faction's battalion (CONTACT_FORMATIONS) meets
+## the other on the real theatre terrain: the defender (player 1) at the town of Suwalki, the
+## attacker (player 0) on the operational hex west of it; deployed and given objectives by
+## ContactMap like an operation's contact.
+const CONTACT_THEATRE := &"suwalki_theatre"
+const CONTACT_ATTACKER_HEX := Vector2i(16, 34)
+const CONTACT_DEFENDER_HEX := Vector2i(17, 34)
+const CONTACT_OPERATION_NAME := "Suwalki Contact"
+const CONTACT_FORMATIONS := {
+	&"poland": preload("res://data/formations/pl_mech_battalion.tres"),
+	&"russia": preload("res://data/formations/ru_motor_rifle_battalion.tres"),
+}
 ## Fire-support missions of both players in the fire support test battle (TASK-099b).
 const FIRE_SUPPORT_BATTLE_MISSIONS := 2
 ## Command points per turn of both players in the command points test battle (TASK-091).
@@ -48,7 +62,38 @@ static func build(scenario_name: String, seed_value: int, factions: Array[String
 			return fire_support_battle(seed_value, factions)
 		"suwalki_battle":
 			return suwalki_battle(seed_value, factions)
+		"contact_battle":
+			var setup := contact_battle_setup(seed_value, factions)
+			return from_setup(setup) if setup != null else null
 	return null
+
+
+## The default contact battle (SIMULATION_NAMES, TASK-170b) as a prepared BattleSetup: player 0
+## attacks with its faction's battalion (CONTACT_FORMATIONS), player 1 defends; every company at
+## full strength, ref "<formation id>/<n>". Null (push_error) for a faction without a battalion.
+static func contact_battle_setup(
+	seed_value: int, factions: Array[StringName] = FactionRegistry.DEFAULT_IDS
+) -> BattleSetup:
+	var setup := BattleSetup.new()
+	setup.seed = seed_value
+	setup.map_id = CONTACT_THEATRE
+	setup.operation_name = CONTACT_OPERATION_NAME
+	setup.factions = factions.duplicate()
+	setup.attacker = 0
+	for player in factions.size():
+		setup.conditions.append(BattleSetup.Conditions.new())
+		var formation: FormationDefinition = CONTACT_FORMATIONS.get(factions[player])
+		if formation == null:
+			push_error("Scenario: no contact battalion for faction '%s'" % factions[player])
+			return null
+		for i in formation.companies.size():
+			var company := BattleSetup.Company.new()
+			company.player = player
+			company.unit_type = formation.companies[i].id
+			company.strength = formation.companies[i].max_hp
+			company.ref = "%s/%d" % [formation.id, i + 1]
+			setup.companies.append(company)
+	return ContactMap.build(setup, CONTACT_ATTACKER_HEX, CONTACT_DEFENDER_HEX)
 
 
 ## Default 2-player battle on a generated 12x10 map with a river (RIVER_COLUMNS) between the

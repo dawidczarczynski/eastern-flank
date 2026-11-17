@@ -193,7 +193,7 @@ func test_shipped_operation_builds() -> void:
 	assert_eq(Operation.NAMES, [&"suwalki_gap"] as Array[StringName])
 	var state := Operation.build(&"suwalki_gap", 7)
 	assert_true(state != null)
-	assert_eq(state.formations.size(), 14)
+	assert_eq(state.formations.size(), 13)
 	assert_eq(state.player_sides, [&"nato", &"russia"] as Array[StringName])
 	assert_eq(state.player_factions, [&"poland", &"russia"] as Array[StringName])
 	assert_eq(state.current_player, 1)
@@ -204,7 +204,7 @@ func test_shipped_operation_builds() -> void:
 	var totals := [0, 0]
 	for f in state.formations:
 		totals[f.owner_id] += f.strength()
-	assert_eq(totals, [396, 488])
+	assert_eq(totals, [396, 416])
 
 
 func test_build_is_deterministic() -> void:

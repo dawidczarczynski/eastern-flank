@@ -60,6 +60,84 @@ static func start_battles(state: OperationalState, events: Array[Dictionary]) ->
 		events.append(pending)
 
 
+## Debug tool (F10 with --debug): puts `player`'s formation that is nearest to an enemy on a free
+## land hex next to that enemy and starts the battle at once (as if it had halted on contact).
+## Mutates `state` outside the commands, like the other debug panels; returns the events
+## (`formation_moved`, `battle_pending`) – empty when nothing can be done.
+static func force_contact(state: OperationalState, player: int) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	var best_mine: Formation = null
+	var best_enemy: Formation = null
+	var best_hex := Vector2i.ZERO
+	var best_distance := 1 << 30
+	for mine in state.formations:
+		if mine.owner_id != player or mine.strength() <= 0:
+			continue
+		for enemy in state.formations:
+			if enemy.owner_id == player or enemy.strength() <= 0:
+				continue
+			var d := Hex.distance(mine.coord, enemy.coord)
+			if d >= best_distance:
+				continue
+			var hex := _free_hex_next_to(state, enemy, mine.coord)
+			if hex == enemy.coord:
+				continue
+			best_distance = d
+			best_mine = mine
+			best_enemy = enemy
+			best_hex = hex
+	if best_mine == null:
+		return events
+	var from := best_mine.coord
+	best_mine.coord = best_hex
+	best_mine.order = null
+	(
+		events
+		. append(
+			{
+				"type": &"formation_moved",
+				"formation_id": best_mine.id,
+				"from": from,
+				"to": best_hex,
+				"path": [best_hex],
+				"cost": 0,
+			}
+		)
+	)
+	# The border rule (battle_allowed) is skipped on purpose: a debug contact must work anywhere.
+	state.pending_battles.append(_build_setup(state, best_mine, best_enemy))
+	(
+		events
+		. append(
+			{
+				"type": &"battle_pending",
+				"attacker_id": best_mine.id,
+				"defender_id": best_enemy.id,
+				"at": best_enemy.coord,
+				"index": state.pending_battles.size() - 1,
+				"situation": BattleName.situations(state.pending_battles[-1]),
+			}
+		)
+	)
+	return events
+
+
+## The free passable neighbour of `enemy` closest to `from`; `enemy.coord` itself when none.
+static func _free_hex_next_to(
+	state: OperationalState, enemy: Formation, from: Vector2i
+) -> Vector2i:
+	var best := enemy.coord
+	var best_distance := 1 << 30
+	for hex in Hex.neighbors(enemy.coord):
+		if state.grid.move_cost(hex) == Terrain.IMPASSABLE or state.formation_at(hex) != null:
+			continue
+		var d := Hex.distance(from, hex)
+		if d < best_distance:
+			best_distance = d
+			best = hex
+	return best
+
+
 static func _find_defender(
 	state: OperationalState, attacker: Formation, engaged: Dictionary
 ) -> Formation:

@@ -8,7 +8,7 @@ const SimulateOptions := preload("res://tools/simulate_options.gd")
 const USAGE := (
 	"Usage: tools/simulate.sh N [--seed=S] [--max-turns=T] [--factions=A,B]"
 	+ " [--scenario=default_battle|objective_battle|command_points_battle|fire_support_battle"
-	+ "|suwalki_battle] [--verbose]"
+	+ "|suwalki_battle|contact_battle] [--verbose]"
 	+ "\n       tools/simulate.sh N --mode=operation [--seed=S] [--max-rounds=R]"
 	+ " [--scenario=<operation id>] [--battles=auto|played] [--out=file.csv] [--verbose]"
 )
@@ -58,10 +58,17 @@ func _initialize() -> void:
 		)
 	)
 	print("Errors: %d" % s["errors"])
+	print("Rejected AI commands: %d" % s["rejected"])
 	print(
 		(
-			"Average length: %.1f turns (decided), %.1f turns (all)"
-			% [s["avg_turns_decided"], s["avg_turns_all"]]
+			"Average length: %.1f turns (decided), %.1f turns (all), longest %d"
+			% [s["avg_turns_decided"], s["avg_turns_all"], s["max_turns"]]
+		)
+	)
+	print(
+		(
+			"AI turn time: %.1f ms average, %.1f ms slowest"
+			% [s["avg_ai_turn_ms"], s["max_ai_turn_ms"]]
 		)
 	)
 	quit(1 if s["errors"] > 0 else 0)

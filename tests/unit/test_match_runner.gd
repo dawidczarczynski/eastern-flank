@@ -12,7 +12,7 @@ func test_harness_limit_after_one_turn() -> void:
 
 
 func test_play_is_deterministic() -> void:
-	assert_eq(MatchRunner.play(7, 50), MatchRunner.play(7, 50))
+	assert_eq(_outcome(MatchRunner.play(7, 50)), _outcome(MatchRunner.play(7, 50)))
 
 
 func test_play_never_errors() -> void:
@@ -63,7 +63,7 @@ func test_summarize_empty() -> void:
 func test_play_with_swapped_factions_is_deterministic_and_never_errors() -> void:
 	var factions: Array[StringName] = [&"russia", &"poland"]
 	var a := MatchRunner.play(7, 50, factions)
-	assert_eq(a, MatchRunner.play(7, 50, factions))
+	assert_eq(_outcome(a), _outcome(MatchRunner.play(7, 50, factions)))
 	assert_true(a["result"] == "victory" or a["result"] == "harness_limit")
 
 
@@ -90,3 +90,46 @@ func test_objective_battle_ends_by_the_rules_within_the_turn_limit() -> void:
 func test_unknown_scenario_is_an_error() -> void:
 	# Expected engine output: none – Scenario.build returns null for an unknown name.
 	assert_eq(MatchRunner.play(1, 5, FactionRegistry.DEFAULT_IDS, "atlantis")["result"], "error")
+
+
+## Timing keys of a play() result are wall-clock measurements, not part of the deterministic
+## outcome.
+static func _outcome(r: Dictionary) -> Dictionary:
+	var copy := r.duplicate()
+	for key in MatchRunner.TIMING_KEYS:
+		copy.erase(key)
+	return copy
+
+
+func test_contact_battle_is_a_7_v_7_battalion_fight() -> void:
+	var state := Scenario.build("contact_battle", 1, FactionRegistry.DEFAULT_IDS)
+	assert_true(state != null)
+	for player in 2:
+		var units := state.units_of(player)
+		assert_eq(units.size(), 7)
+		var artillery := units.filter(func(u: Unit) -> bool: return u.definition.is_indirect())
+		assert_eq(artillery.size(), 1)
+	assert_true(not Scenario.NAMES.has("contact_battle"), "not a menu scenario")
+	assert_true(Scenario.SIMULATION_NAMES.has("contact_battle"))
+
+
+## TASK-170b: 7 v 7 AI-vs-AI over 20 seeds – the AI never issues a command the rules reject,
+## and every game ends by the rules well inside 60 turns.
+func test_contact_battle_ai_never_issues_a_rejected_command() -> void:
+	for seed_value in range(1, 21):
+		var r := MatchRunner.play(seed_value, 60, FactionRegistry.DEFAULT_IDS, "contact_battle")
+		assert_true(r["result"] == "victory" or r["result"] == "draw", str(r))
+		assert_eq(r["rejected"], 0, str(r))
+		assert_true(r["turns"] <= 60, str(r))
+
+
+func test_play_reports_ai_turn_timing() -> void:
+	var r := MatchRunner.play(7, 3)
+	assert_true(r["ai_turns"] > 0)
+	assert_true(r["ai_usec"] >= 0)
+	assert_true(r["ai_usec_max"] <= r["ai_usec"])
+	var s := MatchRunner.summarize([r] as Array[Dictionary])
+	assert_true(s["avg_ai_turn_ms"] >= 0.0)
+	assert_true(s["max_ai_turn_ms"] >= s["avg_ai_turn_ms"])
+	assert_eq(s["max_turns"], 3)
+	assert_eq(s["rejected"], 0)

@@ -219,7 +219,7 @@ func test_shipped_packages() -> void:
 		assert_eq(s.country_at(placement.coord), &"belarus")
 		assert_true(s.grid.move_cost(placement.coord) != Terrain.IMPASSABLE)
 		totals[1] += Formation.from_placement(placement, &"defend").max_strength()
-	assert_eq(totals, [132, 124] as Array[int], "strength of the two packages")
+	assert_eq(totals, [132, 120] as Array[int], "strength of the two packages")
 	assert_true(allied.formations[0].parent != "")
 
 

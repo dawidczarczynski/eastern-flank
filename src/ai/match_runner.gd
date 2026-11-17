@@ -4,11 +4,17 @@ extends RefCounted
 ## `max_turns` is a harness limit only; the battle's own turn limit (BattleObjectives, TASK-088)
 ## is a rule and ends a match as a "victory" or "draw".
 
+## Keys of a `play` result measured on the wall clock (not deterministic): AI turns taken, total
+## and slowest AI turn in microseconds (TASK-170b turn-time budget).
+const TIMING_KEYS: Array[String] = ["ai_turns", "ai_usec", "ai_usec_max"]
 
-## Plays the scenario `scenario` (Scenario.NAMES) with an `AiPlayer` on every side until the battle
-## is over or `max_turns` is exceeded. `factions` = faction id of player 0 and player 1.
+
+## Plays the scenario `scenario` (Scenario.NAMES or Scenario.SIMULATION_NAMES) with an
+## `AiPlayer` on every side until the battle is over or `max_turns` is exceeded. `factions` =
+## faction id of player 0 and player 1.
 ## Result keys: seed, scenario, factions, winner, turns, commands, reason (GameState.end_reason as
-## a String, "" when the rules did not end the match) and result:
+## a String, "" when the rules did not end the match), rejected (AI commands the rules refused),
+## the TIMING_KEYS and result:
 ##   "victory"       – the rules ended the battle with a winner;
 ##   "draw"          – the rules ended it without one (e.g. the turn limit);
 ##   "harness_limit" – `max_turns` ran out first (turns = max_turns);
@@ -28,13 +34,18 @@ static func play(
 		"result": "error",
 		"reason": "",
 		"commands": 0,
+		"rejected": 0,
+		"ai_turns": 0,
+		"ai_usec": 0,
+		"ai_usec_max": 0,
 	}
 	var start := Scenario.build(scenario, seed_value, factions)
 	if start == null:
 		return result
 	var sim := GameSimulation.new(start)
 	var state := sim.state
-	var errored := not run(sim, max_turns)
+	var stats := {}
+	var errored := not run(sim, max_turns, stats)
 	var turns := state.turn
 	if errored:
 		result["result"] = "error"
@@ -49,23 +60,42 @@ static func play(
 	result["turns"] = turns
 	result["reason"] = String(state.end_reason)
 	result["commands"] = sim.history.size()
+	for key: String in stats:
+		result[key] = stats[key]
 	return result
 
 
 ## Lets an `AiPlayer` play every side of `sim` until the battle is over or `max_turns` is
 ## exceeded (also a battle started from a BattleSetup, TASK-094c). False when the AI stopped
-## issuing turns (the guard fired).
-static func run(sim: GameSimulation, max_turns: int) -> bool:
+## issuing turns (the guard fired). `stats` receives "rejected" (commands the rules refused) and
+## the TIMING_KEYS.
+static func run(sim: GameSimulation, max_turns: int, stats: Dictionary = {}) -> bool:
 	var state := sim.state
 	var ai := AiPlayer.new()
 	var max_iterations := max_turns * state.player_count + 1
 	var iterations := 0
+	var rejected: Array[int] = [0]
+	var on_rejected := func(_command: Command, _reason: String) -> void: rejected[0] += 1
+	sim.command_rejected.connect(on_rejected)
+	var total := 0
+	var slowest := 0
+	var ok := true
 	while not state.is_over() and state.turn <= max_turns:
 		iterations += 1
 		if iterations > max_iterations:
-			return false
+			ok = false
+			break
+		var started := Time.get_ticks_usec()
 		ai.take_turn(sim)
-	return true
+		var spent := Time.get_ticks_usec() - started
+		total += spent
+		slowest = maxi(slowest, spent)
+	sim.command_rejected.disconnect(on_rejected)
+	stats["rejected"] = rejected[0]
+	stats["ai_turns"] = iterations if ok else iterations - 1
+	stats["ai_usec"] = total
+	stats["ai_usec_max"] = slowest
+	return ok
 
 
 ## Operational AI match (TASK-102c): lets OperationalAiTurn play every side in `ai_sides` until
@@ -121,8 +151,18 @@ static func summarize(results: Array[Dictionary]) -> Dictionary:
 	var decided_turns := 0
 	var decided := 0
 	var all_turns := 0
+	var longest := 0
+	var rejected := 0
+	var ai_turns := 0
+	var ai_usec := 0
+	var ai_usec_max := 0
 	for r in results:
 		all_turns += r["turns"] as int
+		longest = maxi(longest, r["turns"] as int)
+		rejected += r.get("rejected", 0) as int
+		ai_turns += r.get("ai_turns", 0) as int
+		ai_usec += r.get("ai_usec", 0) as int
+		ai_usec_max = maxi(ai_usec_max, r.get("ai_usec_max", 0) as int)
 		match r["result"]:
 			"victory":
 				var winner := r["winner"] as int
@@ -145,4 +185,8 @@ static func summarize(results: Array[Dictionary]) -> Dictionary:
 		"errors": errors,
 		"avg_turns_decided": float(decided_turns) / decided if decided > 0 else 0.0,
 		"avg_turns_all": float(all_turns) / results.size() if not results.is_empty() else 0.0,
+		"max_turns": longest,
+		"rejected": rejected,
+		"avg_ai_turn_ms": ai_usec / 1000.0 / ai_turns if ai_turns > 0 else 0.0,
+		"max_ai_turn_ms": ai_usec_max / 1000.0,
 	}

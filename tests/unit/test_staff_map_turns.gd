@@ -31,7 +31,7 @@ func test_end_turn_flow() -> void:
 	assert_true(bar.is_day_shown())
 	assert_eq(bar.viewed_side_text(), "NATO")
 	assert_eq(bar.side_meta_text(0), "WAITING · 6 FMN")
-	assert_eq(bar.side_meta_text(1), "ENEMY MOVE · 8 FMN")
+	assert_eq(bar.side_meta_text(1), "ENEMY MOVE · 7 FMN")
 	assert_true(is_equal_approx(bar.side_alpha(0), StaffMapTurnBar.INACTIVE_ALPHA))
 	assert_eq(bar.side_alpha(1), StaffMapTurnBar.ACTIVE_ALPHA)
 	assert_true(_map.end_turn())

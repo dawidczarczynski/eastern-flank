@@ -170,7 +170,7 @@ func test_shipped_formation_texts_are_translation_keys() -> void:
 
 func test_scene_has_one_counter_per_formation() -> void:
 	var state := _map.simulation().state
-	assert_eq(state.formations.size(), 14)
+	assert_eq(state.formations.size(), 13)
 	assert_eq(_map.counters().counter_count(), state.formations.size())
 	for formation in state.formations:
 		var node := _map.counters().get_node_or_null(String(formation.id))
@@ -196,7 +196,7 @@ func test_scene_selecting_fills_the_panel() -> void:
 	_map.select_formation(&"ru_mr_1")
 	assert_true(panel.visible, "the open panel follows the selection")
 	assert_true(panel.hostile, "enemy formations are marked hostile")
-	assert_eq(panel.value_text("STRENGTH"), "62 / 62")
+	assert_eq(panel.value_text("STRENGTH"), "60 / 60")
 	_map.select_formation(&"")
 	assert_true(panel.visible, "deselecting alone keeps it open")
 	assert_true(_map.close_info())
@@ -221,7 +221,7 @@ func test_scene_viewer_swap() -> void:
 	_map.set_viewer(1)
 	assert_false(_map.counters().counter(&"pl_mech_1").is_own())
 	assert_true(_map.counters().counter(&"ru_mr_1").is_own())
-	assert_eq(_map.counters().own_ids().size(), 8)
+	assert_eq(_map.counters().own_ids().size(), 7)
 	_map.set_viewer(0)
 	assert_eq(_map.counters().own_ids().size(), 6)
 
