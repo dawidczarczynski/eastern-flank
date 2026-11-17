@@ -1,6 +1,6 @@
 # TASK-164: Operation ends when one side is annihilated
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: core (+ presentation: end-notice reason text only)
 - **Depends on**: –
 - **Sections**: GDD "Sides" (Victory > Endings bullet); ARCHITECTURE event table (`operation_ended` reasons); grep docs/CODEMAP.md for `OperationVictory`, `BattleConsequences`, `StrikeRules`, `StaffMapEndModel`, `OperationMatchRunner`
