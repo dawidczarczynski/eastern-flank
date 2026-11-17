@@ -6,6 +6,7 @@ TNK,TNK,CZOŁ
 CLASS_INFANTRY,Infantry,Piechota
 CLASS_TANK,Tank,Czołg
 CLASS_MLRS,Rocket Artillery,Artyleria rakietowa
+CLASS_SP_ARTILLERY,Self-Propelled Howitzer,Haubica samobieżna
 ART,ART,ART
 TURN,TURN,TURA
 YOUR TURN,YOUR TURN,TWOJA TURA

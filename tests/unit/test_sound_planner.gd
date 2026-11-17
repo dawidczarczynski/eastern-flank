@@ -24,6 +24,13 @@ func test_ui_actions_map_to_sound_ids() -> void:
 	assert_eq(SoundPlanner.ui_sound(&"nonsense"), &"")
 
 
+func test_k9_sounds() -> void:
+	assert_eq(SoundPlanner.fire_sound(_unit("k9_thunder")), &"tank_cannon")
+	assert_eq(
+		SoundPlanner.move_loops(_unit("k9_thunder")), [&"engine_diesel_heavy", &"move_tracks"]
+	)
+
+
 func test_tank_infantry_and_mlrs_fire_differently() -> void:
 	var tank := SoundPlanner.fire_sound(_unit("t72b3"))
 	var infantry := SoundPlanner.fire_sound(_unit("pl_mech_infantry"))

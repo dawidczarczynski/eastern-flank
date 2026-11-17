@@ -5,6 +5,7 @@ const SQUAD := preload("res://data/units/pl_mech_infantry.tres")
 const T72B3 := preload("res://data/units/t72b3.tres")
 const HOMAR := preload("res://data/units/homar_k.tres")
 const URAGAN := preload("res://data/units/bm27_uragan.tres")
+const K9 := preload("res://data/units/k9_thunder.tres")
 ## A seed whose T-72B3 strike leaves a full Uragan alive (destroyed about half the time).
 const SURVIVING_SEED := 3
 
@@ -86,3 +87,21 @@ func test_volley_fire_follows_the_mlrs_class() -> void:
 	assert_true(UnitModels.fires_volley(URAGAN))
 	assert_false(UnitModels.fires_volley(T72B3))
 	assert_false(UnitModels.fires_volley(null))
+
+
+func test_k9_thunder_is_no_volley_class_and_needs_no_line_of_sight() -> void:
+	assert_false(UnitModels.fires_volley(K9))
+	assert_true(K9.is_indirect())
+
+
+func test_k9_thunder_range_window_is_3_to_160_hexes() -> void:
+	var state := GameState.new(Fixtures.plains_grid(90), 2, 1)
+	var gun := state.add_unit(0, K9, Vector2i(-80, 0))
+	var near := state.add_unit(1, SQUAD, Vector2i(-78, 0))
+	var ok := state.add_unit(1, SQUAD, Vector2i(-77, 0))
+	var far := state.add_unit(1, SQUAD, Vector2i(80, 0))
+	var out := state.add_unit(1, SQUAD, Vector2i(81, 0))
+	assert_eq(AttackCommand.new(gun.id, near.id).validate(state), "too_close")
+	assert_eq(AttackCommand.new(gun.id, ok.id).validate(state), "")
+	assert_eq(AttackCommand.new(gun.id, far.id).validate(state), "")
+	assert_eq(AttackCommand.new(gun.id, out.id).validate(state), "out_of_range")

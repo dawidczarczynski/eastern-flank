@@ -3,7 +3,7 @@ extends TestCase
 
 const TYPE_STRENGTHS := {
 	&"pl_mech_battalion": 66,
-	&"pl_tank_battalion": 66,
+	&"pl_tank_battalion": 64,
 	&"ru_motor_rifle_battalion": 60,
 	&"ru_tank_battalion": 58,
 }
@@ -14,7 +14,7 @@ const _MLRS_PL := &"homar_k"
 const _MLRS_RU := &"bm27_uragan"
 const TYPE_COMPANIES := {
 	&"pl_mech_battalion": [_PMI, _PMI, _PMI, _PMI, _MBT, _MBT, _MLRS_PL],
-	&"pl_tank_battalion": [_MBT, _MBT, _MBT, _MBT, _PMI, _PMI, _MLRS_PL],
+	&"pl_tank_battalion": [_MBT, _MBT, _MBT, _MBT, _PMI, &"k9_thunder", _MLRS_PL],
 	&"ru_motor_rifle_battalion": [_MR, _MR, _MR, &"t72b3", &"t72b3", &"t72b3", _MLRS_RU],
 	&"ru_tank_battalion": [&"t72b3", &"t72b3", &"t72b3", &"t72b3", _MR, _MR, _MLRS_RU],
 }
@@ -84,7 +84,7 @@ func test_suwalki_gap_definition() -> void:
 		assert_false(p.display_name.is_empty(), "%s name" % p.id)
 		assert_false(p.parent.is_empty(), "%s parent" % p.id)
 	assert_eq(counts, [6, 7])
-	assert_eq(strength, [396, 416])
+	assert_eq(strength, [392, 416])
 	assert_eq(types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2})
 	assert_eq(types[1], {&"ru_motor_rifle_battalion": 5, &"ru_tank_battalion": 2})
 

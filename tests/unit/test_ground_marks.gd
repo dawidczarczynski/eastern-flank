@@ -26,6 +26,12 @@ func test_tank_path_gives_one_track_per_segment() -> void:
 		assert_eq(mark["segment"], i)
 
 
+func test_self_propelled_howitzer_leaves_tread_marks_like_a_tank() -> void:
+	var marks := GroundMarks.track_segments(_path(), &"sp_artillery")
+	assert_eq(marks, GroundMarks.track_segments(_path(), &"tank"))
+	assert_eq(marks.size(), 3)
+
+
 func test_mlrs_leaves_narrower_tyre_marks_and_infantry_nothing() -> void:
 	var tyres := GroundMarks.track_segments(_path(), &"mlrs")
 	assert_eq(tyres.size(), 3)

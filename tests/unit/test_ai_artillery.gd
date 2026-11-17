@@ -100,6 +100,16 @@ func test_artillery_inside_its_minimum_range_moves_out_and_fires() -> void:
 	assert_eq(_attacks_by(gun), 1)
 
 
+func test_k9_howitzer_is_treated_as_artillery() -> void:
+	var k9: UnitDefinition = load("res://data/units/k9_thunder.tres")
+	var gun := state.add_unit(0, k9, Vector2i(-10, 0))
+	var enemy := state.add_unit(1, _target(), Vector2i(0, 0))
+	state.add_unit(0, _infantry(), Vector2i(-6, 0))
+	AiPlayer.new().take_turn(sim)
+	assert_true(Hex.distance(gun.coord, enemy.coord) >= 8, str(gun.coord))
+	assert_eq(_attacks_by(gun), 1)
+
+
 ## Never advances inside its minimum range to get in range: an enemy only hittable from 3..4
 ## hexes, the front far ahead – the guns stop at 4, not nearer.
 func test_artillery_never_moves_inside_its_minimum_range() -> void:

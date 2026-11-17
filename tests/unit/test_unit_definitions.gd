@@ -1,5 +1,5 @@
 extends TestCase
-## The six real units of TASK-039a (GDD "Stat derivation rules", "First rosters").
+## The seven real units of TASK-039a / TASK-176 (GDD "Stat derivation rules", "First rosters").
 
 const Fixtures := preload("res://tests/fixtures.gd")
 const UNITS_DIR := "res://data/units"
@@ -8,6 +8,7 @@ const TABLE := {
 	&"m1a2_sepv3": ["M1A2 SEPv3 Abrams", "M1A2", &"tank", &"tracked", 10, 5, 7, 4],
 	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4],
 	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1],
+	&"k9_thunder": ["K9 Thunder", "K9", &"sp_artillery", &"tracked", 8, 3, 5, 2],
 	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1],
 	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
 	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
@@ -18,6 +19,7 @@ const RANGES := {
 	&"m1a2_sepv3": [&"direct", 2000, 3500, 0, 8, 14, 0],
 	&"t72b3": [&"direct", 2000, 3000, 0, 8, 12, 0],
 	&"homar_k": [&"indirect", 70000, 80000, 750, 280, 320, 3],
+	&"k9_thunder": [&"indirect", 35000, 40000, 750, 140, 160, 3],
 	&"bm27_uragan": [&"indirect", 30000, 35000, 750, 120, 140, 3],
 	&"pl_mech_infantry": [&"direct", 500, 750, 0, 2, 3, 0],
 	&"ru_motor_rifle": [&"direct", 500, 750, 0, 2, 3, 0],
@@ -36,7 +38,7 @@ func _unit(id: StringName) -> UnitDefinition:
 	return load("%s/%s.tres" % [UNITS_DIR, id]) as UnitDefinition
 
 
-func test_exactly_the_six_real_units_exist() -> void:
+func test_exactly_the_seven_real_units_exist() -> void:
 	var ids: Array[StringName] = []
 	for definition in _definitions():
 		ids.append(definition.id)
@@ -120,6 +122,7 @@ func test_class_labels_translate() -> void:
 	assert_eq(String(TranslationServer.translate("CLASS_TANK")), "Czołg")
 	assert_eq(String(TranslationServer.translate("CLASS_MLRS")), "Artyleria rakietowa")
 	assert_eq(String(TranslationServer.translate("CLASS_INFANTRY")), "Piechota")
+	assert_eq(String(TranslationServer.translate("CLASS_SP_ARTILLERY")), "Haubica samobieżna")
 	TranslationServer.set_locale("en")
 	assert_eq(String(TranslationServer.translate("TNK")), "TNK")
 	assert_eq(String(TranslationServer.translate("CLASS_TANK")), "Tank")
@@ -143,5 +146,9 @@ func test_damage_spot_checks() -> void:
 	assert_eq(_damage(&"m1a2_sepv3", &"bm27_uragan"), 6)
 	assert_eq(_damage(&"homar_k", &"bm27_uragan"), 5)
 	assert_eq(_damage(&"ru_motor_rifle", &"m1a2_sepv3"), 1)
+	assert_eq(_damage(&"k9_thunder", &"ru_motor_rifle"), 2)
+	assert_eq(_damage(&"k9_thunder", &"t72b3"), 1)
+	assert_eq(_damage(&"k9_thunder", &"bm27_uragan"), 4)
+	assert_eq(_damage(&"homar_k", &"k9_thunder"), 4)
 	assert_eq(_damage(&"t72b3", &"pl_mech_infantry"), 3)
 	assert_eq(_damage(&"m1a2_sepv3", &"ru_motor_rifle", Terrain.Type.HILLS), 2)

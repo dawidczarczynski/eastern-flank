@@ -49,7 +49,7 @@ static func track_segments(
 	var kind: StringName
 	var width: float
 	match unit_class:
-		&"tank":
+		&"tank", &"sp_artillery":
 			kind = KIND_TRACK
 			width = TANK_WIDTH
 		&"mlrs":

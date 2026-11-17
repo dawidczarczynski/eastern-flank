@@ -12,7 +12,7 @@ const FIRE_INDIRECT := &"indirect"
 ## Label above the unit (translation key, at most 6 characters): a short real designation
 ## (M1A2, T-72B3); units without one (squads) use their class abbreviation (INF).
 @export var short_name: String
-## Unit class id from docs/design/units/classes.json: infantry, tank or mlrs.
+## Unit class id from docs/design/units/classes.json: infantry, tank, mlrs or sp_artillery.
 @export var unit_class: StringName
 ## How the unit moves (catalog `mobility`): foot, wheeled or tracked.
 @export var mobility: StringName = &"foot"

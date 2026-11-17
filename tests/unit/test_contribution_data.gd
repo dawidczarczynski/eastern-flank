@@ -153,7 +153,7 @@ func test_foreign_faction_is_rejected() -> void:
 func test_suwalki_gap_contributions() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
 	assert_true(state != null)
-	var expected := {&"lithuania": [3, 198, 0], &"belarus": [3, 178, 1]}
+	var expected := {&"lithuania": [3, 196, 0], &"belarus": [3, 178, 1]}
 	for id: StringName in expected:
 		var country := state.get_country(id)
 		assert_eq(country.contribution.size(), expected[id][0], "%s count" % id)

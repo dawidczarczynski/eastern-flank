@@ -58,6 +58,20 @@ func test_no_exhaust_for_infantry() -> void:
 	assert_false(MotionEffects.emits(&"infantry"))
 
 
+func test_self_propelled_howitzer_raises_the_dust_of_a_tank() -> void:
+	assert_true(MotionEffects.emits(&"sp_artillery"))
+	assert_eq(MotionEffects.cloud_size(&"sp_artillery"), MotionEffects.cloud_size(&"tank"))
+	for load_value in [0.0, 1.0]:
+		assert_eq(
+			MotionEffects.exhaust_rate(&"sp_artillery", load_value),
+			MotionEffects.exhaust_rate(&"tank", load_value)
+		)
+	assert_eq(
+		MotionEffects.dust_rate(&"sp_artillery", MotionEffects.FULL_SPEED),
+		MotionEffects.dust_rate(&"tank", MotionEffects.FULL_SPEED)
+	)
+
+
 func test_wheeled_trucks_raise_smaller_clouds_than_tanks() -> void:
 	assert_true(MotionEffects.cloud_size(&"mlrs") < MotionEffects.cloud_size(&"tank"))
 	assert_true(MotionEffects.exhaust_rate(&"mlrs", 1.0) < MotionEffects.exhaust_rate(&"tank", 1.0))

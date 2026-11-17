@@ -71,13 +71,14 @@ In a battle fought from the operational map each side has a number of fire-suppo
 | T-72B3 (Russia) | 8 | 5 | 6 | 4 | 2.0 km (8 hex), max 3.0 km | a T-72 tank |
 | Homar-K (Poland) | 6 | 3 | 6 | 1 | 70 km (whole map), min 750 m | a Homar-K truck with a turning rocket launcher |
 | 9K57 Uragan (Russia) | 6 | 3 | 6 | 1 | 30 km (whole map), min 750 m | a BM-27 truck with sixteen rocket tubes over the cab |
+| K9 Thunder (Poland) | 8 | 3 | 5 | 2 | 35 km (whole map), max 40 km, min 750 m | a tracked self-propelled howitzer with a long gun in a turret |
 
 - **HP**: the unit's strength – how much damage it can take, and how many shots it fires (see Combat). Every unit is a company: a unit that has lost HP also fights worse, because it fires fewer shots. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
 - **Movement**: movement points per turn (see Movement).
 - **Attack** / **Defense**: used in the damage calculation (see Combat).
-- **Range**: how far away the unit can attack, in metres or kilometres (one hex is 250 m). Out to the **effective range** the weapon hits at full chance; beyond it the hit chance falls steadily to half at the **maximum range**, the farthest it can fire at all (see Combat). Rocket artillery also has a **minimum range** of 750 m (3 hexes) and cannot fire at closer targets.
+- **Range**: how far away the unit can attack, in metres or kilometres (one hex is 250 m). Out to the **effective range** the weapon hits at full chance; beyond it the hit chance falls steadily to half at the **maximum range**, the farthest it can fire at all (see Combat). Artillery (rocket and howitzer) also has a **minimum range** of 750 m (3 hexes) and cannot fire at closer targets.
 
-Roles in short: **infantry squads** are tough and slow but barely scratch a tank; **tanks** are fast, well armoured and hit hard – the Abrams is stronger and tougher than the T-72B3, which is why Russia brings two; **rocket artillery** hits from a distance (it reaches the whole map, never targets closer than 3 hexes and needs no line of sight) but dies quickly if the enemy reaches it. The two squads have the same stats.
+Roles in short: **infantry squads** are tough and slow but barely scratch a tank; **tanks** are fast, well armoured and hit hard – the Abrams is stronger and tougher than the T-72B3, which is why Russia brings two; **artillery** (rocket and howitzer) hits from a distance (it reaches the whole map, never targets closer than 3 hexes and needs no line of sight) but dies quickly if the enemy reaches it – the **K9 Thunder** is a tracked howitzer that fires one heavy shell instead of a rocket salvo, so it hits a little weaker than the Homar-K, but it is tougher (8 HP, Defense 2). The two squads have the same stats.
 
 Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name – **INF** for the infantry squads (PIECH in the Polish version), the real designation for vehicles (**M1A2**, **HOMAR**, **T-72B3**, **BM-27**) – and an HP bar that turns from green to yellow to red as the unit loses HP.
 
@@ -127,8 +128,8 @@ When a unit is selected, the area it can reach is outlined in your side's colour
 
 ### Attacking
 
-- Any of your units can attack **one enemy unit per turn** that is within its reach: no farther than its maximum range and, for rocket artillery, no closer than its minimum range of 3 hexes (750 m).
-- **Line of sight**: tanks and infantry (direct fire) need a clear line to the target. **Forests, urban hexes and hills block it**; units never do, and neither do plains, fields, marsh or water. Rocket artillery fires over everything and ignores line of sight.
+- Any of your units can attack **one enemy unit per turn** that is within its reach: no farther than its maximum range and, for artillery (rocket or howitzer), no closer than its minimum range of 3 hexes (750 m).
+- **Line of sight**: tanks and infantry (direct fire) need a clear line to the target. **Forests, urban hexes and hills block it**; units never do, and neither do plains, fields, marsh or water. Artillery (rocket and howitzer) fires over everything and ignores line of sight.
 - **Range and hit chance**: out to its effective range a shot has its normal hit chance. Farther out the chance shrinks in proportion, down to **half** at the maximum range. For example an Abrams (effective 8 hexes, maximum 14) firing from 11 hexes has 75 % of its normal hit chance.
 - You can attack without moving, or move first and then attack. Attacking ends the unit's movement for the turn.
 - When a unit is selected, enemies it can attack right now are marked in red. Click one to attack it at once.
@@ -159,8 +160,8 @@ If the defender **survives** and the attacker is **within the defender's own rea
 - A counterattack doesn't use up the defender's attack or movement. A unit counterattacks **every** attack it survives, any number of times per turn.
 - A counterattack never triggers another counterattack.
 - A counterattack can destroy the attacker.
-- A counterattack is shot at the same reduced hit chance as an attack from that distance. Infantry and tanks can't hit back at rocket artillery that fires from beyond their maximum range or from a hex they can't see.
-- Rocket artillery can't counterattack a target closer than 3 hexes (its minimum range); anything that attacks it from 3 or more hexes away is answered, sight or no sight.
+- A counterattack is shot at the same reduced hit chance as an attack from that distance. Infantry and tanks can't hit back at artillery that fires from beyond their maximum range or from a hex they can't see.
+- Artillery (rocket or howitzer) can't counterattack a target closer than 3 hexes (its minimum range); anything that attacks it from 3 or more hexes away is answered, sight or no sight.
 
 ### Worked examples
 
@@ -191,6 +192,9 @@ The hit number of the attacker against the defender, depending on the defender's
 | M1A2 SEPv3 Abrams (Attack 7) | 4 / 3 / 2 | 3 / 2 / 1 | 6 / 5 / 4 |
 | T-72B3 (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
 | Homar-K / Uragan (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
+| K9 Thunder (Attack 5) | 2 / 1 / 1 | 1 / 1 / 1 | 4 / 3 / 2 |
+
+The K9 Thunder has Defense 2, so attackers hit it one point softer than a Homar-K (Defense 1) on plains – for example the Homar-K deals it 4 on plains, an Abrams 5, a T-72B3 4, a squad 2.
 
 The spread around the average, for a full-strength attacker:
 
@@ -264,7 +268,7 @@ In a battle with command points it spends its points on its most valuable action
   - **Portrait**: a lit 3D picture of the unit in its side's camouflage (rendered once per unit type and side at the start of the battle), behind amber corner brackets and a crosshair. Until it is ready the box is plain dark.
   - **Strength**: HP as `current/max` and a row of slanted segments, one per maximum HP point. Lost points are empty; the remaining ones are green above 60 % HP, yellow above 35 % and red at 35 % or less.
   - **Stats**: Attack, Defense, Moves (left / per turn) and Range, each with its number and a short bar. Attack and Defense bars are full at 10, Moves and Range bars at 6. Range shows the effective range in kilometres (or metres) with hexes, e.g. `2.0 km (8 hex)`. Defense includes the terrain bonus of the unit's tile, e.g. `5 (3+2)` on hills, and its bar shows that total.
-  - **Mobility tag**: how the unit moves – FOOT (infantry), WHEELED (rocket artillery) or TRACKED (tanks). For now this is information only; all units pay the same movement costs.
+  - **Mobility tag**: how the unit moves – FOOT (infantry), WHEELED (rocket artillery) or TRACKED (tanks, the K9 howitzer). For now this is information only; all units pay the same movement costs.
   - **Status**: a small hexagon and a line saying READY (green), READY · ALREADY ATTACKED (green), DONE THIS TURN (grey) or ENEMY UNIT (in the enemy's colour).
 - **Attack tag**: while one of your units is selected and you hover an enemy it can attack right now, the cursor becomes an amber crosshair and a small tag appears next to it. Anything else (your own unit, an enemy out of range, nothing selected) shows the normal cursor and nothing extra. The numbers follow the dice rules in Combat, including a weakened attacker firing fewer shots and the target's terrain:
   - `DIST 6 hex (1.5 km)`: the distance to the target.
@@ -285,8 +289,8 @@ In a battle with command points it spends its points on its most valuable action
 - **Hex grid**: a faint light grid marks the hexes on land (not over water). It fades as you zoom out and is a little stronger while a unit is selected. Press **G** to hide or show it.
 - **Objective hexes** (only in a battle that has them): each is outlined by a coloured ring along its edge, with a small flag on a pole near one corner and an **OBJECTIVE** tag above the flag (visible even over forest). Ring, flag and the tag's tab are in the colour of the side that holds the hex (red for Russia, blue for Poland) and change colour when the hex is captured.
 - **Done units**: a unit that can neither move nor attack any more this turn has a dimmed tag. This includes units that have not acted once your command points run out.
-- **Weapon range**: selecting a unit outlines its effective range in amber and the extended band out to its maximum range in a paler outline; hexes it can't see (blocked by forest, urban or hills, for direct fire) are dimmed. With nothing selected, hovering any unit (yours or the enemy's) shows its range the same way. A target out of sight gets no crosshair, and the right-click ring's ATTACK says NO LINE OF SIGHT (or TARGET TOO CLOSE inside a rocket artillery's minimum range).
-- **Ground marks**: tanks leave dark tread marks and rocket artillery trucks thinner tyre marks behind them as they move, rocket strikes leave small craters and a scorched patch around the target, and a destroyed unit leaves a scorched patch on its tile. They are only decoration – they don't change movement or defense. Old marks fade away to make room for new ones (fewer are kept on LOW graphics).
+- **Weapon range**: selecting a unit outlines its effective range in amber and the extended band out to its maximum range in a paler outline; hexes it can't see (blocked by forest, urban or hills, for direct fire) are dimmed. With nothing selected, hovering any unit (yours or the enemy's) shows its range the same way. A target out of sight gets no crosshair, and the right-click ring's ATTACK says NO LINE OF SIGHT (or TARGET TOO CLOSE inside an artillery unit's minimum range).
+- **Ground marks**: tanks and the K9 howitzer leave dark tread marks and rocket artillery trucks thinner tyre marks behind them as they move, rocket strikes leave small craters and a scorched patch around the target, and a destroyed unit leaves a scorched patch on its tile. They are only decoration – they don't change movement or defense. Old marks fade away to make room for new ones (fewer are kept on LOW graphics).
 - **Rocket salvos**: rocket artillery fires its full salvo, one rocket after another: 12 rockets for the Homar-K, 16 for the Uragan. The target's HP bar drops as the rockets land. Smoke hangs over the target for a few seconds (on HIGH graphics only). The salvo is only for show: the damage is the same as for any other attack (see Combat). Its counterattacks are full salvos too. In the enemy turn most animations play much faster, but salvos are sped up to only 1.5× normal speed.
 - **Tank fire**: before a tank fires – also when it fires back at an attacker – it turns its turret towards the target and raises or lowers its gun to it; as the shot lands, the barrel kicks back and a flash appears at the muzzle (the glow only on HIGH graphics); then the turret turns back to the front. Purely visual.
 - **Wrecks and smoke**: a destroyed vehicle (tank or rocket artillery truck) leaves a burnt-out wreck on its tile, standing on a wide patch of black burnt ground where no plants grow (rocks are blackened with soot), with its turret or launcher knocked askew, and a column of smoke rises from it. Smoke is shown on HIGH graphics only. It thins after the first turn start and stops after the third (each player's turn start counts), but the wreck stays. Destroyed infantry leave only the scorched patch, no wreck. Wrecks are scenery only: they don't block movement, give no cover, and can't be selected or attacked. A wreck fades away when a unit ends its move on its tile; a unit that only passes through the tile leaves it standing.
@@ -330,7 +334,7 @@ The game opens in the main menu with five buttons. Every other screen has a **�
   - **Language** (the button shows the current one, e.g. "LANGUAGE: ENGLISH") switches between English and Polish (Polski) at once. The choice is saved and used the next time you start the game.
   - **Sound** switches all sound on or off; **Master volume** and **Ambient volume** are sliders (0-100 %). They apply at once and are saved for the next start. See section 12a.
 
-**Unit catalog.** The list on the left has every unit, grouped by class; a unit without a finished 3D model is marked `(!)` and shown as a simple placeholder. The selected unit stands on a ground disc in the middle. The panel on the right shows its name, its side (with buttons to switch sides when more than one army fields it, e.g. a squad in Polish or Russian colours), its class, how it moves, its HP, Attack, Defense, Moves and Range (the full line, e.g. `2.0 km (8 hex), max 3.0 km`; the Uragan `35 km (whole map), min 750 m`; infantry `500 m (2 hex), max 750 m`), and the model's size in metres.
+**Unit catalog.** The list on the left has every unit, grouped by class (infantry, tanks, rocket artillery, self-propelled howitzers); a unit without a finished 3D model is marked `(!)` and shown as a simple placeholder. The selected unit stands on a ground disc in the middle. The panel on the right shows its name, its side (with buttons to switch sides when more than one army fields it, e.g. a squad in Polish or Russian colours), its class, how it moves, its HP, Attack, Defense, Moves and Range (the full line, e.g. `2.0 km (8 hex), max 3.0 km`; the Uragan `35 km (whole map), min 750 m`; infantry `500 m (2 hex), max 750 m`), and the model's size in metres.
 
 Below that are the animation buttons. Each unit only gets the ones it has:
 
@@ -428,7 +432,7 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 | Country | Joins | Formations | Total strength |
 |---|---|---|---|
-| Lithuania | NATO | 3 battalions (two mechanised and a tank battalion) | 198 |
+| Lithuania | NATO | 3 battalions (two mechanised and a tank battalion) | 196 |
 | Belarus | Russia | 3 battalions (two motor rifle and a tank battalion) | 182 |
 
 **Where they appear.** The formations stand on the ally's own territory, at their set start hexes, at full strength, with no orders and in the starting posture. If a start hex is taken by another formation or cannot be entered, the formation is placed on the nearest free hex of the same country within 3 hexes. If there is none, that formation is lost: it does not come.
@@ -500,7 +504,7 @@ The log and the countries list show **effects only** and never say who decided; 
 
 | Package | Side | Level band | Cost | Delay | Arrives |
 |---|---|---|---|---|---|
-| Allied reinforcements (US armour and a NATO mechanised battalion; strength 132 in all) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
+| Allied reinforcements (US armour and a NATO mechanised battalion; strength 130 in all) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
 | North Korean expeditionary force (two infantry battalions; strength 124 in all) | Russia | 2-3 | 1 | 4 turns | through Belarus |
 
 **Strike means packages.** Some packages bring long-range **strike means** (missiles and drones) instead of formations. Your stock is shown on the Support tab as a **Strike means** line (e.g. Kh-101 x4). Arrival is announced by a toast.
@@ -652,11 +656,11 @@ Pointing at a counter brightens it; the hex card keeps working underneath.
 | Type | Side | Companies | Strength |
 |---|---|---|---|
 | Mechanised Battalion | NATO | 4 × Mechanised Infantry Squad, 2 × M1A2 SEPv3 Abrams, 1 × Homar-K | 66 |
-| Tank Battalion | NATO | 4 × M1A2 SEPv3 Abrams, 2 × Mechanised Infantry Squad, 1 × Homar-K | 66 |
+| Tank Battalion | NATO | 4 × M1A2 SEPv3 Abrams, 1 × Mechanised Infantry Squad, 1 × K9 Thunder, 1 × Homar-K | 64 |
 | Motor Rifle Battalion | Russia | 3 × Motor Rifle Squad, 3 × T-72B3, 1 × 9K57 Uragan | 60 |
 | Tank Battalion | Russia | 4 × T-72B3, 2 × Motor Rifle Squad, 1 × 9K57 Uragan | 58 |
 
-Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own; there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**. Rocket artillery is meant to fire from **behind the front**, and the enemy AI uses it that way: its rocket company stays back and shells your units in range instead of rushing forward. A defending AI also **holds around its objective** rather than marching out to meet you.
+Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own (the Polish tank battalion also has a K9 Thunder howitzer); there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**. Artillery is meant to fire from **behind the front**, and the enemy AI uses it that way: its rocket company stays back and shells your units in range instead of rushing forward. A defending AI also **holds around its objective** rather than marching out to meet you.
 
 **Formation panel.** The full panel shows the name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). Of a hostile formation it shows only what you know: estimated figures marked **EST.** and **?** for the rest. Selecting a counter no longer opens it; see **Unit info** below for how to open it. While open it follows the selection, so clicking another counter switches it. **Tab** jumps to your next formation (the camera moves to it if it is off screen). **✕**, **Esc**, **I** or a click on empty map closes the panel.
 

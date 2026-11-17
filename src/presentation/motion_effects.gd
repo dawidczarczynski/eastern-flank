@@ -8,13 +8,13 @@ extends RefCounted
 ## Ground speed (world units per second) of a unit moving one tile per EventQueue.SECONDS_PER_TILE.
 const FULL_SPEED := 1.73 / EventQueue.SECONDS_PER_TILE
 ## Dust particles per second at full speed, per unit class (others raise none).
-const DUST_BASE := {&"tank": 24.0, &"mlrs": 14.0}
+const DUST_BASE := {&"tank": 24.0, &"sp_artillery": 24.0, &"mlrs": 14.0}
 ## Exhaust particles per second with the engine at cruise (load 0) and at full load.
-const EXHAUST_CRUISE := {&"tank": 3.0, &"mlrs": 2.0}
-const EXHAUST_PEAK := {&"tank": 45.0, &"mlrs": 14.0}
+const EXHAUST_CRUISE := {&"tank": 3.0, &"sp_artillery": 3.0, &"mlrs": 2.0}
+const EXHAUST_PEAK := {&"tank": 45.0, &"sp_artillery": 45.0, &"mlrs": 14.0}
 ## The pull-away puff fades with this time constant (seconds).
 ## Size of the dust and exhaust puffs relative to a tank's (wheeled trucks raise less).
-const CLOUD_SIZE := {&"tank": 1.0, &"mlrs": 0.55}
+const CLOUD_SIZE := {&"tank": 1.0, &"sp_artillery": 1.0, &"mlrs": 0.55}
 const START_DECAY := 1.8
 ## Heading error (radians) from which the hull counts as pivoting at full load.
 const PIVOT_ERROR := 0.8

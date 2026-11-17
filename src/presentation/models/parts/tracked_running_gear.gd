@@ -99,6 +99,9 @@ class Spec:
 	## wheel hub.
 	var road_arm_length := 0.42
 	var road_arm_rise := 0.18
+	## Direction of the idler arm along x from the idler hub: +1 runs back (front idler, e.g. the
+	## T-72), -1 runs forward (rear idler with a front drive sprocket, e.g. the K9).
+	var idler_arm_dir := 1.0
 	## Individual track shoes (steel body + rubber pad) every `track_shoe_pitch` metres instead of
 	## the band with grousers; none on the top run behind the skirts. 0 = band.
 	var track_shoe_pitch := 0.0
@@ -748,10 +751,10 @@ static func _suspension(kits: MeshKits, spec: Spec) -> void:
 				8
 			)
 		dark.cbox(
-			Vector3(spec.idler_x + 0.25, spec.idler_h + 0.09, arm_z),
+			Vector3(spec.idler_x + 0.25 * spec.idler_arm_dir, spec.idler_h + 0.09, arm_z),
 			Vector3(0.5, 0.14, 0.1),
 			0.0,
-			Basis(Vector3.BACK, -0.35)
+			Basis(Vector3.BACK, -0.35 * spec.idler_arm_dir)
 		)
 
 

@@ -91,7 +91,9 @@ func test_every_faction_is_complete() -> void:
 func test_rosters_hold_the_real_units() -> void:
 	assert_eq(
 		_sorted(_ids(FactionRegistry.get_faction(&"poland").roster)),
-		_sorted([&"pl_mech_infantry", &"m1a2_sepv3", &"homar_k"] as Array[StringName])
+		_sorted(
+			[&"pl_mech_infantry", &"m1a2_sepv3", &"homar_k", &"k9_thunder"] as Array[StringName]
+		)
 	)
 	assert_eq(
 		_sorted(_ids(FactionRegistry.get_faction(&"russia").roster)),

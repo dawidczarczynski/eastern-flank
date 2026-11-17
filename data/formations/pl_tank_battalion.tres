@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="FormationDefinition" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="FormationDefinition" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_unit"]
 [ext_resource type="Script" path="res://src/core/data/formation_definition.gd" id="2_formation"]
 [ext_resource type="Resource" path="res://data/units/m1a2_sepv3.tres" id="3_m1a2_sepv3"]
 [ext_resource type="Resource" path="res://data/units/pl_mech_infantry.tres" id="4_pl_mech_infantry"]
 [ext_resource type="Resource" path="res://data/units/homar_k.tres" id="5_homar_k"]
+[ext_resource type="Resource" path="res://data/units/k9_thunder.tres" id="6_k9"]
 
 [resource]
 script = ExtResource("2_formation")
@@ -14,4 +15,4 @@ faction = &"poland"
 echelon = &"battalion"
 formation_class = &"armoured"
 move_points = 8
-companies = Array[ExtResource("1_unit")]([ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("4_pl_mech_infantry"), ExtResource("4_pl_mech_infantry"), ExtResource("5_homar_k")])
+companies = Array[ExtResource("1_unit")]([ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("3_m1a2_sepv3"), ExtResource("4_pl_mech_infantry"), ExtResource("6_k9"), ExtResource("5_homar_k")])

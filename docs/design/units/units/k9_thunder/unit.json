@@ -1,0 +1,184 @@
+{
+  "id": "k9_thunder",
+  "real_name": "K9 Thunder",
+  "variant_note": "Polish K9PL = K9A1 base (Batch I: 48 ex-Korean K9GF + new builds; Batch II adds laser warning, fire suppression, AC, smoke launchers, APU in the hull). Not the 3-crew K9A2.",
+  "class": "sp_artillery",
+  "mobility": "tracked",
+  "operators": [
+    "poland",
+    "lithuania"
+  ],
+  "in_service": "2022-present (Poland, K9PL)",
+  "country_of_origin": "South Korea",
+  "crew": 5,
+  "weight_t": 47,
+  "armament": {
+    "main": "155 mm / 52 cal. Hyundai WIA CN98 howitzer, autoloader, 48 rounds, up to 6 rpm",
+    "secondary": "12.7 mm heavy machine gun (K6) on the roof"
+  },
+  "protection": "All-welded steel hull, resists 152 mm HE fragments and AP mines; optional spall liner and add-on armour; CBRN filtration",
+  "speed_road_kmh": 67,
+  "range_km": 360,
+  "fire_range_km": 40,
+  "effective_range_m": 35000,
+  "max_range_m": 40000,
+  "min_range_m": 750,
+  "dimensions": {
+    "hull_length": 7.44,
+    "overall_length": 12.0,
+    "width": 3.4,
+    "height": 2.73,
+    "sources": [
+      "https://en.wikipedia.org/wiki/K9_Thunder"
+    ]
+  },
+  "silhouette_features": [
+    "large, tall box-like welded turret at the rear of the hull with a flat bustle",
+    "long 52-calibre barrel with a double-baffle muzzle brake, overhanging the hull front",
+    "low, short hull front with the driver at front left and the engine to the right",
+    "six dual road wheels per side with three return rollers, front drive sprocket, rear idler",
+    "commander and gunner hatches on the turret right with a roof MG, single door on the turret left",
+    "large rear hull door for ammunition resupply"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    },
+    "gun_recoil": {
+      "recoil_m": 0.5
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/A_Polish_K9_howitzer_maneuvers_on_the_firing_range_for_a_live_fire_demonstration.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:A_Polish_K9_howitzer_maneuvers_on_the_firing_range_for_a_live_fire_demonstration.jpg",
+      "note": "Polish K9, Bemowo Piskie, 31 March 2023 (US National Guard photo)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/2b/K-9thunder.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 2.0 KR",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K-9thunder.jpg",
+      "note": "ROK Army K9, by Kwon Sun-sam / Defense Citizen Network (Korean, not Polish)"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "fire_range_km": {
+      "source": "https://army-guide.com/eng/product1279.html",
+      "verified": false
+    },
+    "effective_range_m": {
+      "source": "design value of TASK-176 [ASSUMPTION]: effective range 35 km below the 40 km maximum, Uragan ratio 30/35 km",
+      "verified": false
+    },
+    "max_range_m": {
+      "source": "https://army-guide.com/eng/product1279.html – fire range 40 km (catalog fire_range_km)",
+      "verified": false
+    },
+    "min_range_m": {
+      "source": "design value of TASK-176 [ASSUMPTION]: 750 m = 3 hexes, as for the other artillery (TASK-131a)",
+      "verified": true
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://www.armyrecognition.com/military-products/army/artillery-vehicles-and-weapons/self-propelled-howitzers/k9-thunder-south-korea-uk",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "https://www.armyrecognition.com/military-products/army/artillery-vehicles-and-weapons/self-propelled-howitzers/k9-thunder-south-korea-uk; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "class default; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    },
+    "mechanisms.gun_recoil": {
+      "source": "https://en.wikipedia.org/wiki/K9_Thunder; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    },
+    "mechanisms.gun_recoil.recoil_m": {
+      "source": "default; accepted 2026-11-17 by the human's request (Claude set 'verified' on their behalf, checked against the Meshy reference: six road wheels per side, rear turret)",
+      "verified": true
+    }
+  },
+  "status": "modeled",
+  "updated": "2026-11-17",
+  "revision": 3,
+  "images": [
+    {
+      "file": "side_1.png",
+      "view": "side"
+    }
+  ],
+  "reference_note": "side_1.png is an orthographic render of a Meshy AI model (k9.glb, kept outside the repo), scaled to the real length; use it for proportions and part positions, not for camouflage."
+}

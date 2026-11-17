@@ -11,9 +11,10 @@ const PATHS: Array[String] = [
 	"res://data/units/t72b3.tres",
 	"res://data/units/homar_k.tres",
 	"res://data/units/bm27_uragan.tres",
+	"res://data/units/k9_thunder.tres",
 ]
 ## Class order in the list.
-const CLASS_ORDER: Array[StringName] = [&"infantry", &"tank", &"mlrs"]
+const CLASS_ORDER: Array[StringName] = [&"infantry", &"tank", &"mlrs", &"sp_artillery"]
 
 
 ## All unit definitions, in PATHS order.

@@ -95,3 +95,7 @@ func test_every_faction_matches_its_catalog_palette() -> void:
 				"%s camo %d" % [faction.id, i]
 			)
 	assert_true(checked > 0, "at least one faction checked")
+
+
+func test_class_order_lists_the_howitzer_after_the_rocket_artillery() -> void:
+	assert_eq(CatalogUnits.CLASS_ORDER, [&"infantry", &"tank", &"mlrs", &"sp_artillery"])

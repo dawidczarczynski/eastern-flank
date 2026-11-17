@@ -5,7 +5,13 @@ extends TestCase
 const Fixtures := preload("res://tests/fixtures.gd")
 const MAX_HEIGHT := 620.0
 const UNITS: Array[String] = [
-	"pl_mech_infantry", "m1a2_sepv3", "t72b3", "homar_k", "bm27_uragan", "ru_motor_rifle"
+	"pl_mech_infantry",
+	"m1a2_sepv3",
+	"t72b3",
+	"homar_k",
+	"k9_thunder",
+	"bm27_uragan",
+	"ru_motor_rifle"
 ]
 
 var _popup: UnitPopup
