@@ -130,7 +130,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-157](TASK-157-edit-order-by-dragging-head.md) | Staff map: edit an issued order by clicking its head (stage 4): EDITING state, dim ghost of the old line, FREE / COSTS 1 ORDER label, 14 px head hit-test | 🔵 done | TASK-153, TASK-154 |
 | [TASK-158](TASK-158-posture-badge-switcher.md) | Staff map posture badge on every own counter + mouse-first posture switcher strip (variant A of posture_badge_switcher.html): click MARCH / ADVANCE / DEFEND for a selected formation or an issued order, keys 1–3 optional | 🔵 done | TASK-153, TASK-154 |
 | [TASK-159](TASK-159-battle-end-exit.md) | Single battle (outside an operation): exit option after the battle ends | 💡 idea | – |
-| [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | Lithuanian and Belarusian factions (identity only) with national flags | 🟣 to playtest | – |
+| [TASK-160](TASK-160-lithuanian-belarusian-flags.md) | Lithuanian and Belarusian factions (identity only) with national flags | 🔵 done | – |
 | [TASK-161](TASK-161-theatre-name-polish-i18n.md) | Missing Polish translation of the theatre name at operation start | 💡 idea | – |
 | [TASK-162](TASK-162-airfield-click-through-window.md) | Strike panel covers eastern targets (Lida airfield): count it in the HUD clear zone | 🔵 done | TASK-150 |
 | [TASK-163](TASK-163-defender-deployment-near-objective.md) | Contact battle deployment: defender placed around the objective | 🔵 done | – |
@@ -141,7 +141,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-168](TASK-168-immersive-battle-names.md) | More immersive battle names (e.g. 'Contact with the enemy 5 km east of Suwałki') | 🔵 done | – |
 | [TASK-169](TASK-169-move-air-defence.md) | Relocating air-defence units/sites on the operational map | 💡 idea | TASK-098a |
 | [TASK-170a](TASK-170a-battle-group-templates.md) | Battalion battle groups (1/2): 7-company combined-arms templates (tanks + infantry + own MLRS company) for the four battalion types, standalone MLRS formations removed, Suwałki order of battle rebalanced | 🔵 done | – |
-| [TASK-170b](TASK-170b-battle-group-ai-balance.md) | Battalion battle groups (2/2): tactical AI use of artillery companies, balance via simulate.sh, 7 v 7 performance | 🟣 to playtest | TASK-170a |
+| [TASK-170b](TASK-170b-battle-group-ai-balance.md) | Battalion battle groups (2/2): tactical AI use of artillery companies, balance via simulate.sh, 7 v 7 performance | 🔵 done | TASK-170a |
 | [TASK-171](TASK-171-map-water-cutoff-check.md) | Tactical map generation: avoid units cut off by water | 💡 idea | – |
 | [TASK-172](TASK-172-staff-map-counter-national-flag.md) | National flag on staff-map counters and the formation panel | 💡 idea | TASK-160 |
 | [TASK-173](TASK-173-allied-factions-within-a-side.md) | Allied factions within a side: Russia and Belarus as separate allied states, not one party (naming, notice, result window) | 💡 idea | TASK-160 |

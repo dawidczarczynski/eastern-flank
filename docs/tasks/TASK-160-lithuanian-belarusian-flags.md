@@ -1,6 +1,6 @@
 # TASK-160: National flags for Lithuanian and Belarusian units
 
-- **Status**: to playtest
+- **Status**: done (playtested 2026-11-17)
 - **Layers**: core (data) + presentation
 - **Depends on**: –
 - **Sections**: GDD "Factions and units (decided 2026-10-18)", GDD "Sides", GDD "Countries and stances"

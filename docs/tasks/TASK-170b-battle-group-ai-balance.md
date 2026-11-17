@@ -1,6 +1,6 @@
 # TASK-170b: Battalion battle groups – tactical AI for artillery, balance and performance
 
-- **Status**: to playtest
+- **Status**: done (playtested 2026-11-17)
 - **Layers**: ai
 - **Depends on**: TASK-170a
 - **Sections**: GDD "Balance of the default battle", GDD "Battle hand-off and auto-resolve", GDD "Formations"
