@@ -108,31 +108,35 @@ func test_the_enemy_airfield_is_never_a_launch_site() -> void:
 	)
 
 
-func test_ground_launchers_fire_from_the_own_artillery_formation_nearest_the_target() -> void:
+func test_ground_launchers_fire_from_the_own_battalion_nearest_the_target() -> void:
 	var op := Strikes._definition()
 	op.formations.append(
-		Strikes._formation(&"far", "res://data/formations/pl_mlrs_squadron.tres", 0, Vector2i(0, 0))
+		Strikes._formation(
+			&"far", "res://data/formations/pl_mech_battalion.tres", 0, Vector2i(0, 0)
+		)
 	)
 	op.formations.append(
 		Strikes._formation(
-			&"near", "res://data/formations/pl_mlrs_squadron.tres", 0, Vector2i(3, 1)
+			&"near", "res://data/formations/pl_mech_battalion.tres", 0, Vector2i(3, 1)
 		)
 	)
 	var state := _state(op)
 	assert_eq(StrikeRules.launch_origin(state, 0, &"tel", A1), Vector2i(3, 1))
 	assert_eq(
 		StrikeRules.launch_origin(state, 1, &"tel", PL_AIR),
-		StrikeLaunch.standoff_origin(state, 1, PL_AIR, 50),
-		"the enemy's artillery is not player 1's; its own formation is not artillery"
+		Vector2i(6, 1),
+		"the enemy's battalions are not player 1's; its own battalion is the launch site"
 	)
 
 
-func test_ground_launchers_without_an_artillery_formation_use_the_standoff_point() -> void:
-	var state := _state()
+func test_ground_launchers_without_a_battalion_use_the_standoff_point() -> void:
+	var op := Strikes._definition()
+	op.formations = op.formations.filter(func(p: FormationPlacement) -> bool: return p.player != 0)
+	var state := _state(op)
 	assert_eq(
 		StrikeRules.launch_origin(state, 0, &"tel", A1),
 		StrikeLaunch.standoff_origin(state, 0, A1, 50),
-		"the mechanised battalion is no launcher"
+		"no own battalion left"
 	)
 
 
@@ -234,7 +238,7 @@ func test_each_launcher_kind_in_the_event() -> void:
 		&"air": ["fighter", PL_AIR],
 		&"sea": ["ship", Vector2i(2, -1)],
 		&"uav": ["drone_site", null],
-		&"tel": ["launcher", null],
+		&"tel": ["launcher", Vector2i(1, 0)],
 	}
 	for means_id: StringName in expected:
 		var state := _state()

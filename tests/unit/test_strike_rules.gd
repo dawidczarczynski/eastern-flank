@@ -154,7 +154,7 @@ func test_resolve_formation() -> void:
 	assert_eq(events[0]["damage_dealt"], 2)
 	for company in formation.companies:
 		company.strength = 1
-	events = StrikeRules.resolve(state, 0, &"sure", target, 4)
+	events = StrikeRules.resolve(state, 0, &"sure", target, 8)
 	assert_eq(Strikes._types(events), [&"strike_resolved", &"formation_destroyed"])
 	assert_true(events[0]["target_destroyed"])
 	assert_true(state.get_formation(&"r") == null)

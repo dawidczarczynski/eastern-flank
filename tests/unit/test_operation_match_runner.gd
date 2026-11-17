@@ -18,7 +18,16 @@ func test_seeds_differ_somewhere_over_ten_matches() -> void:
 		rows.append(OperationMatchRunner.play(&"suwalki_gap", 5 + i, 3))
 	var distinct := false
 	for i in 9:
-		for key in ["winner", "rounds", "max_level", "battles", "ending", "caused", "totals"]:
+		for key in [
+			"winner",
+			"rounds",
+			"max_level",
+			"battles",
+			"ending",
+			"caused",
+			"totals",
+			"strikes_intercepted"
+		]:
 			if rows[i][key] != rows[i + 1][key]:
 				distinct = true
 	assert_true(distinct, "different seeds differ in a per-match field")

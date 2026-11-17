@@ -428,8 +428,8 @@ Every land hex belongs to one of four countries: Poland, Lithuania, Belarus or R
 
 | Country | Joins | Formations | Total strength |
 |---|---|---|---|
-| Lithuania | NATO | 3 battalions (two Iron Wolf battalions and a NATO brigade battalion) | 120 |
-| Belarus | Russia | 3 battalions (two 6th mechanised battalions and a tank battalion) | 110 |
+| Lithuania | NATO | 3 battalions (two mechanised and a tank battalion) | 198 |
+| Belarus | Russia | 3 battalions (two motor rifle and a tank battalion) | 182 |
 
 **Where they appear.** The formations stand on the ally's own territory, at their set start hexes, at full strength, with no orders and in the starting posture. If a start hex is taken by another formation or cannot be entered, the formation is placed on the nearest free hex of the same country within 3 hexes. If there is none, that formation is lost: it does not come.
 
@@ -500,8 +500,8 @@ The log and the countries list show **effects only** and never say who decided; 
 
 | Package | Side | Level band | Cost | Delay | Arrives |
 |---|---|---|---|---|---|
-| Allied reinforcements (US armour and a NATO mechanised battalion) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
-| North Korean expeditionary force (infantry and artillery) | Russia | 2-3 | 1 | 4 turns | through Belarus |
+| Allied reinforcements (US armour and a NATO mechanised battalion; strength 132 in all) | NATO | 1-3 | 1 | 4 turns | western Poland (Olsztyn area) |
+| North Korean expeditionary force (two infantry battalions; strength 124 in all) | Russia | 2-3 | 1 | 4 turns | through Belarus |
 
 **Strike means packages.** Some packages bring long-range **strike means** (missiles and drones) instead of formations. Your stock is shown on the Support tab as a **Strike means** line (e.g. Kh-101 x4). Arrival is announced by a toast.
 
@@ -550,7 +550,7 @@ Accuracy is the chance that a missile that was not intercepted hits. "Intercepti
 
 **Launch markers.** Each launch on the staff map shows what fired it at the launch point: a fighter, a bomber, a ship, a truck launcher or a drone site (a submarine silhouette exists but no weapon uses it yet). Next to the marker a label names the platform, for example "fighter-launched (F-16 Block 52+)"; it is readable when you zoom in. A ring at the launch point pulses once as the weapon fires. A launcher, ship or drone site appears about a second before the first missile leaves, stays while the missiles are in flight and then fades out in under a second. An aircraft flies in from behind the launch point facing the target, fires as it passes the ring, then banks away in a U-turn and fades. You see markers only for launches you can see; launches hidden by fog leave none. Several launches from the same hex stack next to each other instead of overlapping.
 
-The launch point is the nearest own site within the weapon's range of the target: an airfield for fighters and bombers, an artillery formation for truck launchers, a sea hex next to your coast for ships (a ship is always shown at sea). If there is no such site, the weapon fires from a standoff point at about its range from your home border. Drones always use the standoff point.
+The launch point is the nearest own site within the weapon's range of the target: an airfield for fighters and bombers, any of your own battalions for truck launchers (every battalion carries a rocket-artillery company), a sea hex next to your coast for ships (a ship is always shown at sea). If there is no such site, the weapon fires from a standoff point at about its range from your home border. Drones always use the standoff point.
 
 **Stock and resupply.** At the end of each full round (after both blocs have moved) each side receives more of some weapons: NATO 4 JASSM-ER, 6 Homar-K and 6 Warmate; Russia 3 Kh-101 and 8 Geran-2. The other weapons are not resupplied, so use them with care. There is no upper limit.
 
@@ -627,7 +627,7 @@ You can play both blocs. NATO is always blue and Russia always red, whoever is v
 
 ### Formations
 
-The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO) – two facing the Kaliningrad oblast near Bartoszyce and Lidzbark Warmiński, three in the Gap around Suwałki, Augustów and Ełk, three facing Belarus around Białystok, Sokółka and Mońki – and ten Russian, five in the Kaliningrad oblast (Chernyakhovsk, Gusev, Sovetsk, Nesterov, Gvardeysk) and five in Belarus around Grodno. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
+The operation "Suwałki Gap" places 14 battalions on the map: six Polish (NATO, four mechanised and two tank, strength 396 in all) in north-eastern Poland facing the Kaliningrad oblast, the Gap and Belarus, and eight Russian (six motor rifle and two tank, strength 488 in all), four in the Kaliningrad oblast and four in Belarus around Grodno. There are no artillery counters: the rocket artillery is part of every battalion. You view the map as NATO; starting the game with `--side=russia` shows it from the Russian side instead.
 
 **Counters.** Each formation is a counter of fixed size on screen (it does not grow or shrink with the zoom), standing on its hex:
 
@@ -638,7 +638,6 @@ The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO
 | Blue / red fill | NATO / Russia (never swapped) |
 | Cross with an oval inside | mechanised infantry (or motor rifle) battalion |
 | Oval | tank battalion |
-| Dot between two upward arrows | rocket artillery (MLRS) |
 | `II` above | battalion |
 | Number beside, e.g. `2/15` | battalion / its brigade or higher formation (2nd battalion of the 15th Mechanised Brigade) |
 | Five slanted bars below | strength: lit bars ≈ fifths of full strength (rounded; one bar stays lit while anything is left). Green from 75 %, yellow from 50 %, red below |
@@ -648,18 +647,16 @@ The operation "Suwałki Gap" places 18 battalions on the map: eight Polish (NATO
 
 Pointing at a counter brightens it; the hex card keeps working underneath.
 
-**The six formation types.**
+**The four formation types.**
 
 | Type | Side | Companies | Strength |
 |---|---|---|---|
-| Mechanised Battalion | NATO | 3 × Mechanised Infantry Squad, 1 × M1A2 SEPv3 Abrams | 40 |
-| Tank Battalion | NATO | 3 × M1A2 SEPv3 Abrams, 1 × Mechanised Infantry Squad | 40 |
-| Rocket Artillery Squadron | NATO | 3 × Homar-K | 18 |
-| Motor Rifle Battalion | Russia | 3 × Motor Rifle Squad, 1 × T-72B3 | 38 |
-| Tank Battalion | Russia | 3 × T-72B3, 1 × Motor Rifle Squad | 34 |
-| MLRS Battalion | Russia | 3 × 9K57 Uragan | 18 |
+| Mechanised Battalion | NATO | 4 × Mechanised Infantry Squad, 2 × M1A2 SEPv3 Abrams, 1 × Homar-K | 66 |
+| Tank Battalion | NATO | 4 × M1A2 SEPv3 Abrams, 2 × Mechanised Infantry Squad, 1 × Homar-K | 66 |
+| Motor Rifle Battalion | Russia | 4 × Motor Rifle Squad, 2 × T-72B3, 1 × 9K57 Uragan | 62 |
+| Tank Battalion | Russia | 4 × T-72B3, 2 × Motor Rifle Squad, 1 × 9K57 Uragan | 58 |
 
-Strength is the sum of the companies' hit points – the same units that fight when a battle starts.
+Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own; there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**.
 
 **Formation panel.** The full panel shows the name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). Of a hostile formation it shows only what you know: estimated figures marked **EST.** and **?** for the rest. Selecting a counter no longer opens it; see **Unit info** below for how to open it. While open it follows the selection, so clicking another counter switches it. **Tab** jumps to your next formation (the camera moves to it if it is off screen). **✕**, **Esc**, **I** or a click on empty map closes the panel.
 
@@ -762,7 +759,7 @@ The computer never decides for you whether a battle is played or auto-resolved: 
 
 A **contact** starts a battle. At the end of a turn, after all orders are carried out, every formation that halted because of contact (see **End of turn**) attacks an enemy formation standing next to it. Arriving next to an enemy at the end of an order does not start a battle. Each formation takes part in at most one battle per turn; a formation left out stays halted, keeps its order and is checked again next turn. Right now every contact leads to a battle (a border rule and fog of war come later).
 
-**Sides and conditions.** The formation that halted is the **attacker**; its mission is *Attack* and its goal is the hex it was heading for. The formation it hit is the **defender**: its mission is *Defend*, unless it was in the March posture, when it is *Caught on the march* (mission *Hold out*). The battle takes place on the terrain of the defender's hex. Each side brings the companies of its formation at their current strength, and its posture gives a position bonus for the battle: **Defend +1**, **Advance 0**, **March −1**.
+**Sides and conditions.** The formation that halted is the **attacker**; its mission is *Attack* and its goal is the hex it was heading for. The formation it hit is the **defender**: its mission is *Defend*, unless it was in the March posture, when it is *Caught on the march* (mission *Hold out*). The battle takes place on the terrain of the defender's hex. Each side brings the seven companies of its formation (including its rocket-artillery company) at their current strength, so the battle is 7 against 7, and its posture gives a position bonus for the battle: **Defend +1**, **Advance 0**, **March −1**.
 
 **The name of a battle.** Every battle is named by what is happening – *Assault*, *Assault on the town*, *Forest assault*, *River crossing*, *Defence*, *Defence of the town* or *Contact with the enemy* (a formation caught on the march) – and by the nearest town with the distance and compass direction, e.g. "Contact with the enemy / Suwałki, 5 km east". The attacker and the defender read different names for the same fight. The name appears in the contact notice, the briefing, the battle HUD, the result and the journal.
 

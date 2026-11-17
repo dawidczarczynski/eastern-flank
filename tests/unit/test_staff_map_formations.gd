@@ -170,7 +170,7 @@ func test_shipped_formation_texts_are_translation_keys() -> void:
 
 func test_scene_has_one_counter_per_formation() -> void:
 	var state := _map.simulation().state
-	assert_eq(state.formations.size(), 18)
+	assert_eq(state.formations.size(), 14)
 	assert_eq(_map.counters().counter_count(), state.formations.size())
 	for formation in state.formations:
 		var node := _map.counters().get_node_or_null(String(formation.id))
@@ -188,15 +188,15 @@ func test_scene_selecting_fills_the_panel() -> void:
 	assert_true(_map.counters().counter(&"pl_mech_1").selected)
 	assert_eq(panel.name_text(), "1ST MECHANISED BATTALION")
 	assert_eq(panel.parent_text(), "20th Mechanised Brigade")
-	assert_eq(panel.value_text("STRENGTH"), "40 / 40")
+	assert_eq(panel.value_text("STRENGTH"), "66 / 66")
 	assert_false(panel.hostile)
-	assert_eq(panel.company_count(), 4)
+	assert_eq(panel.company_count(), 7)
 	assert_true(panel.company_text(3).contains("pl_mech_1/4"), panel.company_text(3))
-	assert_true(panel.company_text(3).contains("Abrams"), panel.company_text(3))
+	assert_true(panel.company_text(3).contains("Mechanised Infantry"), panel.company_text(3))
 	_map.select_formation(&"ru_mr_1")
 	assert_true(panel.visible, "the open panel follows the selection")
 	assert_true(panel.hostile, "enemy formations are marked hostile")
-	assert_eq(panel.value_text("STRENGTH"), "38 / 38")
+	assert_eq(panel.value_text("STRENGTH"), "62 / 62")
 	_map.select_formation(&"")
 	assert_true(panel.visible, "deselecting alone keeps it open")
 	assert_true(_map.close_info())
@@ -221,9 +221,9 @@ func test_scene_viewer_swap() -> void:
 	_map.set_viewer(1)
 	assert_false(_map.counters().counter(&"pl_mech_1").is_own())
 	assert_true(_map.counters().counter(&"ru_mr_1").is_own())
-	assert_eq(_map.counters().own_ids().size(), 10)
-	_map.set_viewer(0)
 	assert_eq(_map.counters().own_ids().size(), 8)
+	_map.set_viewer(0)
+	assert_eq(_map.counters().own_ids().size(), 6)
 
 
 func test_view_follows_the_side_to_play() -> void:

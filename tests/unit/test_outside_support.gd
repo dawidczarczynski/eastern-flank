@@ -80,7 +80,7 @@ static func _packages() -> Array[SupportPackage]:
 		(
 			[
 				_placement(&"n1", 1, &"ru_motor_rifle_battalion", Vector2i(7, 3)),
-				_placement(&"n2", 1, &"ru_mlrs_battalion", Vector2i(6, 3)),
+				_placement(&"n2", 1, &"ru_motor_rifle_battalion", Vector2i(6, 3)),
 			]
 			as Array[FormationPlacement]
 		)
@@ -219,7 +219,7 @@ func test_shipped_packages() -> void:
 		assert_eq(s.country_at(placement.coord), &"belarus")
 		assert_true(s.grid.move_cost(placement.coord) != Terrain.IMPASSABLE)
 		totals[1] += Formation.from_placement(placement, &"defend").max_strength()
-	assert_eq(totals, [80, 56] as Array[int], "strength of the two packages")
+	assert_eq(totals, [132, 124] as Array[int], "strength of the two packages")
 	assert_true(allied.formations[0].parent != "")
 
 

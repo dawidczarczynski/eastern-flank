@@ -15,7 +15,7 @@ const STANDOFF_SHARE := 0.9
 const SITES := {
 	&"fighter": {"installations": [&"airfield"], "formations": []},
 	&"bomber": {"installations": [&"airfield"], "formations": []},
-	&"launcher": {"installations": [], "formations": [&"artillery"]},
+	&"launcher": {"installations": [], "formations": [&"mechanised", &"armoured"]},
 	&"drone_site": {"installations": [], "formations": []},
 }
 const SEA_KINDS: Array[StringName] = [&"ship", &"submarine"]

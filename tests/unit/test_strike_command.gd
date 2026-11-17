@@ -240,6 +240,8 @@ func test_formation_target_and_removal() -> void:
 	var state := _open_war()
 	for company in state.get_formation(&"r").companies:
 		company.strength = 1
+	for i in range(4, state.get_formation(&"r").companies.size()):
+		state.get_formation(&"r").companies[i].strength = 0
 	state.strike_stock[0][&"sure"] = 10
 	var sim := _sim(state)
 	var seen := _collect(sim)

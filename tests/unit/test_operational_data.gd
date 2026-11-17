@@ -2,22 +2,21 @@ extends TestCase
 ## Operational data (TASK-092b): formation types, sides and the Suwałki Gap operation.
 
 const TYPE_STRENGTHS := {
-	&"pl_mech_battalion": 40,
-	&"pl_tank_battalion": 40,
-	&"pl_mlrs_squadron": 18,
-	&"ru_motor_rifle_battalion": 38,
-	&"ru_tank_battalion": 34,
-	&"ru_mlrs_battalion": 18,
+	&"pl_mech_battalion": 66,
+	&"pl_tank_battalion": 66,
+	&"ru_motor_rifle_battalion": 62,
+	&"ru_tank_battalion": 58,
 }
 const _MBT := &"m1a2_sepv3"
 const _MR := &"ru_motor_rifle"
+const _PMI := &"pl_mech_infantry"
+const _MLRS_PL := &"homar_k"
+const _MLRS_RU := &"bm27_uragan"
 const TYPE_COMPANIES := {
-	&"pl_mech_battalion": [&"pl_mech_infantry", &"pl_mech_infantry", &"pl_mech_infantry", _MBT],
-	&"pl_tank_battalion": [&"m1a2_sepv3", &"m1a2_sepv3", &"m1a2_sepv3", &"pl_mech_infantry"],
-	&"pl_mlrs_squadron": [&"homar_k", &"homar_k", &"homar_k"],
-	&"ru_motor_rifle_battalion": [_MR, _MR, _MR, &"t72b3"],
-	&"ru_tank_battalion": [&"t72b3", &"t72b3", &"t72b3", &"ru_motor_rifle"],
-	&"ru_mlrs_battalion": [&"bm27_uragan", &"bm27_uragan", &"bm27_uragan"],
+	&"pl_mech_battalion": [_PMI, _PMI, _PMI, _PMI, _MBT, _MBT, _MLRS_PL],
+	&"pl_tank_battalion": [_MBT, _MBT, _MBT, _MBT, _PMI, _PMI, _MLRS_PL],
+	&"ru_motor_rifle_battalion": [_MR, _MR, _MR, _MR, &"t72b3", &"t72b3", _MLRS_RU],
+	&"ru_tank_battalion": [&"t72b3", &"t72b3", &"t72b3", &"t72b3", _MR, _MR, _MLRS_RU],
 }
 
 
@@ -51,8 +50,6 @@ func test_formation_classes() -> void:
 	assert_eq(_type(&"ru_motor_rifle_battalion").formation_class, &"mechanised")
 	assert_eq(_type(&"pl_tank_battalion").formation_class, &"armoured")
 	assert_eq(_type(&"ru_tank_battalion").formation_class, &"armoured")
-	assert_eq(_type(&"pl_mlrs_squadron").formation_class, &"artillery")
-	assert_eq(_type(&"ru_mlrs_battalion").formation_class, &"artillery")
 
 
 func test_sides() -> void:
@@ -86,12 +83,10 @@ func test_suwalki_gap_definition() -> void:
 		types[p.player][p.definition.id] = int(types[p.player].get(p.definition.id, 0)) + 1
 		assert_false(p.display_name.is_empty(), "%s name" % p.id)
 		assert_false(p.parent.is_empty(), "%s parent" % p.id)
-	assert_eq(counts, [8, 10])
-	assert_eq(strength, [276, 332])
-	assert_eq(types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2, &"pl_mlrs_squadron": 2})
-	assert_eq(
-		types[1], {&"ru_motor_rifle_battalion": 6, &"ru_tank_battalion": 2, &"ru_mlrs_battalion": 2}
-	)
+	assert_eq(counts, [6, 8])
+	assert_eq(strength, [396, 488])
+	assert_eq(types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2})
+	assert_eq(types[1], {&"ru_motor_rifle_battalion": 6, &"ru_tank_battalion": 2})
 
 
 func test_suwalki_gap_sides_keep_their_distance() -> void:

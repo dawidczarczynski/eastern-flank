@@ -185,3 +185,34 @@ func test_a_lake_hex_is_water_in_the_cut() -> void:
 		if grid.get_terrain(c) == Terrain.Type.WATER:
 			water += 1
 	assert_true(water >= 300, "%d water tiles in the cut on the lake" % water)
+
+
+## TASK-170a: a contact battle is 7 v 7; every company has its own passable tile, refs follow the
+## template order, and auto-resolving it is deterministic.
+func test_a_contact_battle_is_seven_against_seven() -> void:
+	var contact: Array = _contacts()[0]
+	var attacker: Formation = contact[0]
+	var draft := _draft(attacker, _enemy_of(attacker))
+	var setup := ContactMap.build(draft, contact[1], contact[2])
+	assert_true(setup != null)
+	if setup == null:
+		return
+	assert_eq(setup.companies.size(), 14)
+	var seen := {}
+	var per_side := [0, 0]
+	var grid := TacticalLayer.find(setup.map_id).region_grid(setup.map_region)
+	for company in setup.companies:
+		per_side[company.player] += 1
+		assert_false(seen.has(company.coord), "tile %s used twice" % company.coord)
+		seen[company.coord] = true
+		assert_true(grid.has_tile(company.coord))
+	assert_eq(per_side, [7, 7])
+	var attackers_refs: Array[String] = []
+	for company in setup.companies:
+		if company.player == attacker.owner_id:
+			attackers_refs.append(company.ref)
+	var expected: Array[String] = []
+	for i in 7:
+		expected.append("%s/%d" % [attacker.id, i + 1])
+	assert_eq(attackers_refs, expected)
+	assert_eq(AutoResolve.resolve(setup).to_dict(), AutoResolve.resolve(setup).to_dict())
