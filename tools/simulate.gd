@@ -179,20 +179,21 @@ func _operation_report(
 	else:
 		lines.append("Win share of decided operations: n/a (no decided operation with a winner)")
 	var endings: Dictionary = s["endings"]
-	(
-		lines
-		. append(
+	lines.append(
+		(
 			(
-				"Endings: collapse %s, threshold %s, nuclear %s, gap closed %s, round limit %s, error %s"
-				% [
-					_percent(endings[&"collapse"], count),
-					_percent(endings[&"threshold"], count),
-					_percent(endings[&"nuclear"], count),
-					_percent(endings[&"gap_closed"], count),
-					_percent(endings[&"round_limit"], count),
-					_percent(endings[&"error"], count)
-				]
+				"Endings: collapse %s, threshold %s, nuclear %s, gap closed %s, "
+				+ "annihilation %s, round limit %s, error %s"
 			)
+			% [
+				_percent(endings[&"collapse"], count),
+				_percent(endings[&"threshold"], count),
+				_percent(endings[&"nuclear"], count),
+				_percent(endings[&"gap_closed"], count),
+				_percent(endings[&"annihilation"], count),
+				_percent(endings[&"round_limit"], count),
+				_percent(endings[&"error"], count)
+			]
 		)
 	)
 	lines.append("Errors: %d" % s["errors"])

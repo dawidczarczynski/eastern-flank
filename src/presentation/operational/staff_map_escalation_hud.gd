@@ -84,7 +84,8 @@ func _show_end(event: Dictionary) -> void:
 		)
 		return
 	var lines: Array[String] = [
-		StaffMapEndModel.reason_line(state, event), StaffMapEndModel.detail_line(state, event)
+		StaffMapEndModel.reason_line(state, event, viewer),
+		StaffMapEndModel.detail_line(state, event)
 	]
 	_end.present_result(
 		StaffMapEndModel.headline(state, event, viewer),

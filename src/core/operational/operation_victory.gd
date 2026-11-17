@@ -58,14 +58,52 @@ static func winner_of(scores: Dictionary, def: OperationDefinition) -> int:
 	return 0 if diff > 0 else 1
 
 
+## Annihilation (TASK-164): a side is wiped when it fielded something, has no formation on the map
+## and no requested, not withdrawn support package with placements still waiting. The survivor
+## wins whatever the score is; both wiped = draw (winner and by -1). Sets `state.result` and
+## returns `operation_ended` when it fires; [] otherwise (also without a definition or when the
+## operation is already over). Called after every command that can destroy a formation.
+static func annihilation(state: OperationalState) -> Array[Dictionary]:
+	if state.definition == null or not state.result.is_empty():
+		return []
+	var wiped_0 := wiped(state, 0)
+	var wiped_1 := wiped(state, 1)
+	if not wiped_0 and not wiped_1:
+		return []
+	var survivor := -1 if wiped_0 == wiped_1 else (1 if wiped_0 else 0)
+	return end(state, survivor, &"annihilation", survivor)
+
+
+## True when `side` has lost everything: see `annihilation`.
+static func wiped(state: OperationalState, side: int) -> bool:
+	if state.definition == null or state.fielded_strength[side] <= 0:
+		return false
+	for formation in state.formations:
+		if formation.owner_id == side:
+			return false
+	for pending in state.support:
+		if (
+			pending.definition.side == side
+			and pending.requested()
+			and not pending.withdrawn
+			and not pending.waiting.is_empty()
+		):
+			return false
+	return true
+
+
 ## Checks at the end of the finished round `round_number` (callers: EndOperationalTurnCommand
-## when play returns to the first player): the chain counter, then `gap_closed`, then
-## `round_limit`. Sets `state.result` and returns `operation_ended` when one fires; [] otherwise
-## (also without a definition or when the operation is already over).
+## when play returns to the first player): `annihilation` first (a support package withdrawn at
+## the boundary), then the chain counter, `gap_closed`, then `round_limit`. Sets
+## `state.result` and returns `operation_ended` when one fires; [] otherwise (also without a
+## definition or when the operation is already over).
 static func end_round(state: OperationalState, round_number: int) -> Array[Dictionary]:
 	var def := state.definition
 	if def == null or not state.result.is_empty():
 		return []
+	var wiped_out := annihilation(state)
+	if not wiped_out.is_empty():
+		return wiped_out
 	if gap_status(state, def) == CLOSED and not def.gap_chain.is_empty():
 		state.gap_closed_rounds += 1
 	else:

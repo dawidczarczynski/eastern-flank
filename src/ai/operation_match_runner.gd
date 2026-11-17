@@ -5,14 +5,15 @@ extends RefCounted
 ## in `played` mode, fought as a headless tactical AI-vs-AI battle and compared with the
 ## auto-resolve of the same setup.
 ## Ending of a match: the operation's own result (OperationVictory, TASK-107a): `gap_closed`,
-## `round_limit` (the higher score wins, a draw inside the margin), `nuclear_use` -> `nuclear`;
+## `annihilation` (a side has no formation left and none on its way), `round_limit` (the higher
+## score wins, a draw inside the margin), `nuclear_use` -> `nuclear`;
 ## `collapse` / `escalation_threshold` results map to `collapse` / `threshold` when a rule
 ## produces them.
 
 const AUTO := &"auto"
 const PLAYED := &"played"
 const ENDINGS: Array[StringName] = [
-	&"collapse", &"threshold", &"nuclear", &"gap_closed", &"round_limit", &"error"
+	&"collapse", &"threshold", &"nuclear", &"gap_closed", &"annihilation", &"round_limit", &"error"
 ]
 ## Harness limit of one played contact battle (tactical turns).
 const PLAYED_MAX_TURNS := 50
@@ -259,6 +260,8 @@ static func _ending_of(result: Dictionary) -> StringName:
 			return &"collapse"
 		&"gap_closed":
 			return &"gap_closed"
+		&"annihilation":
+			return &"annihilation"
 		&"round_limit":
 			return &"round_limit"
 	push_error("OperationMatchRunner: unknown result reason '%s'" % result["reason"])

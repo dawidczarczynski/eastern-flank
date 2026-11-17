@@ -13,6 +13,9 @@ const REASONS := {
 	&"round_limit": "The round limit was reached. The operation is scored.",
 	&"nuclear_use": "%s used a nuclear weapon. The operation ends.",
 }
+const ANNIHILATION_WON := "Enemy forces destroyed. The operation ends."
+const ANNIHILATION_LOST := "Your forces were destroyed. The operation ends."
+const ANNIHILATION_BOTH := "Both sides were destroyed. The operation ends."
 const GENERIC_REASON := "The operation has ended."
 
 
@@ -28,8 +31,13 @@ static func headline(_state: OperationalState, event: Dictionary, viewer: int) -
 	return _t(HEADLINE_DRAW)
 
 
-static func reason_line(state: OperationalState, event: Dictionary) -> String:
+static func reason_line(state: OperationalState, event: Dictionary, viewer := 0) -> String:
 	var reason: StringName = event.get("reason", &"")
+	if reason == &"annihilation":
+		var winner: int = event.get("winner", -1)
+		if winner < 0:
+			return _t(ANNIHILATION_BOTH)
+		return _t(ANNIHILATION_WON if winner == viewer else ANNIHILATION_LOST)
 	if not REASONS.has(reason):
 		return _t(GENERIC_REASON)
 	var text := _t(REASONS[reason])
@@ -45,9 +53,13 @@ static func detail_line(state: OperationalState, event: Dictionary) -> String:
 	return _t("Rounds played: %d") % rounds_played(state, event)
 
 
-## The operation ends at a round boundary after `turn` was raised, except by a nuclear attack.
+## The operation ends at a round boundary after `turn` was raised, except by a nuclear attack or
+## an annihilation (both end mid-round).
 static func rounds_played(state: OperationalState, event: Dictionary) -> int:
-	return state.turn if event.get("reason") == &"nuclear_use" else maxi(state.turn - 1, 0)
+	var reason: StringName = event.get("reason", &"")
+	if reason == &"nuclear_use" or reason == &"annihilation":
+		return state.turn
+	return maxi(state.turn - 1, 0)
 
 
 ## The score payload of the event, or the score recomputed from the state (a resumed record).

@@ -51,6 +51,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	if defender != null:
 		events[0]["at"] = defender.coord
 	events.append_array(BattleConsequences.apply(state, setup, result))
+	events.append_array(OperationVictory.annihilation(state))
 	return events
 
 

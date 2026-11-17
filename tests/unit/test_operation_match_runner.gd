@@ -7,7 +7,7 @@ func test_match_is_deterministic_and_ends_at_the_cap() -> void:
 	var b := OperationMatchRunner.play(&"suwalki_gap", 5, 2)
 	assert_eq(a, b)
 	assert_true(a["rounds"] <= 2)
-	assert_true([&"round_limit", &"nuclear", &"gap_closed"].has(a["ending"]))
+	assert_true([&"round_limit", &"nuclear", &"gap_closed", &"annihilation"].has(a["ending"]))
 	assert_eq(a["battles"], a["battles_auto"], "auto by default")
 	assert_eq(a["battles_played"], 0)
 
@@ -40,7 +40,7 @@ func test_unknown_operation_is_an_error_result() -> void:
 func test_cap_without_another_ending_is_scored_by_the_victory_rules() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
 	var r := OperationMatchRunner.play_state(OperationalSimulation.new(state), 1, 3)
-	assert_true([&"round_limit", &"nuclear", &"gap_closed"].has(r["ending"]))
+	assert_true([&"round_limit", &"nuclear", &"gap_closed", &"annihilation"].has(r["ending"]))
 	assert_eq(r["reason"], &"round_limit")
 	assert_eq(r["rounds"], 3)
 	var scores := OperationVictory.score(state, state.definition)
@@ -85,3 +85,31 @@ func test_played_battles_are_compared_with_auto() -> void:
 	assert_eq(r["compared"], r["battles_played"])
 	assert_eq((r["contacts"] as Array).size(), r["compared"])
 	assert_true(r["agreed"] <= r["compared"])
+
+
+func test_annihilation_is_its_own_ending() -> void:
+	assert_true(OperationMatchRunner.ENDINGS.has(&"annihilation"))
+	var results: Array[Dictionary] = []
+	for winner in [0, -1]:
+		var r := {
+			"ending": &"annihilation",
+			"winner": winner,
+			"rounds": 4,
+			"max_level": 1,
+			"caused": [0, 0],
+			"strikes_fired": [0, 0],
+			"strikes_intercepted": 0,
+			"installations_destroyed": 0,
+			"battles": 0,
+			"battles_auto": 0,
+			"battles_played": 0,
+			"compared": 0,
+			"agreed": 0,
+		}
+		results.append(r)
+	var s := OperationMatchRunner.summarize(results)
+	assert_eq(s["endings"][&"annihilation"], 2)
+	assert_eq(s["wins_decided"], [1, 0])
+	assert_eq(s["wins_by_score"], [0, 0])
+	assert_eq(s["draws"], 1)
+	assert_eq(s["errors"], 0)

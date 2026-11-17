@@ -334,3 +334,40 @@ func test_forecast_uses_readiness() -> void:
 	var fast_stops: Array = _of_type(events2, &"formation_order_issued")[0]["forecast"]
 	assert_true(slow_stops.size() > fast_stops.size())
 	assert_eq(slow_stops.back(), Vector2i(4, 0))
+
+
+# --- annihilation (TASK-164) ---
+
+
+func test_destroying_the_last_formation_ends_the_operation() -> void:
+	var state := _state()
+	state.definition = OperationDefinition.new()
+	state.fielded_strength = [40, 20]
+	var setup := state.pending_battles[0]
+	var ends: Array[int] = []
+	for company in setup.companies:
+		ends.append(10 if company.player == 0 else 0)
+	var sim := OperationalSimulation.new(state)
+	var events: Array[Dictionary] = []
+	sim.event_emitted.connect(func(e: Dictionary) -> void: events.append(e))
+	assert_true(sim.execute(ResolveBattleCommand.new(_result(setup, ends, 0))))
+	var types := events.map(func(e: Dictionary) -> Variant: return e["type"])
+	assert_eq(types.back(), &"operation_ended")
+	assert_true(types.find(&"formation_destroyed") < types.find(&"operation_ended"))
+	assert_eq(state.result["reason"], &"annihilation")
+	assert_eq(state.result["winner"], 0)
+	assert_true(state.pending_battles.is_empty())
+	assert_false(sim.execute(EndOperationalTurnCommand.new()))
+
+
+func test_a_battle_that_leaves_both_sides_alive_does_not_end() -> void:
+	var state := _state()
+	state.definition = OperationDefinition.new()
+	state.fielded_strength = [40, 20]
+	var setup := state.pending_battles[0]
+	var ends: Array[int] = []
+	for company in setup.companies:
+		ends.append(5)
+	var events := _resolve(state, _result(setup, ends, 0))
+	assert_true(_of_type(events, &"operation_ended").is_empty())
+	assert_true(state.result.is_empty())

@@ -61,6 +61,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	)
 	events.append_array(StrikeRules.resolve(state, player, means_id, target, count))
 	events.append_array(EscalationRules.on_strike(state, player, coord))
+	events.append_array(OperationVictory.annihilation(state))
 	return events
 
 

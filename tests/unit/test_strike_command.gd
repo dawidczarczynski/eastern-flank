@@ -253,6 +253,28 @@ func test_formation_target_and_removal() -> void:
 	assert_eq(StrikeRules.targets(state, 0).size(), 2)
 
 
+func test_destroying_the_last_formation_of_a_side_ends_the_operation() -> void:
+	var state := _open_war()
+	state.strike_stock[0][&"sure"] = 20
+	var sim := _sim(state)
+	var seen := _collect(sim)
+	for company in state.get_formation(&"r").companies:
+		company.strength = 1
+	assert_eq(state.fielded_strength[1] > 0, true)
+	assert_true(sim.execute(StrikeCommand.new(&"sure", &"r", 1)))
+	assert_true(state.result.is_empty(), "damaged, not destroyed")
+	assert_false(_types(seen).has(&"operation_ended"))
+	for company in state.get_formation(&"r").companies:
+		company.strength = 0
+	state.get_formation(&"r").companies[0].strength = 1
+	assert_true(sim.execute(StrikeCommand.new(&"sure", &"r", 4)))
+	assert_true(state.get_formation(&"r") == null)
+	assert_eq(_types(seen).back(), &"operation_ended")
+	assert_eq(state.result["reason"], &"annihilation")
+	assert_eq(state.result["winner"], 0)
+	assert_false(sim.execute(StrikeCommand.new(&"sure", &"a1", 1)))
+
+
 # --- codec ---
 
 

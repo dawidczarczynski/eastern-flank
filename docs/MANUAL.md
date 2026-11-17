@@ -821,7 +821,7 @@ Map data: © OpenStreetMap contributors (ODbL); elevation © DLR e.V. / Airbus D
 - The **Gap road link** (the chain of road hexes through the Suwałki Gap): **open** at the end = 10 for NATO, **closed** (every hex of the chain held by Russia) = 10 for Russia.
 - **Escalation**: −3 for each net step of the ladder a side caused (steps it took back count against that).
 
-**Endings.** Russia wins at once when the Gap stays closed for **2 full rounds** in a row. After **30 rounds** the totals decide: the higher total wins; a difference under **5** is a draw. A nuclear attack ends the operation and nobody wins (a defeat for the side that used it).
+**Endings.** A side that has no formations left on the map and none still on their way loses at once, whatever the points are; if both are wiped out at the same moment, it is a draw. Reinforcements that are requested and still to arrive count as still in the game. Otherwise Russia wins at once when the Gap stays closed for **2 full rounds** in a row. After **30 rounds** the totals decide: the higher total wins; a difference under **5** is a draw. A nuclear attack ends the operation and nobody wins (a defeat for the side that used it).
 
 **The end notice.** When the operation ends a window shows the headline for your side – **Victory**, **Defeat**, **Draw** or, for the opponent's nuclear attack, **Nobody wins** – the reason, the rounds played and a table of points per side (objectives, escalation, total). **Review map** closes the window; the map stays readable but no orders can be given. **Back to menu** leaves the operation. Loading a save of an ended operation shows the same window once.
 

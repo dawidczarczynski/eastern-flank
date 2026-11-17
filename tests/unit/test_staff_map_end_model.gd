@@ -58,3 +58,27 @@ func test_table_rows_from_the_score_payload() -> void:
 func test_rounds_played_and_resumed_score() -> void:
 	assert_eq(StaffMapEndModel.rounds_played(_state, _event(-1, &"round_limit")), 30)
 	assert_false(StaffMapEndModel.table_rows(_state, _event(-1, &"round_limit")).is_empty())
+
+
+func test_annihilation_reason_lines_per_viewer() -> void:
+	var won := _event(0, &"annihilation", 0)
+	assert_eq(
+		StaffMapEndModel.reason_line(_state, won, 0), "Enemy forces destroyed. The operation ends."
+	)
+	assert_eq(
+		StaffMapEndModel.reason_line(_state, won, 1),
+		"Your forces were destroyed. The operation ends."
+	)
+	assert_eq(
+		StaffMapEndModel.reason_line(_state, _event(-1, &"annihilation", -1), 0),
+		"Both sides were destroyed. The operation ends."
+	)
+	assert_eq(StaffMapEndModel.headline(_state, won, 0), "Victory")
+	assert_eq(StaffMapEndModel.headline(_state, won, 1), "Defeat")
+	assert_eq(StaffMapEndModel.headline(_state, _event(-1, &"annihilation", -1), 0), "Draw")
+
+
+func test_annihilation_ends_mid_round() -> void:
+	var event := _event(0, &"annihilation", 0)
+	assert_eq(StaffMapEndModel.rounds_played(_state, event), 31)
+	assert_eq(StaffMapEndModel.detail_line(_state, event), "Rounds played: 31")

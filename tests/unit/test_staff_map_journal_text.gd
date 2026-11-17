@@ -226,6 +226,16 @@ func _cases() -> Array:
 			"The operation ended: we won",
 			"The operation ended: we lost"
 		],
+		[
+			_entry(
+				&"operation_ended",
+				&"politics",
+				-1,
+				{"winner": 1, "reason": &"annihilation", "by": 1}
+			),
+			"The operation ended: we lost",
+			"The operation ended: we won"
+		],
 	]
 
 

@@ -1,6 +1,8 @@
+# gdlint: disable=max-public-methods
 extends TestCase
 ## Victory of an operation (TASK-107a): Gap status, scoring, the penalty and the endings.
 
+const Fixtures := preload("res://tests/fixtures.gd")
 const Data := preload("res://tests/unit/test_contribution_data.gd")
 const Politics := preload("res://tests/unit/test_country_rules.gd")
 
@@ -349,3 +351,108 @@ static func _place_hex(map: ImportedMap, place_name: String) -> Vector2i:
 			var at: Vector2 = place["position"]
 			return Hex.from_world(Vector3(at.x, 0.0, at.y), 1.0)
 	return Vector2i.MAX
+
+
+# --- annihilation (TASK-164) ---
+
+
+static func _annihilation_state(count_0: int, count_1: int) -> OperationalState:
+	var s := _state()
+	s.fielded_strength = [3, 3]
+	for i in count_0:
+		s.formations.append(Fixtures.formation(StringName("a%d" % i), 0))
+	for i in count_1:
+		s.formations.append(Fixtures.formation(StringName("b%d" % i), 1))
+	return s
+
+
+static func _package(
+	side: int, requested_turn: int, waiting_count: int, withdrawn := false
+) -> SupportState:
+	var package := SupportPackage.new()
+	package.id = StringName("pkg_%d" % side)
+	package.side = side
+	var support := SupportState.from_package(package)
+	support.requested_turn = requested_turn
+	support.withdrawn = withdrawn
+	for i in waiting_count:
+		support.waiting.append(FormationPlacement.new())
+	return support
+
+
+func test_annihilation_side_one_wiped() -> void:
+	var s := _annihilation_state(1, 0)
+	var events := OperationVictory.annihilation(s)
+	assert_eq(events.size(), 1)
+	assert_eq(events[0]["type"], &"operation_ended")
+	assert_eq(events[0]["winner"], 0)
+	assert_eq(events[0]["by"], 0)
+	assert_eq(events[0]["reason"], &"annihilation")
+	assert_true(events[0]["score"].has(0) and events[0]["score"].has(1))
+	assert_eq(s.result, {"winner": 0, "reason": &"annihilation", "by": 0})
+
+
+func test_annihilation_side_zero_wiped_and_both_wiped() -> void:
+	var s := _annihilation_state(0, 2)
+	var events := OperationVictory.annihilation(s)
+	assert_eq(events[0]["winner"], 1)
+	assert_eq(events[0]["by"], 1)
+	var both := _annihilation_state(0, 0)
+	events = OperationVictory.annihilation(both)
+	assert_eq(events[0]["winner"], -1)
+	assert_eq(events[0]["by"], -1)
+	assert_eq(events[0]["reason"], &"annihilation")
+
+
+func test_annihilation_needs_both_sides_dead_to_be_a_draw_not_one() -> void:
+	var s := _annihilation_state(1, 1)
+	assert_eq(OperationVictory.annihilation(s), [] as Array[Dictionary])
+	assert_true(s.result.is_empty())
+
+
+func test_annihilation_pending_support_keeps_a_side_in_the_game() -> void:
+	var s := _annihilation_state(1, 0)
+	s.support.append(_package(1, 3, 2))
+	assert_eq(OperationVictory.annihilation(s), [] as Array[Dictionary])
+	s.support[0].withdrawn = true
+	assert_eq(OperationVictory.annihilation(s).size(), 1, "withdrawn")
+	var empty := _annihilation_state(1, 0)
+	empty.support.append(_package(1, 3, 0))
+	assert_eq(OperationVictory.annihilation(empty).size(), 1, "nothing waiting")
+
+
+func test_annihilation_ignores_unrequested_and_enemy_support() -> void:
+	var s := _annihilation_state(1, 0)
+	s.support.append(_package(1, -1, 2))
+	s.support.append(_package(0, 3, 2))
+	assert_eq(OperationVictory.annihilation(s).size(), 1)
+
+
+func test_annihilation_never_fielded_or_no_definition() -> void:
+	var s := _annihilation_state(1, 0)
+	s.fielded_strength = [3, 0]
+	assert_eq(OperationVictory.annihilation(s), [] as Array[Dictionary])
+	var bare := OperationalState.new()
+	bare.fielded_strength = [3, 3]
+	assert_eq(OperationVictory.annihilation(bare), [] as Array[Dictionary])
+
+
+func test_annihilation_does_nothing_after_the_end() -> void:
+	var s := _annihilation_state(1, 0)
+	s.result = {"winner": -1, "reason": &"nuclear_use", "by": 1}
+	assert_eq(OperationVictory.annihilation(s), [] as Array[Dictionary])
+	assert_eq(s.result["reason"], &"nuclear_use")
+
+
+func test_end_round_checks_annihilation_before_gap_closed_and_ignores_score() -> void:
+	var s := _annihilation_state(1, 0)
+	_hold_chain(s, 1)
+	s.gap_closed_rounds = 1
+	var events := OperationVictory.end_round(s, 5)
+	assert_eq(events[0]["reason"], &"annihilation")
+	assert_eq(events[0]["winner"], 0)
+	var low := _annihilation_state(0, 1)
+	_hold(low, Vector2i(0, 5), 0)
+	_hold(low, Vector2i(0, 8), 0)
+	events = OperationVictory.end_round(low, 5)
+	assert_eq(events[0]["winner"], 1, "side 0 has the higher score but no formations")
