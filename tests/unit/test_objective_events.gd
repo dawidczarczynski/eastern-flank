@@ -90,18 +90,20 @@ func test_gap_closes_and_opens() -> void:
 
 func test_counter_events_at_end_of_round() -> void:
 	var s := Victory._state()
+	var need := s.definition.closed_rounds_to_win
 	Victory._hold_chain(s, 1)
-	var first := OperationVictory.end_round(s, 7)
-	assert_eq(first.size(), 1)
-	assert_eq(first[0]["kind"], &"gap_counter")
-	assert_eq(first[0]["old"], 0)
-	assert_eq(first[0]["new"], 1)
-	assert_eq(first[0]["round"], 7)
-	var second := OperationVictory.end_round(s, 8)
-	assert_eq(second.size(), 2)
-	assert_eq(second[0]["type"], &"objective_changed", "counter before the end notice")
-	assert_eq(second[0]["new"], 2)
-	assert_eq(second[1]["type"], &"operation_ended")
+	for count in need - 1:
+		var events := OperationVictory.end_round(s, 7 + count)
+		assert_eq(events.size(), 1)
+		assert_eq(events[0]["kind"], &"gap_counter")
+		assert_eq(events[0]["old"], count)
+		assert_eq(events[0]["new"], count + 1)
+		assert_eq(events[0]["round"], 7 + count)
+	var last := OperationVictory.end_round(s, 7 + need - 1)
+	assert_eq(last.size(), 2)
+	assert_eq(last[0]["type"], &"objective_changed", "counter before the end notice")
+	assert_eq(last[0]["new"], need)
+	assert_eq(last[1]["type"], &"operation_ended")
 
 
 func test_counter_reset_and_idle() -> void:

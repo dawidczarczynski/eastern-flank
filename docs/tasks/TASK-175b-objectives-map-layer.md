@@ -1,6 +1,6 @@
 # TASK-175b: Objectives map layer (key M)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation
 - **Depends on**: TASK-175a
 - **Topic**: Two-layer game

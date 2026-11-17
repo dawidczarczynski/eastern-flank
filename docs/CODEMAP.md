@@ -245,6 +245,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 - `bm27_uragan` – 9K57 Uragan, 9P140 combat vehicle: 16 x 220 mm rocket launcher on the ZIL-135LM 8x8 chass… (`bm27_uragan.gd`)
 - `homar_k` – Homar-K (K239PL): Polish 8x8 rocket launcher – Korean K239 Chunmoo launcher module (two c… (`homar_k.gd`)
+- `k9_thunder` – K9 Thunder (Polish K9PL): South Korean 155 mm / 52 cal. self-propelled howitzer. Blueprin… (`k9_thunder.gd`)
 - `m1a2_sepv3` – M1A2 SEPv3 Abrams (M1A2C): the Polish Army's main battle tank. Blueprint: (`m1a2_sepv3.gd`)
 - `ModelParts` – Shared building blocks of the unit models (src/presentation/models/<unit_id>.gd): primiti… (`model_parts.gd`)
 - `pl_mech_infantry` – Polish mechanised infantry squad (12th Mechanized Brigade dismounts, current kit): five (`pl_mech_infantry.gd`)
@@ -325,7 +326,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapMoveAnimation` – The cosmetic slide of counters at the end of a move (TASK-092e), pure timing and path mat… (`staff_map_move_animation.gd`)
 - `StaffMapNuclearPictogram` – Flat pictogram of a mushroom cloud (TASK-140) above the operation-over notice, after the… (`staff_map_nuclear_pictogram.gd`)
 - `StaffMapObjectivesModel` – Texts of the objectives window of the staff map: what the viewer's side is scored on, who… (`staff_map_objectives_model.gd`)
-- `StaffMapObjectivesWindow` – The objectives window of the staff map (OBJECTIVES button, key O): a StaffMapWindow on th… (`staff_map_objectives_window.gd`)
+- `StaffMapObjectivesWindow` – The objectives window of the staff map (OBJECTIVES button, key O; TASK-175a, variant A of (`staff_map_objectives_window.gd`)
 - `StaffMapOddsRow` – The interception odds line of a planned strike (TASK-098b, docs/design/operational_map/ (`staff_map_odds_row.gd`)
 - `StaffMapOptionsWindow` – Map options window of the staff map: a StaffMapWindow (left dock) with a toggle row per m… (`staff_map_options_window.gd`)
 - `StaffMapOrderExtras` – The preview extras around the aimed order line (TASK-153 stage 2, look: docs/design/ (`staff_map_order_extras.gd`)

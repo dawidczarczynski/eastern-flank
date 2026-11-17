@@ -45,7 +45,7 @@ const OPERATIONS_DIR := "res://data/operations/"
 ## Rounds of the operation; at the end of the last one the higher score wins.
 @export var round_limit: int = 30
 ## Side 1 wins at once when it holds the whole chain at the end of this many consecutive rounds.
-@export var closed_rounds_to_win: int = 2
+@export var closed_rounds_to_win: int = 5
 ## A score difference below this is a draw.
 @export var draw_margin: int = 5
 ## Points for side 0 while the Gap is open / for side 1 while it is closed, at the end.

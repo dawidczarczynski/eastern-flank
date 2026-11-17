@@ -8,60 +8,114 @@ const MINE := &"mine"
 const THEIRS := &"theirs"
 const NONE := &"none"
 
+const RULE_KEY := (
+	"%s wins at once if it holds the whole road for %d rounds in a row. "
+	+ "Break the chain to reset the count."
+)
+const MAIN := &"main"
+const SIDE := &"side"
 
-## Rows {label, points, holder (translated), status (MINE / THEIRS / NONE), yours (bool), rule
-## (when it is scored), progress (the Gap's closed-round counter, "" for hexes), hint} for the
-## objectives scoring for `viewer` (or for whoever holds them), then the Gap road link.
-static func rows(state: OperationalState, viewer: int) -> Array[Dictionary]:
+
+## Rows for `viewer`: the Gap road first (tier `main`), then the hex objectives (tier `side`). Each
+## is {label, tier, hex (the Gap: its middle hex), chain (the Gap's ordered hexes, [] for others),
+## selected (row index == `selected`), status (MINE / THEIRS / NONE), holder (translated), chip
+## (HELD BY US / ...), points, yours (bool), sub (the "scores for" line, "" on enemy rows)}; the
+## Gap row adds {chain_held (bool per hex, held by side 1), held, total, chain_text, closed_rounds,
+## need, progress, rule, attacker_status (how `viewer` sees side 1)}.
+static func rows(state: OperationalState, viewer: int, selected := -1) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var def := state.definition
 	if def == null:
 		return result
+	if not def.gap_chain.is_empty():
+		result.append(_gap_row(state, viewer))
 	for objective in def.objectives:
-		var holder := HexControl.holder(state, objective.hex_in(state))
+		var hex := objective.hex_in(state)
+		var holder := HexControl.holder(state, hex)
+		var any := objective.holder_rule == OperationObjective.ANY
+		var yours := any or objective.side == viewer
+		var sub := ""
+		if yours:
+			sub = (
+				_t("Scores for whoever holds it")
+				if any
+				else _t("Scores for %s") % StaffMapTurnBar.side_name(state, viewer)
+			)
 		(
 			result
 			. append(
 				{
 					"label": _t(objective.display_name),
-					"points": objective.points,
-					"holder": _holder_text(state, holder),
+					"tier": SIDE,
+					"hex": hex,
+					"chain": [] as Array[Vector2i],
 					"status": _status(holder, viewer),
-					"yours":
-					objective.holder_rule == OperationObjective.ANY or objective.side == viewer,
-					"rule": _t("Scored at the end, round %d") % def.round_limit,
-					"progress": "",
-					"hint": "",
+					"holder": _holder_text(state, holder),
+					"chip": _chip_text(holder, viewer),
+					"points": objective.points,
+					"yours": yours,
+					"sub": sub,
 				}
 			)
 		)
-	if not def.gap_chain.is_empty():
-		var closed := OperationVictory.gap_status(state, def) == OperationVictory.CLOSED
-		var mine := (viewer == 1) == closed
-		(
-			result
-			. append(
-				{
-					"label":
-					_t("Gap road link closed") if viewer == 1 else _t("Gap road link open"),
-					"points": def.gap_closed_points if viewer == 1 else def.gap_open_points,
-					"holder": _t("CLOSED") if closed else _t("OPEN"),
-					"status": MINE if mine else THEIRS,
-					"yours": true,
-					"rule":
-					(
-						_t(
-							"%s wins after %d consecutive closed rounds; otherwise scored at the end"
-						)
-						% [StaffMapTurnBar.side_name(state, 1), def.closed_rounds_to_win]
-					),
-					"progress": _gap_progress(state, viewer),
-					"hint":
-					_t("Any chain hex lost resets it") if state.gap_closed_rounds > 0 else "",
-				}
-			)
-		)
+	for i in result.size():
+		result[i]["selected"] = i == selected
 	return result
+
+
+## Header of the main section.
+static func main_header() -> String:
+	return _t("Main objective - decides the operation at once")
+
+
+## "Side objectives - scored at the end, round 30".
+static func side_header(state: OperationalState) -> String:
+	var limit := 0 if state.definition == null else state.definition.round_limit
+	return _t("Side objectives - scored at the end, round %d") % limit
+
+
+static func _gap_row(state: OperationalState, viewer: int) -> Dictionary:
+	var def := state.definition
+	var closed := OperationVictory.gap_status(state, def) == OperationVictory.CLOSED
+	var held: Array[bool] = []
+	var count := 0
+	for hex in def.gap_chain:
+		var russian := HexControl.holder(state, hex) == 1
+		held.append(russian)
+		count += 1 if russian else 0
+	var need := def.closed_rounds_to_win
+	return {
+		"label":
+		_t("Keep the Gap road open") if viewer != 1 else _t("Connect Kaliningrad with Belarus"),
+		"tier": MAIN,
+		"hex": def.gap_chain[def.gap_chain.size() / 2],
+		"chain": def.gap_chain.duplicate(),
+		"status": MINE if (viewer == 1) == closed else THEIRS,
+		"holder": _t("CLOSED") if closed else _t("OPEN"),
+		"chip": _t("CLOSED") if closed else _t("OPEN"),
+		"points": def.gap_closed_points if viewer == 1 else def.gap_open_points,
+		"yours": true,
+		"sub": "",
+		"chain_held": held,
+		"held": count,
+		"total": def.gap_chain.size(),
+		"chain_text":
+		(
+			_t("%d of %d held by %s")
+			% [count, def.gap_chain.size(), StaffMapTurnBar.side_name(state, 1)]
+		),
+		"closed_rounds": state.gap_closed_rounds,
+		"need": need,
+		"progress": "%d / %d" % [state.gap_closed_rounds, need],
+		"rule": _t(RULE_KEY) % [StaffMapTurnBar.side_name(state, 1), need],
+		"attacker_status": MINE if viewer == 1 else THEIRS,
+	}
+
+
+static func _chip_text(holder: int, viewer: int) -> String:
+	if holder < 0:
+		return _t("NOBODY")
+	return _t("HELD BY US") if holder == viewer else _t("HELD BY ENEMY")
 
 
 ## "ROUND 4 / 30".
@@ -123,19 +177,6 @@ static func journal_text(state: OperationalState, viewer: int, event: Dictionary
 			% [int(event.get("new", 0)), def.closed_rounds_to_win]
 		)
 	return event_text(state, viewer, event)
-
-
-static func _gap_progress(state: OperationalState, viewer: int) -> String:
-	var count := state.gap_closed_rounds
-	var need := state.definition.closed_rounds_to_win
-	if count <= 0:
-		return _t("Closed %d/%d rounds") % [0, need]
-	if viewer == 1:
-		return _t("Closed %d/%d rounds - %s") % [count, need, _hold_text(need - count)]
-	return (
-		_t("%s: closed %d/%d rounds - break the chain")
-		% [StaffMapTurnBar.side_name(state, 1), count, need]
-	)
 
 
 ## "hold it 1 more round" / "hold it 2 more rounds".

@@ -1,6 +1,6 @@
 # TASK-175a: Objectives window redesign (main / side), 5-round Gap rule, click to centre
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (data only) + presentation
 - **Depends on**: TASK-165
 - **Topic**: Two-layer game
@@ -58,4 +58,15 @@ docs/MANUAL.md 12b: objectives window (O) with the main / side split and click-t
 
 ## Implementation notes
 
-_Filled in by the agent when done: what was done, decisions, known limitations._
+**Done**
+- Rule/data: `closed_rounds_to_win` = 5 (data and default); `test_operation_victory`, `test_objective_events`, `test_staff_map_objectives` read it from data (the closed-chain fixture sets 2 on purpose to keep its short run). New tests: held 4 rounds then lost, closed late with counter 3 scored 10 for Russia.
+- Model: `StaffMapObjectivesModel.rows(state, viewer, selected)` - Gap row first (tier `main`, `chain`, `chain_held`, `progress` "n / 5", rule, texts per viewer), then 4 `side` rows with `hex`, `chip`, `yours`, `sub` ("Scores for ..." only on own rows); `main_header()` / `side_header()`. Old `rule` / `progress` / `hint` fields and their strings removed.
+- Window: `StaffMapObjectivesWindow` (420 px) with main card, side rows (shape rectangle / diamond / circle in `side_own` / `side_enemy`, chip, points, muted + ENEMY on enemy rows), buttons, Up/Down (wrap) / Enter, `centre_requested` and `selection_changed` signals; closing clears the selection.
+- Map: `StaffMap._focus_hexes` eases 300 ms to the hexes in the clear zone (zoom at least Z1, never out; the Gap chain zooms out only as far as needed to fit all 13). `StaffMapJournalRing` got `show_selection` (2 s pulse, then 1.6 px hex outlines while selected) / `clear_outline`.
+- Manual (12b objectives paragraph, 12c endings) updated; strings in `strings.csv` with Polish.
+
+**Balance (tools/simulate.sh, operation mode, 20 matches each)**: seeds 1..20: NATO 65 % / Russia 35 % (all 20 ended by round limit, 0 gap closed); seeds 21..40: NATO 65 % / Russia 35 % (3 annihilations, 17 round limit). Outside the 40-60 % target - NOT retuned, reported to the human. With 5 rounds the AI never wins by the Gap.
+
+**Deviations from the mockup**: no Plex Condensed font in the project (Chakra Petch 400 used for sub-lines and rule text); the section headers are one amber line each ("MAIN OBJECTIVE - DECIDES THE OPERATION AT ONCE", "SIDE OBJECTIVES - SCORED AT THE END, ROUND 30") instead of title + muted right part; the "29 LEFT" part of the round line is not shown. Not rendered/compared visually (the agent cannot see the staff map window).
+
+**Limits**: the outline is a pitch-squashed regular hex; the journal-entry click still centres without easing (unchanged). README screenshot not refreshed (battle scene untouched).

@@ -121,16 +121,44 @@ static func _without_counter(events: Array[Dictionary]) -> Array[Dictionary]:
 
 func test_closed_rounds_to_win() -> void:
 	var s := _state()
+	var need := s.definition.closed_rounds_to_win
+	assert_eq(need, 5, "the default")
 	_hold_chain(s, 1)
-	assert_eq(_without_counter(OperationVictory.end_round(s, 7)), [] as Array[Dictionary])
-	assert_eq(s.gap_closed_rounds, 1)
-	var events := _without_counter(OperationVictory.end_round(s, 8))
+	for round_number in range(7, 7 + need - 1):
+		assert_eq(
+			_without_counter(OperationVictory.end_round(s, round_number)), [] as Array[Dictionary]
+		)
+		assert_eq(s.gap_closed_rounds, round_number - 6)
+	var events := _without_counter(OperationVictory.end_round(s, 7 + need - 1))
 	assert_eq(events.size(), 1)
 	assert_eq(events[0]["type"], &"operation_ended")
 	assert_eq(events[0]["winner"], 1)
 	assert_eq(events.back()["reason"], &"gap_closed")
 	assert_eq(s.result["winner"], 1)
 	assert_eq(events[0]["score"][1]["total"], 10)
+
+
+func test_held_one_round_short_then_lost_does_not_end() -> void:
+	var s := _state()
+	var need := s.definition.closed_rounds_to_win
+	_hold_chain(s, 1)
+	for round_number in need - 1:
+		OperationVictory.end_round(s, 7 + round_number)
+	assert_eq(s.gap_closed_rounds, need - 1)
+	assert_true(s.result.is_empty())
+	_hold(s, CHAIN[2], 0)
+	assert_eq(_without_counter(OperationVictory.end_round(s, 7 + need)), [] as Array[Dictionary])
+	assert_eq(s.gap_closed_rounds, 0)
+	assert_true(s.result.is_empty())
+
+
+func test_gap_closed_late_with_a_short_counter_is_only_scored() -> void:
+	var s := _state()
+	_hold_chain(s, 1)
+	s.gap_closed_rounds = s.definition.closed_rounds_to_win - 2
+	var events := OperationVictory.end_round(s, s.definition.round_limit)
+	assert_eq(events.back()["reason"], &"round_limit")
+	assert_eq(events.back()["score"][1]["total"], 10, "the Gap scores 10 for Russia")
 
 
 func test_a_lost_chain_resets_the_counter() -> void:
@@ -187,7 +215,7 @@ func test_round_limit_inside_the_margin_is_a_draw() -> void:
 func test_gap_closed_is_checked_before_the_round_limit() -> void:
 	var s := _state()
 	_hold_chain(s, 1)
-	s.gap_closed_rounds = 1
+	s.gap_closed_rounds = s.definition.closed_rounds_to_win - 1
 	var events := OperationVictory.end_round(s, 30)
 	assert_eq(events.back()["reason"], &"gap_closed")
 
@@ -243,6 +271,7 @@ func test_the_command_ends_the_operation_after_two_closed_rounds() -> void:
 static func _closed_chain_definition() -> OperationDefinition:
 	var op := Politics._definition()
 	op.first_player = 0
+	op.closed_rounds_to_win = 2
 	op.formations = (
 		[
 			Data.placement(&"blue_1", 0, Vector2i(0, 0)),
@@ -310,7 +339,7 @@ func test_determinism_of_two_runs() -> void:
 func test_suwalki_data() -> void:
 	var def := OperationDefinition.find(&"suwalki_gap")
 	assert_eq(def.round_limit, 30)
-	assert_eq(def.closed_rounds_to_win, 2)
+	assert_eq(def.closed_rounds_to_win, 5)
 	assert_eq(def.draw_margin, 5)
 	assert_true(def.gap_chain.size() >= 3)
 	var map := ImportedMap.find(def.map_id)
@@ -452,7 +481,7 @@ func test_annihilation_does_nothing_after_the_end() -> void:
 func test_end_round_checks_annihilation_before_gap_closed_and_ignores_score() -> void:
 	var s := _annihilation_state(1, 0)
 	_hold_chain(s, 1)
-	s.gap_closed_rounds = 1
+	s.gap_closed_rounds = s.definition.closed_rounds_to_win - 1
 	var events := OperationVictory.end_round(s, 5)
 	assert_eq(events[0]["reason"], &"annihilation")
 	assert_eq(events[0]["winner"], 0)

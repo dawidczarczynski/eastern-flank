@@ -51,6 +51,7 @@ const ACTION_CANCEL := &"cancel"
 const ACTION_REPORT := &"report"
 const ACTION_JOURNAL := &"journal"
 const ACTION_OBJECTIVES := &"objectives"
+const FOCUS_SECONDS := 0.3  # camera ease to an objective (TASK-175a)
 const ACTION_DECISIONS := &"decisions"
 const ACTION_STRIKE := &"strike"
 const ACTION_MAP_OPTIONS := &"map_options"
@@ -284,6 +285,7 @@ func _tick_journal(delta: float) -> void:
 		_journal_dirty = false
 		_journal.refresh()
 	if _journal_ring != null and _journal_ring.is_active():
+		_journal_ring.y_scale = cos(deg_to_rad(_pitch))
 		_journal_ring.tick(delta, _screen_of_hex)
 
 
@@ -299,6 +301,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			or (_strike != null and _strike.handle_key(key.keycode))
 			or (_strike != null and _strike.handle_report_key(key.keycode))
 			or _order_ring.handle_key(key.keycode)
+			or (_objectives != null and _objectives.handle_key(key.keycode))
 			or _close_result_notice(key.keycode)
 			or _answer_border_prompt(key.keycode)
 		):
@@ -456,8 +459,10 @@ func _build_journal() -> void:
 
 ## The objectives window (OBJECTIVES button, key O): objectives, holders, round counter.
 func _build_objectives() -> void:
-	_objectives = StaffMapObjectivesWindow.new()
+	_objectives = StaffMapObjectivesWindow.new(_palette)
 	_objectives.close_requested.connect(close_objectives)
+	_objectives.centre_requested.connect(_on_objective_centre)
+	_objectives.selection_changed.connect(_on_objective_selected)
 	_hud.add_child(_objectives)
 
 
@@ -491,6 +496,32 @@ func _close_objectives_key() -> bool:
 func close_objectives() -> void:
 	_objectives.close()
 	_sync_action_bar()
+
+
+## A row of the objectives window was chosen: the camera brings its hex (the Gap: the whole chain)
+## into view and the ring pulses on it.
+func _on_objective_centre(hexes: Array[Vector2i]) -> void:
+	_focus_hexes(hexes)
+	_ring_hexes(hexes)
+
+
+## The selected row changed: its hexes stay outlined; none (window closed) removes the outline.
+func _on_objective_selected(hexes: Array[Vector2i]) -> void:
+	if hexes.is_empty():
+		_journal_ring.clear_outline()
+	else:
+		_ring_hexes(hexes)
+
+
+func _ring_hexes(hexes: Array[Vector2i]) -> void:
+	var valid: Array[Vector2i] = []
+	for coord in hexes:
+		if _view.has_tile(coord):
+			valid.append(coord)
+	if valid.is_empty():
+		return
+	var pulse := valid[valid.size() / 2]
+	_journal_ring.show_selection(valid, pulse, _screen_of_hex(pulse))
 
 
 func journal_window() -> StaffMapJournalWindow:
@@ -2492,6 +2523,53 @@ func _centre_on_hex(c: Vector2i) -> void:
 	var w := Hex.to_world(c, 1.0)
 	var point := _view.relief().surface_point(Vector2(w.x, w.z))
 	_move_camera(Vector2(point.x, point.z) * StaffMapView.UNIT)
+
+
+## Eases the camera (300 ms) so `hexes` sit in the middle of the clear zone: zoom at least Z1 and
+## never out, except that a group (the Gap chain) zooms out as far as needed to fit whole.
+func _focus_hexes(hexes: Array[Vector2i]) -> void:
+	var points: Array[Vector2] = []
+	for coord in hexes:
+		if _view.has_tile(coord):
+			var w := Hex.to_world(coord, 1.0)
+			var surface := _view.relief().surface_point(Vector2(w.x, w.z))
+			points.append(Vector2(surface.x, surface.z) * StaffMapView.UNIT)
+	if points.is_empty():
+		return
+	var low := points[0]
+	var high := points[0]
+	for point in points:
+		low = low.min(point)
+		high = high.max(point)
+	var goal_zoom := maxf(_zoom, _default_zoom())
+	var clear := _clear_rect()
+	var span := (high - low) * goal_zoom
+	var room := clear.size - Vector2.ONE * 2.0 * StaffMapCameraMath.EASE_MARGIN
+	if span.x > room.x or span.y * cos(deg_to_rad(_pitch)) > room.y:
+		var fit := minf(
+			room.x / maxf(high.x - low.x, 0.001),
+			room.y / maxf((high.y - low.y) * cos(deg_to_rad(_pitch)), 0.001)
+		)
+		goal_zoom = clampf(fit, _min_zoom, goal_zoom)
+	var offset := clear.get_center() - _viewport_size() * 0.5
+	var to := (low + high) * 0.5 + StaffMapCameraMath.drag_delta(offset, goal_zoom, _pitch)
+	var from_zoom := _zoom
+	var from := _position
+	if _ease != null:
+		_ease.kill()
+	if not is_inside_tree():
+		_zoom = clampf(goal_zoom, _min_zoom, _max_zoom)
+		_move_camera(to)
+		return
+	_ease = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_ease.tween_method(
+		func(t: float) -> void:
+			_zoom = clampf(lerpf(from_zoom, goal_zoom, t), _min_zoom, _max_zoom)
+			_move_camera(from.lerp(to, t)),
+		0.0,
+		1.0,
+		FOCUS_SECONDS
+	)
 
 
 ## Centres the camera on a formation.

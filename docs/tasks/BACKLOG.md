@@ -147,8 +147,8 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-173](TASK-173-allied-factions-within-a-side.md) | Allied factions within a side: Russia and Belarus as separate allied states, not one party (naming, notice, result window) | 💡 idea | TASK-160 |
 | [TASK-174a](TASK-174a-right-dock-strike-journal.md) | Right-hand tabbed dock (strike + journal tabs) that shrinks the map instead of covering it; replaces the TASK-162 strike-panel inset | 🔵 done | TASK-150 (soft: TASK-162) |
 | [TASK-174b](TASK-174b-right-dock-politics-tab.md) | POLITICS tab of the right dock: narrow single column with DECISIONS / OVERVIEW / SUPPORT sub-tabs, retires the full-screen politics sheet | 🔵 done | TASK-174a |
-| [TASK-175a](TASK-175a-objectives-window-main-side.md) | Objectives window redesign (main / side), Gap win after 5 closed rounds, click to centre | 🟢 ready | TASK-165 |
-| [TASK-175b](TASK-175b-objectives-map-layer.md) | Objectives map layer (key M): markers, Gap ribbon, marker click | 🔴 blocked | TASK-175a |
+| [TASK-175a](TASK-175a-objectives-window-main-side.md) | Objectives window redesign (main / side), Gap win after 5 closed rounds, click to centre | 🔵 done | TASK-165 |
+| [TASK-175b](TASK-175b-objectives-map-layer.md) | Objectives map layer (key M): markers, Gap ribbon, marker click | 🟢 ready | TASK-175a |
 | [TASK-142](TASK-142-staff-map-counter-depth.md) | Staff map counters and installation markers as hex game tiles (hexagon base, side shape on a raised plate) (design `unit_tokens_hex.html`, variant D accepted 2026-11-11); pitch decides flat / tilted look| 🔵 done | – |
 | [TASK-143](TASK-143-escalation-ladder-window.md) | Escalation ladder window: horizontal axis of 7 levels with tick matrix of strike classes, trigger chips, collapse strips; X / Esc / click-outside close, closes other windows (design `escalation_ladder_window.html`, variant B accepted 2026-11-11) | 🔵 done (window removed by TASK-119b) | – |
 | TASK-100 | Reconnaissance and operational fog: targets known / unknown / stale, recon means | 💡 idea | TASK-092b |

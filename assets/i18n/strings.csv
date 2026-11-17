@@ -861,9 +861,6 @@ ROUND %d / %d,ROUND %d / %d,RUNDA %d / %d
 NOBODY,NOBODY,NIKT
 OPEN,OPEN,OTWARTA
 TIP_MISSION,"Click, press O or use the OBJECTIVES button to read the briefing and the objectives again.","Kliknij, naciśnij O lub użyj przycisku CELE, aby ponownie przeczytać odprawę i cele."
-"Scored at the end, round %d","Scored at the end, round %d","Rozliczany na końcu, runda %d"
-%s wins after %d consecutive closed rounds; otherwise scored at the end,%s wins after %d consecutive closed rounds; otherwise scored at the end,%s wygrywa po %d kolejnych rundach z zamkniętą drogą; poza tym rozliczane na końcu
-Any chain hex lost resets it,Any chain hex lost resets it,Utrata dowolnego pola łańcucha zeruje licznik
 %s taken by %s,%s taken by %s,%s zajęte przez: %s
 you,you,ciebie
 The Gap is closed,The Gap is closed,Przesmyk jest zamknięty
@@ -872,10 +869,21 @@ Gap chain broken - counter reset,Gap chain broken - counter reset,Łańcuch prze
 The Gap was held %d/%d rounds,The Gap was held %d/%d rounds,Przesmyk utrzymany przez %d/%d rund
 "Gap closed - %d/%d rounds, %s","Gap closed - %d/%d rounds, %s","Przesmyk zamknięty - %d/%d rund, %s"
 "%s holds the Gap - %d/%d rounds, break the chain","%s holds the Gap - %d/%d rounds, break the chain","%s trzyma Przesmyk - %d/%d rund, przerwij łańcuch"
-Closed %d/%d rounds,Closed %d/%d rounds,Zamknięty %d/%d rund
-Closed %d/%d rounds - %s,Closed %d/%d rounds - %s,Zamknięty %d/%d rund - %s
-%s: closed %d/%d rounds - break the chain,%s: closed %d/%d rounds - break the chain,%s: zamknięty %d/%d rund - przerwij łańcuch
 hold it one more round,hold it one more round,utrzymaj jeszcze jedną rundę
 hold it %d more rounds,hold it %d more rounds,utrzymaj jeszcze %d rund
 us,us,nas
 the enemy,the enemy,wroga
+Keep the Gap road open,Keep the Gap road open,Utrzymaj drogę przez Przesmyk otwartą
+Connect Kaliningrad with Belarus,Connect Kaliningrad with Belarus,Połącz Kaliningrad z Białorusią
+%d of %d held by %s,%d of %d held by %s,%d z %d w rękach: %s
+Main objective - decides the operation at once,Main objective - decides the operation at once,Cel główny - rozstrzyga operację natychmiast
+"Side objectives - scored at the end, round %d","Side objectives - scored at the end, round %d","Cele poboczne - punktowane na końcu, runda %d"
+%s wins at once if it holds the whole road for %d rounds in a row. Break the chain to reset the count.,%s wins at once if it holds the whole road for %d rounds in a row. Break the chain to reset the count.,"%s wygrywa od razu, jeśli trzyma całą drogę przez %d rund z rzędu. Przerwij łańcuch, aby wyzerować licznik."
+Scores for whoever holds it,Scores for whoever holds it,"Punkty dla tego, kto go trzyma"
+Scores for %s,Scores for %s,Punkty dla: %s
+HELD BY US,HELD BY US,W NASZYCH RĘKACH
+HELD BY ENEMY,HELD BY ENEMY,W RĘKACH WROGA
+CLOSED IN A ROW,CLOSED IN A ROW,ZAMKNIĘTA Z RZĘDU
+PTS,PTS,PKT
+ENEMY,ENEMY,WRÓG
+↑ ↓ select · Enter centre · Esc closes,↑ ↓ select · Enter centre · Esc closes,↑ ↓ wybór · Enter wyśrodkuj · Esc zamyka
