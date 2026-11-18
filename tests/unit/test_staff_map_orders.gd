@@ -68,6 +68,15 @@ func _key(keycode: Key) -> void:
 	_map._unhandled_input(event)
 
 
+func test_a_click_on_the_hud_leaves_the_order_mode() -> void:
+	var formation := _own()
+	_map.select_formation(formation.id)
+	_map._cancel_order_mode_on_hud_click(Vector2(-5, -5), false)
+	assert_eq(_map.selected_formation(), formation.id, "a click on the map keeps the mode")
+	_map._cancel_order_mode_on_hud_click(Vector2(-5, -5), true)
+	assert_eq(_map.selected_formation(), &"", "a click on the HUD cancels it")
+
+
 # --- pure: style, dashes, keys ---
 
 
@@ -512,7 +521,8 @@ func test_a_posture_key_arms_the_next_click() -> void:
 	assert_true(_map.is_picking())
 	_key(KEY_ESCAPE)
 	assert_false(_map.is_picking())
-	assert_eq(_map.selected_formation(), formation.id, "Esc dropped the pick only")
+	assert_eq(_map.selected_formation(), &"", "one Esc leaves the order mode")
+	_map.select_formation(formation.id)
 	_key(KEY_2)
 	_map.click_at(_map.hex_screen_position(target))
 	assert_eq(formation.posture, &"advance", "the click ordered in the picked posture")

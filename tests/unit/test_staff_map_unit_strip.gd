@@ -110,5 +110,7 @@ func test_an_armed_posture_shows_in_the_posture_column() -> void:
 	_map._sync_unit_strip(false)
 	assert_eq(_map.unit_strip().value_text(1), "ATTACK")
 	_key(KEY_ESCAPE)
+	assert_eq(_map.selected_formation(), &"", "Esc leaves the order mode")
+	_map.select_formation(own.id)
 	_map._sync_unit_strip(false)
-	assert_eq(_map.unit_strip().value_text(1), "DEFEND")
+	assert_eq(_map.unit_strip().value_text(1), "DEFEND", "the picked posture is gone")

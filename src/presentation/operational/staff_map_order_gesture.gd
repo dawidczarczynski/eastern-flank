@@ -193,32 +193,17 @@ func confirm() -> Dictionary:
 	return _intent(NONE)
 
 
-## Esc: drops a picked posture, else CONFIRM -> AIMING, AIMING -> ARMED, ARMED -> IDLE (DISARM).
+## Esc: CONFIRM -> AIMING; from any other armed state (ARMED, AIMING, EDITING) one press leaves
+## the order mode entirely (DISARM, picked posture included), so the aim line stops following
+## the cursor.
 func cancel() -> Dictionary:
 	if _blocked or _state == State.IDLE or _state == State.COMMITTED:
 		return _intent(NONE)
 	if _state == State.CONFIRM:
 		_state = _aim_state()
 		return _intent(NONE)
-	if _posture != &"":
-		_posture = &""
-		return _intent(POSTURE, {"posture": &""})
-	match _state:
-		State.AIMING:
-			_suppressed_hex = _hex
-			_clear_aim()
-			_state = State.ARMED
-		State.EDITING:
-			if _hex != NO_HEX:
-				_suppressed_hex = _hex
-				_clear_aim()
-			else:
-				_reset()
-				return _intent(DISARM)
-		State.ARMED:
-			_reset()
-			return _intent(DISARM)
-	return _intent(NONE)
+	_reset()
+	return _intent(DISARM)
 
 
 ## Key 1-3: the posture the next order is given in; the same key again drops it. Only while

@@ -882,11 +882,40 @@ func select_next_formation() -> void:
 
 
 func _input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		_cancel_order_mode_on_hud_click(
+			click.position, get_viewport().gui_get_hovered_control() != null
+		)
 	var key := event as InputEventKey
 	if not is_built or key == null or not key.pressed or key.keycode != KEY_TAB:
 		return
 	get_viewport().set_input_as_handled()
 	select_next_formation()
+
+
+## A left click on the HUD (a bar, a window, a button) leaves the order mode, like Esc. The panel
+## and the posture strip belong to the order being given, so they keep it. The click itself still
+## reaches the control (this does not mark the event handled).
+func _cancel_order_mode_on_hud_click(mouse: Vector2, over_hud: bool) -> void:
+	if not is_built or _order_ring.is_open() or _selected_own() == null:
+		return
+	_sync_gesture()
+	if not (
+		_gesture.state()
+		in [
+			StaffMapOrderGesture.State.ARMED,
+			StaffMapOrderGesture.State.AIMING,
+			StaffMapOrderGesture.State.EDITING,
+		]
+	):
+		return
+	if not over_hud:
+		return
+	for control: Control in [_panel, _posture_switcher]:
+		if control != null and control.visible and control.get_global_rect().has_point(mouse):
+			return
+	_cancel_gesture()
 
 
 ## Sets every text in the current language.

@@ -105,17 +105,12 @@ func test_escape_in_confirm_goes_back_to_aiming() -> void:
 	assert_eq(gesture.state(), StaffMapOrderGesture.State.AIMING)
 
 
-func test_escape_steps_back_one_state_at_a_time() -> void:
+func test_one_escape_leaves_the_order_mode_from_aiming() -> void:
 	var gesture := _aiming()
-	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.NONE)
-	assert_eq(gesture.state(), StaffMapOrderGesture.State.ARMED)
-	gesture.hover(HEX, OK, 3)
-	assert_eq(gesture.state(), StaffMapOrderGesture.State.ARMED, "same hex: Esc holds")
-	gesture.hover(OTHER, OK, 3)
-	assert_eq(gesture.state(), StaffMapOrderGesture.State.AIMING, "a new hex aims again")
-	gesture.cancel()
 	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.DISARM)
 	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
+	gesture.hover(OTHER, OK, 3)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE, "no aim line after Esc")
 
 
 func test_committed_returns_to_idle_after_the_settle_time() -> void:
@@ -166,12 +161,12 @@ func test_keys_change_the_posture_in_armed_and_aiming_and_the_same_key_drops_it(
 	assert_eq(gesture.posture(), &"")
 
 
-func test_escape_drops_a_picked_posture_before_stepping_back() -> void:
+func test_escape_with_a_picked_posture_leaves_the_order_mode() -> void:
 	var gesture := _aiming()
 	gesture.pick_posture(&"advance")
-	gesture.cancel()
+	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.DISARM)
 	assert_eq(gesture.posture(), &"")
-	assert_eq(gesture.state(), StaffMapOrderGesture.State.AIMING)
+	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
 
 
 func test_a_posture_key_is_ignored_when_idle() -> void:
@@ -274,12 +269,9 @@ func test_editing_border_incident_confirms_and_esc_returns_to_editing() -> void:
 	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
 
 
-func test_editing_esc_steps_back_then_disarms() -> void:
+func test_editing_one_esc_disarms() -> void:
 	var gesture := _editing()
 	gesture.hover(HEX, OK, 3)
-	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.NONE)
-	assert_eq(gesture.state(), StaffMapOrderGesture.State.EDITING)
-	assert_false(gesture.is_aiming())
 	assert_eq(gesture.cancel()["type"], StaffMapOrderGesture.DISARM)
 	assert_eq(gesture.state(), StaffMapOrderGesture.State.IDLE)
 	assert_eq(gesture.edited_from(), &"")
