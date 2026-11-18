@@ -1,6 +1,6 @@
 # TASK-179: GLB reference: normalise a Meshy GLB and render orthographic reference views
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: –
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)

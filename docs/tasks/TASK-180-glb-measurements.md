@@ -1,6 +1,6 @@
 # TASK-180: GLB measurements: section profiles and part detection into measurements.json
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: TASK-179
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)

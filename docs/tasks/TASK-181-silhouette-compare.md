@@ -1,6 +1,6 @@
 # TASK-181: Silhouette comparison: IoU of the game model against the GLB in three views
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: TASK-179
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)
