@@ -1,11 +1,12 @@
 extends SceneTree
 ## Headless test runner. Usually run via tools/test.sh.
 ## Env: TEST_TIMES=1 also prints "  TIME <ms> <label>" per test; TEST_SHARD="i/n" runs only every
-## n-th test file, starting at i (tools/test.sh runs shards in parallel).
+## balanced share of the test files (tests/shard_weights.json; tools/test.sh runs them in parallel).
 ## Manually: godot --headless --path . --script res://tests/run_tests.gd -- [filter]
 ## The filter matches a substring of "file.gd:test_name".
 
 const TEST_DIRS := ["res://tests/unit", "res://tests/integration"]
+const WEIGHT_DEFAULT_MS := 300
 
 
 func _initialize() -> void:
@@ -20,12 +21,11 @@ func _initialize() -> void:
 	var shard := OS.get_environment("TEST_SHARD").split("/")
 	var shard_index := int(shard[0]) if shard.size() == 2 else 0
 	var shard_count := int(shard[1]) if shard.size() == 2 else 1
-	var file_index := 0
+	var shard_files := _shard_files(shard_index, shard_count)
 
 	for dir_path: String in TEST_DIRS:
 		for path in _list_test_files(dir_path):
-			file_index += 1
-			if file_index % shard_count != shard_index:
+			if not shard_files.has(path):
 				continue
 			var script: GDScript = load(path)
 			var seen := {}
@@ -69,6 +69,41 @@ func _initialize() -> void:
 
 	print("\n%d tests, %d failed" % [total, failed])
 	quit(1 if failed > 0 else 0)
+
+
+## The test files that shard `index` of `count` runs. Files are dealt out heaviest first to the
+## least loaded shard (weights: ms per file in tests/shard_weights.json, tools/shard_weights.py
+## refreshes it; unknown files count as WEIGHT_DEFAULT_MS), so the processes finish together.
+func _shard_files(index: int, count: int) -> Dictionary:
+	var weights: Dictionary = {}
+	var json_text := FileAccess.get_file_as_string("res://tests/shard_weights.json")
+	if json_text != "":
+		weights = JSON.parse_string(json_text)
+	var files: Array[String] = []
+	for dir_path: String in TEST_DIRS:
+		files.append_array(_list_test_files(dir_path))
+	var weight_of := func(path: String) -> int:
+		return int(weights.get(path.get_file(), WEIGHT_DEFAULT_MS))
+	# Sorted by weight, then by path: the same order in every shard process.
+	files.sort_custom(
+		func(a: String, b: String) -> bool:
+			var wa: int = weight_of.call(a)
+			var wb: int = weight_of.call(b)
+			return wa > wb or (wa == wb and a < b)
+	)
+	var load_ms: Array[int] = []
+	load_ms.resize(count)
+	load_ms.fill(0)
+	var mine := {}
+	for path in files:
+		var lightest := 0
+		for i in count:
+			if load_ms[i] < load_ms[lightest]:
+				lightest = i
+		load_ms[lightest] += weight_of.call(path)
+		if lightest == index:
+			mine[path] = true
+	return mine
 
 
 ## Prints PASS/FAIL for `label`; true when `failures` is empty.
