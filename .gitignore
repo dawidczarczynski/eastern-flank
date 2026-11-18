@@ -33,3 +33,7 @@ docs/design/units/units/*/*.webp
 # Devtools hub service logs (tools/devtools.sh)
 .devtools/
 .check.out
+
+# Lint stamps (tools/lint.sh)
+.lint-cache
+.lint-cache.new

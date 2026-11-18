@@ -6,7 +6,7 @@ Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL
 
 - `tools/check.sh` – lint + all tests. **Run it before reporting that a task is done.**
 - `tools/test.sh [--verbose] [filter]` – headless tests only (e.g. `tools/test.sh test_commands`); prints only failures and the summary, full log in `.test.log`
-- `tools/lint.sh [--fix]` – gdformat + gdlint
+- `tools/lint.sh [--fix|--all]` – gdformat + gdlint; checks only files changed since their last clean run (stamps in `.lint-cache`) in parallel, `--all` rechecks everything
 - `tools/backlog.py [--fix]` – checks/fixes `blocked`/`ready` in docs/tasks/BACKLOG.md against dependencies, and that each row's status equals its task file's Status line; run after any status change
 - `tools/doc.py gdd|architecture [heading]` – print one section of a big doc instead of the whole file (no heading = list headings with line numbers); `tools/backlog.py --ready` lists ready tasks. **docs/GDD.md (~120 KB), ARCHITECTURE.md and BACKLOG.md must never be read whole.**
 - `docs/CODEMAP.md` – generated one-line-per-file map of `src/` (class name + purpose): **Grep it** to find where something lives instead of exploring; kept current by `tools/check.sh`.
