@@ -182,14 +182,14 @@ func _operation_report(
 	lines.append(
 		(
 			(
-				"Endings: collapse %s, threshold %s, nuclear %s, gap closed %s, "
+				"Endings: collapse %s, threshold %s, nuclear %s, corridor closed %s, "
 				+ "annihilation %s, round limit %s, error %s"
 			)
 			% [
 				_percent(endings[&"collapse"], count),
 				_percent(endings[&"threshold"], count),
 				_percent(endings[&"nuclear"], count),
-				_percent(endings[&"gap_closed"], count),
+				_percent(endings[&"corridor_closed"], count),
 				_percent(endings[&"annihilation"], count),
 				_percent(endings[&"round_limit"], count),
 				_percent(endings[&"error"], count)

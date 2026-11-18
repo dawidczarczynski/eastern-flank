@@ -40,17 +40,26 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var ai_goals: Array[AiGoal] = []
 ## Victory objectives (hex or installation, side, points; TASK-107a); the AI goals reuse them.
 @export var objectives: Array[OperationObjective] = []
-## The Gap road link: ordered road hexes from Suwałki to Marijampolė (OperationVictory).
-@export var gap_chain: Array[Vector2i] = []
+## NATO's link (TASK-177, connection model): open while some route of land hexes, none held by
+## side 1, joins these two hexes (Suwałki - Kaunas; OperationVictory.gap_status). Vector2i.MAX
+## = no NATO link objective.
+@export var nato_link_from: Vector2i = Vector2i.MAX
+@export var nato_link_to: Vector2i = Vector2i.MAX
+## Russia's corridor (TASK-177, connection model): closed while some route of land hexes, all held
+## by side 1, joins a hex of the first country with a hex of the second (Kaliningrad oblast -
+## Belarus; OperationVictory.corridor_status). Country ids; &"" = no corridor objective.
+@export var corridor_from_country: StringName = &""
+@export var corridor_to_country: StringName = &""
 ## Rounds of the operation; at the end of the last one the higher score wins.
 @export var round_limit: int = 30
-## Side 1 wins at once when it holds the whole chain at the end of this many consecutive rounds.
+## Side 1 wins at once when the corridor is closed at the end of this many consecutive rounds.
 @export var closed_rounds_to_win: int = 5
 ## A score difference below this is a draw.
 @export var draw_margin: int = 5
-## Points for side 0 while the Gap is open / for side 1 while it is closed, at the end.
+## Points at the end for side 0 while the Gap road is open / for side 1 while the corridor is
+## closed.
 @export var gap_open_points: int = 10
-@export var gap_closed_points: int = 10
+@export var corridor_points: int = 10
 ## Points lost per net escalation step caused (max(0, caused - deescalated)).
 @export var escalation_penalty: int = 3
 ## Packages of outside support, in setup order (TASK-121).

@@ -25,12 +25,17 @@ static func holder(state: OperationalState, hex: Vector2i) -> int:
 	return state.hex_holders.get(hex, state.hex_initial.get(hex, -1))
 
 
-## Whether `hex` carries a victory objective or belongs to the Gap chain.
+## Whether a holder change on `hex` may matter for victory: it carries a hex objective, or it is
+## a land hex while the operation has a connection objective (NATO's link or Russia's corridor,
+## TASK-177: any land hex can be on a route).
 static func is_objective_hex(state: OperationalState, hex: Vector2i) -> bool:
-	if state.definition == null:
+	var def := state.definition
+	if def == null:
 		return false
-	if state.definition.gap_chain.has(hex):
-		return true
+	if OperationVictory.has_gap_link(def) or OperationVictory.has_corridor(def):
+		var grid := state.grid
+		if grid != null and grid.has_tile(hex) and grid.move_cost(hex) != Terrain.IMPASSABLE:
+			return true
 	for objective in state.definition.objectives:
 		if objective.hex_in(state) == hex:
 			return true
@@ -38,8 +43,8 @@ static func is_objective_hex(state: OperationalState, hex: Vector2i) -> bool:
 
 
 ## `side` takes `hex`. One event `objective_changed` {kind `holder`, objective_id, old, new, round,
-## hex, holder, previous} per objective on the hex when the holder changed (a hex that is only on
-## the Gap chain gives none: `OperationalSimulation.execute` reports the chain's open / closed);
+## hex, holder, previous} per objective on the hex when the holder changed (the connection
+## objectives give none here: `OperationalSimulation.execute` reports their status flips);
 ## [] otherwise. `old` / `new` / `holder` / `previous` are sides (-1 = unheld).
 static func take(state: OperationalState, hex: Vector2i, side: int) -> Array[Dictionary]:
 	var previous := holder(state, hex)

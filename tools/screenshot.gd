@@ -378,6 +378,7 @@ func _fail(message: String, exit_code: int) -> void:
 ## hex, default 0: the terrain control layer, TASK-152),
 ## cover (the air defence cover overlay), suppress:<installation id>[:<rounds>] (silences a site),
 ## country:<id> (the country card, TASK-114), options (the map options window),
+## objectives[:<row>] (the objectives window, that row selected, TASK-177),
 ## journal[:<strikes|battles|moves|politics>] (the journal window with that chip, TASK-148b),
 ## politics (the --debug panel),
 ## strike:<means>[:<target id>[:fire]] (strike mode with that means; with a target its confirm
@@ -491,6 +492,7 @@ func _occupy(map: StaffMap, parts: PackedStringArray) -> void:
 		if Hex.distance(centre, hex) <= radius:
 			state.hex_holders[hex] = parts[1].to_int()
 	map.terrain_control().refresh(state, map.viewer_player)
+	map.objectives_layer().refresh(state, map.viewer_player)
 
 
 ## Staff map scene: tokens of SCREENSHOT_STAFF_MAP; processing stops afterwards so that the real
@@ -593,6 +595,10 @@ func _apply_staff_map_state(spec: String) -> void:
 				map.politics_hud().toggle_panel()
 			"options":  # the map options window
 				map.toggle_options()
+			"objectives":  # objectives[:<row>] – the objectives window, a row selected (TASK-177)
+				map.open_objectives()
+				if parts.size() > 1:
+					map.objectives_window().select_row(parts[1].to_int())
 			"journal":  # journal[:<strikes|battles|moves|politics>] – the journal window, TASK-148b
 				journal_filter = parts[1] if parts.size() > 1 else ""
 			"escalate":

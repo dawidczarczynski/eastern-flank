@@ -113,7 +113,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `IssueOrderCommand` – Gives a formation of the current player an order (TASK-092d): go to `destination` in (`issue_order_command.gd`)
 - `NuclearStrikeCommand` – Political decision *Use nuclear weapon* (TASK-140, GDD "Escalation ladder"): the last res… (`nuclear_strike_command.gd`)
 - `Operation` – Builds an OperationalState from an OperationDefinition (TASK-092b). Takes no human-side (`operation.gd`)
-- `OperationVictory` – Victory of an operation (TASK-107a, GDD "Sides" Victory): the state of the Gap road link,… (`operation_victory.gd`)
+- `OperationVictory` – Victory of an operation (TASK-107a, TASK-177, GDD "Sides" Victory): the state of NATO's l… (`operation_victory.gd`)
 - `OperationalClock` – Calendar of an operation (TASK-093b): `turn` is one 12 h period in which both blocs move. (`operational_clock.gd`)
 - `OperationalCommand` – Base command of the operational layer (ADR 0015 §2) – the only way to change (`operational_command.gd`)
 - `OperationalCommandCodec` – Rebuilds operational commands from their `to_dict()` form (also after a JSON round trip). (`operational_command_codec.gd`)

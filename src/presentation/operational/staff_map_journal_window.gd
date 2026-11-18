@@ -345,6 +345,8 @@ func _collect_items() -> void:
 		var e := all[i]
 		if not StaffMapJournalText.matches(e, _filter):
 			continue
+		if not StaffMapJournalText.shown(e, _viewer, _state):
+			continue
 		if groups.is_empty() or groups[groups.size() - 1][0] != e.turn:
 			groups.append([e.turn, []])
 		groups[groups.size() - 1][1].append({"entry": e, "index": i, "unseen": i >= seen_from})

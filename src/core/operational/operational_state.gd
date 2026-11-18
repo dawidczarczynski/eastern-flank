@@ -33,6 +33,9 @@ var formations: Array[Formation] = []
 var countries: Array[CountryState] = []
 ## Vector2i -> country id of every hex that belongs to a country (static, not in the snapshot).
 var country_map: Dictionary = {}
+## Country id -> its border land hexes (OperationVictory.border_hexes): derived from `country_map`
+## and `grid`, filled on first use (static, not in the snapshot).
+var border_cache: Dictionary = {}
 ## Seeded with the campaign seed; battle seeds are drawn from it (ADR 0015 §2).
 var rng := RandomNumberGenerator.new()
 ## The escalation ladder (static, not in the snapshot; TASK-115).
@@ -88,15 +91,16 @@ var suppression_rounds: int = 2
 var repair_per_round: int = 5
 ## Objectives of the operational AI, both sides (static, not in the snapshot; TASK-102a).
 var ai_goals: Array[AiGoal] = []
-## The operation's data (victory objectives, Gap chain, round limit; static, not in the snapshot).
+## The operation's data (victory objectives, the two chains, round limit; static, not in the
+## snapshot).
 ## Null in hand-made states: then no victory rule applies (OperationVictory.end_round does nothing).
 var definition: OperationDefinition = null
 ## Holder (0 / 1) of each hex at the start (static, HexControl.setup); hexes absent are unheld.
 var hex_initial: Dictionary = {}
 ## Vector2i -> holder of the hexes whose holder changed since the start (HexControl).
 var hex_holders: Dictionary = {}
-## Consecutive finished rounds that ended with side 1 holding the whole Gap chain.
-var gap_closed_rounds: int = 0
+## Consecutive finished rounds that ended with the corridor closed (side 1 holding all of it).
+var corridor_closed_rounds: int = 0
 ## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}
 ## (`by` = the side that caused it, -1 when none; the score is in the `operation_ended` event and
 ## OperationVictory.score).
@@ -180,7 +184,7 @@ func formation_at(coord: Vector2i) -> Formation:
 ## formations: [Formation.snapshot() sorted by id],
 ## installations: [Installation.snapshot() sorted by id],
 ## support: [SupportState.snapshot() sorted by id], strike_stock, strikes_left,
-## fielded_strength, hex_holders, gap_closed_rounds, orders_issued and ordered_this_turn (both
+## fielded_strength, hex_holders, corridor_closed_rounds, orders_issued and ordered_this_turn (both
 ## only when non-empty)}.
 func snapshot() -> Dictionary:
 	var sorted := formations.duplicate()
@@ -228,7 +232,7 @@ func snapshot() -> Dictionary:
 		},
 		"result": result.duplicate(),
 		"hex_holders": _holders_snapshot(),
-		"gap_closed_rounds": gap_closed_rounds,
+		"corridor_closed_rounds": corridor_closed_rounds,
 		"political_log": political_log.to_dict()["entries"],
 		"journal": journal.to_dict()["entries"],
 	}

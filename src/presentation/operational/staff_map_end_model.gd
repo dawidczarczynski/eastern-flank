@@ -9,7 +9,7 @@ const HEADLINE_DEFEAT := "Defeat"
 const HEADLINE_DRAW := "Draw"
 const HEADLINE_NOBODY := "Nobody wins"
 const REASONS := {
-	&"gap_closed": "Russia held the Gap road link long enough. The operation ends.",
+	&"corridor_closed": "Russia held the Kaliningrad–Belarus link long enough. The operation ends.",
 	&"round_limit": "The round limit was reached. The operation is scored.",
 	&"nuclear_use": "%s used a nuclear weapon. The operation ends.",
 }
@@ -111,9 +111,9 @@ static func table_rows(state: OperationalState, event: Dictionary) -> Array[Pack
 
 static func _line_label(state: OperationalState, id: StringName) -> String:
 	if id == &"gap_open":
-		return _t("Gap road link open")
-	if id == &"gap_closed":
-		return _t("Gap road link closed")
+		return _t("Suwałki–Kaunas link connected")
+	if id == &"corridor":
+		return _t("Kaliningrad–Belarus link connected")
 	if state.definition != null:
 		for objective in state.definition.objectives:
 			if objective.id == id:

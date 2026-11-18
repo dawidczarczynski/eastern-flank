@@ -7,7 +7,7 @@ func test_match_is_deterministic_and_ends_at_the_cap() -> void:
 	var b := OperationMatchRunner.play(&"suwalki_gap", 5, 2)
 	assert_eq(a, b)
 	assert_true(a["rounds"] <= 2)
-	assert_true([&"round_limit", &"nuclear", &"gap_closed", &"annihilation"].has(a["ending"]))
+	assert_true([&"round_limit", &"nuclear", &"corridor_closed", &"annihilation"].has(a["ending"]))
 	assert_eq(a["battles"], a["battles_auto"], "auto by default")
 	assert_eq(a["battles_played"], 0)
 
@@ -40,7 +40,7 @@ func test_unknown_operation_is_an_error_result() -> void:
 func test_cap_without_another_ending_is_scored_by_the_victory_rules() -> void:
 	var state := Operation.build(&"suwalki_gap", 1)
 	var r := OperationMatchRunner.play_state(OperationalSimulation.new(state), 1, 3)
-	assert_true([&"round_limit", &"nuclear", &"gap_closed", &"annihilation"].has(r["ending"]))
+	assert_true([&"round_limit", &"nuclear", &"corridor_closed", &"annihilation"].has(r["ending"]))
 	assert_eq(r["reason"], &"round_limit")
 	assert_eq(r["rounds"], 3)
 	var scores := OperationVictory.score(state, state.definition)

@@ -227,10 +227,16 @@ func _cases() -> Array:
 				&"objective",
 				&"move",
 				-1,
-				{"kind": "gap_counter", "objective_id": "gap", "old": 1, "new": 0, "round": 3}
+				{
+					"kind": "corridor_counter",
+					"objective_id": "corridor",
+					"old": 1,
+					"new": 0,
+					"round": 3
+				}
 			),
-			"Gap chain broken - counter reset",
-			"Gap chain broken - counter reset"
+			"",
+			"Kaliningrad–Belarus link broken - counter reset"
 		],
 		[
 			_entry(&"operation_ended", &"politics", -1, {"winner": 0}),
@@ -270,23 +276,52 @@ func test_the_cases_cover_every_journal_kind_but_the_order_interruption() -> voi
 
 func test_objective_entries_use_us_and_the_enemy() -> void:
 	var state := Operation.build(&"suwalki_gap", 7)
-	var objective := state.definition.objectives[0]
+	var grodno := state.definition.objectives[3]  # neutral: both sides follow it
 	var holder := _entry(
 		&"objective",
 		&"move",
 		-1,
-		{"kind": "holder", "objective_id": String(objective.id), "old": 0, "new": 1, "round": 2}
+		{"kind": "holder", "objective_id": String(grodno.id), "old": 0, "new": 1, "round": 2}
 	)
-	var name := TranslationServer.translate(objective.display_name)
+	var name := TranslationServer.translate(grodno.display_name)
 	assert_eq(_text(holder, 0, state), "%s taken by the enemy" % name)
 	assert_eq(_text(holder, 1, state), "%s taken by us" % name)
 	var gap := _entry(
 		&"objective",
 		&"move",
 		-1,
-		{"kind": "gap", "objective_id": "gap", "old": "open", "new": "closed", "round": 2}
+		{"kind": "gap", "objective_id": "gap", "old": "open", "new": "cut", "round": 2}
 	)
-	assert_eq(_text(gap, 0, state), "The Gap is closed")
+	assert_eq(_text(gap, 0, state), "The Suwałki–Kaunas link is cut")
+	var corridor := _entry(
+		&"objective",
+		&"move",
+		-1,
+		{"kind": "corridor", "objective_id": "corridor", "old": "open", "new": "closed", "round": 2}
+	)
+	assert_eq(_text(corridor, 1, state), "The Kaliningrad–Belarus link is established")
+
+
+func test_the_other_sides_objective_entries_are_not_shown() -> void:
+	var state := Operation.build(&"suwalki_gap", 7)
+	var gap := _entry(&"objective", &"move", -1, {"kind": "gap", "objective_id": "gap"})
+	var counter := _entry(
+		&"objective", &"move", -1, {"kind": "corridor_counter", "objective_id": "corridor"}
+	)
+	var nato_side := _entry(
+		&"objective",
+		&"move",
+		-1,
+		{"kind": "holder", "objective_id": String(state.definition.objectives[0].id)}
+	)
+	assert_true(StaffMapJournalText.shown(gap, 0, state))
+	assert_false(StaffMapJournalText.shown(gap, 1, state))
+	assert_false(StaffMapJournalText.shown(counter, 0, state))
+	assert_true(StaffMapJournalText.shown(counter, 1, state))
+	assert_true(StaffMapJournalText.shown(nato_side, 0, state))
+	assert_false(StaffMapJournalText.shown(nato_side, 1, state))
+	var other := _entry(&"decision", &"politics", -1, {"decision": "escalate", "country": ""})
+	assert_true(StaffMapJournalText.shown(other, 1, state))
 
 
 func test_an_order_interruption_names_the_reason() -> void:

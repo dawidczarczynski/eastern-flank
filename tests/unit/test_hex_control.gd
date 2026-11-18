@@ -115,9 +115,11 @@ func test_no_event_for_a_hex_without_an_objective() -> void:
 	assert_eq(_changes().size(), 0)
 
 
-func test_chain_only_hex_gives_no_take_event() -> void:
+func test_connection_route_hex_gives_no_take_event() -> void:
 	var s := _strip()
-	s.definition.gap_chain = [Vector2i(6, 0), Vector2i(7, 0), Vector2i(7, 1)] as Array[Vector2i]
+	s.definition.corridor_from_country = &"russia"
+	s.definition.corridor_to_country = &"belarus"
+	assert_true(HexControl.is_objective_hex(s, Vector2i(7, 1)), "any land hex may matter")
 	assert_eq(HexControl.take(s, Vector2i(7, 1), 0), [] as Array[Dictionary])
 	assert_eq(HexControl.holder(s, Vector2i(7, 1)), 0, "still taken")
 

@@ -1,13 +1,15 @@
 class_name StaffMapObjectivesWindow
 extends StaffMapWindow
 ## The objectives window of the staff map (OBJECTIVES button, key O; TASK-175a, variant A of
-## docs/design/operational_map/objectives_window.html): the MAIN objective card (the Gap road: chain
-## bar, closed-rounds bar, rule) and the SIDE objectives rows (holder shape, name, chip, points).
+## docs/design/operational_map/objectives_window.html; TASK-177): only the viewer's side's
+## objectives - the MAIN card (the link's two ends, CONNECTED / CUT chip, the corridor's
+## connected-rounds bar, rule; no route is prescribed) and the SIDE rows (own and neutral;
+## holder shape, name, chip, points).
 ## Every row is a button; Up / Down move the selection, Enter or a click emits `centre_requested`
 ## with the hexes to show. Holds no rules: `show_objectives` rebuilds the rows from
 ## StaffMapObjectivesModel; it can be reopened at any time during the operation.
 
-## A row was chosen (click or Enter): the hexes to bring into view (one hex, or the Gap's chain).
+## A row was chosen (click or Enter): the hexes to bring into view (one hex, or a link's two ends).
 signal centre_requested(hexes: Array[Vector2i])
 ## The selected row changed to one with `hexes` (or to none: empty).
 signal selection_changed(hexes: Array[Vector2i])
@@ -129,14 +131,10 @@ func row_button(index: int) -> Control:
 
 
 func _hexes_of(index: int) -> Array[Vector2i]:
-	var hexes: Array[Vector2i] = []
 	if index < 0 or index >= _models.size():
-		return hexes
-	var chain: Array[Vector2i] = _models[index]["chain"]
-	if not chain.is_empty():
-		return chain.duplicate()
-	hexes.append(_models[index]["hex"])
-	return hexes
+		return [] as Array[Vector2i]
+	var hexes: Array[Vector2i] = _models[index]["hexes"]
+	return hexes.duplicate()
 
 
 func _rebuild() -> void:
@@ -150,14 +148,13 @@ func _rebuild() -> void:
 	var seen_side := false
 	for i in _models.size():
 		var model := _models[i]
-		if i == 0 and model["tier"] == StaffMapObjectivesModel.MAIN:
+		var main: bool = model["tier"] == StaffMapObjectivesModel.MAIN
+		if i == 0 and main:
 			_rows_box.add_child(_section(StaffMapObjectivesModel.main_header(), 0))
-		elif not seen_side:
+		elif not main and not seen_side:
 			seen_side = true
 			_rows_box.add_child(_section(StaffMapObjectivesModel.side_header(_state), 10))
-		var button := (
-			_gap_card(model) if model["tier"] == StaffMapObjectivesModel.MAIN else _row(model)
-		)
+		var button := _main_card(model) if main else _row(model)
 		button.set_selected(i == _selected)
 		button.pressed.connect(activate_row.bind(i))
 		_buttons.append(button)
@@ -236,7 +233,9 @@ func _row(model: Dictionary) -> ObjectiveRow:
 	return row
 
 
-func _gap_card(model: Dictionary) -> ObjectiveRow:
+## The main objective card: title, the link's ends, status chip, points; the corridor's
+## connected-rounds bar; the rule box.
+func _main_card(model: Dictionary) -> ObjectiveRow:
 	var card := ObjectiveRow.new(true)
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -257,37 +256,16 @@ func _gap_card(model: Dictionary) -> ObjectiveRow:
 	var card_title := _label(model["label"], HudTheme.display(700, 1), 14, UiPalette.HUD_TEXT)
 	card_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_child(card_title)
-	var held := _label(
-		String(model["chain_text"]).to_upper(), HudTheme.display(400), 11, UiPalette.HUD_MUTED
-	)
-	held.name = "ChainText"
-	held.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_child(held)
+	var ends := _label(model["ends_text"], HudTheme.display(400), 11, UiPalette.HUD_MUTED)
+	ends.name = "EndsText"
+	text.add_child(ends)
 	top.add_child(text)
 	top.add_child(_chip(model["chip"], model["status"], colour))
+	top.add_child(_points(model))
 	top.add_child(_label("›", HudTheme.mono(700), 12, UiPalette.HUD_MUTED))
 	column.add_child(top)
-	var attacker := _status_colour(model["attacker_status"])
-	var chain := SegmentBar.new(_flags(model["chain_held"]), attacker, 5.0, 2.0, false)
-	chain.name = "ChainBar"
-	column.add_child(chain)
-	var progress := HBoxContainer.new()
-	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	progress.add_theme_constant_override(&"separation", 10)
-	progress.add_child(
-		_label(tr("CLOSED IN A ROW"), HudTheme.display(700, 1), 11, UiPalette.HUD_MUTED)
-	)
-	var filled: Array[bool] = []
-	for i in int(model["need"]):
-		filled.append(i < int(model["closed_rounds"]))
-	var segments := SegmentBar.new(filled, attacker, 7.0, 3.0, true)
-	segments.name = "ProgressBar"
-	segments.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	progress.add_child(segments)
-	var count := _label(model["progress"], HudTheme.mono(700), 13, UiPalette.HUD_TEXT)
-	count.name = "Progress"
-	progress.add_child(count)
-	column.add_child(progress)
+	if int(model["need"]) > 0:
+		column.add_child(_progress_line(model, _palette.side_own))
 	var rule := _label(model["rule"], HudTheme.display(400), 12.5, UiPalette.HUD_TEXT)
 	rule.name = "Rule"
 	rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -308,11 +286,25 @@ func _gap_card(model: Dictionary) -> ObjectiveRow:
 	return card
 
 
-static func _flags(values: Array) -> Array[bool]:
-	var flags: Array[bool] = []
-	for value in values:
-		flags.append(bool(value))
-	return flags
+## "CONNECTED IN A ROW" + the connected-rounds segments + "k / 5".
+func _progress_line(model: Dictionary, colour: Color) -> Control:
+	var progress := HBoxContainer.new()
+	progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	progress.add_theme_constant_override(&"separation", 10)
+	progress.add_child(
+		_label(tr("CONNECTED IN A ROW"), HudTheme.display(700, 1), 11, UiPalette.HUD_MUTED)
+	)
+	var filled: Array[bool] = []
+	for i in int(model["need"]):
+		filled.append(i < int(model["closed_rounds"]))
+	var segments := SegmentBar.new(filled, colour, 7.0, 3.0, true)
+	segments.name = "ProgressBar"
+	segments.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	progress.add_child(segments)
+	var count := _label(model["progress"], HudTheme.mono(700), 13, UiPalette.HUD_TEXT)
+	count.name = "Progress"
+	progress.add_child(count)
+	return progress
 
 
 func _line(row: Control) -> HBoxContainer:
@@ -452,7 +444,7 @@ class ObjectiveShape:
 				draw_circle(centre, 6.0, _colour)
 
 
-## A row of skewed cells, `flags[i]` filled with `colour` (the chain bar and the 5-segment bar).
+## A row of skewed cells, `flags[i]` filled with `colour` (the 5-segment connected-rounds bar).
 class SegmentBar:
 	extends Control
 

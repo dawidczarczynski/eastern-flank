@@ -504,8 +504,8 @@ func close_objectives() -> void:
 	_sync_action_bar()
 
 
-## A row of the objectives window was chosen: the camera brings its hex (the Gap: the whole chain)
-## into view and the ring pulses on it.
+## A row of the objectives window was chosen: the camera brings its hex (the main objective: both
+## ends of the link) into view and the ring pulses on it.
 func _on_objective_centre(hexes: Array[Vector2i]) -> void:
 	_focus_hexes(hexes)
 	_ring_hexes(hexes)
@@ -1383,6 +1383,10 @@ func set_viewer(player: int) -> void:
 		_journal.show_journal(_simulation.state, player)
 	if _politics != null:
 		_politics.refresh(player)
+	if _objective_layer != null:  # each side sees only its own objectives (TASK-177)
+		_objective_layer.refresh(_simulation.state, player)
+	if _objectives != null and _objectives.is_open():
+		_objectives.show_objectives(_simulation.state, player)
 	_counters.set_viewer(player)
 	_counters.refresh()
 	_counters.apply_marks(_marks)
@@ -1923,8 +1927,9 @@ func _on_support_event(event: Dictionary) -> void:
 		_toast_message(text, _palette.ui_amber)
 
 
-## An objective changed (hex holder, Gap open / closed, closed-round counter): a toast in the
-## viewer's words, queued behind earlier ones, and the open objectives window refreshes.
+## An objective changed (hex holder, a link connected / cut, the connected-rounds counter): a toast
+## in the viewer's words (none for the other side's objectives), queued behind earlier ones, and
+## the open objectives window refreshes.
 func _on_objective_changed(event: Dictionary) -> void:
 	var text := StaffMapObjectivesModel.event_text(_simulation.state, viewer_player, event)
 	if text != "":

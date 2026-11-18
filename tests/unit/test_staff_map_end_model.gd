@@ -18,14 +18,14 @@ func test_headline_per_viewer_and_reason() -> void:
 	assert_eq(StaffMapEndModel.headline(_state, limit, 0), "Victory")
 	assert_eq(StaffMapEndModel.headline(_state, limit, 1), "Defeat")
 	assert_eq(StaffMapEndModel.headline(_state, _event(-1, &"round_limit"), 0), "Draw")
-	assert_eq(StaffMapEndModel.headline(_state, _event(1, &"gap_closed", 1), 1), "Victory")
+	assert_eq(StaffMapEndModel.headline(_state, _event(1, &"corridor_closed", 1), 1), "Victory")
 	var nuclear := _event(-1, &"nuclear_use", 1)
 	assert_eq(StaffMapEndModel.headline(_state, nuclear, 1), "Defeat")
 	assert_eq(StaffMapEndModel.headline(_state, nuclear, 0), "Nobody wins")
 
 
 func test_reason_line_has_a_text_for_every_reason_and_a_generic_one() -> void:
-	for reason in [&"gap_closed", &"round_limit", &"nuclear_use"]:
+	for reason in [&"corridor_closed", &"round_limit", &"nuclear_use"]:
 		var line := StaffMapEndModel.reason_line(_state, _event(-1, reason, 1))
 		assert_false(line.is_empty())
 		assert_false(line.contains("%"), line)
@@ -44,15 +44,28 @@ func test_table_rows_from_the_score_payload() -> void:
 			"escalation_penalty": -3,
 			"total": 12
 		},
-		1: {"lines": [{"id": &"vilnius", "points": 5}], "escalation_penalty": -6, "total": -1},
+		1:
+		{
+			"lines": [{"id": &"vilnius", "points": 5}, {"id": &"corridor", "points": 10}],
+			"escalation_penalty": -6,
+			"total": 9
+		},
 	}
 	var rows := StaffMapEndModel.table_rows(_state, event)
-	assert_eq(rows.size(), 5)
+	assert_eq(rows.size(), 6)
 	assert_eq(rows[0], PackedStringArray(["Chernyakhovsk airfield", "+5", "–"]))
-	assert_eq(rows[1], PackedStringArray(["Gap road link open", "+10", "–"]))
+	assert_eq(rows[1], PackedStringArray(["Suwałki–Kaunas link connected", "+10", "–"]))
 	assert_eq(rows[2], PackedStringArray(["Vilnius", "–", "+5"]))
-	assert_eq(rows[3], PackedStringArray(["Escalation", "-3", "-6"]))
-	assert_eq(rows[4], PackedStringArray(["Total", "12", "-1"]))
+	assert_eq(rows[3], PackedStringArray(["Kaliningrad–Belarus link connected", "–", "+10"]))
+	assert_eq(rows[4], PackedStringArray(["Escalation", "-3", "-6"]))
+	assert_eq(rows[5], PackedStringArray(["Total", "12", "9"]))
+
+
+func test_corridor_reason_line() -> void:
+	assert_eq(
+		StaffMapEndModel.reason_line(_state, _event(1, &"corridor_closed", 1)),
+		"Russia held the Kaliningrad–Belarus link long enough. The operation ends."
+	)
 
 
 func test_rounds_played_and_resumed_score() -> void:

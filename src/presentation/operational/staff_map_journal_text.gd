@@ -110,6 +110,18 @@ static func matches(entry: OperationalJournal.Entry, filter: StringName) -> bool
 	return filter == &"" or entry.category == filter
 
 
+## Whether `viewer` gets the entry at all: an objective change of the other side's objective only
+## (its link, its counter, its side objective) is left out (TASK-177).
+static func shown(entry: OperationalJournal.Entry, viewer: int, state: OperationalState) -> bool:
+	if entry.kind != &"objective":
+		return true
+	var event := {
+		"kind": StringName(entry.args.get("kind", "")),
+		"objective_id": StringName(entry.args.get("objective_id", "")),
+	}
+	return StaffMapObjectivesModel.concerns(state, viewer, event)
+
+
 ## Header of a turn: {title: "TURN 5", date: "14 JUN", range: "DAY 06–18", text: both joined}.
 static func turn_header(turn: int, state: OperationalState) -> Dictionary:
 	var iso := OperationalClock.date(turn, state.start_date)
@@ -267,7 +279,10 @@ static func _parts(entry: OperationalJournal.Entry, viewer: int, state: Operatio
 				"old": a.get("old"),
 				"new": a.get("new"),
 			}
-			if event["kind"] in [&"gap", &"gap_counter"] and a.get("old") is String:
+			if (
+				event["kind"] in [&"gap", &"corridor", &"corridor_counter"]
+				and a.get("old") is String
+			):
 				event["old"] = StringName(a["old"])
 				event["new"] = StringName(a["new"])
 			return _plain(StaffMapObjectivesModel.journal_text(state, viewer, event))

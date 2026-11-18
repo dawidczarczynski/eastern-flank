@@ -395,8 +395,8 @@ static func _goals_problem(definition: OperationDefinition, grid: HexGrid) -> St
 	return ""
 
 
-## Victory data (TASK-107a): objectives on the map with positive points, the Gap chain (3+ land
-## road hexes, consecutive ones neighbours), round limit, rounds to win, draw margin.
+## Victory data (TASK-107a): objectives on the map with positive points, the NATO link's end hexes
+## and the corridor's countries (TASK-177), round limit, rounds to win, draw margin.
 static func _victory_problem(definition: OperationDefinition, grid: HexGrid) -> String:
 	if definition.round_limit < 1:
 		return "round_limit %d must be at least 1" % definition.round_limit
@@ -426,20 +426,37 @@ static func _victory_problem(definition: OperationDefinition, grid: HexGrid) -> 
 				return "%s: unknown installation '%s'" % [label, objective.installation_id]
 		elif not grid.has_tile(objective.coord):
 			return "%s: hex %s is not on the map" % [label, objective.coord]
-	return _chain_problem(definition.gap_chain, grid)
+	return _links_problem(definition, grid)
 
 
-static func _chain_problem(chain: Array[Vector2i], grid: HexGrid) -> String:
-	if chain.is_empty():
+## The two connection objectives (TASK-177): the NATO link's ends are both set or both unset,
+## distinct land hexes of the map; the corridor's countries are both set or both unset, distinct.
+static func _links_problem(definition: OperationDefinition, grid: HexGrid) -> String:
+	var ends: Array[Vector2i] = [definition.nato_link_from, definition.nato_link_to]
+	if ends.has(Vector2i.MAX):
+		if ends.count(Vector2i.MAX) != 2:
+			return "nato_link_from / nato_link_to must be set together"
+	else:
+		if ends[0] == ends[1]:
+			return "nato_link_from and nato_link_to must differ"
+		for hex in ends:
+			if not grid.has_tile(hex) or grid.move_cost(hex) == Terrain.IMPASSABLE:
+				return "nato link hex %s is not a land hex of the map" % hex
+	var countries: Array[StringName] = [
+		definition.corridor_from_country, definition.corridor_to_country
+	]
+	if countries.count(&"") == 1:
+		return "corridor_from_country / corridor_to_country must be set together"
+	if countries[0] == &"":
 		return ""
-	if chain.size() < 3:
-		return "gap_chain needs at least 3 hexes"
-	for index in chain.size():
-		var hex := chain[index]
-		if not grid.has_tile(hex) or grid.move_cost(hex) == Terrain.IMPASSABLE:
-			return "gap_chain hex %s is not a land hex of the map" % hex
-		if index > 0 and not grid.has_road(chain[index - 1], hex):
-			return "gap_chain hexes %s and %s have no road link" % [chain[index - 1], hex]
+	if countries[0] == countries[1]:
+		return "corridor_from_country and corridor_to_country must differ"
+	for id in countries:
+		var known := definition.countries.any(
+			func(setup: CountrySetup) -> bool: return setup.country.id == id
+		)
+		if not known:
+			return "corridor country '%s' is not a country of the operation" % id
 	return ""
 
 

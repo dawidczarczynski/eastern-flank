@@ -4,8 +4,11 @@ extends Control
 ## docs/design/operational_map/objectives_window.html): per hex objective a dashed amber ring (r 19)
 ## with the holder glyph
 ## (own rectangle / enemy diamond / neutral circle), a points plate 48 x 16 and, from zoom Z1 up
-## (always for the selected one), the name; the Gap chain as a ribbon (the part held by the
-## attacker solid in its side colour, the rest dotted amber) with the tag "THE GAP ▪ n/13 +10".
+## (always for the selected one), the name. The viewer's main objective (TASK-177, a connection by
+## any route, so no route is drawn): a marker on each of the link's two ends (dark disc, amber
+## ring, status dot) and between them the status tag ("SUWAŁKI ↔ KAUNAS ▪ CONNECTED +10",
+## "KALININGRAD ↔ BELARUS ▪ 2/5"), its text `ui.alert` while the link hurts NATO (cut / connected).
+## Only the viewer's own and neutral objectives are drawn (StaffMapObjectivesModel.rows).
 ## Fixed screen size like counters, ignores the mouse (the owner asks `marker_at` on a click) and
 ## is read-only (rule 3).
 ##
@@ -21,11 +24,9 @@ const PLATE_GAP := 4.0
 const NAME_SIZE := 11
 const POINTS_SIZE := 11
 const TAG_SIZE := 11
-const RIBBON_WIDTH := 5.0
-const RIBBON_HALO := 7.0
-const DOT_SPACING := 9.0
-const DOT_RADIUS := 2.0
-const CAP_RADIUS := 6.0
+const END_RADIUS := 19.0
+const END_DOT := 5.5
+const TAG_LIFT := 12.0
 const DISC_ALPHA := 0.7
 const PLATE_LINE_ALPHA := 0.6
 const GLYPH_HALF := Vector2(7, 5.5)
@@ -121,13 +122,18 @@ func name_shown(index: int) -> bool:
 	return _level >= 1 or index == _selected
 
 
-## The row whose marker plate (or ring; the Gap: its tag) lies under `screen`, -1 for none.
+## The row whose marker plate (or ring; the main objective: its tag or an end) lies under `screen`,
+## -1 for none.
 func marker_at(screen: Vector2) -> int:
 	if not visible or not _screen_of_hex.is_valid():
 		return -1
 	for i in _rows.size():
 		if _hit_rect(i).has_point(screen):
 			return i
+		if _is_main(_rows[i]):
+			for end in _ends(_rows[i]):
+				if end.distance_to(screen) <= END_RADIUS:
+					return i
 	return -1
 
 
@@ -148,7 +154,7 @@ func _invalidate() -> void:
 	queue_redraw()
 
 
-func _is_gap(row: Dictionary) -> bool:
+func _is_main(row: Dictionary) -> bool:
 	return row["tier"] == StaffMapObjectivesModel.MAIN
 
 
@@ -156,11 +162,27 @@ func _centre(row: Dictionary) -> Vector2:
 	return _screen_of_hex.call(row["hex"])
 
 
+## Screen points of the main objective's two ends.
+func _ends(row: Dictionary) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	for hex: Vector2i in row["hexes"]:
+		points.append(_screen_of_hex.call(hex))
+	return points
+
+
+## Where the main objective's tag hangs: halfway between the two ends.
+func _tag_anchor(row: Dictionary) -> Vector2:
+	var ends := _ends(row)
+	if ends.is_empty():
+		return Vector2.ZERO
+	return (ends[0] + ends[ends.size() - 1]) * 0.5
+
+
 func _hit_rect(index: int) -> Rect2:
 	var row := _rows[index]
+	if _is_main(row):
+		return _tag_rect(_tag_anchor(row), row["tag"])
 	var centre := _centre(row)
-	if _is_gap(row):
-		return _tag_rect(centre, _tag_text(row))
 	var ring := Rect2(centre - Vector2.ONE * RING_RADIUS, Vector2.ONE * RING_RADIUS * 2.0)
 	return ring.merge(_plate_rect(centre))
 
@@ -171,17 +193,10 @@ func _plate_rect(centre: Vector2) -> Rect2:
 	)
 
 
-func _tag_text(row: Dictionary) -> String:
-	var text := "%s ▪ %d/%d +%d" % [tr("THE GAP"), row["held"], row["total"], row["points"]]
-	if int(row["held"]) == int(row["total"]):
-		text += " · %s %d/%d" % [tr("CLOSED"), row["closed_rounds"], row["need"]]
-	return text
-
-
-func _tag_rect(centre: Vector2, text: String) -> Rect2:
+func _tag_rect(anchor: Vector2, text: String) -> Rect2:
 	var width := HudTheme.mono(700).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAG_SIZE).x
 	var size := Vector2(width + 14.0, PLATE_SIZE.y)
-	return Rect2(Vector2(centre.x - size.x / 2.0, centre.y - CAP_RADIUS - 6.0 - size.y), size)
+	return Rect2(Vector2(anchor.x - size.x / 2.0, anchor.y - TAG_LIFT - size.y), size)
 
 
 func _status_colour(status: StringName) -> Color:
@@ -196,11 +211,10 @@ func _status_colour(status: StringName) -> Color:
 func _draw() -> void:
 	if _palette == null or not _screen_of_hex.is_valid():
 		return
-	for i in _rows.size():  # ribbon first, markers over it
-		if _is_gap(_rows[i]):
-			_draw_ribbon(_rows[i], i == _selected)
 	for i in _rows.size():
-		if not _is_gap(_rows[i]):
+		if _is_main(_rows[i]):
+			_draw_link(_rows[i], i == _selected)
+		else:
 			_draw_marker(_rows[i], i)
 
 
@@ -252,41 +266,20 @@ func _glyph(centre: Vector2, status: StringName) -> void:
 		draw_circle(centre, 6.0, colour)
 
 
-func _draw_ribbon(row: Dictionary, selected: bool) -> void:
-	var chain: Array[Vector2i] = row["chain"]
-	var held: Array[bool] = row["chain_held"]
-	var points := PackedVector2Array()
-	for hex in chain:
-		points.append(_screen_of_hex.call(hex))
-	if points.size() < 2:
-		return
-	var attacker := _status_colour(row["attacker_status"])
-	for k in range(1, points.size()):  # halo under everything so the dots read on any ground
-		draw_line(points[k - 1], points[k], Color(_palette.map_void, 0.8), RIBBON_HALO, true)
-	for k in range(1, points.size()):
-		if held[k - 1] and held[k]:
-			draw_line(points[k - 1], points[k], attacker, RIBBON_WIDTH, true)
-		else:
-			_dots(points[k - 1], points[k])
-	for end in [points[0], points[points.size() - 1]]:
-		draw_circle(end, CAP_RADIUS, Color(_palette.map_void, DISC_ALPHA))
-		draw_arc(end, CAP_RADIUS, 0.0, TAU, 20, _palette.ui_amber, RING_WIDTH, true)
-	var text := _tag_text(row)
-	var rect := _tag_rect(_centre(row), text)
+## The main objective: a marker on each end and the status tag between them.
+func _draw_link(row: Dictionary, selected: bool) -> void:
+	var dot := _status_colour(row["status"])
+	for end in _ends(row):
+		draw_circle(end, END_RADIUS, Color(_palette.map_void, DISC_ALPHA))
+		draw_arc(end, END_RADIUS, 0.0, TAU, 24, _palette.ui_amber, RING_WIDTH, true)
+		draw_circle(end, END_DOT, dot)
+	var text: String = row["tag"]
+	var rect := _tag_rect(_tag_anchor(row), text)
 	draw_rect(rect, PANEL_STRONG)
 	var edge := _palette.ui_amber if selected else Color(_palette.ui_amber, PLATE_LINE_ALPHA)
 	draw_rect(rect, edge, false, 1.0)
-	var closed := int(row["held"]) == int(row["total"])
-	_centred(
-		rect, text, HudTheme.mono(700), TAG_SIZE, _palette.ui_alert if closed else _palette.ui_amber
-	)
-
-
-func _dots(from: Vector2, to: Vector2) -> void:
-	var length := from.distance_to(to)
-	var count := maxi(int(length / DOT_SPACING), 1)
-	for k in count + 1:
-		draw_circle(from.lerp(to, float(k) / float(count)), DOT_RADIUS, _palette.ui_amber)
+	var colour := _palette.ui_alert if row["alert"] else _palette.ui_amber
+	_centred(rect, text, HudTheme.mono(700), TAG_SIZE, colour)
 
 
 func _centred(rect: Rect2, text: String, font: Font, size: int, colour: Color) -> void:

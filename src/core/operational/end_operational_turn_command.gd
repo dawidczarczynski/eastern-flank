@@ -7,7 +7,7 @@ extends OperationalCommand
 ## placement order, each one walks its route as far as its posture's budget allows. Execution
 ## draws nothing from `state.rng`; a formation that ends its walk on a hex takes it (HexControl);
 ## when play returns to the first player the round ends (EscalationRules.end_round, StrikeRules,
-## OperationVictory.end_round: `gap_closed` / `round_limit` may end the operation); afterwards
+## OperationVictory.end_round: `corridor_closed` / `round_limit` may end the operation); afterwards
 ## every formation that halted on contact attacks an
 ## adjacent enemy (ContactRules.start_battles, TASK-094a), which draws one value per battle.
 

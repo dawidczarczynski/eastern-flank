@@ -760,13 +760,10 @@ Victory,Victory,Zwycięstwo
 Defeat,Defeat,Porażka
 Draw,Draw,Remis
 Nobody wins,Nobody wins,Nikt nie wygrywa
-Russia held the Gap road link long enough. The operation ends.,Russia held the Gap road link long enough. The operation ends.,Rosja utrzymała drogę przez Przesmyk wystarczająco długo. Operacja się kończy.
 The round limit was reached. The operation is scored.,The round limit was reached. The operation is scored.,Osiągnięto limit rund. Operacja zostaje rozliczona punktami.
 The operation has ended.,The operation has ended.,Operacja dobiegła końca.
 Rounds played: %d,Rounds played: %d,Rozegrane rundy: %d
 Total,Total,Razem
-Gap road link open,Gap road link open,Droga przez Przesmyk otwarta
-Gap road link closed,Gap road link closed,Droga przez Przesmyk zamknięta
 ESC_END_REVIEW,Review map,Przejrzyj mapę
 Chernyakhovsk airfield,Chernyakhovsk airfield,Lotnisko Czerniachowsk
 Bialystok command post,Bialystok command post,Stanowisko dowodzenia Białystok
@@ -860,32 +857,36 @@ OBJECTIVES,OBJECTIVES,CELE
 TIP_OBJECTIVES,Opens or closes the objectives: what the operation is scored on and who holds each one now.,Otwiera lub zamyka cele: za co liczone są punkty operacji i kto aktualnie trzyma każdy z nich.
 ROUND %d / %d,ROUND %d / %d,RUNDA %d / %d
 NOBODY,NOBODY,NIKT
-OPEN,OPEN,OTWARTA
 TIP_MISSION,"Click, press O or use the OBJECTIVES button to read the briefing and the objectives again.","Kliknij, naciśnij O lub użyj przycisku CELE, aby ponownie przeczytać odprawę i cele."
 %s taken by %s,%s taken by %s,%s zajęte przez: %s
 you,you,ciebie
-The Gap is closed,The Gap is closed,Przesmyk jest zamknięty
-The Gap is open again,The Gap is open again,Przesmyk znów jest otwarty
-Gap chain broken - counter reset,Gap chain broken - counter reset,Łańcuch przerwany - licznik wyzerowany
-The Gap was held %d/%d rounds,The Gap was held %d/%d rounds,Przesmyk utrzymany przez %d/%d rund
-"Gap closed - %d/%d rounds, %s","Gap closed - %d/%d rounds, %s","Przesmyk zamknięty - %d/%d rund, %s"
-"%s holds the Gap - %d/%d rounds, break the chain","%s holds the Gap - %d/%d rounds, break the chain","%s trzyma Przesmyk - %d/%d rund, przerwij łańcuch"
-hold it one more round,hold it one more round,utrzymaj jeszcze jedną rundę
-hold it %d more rounds,hold it %d more rounds,utrzymaj jeszcze %d rund
 us,us,nas
 the enemy,the enemy,wroga
-Keep the Gap road open,Keep the Gap road open,Utrzymaj drogę przez Przesmyk otwartą
-Connect Kaliningrad with Belarus,Connect Kaliningrad with Belarus,Połącz Kaliningrad z Białorusią
-%d of %d held by %s,%d of %d held by %s,%d z %d w rękach: %s
-Main objective - decides the operation at once,Main objective - decides the operation at once,Cel główny - rozstrzyga operację natychmiast
 "Side objectives - scored at the end, round %d","Side objectives - scored at the end, round %d","Cele poboczne - punktowane na końcu, runda %d"
-%s wins at once if it holds the whole road for %d rounds in a row. Break the chain to reset the count.,%s wins at once if it holds the whole road for %d rounds in a row. Break the chain to reset the count.,"%s wygrywa od razu, jeśli trzyma całą drogę przez %d rund z rzędu. Przerwij łańcuch, aby wyzerować licznik."
 Scores for whoever holds it,Scores for whoever holds it,"Punkty dla tego, kto go trzyma"
 Scores for %s,Scores for %s,Punkty dla: %s
 HELD BY US,HELD BY US,W NASZYCH RĘKACH
 HELD BY ENEMY,HELD BY ENEMY,W RĘKACH WROGA
-CLOSED IN A ROW,CLOSED IN A ROW,ZAMKNIĘTA Z RZĘDU
 PTS,PTS,PKT
 ENEMY,ENEMY,WRÓG
+Main objective,Main objective,Cel główny
+Keep Suwałki connected with Kaunas,Keep Suwałki connected with Kaunas,Utrzymaj połączenie Suwałk z Kownem
+SUWAŁKI ↔ KAUNAS,SUWAŁKI ↔ KAUNAS,SUWAŁKI ↔ KOWNO
+KALININGRAD ↔ BELARUS,KALININGRAD ↔ BELARUS,KALININGRAD ↔ BIAŁORUŚ
+CONNECTED,CONNECTED,POŁĄCZONE
+NOT CONNECTED,NOT CONNECTED,BRAK POŁĄCZENIA
+CUT,CUT,PRZERWANE
+CONNECTED IN A ROW,CONNECTED IN A ROW,POŁĄCZONE Z RZĘDU
+Any land route without enemy hexes counts. +%d at the end while connected.,Any land route without enemy hexes counts. +%d at the end while connected.,"Liczy się dowolna trasa lądowa bez hexów wroga. +%d na końcu, jeśli połączone."
+Any route of land held by us counts. Connected %d rounds in a row: we win at once; otherwise +%d at the end while connected.,Any route of land held by us counts. Connected %d rounds in a row: we win at once; otherwise +%d at the end while connected.,"Liczy się dowolna trasa lądowa w naszych rękach. %d rund połączenia z rzędu: wygrywamy od razu; inaczej +%d na końcu, jeśli połączone."
+The Suwałki–Kaunas link is cut,The Suwałki–Kaunas link is cut,Połączenie Suwałki–Kowno zostało przerwane
+The Suwałki–Kaunas link is restored,The Suwałki–Kaunas link is restored,Połączenie Suwałki–Kowno zostało przywrócone
+The Kaliningrad–Belarus link is established,The Kaliningrad–Belarus link is established,Połączenie Kaliningrad–Białoruś zostało nawiązane
+The Kaliningrad–Belarus link is broken,The Kaliningrad–Belarus link is broken,Połączenie Kaliningrad–Białoruś zostało przerwane
+Kaliningrad–Belarus link held %d/%d rounds,Kaliningrad–Belarus link held %d/%d rounds,Połączenie Kaliningrad–Białoruś utrzymane przez %d/%d rund
+Kaliningrad–Belarus link broken - counter reset,Kaliningrad–Belarus link broken - counter reset,Połączenie Kaliningrad–Białoruś przerwane - licznik wyzerowany
+Russia held the Kaliningrad–Belarus link long enough. The operation ends.,Russia held the Kaliningrad–Belarus link long enough. The operation ends.,Rosja utrzymała połączenie Kaliningrad–Białoruś wystarczająco długo. Operacja się kończy.
+Suwałki–Kaunas link connected,Suwałki–Kaunas link connected,Połączenie Suwałki–Kowno utrzymane
+Kaliningrad–Belarus link connected,Kaliningrad–Belarus link connected,Połączenie Kaliningrad–Białoruś utrzymane
 ↑ ↓ select · Enter centre · Esc closes,↑ ↓ select · Enter centre · Esc closes,↑ ↓ wybór · Enter wyśrodkuj · Esc zamyka
-THE GAP,THE GAP,PRZESMYK
+Connect Kaliningrad with Belarus,Connect Kaliningrad with Belarus,Połącz Obwód Kaliningradzki z Białorusią

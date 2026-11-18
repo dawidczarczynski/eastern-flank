@@ -1,6 +1,7 @@
 extends TestCase
-## The objectives layer of the staff map (TASK-175b): markers per objective, the Gap ribbon, redraws
-## only on a matching change, the key / Map options toggle forced on by the window, marker click.
+## The objectives layer of the staff map (TASK-175b, TASK-177): markers per own / neutral objective,
+## the main link's two end markers and tag (no route), redraws only on a matching change, the key /
+## Map options toggle forced on by the window, marker click.
 
 static var _map: StaffMap
 static var _previous_locale: String
@@ -29,11 +30,35 @@ func before_each() -> void:
 	layer.set_selected(-1)
 
 
-func test_layer_has_a_row_per_objective_and_is_on_by_default() -> void:
+func test_layer_shows_only_the_viewers_objectives_and_is_on_by_default() -> void:
 	var layer := _map.objectives_layer()
-	var state := _map.simulation().state
-	assert_eq(layer.rows().size(), state.definition.objectives.size() + 1)
+	var rows := layer.rows()
+	assert_eq(rows.size(), 3, "NATO: its link, Chernyakhovsk, Grodno")
+	assert_eq(rows[0]["kind"], StaffMapObjectivesModel.GAP)
+	for row in rows:
+		assert_true(row["yours"])
 	assert_true(layer.is_shown())
+
+
+func test_main_tag_hangs_between_the_two_ends() -> void:
+	var layer := _map.objectives_layer()
+	var def := _map.simulation().state.definition
+	var row: Dictionary = layer.rows()[0]
+	assert_eq(row["tag"], "SUWAŁKI ↔ KAUNAS ▪ CONNECTED +%d" % def.gap_open_points)
+	var a := _map._screen_of_hex(def.nato_link_from)
+	var b := _map._screen_of_hex(def.nato_link_to)
+	assert_true(absf(layer.hit_rect(0).get_center().x - (a.x + b.x) * 0.5) < 1.0)
+
+
+func test_click_on_the_main_tag_or_an_end_opens_the_window_on_its_row() -> void:
+	var layer := _map.objectives_layer()
+	var def := _map.simulation().state.definition
+	var tag := layer.hit_rect(0).get_center()
+	assert_eq(layer.marker_at(tag), 0)
+	assert_eq(layer.marker_at(_map._screen_of_hex(def.nato_link_to)), 0, "the Kaunas end")
+	_map.click_at(tag)
+	assert_true(_map.objectives_window().is_open())
+	assert_eq(_map.objectives_window().selected_row(), 0)
 
 
 func test_redraws_only_on_objective_changed_or_a_zoom_level_change() -> void:
@@ -41,7 +66,9 @@ func test_redraws_only_on_objective_changed_or_a_zoom_level_change() -> void:
 	var before := layer.redraw_count()
 	_map.simulation().event_emitted.emit({"type": &"unit_moved"})
 	assert_eq(layer.redraw_count(), before, "unrelated event")
-	_map.simulation().event_emitted.emit({"type": &"objective_changed", "kind": &"gap_counter"})
+	_map.simulation().event_emitted.emit(
+		{"type": &"objective_changed", "kind": &"corridor_counter"}
+	)
 	assert_eq(layer.redraw_count(), before + 1, "matching event")
 	layer.set_level(layer._level)
 	assert_eq(layer.redraw_count(), before + 1, "same level")
