@@ -184,6 +184,17 @@ func test_mlrs_blind_fire_range_and_smoke() -> void:
 	assert_true(sim.execute(BlindFireCommand.new(mlrs.id, Vector2i(0, 0))))
 
 
+func test_self_propelled_artillery_blind_fires_at_3_to_6() -> void:
+	var d := _typed(Fixtures.sure_fighter(4), &"sp_artillery")
+	Fixtures.set_range(d, 4, 6, 2, UnitDefinition.FIRE_INDIRECT)
+	var spa := state.add_unit(0, d, Vector2i(-3, 0))
+	_inf(Vector2i(-2, 0), 1)
+	_inf(Vector2i(0, 0), 1)
+	assert_false(sim.execute(BlindFireCommand.new(spa.id, Vector2i(-2, 0))))
+	assert_eq(rejections, ["too_close"])
+	assert_true(sim.execute(BlindFireCommand.new(spa.id, Vector2i(0, 0))))
+
+
 func test_blind_fire_needs_command_points() -> void:
 	state.set_command_points_per_turn([1, 1])
 	state.command_points = 0
