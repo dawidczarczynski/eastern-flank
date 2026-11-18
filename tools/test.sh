@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the headless tests. Usage: tools/test.sh [--verbose] [filter]   (e.g. tools/test.sh test_hex)
+# Runs the headless tests. Usage: tools/test.sh [--fast] [--verbose] [filter]   (e.g. tools/test.sh test_hex)
 # Prints only failures, script errors and the summary; the full Godot log goes to .test.log
 # (--verbose prints it all). The Godot path can be overridden with the GODOT variable.
 set -uo pipefail
@@ -8,6 +8,10 @@ LOG=.test.log
 verbose=0
 if [[ "${1:-}" == "--verbose" || "${1:-}" == "-v" ]]; then
 	verbose=1
+	shift
+fi
+if [[ "${1:-}" == "--fast" ]]; then
+	export TEST_FAST=1 # skips the tests of tests/slow_tests.txt (not when a filter is given)
 	shift
 fi
 GODOT="${GODOT:-godot}"
@@ -56,6 +60,7 @@ else
 	rm -rf "$shard_dir"
 fi
 echo "$output" >"$LOG"
+skipped=$(grep -hoE "^SKIPPED_SLOW [0-9]+" <<<"$output" | awk '{s+=$2} END{print s+0}')
 
 if ((verbose)); then
 	echo "$output"
@@ -63,6 +68,7 @@ else
 	# Failed tests with their messages, script errors with their location, and the summary line.
 	grep -E -A2 "SCRIPT ERROR|Parse Error|Failed to load script" <<<"$output"
 	grep -E "^  FAIL |^       - |^[0-9]+ tests, [0-9]+ failed" <<<"$output"
+	((skipped > 0)) && echo "($skipped slow tests skipped by --fast; tools/check.sh --full runs everything)"
 fi
 
 # A script runtime error in Godot doesn't abort the test – we catch it from the log.

@@ -4,8 +4,8 @@ Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL
 
 ## Commands
 
-- `tools/check.sh` – lint + all tests. **Run it before reporting that a task is done.**
-- `tools/test.sh [--verbose] [filter]` – headless tests only (e.g. `tools/test.sh test_commands`); prints only failures and the summary, full log in `.test.log`
+- `tools/check.sh [--full]` – lint + tests without the 8 slow ones (tests/slow_tests.txt, ~3 min); `--full` runs all (~4 min). **Run it before reporting that a task is done; use `--full` when the task touches `src/ai/`, the operational AI / match runners, balance data or operational routes.**
+- `tools/test.sh [--fast] [--verbose] [filter]` – headless tests only (`--fast` skips tests/slow_tests.txt; a filter always runs the matching tests) (e.g. `tools/test.sh test_commands`); prints only failures and the summary, full log in `.test.log`
 - `tools/lint.sh [--fix|--all]` – gdformat + gdlint; checks only files changed since their last clean run (stamps in `.lint-cache`) in parallel, `--all` rechecks everything
 - `tools/backlog.py [--fix]` – checks/fixes `blocked`/`ready` in docs/tasks/BACKLOG.md against dependencies, and that each row's status equals its task file's Status line; run after any status change
 - `tools/doc.py gdd|architecture [heading]` – print one section of a big doc instead of the whole file (no heading = list headings with line numbers); `tools/backlog.py --ready` lists ready tasks. **docs/GDD.md (~120 KB), ARCHITECTURE.md and BACKLOG.md must never be read whole.**

@@ -1,7 +1,8 @@
 extends SceneTree
 ## Headless test runner. Usually run via tools/test.sh.
-## Env: TEST_TIMES=1 also prints "  TIME <ms> <label>" per test; TEST_SHARD="i/n" runs only every
-## balanced share of the test files (tests/shard_weights.json; tools/test.sh runs them in parallel).
+## Env: TEST_FAST=1 skips the tests of tests/slow_tests.txt; TEST_TIMES=1 also prints
+## "  TIME <ms> <label>" per test; TEST_SHARD="i/n" runs only a balanced share of the test files
+## (tests/shard_weights.json; tools/test.sh runs the shards in parallel).
 ## Manually: godot --headless --path . --script res://tests/run_tests.gd -- [filter]
 ## The filter matches a substring of "file.gd:test_name".
 
@@ -22,6 +23,10 @@ func _initialize() -> void:
 	var shard_index := int(shard[0]) if shard.size() == 2 else 0
 	var shard_count := int(shard[1]) if shard.size() == 2 else 1
 	var shard_files := _shard_files(shard_index, shard_count)
+	# --fast (TEST_FAST=1) leaves out the tests of tests/slow_tests.txt, unless a filter picks tests.
+	var skip_slow := OS.get_environment("TEST_FAST") != "" and filter == ""
+	var slow_tests := FileAccess.get_file_as_string("res://tests/slow_tests.txt").split("\n")
+	var skipped := 0
 
 	for dir_path: String in TEST_DIRS:
 		for path in _list_test_files(dir_path):
@@ -35,7 +40,10 @@ func _initialize() -> void:
 				if not method_name.begins_with("test_") or seen.has(method_name):
 					continue
 				seen[method_name] = true
-				if filter == "" or ("%s:%s" % [path.get_file(), method_name]).contains(filter):
+				var label := "%s:%s" % [path.get_file(), method_name]
+				if skip_slow and slow_tests.has(label):
+					skipped += 1
+				elif filter == "" or label.contains(filter):
 					methods.append(method_name)
 			if methods.is_empty():
 				continue
@@ -67,12 +75,15 @@ func _initialize() -> void:
 				_report("%s:after_all" % path.get_file(), suite.failures)
 				failed += 1
 
+	if skipped > 0:
+		print("SKIPPED_SLOW %d" % skipped)
 	print("\n%d tests, %d failed" % [total, failed])
 	quit(1 if failed > 0 else 0)
 
 
-## The test files that shard `index` of `count` runs. Files are dealt out heaviest first to the
-## least loaded shard (weights: ms per file in tests/shard_weights.json, tools/shard_weights.py
+## least loaded shard (weights: [all, without slow tests] ms per file in
+## tests/shard_weights.json, tools/shard_weights.py refreshes it; unknown files count as
+## WEIGHT_DEFAULT_MS), so the processes finish together.
 ## refreshes it; unknown files count as WEIGHT_DEFAULT_MS), so the processes finish together.
 func _shard_files(index: int, count: int) -> Dictionary:
 	var weights: Dictionary = {}
@@ -82,8 +93,10 @@ func _shard_files(index: int, count: int) -> Dictionary:
 	var files: Array[String] = []
 	for dir_path: String in TEST_DIRS:
 		files.append_array(_list_test_files(dir_path))
+	var column := 1 if OS.get_environment("TEST_FAST") != "" else 0
 	var weight_of := func(path: String) -> int:
-		return int(weights.get(path.get_file(), WEIGHT_DEFAULT_MS))
+		var pair: Array = weights.get(path.get_file(), [])
+		return int(pair[column]) if pair.size() == 2 else WEIGHT_DEFAULT_MS
 	# Sorted by weight, then by path: the same order in every shard process.
 	files.sort_custom(
 		func(a: String, b: String) -> bool:

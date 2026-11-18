@@ -1,278 +1,1106 @@
 {
-"test_ai_artillery.gd": 1220,
-"test_ai_firing_positions.gd": 651,
-"test_ai_holding.gd": 25,
-"test_ai_player.gd": 105,
-"test_air_defence.gd": 1343,
-"test_allied_contributions.gd": 48,
-"test_attack.gd": 11,
-"test_attack_order.gd": 7,
-"test_attack_targets.gd": 4,
-"test_auto_resolve.gd": 1205,
-"test_auto_resolve_conditions.gd": 577,
-"test_auto_resolve_data.gd": 16,
-"test_auto_resolve_k9.gd": 4,
-"test_auto_resolve_record.gd": 4213,
-"test_backdrop_heights.gd": 1,
-"test_backdrop_types.gd": 1,
-"test_battle_briefing.gd": 22,
-"test_battle_conditions.gd": 2,
-"test_battle_conditions_view.gd": 23,
-"test_battle_consequences.gd": 780,
-"test_battle_hud.gd": 144,
-"test_battle_look.gd": 1266,
-"test_battle_menu.gd": 41,
-"test_battle_name.gd": 1,
-"test_battle_name_text.gd": 1,
-"test_battle_objectives.gd": 103,
-"test_battle_options.gd": 0,
-"test_battle_setup.gd": 156,
-"test_blind_fire.gd": 6,
-"test_borders_movement.gd": 603,
-"test_burnt_ground.gd": 0,
-"test_camera_math.gd": 1,
-"test_camera_rig.gd": 3,
-"test_camera_tilt.gd": 0,
-"test_campaign_record.gd": 7296,
-"test_campaign_saver.gd": 6212,
-"test_catalog_animations.gd": 4397,
-"test_collapse.gd": 61,
-"test_color_grade.gd": 58,
-"test_combat_forecast.gd": 6,
-"test_combat_rolls.gd": 55,
-"test_command_codec.gd": 0,
-"test_command_points.gd": 44,
-"test_command_points_battle.gd": 430,
-"test_commands.gd": 13,
-"test_contact.gd": 42,
-"test_contact_battle.gd": 4587,
-"test_contact_deployment.gd": 217,
-"test_contact_force.gd": 377,
-"test_contact_map.gd": 726,
-"test_contact_map_theatre.gd": 10798,
-"test_contribution_data.gd": 410,
-"test_counterattack.gd": 8,
-"test_country_rules.gd": 471,
-"test_decal_textures.gd": 153,
-"test_deployables.gd": 1,
-"test_detail_texture.gd": 54,
-"test_dig_in.gd": 44,
-"test_escalation.gd": 102,
-"test_escalation_sanctuary.gd": 33,
-"test_event_queue.gd": 0,
-"test_factions.gd": 2,
-"test_feature_ribbon_planner.gd": 7365,
-"test_feature_ribbon_shapes.gd": 210,
-"test_field_parcels.gd": 2194,
-"test_field_scatter.gd": 2454,
-"test_fire_support_command.gd": 27,
-"test_flower_planner.gd": 1504,
-"test_foliage_meshes.gd": 205,
-"test_formation_orders.gd": 1163,
-"test_frame_pacing.gd": 0,
-"test_front_line.gd": 9,
-"test_game_settings.gd": 2,
-"test_graphics_quality.gd": 22,
-"test_grass_kinds.gd": 11783,
-"test_grass_planner.gd": 8592,
-"test_grass_reeds.gd": 17415,
-"test_ground_marks.gd": 3,
-"test_ground_marks_view.gd": 2063,
-"test_ground_noise.gd": 1,
-"test_gun_recoil.gd": 80,
-"test_heavy_move.gd": 1,
-"test_hex.gd": 0,
-"test_hex_control.gd": 57,
-"test_hex_grid.gd": 3,
-"test_hud_clear_zone.gd": 0,
-"test_hud_controls.gd": 1,
-"test_hud_model.gd": 33,
-"test_hud_notices.gd": 1148,
-"test_hud_shapes.gd": 5,
-"test_hud_theme.gd": 20,
-"test_imported_map.gd": 244,
-"test_imported_map_layers.gd": 21,
-"test_launcher_aim.gd": 1139,
-"test_launcher_pose.gd": 2427,
-"test_leaf_texture.gd": 106,
-"test_line_of_sight.gd": 46,
-"test_localization.gd": 140,
-"test_locomotion.gd": 1062,
-"test_look_preset.gd": 36,
-"test_lt_by_factions.gd": 52,
-"test_main_menu.gd": 1025,
-"test_map_scale.gd": 32,
-"test_map_view_backdrop.gd": 5617,
-"test_map_view_detail.gd": 7253,
-"test_map_view_grass.gd": 36056,
-"test_map_view_overlays.gd": 5316,
-"test_map_view_terrain_rows.gd": 3411,
-"test_match_runner.gd": 37835,
-"test_match_saver.gd": 25,
-"test_meadow_scrub.gd": 2278,
-"test_menu_backdrop.gd": 71,
-"test_mesh_kit.gd": 73,
-"test_mesh_lods.gd": 1038,
-"test_mlrs_models.gd": 1293,
-"test_motion_effects.gd": 0,
-"test_motion_fx.gd": 2154,
-"test_move_animation.gd": 0,
-"test_move_path.gd": 12,
-"test_nuclear_strike.gd": 71,
-"test_objective_events.gd": 28,
-"test_objective_markers.gd": 31,
-"test_occlusion_bake.gd": 13,
-"test_operation.gd": 1754,
-"test_operation_balance.gd": 145430,
-"test_operation_match_runner.gd": 56029,
-"test_operation_victory.gd": 2453,
-"test_operational_ai.gd": 1779,
-"test_operational_ai_politics.gd": 186,
-"test_operational_ai_turn.gd": 18181,
-"test_operational_data.gd": 404,
-"test_operational_journal.gd": 73,
-"test_operational_map_data.gd": 993,
-"test_operational_map_layers.gd": 1282,
-"test_operational_reach.gd": 55,
-"test_operational_routes.gd": 64422,
-"test_operational_turns.gd": 1055,
-"test_orbit_math.gd": 1,
-"test_order_execution.gd": 7146,
-"test_orders_per_turn.gd": 951,
-"test_outside_support.gd": 1892,
-"test_overlay_geometry.gd": 5,
-"test_path.gd": 33,
-"test_political_decisions.gd": 1452,
-"test_political_log.gd": 61,
-"test_politics_screen.gd": 19634,
-"test_portrait_renderer.gd": 0,
-"test_radial_ring_geometry.gd": 0,
-"test_range_overlay_model.gd": 837,
-"test_real_map_battle.gd": 599,
-"test_render_unit_options.gd": 29,
-"test_replay.gd": 392,
-"test_replay_factions.gd": 42,
-"test_road_ribbon_width.gd": 7,
-"test_roads_rivers.gd": 267,
-"test_rocket_artillery.gd": 43,
-"test_rocket_volley.gd": 1,
-"test_salvo_fx.gd": 536,
-"test_salvo_fx_helpers.gd": 0,
-"test_salvo_playback.gd": 2379,
-"test_salvo_timing.gd": 487,
-"test_scatter_chunks.gd": 46,
-"test_scatter_planner.gd": 6059,
-"test_scenario.gd": 382,
-"test_scene_loader.gd": 7,
-"test_screenshot_image.gd": 1,
-"test_screenshot_options.gd": 0,
-"test_session.gd": 4371,
-"test_side_flag.gd": 16,
-"test_side_select.gd": 4175,
-"test_simulate_options.gd": 0,
-"test_smoke_blind_fire.gd": 8,
-"test_soldier_anatomy.gd": 2242,
-"test_sound_bank.gd": 6,
-"test_sound_planner.gd": 1,
-"test_sound_settings.gd": 6,
-"test_spawn_distance.gd": 55,
-"test_squad_carry.gd": 1922,
-"test_staff_map_ai_turn.gd": 3533,
-"test_staff_map_air_defence.gd": 5351,
-"test_staff_map_air_defence_view.gd": 3310,
-"test_staff_map_allies.gd": 3589,
-"test_staff_map_borders.gd": 13,
-"test_staff_map_camera_math.gd": 0,
-"test_staff_map_clipping.gd": 3,
-"test_staff_map_contact_preview.gd": 818,
-"test_staff_map_contacts.gd": 3562,
-"test_staff_map_countries.gd": 13,
-"test_staff_map_decisions.gd": 13784,
-"test_staff_map_end_model.gd": 2945,
-"test_staff_map_escalation.gd": 3854,
-"test_staff_map_formations.gd": 4503,
-"test_staff_map_front_line.gd": 2800,
-"test_staff_map_journal_text.gd": 737,
-"test_staff_map_journal_window.gd": 3824,
-"test_staff_map_launcher_marker.gd": 21,
-"test_staff_map_layers.gd": 11,
-"test_staff_map_left_dock.gd": 3434,
-"test_staff_map_menu.gd": 20280,
-"test_staff_map_objectives.gd": 10175,
-"test_staff_map_objectives_layer.gd": 2719,
-"test_staff_map_options.gd": 2824,
-"test_staff_map_order_extras.gd": 12,
-"test_staff_map_order_gesture.gd": 1,
-"test_staff_map_order_gesture_view.gd": 3614,
-"test_staff_map_order_ring_info.gd": 7,
-"test_staff_map_orders.gd": 7637,
-"test_staff_map_overview.gd": 31,
-"test_staff_map_place_labels.gd": 2,
-"test_staff_map_place_name.gd": 0,
-"test_staff_map_posture_glyphs.gd": 0,
-"test_staff_map_posture_switcher_model.gd": 3,
-"test_staff_map_reach_layer.gd": 2781,
-"test_staff_map_relief.gd": 220,
-"test_staff_map_right_dock.gd": 0,
-"test_staff_map_right_dock_view.gd": 3837,
-"test_staff_map_route.gd": 2863,
-"test_staff_map_session.gd": 16458,
-"test_staff_map_slide.gd": 7738,
-"test_staff_map_start_view.gd": 7133,
-"test_staff_map_strike_flight.gd": 0,
-"test_staff_map_strike_forecast.gd": 0,
-"test_staff_map_strike_mode.gd": 4460,
-"test_staff_map_strike_model.gd": 81,
-"test_staff_map_strike_panel.gd": 116,
-"test_staff_map_strike_report.gd": 560,
-"test_staff_map_strikes.gd": 3677,
-"test_staff_map_support.gd": 7042,
-"test_staff_map_terrain.gd": 664,
-"test_staff_map_turn_marks.gd": 1,
-"test_staff_map_turns.gd": 3810,
-"test_staff_map_unit_card_model.gd": 1,
-"test_staff_map_unit_strip.gd": 2768,
-"test_staff_map_view.gd": 36,
-"test_staff_map_window.gd": 45,
-"test_stance_tint.gd": 1361,
-"test_strike_command.gd": 2729,
-"test_strike_forecast.gd": 250,
-"test_strike_launch.gd": 58,
-"test_strike_rules.gd": 33,
-"test_strike_weapon_look.gd": 4,
-"test_strikes.gd": 1609,
-"test_surface_wear.gd": 15,
-"test_tank_models.gd": 2387,
-"test_target_ring_model.gd": 20,
-"test_terrain.gd": 0,
-"test_terrain_control.gd": 3458,
-"test_terrain_generation.gd": 1236,
-"test_terrain_noise.gd": 16,
-"test_terrain_panel_model.gd": 1,
-"test_terrain_splat.gd": 45,
-"test_terrain_surface.gd": 689,
-"test_terrain_textures.gd": 4279,
-"test_third_party_assets.gd": 851,
-"test_tree_field.gd": 12235,
-"test_tree_meshes.gd": 113,
-"test_tree_species.gd": 698,
-"test_turret_aim.gd": 753,
-"test_unit_catalog.gd": 4782,
-"test_unit_catalog_consistency.gd": 7,
-"test_unit_definitions.gd": 2,
-"test_unit_mechanisms.gd": 647,
-"test_unit_model_contract.gd": 2099,
-"test_unit_models.gd": 3977,
-"test_unit_popup.gd": 28,
-"test_unit_popup_model.gd": 15,
-"test_unit_render_rules.gd": 13,
-"test_unit_status.gd": 3,
-"test_unit_strip_model.gd": 2,
-"test_visual_scale.gd": 49,
-"test_warm_up.gd": 1,
-"test_weapon_blueprint.gd": 1,
-"test_weapon_models.gd": 7,
-"test_weapon_range.gd": 48,
-"test_wheeled_running_gear.gd": 155,
-"test_wreck_view.gd": 129
+"test_ai_artillery.gd": [
+1220,
+1220
+],
+"test_ai_firing_positions.gd": [
+651,
+651
+],
+"test_ai_holding.gd": [
+25,
+25
+],
+"test_ai_player.gd": [
+105,
+105
+],
+"test_air_defence.gd": [
+1343,
+1343
+],
+"test_allied_contributions.gd": [
+48,
+48
+],
+"test_attack.gd": [
+11,
+11
+],
+"test_attack_order.gd": [
+7,
+7
+],
+"test_attack_targets.gd": [
+4,
+4
+],
+"test_auto_resolve.gd": [
+1205,
+1205
+],
+"test_auto_resolve_conditions.gd": [
+577,
+577
+],
+"test_auto_resolve_data.gd": [
+16,
+16
+],
+"test_auto_resolve_k9.gd": [
+4,
+4
+],
+"test_auto_resolve_record.gd": [
+4213,
+4213
+],
+"test_backdrop_heights.gd": [
+1,
+1
+],
+"test_backdrop_types.gd": [
+1,
+1
+],
+"test_battle_briefing.gd": [
+22,
+22
+],
+"test_battle_conditions.gd": [
+2,
+2
+],
+"test_battle_conditions_view.gd": [
+23,
+23
+],
+"test_battle_consequences.gd": [
+780,
+780
+],
+"test_battle_hud.gd": [
+144,
+144
+],
+"test_battle_look.gd": [
+1266,
+1266
+],
+"test_battle_menu.gd": [
+41,
+41
+],
+"test_battle_name.gd": [
+1,
+1
+],
+"test_battle_name_text.gd": [
+1,
+1
+],
+"test_battle_objectives.gd": [
+103,
+103
+],
+"test_battle_options.gd": [
+0,
+0
+],
+"test_battle_setup.gd": [
+156,
+156
+],
+"test_blind_fire.gd": [
+6,
+6
+],
+"test_borders_movement.gd": [
+603,
+603
+],
+"test_burnt_ground.gd": [
+0,
+0
+],
+"test_camera_math.gd": [
+1,
+1
+],
+"test_camera_rig.gd": [
+3,
+3
+],
+"test_camera_tilt.gd": [
+0,
+0
+],
+"test_campaign_record.gd": [
+7296,
+7296
+],
+"test_campaign_saver.gd": [
+6212,
+6212
+],
+"test_catalog_animations.gd": [
+4397,
+4397
+],
+"test_collapse.gd": [
+61,
+61
+],
+"test_color_grade.gd": [
+58,
+58
+],
+"test_combat_forecast.gd": [
+6,
+6
+],
+"test_combat_rolls.gd": [
+55,
+55
+],
+"test_command_codec.gd": [
+0,
+0
+],
+"test_command_points.gd": [
+44,
+44
+],
+"test_command_points_battle.gd": [
+430,
+430
+],
+"test_commands.gd": [
+13,
+13
+],
+"test_contact.gd": [
+42,
+42
+],
+"test_contact_battle.gd": [
+4587,
+4587
+],
+"test_contact_deployment.gd": [
+217,
+217
+],
+"test_contact_force.gd": [
+377,
+377
+],
+"test_contact_map.gd": [
+726,
+726
+],
+"test_contact_map_theatre.gd": [
+10798,
+1957
+],
+"test_contribution_data.gd": [
+410,
+410
+],
+"test_counterattack.gd": [
+8,
+8
+],
+"test_country_rules.gd": [
+471,
+471
+],
+"test_decal_textures.gd": [
+153,
+153
+],
+"test_deployables.gd": [
+1,
+1
+],
+"test_detail_texture.gd": [
+54,
+54
+],
+"test_dig_in.gd": [
+44,
+44
+],
+"test_escalation.gd": [
+102,
+102
+],
+"test_escalation_sanctuary.gd": [
+33,
+33
+],
+"test_event_queue.gd": [
+0,
+0
+],
+"test_factions.gd": [
+2,
+2
+],
+"test_feature_ribbon_planner.gd": [
+7365,
+7365
+],
+"test_feature_ribbon_shapes.gd": [
+210,
+210
+],
+"test_field_parcels.gd": [
+2194,
+2194
+],
+"test_field_scatter.gd": [
+2454,
+2454
+],
+"test_fire_support_command.gd": [
+27,
+27
+],
+"test_flower_planner.gd": [
+1504,
+1504
+],
+"test_foliage_meshes.gd": [
+205,
+205
+],
+"test_formation_orders.gd": [
+1163,
+1163
+],
+"test_frame_pacing.gd": [
+0,
+0
+],
+"test_front_line.gd": [
+9,
+9
+],
+"test_game_settings.gd": [
+2,
+2
+],
+"test_graphics_quality.gd": [
+22,
+22
+],
+"test_grass_kinds.gd": [
+11783,
+11783
+],
+"test_grass_planner.gd": [
+8592,
+8592
+],
+"test_grass_reeds.gd": [
+17415,
+17415
+],
+"test_ground_marks.gd": [
+3,
+3
+],
+"test_ground_marks_view.gd": [
+2063,
+2063
+],
+"test_ground_noise.gd": [
+1,
+1
+],
+"test_gun_recoil.gd": [
+80,
+80
+],
+"test_heavy_move.gd": [
+1,
+1
+],
+"test_hex.gd": [
+0,
+0
+],
+"test_hex_control.gd": [
+57,
+57
+],
+"test_hex_grid.gd": [
+3,
+3
+],
+"test_hud_clear_zone.gd": [
+0,
+0
+],
+"test_hud_controls.gd": [
+1,
+1
+],
+"test_hud_model.gd": [
+33,
+33
+],
+"test_hud_notices.gd": [
+1148,
+1148
+],
+"test_hud_shapes.gd": [
+5,
+5
+],
+"test_hud_theme.gd": [
+20,
+20
+],
+"test_imported_map.gd": [
+244,
+244
+],
+"test_imported_map_layers.gd": [
+21,
+21
+],
+"test_launcher_aim.gd": [
+1139,
+1139
+],
+"test_launcher_pose.gd": [
+2427,
+2427
+],
+"test_leaf_texture.gd": [
+106,
+106
+],
+"test_line_of_sight.gd": [
+46,
+46
+],
+"test_localization.gd": [
+140,
+140
+],
+"test_locomotion.gd": [
+1062,
+1062
+],
+"test_look_preset.gd": [
+36,
+36
+],
+"test_lt_by_factions.gd": [
+52,
+52
+],
+"test_main_menu.gd": [
+1025,
+1025
+],
+"test_map_scale.gd": [
+32,
+32
+],
+"test_map_view_backdrop.gd": [
+5617,
+5617
+],
+"test_map_view_detail.gd": [
+7253,
+7253
+],
+"test_map_view_grass.gd": [
+36056,
+36056
+],
+"test_map_view_overlays.gd": [
+5316,
+5316
+],
+"test_map_view_terrain_rows.gd": [
+3411,
+3411
+],
+"test_match_runner.gd": [
+37835,
+3075
+],
+"test_match_saver.gd": [
+25,
+25
+],
+"test_meadow_scrub.gd": [
+2278,
+2278
+],
+"test_menu_backdrop.gd": [
+71,
+71
+],
+"test_mesh_kit.gd": [
+73,
+73
+],
+"test_mesh_lods.gd": [
+1038,
+1038
+],
+"test_mlrs_models.gd": [
+1293,
+1293
+],
+"test_motion_effects.gd": [
+0,
+0
+],
+"test_motion_fx.gd": [
+2154,
+2154
+],
+"test_move_animation.gd": [
+0,
+0
+],
+"test_move_path.gd": [
+12,
+12
+],
+"test_nuclear_strike.gd": [
+71,
+71
+],
+"test_objective_events.gd": [
+28,
+28
+],
+"test_objective_markers.gd": [
+31,
+31
+],
+"test_occlusion_bake.gd": [
+13,
+13
+],
+"test_operation.gd": [
+1754,
+1754
+],
+"test_operation_balance.gd": [
+145430,
+0
+],
+"test_operation_match_runner.gd": [
+56029,
+7731
+],
+"test_operation_victory.gd": [
+2453,
+2453
+],
+"test_operational_ai.gd": [
+1779,
+1779
+],
+"test_operational_ai_politics.gd": [
+186,
+186
+],
+"test_operational_ai_turn.gd": [
+18181,
+4447
+],
+"test_operational_data.gd": [
+404,
+404
+],
+"test_operational_journal.gd": [
+73,
+73
+],
+"test_operational_map_data.gd": [
+993,
+993
+],
+"test_operational_map_layers.gd": [
+1282,
+1282
+],
+"test_operational_reach.gd": [
+55,
+55
+],
+"test_operational_routes.gd": [
+64422,
+700
+],
+"test_operational_turns.gd": [
+1055,
+1055
+],
+"test_orbit_math.gd": [
+1,
+1
+],
+"test_order_execution.gd": [
+7146,
+7146
+],
+"test_orders_per_turn.gd": [
+951,
+951
+],
+"test_outside_support.gd": [
+1892,
+1892
+],
+"test_overlay_geometry.gd": [
+5,
+5
+],
+"test_path.gd": [
+33,
+33
+],
+"test_political_decisions.gd": [
+1452,
+1452
+],
+"test_political_log.gd": [
+61,
+61
+],
+"test_politics_screen.gd": [
+19634,
+19634
+],
+"test_portrait_renderer.gd": [
+0,
+0
+],
+"test_radial_ring_geometry.gd": [
+0,
+0
+],
+"test_range_overlay_model.gd": [
+837,
+837
+],
+"test_real_map_battle.gd": [
+599,
+599
+],
+"test_render_unit_options.gd": [
+29,
+29
+],
+"test_replay.gd": [
+392,
+392
+],
+"test_replay_factions.gd": [
+42,
+42
+],
+"test_road_ribbon_width.gd": [
+7,
+7
+],
+"test_roads_rivers.gd": [
+267,
+267
+],
+"test_rocket_artillery.gd": [
+43,
+43
+],
+"test_rocket_volley.gd": [
+1,
+1
+],
+"test_salvo_fx.gd": [
+536,
+536
+],
+"test_salvo_fx_helpers.gd": [
+0,
+0
+],
+"test_salvo_playback.gd": [
+2379,
+2379
+],
+"test_salvo_timing.gd": [
+487,
+487
+],
+"test_scatter_chunks.gd": [
+46,
+46
+],
+"test_scatter_planner.gd": [
+6059,
+6059
+],
+"test_scenario.gd": [
+382,
+382
+],
+"test_scene_loader.gd": [
+7,
+7
+],
+"test_screenshot_image.gd": [
+1,
+1
+],
+"test_screenshot_options.gd": [
+0,
+0
+],
+"test_session.gd": [
+4371,
+4371
+],
+"test_side_flag.gd": [
+16,
+16
+],
+"test_side_select.gd": [
+4175,
+4175
+],
+"test_simulate_options.gd": [
+0,
+0
+],
+"test_smoke_blind_fire.gd": [
+8,
+8
+],
+"test_soldier_anatomy.gd": [
+2242,
+2242
+],
+"test_sound_bank.gd": [
+6,
+6
+],
+"test_sound_planner.gd": [
+1,
+1
+],
+"test_sound_settings.gd": [
+6,
+6
+],
+"test_spawn_distance.gd": [
+55,
+55
+],
+"test_squad_carry.gd": [
+1922,
+1922
+],
+"test_staff_map_ai_turn.gd": [
+3533,
+3533
+],
+"test_staff_map_air_defence.gd": [
+5351,
+5351
+],
+"test_staff_map_air_defence_view.gd": [
+3310,
+3310
+],
+"test_staff_map_allies.gd": [
+3589,
+3589
+],
+"test_staff_map_borders.gd": [
+13,
+13
+],
+"test_staff_map_camera_math.gd": [
+0,
+0
+],
+"test_staff_map_clipping.gd": [
+3,
+3
+],
+"test_staff_map_contact_preview.gd": [
+818,
+818
+],
+"test_staff_map_contacts.gd": [
+3562,
+3562
+],
+"test_staff_map_countries.gd": [
+13,
+13
+],
+"test_staff_map_decisions.gd": [
+13784,
+13784
+],
+"test_staff_map_end_model.gd": [
+2945,
+2945
+],
+"test_staff_map_escalation.gd": [
+3854,
+3854
+],
+"test_staff_map_formations.gd": [
+4503,
+4503
+],
+"test_staff_map_front_line.gd": [
+2800,
+2800
+],
+"test_staff_map_journal_text.gd": [
+737,
+737
+],
+"test_staff_map_journal_window.gd": [
+3824,
+3824
+],
+"test_staff_map_launcher_marker.gd": [
+21,
+21
+],
+"test_staff_map_layers.gd": [
+11,
+11
+],
+"test_staff_map_left_dock.gd": [
+3434,
+3434
+],
+"test_staff_map_menu.gd": [
+20280,
+20280
+],
+"test_staff_map_objectives.gd": [
+10175,
+10175
+],
+"test_staff_map_objectives_layer.gd": [
+2719,
+2719
+],
+"test_staff_map_options.gd": [
+2824,
+2824
+],
+"test_staff_map_order_extras.gd": [
+12,
+12
+],
+"test_staff_map_order_gesture.gd": [
+1,
+1
+],
+"test_staff_map_order_gesture_view.gd": [
+3614,
+3614
+],
+"test_staff_map_order_ring_info.gd": [
+7,
+7
+],
+"test_staff_map_orders.gd": [
+7637,
+7637
+],
+"test_staff_map_overview.gd": [
+31,
+31
+],
+"test_staff_map_place_labels.gd": [
+2,
+2
+],
+"test_staff_map_place_name.gd": [
+0,
+0
+],
+"test_staff_map_posture_glyphs.gd": [
+0,
+0
+],
+"test_staff_map_posture_switcher_model.gd": [
+3,
+3
+],
+"test_staff_map_reach_layer.gd": [
+2781,
+2781
+],
+"test_staff_map_relief.gd": [
+220,
+220
+],
+"test_staff_map_right_dock.gd": [
+0,
+0
+],
+"test_staff_map_right_dock_view.gd": [
+3837,
+3837
+],
+"test_staff_map_route.gd": [
+2863,
+2863
+],
+"test_staff_map_session.gd": [
+16458,
+16458
+],
+"test_staff_map_slide.gd": [
+7738,
+7738
+],
+"test_staff_map_start_view.gd": [
+7133,
+7133
+],
+"test_staff_map_strike_flight.gd": [
+0,
+0
+],
+"test_staff_map_strike_forecast.gd": [
+0,
+0
+],
+"test_staff_map_strike_mode.gd": [
+4460,
+4460
+],
+"test_staff_map_strike_model.gd": [
+81,
+81
+],
+"test_staff_map_strike_panel.gd": [
+116,
+116
+],
+"test_staff_map_strike_report.gd": [
+560,
+560
+],
+"test_staff_map_strikes.gd": [
+3677,
+3677
+],
+"test_staff_map_support.gd": [
+7042,
+7042
+],
+"test_staff_map_terrain.gd": [
+664,
+664
+],
+"test_staff_map_turn_marks.gd": [
+1,
+1
+],
+"test_staff_map_turns.gd": [
+3810,
+3810
+],
+"test_staff_map_unit_card_model.gd": [
+1,
+1
+],
+"test_staff_map_unit_strip.gd": [
+2768,
+2768
+],
+"test_staff_map_view.gd": [
+36,
+36
+],
+"test_staff_map_window.gd": [
+45,
+45
+],
+"test_stance_tint.gd": [
+1361,
+1361
+],
+"test_strike_command.gd": [
+2729,
+2729
+],
+"test_strike_forecast.gd": [
+250,
+250
+],
+"test_strike_launch.gd": [
+58,
+58
+],
+"test_strike_rules.gd": [
+33,
+33
+],
+"test_strike_weapon_look.gd": [
+4,
+4
+],
+"test_strikes.gd": [
+1609,
+1609
+],
+"test_surface_wear.gd": [
+15,
+15
+],
+"test_tank_models.gd": [
+2387,
+2387
+],
+"test_target_ring_model.gd": [
+20,
+20
+],
+"test_terrain.gd": [
+0,
+0
+],
+"test_terrain_control.gd": [
+3458,
+3458
+],
+"test_terrain_generation.gd": [
+1236,
+1236
+],
+"test_terrain_noise.gd": [
+16,
+16
+],
+"test_terrain_panel_model.gd": [
+1,
+1
+],
+"test_terrain_splat.gd": [
+45,
+45
+],
+"test_terrain_surface.gd": [
+689,
+689
+],
+"test_terrain_textures.gd": [
+4279,
+4279
+],
+"test_third_party_assets.gd": [
+851,
+851
+],
+"test_tree_field.gd": [
+12235,
+12235
+],
+"test_tree_meshes.gd": [
+113,
+113
+],
+"test_tree_species.gd": [
+698,
+698
+],
+"test_turret_aim.gd": [
+753,
+753
+],
+"test_unit_catalog.gd": [
+4782,
+4782
+],
+"test_unit_catalog_consistency.gd": [
+7,
+7
+],
+"test_unit_definitions.gd": [
+2,
+2
+],
+"test_unit_mechanisms.gd": [
+647,
+647
+],
+"test_unit_model_contract.gd": [
+2099,
+2099
+],
+"test_unit_models.gd": [
+3977,
+3977
+],
+"test_unit_popup.gd": [
+28,
+28
+],
+"test_unit_popup_model.gd": [
+15,
+15
+],
+"test_unit_render_rules.gd": [
+13,
+13
+],
+"test_unit_status.gd": [
+3,
+3
+],
+"test_unit_strip_model.gd": [
+2,
+2
+],
+"test_visual_scale.gd": [
+49,
+49
+],
+"test_warm_up.gd": [
+1,
+1
+],
+"test_weapon_blueprint.gd": [
+1,
+1
+],
+"test_weapon_models.gd": [
+7,
+7
+],
+"test_weapon_range.gd": [
+48,
+48
+],
+"test_wheeled_running_gear.gd": [
+155,
+155
+],
+"test_wreck_view.gd": [
+129,
+129
+]
 }
