@@ -53,6 +53,7 @@ for arg in "$@"; do
 	--windows) platform="windows" ;;
 	--linux) platform="linux" ;;
 	--weapon) script="res://tools/render_weapon.gd" ;;
+	--glb) script="res://tools/render_glb.gd" ;;
 	--reference=* | --out=*)
 		name="${arg%%=*}"
 		value="${arg#*=}"

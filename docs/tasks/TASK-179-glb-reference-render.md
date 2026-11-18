@@ -1,6 +1,6 @@
 # TASK-179: GLB reference: normalise a Meshy GLB and render orthographic reference views
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: –
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)
@@ -33,4 +33,9 @@ none
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Done 2026-11-18, pilot unit K9 Thunder (`~/Downloads/k9.glb`, 61 MB, one mesh, 1.76 M triangles).
+- `tools/glb_reference.gd` (loading via `GLTFDocument`, normalisation, front detection, warnings), `tools/render_glb.gd` (subclass of `render_unit.gd`, like `render_weapon.gd`), `tools/analyze_glb.sh` (wrapper: `render_unit.sh --glb`). Output: `<unit folder>/reference_views/glb_*.png`, `glb_sheet.png`, `normalisation.json`.
+- Front detection: the end of the longer horizontal axis whose slab (12 %) has the smaller cross-section is the front (barrel / thin nose); `--front=` overrides. Worked on the K9 (gun to +x, matches the photo).
+- Height is compared with the catalog without the top 2 % of vertices (percentile): the K9 GLB has a whip antenna and a raised barrel (+81 % with all vertices, +9 % robust). `--force` renders despite warnings.
+- Not done: the up axis is always glTF +Y (no `--up`); the Windows run prints leaked-RID errors at exit (also seen in other render tools), the exit code is unaffected.
+- `reference.glb` is gitignored; `normalisation.json` and the reference views are committed next to the unit.

@@ -37,3 +37,6 @@ docs/design/units/units/*/*.webp
 # Lint stamps (tools/lint.sh)
 .lint-cache
 .lint-cache.new
+
+# Reference GLBs (Meshy, TASK-179) stay out of git
+docs/design/units/units/*/reference.glb

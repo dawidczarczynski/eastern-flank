@@ -147,7 +147,7 @@ static func default_reference(
 ) -> String:
 	var images: Variant = entry.get("images", [])
 	if not images is Array:
-		return ""
+		images = []
 	var views := FOOT_REFERENCE_VIEWS if _is_foot(entry) else REFERENCE_VIEWS
 	for view in views:
 		for image: Variant in images:
@@ -156,6 +156,10 @@ static func default_reference(
 			var path := "%s/%s/%s" % [catalog_dir, unit_id, image.get("file", "")]
 			if image.get("file", "") != "" and FileAccess.file_exists(path):
 				return ProjectSettings.globalize_path(path)
+	# No photo: the side view rendered from the unit's reference GLB (tools/analyze_glb.sh).
+	var glb_side := "%s/%s/reference_views/glb_side.png" % [catalog_dir, unit_id]
+	if FileAccess.file_exists(glb_side):
+		return ProjectSettings.globalize_path(glb_side)
 	return ""
 
 
