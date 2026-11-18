@@ -152,7 +152,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-177](TASK-177-russia-corridor-objective.md) | Russia's own main objective: a 23-hex Kaliningrad - Belarus corridor (instant win after 5 closed rounds) next to NATO's Gap road (open = 10 at the end); two chains, window rows, two map ribbons, AI goals, balance check | 🔵 done | TASK-175b |
 | [TASK-178](TASK-178-operation-balance-tuning.md) | Operation balance tuning after the connection objectives (AI vs AI 40-60 %); the balance test fails until then | 🟢 ready | TASK-177 |
 | [TASK-179](TASK-179-glb-reference-render.md) | GLB reference: normalise a Meshy GLB and render orthographic reference views (`tools/analyze_glb.sh`) | 🔵 done | – |
-| [TASK-180](TASK-180-glb-measurements.md) | GLB measurements: section profiles and part detection into `measurements.json` | 🟢 ready | TASK-179 |
+| [TASK-180](TASK-180-glb-measurements.md) | GLB measurements: section profiles and part detection into `measurements.json` | 🔵 done | TASK-179 |
 | [TASK-181](TASK-181-silhouette-compare.md) | Silhouette comparison: IoU of the game model against the GLB (`tools/compare_silhouette.sh`) | 🟢 ready | TASK-179 |
 | [TASK-182](TASK-182-glb-catalog-integration.md) | Catalog and `/model-unit` use the GLB reference and the IoU gate | 🔴 blocked | TASK-179, TASK-180, TASK-181 |
 | [TASK-183](TASK-183-glb-batch.md) | GLB batch mode and pilot (squad, tank, launcher) | 🔴 blocked | TASK-182 |

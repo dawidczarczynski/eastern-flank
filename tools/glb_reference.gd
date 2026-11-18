@@ -52,6 +52,34 @@ static func vertices(scene: Node3D) -> PackedVector3Array:
 	return all
 
 
+## The scene's triangles with `scene.transform` applied too (after normalise(): metres, front
+## +X): {"positions": PackedVector3Array, "indices": PackedInt32Array (a triangle list)}.
+## Input of tools/glb_measurements.gd (TASK-180).
+static func triangles(scene: Node3D) -> Dictionary:
+	var positions := PackedVector3Array()
+	var indices := PackedInt32Array()
+	for instance in mesh_instances(scene):
+		var transform := scene.transform * _relative_transform(instance, scene)
+		for surface in instance.mesh.get_surface_count():
+			if instance.mesh.surface_get_primitive_type(surface) != Mesh.PRIMITIVE_TRIANGLES:
+				continue
+			var arrays := instance.mesh.surface_get_arrays(surface)
+			var vertex_data: Variant = arrays[Mesh.ARRAY_VERTEX]
+			if not vertex_data is PackedVector3Array:
+				continue
+			var surface_points := vertex_data as PackedVector3Array
+			var base := positions.size()
+			positions.append_array(transform * surface_points)
+			var index_data: Variant = arrays[Mesh.ARRAY_INDEX]
+			if index_data is PackedInt32Array and not (index_data as PackedInt32Array).is_empty():
+				for index in index_data as PackedInt32Array:
+					indices.append(base + index)
+			else:
+				for i in surface_points.size() - surface_points.size() % 3:
+					indices.append(base + i)
+	return {"positions": positions, "indices": indices}
+
+
 static func _relative_transform(node: Node3D, ancestor: Node3D) -> Transform3D:
 	var transform := Transform3D()
 	var current: Node = node

@@ -53,7 +53,10 @@ for arg in "$@"; do
 	--windows) platform="windows" ;;
 	--linux) platform="linux" ;;
 	--weapon) script="res://tools/render_weapon.gd" ;;
-	--glb) script="res://tools/render_glb.gd" ;;
+	--glb)
+		script="res://tools/render_glb.gd"
+		TIME_LIMIT=180 # a Meshy GLB (~2 M triangles) loads and is measured in ~20 s (TASK-180)
+		;;
 	--reference=* | --out=*)
 		name="${arg%%=*}"
 		value="${arg#*=}"

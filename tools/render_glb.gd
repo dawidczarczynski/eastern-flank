@@ -4,14 +4,17 @@ extends "res://tools/render_unit.gd"
 ## scene, grid, views and stats as tools/render_unit.gd. Run via `tools/analyze_glb.sh <id>`
 ## (or `tools/render_unit.sh --glb <id>`). Extra option `--front=+x|-x|+z|-z` (the GLB axis that
 ## points to the front; default: the narrower end of the longer horizontal axis).
-## Writes `normalisation.json` next to the GLB; a bounding box more than 25 % off the catalog
-## fails the run (exit 1) unless `--force` is given.
+## Writes `normalisation.json` and `measurements.json` (section profiles and model constants,
+## tools/glb_measurements.gd, TASK-180; `--no-measure` skips it) next to the GLB; a bounding box
+## more than 25 % off the catalog fails the run (exit 1) unless `--force` is given.
 
 const GlbReference := preload("res://tools/glb_reference.gd")
+const GlbMeasurements := preload("res://tools/glb_measurements.gd")
 const CATALOG := "res://docs/design/units/units"
 
 var _front := ""
 var _force := false
+var _measure := true
 
 
 func _parse_arguments() -> Dictionary:
@@ -21,6 +24,8 @@ func _parse_arguments() -> Dictionary:
 			_front = arg.substr("--front=".length())
 		elif arg == "--force":
 			_force = true
+		elif arg == "--no-measure":
+			_measure = false
 		else:
 			args.append(arg)
 	var options := RenderUnitOptions.parse(args, CATALOG, Callable(self, "_has_glb"))
@@ -50,6 +55,8 @@ func _build_model() -> Node3D:
 	var holder := Node3D.new()
 	holder.add_child(scene)
 	var result := GlbReference.normalise(scene, _options["real"], _front)
+	if _measure:
+		_write_measurements(unit_id, scene)
 	var applied: Transform3D = scene.transform
 	scene.transform = Transform3D(
 		applied.basis / UnitModels.METERS_PER_UNIT, applied.origin / UnitModels.METERS_PER_UNIT
@@ -78,3 +85,37 @@ func _write_normalisation(unit_id: String, result: Dictionary) -> void:
 	var file := FileAccess.open("%s/%s/normalisation.json" % [CATALOG, unit_id], FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(data, "  ") + "\n")
+
+
+## measurements.json next to the GLB: profiles and constants of the normalised mesh (metres).
+func _write_measurements(unit_id: String, scene: Node3D) -> void:
+	var started := Time.get_ticks_msec()
+	var mesh := GlbReference.triangles(scene)
+	var entry := RenderUnitOptions.load_catalog_entry(unit_id, CATALOG)
+	var dimensions: Variant = entry.get("dimensions", {})
+	var catalog := {}
+	if dimensions is Dictionary:
+		for key in ["hull_length", "overall_length", "width", "height"]:
+			var value: Variant = (dimensions as Dictionary).get(key)
+			if (value is float or value is int) and float(value) > 0.0:
+				catalog[key] = float(value)
+	var real: Dictionary = _options["real"]
+	var foot := real.has("height") and not real.has("length")
+	var data := GlbMeasurements.measure(mesh["positions"], mesh["indices"], catalog, foot)
+	data["unit_id"] = unit_id
+	var path := "%s/%s/measurements.json" % [CATALOG, unit_id]
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file != null:
+		file.store_string(JSON.stringify(data, "  ", false) + "\n")
+	print(
+		(
+			"Measurements: %s (%d triangles, %.1f s)"
+			% [
+				ProjectSettings.globalize_path(path),
+				(mesh["indices"] as PackedInt32Array).size() / 3,
+				(Time.get_ticks_msec() - started) / 1000.0
+			]
+		)
+	)
+	for warning: String in data["warnings"]:
+		printerr("MEASUREMENT WARNING: ", warning)
