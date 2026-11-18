@@ -1,0 +1,164 @@
+{
+  "id": "t_90a",
+  "real_name": "T-90A",
+  "variant_note": "T-90A (Object 188A1), welded-turret production variant with Kontakt-5 ERA and Shtora-1; not the T-90S export or T-90M Proryv.",
+  "class": "tank",
+  "mobility": "tracked",
+  "operators": [
+    "belarus",
+    "russia"
+  ],
+  "in_service": "2004-present",
+  "country_of_origin": "Russia",
+  "crew": 3,
+  "weight_t": 46.5,
+  "armament": {
+    "main": "125 mm 2A46M-2 smoothbore gun, 42 rounds",
+    "secondary": "7.62 mm PKMT coaxial MG; 12.7 mm Kord remotely operated AA MG"
+  },
+  "protection": "Kontakt-5 explosive reactive armour, Shtora-1 countermeasure suite",
+  "speed_road_kmh": 60,
+  "range_km": 550,
+  "dimensions": {
+    "hull_length": 6.86,
+    "overall_length": 9.63,
+    "width": 3.78,
+    "height": 2.22,
+    "sources": [
+      "https://en.wikipedia.org/wiki/T-90"
+    ]
+  },
+  "silhouette_features": [
+    "low, angular welded turret with thick wedge-shaped front and ERA blocks",
+    "125 mm smoothbore gun with fume extractor, no muzzle brake",
+    "Shtora-1 optronic jammer boxes (two) flanking the gun on the turret front",
+    "commander's cupola on the turret's right with a remote Kord 12.7 mm MG",
+    "6 road wheels per side with 3 return rollers, ERA tiles on the glacis and side skirts",
+    "rear fuel drums / stowage boxes on the hull rear"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    },
+    "gun_recoil": {
+      "recoil_m": 0.5
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d8/T-90A_front_Army-2016.jpg",
+      "view": "front",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-90A_front_Army-2016.jpg",
+      "note": "Front armour detail, Army-2016, Kubinka"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/T-90A_-_TankBiathlon14part1-42.jpg",
+      "view": "front",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-90A_-_TankBiathlon14part1-42.jpg",
+      "note": "Tank Biathlon 2014, front view"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fc/T-90A_main_battle_tank_at_Engineering_Technologies_2012_01.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:T-90A_main_battle_tank_at_Engineering_Technologies_2012_01.jpg",
+      "note": "Engineering Technologies 2012; angle not stated on the page, check it"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.gun_recoil": {
+      "source": "https://en.wikipedia.org/wiki/T-90",
+      "verified": false
+    },
+    "mechanisms.gun_recoil.recoil_m": {
+      "source": "default",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 3
+}

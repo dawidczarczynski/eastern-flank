@@ -1,0 +1,156 @@
+{
+  "id": "bwp_borsuk",
+  "real_name": "BWP Borsuk",
+  "class": "ifv",
+  "mobility": "tracked",
+  "operators": [
+    "poland"
+  ],
+  "in_service": "2025-present",
+  "country_of_origin": "Poland",
+  "crew": 3,
+  "weight_t": 28,
+  "armament": {
+    "main": "30 mm Mk44S Bushmaster II autocannon in ZSSW-30 remote turret",
+    "secondary": "7.62 mm UKM-2000C coaxial MG; 2 × Spike-LR ATGM (launch container on turret right side); 8 × 81 mm GAk-81 smoke grenade dischargers"
+  },
+  "protection": "Welded Armox 500T hull; officially STANAG 4569 level IV front, level III side/rear",
+  "speed_road_kmh": 65,
+  "range_km": 550,
+  "dimensions": {
+    "hull_length": 7.6,
+    "width": 3.4,
+    "height": 3.34,
+    "sources": [
+      "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)"
+    ]
+  },
+  "silhouette_features": [
+    "low, boxy, slab-sided welded hull with sloped glacis; amphibious",
+    "6 dual rubber-lined road wheels per side with 2 return rollers, rubber tracks",
+    "compact ZSSW-30 unmanned turret with long 30 mm barrel, centred over the hull",
+    "Spike-LR missile container on the turret's right side",
+    "smoke grenade dischargers on both turret sides",
+    "hull front-left driver position, rear troop compartment with rear ramp/door"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/BWP_Borsuk_3-view.svg",
+      "view": "drawing",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BWP_Borsuk_3-view.svg",
+      "note": "3-view line drawing by SkywalkerPL"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/37/Polish_Army_BWP_Borsuk_right_side_NATO_Days_Ostrava-2023.jpg",
+      "view": "side",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Polish_Army_BWP_Borsuk_right_side_NATO_Days_Ostrava-2023.jpg",
+      "note": "right side, NATO Days Ostrava 2023"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/94/BWP_Borsuk_-_221114-Z-YU201-1007.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BWP_Borsuk_-_221114-Z-YU201-1007.jpg",
+      "note": "Bemowo Piskie, 2022"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/38/ZSSW-30_MSPO_23.jpg",
+      "view": "detail",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:ZSSW-30_MSPO_23.jpg",
+      "note": "ZSSW-30 turret, MSPO 2023"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/66/Borsuk_demonstrator_MSPO17b.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Borsuk_demonstrator_MSPO17b.jpg",
+      "note": "2017 demonstrator, earlier turret/details differ from series"
+    }
+  ],
+  "provenance": {
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/Borsuk_(infantry_fighting_vehicle)",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 2
+}

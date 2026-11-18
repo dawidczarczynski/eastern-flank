@@ -1,0 +1,184 @@
+{
+  "id": "2s3_akatsiya",
+  "real_name": "2S3 Akatsiya",
+  "class": "sp_artillery",
+  "mobility": "tracked",
+  "operators": [
+    "belarus",
+    "russia"
+  ],
+  "in_service": "1971-present",
+  "country_of_origin": "Soviet Union",
+  "crew": 4,
+  "weight_t": 27.5,
+  "armament": {
+    "main": "152.4 mm 2A33 (D-22) howitzer, 46 rounds (2S3M)",
+    "secondary": "7.62 mm PKT remotely controlled machine gun on the commander's cupola, 1,500 rounds"
+  },
+  "protection": "15 mm hull, 30 mm turret and hull front; automatic CBRN protection",
+  "speed_road_kmh": 60,
+  "speed_offroad_kmh": 30,
+  "range_km": 500,
+  "fire_range_km": 18.5,
+  "dimensions": {
+    "width": 3.25,
+    "height": 3.05,
+    "sources": [
+      "https://en.wikipedia.org/wiki/2S3_Akatsiya"
+    ]
+  },
+  "silhouette_features": [
+    "low, wide welded turret on the rear half of the hull with a rounded front and a bulky rear charge stowage",
+    "long 152 mm barrel with a double-baffle muzzle brake, projecting well past the hull front",
+    "commander's rotating cupola with a remote PKT machine gun on the turret roof",
+    "driver and engine compartments at the front, low sloped glacis",
+    "6 twin rubber-tyred road wheels per side, 4 return rollers, front drive sprocket, rear idler",
+    "no side skirts; unditching/self-entrenching blade not prominent"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -4,
+        60
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ac/2S3_Akatsiya_3261.jpg",
+      "view": "side",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_3261.jpg",
+      "note": "Russian 2S3 at Shirokiy Karamysh range, 2015 (angle not verified)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/9e/2S3_Akatsiya_3259.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_3259.jpg",
+      "note": "same series, 2015 (angle not verified)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/f7/2S3_Akatsiya_3260.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_3260.jpg",
+      "note": "same series, 2015 (angle not verified)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/b6/ParkPatriot2015part6-08.jpg",
+      "view": "rear",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:ParkPatriot2015part6-08.jpg",
+      "note": "rear view, Patriot Park 2015"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/75/2S3_Akatsiya_Rear_Museum_of_technique.jpg",
+      "view": "rear",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_Rear_Museum_of_technique.jpg",
+      "note": "rear-side view, museum"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/2S3_Akatsiya_SpH._Artillery_museum%2C_Saint-Petersburg._pic_2.jpg",
+      "view": "detail",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_SpH._Artillery_museum,_Saint-Petersburg._pic_2.jpg",
+      "note": "museum exhibit, St Petersburg"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/5/50/2S3_Akatsiya_in_the_Mus%C3%A9e_des_Blind%C3%A9s%2C_France%2C_pic-5.JPG",
+      "view": "detail",
+      "license": "CC0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:2S3_Akatsiya_in_the_Musée_des_Blindés,_France,_pic-5.JPG",
+      "note": "museum exhibit, France"
+    }
+  ],
+  "provenance": {
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "operators": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": true,
+      "suggested": [
+        "russia",
+        "belarus"
+      ]
+    },
+    "crew": {
+      "source": "https://ru.wikipedia.org/wiki/2С3_«Акация»",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://ru.wikipedia.org/wiki/2С3_«Акация»",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://ru.wikipedia.org/wiki/2С3_«Акация»",
+      "verified": false
+    },
+    "speed_offroad_kmh": {
+      "source": "https://ru.wikipedia.org/wiki/2С3_«Акация»",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "fire_range_km": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "https://en.wikipedia.org/wiki/2S3_Akatsiya",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 3
+}

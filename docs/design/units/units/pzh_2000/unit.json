@@ -1,0 +1,177 @@
+{
+  "id": "pzh_2000",
+  "real_name": "PZH 2000",
+  "variant_note": "Lithuanian PzH 2000 (ex-German, refurbished by KNDS; 21 delivered 2015-2022)",
+  "class": "sp_artillery",
+  "mobility": "tracked",
+  "operators": [
+    "lithuania"
+  ],
+  "in_service": "1998-present (Lithuania: 2016-present)",
+  "country_of_origin": "Germany",
+  "crew": 5,
+  "weight_t": 55.8,
+  "armament": {
+    "main": "155 mm Rheinmetall L52 howitzer, 60 rounds",
+    "secondary": "7.62 mm MG3 machine gun"
+  },
+  "protection": "Welded steel hull, resistant to 14.5 mm rounds; additional roof armour against bomblets/mortar rounds",
+  "speed_road_kmh": 67,
+  "speed_offroad_kmh": 45,
+  "range_km": 420,
+  "fire_range_km": 30,
+  "notes": "Fire range: 30 km DM121 boat-tail, 40 km base-bleed, 54 km M2005 V-LAP rocket-assisted. Rate of fire 3 rounds in 9 s burst, 10 rounds/min sustained.",
+  "dimensions": {
+    "hull_length": 7.92,
+    "overall_length": 11.67,
+    "width": 3.6,
+    "height": 3.1,
+    "sources": [
+      "https://www.armedconflicts.com/PzH-2000-t12978",
+      "https://en.wikipedia.org/wiki/Panzerhaubitze_2000"
+    ]
+  },
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Lithuanian_PzH_2000_%282%29.jpg",
+      "view": "three_quarter",
+      "license": "GFDL",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Lithuanian_PzH_2000_(2).jpg",
+      "note": "Lithuanian MoD, June 2023"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/08/Lithuanian_PzH_2000_unit_during_exercises.jpg",
+      "view": "side",
+      "license": "GFDL",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Lithuanian_PzH_2000_unit_during_exercises.jpg",
+      "note": "Lithuanian Armed Forces, Aug 2022 (view not checked)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/9d/P3_Lithuanian_PzH_2000_in_Germany.jpg",
+      "view": "three_quarter",
+      "license": "GFDL",
+      "source_page": "https://commons.wikimedia.org/wiki/File:P3_Lithuanian_PzH_2000_in_Germany.jpg",
+      "note": "Lithuanian MoD, April 2023 (view not checked)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/Panzerhaubitze_2000%2C_Military_Parade%2C_Zagreb%2C_4-8-2015.JPG",
+      "view": "side",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Panzerhaubitze_2000,_Military_Parade,_Zagreb,_4-8-2015.JPG",
+      "note": "Zagreb parade 2015 (view not checked)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Italian_PZH_2000.JPG",
+      "view": "side",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Italian_PZH_2000.JPG",
+      "note": "Static display, Rome 2009 (view not checked)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/6d/Dynamic_Front_18_%2839811016235%29.jpg",
+      "view": "detail",
+      "license": "CC BY 2.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Dynamic_Front_18_(39811016235).jpg",
+      "note": "German PzH 2000s firing, 2018"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "speed_offroad_kmh": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "fire_range_km": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "notes": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "dimensions.hull_length": {
+      "source": "https://www.armedconflicts.com/PzH-2000-t12978",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://www.armedconflicts.com/PzH-2000-t12978",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/Panzerhaubitze_2000",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 2
+}

@@ -180,5 +180,5 @@
       "view": "side"
     }
   ],
-  "reference_note": "side_1.png is an orthographic render of a Meshy AI model (k9.glb, kept outside the repo), scaled to the real length; use it for proportions and part positions, not for camouflage."
+  "notes": "side_1.png is an orthographic render of a Meshy AI model (k9.glb, kept outside the repo), scaled to the real length; use it for proportions and part positions, not for camouflage."
 }

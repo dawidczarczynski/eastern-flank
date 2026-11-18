@@ -1,0 +1,147 @@
+{
+  "id": "bmp_2",
+  "real_name": "BMP-2",
+  "class": "ifv",
+  "mobility": "tracked",
+  "operators": [
+    "russia"
+  ],
+  "in_service": "1980-present",
+  "country_of_origin": "Soviet Union",
+  "crew": 3,
+  "weight_t": 14.3,
+  "armament": {
+    "main": "30 mm 2A42 autocannon; 9M113 Konkurs ATGM launcher",
+    "secondary": "7.62 mm PKT coaxial machine gun"
+  },
+  "protection": "Welded steel hull, up to 33 mm",
+  "speed_road_kmh": 65,
+  "speed_offroad_kmh": 45,
+  "range_km": 600,
+  "dimensions": {
+    "hull_length": 6.735,
+    "width": 3.15,
+    "height": 2.45,
+    "sources": [
+      "https://en.wikipedia.org/wiki/BMP-2"
+    ]
+  },
+  "silhouette_features": [
+    "low, flat-sided hull with a sloped glacis and amphibious (hydrodynamic) fairings",
+    "two-man welded-steel turret centred on the hull, angular with a long 30 mm 2A42 gun",
+    "Konkurs ATGM launcher rail on top of the turret roof (when fitted)",
+    "engine compartment to the driver's right at the front, driver hatch at front left",
+    "two roof hatches at the rear for the infantry",
+    "tracked running gear with 6 road wheels per side"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/c/c0/BMP-2_tank_at_the_Open_landmachtdagen_2010.jpg",
+      "view": "side",
+      "license": "CC0 1.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BMP-2_tank_at_the_Open_landmachtdagen_2010.jpg",
+      "note": "Side view, Dutch event photo, Alf van Beem"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/bb/BMP21981graphic1.gif",
+      "view": "drawing",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:BMP21981graphic1.gif",
+      "note": "US Army line drawing, 475x287 (low resolution)"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/33/Army2016demo-007.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:Army2016demo-007.jpg",
+      "note": "Russian BMP-2, Army-2016, Vitaly Kuzmin; view angle not confirmed"
+    }
+  ],
+  "provenance": {
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "speed_offroad_kmh": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "https://en.wikipedia.org/wiki/BMP-2 (360° powered traverse)",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 2
+}

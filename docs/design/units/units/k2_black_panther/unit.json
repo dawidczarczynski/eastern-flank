@@ -1,0 +1,170 @@
+{
+  "id": "k2_black_panther",
+  "real_name": "K2 Black Panther",
+  "variant_note": "Base K2 specifications (the K2GF delivered to Poland from 2022 is close to it); the Polish K2PL is a different, heavier variant with Trophy APS, extra armour and an RCWS, specs not published",
+  "class": "tank",
+  "mobility": "tracked",
+  "operators": [
+    "poland"
+  ],
+  "in_service": "2014-present (ROK Army); Poland: K2GF from 2022, K2PL production from 2026",
+  "country_of_origin": "South Korea",
+  "crew": 3,
+  "weight_t": 55,
+  "armament": {
+    "main": "120 mm CN08 55-calibre smoothbore gun, autoloader (40 rounds, 16 in the bustle)",
+    "secondary": "12.7 mm K6 heavy machine gun; 7.62 mm coaxial machine gun"
+  },
+  "protection": "MIL-12560H armour steel, silicon carbide ceramic composite, add-on ERA; K2PL adds Trophy hard-kill APS and extra armour",
+  "speed_road_kmh": 70,
+  "speed_offroad_kmh": 50,
+  "range_km": 450,
+  "dimensions": {
+    "hull_length": 7.5,
+    "overall_length": 10.8,
+    "width": 3.6,
+    "height": 2.4,
+    "sources": [
+      "https://en.wikipedia.org/wiki/K2_Black_Panther"
+    ]
+  },
+  "silhouette_features": [
+    "low, flat angular turret with a wedge front and a large rear bustle housing the autoloader",
+    "long 120 mm L/55 gun with a fume extractor and no muzzle brake",
+    "6 road wheels per side with in-arm hydropneumatic suspension (hull can kneel/tilt), no return rollers beyond 3 small ones",
+    "sloped hull front with add-on armour blocks and side skirts covering the upper track run",
+    "commander's panoramic sight on the right of the turret roof, remote weapon station / K6 MG"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -8,
+        20
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d7/K2PL_MBT.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K2PL_MBT.jpg",
+      "note": "K2PL, Polish variant; view not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/b/ba/K2_tank_at_the_Hyundai_Rotem_stand_at_MSPO_2026_in_Kielce.jpg",
+      "view": "three_quarter",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K2_tank_at_the_Hyundai_Rotem_stand_at_MSPO_2026_in_Kielce.jpg",
+      "note": "MSPO Kielce; view not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/K2_black_panther3.jpg",
+      "view": "three_quarter",
+      "license": "CC BY-SA 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K2_black_panther3.jpg",
+      "note": "Seoul ADEX 2013 display; view not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/K2_Black_Panther_%2815373704976%29_%28cropped%29.jpg",
+      "view": "side",
+      "license": "CC BY-SA 2.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K2_Black_Panther_(15373704976)_(cropped).jpg",
+      "note": "ROK Army; view not verified"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fc/K2_Black_Panther_20161106.jpg",
+      "view": "detail",
+      "license": "CC BY 3.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:K2_Black_Panther_20161106.jpg",
+      "note": "ROK training; view not verified"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "speed_offroad_kmh": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "dimensions.hull_length": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/K2_Black_Panther",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "class default",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 2
+}

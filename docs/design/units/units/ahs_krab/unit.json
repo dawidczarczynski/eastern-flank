@@ -1,0 +1,156 @@
+{
+  "id": "ahs_krab",
+  "real_name": "AHS Krab",
+  "variant_note": "Polish 155 mm/52 self-propelled gun-howitzer: modified K9 Thunder chassis with a British AS-90M Braveheart turret (Huta Stalowa Wola)",
+  "class": "sp_artillery",
+  "mobility": "tracked",
+  "operators": [
+    "poland"
+  ],
+  "in_service": "2016-present",
+  "country_of_origin": "Poland",
+  "crew": 5,
+  "weight_t": 48,
+  "armament": {
+    "main": "155 mm/52-cal. gun-howitzer (barrel 8.06 m), 40 rounds, 2 rpm sustained, range 30 km (base bleed) / 40 km (Excalibur)",
+    "secondary": "12.7 mm WKM-B machine gun"
+  },
+  "protection": "Welded steel, max 16 mm",
+  "speed_road_kmh": 60,
+  "speed_offroad_kmh": 30,
+  "range_km": 400,
+  "fire_range_km": 40,
+  "dimensions": {
+    "overall_length": 12.1,
+    "width": 3.63,
+    "height": 3.0,
+    "sources": [
+      "https://en.wikipedia.org/wiki/AHS_Krab"
+    ]
+  },
+  "silhouette_features": [
+    "large slab-sided welded turret (AS-90M type) set well back on the hull, with the long 52-cal. barrel projecting forward",
+    "long 155 mm barrel with muzzle brake and fume extractor",
+    "low, wide tracked K9-type hull with the engine compartment at the front",
+    "turret rear overhang with ammunition handling / bustle area",
+    "roof-mounted 12.7 mm WKM-B machine gun"
+  ],
+  "mechanisms": {
+    "wheels": {},
+    "turret_traverse": {
+      "traverse_deg": "full",
+      "elevation_deg": [
+        -3.5,
+        70
+      ]
+    }
+  },
+  "image_candidates": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/09/UA_AHS_Krab_05.jpg",
+      "view": "three_quarter",
+      "license": "CC BY 4.0",
+      "source_page": "https://commons.wikimedia.org/wiki/File:UA_AHS_Krab_05.jpg",
+      "note": "Ukrainian brigade, 2023"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/AHS_Krab_SPH_Exercise_Dynamic_Front_22.jpg",
+      "view": "three_quarter",
+      "license": "Public domain",
+      "source_page": "https://commons.wikimedia.org/wiki/File:AHS_Krab_SPH_Exercise_Dynamic_Front_22.jpg",
+      "note": "Polish Krabs firing, Dynamic Front 22"
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/a6/AHS_Krab.jpg",
+      "view": "three_quarter",
+      "license": "Polish MoD permission, attribution required (pre-Sept 2013 upload)",
+      "source_page": "https://en.wikipedia.org/wiki/File:AHS_Krab.jpg",
+      "note": "Polish MoD photo"
+    }
+  ],
+  "provenance": {
+    "variant_note": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "in_service": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "country_of_origin": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "crew": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "weight_t": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "armament.main": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "armament.secondary": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "protection": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "speed_road_kmh": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "speed_offroad_kmh": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "range_km": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "fire_range_km": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "dimensions.overall_length": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "dimensions.width": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "dimensions.height": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "silhouette_features": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "mechanisms.wheels": {
+      "source": "class default",
+      "verified": false
+    },
+    "mechanisms.turret_traverse": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.traverse_deg": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    },
+    "mechanisms.turret_traverse.elevation_deg": {
+      "source": "https://en.wikipedia.org/wiki/AHS_Krab",
+      "verified": false
+    }
+  },
+  "status": "draft",
+  "updated": "2026-11-16",
+  "revision": 2
+}
