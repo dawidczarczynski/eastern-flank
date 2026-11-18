@@ -40,9 +40,9 @@ func test_order_data_and_class_lists() -> void:
 	assert_eq(def.defence_bonus, 2)
 	assert_true(def.allowed_classes.has(&"infantry"))
 	assert_true(def.allowed_classes.has(&"tank"))
-	assert_eq(OrderRules.orders_for(unit), [&"dig_in"])
+	assert_eq(OrderRules.orders_for(unit), [&"blind_fire", &"dig_in"])
 	var mlrs := state.add_unit(0, _typed(Fixtures.infantry(), &"mlrs"), Vector2i(0, 2))
-	assert_eq(OrderRules.orders_for(mlrs).size(), 0)
+	assert_eq(OrderRules.orders_for(mlrs), [&"blind_fire"])
 
 
 func test_dig_in_applies_state_and_events() -> void:
@@ -182,7 +182,7 @@ func test_availability() -> void:
 	assert_eq(ok, {"enabled": true, "reason": ""})
 	assert_true(sim.execute(DigInCommand.new(unit.id)))
 	assert_eq(OrderRules.availability(state, unit.id, &"dig_in")["reason"], "already_acted")
-	for id in [&"resupply", &"camouflage", &"smoke", &"blind_fire", &"ambush", &"scoot"]:
+	for id in [&"resupply", &"camouflage", &"ambush", &"scoot"]:
 		var a := OrderRules.availability(state, unit.id, id)
 		assert_false(a["enabled"])
 		assert_eq(a["reason"], "order_not_available")

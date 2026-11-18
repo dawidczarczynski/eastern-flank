@@ -53,7 +53,10 @@ static func fire_problem(
 		return "out_of_range"
 	if d < definition.min_hexes():
 		return "too_close"
-	if not definition.is_indirect() and not LineOfSight.visible(state.grid, from, to):
+	if (
+		not definition.is_indirect()
+		and not LineOfSight.visible(state.grid, from, to, state.smoke_hexes)
+	):
 		return "no_line_of_sight"
 	return ""
 
@@ -82,14 +85,17 @@ static func range_factor(definition: UnitDefinition, distance: int) -> float:
 ## Attack margin max(1, attack - (defense + defender's position bonus + terrain defense bonus of
 ## the defender's tile, + Dig in)): the average damage of a full-strength attacker. The
 ## attacker's own tile is ignored.
-static func compute_damage(state: GameState, attacker: Unit, defender: Unit) -> int:
+## `modifier` adds to the attacker's attack (Blind fire -1).
+static func compute_damage(
+	state: GameState, attacker: Unit, defender: Unit, modifier: int = 0
+) -> int:
 	var defense := (
 		defender.definition.defense
 		+ state.position_bonus_per_player[defender.owner_id]
 		+ state.grid.defense_bonus(defender.coord)
 		+ OrderRules.defence_bonus(defender)
 	)
-	return maxi(1, attacker.definition.attack - defense)
+	return maxi(1, attacker.definition.attack + modifier - defense)
 
 
 ## A roll of the striker's d(max_hp) at or below this value hits the victim at their current
@@ -100,10 +106,12 @@ static func hit_on(state: GameState, striker: Unit, victim: Unit) -> int:
 
 
 ## hit_on as if the two units stood `distance` hexes apart.
-static func hit_on_at(state: GameState, striker: Unit, victim: Unit, distance: int) -> int:
+static func hit_on_at(
+	state: GameState, striker: Unit, victim: Unit, distance: int, modifier: int = 0
+) -> int:
 	var definition := striker.definition
 	return hit_faces(
-		AttackCommand.compute_damage(state, striker, victim),
+		AttackCommand.compute_damage(state, striker, victim, modifier),
 		definition.max_hp,
 		definition.max_hexes() - definition.effective_hexes(),
 		maxi(0, distance - definition.effective_hexes())
@@ -112,9 +120,11 @@ static func hit_on_at(state: GameState, striker: Unit, victim: Unit, distance: i
 
 ## Rolls one strike: exactly striker.hp calls of state.rng.randi_range(1, striker max_hp), all of
 ## them whatever the results; returns the number of hits (before clamping the victim's HP).
-static func roll_hits(state: GameState, striker: Unit, victim: Unit) -> int:
+static func roll_hits(state: GameState, striker: Unit, victim: Unit, modifier: int = 0) -> int:
 	var die := striker.definition.max_hp
-	var target := AttackCommand.hit_on(state, striker, victim)
+	var target := AttackCommand.hit_on_at(
+		state, striker, victim, Hex.distance(striker.coord, victim.coord), modifier
+	)
 	var hits := 0
 	for i in striker.hp:
 		if state.rng.randi_range(1, die) <= target:
@@ -161,27 +171,36 @@ func apply(state: GameState) -> Array[Dictionary]:
 	attacker.has_attacked = true
 	attacker.moves_left = 0
 	var activation := state.activate(attacker)
-	var events := _strike(state, attacker, target, false)
+	var events := AttackCommand.strike(state, attacker, target, false)
 	# command_points_changed (first activation of a limited player) follows the first unit_attacked.
 	for i in activation.size():
 		events.insert(1 + i, activation[i])
-	# A surviving target that can fire back (range, line of sight) hits back once, rolling the
-	# HP it has left. It is not an action: the target's has_attacked / moves_left are untouched
-	# and a counter never provokes another counter.
+	events.append_array(AttackCommand.counter(state, attacker, target))
+	return events
+
+
+## A surviving target that can fire back (range, line of sight) hits back once, rolling the
+## HP it has left. It is not an action: the target's has_attacked / moves_left are untouched
+## and a counter never provokes another counter.
+static func counter(state: GameState, attacker: Unit, target: Unit) -> Array[Dictionary]:
 	if (
 		target.is_alive()
 		and not state.is_over()
 		and fire_problem(state, target.definition, target.coord, attacker.coord) == ""
 	):
-		events.append_array(_strike(state, target, attacker, true))
-	return events
+		return strike(state, target, attacker, true)
+	return []
 
 
 ## One strike: rolls (roll_hits), applies the damage and returns unit_attacked (+ unit_died,
 ## + game_over when BattleRules ends the battle).
-func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) -> Array[Dictionary]:
+## `blind` = a Blind fire strike (attack modifier of the order, event flag).
+static func strike(
+	state: GameState, striker: Unit, victim: Unit, is_counter: bool, blind: bool = false
+) -> Array[Dictionary]:
 	var shots := striker.hp
-	var damage := AttackCommand.roll_hits(state, striker, victim)
+	var modifier := OrderRules.definition(OrderRules.BLIND_FIRE).attack_modifier if blind else 0
+	var damage := AttackCommand.roll_hits(state, striker, victim, modifier)
 	victim.hp = maxi(0, victim.hp - damage)
 	var events: Array[Dictionary] = [
 		{
@@ -192,6 +211,7 @@ func _strike(state: GameState, striker: Unit, victim: Unit, is_counter: bool) ->
 			"damage": damage,
 			"target_hp": victim.hp,
 			"counter": is_counter,
+			"blind": blind,
 		},
 	]
 	var died := not victim.is_alive()

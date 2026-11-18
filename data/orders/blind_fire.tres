@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="OrderDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/order_definition.gd" id="1_ord"]
+
+[resource]
+script = ExtResource("1_ord")
+id = &"blind_fire"
+allowed_classes = Array[StringName]([&"tank", &"infantry", &"mlrs"])
+min_range = 1
+max_range = 2
+class_ranges = {
+&"mlrs": Vector2i(3, 6)
+}
+attack_modifier = -1

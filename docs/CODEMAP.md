@@ -42,12 +42,14 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 ## src/core/commands/
 
 - `AttackCommand` – Attack on an enemy within range. Per-element rolls (TASK-089a, GDD "Combat"): each streng… (`attack_command.gd`)
+- `BlindFireCommand` – Order Blind fire (TASK-081b): a strike on the enemy standing in a hex without a line-of-s… (`blind_fire_command.gd`)
 - `Command` – Base command. The only way to change GameState – regardless of whether it is issued by (`command.gd`)
 - `CommandCodec` – Rebuilds commands from their `to_dict()` form (also after a JSON round trip). (`command_codec.gd`)
 - `DigInCommand` – Order Dig in (TASK-081a): the unit entrenches – +2 defence until it moves. Uses the unit's (`dig_in_command.gd`)
 - `EndTurnCommand` – Ends the current player's turn. BattleRules.at_turn_end may end the battle first (take he… (`end_turn_command.gd`)
 - `FireSupportCommand` – A fire-support mission (TASK-099a, GDD "Battle conditions"): an off-map shooter (artiller… (`fire_support_command.gd`)
 - `MoveUnitCommand` (`move_unit_command.gd`)
+- `SmokeCommand` – Order Smoke screen (TASK-081b): a tank lays smoke on a hex 1-2 hexes away. The hex blocks (`smoke_command.gd`)
 
 ## src/core/data/
 

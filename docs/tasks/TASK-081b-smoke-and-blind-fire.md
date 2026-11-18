@@ -1,6 +1,6 @@
 # TASK-081b: Smoke screen and Blind fire (core)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (+ data `.tres`); no presentation, no AI
 - **Depends on**: TASK-081a, TASK-131a (line of sight and range hexes)
 - **Sections**: GDD "Unit orders", GDD "Combat"; TASK-131a (LoS rules)
@@ -38,4 +38,7 @@ Smoke visuals, targeting UI (TASK-082), AI use (Smoke / Blind fire stay unused b
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Added `SmokeCommand` (`order_smoke`) and `BlindFireCommand` (`order_blind_fire`), data `data/orders/smoke.tres` and `blind_fire.tres`, and `OrderDefinition.class_ranges` for per-class ranges (MLRS 3-6). `GameState.smoke_hexes` holds {coord, owner}, at most one per hex, in the snapshot only when non-empty. `LineOfSight.visible(grid, from, to, smoke_hexes)` treats a smoke hex strictly between the two hexes as blocking; `AttackCommand.fire_problem` and `CombatForecast` pass the state's smoke. `EndTurnCommand` removes the new current player's smoke and emits `smoke_cleared`. Blind fire reuses `AttackCommand.strike()` / `counter()` with modifier -1 and `blind: true`; `CombatForecast.blind_margin()` / `blind_hit_on()` serve the TASK-082 preview. All `unit_attacked` events carry `blind`. Blind fire is limited to tank, infantry and MLRS (`sp_artillery` left out; data-only change to add it, GDD says "all").
+
+Open for TASK-082: the AI sight cache (`ai_player.gd`) and `range_overlay_model.gd` do not yet pass the smoke hexes; the overlay should show blind-fire hexes. The rng-draw-per-HP criterion is covered only indirectly (reuse of `roll_hits`).
+

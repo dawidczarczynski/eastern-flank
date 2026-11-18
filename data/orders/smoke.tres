@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="OrderDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/order_definition.gd" id="1_ord"]
+
+[resource]
+script = ExtResource("1_ord")
+id = &"smoke"
+allowed_classes = Array[StringName]([&"tank"])
+min_range = 1
+max_range = 2

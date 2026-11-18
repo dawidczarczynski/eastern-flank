@@ -154,12 +154,13 @@ Terrain types and movement (TASK-108, [ADR 0019](adr/0019-roads-rivers-real-terr
 | type | fields | emitted by |
 |---|---|---|
 | `unit_moved` | `unit_id`, `from`, `to`, `path` (`Array[Vector2i]`: tiles walked, excludes `from`, ends with `to`) | MoveUnitCommand |
-| `unit_order_issued` | `unit_id`, `order` (StringName, e.g. `&"dig_in"`), `target` (`Vector2i`; the unit's own hex for orders without a target); first event of an accepted order (TASK-081a) | DigInCommand |
+| `unit_order_issued` | `unit_id`, `order` (StringName, e.g. `&"dig_in"`), `target` (`Vector2i`; the unit's own hex for orders without a target); first event of an accepted order (TASK-081a) | DigInCommand, SmokeCommand, BlindFireCommand |
+| `smoke_cleared` | `coord` (`Vector2i`), `owner` (player id); a smoke hex ends as its owner's next turn starts (TASK-081b), after `turn_started` | EndTurnCommand |
 | `unit_order_cleared` | `unit_id`, `order`, `reason` (`&"moved"`; later `turn_started`, `spent`); after `unit_moved` when a dug unit moves | MoveUnitCommand |
 | `turn_ended` | `player` | EndTurnCommand |
 | `turn_started` | `player`, `turn` | EndTurnCommand |
 | `command_points_changed` | `player`, `remaining` (command points left this turn; only for a player with `command_points_per_turn` > 0). Emitted by `GameState.activate` right after the first `unit_moved` / first `unit_attacked` of a unit's first action of the turn (before `unit_died`, `objective_captured`, the counter and `game_over`), and after `turn_started` with the refilled N | MoveUnitCommand, AttackCommand, EndTurnCommand |
-| `unit_attacked` | `attacker_id`, `target_id`, `shots` (number of rolls: the striker's HP at the strike, TASK-089a), `damage` (hits scored, before clamping HP at 0; may be 0 – a complete miss), `target_hp`, `counter` (bool; true when the event is a counterattack by the target) | AttackCommand |
+| `unit_attacked` | `attacker_id`, `target_id`, `shots` (number of rolls: the striker's HP at the strike, TASK-089a), `damage` (hits scored, before clamping HP at 0; may be 0 – a complete miss), `target_hp`, `counter` (bool; true when the event is a counterattack by the target) ; `blind` (bool; true for the strike of a Blind fire order, TASK-081b; false for attacks and counters) | AttackCommand, BlindFireCommand |
 | `unit_died` | `unit_id` | AttackCommand, FireSupportCommand |
 | `fire_support_used` | `player`, `target_id`, `hits` (hits scored by the volley, before clamping HP at 0; may be 0), `target_hp` (the target's HP afterwards), `remaining` (the side's fire-support missions left in this battle, TASK-099a); followed by `unit_died` / `game_over` when the volley kills or ends the battle | FireSupportCommand |
 | `objective_captured` | `coord` (`Vector2i`), `player` (new owner), `previous_owner` (−1 = neutral); after `unit_moved` when a move ends on an objective hex another side owned (passing through does not capture) | MoveUnitCommand |

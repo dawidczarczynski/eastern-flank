@@ -56,7 +56,7 @@ static func compute_at(
 	var f := CombatForecast.new()
 	f.distance = Hex.distance(from, defender.coord)
 	f.range_factor = AttackCommand.range_factor(attacker.definition, f.distance)
-	f.line_of_sight = LineOfSight.visible(state.grid, from, defender.coord)
+	f.line_of_sight = LineOfSight.visible(state.grid, from, defender.coord, state.smoke_hexes)
 	f.problem = AttackCommand.fire_problem(state, attacker.definition, from, defender.coord)
 	f.shots = attacker.hp
 	f.die = attacker.definition.max_hp
@@ -75,6 +75,20 @@ static func compute_at(
 	f.counter_high = percentile(counter, HIGH_QUANTILE)
 	f.attacker_loss_chance = counter[attacker.hp] if f.counter_possible else 0.0
 	return f
+
+
+## Attack margin of a Blind fire strike of `attacker` on `defender` (TASK-081b): max(1, attack -
+## defence - tile bonus - 1). Pure, no rng – for the targeting preview of TASK-082.
+static func blind_margin(state: GameState, attacker: Unit, defender: Unit) -> int:
+	return BlindFireCommand.margin(state, attacker, defender)
+
+
+## Faces of the striker's die that hit with Blind fire at the current distance (pure).
+static func blind_hit_on(state: GameState, attacker: Unit, defender: Unit) -> int:
+	var modifier := OrderRules.definition(OrderRules.BLIND_FIRE).attack_modifier
+	return AttackCommand.hit_on_at(
+		state, attacker, defender, Hex.distance(attacker.coord, defender.coord), modifier
+	)
 
 
 ## P(X = k) for k = 0 … n, X ~ Binomial(n, p).

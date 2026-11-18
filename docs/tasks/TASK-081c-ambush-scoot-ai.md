@@ -1,6 +1,6 @@
 # TASK-081c: Ambush reaction strike, Scoot and AI use of orders (core + ai)
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: core, ai (+ data `.tres`); no presentation
 - **Depends on**: TASK-081b
 - **Sections**: GDD "Unit orders", GDD "Combat" (incl. "Per-element rolls"); ARCHITECTURE "Events"

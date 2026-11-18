@@ -26,6 +26,7 @@ func _attacked(a: Unit, t: Unit, shots: int, damage: int, hp: int, counter: bool
 		"damage": damage,
 		"target_hp": hp,
 		"counter": counter,
+		"blind": false,
 	}
 
 

@@ -13,3 +13,13 @@ extends Resource
 @export var max_range: int = 0
 ## Attack modifier of the order (Blind fire -1).
 @export var attack_modifier: int = 0
+## Per-class override of min_range / max_range: unit class -> Vector2i(min, max) (Blind fire of
+## the MLRS reaches 3-6).
+@export var class_ranges: Dictionary = {}
+
+
+## {min, max} range of the order for a unit class: the class override or min_range / max_range.
+func range_for(unit_class: StringName) -> Vector2i:
+	if class_ranges.has(unit_class):
+		return class_ranges[unit_class]
+	return Vector2i(min_range, max_range)

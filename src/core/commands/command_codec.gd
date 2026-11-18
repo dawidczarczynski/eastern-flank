@@ -6,6 +6,8 @@ extends RefCounted
 ##   AttackCommand   → {"type": "attack", "attacker_id": 1, "target_id": 5}
 ##   FireSupportCommand → {"type": "fire_support", "player": 0, "target_id": 5}
 ##   DigInCommand    → {"type": "order_dig_in", "unit_id": 3}
+##   SmokeCommand    → {"type": "order_smoke", "unit_id": 3, "target": [q, r]}
+##   BlindFireCommand → {"type": "order_blind_fire", "unit_id": 3, "target": [q, r]}
 ##   EndTurnCommand  → {"type": "end_turn"}
 ## Validation is strict: unknown "type", missing fields or non-numeric values give null.
 ## Numbers may be ints or integral floats (JSON parses every number as a float); anything else
@@ -28,6 +30,10 @@ static func from_dict(d: Dictionary) -> Command:
 			return _fire_support(d)
 		"order_dig_in":
 			return _dig_in(d)
+		"order_smoke":
+			return _targeted_order(d, true)
+		"order_blind_fire":
+			return _targeted_order(d, false)
 		"end_turn":
 			return EndTurnCommand.new()
 	return null
@@ -59,6 +65,20 @@ static func _fire_support(d: Dictionary) -> Command:
 	if player == null or target_id == null:
 		return null
 	return FireSupportCommand.new(player, target_id)
+
+
+static func _targeted_order(d: Dictionary, smoke: bool) -> Command:
+	var unit_id: Variant = to_int_or_null(d.get("unit_id"))
+	var target: Variant = d.get("target")
+	if unit_id == null or not target is Array or target.size() != 2:
+		return null
+	var q: Variant = to_int_or_null(target[0])
+	var r: Variant = to_int_or_null(target[1])
+	if q == null or r == null:
+		return null
+	if smoke:
+		return SmokeCommand.new(unit_id, Vector2i(q, r))
+	return BlindFireCommand.new(unit_id, Vector2i(q, r))
 
 
 static func _dig_in(d: Dictionary) -> Command:

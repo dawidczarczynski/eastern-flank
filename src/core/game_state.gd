@@ -49,6 +49,11 @@ var fire_support_left: Array[int] = []
 ## player's flag. Part of snapshot() with `fire_support_left`.
 var fire_support_used_turn: Array[bool] = []
 
+## Smoke screens (TASK-081b): entries {coord: Vector2i, owner: int}, at most one per hex. They
+## block direct-fire line of sight through the hex until the start of the owner's next turn
+## (EndTurnCommand). Part of snapshot() only when non-empty.
+var smoke_hexes: Array[Dictionary] = []
+
 var _next_unit_id: int = 1
 
 
@@ -205,6 +210,11 @@ func snapshot() -> Dictionary:
 	if used or fire_support_left.any(func(left: int) -> bool: return left != 0):
 		d["fire_support_left"] = fire_support_left.duplicate()
 		d["fire_support_used_turn"] = fire_support_used_turn.duplicate()
+	if not smoke_hexes.is_empty():
+		var smoke: Array = []
+		for s in smoke_hexes:
+			smoke.append([s["coord"].x, s["coord"].y, s["owner"]])
+		d["smoke_hexes"] = smoke
 	return d
 
 

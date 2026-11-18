@@ -16,8 +16,10 @@ const ELEVATION_METRES := 1000.0
 
 
 ## True when nothing between `from` and `to` blocks the sight line. Adjacent hexes always see
-## each other.
-static func visible(grid: HexGrid, from: Vector2i, to: Vector2i) -> bool:
+## each other. `smoke_hexes` = GameState.smoke_hexes ({coord, owner} entries).
+static func visible(
+	grid: HexGrid, from: Vector2i, to: Vector2i, smoke_hexes: Array[Dictionary] = []
+) -> bool:
 	if Hex.distance(from, to) <= 1:
 		return true
 	var a := from
@@ -31,6 +33,8 @@ static func visible(grid: HexGrid, from: Vector2i, to: Vector2i) -> bool:
 	var steps := line.size() - 1
 	for i in range(1, steps):
 		var c := line[i]
+		if _has_smoke(smoke_hexes, c):
+			return false
 		if not grid.has_tile(c):
 			continue
 		var sight := lerpf(start, end, float(i) / steps)
@@ -49,3 +53,10 @@ static func ground_m(grid: HexGrid, c: Vector2i) -> float:
 ## Height of the tile's trees or buildings in metres (TerrainDefinition.los_obstacle_m).
 static func obstacle_m(grid: HexGrid, c: Vector2i) -> float:
 	return Terrain.definition(grid.get_terrain(c)).los_obstacle_m
+
+
+static func _has_smoke(smoke_hexes: Array[Dictionary], c: Vector2i) -> bool:
+	for s in smoke_hexes:
+		if s["coord"] == c:
+			return true
+	return false

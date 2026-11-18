@@ -31,6 +31,14 @@ func apply(state: GameState) -> Array[Dictionary]:
 		unit.scoot_used = false
 		unit.ambush = false
 	events.append({"type": &"turn_started", "player": state.current_player, "turn": state.turn})
+	# The owner's smoke lasts through the enemy's turn and ends as the owner's next turn starts.
+	for i in range(state.smoke_hexes.size() - 1, -1, -1):
+		var smoke := state.smoke_hexes[i]
+		if smoke["owner"] == state.current_player:
+			state.smoke_hexes.remove_at(i)
+			events.append(
+				{"type": &"smoke_cleared", "coord": smoke["coord"], "owner": smoke["owner"]}
+			)
 	state.command_points = state.command_points_per_turn[state.current_player]
 	if state.is_command_limited(state.current_player):
 		(
