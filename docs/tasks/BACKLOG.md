@@ -156,6 +156,9 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-181](TASK-181-silhouette-compare.md) | Silhouette comparison: IoU of the game model against the GLB (`tools/compare_silhouette.sh`) | 🔵 done | TASK-179 |
 | [TASK-182](TASK-182-glb-catalog-integration.md) | Catalog and `/model-unit` use the GLB reference and the IoU gate | 🔵 done | TASK-179, TASK-180, TASK-181 |
 | [TASK-183](TASK-183-glb-batch.md) | GLB batch mode and pilot (squad, tank, launcher) | 🟢 ready | TASK-182 |
+| [TASK-184](TASK-184-artillery-barrage-arena.md) | Barrel-artillery barrage and the dev arena | 🔵 done | – |
+| [TASK-185](TASK-185-devtools-menu-page.md) | Devtools page in the main menu (debug runs) | 🟣 to playtest | TASK-184 |
+| [TASK-186](TASK-186-devtools-content.md) | Devtools content: live tunables and test benches | 💡 idea | TASK-185 |
 | [TASK-176](TASK-176-k9-thunder-unit.md) | K9 Thunder (K9PL) 155 mm self-propelled howitzer: new class `sp_artillery`, stats derived from the catalog, Poland roster and tank battalion | 🔵 done | – |
 | [TASK-142](TASK-142-staff-map-counter-depth.md) | Staff map counters and installation markers as hex game tiles (hexagon base, side shape on a raised plate) (design `unit_tokens_hex.html`, variant D accepted 2026-11-11); pitch decides flat / tilted look| 🔵 done | – |
 | [TASK-143](TASK-143-escalation-ladder-window.md) | Escalation ladder window: horizontal axis of 7 levels with tick matrix of strike classes, trigger chips, collapse strips; X / Esc / click-outside close, closes other windows (design `escalation_ladder_window.html`, variant B accepted 2026-11-11) | 🔵 done (window removed by TASK-119b) | – |

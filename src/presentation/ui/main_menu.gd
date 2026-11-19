@@ -10,6 +10,7 @@ extends Control
 const BATTLE_SCENE := "res://scenes/battle/battle.tscn"
 const CATALOG_SCENE := "res://scenes/ui/unit_catalog.tscn"
 const STAFF_MAP_SCENE := "res://scenes/operational/staff_map.tscn"
+const ARENA_SCENE := "res://scenes/battle/arena.tscn"
 const BUTTON_WIDTH := 340.0
 const EDGE_MARGIN := 64.0  # gap between the menu column and the screen edge
 const LOGO := preload("res://assets/branding/logo_light.png")
@@ -20,6 +21,9 @@ const PREVIEW_SIZE := Vector2(480, 340)
 var settings_path := GameSettings.PATH
 ## Where the campaign saves are (a test points it at a temp folder).
 var save_dir := CampaignSaver.DIR
+## Debug run (`--debug` user argument; a test sets it before _ready): the main page gets a
+## Devtools page (benches and switches for the developer, not translated).
+var debug := OS.get_cmdline_user_args().has("--debug")
 var _continue: Button  # main page: loads the latest campaign save
 var _continue_note: Label  # why Continue is disabled / why the save did not load
 var _continue_problem := ""  # translation key of the last failed load
@@ -27,6 +31,11 @@ var _scenario_name := BattleOptions.chosen(OS.get_cmdline_user_args())
 var _start: Button  # main page: opens the scenario page
 var _operation: Button  # main page: opens the operational staff map
 var _catalog: Button
+var _devtools: Button  # main page, debug only: opens the devtools page
+var _devtools_page: Control
+var _devtools_title: Label
+var _arena_button: Button
+var _devtools_back: Button
 var _settings: Button
 var _backdrop: MenuBackdrop
 var _main_page: Control
@@ -172,6 +181,8 @@ func ambient_slider() -> HSlider:
 func page() -> String:
 	if _scenario_page.visible:
 		return "scenario"
+	if _devtools_page != null and _devtools_page.visible:
+		return "devtools"
 	return "settings" if _settings_page.visible else "main"
 
 
@@ -179,6 +190,8 @@ func show_page(page_name: String) -> void:
 	_main_page.visible = page_name == "main"
 	_scenario_page.visible = page_name == "scenario"
 	_settings_page.visible = page_name == "settings"
+	if _devtools_page != null:
+		_devtools_page.visible = page_name == "devtools"
 	if not is_inside_tree():
 		return
 	match page_name:
@@ -188,6 +201,8 @@ func show_page(page_name: String) -> void:
 			_begin.grab_focus()
 		"settings":
 			_settings_back.grab_focus()
+		"devtools":
+			_devtools_back.grab_focus()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -217,6 +232,10 @@ func _build() -> void:
 	var settings_column := _column(BUTTON_WIDTH)
 	_settings_page = settings_column.get_parent()
 	_build_settings(settings_column)
+	if debug:
+		var devtools_column := _column(BUTTON_WIDTH)
+		_devtools_page = devtools_column.get_parent()
+		_build_devtools(devtools_column)
 	_build_side_select()
 	var audio := AudioDirector.create(self, null, null, 1.0)
 	audio.settings = _sound  # the menu edits this dictionary: clicks follow mute and volume
@@ -282,6 +301,8 @@ func _build_main(column: VBoxContainer) -> void:
 	_operation = _add_button(column, _on_operation_pressed)
 	_catalog = _add_button(column, _on_catalog_pressed)
 	_settings = _add_button(column, show_page.bind("settings"))
+	if debug:
+		_devtools = _add_button(column, show_page.bind("devtools"))
 
 
 func _build_scenarios(column: VBoxContainer) -> void:
@@ -327,6 +348,31 @@ func _build_settings(column: VBoxContainer) -> void:
 	_settings_back = _add_button(column, show_page.bind("main"))
 
 
+## Debug only: the developer's benches. Add new devtools here as plates.
+func _build_devtools(column: VBoxContainer) -> void:
+	_devtools_title = MenuStyle.label("", HudTheme.display(700, 4), 28, UiPalette.HUD_TEXT)
+	column.add_child(_devtools_title)
+	_arena_button = _add_button(column, _on_arena_pressed)
+	column.add_child(_spacer(10.0))
+	_devtools_back = _add_button(column, show_page.bind("main"))
+
+
+func _on_arena_pressed() -> void:
+	get_tree().change_scene_to_file(ARENA_SCENE)
+
+
+func devtools_button() -> Button:
+	return _devtools
+
+
+func arena_button() -> Button:
+	return _arena_button
+
+
+func devtools_back_button() -> Button:
+	return _devtools_back
+
+
 func _add_button(parent: Control, handler: Callable) -> Button:
 	var b := MenuStyle.plate("")
 	b.pressed.connect(handler)
@@ -361,6 +407,11 @@ func refresh_texts() -> void:
 	_operation.text = tr("Operation").to_upper()
 	_catalog.text = tr("Unit catalog").to_upper()
 	_settings.text = tr("Settings").to_upper()
+	if debug:
+		_devtools.text = "DEVTOOLS"
+		_devtools_title.text = "DEVTOOLS"
+		_arena_button.text = "ARENA"
+		_devtools_back.text = "‹ " + tr("Back").to_upper()
 	_scenario_title.text = tr("Start scenario").to_upper()
 	for scenario_name: String in _scenario_buttons:
 		var label: String = BattleOptions.LABELS.get(scenario_name, scenario_name)

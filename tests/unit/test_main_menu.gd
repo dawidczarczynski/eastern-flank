@@ -144,3 +144,18 @@ func test_continue_follows_the_saves() -> void:
 	assert_eq(_menu.continue_note(), "The saved campaign is damaged")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(dir))
+
+
+func test_devtools_page_exists_only_in_a_debug_run() -> void:
+	assert_true(_menu.devtools_button() == null)
+	var debug_menu: Control = Menu.new()
+	debug_menu.settings_path = TEMP
+	debug_menu.debug = true
+	debug_menu._ready()
+	assert_eq(debug_menu.devtools_button().text, "DEVTOOLS")
+	debug_menu.devtools_button().pressed.emit()
+	assert_eq(debug_menu.page(), "devtools")
+	assert_eq(debug_menu.arena_button().text, "ARENA")
+	debug_menu.devtools_back_button().pressed.emit()
+	assert_eq(debug_menu.page(), "main")
+	debug_menu.free()
