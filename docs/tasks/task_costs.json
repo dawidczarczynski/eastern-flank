@@ -2889,21 +2889,22 @@
    }
   },
   "TASK-182": {
-   "active_hours": 0.15,
-   "cost": 1.755,
+   "active_hours": 5.42,
+   "cost": 11.3378,
    "first": "2026-11-19T07:33:40.671Z",
-   "last": "2026-11-19T07:42:33.178Z",
-   "main_cost": 1.755,
+   "last": "2026-11-19T13:28:25.556Z",
+   "main_cost": 4.1446,
    "models": [
+    "claude-opus-5-5",
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
-   "sessions": 1,
+   "sessions": 2,
    "tokens": {
-    "cache_read": 3133861,
-    "cache_write": 108243,
-    "input": 64,
-    "output": 27251
+    "cache_read": 14461569,
+    "cache_write": 843033,
+    "input": 332,
+    "output": 124675
    }
   }
  },
