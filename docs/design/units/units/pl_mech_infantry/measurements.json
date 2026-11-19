@@ -1,0 +1,38 @@
+{
+  "kind": "foot",
+  "frame": "metres; height above the ground",
+  "size_m": {
+    "length": 1.415,
+    "height": 1.82,
+    "width": 1.169
+  },
+  "constants": {
+    "HEIGHT": {
+      "value": 1.82,
+      "confidence": 0.9,
+      "note": "bounding box height"
+    },
+    "WIDTH": {
+      "value": 1.043,
+      "confidence": 0.7,
+      "note": "1st..99th percentile across"
+    },
+    "DEPTH": {
+      "value": 1.139,
+      "confidence": 0.7,
+      "note": "1st..99th percentile along x"
+    },
+    "WIDTH_TO_HEIGHT": {
+      "value": 0.573,
+      "confidence": 0.7,
+      "note": "proportion"
+    },
+    "DEPTH_TO_HEIGHT": {
+      "value": 0.626,
+      "confidence": 0.7,
+      "note": "proportion"
+    }
+  },
+  "warnings": [],
+  "unit_id": "pl_mech_infantry"
+}

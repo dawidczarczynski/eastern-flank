@@ -425,10 +425,12 @@ class JobManager:
             if job.cancel_requested or job.stopping:
                 self._terminate(job)
         last = ""
+        rendered = False
         for line in proc.stdout:
             text = line.rstrip()
             if text:
                 last = text
+                rendered = rendered or text.startswith("Render saved:")
                 with self._lock:
                     job.add_log({"kind": "error" if "WARNING" in text or "ERROR" in text else "info", "text": text})
             self._save(throttle=True)
@@ -438,7 +440,8 @@ class JobManager:
         if job.cancel_requested:
             job.state = "cancelled"
             return
-        if code != 0:
+        # (same rule as tools/analyze_glb.sh --all) the Windows Godot build exits 5 on leaked-resource noise after a good render
+        if code != 0 and not (rendered and code not in (1, 2, 124, 127)):
             job.error = "the analysis failed (exit code %d): %s" % (code, last)
             job.state = "failed"
             return

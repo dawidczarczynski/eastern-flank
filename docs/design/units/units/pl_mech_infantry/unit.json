@@ -44,6 +44,9 @@
   "mechanisms": {
     "squad_march": {}
   },
+  "reference_glb": {
+    "file": "reference.glb"
+  },
   "images": [
     {
       "file": "side_1.jpg",
@@ -151,6 +154,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-11-11",
-  "revision": 19
+  "updated": "2026-11-19",
+  "revision": 20
 }

@@ -777,7 +777,7 @@ async function unitScreen(id) {
   glbInput.addEventListener("change", () => { const f = glbInput.files[0]; glbInput.value = ""; if (f) uploadGlb(f); });
   async function uploadGlb(file) {
     if (activeJob) return;
-    if (file.size > 200 * 1024 * 1024) { errBox.textContent = file.name + ": larger than 200 MB"; return; }
+    if (file.size > 1024 * 1024 * 1024) { errBox.textContent = file.name + ": larger than 1 GB"; return; }
     state.className = "savestate saving"; state.textContent = "uploading...";
     try {
       save.flush();

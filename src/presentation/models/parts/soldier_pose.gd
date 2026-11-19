@@ -48,14 +48,18 @@ const LAUNCHER_SIGHT := Vector3(0.0, 0.055, -0.06)
 const KNEEL_KNEE_Y := 0.105
 ## Largest head pitch and roll (rad) of a cheek weld: the head bends onto the stock, not further.
 const MAX_WELD := Vector2(0.45, 0.3)
+## Share of a cheek weld's pitch taken by the neck (the rest by the head): the head goes forward
+## and down onto the stock instead of only nodding.
+const WELD_NECK := 0.75
 ## Standing legs keep this fraction of their full reach (soft knees).
 const REACH := 0.99
 
 ## Stances (how the weapon is held): shouldered rifle / carbine / LMG, RPG on the shoulder, GPMG
-## at the hip.
+## at the hip, and the shouldered rifle in a crouched, wide-legged assault stance.
 const RIFLE := 0
-const LAUNCHER := 1
+const AT_LAUNCHER := 1
 const HIP := 2
+const ASSAULT := 3
 ## Carries (Soldier.READY / AIM / LOW).
 const READY := 0
 const AIM := 1
@@ -63,8 +67,12 @@ const LOW := 2
 
 ## Standing stance parameters: pelvis offset (x, z) and yaw / roll (rad, yaw + = left, roll + =
 ## right side down), spine (chest relative to the pelvis) yaw and forward lean, ankles [x, z] and
-## foot yaws [left, right]. Rifles and the RPG: bladed (left foot forward, hips turned right, the
-## shoulders less – the twist towards the weapon); the GPMG gunner squarer, leaning into the gun.
+## foot yaws [left, right], optionally the legs' `reach` (fraction of their length, default REACH),
+## `high_butt` (m the aimed butt sits higher in the shoulder pocket) and `shrug` (m both shoulders
+## rise when aiming: the head sinks between them).
+## Rifles and the RPG: bladed (left foot forward, hips turned right, the shoulders less – the twist
+## towards the weapon); the GPMG gunner squarer, leaning into the gun; the assault stance long and
+## wide (feet ~0.6 m apart along the aim and across), knees bent, the chest over the front foot.
 const STANDS := {
 	RIFLE:
 	{
@@ -76,7 +84,7 @@ const STANDS := {
 		"ankles": [Vector2(0.12, -0.12), Vector2(-0.14, 0.15)],
 		"feet": Vector2(-0.2, -0.8),
 	},
-	LAUNCHER:
+	AT_LAUNCHER:
 	{
 		"pelvis": Vector2(-0.02, 0.0),
 		"yaw": -0.42,
@@ -96,13 +104,27 @@ const STANDS := {
 		"ankles": [Vector2(0.11, -0.14), Vector2(-0.1, 0.15)],
 		"feet": Vector2(0.05, -0.5),
 	},
+	ASSAULT:
+	{
+		"pelvis": Vector2(-0.04, 0.0),
+		"yaw": -0.45,
+		"roll": 0.03,
+		"spine_yaw": 0.26,
+		"lean": 0.38,
+		"ankles": [Vector2(0.42, -0.29), Vector2(-0.2, 0.34)],
+		"feet": Vector2(0.0, -0.7),
+		"reach": 0.95,
+		"high_butt": 0.04,
+		"shrug": 0.045,
+	},
 }
 ## Elbow pole directions in the chest frame [left, right] per stance: elbows hang down and back;
 ## the firing elbow of a shouldered rifle goes out when aiming.
 const ELBOW_POLES := {
 	RIFLE: [Vector3(-0.15, -1.0, -0.2), Vector3(-0.35, -1.0, 0.35)],
-	LAUNCHER: [Vector3(-0.1, -1.0, -0.35), Vector3(-0.3, -0.9, 0.4)],
+	AT_LAUNCHER: [Vector3(-0.1, -1.0, -0.35), Vector3(-0.3, -0.9, 0.4)],
 	HIP: [Vector3(-0.2, -1.0, -0.35), Vector3(-0.55, -0.7, 0.45)],
+	ASSAULT: [Vector3(-0.15, -1.0, -0.25), Vector3(-0.35, -1.0, 0.35)],
 }
 const ELBOW_AIM := Vector3(-0.3, -0.75, 0.6)
 
@@ -129,6 +151,9 @@ var pocket := Vector3.ZERO
 var joints := {}
 ## Helmet frame (rim plane centre, Y up into the shell), set when the helmet is built.
 var helmet := Transform3D.IDENTITY
+## Named marker frames the kit sets (metres, e.g. &"LauncherMuzzle"): Soldier.soldier adds each as
+## an empty Node3D under the soldier's posture node (effects attach there).
+var markers := {}
 ## AO proxies of the body and kit (parts/occlusion_bake.gd), baked into the variant's meshes.
 var occluders := OcclusionBake.new()
 
@@ -162,10 +187,11 @@ func _setup(kneeling: bool, kit_id: int, carry_id: int, stance_id: int, slot_id:
 	else:
 		_stand_legs(s, 0.0 if aims else vary)
 	chest = torso(10.0)
-	pocket = chest * (POCKET_AIM if carry == AIM else POCKET)
+	var high_butt: float = s.get("high_butt", 0.0)
+	pocket = chest * (POCKET_AIM + Vector3(0.0, high_butt, 0.0) if carry == AIM else POCKET)
 	var poles: Array = ELBOW_POLES[stance]
 	elbow_poles = [chest.basis * (poles[0] as Vector3), chest.basis * (poles[1] as Vector3)]
-	if stance == RIFLE and carry == AIM:
+	if shoulders_rifle() and carry == AIM:
 		elbow_poles[1] = chest.basis * ELBOW_AIM
 	# The face turns to the front (+x) against the body's twist, plus a look of its own.
 	var front := chest.basis.x
@@ -181,7 +207,12 @@ func _setup(kneeling: bool, kit_id: int, carry_id: int, stance_id: int, slot_id:
 
 ## Whether the soldier aims (rifle at AIM, or the RPG): an aiming pose does not vary by slot.
 func aiming() -> bool:
-	return carry == AIM or stance == LAUNCHER
+	return carry == AIM or stance == AT_LAUNCHER
+
+
+## Whether the stance holds a shouldered rifle (RIFLE, ASSAULT).
+func shoulders_rifle() -> bool:
+	return stance == RIFLE or stance == ASSAULT
 
 
 ## Neutral -> posed transform at the spine height `y` (neutral): the pelvis below the waist, the
@@ -207,17 +238,24 @@ func launcher() -> Transform3D:
 ## Shoulder joint (posed) of `side` (-1 left, 1 right); aiming lifts the firing shoulder.
 func shoulder(side: float) -> Vector3:
 	var lift := 0.015 if side > 0.0 and aiming() else 0.0
+	if aiming():
+		lift += (STANDS[stance] as Dictionary).get("shrug", 0.0)
 	return chest * Vector3(SHOULDER.x, SHOULDER.y + lift, SHOULDER.z * side)
 
 
-## Head frame: the neck bends about its base and the head about its pivot, half the turn each;
+## Head frame: the neck bends about its base and the head about its pivot, half the turn each –
+## the pitch split `neck` : 1 − `neck` (a cheek weld pushes the head forward from the neck base);
 ## `yaw`, `pitch` (+ = looking down) and `roll` (+ = right ear down) in rad, relative to `chest_xf`.
-static func head_frame(chest_xf: Transform3D, yaw: float, pitch: float, roll: float) -> Transform3D:
-	var half := Basis(Vector3.UP, yaw * 0.5) * Basis(Vector3.BACK, -pitch * 0.5)
-	half = half * Basis(Vector3.RIGHT, roll * 0.5)
-	var neck := Transform3D(half, NECK_BASE - half * NECK_BASE)
-	var top := Transform3D(half, HEAD_PIVOT - half * HEAD_PIVOT)
-	return chest_xf * neck * top
+static func head_frame(
+	chest_xf: Transform3D, yaw: float, pitch: float, roll: float, neck := 0.5
+) -> Transform3D:
+	var lower := Basis(Vector3.UP, yaw * 0.5) * Basis(Vector3.BACK, -pitch * neck)
+	lower = lower * Basis(Vector3.RIGHT, roll * 0.5)
+	var upper := Basis(Vector3.UP, yaw * 0.5) * Basis(Vector3.BACK, -pitch * (1.0 - neck))
+	upper = upper * Basis(Vector3.RIGHT, roll * 0.5)
+	var base := Transform3D(lower, NECK_BASE - lower * NECK_BASE)
+	var top := Transform3D(upper, HEAD_PIVOT - upper * HEAD_PIVOT)
+	return chest_xf * base * top
 
 
 ## Two-bone IK (pure geometry): the middle joint for segments `l1` (root – mid) and `l2` (mid –
@@ -249,11 +287,12 @@ func _stand_legs(s: Dictionary, vary: float) -> void:
 	var centre := Vector3(offset.x, HIP_Y, offset.y - vary * 0.05)
 	var ankles: Array = s["ankles"]
 	var yaws: Vector2 = s["feet"]
+	var reach: float = s.get("reach", REACH)
 	var targets: Array[Vector3] = []
 	for i in 2:
 		var at: Vector2 = ankles[i]
 		targets.append(Vector3(at.x, ANKLE_H, at.y))
-	for step in 60:
+	for step in 90:
 		pelvis = Transform3D(rot, centre) * Transform3D(Basis.IDENTITY, -Vector3(0.0, HIP_Y, 0.0))
 		var worst := 0.0
 		for i in 2:
@@ -307,7 +346,7 @@ static func _toes_down(ankle: Vector3, yaw: float) -> Transform3D:
 	for step in 80:
 		var phi := step * 0.02
 		frame = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.BACK, -phi), ankle)
-		if (frame * Vector3(0.228, -ANKLE_H + 0.004, 0.0)).y <= 0.0:
+		if (frame * Vector3(0.215, -ANKLE_H + 0.004, 0.0)).y <= 0.0:
 			break
 	return frame
 
@@ -317,10 +356,10 @@ static func _toes_down(ankle: Vector3, yaw: float) -> Transform3D:
 
 ## The aiming sight line [origin, direction] the eye looks along, or [] when not aiming.
 func _sight_line() -> Array:
-	if stance == LAUNCHER:
+	if stance == AT_LAUNCHER:
 		var t := launcher()
 		return [t * LAUNCHER_SIGHT, t.basis.x]
-	if stance == RIFLE and carry == AIM:
+	if shoulders_rifle() and carry == AIM:
 		var g := shouldered(-0.03)
 		return [g * Vector3(0.0, SIGHT, 0.0), g.basis.x]
 	return []
@@ -339,7 +378,7 @@ func _cheek_weld(yaw: float, origin: Vector3, dir: Vector3) -> Transform3D:
 				var a := centre + Vector2(span.x * (i / 4.0 - 1.0), span.y * (j / 4.0 - 1.0))
 				var pitch := clampf(a.x, 0.0, MAX_WELD.x)
 				var roll := clampf(a.y, -0.1, MAX_WELD.y)
-				var eye := head_frame(chest, yaw, pitch, roll) * EYE
+				var eye := head_frame(chest, yaw, pitch, roll, WELD_NECK) * EYE
 				var rel := eye - origin
 				var miss := (rel - dir * rel.dot(dir)).length()
 				var cost := miss + 0.02 * (pitch + absf(roll))
@@ -348,4 +387,4 @@ func _cheek_weld(yaw: float, origin: Vector3, dir: Vector3) -> Transform3D:
 					best = Vector2(pitch, roll)
 		centre = best
 		span *= 0.25
-	return head_frame(chest, yaw, best.x, best.y)
+	return head_frame(chest, yaw, best.x, best.y, WELD_NECK)

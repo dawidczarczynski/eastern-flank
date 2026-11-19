@@ -4,10 +4,11 @@
 ## stances with weight shift and the twist towards the weapon, limbs by two-bone IK, the head bent
 ## onto the stock when aiming), the anatomical body around it (parts/soldier_body.gd), the kit and
 ## weapon from the model's `dress` hook, and ambient occlusion from the body's and kit's proxies
-## baked into the vertex masks (parts/occlusion_bake.gd). Also the helmet, RPG-7 and weapon
-## helpers both kits use. Each soldier is built in metres (x forward, y up, z right, feet on y = 0)
-## into one MeshKit per material role (base scale M -> model units); the geometry of a soldier does
-## not depend on the faction and is cached per squad slot and posture (ModelParts.cached_meshes).
+## baked into the vertex masks (parts/occlusion_bake.gd). Also the helmet and weapon helpers both
+## kits use (the anti-tank launcher: parts/at_launcher.gd). Each soldier is built in metres (x
+## forward, y up, z right, feet on y = 0) into one MeshKit per material role (base scale M -> model
+## units); the geometry of a soldier does not depend on the faction and is cached per squad slot
+## and posture (ModelParts.cached_meshes), with the kit's marker nodes (SoldierPose.markers).
 
 const Body := preload("res://src/presentation/models/parts/soldier_body.gd")
 ## Model units per metre (1 unit = 10 m).
@@ -21,34 +22,60 @@ const LOW := SoldierPose.LOW
 ## Muzzle angle (rad, + = up) of an aimed and of a low-carried weapon.
 const AIM_ANGLE := -0.03
 const LOW_ANGLE := -0.85
-## Stances of a kit (the model's STANCES): shouldered rifle, RPG on the shoulder, GPMG at the hip.
+## Stances of a kit (the model's STANCES): shouldered rifle, anti-tank launcher on the shoulder,
+## GPMG at the hip, shouldered rifle in a crouched assault stance.
 const RIFLE_STANCE := SoldierPose.RIFLE
-const LAUNCHER_STANCE := SoldierPose.LAUNCHER
+const AT_LAUNCHER_STANCE := SoldierPose.AT_LAUNCHER
 const HIP_STANCE := SoldierPose.HIP
+const ASSAULT_STANCE := SoldierPose.ASSAULT
+## Key of a variant's marker frames (SoldierPose.markers) next to its meshes.
+const MARKERS := &"_markers"
 ## Openness (vertex mask g) of a helmet's lip and inner wall.
 const HELMET_INSIDE := 0.45
 ## Material roles, in build order (the uniform camo first).
-const ROLES: Array[StringName] = [&"uniform", &"vest", &"skin", &"dark", &"gun", &"accent"]
+const ROLES: Array[StringName] = [
+	&"uniform", &"vest", &"skin", &"dark", &"light", &"gun", &"accent"
+]
 ## Roles of the body itself (the rest is kit and weapons).
-const BODY_ROLES: Array[StringName] = [&"uniform", &"skin", &"dark"]
+const BODY_ROLES: Array[StringName] = [&"uniform", &"skin", &"dark", &"light"]
 ## Roles the ambient occlusion is baked into (body, face, vest and pack); boots, gloves, straps
 ## and weapons are dark already and keep their masks as built (saves build time).
 const AO_ROLES: Array[StringName] = [&"uniform", &"skin", &"vest"]
-## Boots, gloves, knee pads, belts and straps: weathered dark paint with mud up to the ankles and
-## on a kneeling knee (heights in model units of the unscaled soldier, 0.012 = 12 cm).
+## Boots, belts, straps, ear defenders: black leather and nylon, a little glossy (scuffed edges,
+## hardly any dust, no mud – the boots must read black at close zoom).
 const GEAR_PAINT := {
-	"color": Color("#2a2b25"),
-	"base_roughness": 0.85,
-	"metallic": 0.05,
-	"wear_amount": 0.25,
-	"tint_amount": 0.2,
-	"dust_amount": 0.3,
-	"mud_height": 0.012,
-	"mud_amount": 0.45,
+	"color": Color("#121311"),
+	"base_roughness": 0.42,
+	"metallic": 0.0,
+	"wear_amount": 0.12,
+	"wear_color": Color("#3a3a36"),
+	"tint_amount": 0.08,
+	"dust_amount": 0.04,
+	"mud_height": 0.0,
+	"mud_amount": 0.0,
 	"streak_amount": 0.0,
-	"fade": 0.05,
+	"fade": 0.0,
 	"mask_ao": 1.0,
 }
+## Gloves and knee pads (role &"light"): matt synthetic in the kit's LOOK "light" colour (default
+## a dark olive), a little dust.
+const LIGHT_PAINT := {
+	"base_roughness": 0.8,
+	"metallic": 0.0,
+	"wear_amount": 0.1,
+	"tint_amount": 0.08,
+	"dust_amount": 0.12,
+	"mud_height": 0.0,
+	"mud_amount": 0.0,
+	"streak_amount": 0.0,
+	"fade": 0.0,
+	"mask_ao": 1.0,
+}
+const LIGHT_DEFAULT := Color("#37382f")
+## wz. 93 Pantera print the LOOK "khaki" mixes the faction's camo colours towards: tan ground,
+## olive-brown and near-black blotches (as on the reference GLB).
+const PANTERA_COLORS: Array[Color] = [Color("#7b6e50"), Color("#463b2b"), Color("#1e1b16")]
+const KHAKI_VEST := Color("#766c4c")
 ## Plate carriers, pouches and packs (in the faction's vest colour): matt nylon, strong per-part
 ## tint so pouches, pack and carrier separate, worn lighter on the seams, dusty on top.
 const VEST_PAINT := {
@@ -94,21 +121,46 @@ const ACCENT_PAINT := {
 
 
 ## Materials for the ROLES – all read the vertex masks (AO in COLOR.g): faction uniform camo
-## (fabric), weathered vest / gun / gear / accent paints, the skin shader.
-static func materials(faction: FactionDefinition) -> Dictionary:
+## (fabric), weathered vest / gun / gear / light / accent paints, the skin shader. `look` (a
+## model's LOOK, optional): "khaki" (0–1) mixes the uniform's camo colours and the vest colour
+## towards the Pantera tan (`uniform_colors`), "light" = the glove and knee pad colour.
+static func materials(faction: FactionDefinition, look := {}) -> Dictionary:
 	var id := String(faction.id) if faction != null else "neutral"
+	var khaki: float = look.get("khaki", 0.0)
 	var vest_color := faction.vest_color if faction != null else ModelParts.NEUTRAL_VEST
+	vest_color = vest_color.lerp(KHAKI_VEST, khaki)
 	var accent_color := faction.color if faction != null else ModelParts.NEUTRAL_ACCENT
+	var light: Color = look.get("light", LIGHT_DEFAULT)
+	var uniform := ModelParts.CAMO_UNIFORM
+	if khaki > 0.0:
+		uniform = uniform.duplicate()
+		uniform["colors"] = uniform_colors(faction, look)
 	return {
-		&"uniform": ModelParts.faction_material(faction, &"uniform"),
+		&"uniform": ModelParts.camo(faction, uniform),
 		&"vest":
-		ModelParts.weathered_paint("soldier:vest:" + id, _with_color(VEST_PAINT, vest_color)),
+		ModelParts.weathered_paint(
+			"soldier:vest:%s:%s" % [id, vest_color.to_html()], _with_color(VEST_PAINT, vest_color)
+		),
 		&"accent":
 		ModelParts.weathered_paint("soldier:accent:" + id, _with_color(ACCENT_PAINT, accent_color)),
 		&"skin": ModelParts.skin(),
 		&"dark": ModelParts.weathered_paint("soldier:gear", GEAR_PAINT),
+		&"light":
+		ModelParts.weathered_paint(
+			"soldier:light:" + light.to_html(), _with_color(LIGHT_PAINT, light)
+		),
 		&"gun": ModelParts.weathered_paint("soldier:gun", GUN_PAINT),
 	}
+
+
+## The uniform's three camo colours: the faction's mixed by `look` "khaki" towards PANTERA_COLORS.
+static func uniform_colors(faction: FactionDefinition, look := {}) -> Array[Color]:
+	var khaki: float = look.get("khaki", 0.0)
+	var colors := ModelParts.camo_colors(faction)
+	var result: Array[Color] = []
+	for i in 3:
+		result.append(colors[i].lerp(PANTERA_COLORS[i], khaki))
+	return result
 
 
 static func _with_color(values: Dictionary, color: Color) -> Dictionary:
@@ -179,16 +231,41 @@ static func soldier(
 		"%s:%d:%d:%d:%s" % [key, slot, pose.kit, pose.carry, pose.kneel],
 		func() -> Dictionary: return variant_meshes(pose, dress)
 	)
-	MeshKits.add_meshes(into, meshes, mats)
+	var markers: Dictionary = meshes.get(MARKERS, {})
+	var only_meshes := meshes.duplicate()
+	only_meshes.erase(MARKERS)
+	MeshKits.add_meshes(into, only_meshes, mats)
+	add_markers(into, markers)
+
+
+## Empty Node3Ds for marker frames ({path: Transform3D in metres}, parents first, e.g.
+## &"AtLauncher" then &"AtLauncher/Muzzle") under `into`, each local to its parent.
+static func add_markers(into: Node3D, markers: Dictionary) -> void:
+	var frames := {}
+	for path: StringName in markers:
+		var frame: Transform3D = markers[path]
+		frame = Transform3D(frame.basis, frame.origin * M)
+		var names := String(path).split("/")
+		var parent_path := "/".join(names.slice(0, names.size() - 1))
+		var parent := into.get_node(parent_path) as Node3D if parent_path != "" else into
+		var parent_frame: Transform3D = frames.get(parent_path, Transform3D.IDENTITY)
+		var node := Node3D.new()
+		node.name = names[names.size() - 1]
+		node.transform = parent_frame.affine_inverse() * frame
+		parent.add_child(node)
+		frames[String(path)] = frame
 
 
 ## The meshes of one soldier ({role: ArrayMesh}) with the occlusion baked into COLOR.g of the
-## AO_ROLES (indexed meshes: each shared vertex is baked once).
+## AO_ROLES (indexed meshes: each shared vertex is baked once), plus the kit's marker frames under
+## MARKERS when it set any.
 static func variant_meshes(pose: SoldierPose, dress: Callable) -> Dictionary:
 	var meshes := soldier_kits(pose, dress).commit_all(AO_ROLES)
 	for role: StringName in meshes:
 		if role in AO_ROLES:
 			meshes[role] = pose.occluders.bake(meshes[role], M)
+	if not pose.markers.is_empty():
+		meshes[MARKERS] = pose.markers.duplicate()
 	return meshes
 
 
@@ -201,7 +278,7 @@ static func soldier_kits(pose: SoldierPose, dress: Callable) -> MeshKits:
 	Body.torso(k, pose)
 	Body.head(k, pose)
 	var hands: Array = dress.call(k, pose)
-	Body.arms(k, pose, hands, &"dark")
+	Body.arms(k, pose, hands, &"light")
 	return k
 
 
@@ -308,59 +385,3 @@ static func bore_lathe(
 ## Sling (dark tube) through `points`.
 static func sling(k: MeshKits, points: Array) -> void:
 	k.k(&"dark").tube(points, 0.007, 4)
-
-
-## RPG-7 along the X axis of frame `t` (origin = the tube's middle, on the shoulder, see
-## SoldierPose.launcher): tube with the heat shield and venturi flare, the conical PG-7 warhead
-## (olive, vest colour), two pistol grips and the sight on the left. Returns the [left, right]
-## grips and the fingers' curl directions.
-static func rpg7(k: MeshKits, t: Transform3D) -> Array[Vector3]:
-	var gun := k.k(&"gun")
-	bore_lathe(
-		gun,
-		t,
-		Vector3.ZERO,
-		[
-			Vector2(0.0, 0.46),
-			Vector2(0.02, 0.46),
-			Vector2(0.02, 0.14),
-			Vector2(0.033, 0.13),
-			Vector2(0.034, 0.12),
-			Vector2(0.034, -0.12),
-			Vector2(0.033, -0.13),
-			Vector2(0.02, -0.14),
-			Vector2(0.02, -0.4),
-			Vector2(0.046, -0.54),
-			Vector2(0.04, -0.545),
-			Vector2(0.0, -0.545),
-		],
-		12
-	)
-	pg7(k.k(&"vest"), t.origin, t.basis * Basis(Vector3.BACK, -PI / 2.0))
-	part(gun, t, Vector3(0.0, -0.07, 0.0), Vector3(0.03, 0.1, 0.025), -0.25)
-	part(gun, t, Vector3(0.2, -0.07, 0.0), Vector3(0.03, 0.1, 0.025), -0.25)
-	part(gun, t, Vector3(0.1, 0.04, -0.045), Vector3(0.09, 0.04, 0.03))
-	var curl := -t.basis.z
-	return [t * Vector3(0.2, -0.115, 0.0), t * Vector3(0.0, -0.115, 0.0), curl, curl]
-
-
-## PG-7 round on the lathe axis (+Y of `rot`) at `c`: the bulbous warhead with its conical nose
-## from 0.45 to 0.82 m, the tail end at 0.45 sits in the launcher's muzzle.
-static func pg7(kit: MeshKit, c: Vector3, rot: Basis) -> void:
-	(
-		kit
-		. lathe(
-			c,
-			rot,
-			[
-				Vector2(0.0, 0.82),
-				Vector2(0.012, 0.78),
-				Vector2(0.0425, 0.62),
-				Vector2(0.0425, 0.53),
-				Vector2(0.022, 0.48),
-				Vector2(0.022, 0.45),
-				Vector2(0.0, 0.45),
-			],
-			12
-		)
-	)

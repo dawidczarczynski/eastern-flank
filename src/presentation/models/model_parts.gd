@@ -34,15 +34,16 @@ const ACCENT_METALLIC := 0.1
 const CAMO_VEHICLE := {"scale": 9.0, "dirt": 0.12, "rough": 0.8, "metal": 0.12}
 const CAMO_TRUCK := {"scale": 9.0, "dirt": 0.11, "rough": 0.8, "metal": 0.12}
 ## Uniform fabric (TASK-085): blotches at the real scale of the printed patterns (dominant shapes
-## ~5–15 cm on the unscaled soldier, 1 model unit = 10 m), softer contrast and saturation than
-## painted vehicles, the cloth bump and sheen.
+## ~6–18 cm on the unscaled soldier, 1 model unit = 10 m), high contrast like the printed cloth
+## (dark blotches on the ground colour), the cloth bump and sheen. An optional "colors" entry
+## replaces the faction's three camo colours.
 const CAMO_UNIFORM := {
-	"scale": 150.0,
+	"scale": 135.0,
 	"dirt": 0.015,
 	"rough": 0.95,
 	"metal": 0.0,
-	"pattern_contrast": 0.72,
-	"fade": 0.22,
+	"pattern_contrast": 0.88,
+	"fade": 0.14,
 	"fabric": 1.0,
 	"mask_ao": 1.0,
 	"wear_amount": 0.0,
@@ -183,6 +184,8 @@ static func set_fabric(enabled: bool) -> void:
 
 static func _build_camo(faction: FactionDefinition, preset: Dictionary) -> ShaderMaterial:
 	var colors := camo_colors(faction)
+	if preset.has("colors"):  # a print of its own (e.g. a uniform), see Soldier.uniform_colors
+		colors.assign(preset["colors"])
 	var m := ShaderMaterial.new()
 	m.shader = CAMO_SHADER
 	m.set_shader_parameter(&"color_a", colors[0])

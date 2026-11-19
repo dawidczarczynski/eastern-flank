@@ -5,7 +5,7 @@
 # compare a model with the real unit.
 # Usage: tools/render_unit.sh [--weapon] <unit_id> [--faction=<id>] [--views=side,front,top,three_quarter]
 #                             [--reference=path] [--out=sheet.png] [--pose=rest|fire]
-#                             [--windows | --linux]
+#                             [--soldier=<i>] [--windows | --linux]
 #   unit_id      model file src/presentation/models/<unit_id>.gd
 #   --weapon     render a strike weapon model instead (TASK-144): <unit_id> is a strike means id
 #                with a model in WeaponModels (src/presentation/models/weapons/), the catalog entry
@@ -23,6 +23,8 @@
 #                project – elsewhere Godot would import the PNG.
 #   --pose       rest (default: as built) or fire (a launcher raised to its max_elevation_deg at
 #                traverse 0 – checks the actuators at full extension; the stats AABB is that pose's)
+#   --soldier    a squad: show only Soldier<i>, at the origin facing +X (judge one figure);
+#                --soldier-yaw=<deg> turns it (+ = left)
 #   --windows    render with the Windows Godot console build (GPU, D3D12, Forward+) – the default under
 #                WSL when it is found (tools/windows_godot.sh; GODOT_WIN overrides the path)
 #   --linux      render with the Linux Godot (under WSLg: software OpenGL, no Forward+ effects)

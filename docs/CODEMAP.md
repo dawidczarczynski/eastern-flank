@@ -260,6 +260,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/presentation/models/parts/
 
+- `at_launcher` – Anti-tank launcher (granatnik przeciwpancerny) of an infantry squad's AT gunner – visual… (`at_launcher.gd`)
 - `MeshKit` – Mesh builder for one material (TASK-030, ADR 0012): chamfered and smooth primitives that… (`mesh_kit.gd`)
 - `MeshKits` – One `MeshKit` per material role for one pivot (TASK-030): `k(&"body").cbox(...)` collects… (`mesh_kits.gd`)
 - `MeshLods` – Levels of detail for the procedural unit models (ADR 0023): `apply(root)` swaps the mesh… (`mesh_lods.gd`)

@@ -11,7 +11,8 @@ extends SceneTree
 ## the unit model scale (VisualScale.unit_model_scale()). Orthographic views share one scale;
 ## three_quarter is perspective.
 ## `--pose=fire` raises a launcher to its max elevation (traverse 0) before framing, so the views
-## and the AABB show the fire pose.
+## and the AABB show the fire pose. `--soldier=<i>` shows only squad slot i, facing +X (turned by
+## `--soldier-yaw=<deg>`).
 ## Stats: the AABB covers visible nodes only, while triangle and mesh counts include hidden poses
 ## (e.g. the kneeling soldiers' Stand), the same rule as the contract test budgets.
 
@@ -20,7 +21,7 @@ const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const USAGE := (
 	"Usage: tools/render_unit.sh <unit_id> [--faction=<id>] "
 	+ "[--views=side,front,top,three_quarter] [--reference=path] [--out=sheet.png] "
-	+ "[--pose=rest|fire] [--windows|--linux]"
+	+ "[--pose=rest|fire] [--soldier=<i> [--soldier-yaw=<deg>]] [--windows|--linux]"
 )
 const EXPECTED_SIZE := Vector2i(1280, 720)
 const CELL_SIZE := Vector2i(640, 360)
@@ -196,6 +197,12 @@ func _build_model() -> Node3D:
 	if _options["pose"] == "fire":
 		UnitModels.pose_launcher(_model, 0.0, UnitModels.launcher_elevation(_model))
 		UnitModels.pose_deployables(_model, 1.0)
+	var soldier: int = _options.get("soldier", -1)
+	if (
+		soldier >= 0
+		and not RenderUnitOptions.isolate_soldier(_model, soldier, _options.get("soldier_yaw", 0.0))
+	):
+		push_error("the model has no pivot Soldier%d" % soldier)
 	return model_root
 
 

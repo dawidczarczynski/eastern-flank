@@ -58,8 +58,8 @@ boots, arms, gloved hands, neck and head from `SoldierPose` joints (hip 0.94, kn
 | AK-74M | 0.95 m in the shoulder pocket (`SoldierPose.shouldered`), muzzle 0.4 rad down at the ready (kneeler 0.2), level when aiming: stock plate with the AK drop, receiver, lower handguard, **gas tube**, front sight, barrel with muzzle brake, **curved magazine**, pistol grip, sling; support hand on the handguard (0.56 along) | gun paint, gear paint (sling) | `plate`, `cbox`, `rod`, `lathe`, `tube` |
 | GP-30 | 40 mm tube r 0.024 × 0.26 under the handguard + trigger housing (leader, rifleman) | gun paint | `rod`, `cbox` |
 | RPK-74M | AK profile with a 0.2 m longer barrel, 45-round magazine, bipod down when kneeling; 0.08 rad down kneeling (0.35 standing) | gun paint | same builder with `rpk = true`, `tube` legs |
-| RPG-7V | shared `Soldier.rpg7` on `SoldierPose.launcher()` (grips ahead of the shoulder), head on the sight | gun paint tube, vest (olive) warhead | `lathe`, `cbox` |
-| Rocket carrier | bag 0.16 × 0.34 × 0.30 on the back section of the assistant, three PG-7 warheads standing out of it | uniform camo bag, vest warheads | `pillow`, `Soldier.pg7` lathes |
+| RPG-7V | shared anti-tank launcher `parts/at_launcher.gd`, kind `AT_LAUNCHER_KIND = rpg7` (kit `AT_LAUNCHER`), on `SoldierPose.launcher()` (grips ahead of the shoulder), head on the sight; nodes `AtLauncher/Muzzle` for TASK-188b | gun paint tube, vest (olive) warhead | `lathe`, `cbox` |
+| Rocket carrier | bag 0.16 × 0.34 × 0.30 on the back section of the assistant, three PG-7 warheads standing out of it | uniform camo bag, vest warheads | `pillow`, `AtLauncher.pg7` lathes |
 
 Materials as in the Polish squad (all read the vertex masks: uniform fabric camo with AO, vest /
 gun / gear / accent weathered paints, the skin shader). Each soldier variant is generated once per

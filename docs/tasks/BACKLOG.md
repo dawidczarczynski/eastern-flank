@@ -155,11 +155,13 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-180](TASK-180-glb-measurements.md) | GLB measurements: section profiles and part detection into `measurements.json` | 🔵 done | TASK-179 |
 | [TASK-181](TASK-181-silhouette-compare.md) | Silhouette comparison: IoU of the game model against the GLB (`tools/compare_silhouette.sh`) | 🔵 done | TASK-179 |
 | [TASK-182](TASK-182-glb-catalog-integration.md) | Catalog and `/model-unit` use the GLB reference and the IoU gate | 🔵 done | TASK-179, TASK-180, TASK-181 |
-| [TASK-183](TASK-183-glb-batch.md) | GLB batch mode and pilot (squad, tank, launcher) | 🟢 ready | TASK-182 |
+| [TASK-183](TASK-183-glb-batch.md) | GLB batch mode and pilot (squad, tank, launcher) | 🟡 in progress | TASK-182 |
 | [TASK-184](TASK-184-artillery-barrage-arena.md) | Barrel-artillery barrage and the dev arena | 🔵 done | – |
 | [TASK-185](TASK-185-devtools-menu-page.md) | Devtools page in the main menu (debug runs) | 🔵 done | TASK-184 |
 | [TASK-186a](TASK-186a-devtools-tunables.md) | Devtools: live effect tunables, Fire again and slow motion (arena) | 🔵 done | TASK-185 |
 | [TASK-186b](TASK-186b-devtools-switches.md) | Devtools: look / performance switches and arena unit editor | 🔵 done | TASK-186a |
+| [TASK-188a](TASK-188a-infantry-march.md) | Infantry walks normally: leg swing (legs as separate pivots) | 🟢 ready | (soft: TASK-183) |
+| [TASK-188b](TASK-188b-infantry-fire-effects.md) | Infantry fire effects: tracers vs. infantry, anti-tank launcher rocket vs. vehicles | 🟢 ready | – |
 | [TASK-187](TASK-187-msta-s-playable.md) | 2S19 Msta-S self-propelled howitzer playable in the Russian army | 🔵 done | TASK-176, TASK-181 |
 | [TASK-176](TASK-176-k9-thunder-unit.md) | K9 Thunder (K9PL) 155 mm self-propelled howitzer: new class `sp_artillery`, stats derived from the catalog, Poland roster and tank battalion | 🔵 done | – |
 | [TASK-142](TASK-142-staff-map-counter-depth.md) | Staff map counters and installation markers as hex game tiles (hexagon base, side shape on a raised plate) (design `unit_tokens_hex.html`, variant D accepted 2026-11-11); pitch decides flat / tilted look| 🔵 done | – |

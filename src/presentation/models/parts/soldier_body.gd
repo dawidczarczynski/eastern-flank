@@ -24,38 +24,40 @@ const TORSO := [
 	[1.485, -0.008, 0.13, 0.066, 0.075, 0.8, 0.0, 0.0, 0.0],
 	[1.515, -0.012, 0.074, 0.058, 0.062, 1.0, 0.0, 0.0, 0.0],
 ]
-const TORSO_SIDES := 20
+const TORSO_SIDES := 16
 ## Leg rows along the leg (s: 0 hip joint, 1 knee, 2 ankle; < 0 inside the pelvis): [s, lateral,
-## medial, front, back, front exponent, back exponent, fold] – trousers over the thigh, knee and
-## calf, bloused over the boot top (1.62) and tucked into it.
+## medial, front, back, front exponent, back exponent, fold] – full cargo trousers (as on the
+## reference GLB: ~0.24 m across the thigh, ~0.19 at the knee, the shin tapering, then bloused
+## ~0.2 m wide over the boot top at 1.42–1.5 and tucked into the shaft at 1.58). The knee row keeps
+## its medial side within 8 cm of the joint (the inner knee is the leg's narrowest point).
 const LEG := [
-	[-0.12, 0.09, 0.07, 0.088, 0.098, 0.9, 0.9, 0.0],
-	[0.0, 0.098, 0.078, 0.092, 0.105, 0.9, 0.85, 0.0],
-	[0.22, 0.09, 0.079, 0.087, 0.09, 0.9, 0.9, 0.0],
-	[0.48, 0.08, 0.071, 0.079, 0.077, 0.95, 0.95, 0.0],
-	[0.72, 0.07, 0.064, 0.071, 0.068, 0.95, 1.0, 0.0],
-	[1.0, 0.059, 0.057, 0.066, 0.06, 1.0, 1.0, 0.004],
-	[1.14, 0.057, 0.055, 0.056, 0.066, 1.0, 1.0, 0.0],
-	[1.32, 0.058, 0.053, 0.052, 0.072, 1.0, 1.0, 0.0],
-	[1.5, 0.052, 0.048, 0.048, 0.062, 1.0, 1.0, 0.0],
-	[1.56, 0.059, 0.057, 0.057, 0.063, 1.0, 1.0, 0.006],
-	[1.63, 0.05, 0.048, 0.05, 0.052, 1.0, 1.0, 0.0],
+	[-0.12, 0.11, 0.08, 0.1, 0.11, 0.9, 0.9, 0.0],
+	[0.0, 0.126, 0.094, 0.112, 0.122, 0.9, 0.85, 0.0],
+	[0.22, 0.128, 0.1, 0.112, 0.116, 0.9, 0.9, 0.006],
+	[0.48, 0.12, 0.094, 0.106, 0.106, 0.95, 0.95, 0.0],
+	[0.74, 0.108, 0.086, 0.1, 0.098, 0.95, 1.0, 0.005],
+	[1.0, 0.1, 0.074, 0.098, 0.094, 1.0, 1.0, 0.006],
+	[1.16, 0.094, 0.082, 0.09, 0.098, 1.0, 1.0, 0.0],
+	[1.3, 0.09, 0.08, 0.082, 0.098, 1.0, 1.0, 0.006],
+	[1.42, 0.096, 0.088, 0.09, 0.1, 1.0, 1.0, 0.0],
+	[1.5, 0.1, 0.092, 0.094, 0.102, 1.0, 1.0, 0.01],
+	[1.58, 0.045, 0.043, 0.05, 0.05, 1.0, 1.0, 0.0],
 ]
-const LEG_SIDES := 12
+const LEG_SIDES := 10
 ## Arm rows (s: 0 shoulder joint, 1 elbow, 2 wrist; < 0 the deltoid's cap): [s, lateral, medial,
-## front (biceps / flexors), back (triceps), fold] – the sleeve, bunched at the elbow.
+## front (biceps / flexors), back (triceps), fold] – the loose blouse sleeve, bunched at the elbow.
 const ARM := [
-	[-0.07, 0.03, 0.026, 0.03, 0.03, 0.0],
-	[0.0, 0.07, 0.05, 0.058, 0.06, 0.0],
-	[0.2, 0.064, 0.05, 0.056, 0.056, 0.0],
-	[0.5, 0.052, 0.046, 0.054, 0.05, 0.0],
-	[1.0, 0.047, 0.045, 0.045, 0.05, 0.004],
-	[1.22, 0.047, 0.045, 0.046, 0.041, 0.0],
-	[1.6, 0.04, 0.037, 0.036, 0.032, 0.0],
-	[1.92, 0.034, 0.032, 0.027, 0.026, 0.003],
-	[2.02, 0.029, 0.027, 0.021, 0.021, 0.0],
+	[-0.07, 0.036, 0.032, 0.036, 0.036, 0.0],
+	[0.0, 0.084, 0.06, 0.072, 0.074, 0.0],
+	[0.2, 0.08, 0.063, 0.07, 0.07, 0.008],
+	[0.5, 0.068, 0.059, 0.068, 0.064, 0.0],
+	[1.0, 0.061, 0.056, 0.057, 0.063, 0.008],
+	[1.22, 0.06, 0.056, 0.058, 0.055, 0.0],
+	[1.6, 0.05, 0.047, 0.046, 0.042, 0.005],
+	[1.9, 0.041, 0.039, 0.034, 0.033, 0.004],
+	[2.0, 0.031, 0.029, 0.023, 0.023, 0.0],
 ]
-const ARM_SIDES := 12
+const ARM_SIDES := 10
 ## Head rows (head pivot coordinates, from the collar to the crown): [y, centre x, half width,
 ## front, back, front exponent, nose, cheekbones, brow ridge, eye sockets] – neck, jaw and chin,
 ## mouth, nose, cheekbones, eyes under the brow ridge, forehead, crown. Points crowd towards the
@@ -75,29 +77,45 @@ const HEAD := [
 	[0.164, 0.0, 0.048, 0.05, 0.06, 0.9, 0.0, 0.0, 0.0, 0.0],
 	[0.176, 0.0, 0.012, 0.012, 0.014, 1.0, 0.0, 0.0, 0.0, 0.0],
 ]
-const HEAD_SIDES := 20
+const HEAD_SIDES := 18
 const HEAD_WARP := 0.45
 ## Short hair: a thin shell over the back and sides of the head (HEAD rows HAIR_ROWS), from
 ## HAIR_ARC (rad, 0 = right, PI / 2 = front) around the back.
 const HAIR_ROWS := Vector2i(4, 10)
 const HAIR_ARC := Vector2(PI - 0.35, TAU + 0.35)
-## Boot upper along the foot (ankle frame, x forward): [x, half width, top, bottom] around the
-## centre line at BOOT_Y; a rounded toe cap, the instep, the heel.
+## Combat boot upper along the foot (ankle frame, x forward): [x, half width, top, bottom] around
+## the centre line at BOOT_Y – a slim last (0.29 m with the sole, 0.1 m wide at the ball): the
+## heel counter, the instep rising to the laced front of the shaft, the ball, a low toe cap; flat
+## bottom (BOOT_EXPS).
 const BOOT := [
-	[-0.082, 0.02, 0.03, 0.02],
-	[-0.072, 0.036, 0.05, 0.035],
-	[-0.04, 0.043, 0.066, 0.035],
-	[0.02, 0.046, 0.058, 0.035],
-	[0.08, 0.05, 0.04, 0.035],
-	[0.135, 0.052, 0.03, 0.035],
-	[0.18, 0.048, 0.026, 0.035],
-	[0.205, 0.038, 0.021, 0.032],
-	[0.218, 0.02, 0.012, 0.026],
+	[-0.074, 0.03, 0.05, 0.022],
+	[-0.062, 0.039, 0.062, 0.022],
+	[-0.02, 0.042, 0.074, 0.022],
+	[0.04, 0.045, 0.06, 0.022],
+	[0.09, 0.048, 0.04, 0.022],
+	[0.14, 0.048, 0.029, 0.022],
+	[0.178, 0.043, 0.024, 0.022],
+	[0.198, 0.033, 0.019, 0.021],
+	[0.21, 0.018, 0.012, 0.017],
 ]
-const BOOT_Y := -0.045
-const BOOT_SIDES := 10
-## Sole (under the upper, metres): thickness and overhang.
-const SOLE := Vector2(0.03, 0.007)
+const BOOT_Y := -0.066
+const BOOT_EXPS := Vector2(0.75, 0.25)
+const BOOT_SIDES := 8
+## Boot shaft (ankle frame, along the shin): [height above the ankle joint, half width across,
+## half depth, forward offset] – narrow at the ankle bone, the laced front standing forward, up to
+## 0.29 m above the ground (the shaft ~0.2 m above the upper) with a rolled collar.
+const SHAFT := [
+	[-0.045, 0.042, 0.056, 0.012],
+	[0.0, 0.039, 0.05, 0.01],
+	[0.08, 0.043, 0.052, 0.008],
+	[0.16, 0.049, 0.058, 0.006],
+	[0.175, 0.046, 0.055, 0.006],
+]
+## Forefoot sole (under the upper from SOLE_FROM to the toe, metres): thickness and overhang; the
+## heel block under the back: [x from, x to, height, half width].
+const SOLE := Vector2(0.024, 0.005)
+const SOLE_FROM := 0.03
+const HEEL := [-0.08, -0.012, 0.03, 0.038]
 
 ## Rings made by `section`, by their arguments: the tables are constant, so every soldier after
 ## the first reuses them (read-only).
@@ -229,51 +247,60 @@ static func _leg_kit(
 	var hip: Vector3 = path[1]
 	var thigh := (knee - hip).normalized()
 	var out: Vector3 = (frames[2][1] as Vector3) * lateral
-	var pocket := hip.lerp(knee, 0.48) + out * 0.078
+	var pocket := hip.lerp(knee, 0.48) + out * 0.112
 	var pb := Basis(out, -thigh, out.cross(-thigh)).orthonormalized()
-	k.k(&"uniform").pillow(pocket, Vector3(0.022, 0.15, 0.11), pb, 0.6, 4, 8)
-	var pad := knee + bk * (0.072 if kneeling else 0.075) + tk * 0.012
-	k.k(&"dark").pillow(
-		pad, Vector3(0.028, 0.11, 0.09), Basis(bk, tk, ak).orthonormalized(), 0.45, 4, 8
+	k.k(&"uniform").pillow(pocket, Vector3(0.026, 0.16, 0.12), pb, 0.6, 4, 8)
+	# The pad faces the front of the knee: away from the hip–ankle chord (bk on a straight leg).
+	var chord := ((path[1] as Vector3) + (path[path.size() - 1] as Vector3)) * 0.5
+	var front := knee - chord
+	front -= tk * front.dot(tk)
+	front = front.normalized() if front.length() > 0.01 else bk
+	var pad := knee + front * (0.094 if kneeling else 0.096) + tk * 0.015
+	k.k(&"light").pillow(
+		pad,
+		Vector3(0.03, 0.13, 0.11),
+		Basis(front, tk, front.cross(tk)).orthonormalized(),
+		0.7,
+		4,
+		8
 	)
 
 
-## Boot on the ankle frame `foot` (sole bottom at its local y = −ANKLE_H): shaft up the shin
-## (towards `knee`), the upper from a last profile (heel, instep, ball, rounded toe cap) and a thin
-## chamfered sole following its outline.
+## Combat boot on the ankle frame `foot` (sole bottom at its local y = −ANKLE_H): the shaft up the
+## shin (towards `knee`, SHAFT), the slim upper from a last profile (BOOT), the flat forefoot sole
+## following its outline and a separate heel block (the arch between them stays open).
 static func boot(dark: MeshKit, foot: Transform3D, knee: Vector3) -> void:
 	var ankle := foot.origin
 	var up := (knee - ankle).normalized()
-	dark.sweep(
-		[ankle - up * 0.03, ankle + up * 0.07, ankle + up * 0.15, ankle + up * 0.16],
-		[Vector2(0.044, 0.05), Vector2(0.043, 0.048), Vector2(0.048, 0.052), Vector2(0.044, 0.048)],
-		BOOT_SIDES,
-		foot.basis.z
-	)
+	var shaft_path := []
+	var shaft_radii := []
+	for row: Array in SHAFT:
+		shaft_path.append(ankle + up * float(row[0]) + foot.basis.x * float(row[3]))
+		shaft_radii.append(Vector2(row[1], row[2]))
+	dark.sweep(shaft_path, shaft_radii, BOOT_SIDES, foot.basis.z)
 	var path := []
 	var profiles := []
 	var outline_right := []
 	var outline_left := []
 	for row: Array in BOOT:
 		path.append(foot * Vector3(row[0], BOOT_Y, 0.0))
-		profiles.append(
-			section(BOOT_SIDES, row[1], row[1], row[2], row[3], Vector2(0.9, 0.3), [], 0.0)
-		)
-		if path.size() % 2 == 0:
+		profiles.append(section(BOOT_SIDES, row[1], row[1], row[2], row[3], BOOT_EXPS, [], 0.0))
+		if row[0] >= SOLE_FROM:
 			outline_right.append(Vector2(row[0], row[1] + SOLE.y))
 			outline_left.append(Vector2(row[0], -row[1] - SOLE.y))
 	dark.sweep_profile(path, profiles, foot.basis.y.cross(foot.basis.x))
 	outline_left.reverse()
-	var outline := [Vector2(-0.09, 0.0)] + outline_right + [Vector2(0.228, 0.0)] + outline_left
-	dark.plate(
-		outline,
-		foot * Vector3(0.0, -SoldierPose.ANKLE_H, 0.0),
-		foot.basis.x,
-		foot.basis.z,
-		foot.basis.y,
-		0.0,
-		SOLE.x,
-		0.008
+	var outline := (
+		[Vector2(SOLE_FROM - 0.005, 0.0)] + outline_right + [Vector2(0.215, 0.0)] + outline_left
+	)
+	var ground := foot * Vector3(0.0, -SoldierPose.ANKLE_H, 0.0)
+	dark.plate(outline, ground, foot.basis.x, foot.basis.z, foot.basis.y, 0.0, SOLE.x, 0.006)
+	var heel_x := (float(HEEL[0]) + float(HEEL[1])) * 0.5
+	dark.cbox(
+		foot * Vector3(heel_x, -SoldierPose.ANKLE_H + float(HEEL[2]) * 0.5, 0.0),
+		Vector3(float(HEEL[1]) - float(HEEL[0]), HEEL[2], float(HEEL[3]) * 2.0),
+		0.006,
+		foot.basis
 	)
 
 
@@ -539,8 +566,16 @@ static func arms(k: MeshKits, pose: SoldierPose, hands: Array, gloves: StringNam
 			hands[2 + i] if hands.size() > 3 else pose.chest.basis.z * -side + Vector3.DOWN * 0.3
 		)
 		hand(k.k(gloves), wrist, end, curl)
+		# Glove cuff (black velcro strap) where the sleeve ends.
+		var along := (end - wrist).normalized()
+		k.k(&"dark").sweep(
+			[wrist - along * 0.02, wrist + along * 0.012],
+			[Vector2(0.034, 0.027), Vector2(0.033, 0.025)],
+			6,
+			curl.cross(along).normalized() if curl.cross(along).length() > 0.01 else side0
+		)
 		var out := side0 * mirror
-		var patch := shoulder.lerp(elbow, 0.32) + out * 0.059
+		var patch := shoulder.lerp(elbow, 0.34) + out * 0.078
 		var flat := Basis(t0, out, t0.cross(out).normalized()).orthonormalized()
 		k.k(&"accent").cbox(patch, Vector3(0.045, 0.004, 0.058), 0.0015, flat)
 		pose.occluders.capsule(shoulder, elbow, 0.042)

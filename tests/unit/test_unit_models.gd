@@ -195,7 +195,10 @@ func test_infantry_torso_uses_fine_uniform_camo() -> void:
 			continue
 		patterned += 1
 		assert_eq(m.get_shader_parameter(&"pattern_scale"), ModelParts.CAMO_UNIFORM["scale"])
-		assert_eq(m.get_shader_parameter(&"color_a"), _faction(1).camo[0])
+		# The faction's camo colours, mixed towards the Pantera tan by the kit's LOOK.
+		var look: Dictionary = _model_constant(&"pl_mech_infantry", &"LOOK", {})
+		var colors := Soldier.uniform_colors(_faction(1), look)
+		assert_eq(m.get_shader_parameter(&"color_a"), colors[0])
 	assert_true(patterned > 0, "uniform parts should use camo")
 	assert_true(plain > 0, "boots and gloves should use the weathered gear paint")
 	model.free()
@@ -206,7 +209,7 @@ func test_infantry_torso_uses_fine_uniform_camo() -> void:
 func test_soldier_bodies_are_smooth_kit_meshes() -> void:
 	for id in [&"pl_mech_infantry", &"ru_motor_rifle"]:
 		var faction := _faction(0)
-		var mats := Soldier.materials(faction)
+		var mats := Soldier.materials(faction, _model_constant(id, &"LOOK", {}))
 		var model := UnitModels.build(id, 0, faction)
 		var body_meshes := 0
 		for instance in _all_meshes(model):
@@ -267,10 +270,13 @@ func test_camo_materials_shared_per_faction_and_preset() -> void:
 ## AO mask), not a plain StandardMaterial3D.
 func test_vests_are_weathered_paint_in_the_vest_color() -> void:
 	var model := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
+	# The faction's vest colour, mixed towards the Pantera khaki by the kit's LOOK.
+	var look: Dictionary = _model_constant(&"pl_mech_infantry", &"LOOK", {})
+	var vest_color := _faction(0).vest_color.lerp(Soldier.KHAKI_VEST, look.get("khaki", 0.0))
 	var found := false
 	for instance in _all_meshes(model):
 		var m := instance.material_override as ShaderMaterial
-		if m != null and m.get_shader_parameter(&"color_a") == _faction(0).vest_color:
+		if m != null and m.get_shader_parameter(&"color_a") == vest_color:
 			found = true
 	assert_true(found, "vest should be a weathered paint in vest_color")
 	model.free()
@@ -356,3 +362,9 @@ func test_every_unit_has_its_own_model_and_vehicles_drive() -> void:
 
 func _faction(owner_id: int) -> FactionDefinition:
 	return FactionRegistry.get_faction(FactionRegistry.DEFAULT_IDS[owner_id])
+
+
+## A constant of a unit's model script (src/presentation/models/<id>.gd), `fallback` without it.
+func _model_constant(id: StringName, constant: StringName, fallback: Variant) -> Variant:
+	var script := load("res://src/presentation/models/%s.gd" % id) as GDScript
+	return script.get_script_constant_map().get(constant, fallback)

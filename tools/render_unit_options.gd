@@ -2,10 +2,15 @@ extends RefCounted
 ## Pure argument parsing for tools/render_unit.gd (no rendering, tested headless).
 ## Usage: RenderUnitOptions.parse(["t72b3", "--faction=russia", "--views=side,top"])
 ## -> {"unit_id": String, "faction": String, "views": Array[String], "reference": String,
-##     "out": String, "pose": String, "real": Dictionary, "error": String}; "error" is "" on
-##     success, else one of missing_unit_id, invalid_unit_id, too_many_arguments, unknown_option,
-##     unknown_unit, unknown_faction, unknown_view, invalid_views, unknown_pose, empty_option (a
-##     flag with an empty value), reference_not_found. A flag given twice: the last value wins.
+##     "out": String, "pose": String, "soldier": int, "real": Dictionary, "error": String};
+##     "error" is "" on success, else one of missing_unit_id, invalid_unit_id, too_many_arguments,
+##     unknown_option, unknown_unit, unknown_faction, unknown_view, invalid_views, unknown_pose,
+##     invalid_soldier, invalid_soldier_yaw (also a yaw without --soldier), empty_option (a flag
+##     with an empty value), reference_not_found. A flag given twice: the last value wins.
+## "soldier" is -1, or the squad slot of `--soldier=<i>`: only that soldier is shown, at the
+## origin facing +X turned by "soldier_yaw" (`--soldier-yaw=<deg>`, + = left, default 0;
+## `isolate_soldier`) – to judge one figure or compare it with a one-soldier reference GLB whose
+## figure is turned (tools/compare_silhouette.sh).
 ## "pose" is one of POSES: "rest" (as built) or "fire" (a launcher at traverse 0 and its
 ## max_elevation_deg, to check the actuators at full extension).
 ## "out" is the sheet path; per-view PNGs go next to it (see view_path). "reference" is "" when
@@ -40,6 +45,8 @@ static func parse(
 		"reference": "",
 		"out": "",
 		"pose": DEFAULT_POSE,
+		"soldier": -1,
+		"soldier_yaw": 0.0,
 		"real": {},
 		"error": "",
 	}
@@ -48,6 +55,8 @@ static func parse(
 	var reference := ""
 	var out := ""
 	var pose := DEFAULT_POSE
+	var soldier := ""
+	var soldier_yaw := ""
 	var positional := 0
 	for arg in args:
 		if arg.begins_with("--faction="):
@@ -60,6 +69,10 @@ static func parse(
 			out = arg.substr("--out=".length())
 		elif arg.begins_with("--pose="):
 			pose = arg.substr("--pose=".length())
+		elif arg.begins_with("--soldier="):
+			soldier = arg.substr("--soldier=".length())
+		elif arg.begins_with("--soldier-yaw="):
+			soldier_yaw = arg.substr("--soldier-yaw=".length())
 		elif arg.begins_with("-"):
 			return _with_error(result, "unknown_option")
 		else:
@@ -67,7 +80,7 @@ static func parse(
 			if positional > 1:
 				return _with_error(result, "too_many_arguments")
 			result["unit_id"] = arg
-	for flag in ["--faction=", "--out=", "--reference=", "--pose="]:
+	for flag in ["--faction=", "--out=", "--reference=", "--pose=", "--soldier=", "--soldier-yaw="]:
 		for arg in args:
 			if arg == flag:
 				return _with_error(result, "empty_option")
@@ -87,6 +100,14 @@ static func parse(
 	if pose not in POSES:
 		return _with_error(result, "unknown_pose")
 	result["pose"] = pose
+	if soldier != "":
+		if not soldier.is_valid_int() or soldier.to_int() < 0:
+			return _with_error(result, "invalid_soldier")
+		result["soldier"] = soldier.to_int()
+	if soldier_yaw != "":
+		if not soldier_yaw.is_valid_float() or soldier == "":
+			return _with_error(result, "invalid_soldier_yaw")
+		result["soldier_yaw"] = soldier_yaw.to_float()
 	var exists := model_exists if model_exists.is_valid() else _model_exists
 	if not exists.call(StringName(unit_id)):
 		return _with_error(result, "unknown_unit")
@@ -105,6 +126,21 @@ static func parse(
 		result["reference"] = default_reference(entry, unit_id, catalog_dir)
 	result["out"] = out if out != "" else default_out(unit_id, faction)
 	return result
+
+
+## Shows only the squad's "Soldier<index>" pivot of `model` (the other soldiers hidden), moved to
+## the origin and facing +X turned by `yaw_deg` (+ = left). Returns false when `model` has no such
+## pivot.
+static func isolate_soldier(model: Node3D, index: int, yaw_deg := 0.0) -> bool:
+	var keep := model.get_node_or_null("Soldier%d" % index) as Node3D
+	if keep == null:
+		return false
+	for child in model.get_children():
+		if child is Node3D and String(child.name).begins_with("Soldier"):
+			(child as Node3D).visible = child == keep
+	keep.position = Vector3.ZERO
+	keep.rotation.y = deg_to_rad(yaw_deg)
+	return true
 
 
 ## "side,top" -> ["side", "top"]; duplicates are dropped, order is kept; a blank entry gives [].

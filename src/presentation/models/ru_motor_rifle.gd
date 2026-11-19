@@ -3,11 +3,14 @@
 ## leader and a kneeling rifleman with AK-74M + GP-30, a standing RPG-7V gunner, a kneeling
 ## RPK-74M gunner and the assistant grenadier with a rocket carrier. Squad contract: Soldier0..4,
 ## each with a Rig; kneelers have Kneel + Stand (Stand hidden). The soldier (pose, anatomical
-## body, AO, RPG-7, helpers) is the shared parts/soldier.gd; this file adds the Ratnik kit through
+## body, AO, helpers) is the shared parts/soldier.gd; this file adds the Ratnik kit through
 ## `dress`.
 ## Blueprint: docs/design/units/units/ru_motor_rifle/blueprint.md.
 
 const Soldier := preload("res://src/presentation/models/parts/soldier.gd")
+const AtLauncher := preload("res://src/presentation/models/parts/at_launcher.gd")
+## Look of the squad's anti-tank launcher (parts/at_launcher.gd): the RPG-7V.
+const AT_LAUNCHER_KIND := AtLauncher.RPG7
 ## Label anchor height above the unit's feet (world units, read by UnitModels.label_height).
 const LABEL_HEIGHT := 0.5
 ## Catalog mechanisms of the unit; a test keeps them equal to its unit.json.
@@ -16,17 +19,17 @@ const MECHANISMS := {"squad_march": {}}
 const SOLDIER_SCALE := 1.75
 const RIFLE := 0
 const GP30 := 1
-const RPG := 2
+const AT_LAUNCHER := 2
 const MG := 3
 const ASSIST := 4
 ## How each kit holds its weapon (SoldierPose stances; the rest shoulder their rifles).
-const STANCES := {RPG: Soldier.LAUNCHER_STANCE}
+const STANCES := {AT_LAUNCHER: Soldier.AT_LAUNCHER_STANCE}
 ## Squad layout: [x, z, kneeling, kit, carry, yaw] (Soldier.squad); the leader first, aiming. 5 of
 ## the 6 dismounts (see blueprint); the assistant carries low and watches the right flank, the
 ## kneeling rifleman covers the left.
 const SQUAD: Array = [
 	[0.13, 0.0, false, GP30, Soldier.AIM],
-	[-0.03, 0.16, false, RPG],
+	[-0.03, 0.16, false, AT_LAUNCHER],
 	[-0.03, -0.15, true, MG],
 	[-0.19, 0.06, false, ASSIST, Soldier.LOW, 0.6],
 	[-0.16, -0.13, true, GP30, Soldier.AIM, -0.5],
@@ -67,8 +70,8 @@ static func dress(k: MeshKits, pose: SoldierPose) -> Array[Vector3]:
 	_helmet(k, pose)
 	_armour(k, pose)
 	match pose.kit:
-		RPG:
-			return Soldier.rpg7(k, pose.launcher())
+		AT_LAUNCHER:
+			return AtLauncher.build(k, pose, AT_LAUNCHER_KIND)
 		MG:
 			return _ak(k, pose.shouldered(-0.08 if pose.kneel else -0.35), false, true, pose.kneel)
 		ASSIST:
@@ -245,5 +248,5 @@ static func _rocket_carrier(k: MeshKits, pose: SoldierPose) -> void:
 	)
 	for z: float in [-0.09, 0.0, 0.09]:
 		var origin := f * Vector3(0.08 - absf(z) * 0.2, -0.36 - absf(z) * 0.3, z)
-		Soldier.pg7(k.k(&"vest"), origin, f.basis * Basis(Vector3.BACK, 0.12))
+		AtLauncher.pg7(k.k(&"vest"), origin, f.basis * Basis(Vector3.BACK, 0.12))
 	pose.occluders.capsule(f * Vector3(0.08, -0.12, 0.0), f * Vector3(0.08, 0.12, 0.0), 0.085)

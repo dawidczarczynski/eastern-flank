@@ -5,11 +5,14 @@
 # the GLB) and the largest mismatch regions in metres. No rendering: both meshes are rasterised
 # (tools/silhouette.gd), so it runs headless in a few seconds.
 # Usage: tools/compare_silhouette.sh <unit_id> [--min-iou=0.90] [--pixel=0.02]
-#                                    [--front=+x|-x|+z|-z] [--faction=<id>]
+#                                    [--front=+x|-x|+z|-z] [--faction=<id>] [--soldier=<i>]
 #   --min-iou  every view must reach it, else exit 1 (default 0.90)
 #   --pixel    mask resolution in metres (default 0.02)
 #   --front    the GLB axis pointing to the front (default: as tools/analyze_glb.sh recorded it in
 #              normalisation.json, else the narrower end of the longer axis)
+#   --soldier  a squad against a one-soldier GLB: compare only Soldier<i>, facing +X and
+#              scaled to the GLB's height (the shape, not the size); --soldier-yaw=<deg> turns
+#              it (+ = left) like the GLB's figure
 # Needs docs/design/units/units/<id>/reference.glb (not in git) and the model file
 # src/presentation/models/<id>.gd. Both meshes are centred in x / z over their bounding boxes and
 # stand on the ground, so a length difference shows at both ends.

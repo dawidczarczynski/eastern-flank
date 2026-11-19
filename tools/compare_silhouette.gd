@@ -2,10 +2,12 @@ extends SceneTree
 ## Compares the silhouettes of a unit's game model and its reference GLB (TASK-181) in the side,
 ## front and top view: IoU, area difference, a diff image per view and the largest mismatch
 ## regions. Run via tools/compare_silhouette.sh <unit_id> [--min-iou=0.90] [--pixel=0.02]
-## [--front=+x|-x|+z|-z] [--faction=<id>]. Needs no rendering: both meshes are rasterised
-## orthographically (tools/silhouette.gd) in metres, the GLB normalised as by tools/analyze_glb.sh
-## (the front is taken from its normalisation.json unless --front is given) and both centred in
-## x / z over their bounding boxes, standing on y = 0.
+## [--front=+x|-x|+z|-z] [--faction=<id>] [--soldier=<i> [--soldier-yaw=<deg>]] (a squad: only
+## soldier i, facing +X turned by the yaw, scaled to the GLB's height, against a one-soldier GLB).
+## Needs no rendering: both meshes are rasterised orthographically (tools/silhouette.gd) in
+## metres, the GLB normalised as by tools/analyze_glb.sh (the front is taken from its
+## normalisation.json unless --front is given) and both centred in x / z over their bounding boxes,
+## standing on y = 0.
 ## Exit codes: 0 every IoU >= --min-iou, 1 below it / load failure, 2 invalid arguments.
 
 const RenderUnitOptions := preload("res://tools/render_unit_options.gd")
@@ -60,12 +62,19 @@ func _compare(options: Dictionary, min_iou: float, pixel: float, front: String) 
 	if reference.is_empty():
 		printerr("ERROR: cannot load a mesh from reference.glb of '%s'" % unit_id)
 		return 1
-	var model := _model_mesh(unit_id, String(options["faction"]))
+	var model := _model_mesh(
+		unit_id, String(options["faction"]), int(options["soldier"]), float(options["soldier_yaw"])
+	)
 	if (model["positions"] as PackedVector3Array).is_empty():
 		printerr("ERROR: the game model of '%s' has no visible triangles" % unit_id)
 		return 1
 	_align(model)
 	_align(reference)
+	if int(options["soldier"]) >= 0:
+		# Both figures to one height: the GLB is normalised so its posed bounding box is the
+		# catalog height, the model soldier has real proportions – compare shapes, not sizes.
+		var factor := _match_height(model, GlbReference.bounds(reference["positions"]).size.y)
+		print("Soldier %d scaled x%.3f to the GLB's height" % [int(options["soldier"]), factor])
 	var bounds := GlbReference.bounds(model["positions"]).merge(
 		GlbReference.bounds(reference["positions"])
 	)
@@ -154,11 +163,17 @@ func _front_from_normalisation(path: String) -> String:
 
 ## The visible triangles of the game model in metres (model space is the model's own
 ## 1 / UnitModels.model_units_per_metre() m per unit, faces +X).
-func _model_mesh(unit_id: String, faction_id: String) -> Dictionary:
+## `soldier` >= 0: only that squad slot (RenderUnitOptions.isolate_soldier).
+func _model_mesh(
+	unit_id: String, faction_id: String, soldier: int, soldier_yaw: float
+) -> Dictionary:
 	var faction := FactionRegistry.get_faction(StringName(faction_id))
 	var model_root := UnitModels.build(StringName(unit_id), 0, faction)
 	var model := model_root.get_node("Model") as Node3D
 	model.scale = Vector3.ONE
+	if soldier >= 0 and not RenderUnitOptions.isolate_soldier(model, soldier, soldier_yaw):
+		model_root.free()
+		return {"positions": PackedVector3Array(), "indices": PackedInt32Array()}
 	root.add_child(model_root)
 	var positions := PackedVector3Array()
 	var indices := PackedInt32Array()
@@ -195,6 +210,16 @@ func _collect(
 	for child in node.get_children():
 		if child is Node3D and (child as Node3D).visible:
 			_collect(child as Node3D, transform, positions, indices)
+
+
+## Scales the mesh (standing on y = 0, centred in x / z) to `height`; returns the factor.
+func _match_height(mesh: Dictionary, height: float) -> float:
+	var points: PackedVector3Array = mesh["positions"]
+	var factor := height / maxf(GlbReference.bounds(points).size.y, 0.0001)
+	for i in points.size():
+		points[i] *= factor
+	mesh["positions"] = points
+	return factor
 
 
 ## Centres the mesh in x / z over its bounding box and stands it on y = 0.
