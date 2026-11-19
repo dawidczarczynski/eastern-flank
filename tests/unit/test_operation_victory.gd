@@ -503,7 +503,7 @@ func test_suwalki_data() -> void:
 	for objective in def.objectives:
 		assert_true(grid.has_tile(objective.hex_in(state)), "%s on the map" % objective.id)
 		points[objective.id] = objective.points
-	assert_eq(points, {&"chernyakhovsk": 5, &"bialystok": 5, &"vilnius": 5, &"grodno": 40})
+	assert_eq(points, {&"chernyakhovsk": 5, &"bialystok": 5, &"vilnius": 5, &"grodno": 10})
 	assert_eq(def.gap_open_points, 10)
 	assert_eq(def.corridor_points, 10)
 	assert_eq(def.escalation_penalty, 3)
@@ -522,7 +522,7 @@ func test_suwalki_start_holders() -> void:
 	assert_eq(HexControl.holder(state, Vector2i(-6, 19)), 1, "Kaliningrad")
 	var score := OperationVictory.score(state, def)
 	assert_eq(score[0]["total"], 10, "Gap open only")
-	assert_eq(score[1]["total"], 40, "Grodno, held from the start")
+	assert_eq(score[1]["total"], 10, "Grodno, held from the start")
 
 
 func test_suwalki_land_routes() -> void:
@@ -553,8 +553,8 @@ func test_corridor_ai_goals_sit_on_shortest_routes() -> void:
 		&"ru_take_corridor_choke": [1, AiGoal.TAKE, Vector2i(24, 29), 7],
 		&"ru_take_corridor_mid": [1, AiGoal.TAKE, Vector2i(24, 33), 5],
 		&"ru_take_corridor_end": [1, AiGoal.TAKE, Vector2i(24, 37), 4],
-		&"nato_hold_corridor_choke": [0, AiGoal.HOLD, Vector2i(24, 29), 7],
-		&"nato_hold_corridor_mid": [0, AiGoal.HOLD, Vector2i(29, 22), 5],
+		&"nato_hold_corridor_choke": [0, AiGoal.HOLD, Vector2i(24, 29), 12],
+		&"nato_hold_corridor_mid": [0, AiGoal.HOLD, Vector2i(29, 22), 10],
 	}
 	var corridor_steps := OperationVictory.land_route(state, def, false).size() - 1
 	var gap_steps := OperationVictory.land_route(state, def, true).size() - 1

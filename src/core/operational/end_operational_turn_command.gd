@@ -34,6 +34,7 @@ func apply(state: OperationalState) -> Array[Dictionary]:
 	_switch_side(state)
 	events.append_array(BattleConsequences.recover_readiness(state))
 	if state.current_player == state.first_player and state.result.is_empty():
+		events.append_array(HexControl.end_round(state))
 		events.append_array(EscalationRules.end_round(state))
 		events.append_array(StrikeRules.end_round(state))
 		events.append_array(OperationVictory.end_round(state, state.turn - 1))

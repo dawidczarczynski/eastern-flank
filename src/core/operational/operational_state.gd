@@ -101,6 +101,8 @@ var hex_initial: Dictionary = {}
 var hex_holders: Dictionary = {}
 ## Consecutive finished rounds that ended with the corridor closed (side 1 holding all of it).
 var corridor_closed_rounds: int = 0
+## Hex -> round ends it has been part of a formation-less island (HexControl.end_round, saved).
+var hex_stranded: Dictionary = {}
 ## {} while the operation runs, else {winner: int (-1 = nobody), reason: StringName, by: int}
 ## (`by` = the side that caused it, -1 when none; the score is in the `operation_ended` event and
 ## OperationVictory.score).
@@ -236,6 +238,8 @@ func snapshot() -> Dictionary:
 		"political_log": political_log.to_dict()["entries"],
 		"journal": journal.to_dict()["entries"],
 	}
+	if not hex_stranded.is_empty():
+		snapshot["hex_stranded"] = _stranded_snapshot()
 	if orders_issued > 0:  # only when used: older snapshots stay unchanged
 		snapshot["orders_issued"] = orders_issued
 	if not ordered_this_turn.is_empty():
@@ -252,6 +256,14 @@ func _holders_snapshot() -> Array:
 		func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y)
 	)
 	return coords.map(func(c: Vector2i) -> Array: return [c.x, c.y, hex_holders[c]])
+
+
+func _stranded_snapshot() -> Array:
+	var coords: Array = hex_stranded.keys()
+	coords.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y)
+	)
+	return coords.map(func(c: Vector2i) -> Array: return [c.x, c.y, hex_stranded[c]])
 
 
 static func _id_before(a: Formation, b: Formation) -> bool:

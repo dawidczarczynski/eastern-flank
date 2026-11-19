@@ -1,6 +1,6 @@
 # TASK-178: Operation balance tuning after the connection objectives
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (data) + ai
 - **Depends on**: TASK-177
 - **Topic**: Balance
@@ -38,4 +38,8 @@ Human decision (2026-11-18): the balance is tuned in its own task; until it is d
 
 ## Implementation notes
 
-(to be filled in by the implementer)
+Measured before (20 matches per set, seeds 1..20 / 101..120): NATO 0 % / Russia 100 %, corridor_closed 90 % / 85 %.
+Playtest feedback 2026-11-19: Grodno at 40 points decides every score ending for Russia.
+Changes (`data/operations/suwalki_gap.tres`): Grodno 40 -> 10; NATO AI weights corridor choke 7 -> 12, corridor mid 5 -> 10, take Grodno 8 -> 4; `closed_rounds_to_win` kept at 5 (14 was tried, reverted after the human's playtest: NATO won by hand in 18 rounds, so AI-vs-AI measures AI quality, not human balance). New rule (human decision 2026-11-19): stranded islands revert after `island_grace_rounds` = 2 (HexControl.end_round); alone it changed almost nothing (Russia's corridor touches home land at both ends).
+Result with 5 rounds: NATO 36.8 % / 35.0 % of decided. Human decision 2026-11-19: `test_operation_balance` widened to 25-75 % and reworded as an AI sanity check. Lone steps: Grodno 10 -> NATO 10-15 %; NATO weights -> 35-40 %; rounds 14 -> 50 % on the second set. Gap/corridor points changes had no effect (reverted).
+Open: playtest as both sides; corridor_closed is still about half of the endings.

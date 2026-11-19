@@ -54,6 +54,9 @@ const OPERATIONS_DIR := "res://data/operations/"
 @export var round_limit: int = 30
 ## Side 1 wins at once when the corridor is closed at the end of this many consecutive rounds.
 @export var closed_rounds_to_win: int = 5
+## Captured hexes cut off from the rest of their holder's land and with none of its formations on
+## them revert to the original holder after this many round ends (0 = rule off; TASK-178).
+@export var island_grace_rounds: int = 2
 ## A score difference below this is a draw.
 @export var draw_margin: int = 5
 ## Points at the end for side 0 while the Gap road is open / for side 1 while the corridor is

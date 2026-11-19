@@ -1,12 +1,13 @@
 extends TestCase
-## Operation balance regression (TASK-103b): in AI-vs-AI operations on seeds 1..20 each side must
-## hold 35-65 % of the decided operations (the target is 40-60 %, the band leaves room for noise).
+## Operation AI sanity regression (TASK-103b, widened in TASK-178 by human decision 2026-11-19):
+## in AI-vs-AI operations on seeds 1..20 each side must hold 25-75 % of the decided operations, i.e.
+## both AIs can win. This is not a balance measure for human play (a human NATO beats the NATO AI).
 ## A round_limit result counts as decided by the real score (TASK-107a); a draw or a nuclear ending
 ## does not (TASK-103a report).
 
 const SEEDS := 20
-const MIN_SHARE := 0.35
-const MAX_SHARE := 0.65
+const MIN_SHARE := 0.25
+const MAX_SHARE := 0.75
 const MAX_UNDECIDED := 0.40
 
 
@@ -27,10 +28,10 @@ static func in_band(wins: Array[int], matches: int) -> bool:
 
 func test_band_helper_rejects_a_lopsided_result() -> void:
 	assert_true(in_band([10, 10], 20))
-	assert_true(in_band([7, 13], 20))
+	assert_true(in_band([5, 15], 20))
 	assert_false(in_band([0, 20], 20), "one side never wins")
-	assert_false(in_band([5, 15], 20), "25 % is below the band")
-	assert_false(in_band([14, 6], 20), "70 % is above the band")
+	assert_false(in_band([3, 17], 20), "15 % is below the band")
+	assert_false(in_band([17, 3], 20), "85 % is above the band")
 	assert_false(in_band([5, 5], 20), "half the operations undecided")
 	assert_false(in_band([0, 0], 20))
 

@@ -195,3 +195,57 @@ func test_holders_are_saved_and_replay_is_identical() -> void:
 	_run(b, orders)
 	assert_eq(a.snapshot(), b.snapshot())
 	assert_eq(a.snapshot()["hex_holders"], [[4, 0, 1]])
+
+
+## Stranded island rule (TASK-178, human decision 2026-11-19): captured hexes cut off from every
+## other hex of the side's and with none of its formations on them revert to the original holder
+## after `island_grace_rounds` round ends.
+func _island_state(grace: int) -> OperationalState:
+	var s := _strip()
+	s.definition.island_grace_rounds = grace
+	# Side 1 holds the Polish hexes (1, 0) and (1, 1): an island inside side 0's land.
+	s.hex_holders[Vector2i(1, 0)] = 1
+	s.hex_holders[Vector2i(1, 1)] = 1
+	return s
+
+
+func test_island_without_a_formation_reverts_after_the_grace_rounds() -> void:
+	var s := _island_state(2)
+	assert_eq(HexControl.end_round(s).size(), 0, "first round: only counted")
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 1)
+	HexControl.end_round(s)
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 0, "back to the original holder")
+	assert_eq(HexControl.holder(s, Vector2i(1, 1)), 0)
+	assert_true(s.hex_stranded.is_empty())
+
+
+func test_island_with_a_formation_is_kept() -> void:
+	var s := _island_state(1)
+	_red(s, &"raiders", Vector2i(1, 1))
+	HexControl.end_round(s)
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 1, "the island has a formation")
+
+
+func test_hexes_linked_to_the_side_own_land_are_not_an_island() -> void:
+	var s := _island_state(1)
+	s.hex_holders[Vector2i(0, 0)] = 1
+	s.hex_initial[Vector2i(0, 0)] = 1  # an own hex next to the captured ones
+	HexControl.end_round(s)
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 1)
+
+
+func test_the_counter_resets_when_a_formation_arrives() -> void:
+	var s := _island_state(2)
+	HexControl.end_round(s)
+	var f := _red(s, &"relief", Vector2i(1, 0))
+	HexControl.end_round(s)
+	s.formations.erase(f)
+	HexControl.end_round(s)
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 1, "the count started again")
+
+
+func test_grace_zero_switches_the_rule_off() -> void:
+	var s := _island_state(0)
+	HexControl.end_round(s)
+	HexControl.end_round(s)
+	assert_eq(HexControl.holder(s, Vector2i(1, 0)), 1)

@@ -401,7 +401,7 @@ id = &"grodno"
 display_name = "Grodno depot"
 installation_id = &"ru_depot_grodno"
 side = -1
-points = 40
+points = 10
 holder_rule = &"any"
 
 [sub_resource type="Resource" id="Goal_nato_hold_suwalki"]
@@ -433,7 +433,7 @@ script = ExtResource("14_aigoal")
 id = &"nato_take_grodno"
 player = 0
 objective_id = &"grodno"
-weight = 8
+weight = 4
 role = &"take"
 
 [sub_resource type="Resource" id="Goal_ru_take_suwalki"]
@@ -497,7 +497,7 @@ script = ExtResource("14_aigoal")
 id = &"nato_hold_corridor_choke"
 player = 0
 coord = Vector2i(24, 29)
-weight = 7
+weight = 12
 role = &"hold"
 
 [sub_resource type="Resource" id="Goal_nato_hold_corridor_mid"]
@@ -505,7 +505,7 @@ script = ExtResource("14_aigoal")
 id = &"nato_hold_corridor_mid"
 player = 0
 coord = Vector2i(29, 22)
-weight = 5
+weight = 10
 role = &"hold"
 
 [sub_resource type="Resource" id="Support_us_armor_1"]
@@ -667,6 +667,8 @@ corridor_from_country = &"russia"
 corridor_to_country = &"belarus"
 round_limit = 30
 closed_rounds_to_win = 5
+island_grace_rounds = 2
+
 draw_margin = 5
 gap_open_points = 10
 corridor_points = 10

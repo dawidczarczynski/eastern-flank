@@ -73,3 +73,73 @@ static func take(state: OperationalState, hex: Vector2i, side: int) -> Array[Dic
 				)
 			)
 	return events
+
+
+## Round end (TASK-178, human decision 2026-11-19): a connected group of hexes a side captured
+## (held, but not its starting hexes) that touches none of its starting hexes and carries none of
+## its formations is an island. An island hex counts the round ends it stayed one; after
+## `definition.island_grace_rounds` the hex reverts to its starting holder. One event
+## `island_lost` {side, hexes, to, round} per reverting group. No randomness.
+static func end_round(state: OperationalState) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	var grace := state.definition.island_grace_rounds if state.definition != null else 0
+	if grace <= 0:
+		state.hex_stranded.clear()
+		return events
+	var occupied := {}
+	for formation in state.formations:
+		occupied[formation.coord] = formation.owner_id
+	var seen := {}
+	var counts := {}
+	var reverting: Array[Array] = []
+	var captured: Array = state.hex_holders.keys()
+	captured.sort_custom(
+		func(a: Vector2i, b: Vector2i) -> bool: return a.x < b.x or (a.x == b.x and a.y < b.y)
+	)
+	for start: Vector2i in captured:
+		if seen.has(start) or not _is_captured(state, start):
+			continue
+		var side := holder(state, start)
+		var group: Array[Vector2i] = [start]
+		seen[start] = true
+		var stranded := true
+		var index := 0
+		while index < group.size():
+			var hex := group[index]
+			index += 1
+			if occupied.get(hex, -1) == side:
+				stranded = false
+			for next in Hex.neighbors(hex):
+				if holder(state, next) != side:
+					continue
+				if not _is_captured(state, next):
+					stranded = false  # touches the side's own starting land
+				elif not seen.has(next):
+					seen[next] = true
+					group.append(next)
+		if not stranded:
+			continue
+		var done := true
+		for hex in group:
+			counts[hex] = int(state.hex_stranded.get(hex, 0)) + 1
+			done = done and counts[hex] >= grace
+		if done:
+			reverting.append(group)
+	state.hex_stranded = counts
+	for group in reverting:
+		var side := holder(state, group[0])
+		var hexes: Array[Vector2i] = []
+		for hex in group:
+			var original: int = state.hex_initial.get(hex, -1)
+			events.append_array(take(state, hex, original))
+			if original == state.hex_initial.get(hex, -1):
+				state.hex_holders.erase(hex)
+			state.hex_stranded.erase(hex)
+			hexes.append(hex)
+		events.append({"type": &"island_lost", "side": side, "hexes": hexes, "round": state.turn})
+	return events
+
+
+## A held hex that is not the side's starting hex.
+static func _is_captured(state: OperationalState, hex: Vector2i) -> bool:
+	return state.hex_holders.has(hex) and state.hex_holders[hex] != state.hex_initial.get(hex, -1)
