@@ -38,23 +38,51 @@ static func _profile(unit_id: StringName) -> Dictionary:
 
 ## Rockets in one salvo: one per tube (`mouth_count`) when the model has tubes, else the profile's.
 static func rocket_count(unit_id: StringName, mouth_count: int) -> int:
+	if DevTunables.is_overridden(DevTunables.SALVO_COUNT):
+		return DevTunables.get_int(DevTunables.SALVO_COUNT)
 	return mouth_count if mouth_count > 0 else int(_profile(unit_id)["count"])
 
 
 ## Seconds between two launches.
 static func interval(unit_id: StringName) -> float:
+	if DevTunables.is_overridden(DevTunables.SALVO_INTERVAL):
+		return DevTunables.get_value(DevTunables.SALVO_INTERVAL)
 	return float(_profile(unit_id)["interval"])
+
+
+## Shells in one barrage and the seconds between two of them (DevTunables-aware).
+static func barrage_count() -> int:
+	return DevTunables.get_int(DevTunables.BARRAGE_COUNT)
+
+
+static func barrage_interval() -> float:
+	return DevTunables.get_value(DevTunables.BARRAGE_INTERVAL)
+
+
+## Landing disc radius as a fraction of the hex size.
+static func landing_radius() -> float:
+	return DevTunables.get_value(DevTunables.LANDING_RADIUS)
 
 
 ## Flight time of every shell of a barrage over the horizontal world `distance`.
 static func barrage_flight_time(distance: float) -> float:
-	var t := BARRAGE_FLIGHT_BASE + BARRAGE_FLIGHT_PER_UNIT * distance
+	var base := DevTunables.get_value(DevTunables.BARRAGE_FLIGHT_BASE)
+	var per_unit := DevTunables.get_value(DevTunables.BARRAGE_FLIGHT_PER_UNIT)
+	var t := base + per_unit * distance
+	if (
+		DevTunables.is_overridden(DevTunables.BARRAGE_FLIGHT_BASE)
+		or DevTunables.is_overridden(DevTunables.BARRAGE_FLIGHT_PER_UNIT)
+	):
+		return clampf(t, 0.2, 6.0)  # a tuned flight is not squeezed into the default range
 	return clampf(t, BARRAGE_FLIGHT_MIN, BARRAGE_FLIGHT_MAX)
 
 
 ## Flight time of every rocket of a salvo over the horizontal world `distance`.
 static func flight_time(distance: float) -> float:
-	return clampf(FLIGHT_BASE + FLIGHT_PER_UNIT * distance, FLIGHT_MIN, FLIGHT_MAX)
+	var t := DevTunables.get_value(DevTunables.SALVO_FLIGHT_BASE) + FLIGHT_PER_UNIT * distance
+	if DevTunables.is_overridden(DevTunables.SALVO_FLIGHT_BASE):
+		return clampf(t, 0.2, 6.0)
+	return clampf(t, FLIGHT_MIN, FLIGHT_MAX)
 
 
 static func launch_time(index: int, launch_interval: float) -> float:

@@ -395,23 +395,24 @@ func emit_backblast(rear: Vector3, tube_dir: Vector3, ground_y: float, dust: Col
 ## Impact at `point`: a fireball, dark smoke, dust thrown up and rolling out along the ground
 ## (`dust`: its colour, alpha 0 = none).
 func emit_impact(point: Vector3, dust: Color) -> void:
-	for i in FIREBALL:
+	for i in DevTunables.get_int(DevTunables.FIREBALL):
 		var velocity := Vector3(_range(-0.8, 0.8), _range(0.6, 1.6), _range(-0.8, 0.8))
 		var at := point + Vector3(0, 0.12, 0) + _jitter(0.06)
 		_emit(&"fire", at, velocity, Color.WHITE, _range(0.8, 1.2), _range(0.6, 1.0))
-	for i in IMPACT_SMOKE:
+	for i in DevTunables.get_int(DevTunables.SMOKE):
 		var velocity := Vector3(_range(-0.4, 0.4), _range(0.8, 1.4), _range(-0.4, 0.4))
 		var tint := Color(IMPACT_SMOKE_COLOR, _range(0.7, 0.9))
 		var at := point + Vector3(0, 0.15, 0) + _jitter(0.08)
 		_emit(&"smoke", at, velocity, tint, _range(1.0, 1.4), _range(0.55, 0.9))
 	if dust.a <= 0.0:
 		return
-	for i in DEBRIS:
+	for i in DevTunables.get_int(DevTunables.DEBRIS):
 		var velocity := _cone(Vector3.UP, 35.0) * _range(2.5, 4.0)
 		var tint := Color(dust.darkened(0.25), _range(0.85, 1.0))
 		_emit(&"debris", point + _jitter(0.05), velocity, tint, _range(0.8, 1.2), _range(0.6, 1.0))
-	for i in DUST_RING:
-		var around := (float(i) + _rng.randf()) / DUST_RING * TAU
+	var ring := DevTunables.get_int(DevTunables.DUST_RING)
+	for i in ring:
+		var around := (float(i) + _rng.randf()) / ring * TAU
 		var velocity := Vector3(cos(around), 0.05, sin(around)) * _range(1.8, 2.8)
 		var tint := Color(dust.lightened(0.1), _range(0.6, 0.75))
 		var at := point + Vector3(0, 0.08, 0)

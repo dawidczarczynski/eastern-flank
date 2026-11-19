@@ -156,6 +156,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `DebugResult` – Screenshot aid (tools/screenshot.gd, SCREENSHOT_SHOTS=result:<kind>): a throwaway, already (`debug_result.gd`)
 - `DecalTextures` – Procedural albedo+alpha images for the ground decals of TASK-058 (GroundMarksView), cache… (`decal_textures.gd`)
 - `DetailTexture` – Pure generators for tileable procedural detail (today the water ripples): a value-noise h… (`detail_texture.gd`)
+- `DevTunables` – Live effect tunables of the dev arena (TASK-186a, devtools only): a static store of look… (`dev_tunables.gd`)
 - `EventQueue` – Pure FIFO of simulation events waiting to be animated by the view. It knows how long each (`event_queue.gd`)
 - `FeatureRibbonPlanner` – Pure geometry of the road and river ribbons (TASK-108). The per-tile link masks (`feature_ribbon_planner.gd`)
 - `FeatureRibbons` – Builds the road / river ribbon meshes of a map (TASK-108) from FeatureRibbonPlanner's flat (`feature_ribbons.gd`)

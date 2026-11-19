@@ -1139,7 +1139,7 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 	var context := VolleyPlayback.terrain_context(shooter.global_position, aim_point, _terrain_at)
 	# View-local scatter, the same for a replayed event; never GameState.rng.
 	var rng := VolleyPlayback.scatter_rng(_event_serial, event["attacker_id"])
-	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
+	var radius := SalvoTiming.landing_radius() * _map_view.hex_size
 	var ground := _map_view.mesh_height_at
 	var volley := VolleyPlayback.append_salvo(
 		tween, self, shooter, aim_point, rng, radius, context, ground
@@ -1171,7 +1171,7 @@ func _play_barrage(shooter: UnitView, target: UnitView, target_hp: int, event: D
 	VolleyPlayback.tween_turret(tween, shooter, Vector2.ZERO, pose, TURRET_AIM_DURATION)
 	var context := VolleyPlayback.terrain_context(shooter.global_position, aim_point, _terrain_at)
 	var rng := VolleyPlayback.scatter_rng(_event_serial, event["attacker_id"])
-	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
+	var radius := SalvoTiming.landing_radius() * _map_view.hex_size
 	var volley := VolleyPlayback.append_barrage(
 		tween,
 		self,

@@ -79,7 +79,9 @@ var _ended := false
 
 ## Apex height for a shot over world distance `distance` (longer shots fly higher).
 static func apex_height(distance: float) -> float:
-	return minf(APEX_BASE + APEX_PER_UNIT * distance, APEX_MAX)
+	return minf(
+		DevTunables.get_value(DevTunables.SALVO_APEX_BASE) + APEX_PER_UNIT * distance, APEX_MAX
+	)
 
 
 static func _controls(from: Vector3, tube_dir: Vector3, to: Vector3, apex: float) -> Array[Vector3]:
@@ -245,7 +247,7 @@ func _build_meshes() -> void:
 		glow.mesh = glow_mesh
 		glow.material_override = flame_material
 		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var glow_size := SHELL_GLOW_SIZE if shells else GLOW_SIZE
+		var glow_size := DevTunables.get_value(DevTunables.TRACER_SIZE) if shells else GLOW_SIZE
 		glow.scale = Vector3.ONE * glow_size
 		glow.position = Vector3(0.0, 0.0, length / 2.0 + glow_size * 0.3)
 		glow.visible = false
@@ -255,7 +257,9 @@ func _build_meshes() -> void:
 		_rockets.append(rocket)
 		_glows.append(glow)
 		var launch_flash := FlashFx.new().setup(
-			LAUNCH_FLASH_COLOR, LAUNCH_FLASH_SIZE, LAUNCH_FLASH_TIME
+			LAUNCH_FLASH_COLOR,
+			DevTunables.get_value(DevTunables.MUZZLE_FLASH_SIZE),
+			LAUNCH_FLASH_TIME
 		)
 		launch_flash.position = _origins[i]
 		add_child(launch_flash)

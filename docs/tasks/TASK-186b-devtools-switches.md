@@ -1,6 +1,6 @@
 # TASK-186b: Devtools: look / performance switches and arena unit editor
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation
 - **Depends on**: TASK-186a
 - **Sections**: docs/TOOLS.md

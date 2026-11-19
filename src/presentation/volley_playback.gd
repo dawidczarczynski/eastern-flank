@@ -170,8 +170,8 @@ static func salvo_plan(unit_id: StringName, mouth_count: int, distance: float) -
 ## like salvo_plan(); the shells are much faster than rockets.
 static func barrage_plan(distance: float) -> Dictionary:
 	return {
-		"count": SalvoTiming.BARRAGE_COUNT,
-		"interval": SalvoTiming.BARRAGE_INTERVAL,
+		"count": SalvoTiming.barrage_count(),
+		"interval": SalvoTiming.barrage_interval(),
 		"flight": SalvoTiming.barrage_flight_time(distance),
 	}
 
@@ -179,8 +179,11 @@ static func barrage_plan(distance: float) -> Dictionary:
 ## Gun elevation (rad) for a target `distance_hexes` tiles away: rises linearly with the distance
 ## between BARREL_MIN_ELEVATION_DEG and BARREL_MAX_ELEVATION_DEG.
 static func barrage_elevation(distance_hexes: float) -> float:
-	var f := clampf(distance_hexes / BARREL_FULL_DISTANCE_HEXES, 0.0, 1.0)
-	return deg_to_rad(lerpf(BARREL_MIN_ELEVATION_DEG, BARREL_MAX_ELEVATION_DEG, f))
+	var full := maxf(DevTunables.get_value(DevTunables.BARRAGE_FULL_DISTANCE), 0.001)
+	var f := clampf(distance_hexes / full, 0.0, 1.0)
+	var low := DevTunables.get_value(DevTunables.BARRAGE_ELEV_MIN)
+	var high := DevTunables.get_value(DevTunables.BARRAGE_ELEV_MAX)
+	return deg_to_rad(lerpf(low, high, f))
 
 
 ## Salvo phase length of a salvo_plan().
@@ -340,10 +343,13 @@ static func setup_salvo(
 ) -> void:
 	var count := landings.size()
 	var frames := RocketVolley.launch_frames(shooter, target_centre, count)
-	var origins: Array[Vector3] = frames["origins"]
-	var directions: Array[Vector3] = frames["directions"]
-	origins.resize(count)
-	directions.resize(count)
+	var tube_origins: Array[Vector3] = frames["origins"]
+	var tube_directions: Array[Vector3] = frames["directions"]
+	var origins: Array[Vector3] = []
+	var directions: Array[Vector3] = []
+	for i in count:  # more rockets than tubes (DevTunables) reuse the tubes in turn
+		origins.append(tube_origins[i % tube_origins.size()])
+		directions.append(tube_directions[i % tube_directions.size()])
 	var full := context.duplicate()
 	full["shooter"] = shooter
 	full["target_centre"] = target_centre

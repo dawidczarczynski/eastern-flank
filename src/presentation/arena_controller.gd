@@ -22,6 +22,12 @@ var _faction_pickers: Array[OptionButton] = []
 var _unit_picker: OptionButton
 var _status: Label
 var _side_button: Button
+var _last_attack := {}  # the last non-counter unit_attacked event (Fire again replays it)
+var _fire_again_button: Button
+var _effects_box: VBoxContainer
+var _effects_scroll: ScrollContainer
+var _effects_toggle: Button
+var _sliders := {}  # DevTunables key (or &"slow_motion") -> {slider, value label}
 
 
 ## Flat plains of ARENA_WIDTH x ARENA_HEIGHT tiles, two sides, no units, no victory conditions.
@@ -41,9 +47,55 @@ func _initial_state() -> GameState:
 
 
 func _ready() -> void:
+	DevTunables.activate()
 	await super._ready()
 	if is_built:
 		_build_panel()
+
+
+## Leaving the arena: tunables stop counting and the slow motion ends.
+func _exit_tree() -> void:
+	DevTunables.deactivate()
+
+
+## Remembers the last attack for Fire again, then plays the event as usual.
+func _on_event(event: Dictionary) -> void:
+	if event["type"] == &"unit_attacked" and not event.get("counter", false):
+		_last_attack = event.duplicate()
+	super(event)
+	_sync_panel()
+
+
+func _on_queue_drained() -> void:
+	super()
+	_sync_panel()
+
+
+## True when the last attack can be shown again: both units are still there and nothing plays.
+func can_fire_again() -> bool:
+	if _last_attack.is_empty() or _is_playing_events():
+		return false
+	var state := _sim.state
+	for key in ["attacker_id", "target_id"]:
+		var unit := state.get_unit(_last_attack[key])
+		if unit == null or not unit.is_alive() or not _unit_views.has(unit.id):
+			return false
+	return true
+
+
+## Fire again: replays the last attack as a view event (same shooter, target and visuals; the
+## scatter differs, it is seeded by the event serial). No command runs and the rules and the state
+## stay untouched; the target's HP bar first goes back up by the old damage, so it steps down again
+## to what the state says now.
+func fire_again() -> void:
+	if not can_fire_again():
+		return
+	var target := _sim.state.get_unit(_last_attack["target_id"])
+	var view: UnitView = _unit_views[target.id]
+	var event := _last_attack.duplicate()
+	view.set_shown_hp(mini(target.definition.max_hp, target.hp + int(event["damage"])))
+	event["target_hp"] = target.hp
+	_on_event(event)
 
 
 ## No AI: the human plays every side.
@@ -264,6 +316,12 @@ func _build_panel() -> void:
 	clear.focus_mode = Control.FOCUS_NONE
 	clear.pressed.connect(_clear_all)
 	box.add_child(clear)
+	_fire_again_button = Button.new()
+	_fire_again_button.text = "Fire again"
+	_fire_again_button.focus_mode = Control.FOCUS_NONE
+	_fire_again_button.pressed.connect(fire_again)
+	box.add_child(_fire_again_button)
+	_build_effects(box)
 	_status = Label.new()
 	box.add_child(_status)
 	$HUD.add_child(panel)
@@ -271,9 +329,116 @@ func _build_panel() -> void:
 	_sync_panel()
 
 
+## The collapsible "Effects" section: slow motion and one slider per DevTunables key.
+func _build_effects(box: VBoxContainer) -> void:
+	_effects_toggle = Button.new()
+	_effects_toggle.toggle_mode = true
+	_effects_toggle.focus_mode = Control.FOCUS_NONE
+	_effects_toggle.toggled.connect(
+		func(open: bool) -> void:
+			_effects_scroll.visible = open
+			_effects_toggle.text = "Effects v" if open else "Effects >"
+	)
+	_effects_toggle.text = "Effects >"
+	box.add_child(_effects_toggle)
+	_effects_scroll = ScrollContainer.new()  # twenty sliders do not fit the screen height
+	_effects_scroll.custom_minimum_size = Vector2(0.0, 280.0)
+	_effects_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_effects_scroll.visible = false
+	box.add_child(_effects_scroll)
+	_effects_box = VBoxContainer.new()
+	_effects_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_effects_scroll.add_child(_effects_box)
+	_add_slider(
+		&"slow_motion",
+		"Slow motion",
+		DevTunables.SLOW_MOTION_MIN,
+		DevTunables.SLOW_MOTION_MAX,
+		0.05
+	)
+	for key: StringName in DevTunables.keys():
+		var spec: Dictionary = DevTunables.SPECS[key]
+		_add_slider(key, spec["label"], spec["min"], spec["max"], spec["step"])
+	var reset_all := Button.new()
+	reset_all.text = "Reset all"
+	reset_all.focus_mode = Control.FOCUS_NONE
+	reset_all.pressed.connect(_reset_all_effects)
+	_effects_box.add_child(reset_all)
+
+
+func _add_slider(key: StringName, label: String, low: float, high: float, step: float) -> void:
+	var title := Label.new()
+	title.text = label
+	_effects_box.add_child(title)
+	var row := HBoxContainer.new()
+	var slider := HSlider.new()
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = step
+	slider.value = _slider_value(key)
+	slider.custom_minimum_size = Vector2(120.0, 0.0)
+	slider.focus_mode = Control.FOCUS_NONE
+	var readout := Label.new()
+	readout.custom_minimum_size = Vector2(44.0, 0.0)
+	readout.text = _format_value(slider.value)
+	slider.value_changed.connect(_on_slider_changed.bind(key, readout))
+	var reset := Button.new()
+	reset.text = "R"
+	reset.tooltip_text = "Reset to default"
+	reset.focus_mode = Control.FOCUS_NONE
+	reset.pressed.connect(_reset_one.bind(key))
+	row.add_child(slider)
+	row.add_child(readout)
+	row.add_child(reset)
+	_effects_box.add_child(row)
+	_sliders[key] = {"slider": slider, "readout": readout}
+
+
+func _slider_value(key: StringName) -> float:
+	if key == &"slow_motion":
+		return DevTunables.slow_motion()
+	return DevTunables.get_value(key)
+
+
+func _on_slider_changed(value: float, key: StringName, readout: Label) -> void:
+	if key == &"slow_motion":
+		DevTunables.set_slow_motion(value)
+	else:
+		DevTunables.set_value(key, value)
+	readout.text = _format_value(value)
+
+
+## The per-value reset button: back to the default, slider and readout follow.
+func _reset_one(key: StringName) -> void:
+	if key == &"slow_motion":
+		DevTunables.set_slow_motion(1.0)
+	else:
+		DevTunables.reset(key)
+	_show_value(key)
+
+
+func _reset_all_effects() -> void:
+	DevTunables.reset_all()
+	DevTunables.set_slow_motion(1.0)
+	for key: StringName in _sliders:
+		_show_value(key)
+
+
+## Moves the slider of `key` to the stored value without storing it again.
+func _show_value(key: StringName) -> void:
+	var slider: HSlider = _sliders[key]["slider"]
+	slider.set_value_no_signal(_slider_value(key))
+	_sliders[key]["readout"].text = _format_value(slider.value)
+
+
+static func _format_value(value: float) -> String:
+	return "%d" % int(value) if is_equal_approx(value, roundf(value)) else "%.3g" % value
+
+
 func _sync_panel() -> void:
 	if _status == null:
 		return
+	_fire_again_button.disabled = not can_fire_again()
 	for i in _tool_buttons.size():
 		_tool_buttons[i].button_pressed = i == _tool
 	_side_button.text = "Side %d: %s (Tab)" % [_side, _sim.state.player_factions[_side]]

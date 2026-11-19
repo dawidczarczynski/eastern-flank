@@ -133,15 +133,20 @@ func _look_height() -> float:
 	return ground + TARGET_HEIGHT * _distance / CameraMath.MIN_DISTANCE
 
 
+## Largest shake amplitude: SHAKE_MAX, or the dev arena's tunable.
+static func shake_max() -> float:
+	return DevTunables.get_value(DevTunables.CAMERA_SHAKE)
+
+
 ## Shake amplitude of an impact `distance` world units from the camera.
 static func shake_strength(distance: float) -> float:
-	return SHAKE_MAX * clampf((SHAKE_FAR - distance) / (SHAKE_FAR - SHAKE_NEAR), 0.0, 1.0)
+	return shake_max() * clampf((SHAKE_FAR - distance) / (SHAKE_FAR - SHAKE_NEAR), 0.0, 1.0)
 
 
 ## Adds `strength` (shake_strength) to the shake; the sum never exceeds SHAKE_MAX.
 func add_shake(strength: float) -> void:
 	if SHAKE_ENABLED:
-		_shake = minf(SHAKE_MAX, _shake + maxf(strength, 0.0))
+		_shake = minf(shake_max(), _shake + maxf(strength, 0.0))
 
 
 ## Current shake amplitude (0 at rest).
@@ -153,7 +158,7 @@ func _process(delta: float) -> void:
 	var changed := false
 	if _shake > 0.0:
 		_shake_clock += delta
-		_shake = maxf(0.0, _shake - SHAKE_MAX / SHAKE_DECAY * delta)
+		_shake = maxf(0.0, _shake - shake_max() / SHAKE_DECAY * delta)
 		if _shake == 0.0:
 			_shake_clock = 0.0
 		changed = true

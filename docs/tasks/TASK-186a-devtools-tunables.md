@@ -1,6 +1,6 @@
 # TASK-186a: Devtools: live effect tunables, Fire again and slow motion (arena)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (+ a small `DevTunables` store)
 - **Depends on**: TASK-185
 - **Sections**: docs/TOOLS.md
@@ -40,4 +40,12 @@ none (developer tool).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `src/presentation/dev_tunables.gd`: static store (`SPECS` = label, default, min, max, step per key; `get_value`/`get_int`/`set_value` (clamps)/`reset`/`reset_all`, `is_overridden`, `activate`/`deactivate`, slow motion). Overrides count only while `active`; `deactivate()` also sets `Engine.time_scale = 1.0`; values survive leaving (session memory).
+- Read at use in `SalvoTiming` (rocket count / interval / flight base, barrage count / interval / flight, `landing_radius()`), `VolleyPlayback.barrage_elevation`, `RocketVolley` (apex base, tracer size, launch flash size), `SalvoFxPool.emit_impact` (amounts), `CameraRig.shake_max()` (the existing `SHAKE_MAX`, so camera shake is included). `BattleController` uses `SalvoTiming.landing_radius()`.
+- Tuned flights are not squeezed into the default min/max range (limits 0.2..6.0 instead) so the base slider has an effect. A rocket count above the tube count reuses the tubes in turn (`VolleyPlayback.setup_salvo`).
+- Fire again: chosen the **view-event replay**: the last non-counter `unit_attacked` event is pushed through the normal playback again (the HP bar first returns to HP + damage, then steps down to the state HP). No command runs, state untouched, so no refill or target death; the button is disabled with no previous attack, a missing/dead unit or while events play. Rejected: re-issuing `AttackCommand` (needs state edits, kills the target after a few shots, adds counter-attacks).
+- Slow motion uses `Engine.time_scale` (tweens and particles follow it); restored in `ArenaController._exit_tree`.
+- Panel: *Effects* toggle with a scrollable list of sliders (readout + `R` reset) and *Reset all*; Fire again button above it.
+- Tests: `tests/unit/test_dev_tunables.gd`.
+
+Review notes: slow motion keeps its last value when the arena is re-entered (session memory); only one Fire-again test (disabled with no previous attack) – a test for a dead target and for "state untouched" is a possible follow-up.
