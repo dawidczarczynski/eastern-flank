@@ -1,6 +1,6 @@
 # TASK-182: Catalog and /model-unit use the GLB reference and the IoU gate
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: TASK-179, TASK-180, TASK-181
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)
