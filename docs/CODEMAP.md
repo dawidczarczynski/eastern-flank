@@ -245,6 +245,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 
 ## src/presentation/models/
 
+- `2s19_msta_s` – 2S19 Msta-S: Soviet / Russian 152 mm / 47 cal. self-propelled howitzer on a T-80-family (`2s19_msta_s.gd`)
 - `bm27_uragan` – 9K57 Uragan, 9P140 combat vehicle: 16 x 220 mm rocket launcher on the ZIL-135LM 8x8 chass… (`bm27_uragan.gd`)
 - `homar_k` – Homar-K (K239PL): Polish 8x8 rocket launcher – Korean K239 Chunmoo launcher module (two c… (`homar_k.gd`)
 - `k9_thunder` – K9 Thunder (Polish K9PL): South Korean 155 mm / 52 cal. self-propelled howitzer. Blueprin… (`k9_thunder.gd`)

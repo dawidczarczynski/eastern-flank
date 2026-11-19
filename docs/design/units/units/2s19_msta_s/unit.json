@@ -20,6 +20,8 @@
   "range_km": 500,
   "fire_range_km": 24.7,
   "dimensions": {
+    "hull_length": 7.15,
+    "overall_length": 12,
     "width": 3.38,
     "height": 2.99,
     "sources": [
@@ -45,6 +47,9 @@
     "gun_recoil": {
       "recoil_m": 0.5
     }
+  },
+  "reference_glb": {
+    "file": "reference.glb"
   },
   "image_candidates": [
     {
@@ -72,82 +77,82 @@
   "provenance": {
     "in_service": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "country_of_origin": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "crew": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "weight_t": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "armament.main": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "armament.secondary": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "protection": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "speed_road_kmh": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "range_km": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "fire_range_km": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "dimensions.width": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "dimensions.height": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "silhouette_features": {
       "source": "https://commons.wikimedia.org/wiki/File:AlabinoTraining0904-34.jpg (description from photo; check against the image candidates)",
-      "verified": false
+      "verified": true
     },
     "mechanisms.wheels": {
       "source": "https://commons.wikimedia.org/wiki/File:AlabinoTraining0904-34.jpg (road wheels visible)",
-      "verified": false
+      "verified": true
     },
     "mechanisms.turret_traverse": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "mechanisms.turret_traverse.traverse_deg": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta (360° traverse)",
-      "verified": false
+      "verified": true
     },
     "mechanisms.turret_traverse.elevation_deg": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
-      "verified": false
+      "verified": true
     },
     "mechanisms.gun_recoil": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta (howitzer)",
-      "verified": false
+      "verified": true
     },
     "mechanisms.gun_recoil.recoil_m": {
       "source": "default",
-      "verified": false
+      "verified": true
     }
   },
-  "status": "draft",
-  "updated": "2026-11-16",
-  "revision": 3
+  "status": "modeled",
+  "updated": "2026-11-19",
+  "revision": 24
 }

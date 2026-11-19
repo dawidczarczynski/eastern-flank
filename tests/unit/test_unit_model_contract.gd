@@ -12,6 +12,7 @@ const KINDS := {
 	&"m1a2_sepv3": &"tank",
 	&"t72b3": &"tank",
 	&"k9_thunder": &"sp_artillery",
+	&"2s19_msta_s": &"sp_artillery",
 	&"pl_mech_infantry": &"squad",
 	&"ru_motor_rifle": &"squad",
 }
