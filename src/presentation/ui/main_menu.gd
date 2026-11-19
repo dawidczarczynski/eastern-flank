@@ -35,6 +35,10 @@ var _devtools: Button  # main page, debug only: opens the devtools page
 var _devtools_page: Control
 var _devtools_title: Label
 var _arena_button: Button
+var _quality_button: Button  # devtools: cycles the arena's graphics quality (Auto / LOW / HIGH)
+var _scale_button: Button
+var _look_button: Button
+var _fps_button: Button
 var _devtools_back: Button
 var _settings: Button
 var _backdrop: MenuBackdrop
@@ -353,8 +357,43 @@ func _build_devtools(column: VBoxContainer) -> void:
 	_devtools_title = MenuStyle.label("", HudTheme.display(700, 4), 28, UiPalette.HUD_TEXT)
 	column.add_child(_devtools_title)
 	_arena_button = _add_button(column, _on_arena_pressed)
+	# Switches of the arena (TASK-186b): kept in DevTunables, they count once the arena is open.
+	_quality_button = _add_button(column, _on_quality_pressed)
+	_scale_button = _add_button(column, _on_scale_pressed)
+	_look_button = _add_button(column, _on_look_pressed)
+	_fps_button = _add_button(column, _on_fps_pressed)
+	add_child(FpsOverlay.new())
 	column.add_child(_spacer(10.0))
 	_devtools_back = _add_button(column, show_page.bind("main"))
+
+
+func _on_quality_pressed() -> void:
+	DevTunables.quality_choice = ((DevTunables.quality_choice + 1) % 3) as DevTunables.QualityChoice
+	_refresh_devtools_switches()
+
+
+func _on_scale_pressed() -> void:
+	DevTunables.true_size = not DevTunables.true_size
+	_refresh_devtools_switches()
+
+
+func _on_look_pressed() -> void:
+	var looks: Array = LookPreset.PRESETS.keys()
+	DevTunables.look_name = looks[(looks.find(DevTunables.look_name) + 1) % looks.size()]
+	_refresh_devtools_switches()
+
+
+func _on_fps_pressed() -> void:
+	DevTunables.fps_overlay = not DevTunables.fps_overlay
+	_refresh_devtools_switches()
+
+
+func _refresh_devtools_switches() -> void:
+	var quality_names := ["AUTO", "LOW", "HIGH"]
+	_quality_button.text = "QUALITY: %s" % quality_names[DevTunables.quality_choice]
+	_scale_button.text = "SCALE: %s" % ("TRUE SIZE" if DevTunables.true_size else "CURRENT")
+	_look_button.text = "LOOK: %s" % String(DevTunables.look_name).to_upper()
+	_fps_button.text = "FPS OVERLAY: %s" % ("ON" if DevTunables.fps_overlay else "OFF")
 
 
 func _on_arena_pressed() -> void:
@@ -411,6 +450,7 @@ func refresh_texts() -> void:
 		_devtools.text = "DEVTOOLS"
 		_devtools_title.text = "DEVTOOLS"
 		_arena_button.text = "ARENA"
+		_refresh_devtools_switches()
 		_devtools_back.text = "‹ " + tr("Back").to_upper()
 	_scenario_title.text = tr("Start scenario").to_upper()
 	for scenario_name: String in _scenario_buttons:

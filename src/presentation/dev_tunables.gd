@@ -6,6 +6,8 @@ extends RefCounted
 ## change affects the next attack. Overrides only count while `active` (the arena sets it on enter
 ## and clears it on leave), so the normal battle and the unit catalog keep the constants.
 
+enum QualityChoice { AUTO, LOW, HIGH }
+
 const BARRAGE_ELEV_MIN := &"barrage_elev_min"
 const BARRAGE_ELEV_MAX := &"barrage_elev_max"
 const BARRAGE_FULL_DISTANCE := &"barrage_full_distance"
@@ -67,11 +69,69 @@ const SPECS := {
 	&"camera_shake": {"label": "Camera shake", "def": 0.03, "min": 0.0, "max": 0.3, "step": 0.005},
 }
 
+## Look / performance switches (TASK-186b). Stored for the session like the tunables; the readers
+## below honour them only while `active`.
+const CAMERA_MIN_FACTOR := 0.5  # unlock camera distance: the minimum distance is halved ...
+const CAMERA_MAX_FACTOR := 2.0  # ... and the maximum doubled
+
 ## Overrides count only while this is true (set by the arena).
 static var active := false
 
+static var quality_choice := QualityChoice.AUTO
+static var true_size := false
+static var look_name: StringName = LookPreset.DEFAULT_PRESET
+static var grid_on := true
+static var fps_overlay := false
+static var unlock_camera := false
+
 static var _overrides := {}
 static var _slow_motion := 1.0
+
+
+## GraphicsQuality.Level forced by the switch while active, -1 = Auto (command line or detection).
+static func quality_override() -> int:
+	if not active:
+		return -1
+	match quality_choice:
+		QualityChoice.LOW:
+			return GraphicsQuality.Level.LOW
+		QualityChoice.HIGH:
+			return GraphicsQuality.Level.HIGH
+	return -1
+
+
+## VisualScale preset the arena should show (the default one outside the arena).
+static func scale_preset() -> StringName:
+	if active and true_size:
+		return VisualScale.TRUE_PRESET
+	return VisualScale.DEFAULT_PRESET
+
+
+## LookPreset the arena should show (the default one outside the arena).
+static func look_preset() -> StringName:
+	return look_name if active else LookPreset.DEFAULT_PRESET
+
+
+static func grid_enabled() -> bool:
+	return grid_on or not active
+
+
+static func camera_min_distance() -> float:
+	if active and unlock_camera:
+		return CameraMath.MIN_DISTANCE * CAMERA_MIN_FACTOR
+	return CameraMath.MIN_DISTANCE
+
+
+static func camera_max_distance() -> float:
+	if active and unlock_camera:
+		return CameraMath.MAX_DISTANCE * CAMERA_MAX_FACTOR
+	return CameraMath.MAX_DISTANCE
+
+
+## Puts the stored scale and look into the global presets (arena enter and every live change).
+static func apply_look() -> void:
+	VisualScale.apply(scale_preset())
+	LookPreset.apply(look_preset())
 
 
 ## Keys in slider order.
@@ -130,10 +190,15 @@ static func slow_motion() -> float:
 static func activate() -> void:
 	active = true
 	Engine.time_scale = _slow_motion
+	if true_size or look_name != LookPreset.DEFAULT_PRESET:
+		apply_look()
 
 
 ## The arena leaves: overrides are ignored again and time runs at normal speed (the values
 ## themselves are remembered for the session).
 static func deactivate() -> void:
+	var changed := true_size or look_name != LookPreset.DEFAULT_PRESET
 	active = false
 	Engine.time_scale = 1.0
+	if changed:
+		apply_look()  # inactive: back to the defaults

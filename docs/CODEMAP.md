@@ -164,6 +164,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `FireSupportModel` – Pure view model of the fire-support button (TASK-099b): the counter, why the button is of… (`fire_support_model.gd`)
 - `FlashFx` – A short, bright flash (TASK-074): an additive, unshaded ball that expands and fades over… (`flash_fx.gd`)
 - `FoliageMeshes` – Pure procedural foliage geometry (TASK-028): lumpy lobed deciduous crowns, jagged tiered (`foliage_meshes.gd`)
+- `FpsOverlay` – Devtools FPS overlay (TASK-186b): a corner label "NN FPS  X.X ms", refreshed at most 4 ti… (`fps_overlay.gd`)
 - `FramePacing` – Frame-rate caps (TASK-073). A turn-based game must not burn the GPU/CPU: the focused wind… (`frame_pacing.gd`)
 - `GameSettings` – User settings kept between runs in `user://settings.cfg` (TASK-084: the language). Only t… (`game_settings.gd`)
 - `GraphicsQuality` – Graphics quality presets (TASK-050). LOW switches the expensive effects off on slow rende… (`graphics_quality.gd`)

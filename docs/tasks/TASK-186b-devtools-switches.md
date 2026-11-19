@@ -1,6 +1,6 @@
 # TASK-186b: Devtools: look / performance switches and arena unit editor
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-186a
 - **Sections**: docs/TOOLS.md
@@ -45,4 +45,10 @@ none (developer tool).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `DevTunables` (src/presentation/dev_tunables.gd) got the switches: `quality_choice` (Auto / LOW / HIGH), `true_size`, `look_name`, `grid_on`, `fps_overlay`, `unlock_camera`, with readers `quality_override()`, `scale_preset()`, `look_preset()`, `grid_enabled()`, `camera_min_distance()`, `camera_max_distance()` that return today's values while not `active`. `activate()` / `deactivate()` apply / restore the global `VisualScale` and `LookPreset` (only when a non-default is stored).
+- Camera: unlocking halves `CameraMath.MIN_DISTANCE` (7 -> 3.5) and doubles `MAX_DISTANCE` (46 -> 92); `CameraMath.zoom` and `CameraRig.set_view` read the limits from the store. Switching the unlock off does not pull an already far camera back until the next zoom.
+- `BattleController._setup_graphics_quality` takes the store's override before `--quality=`.
+- Live apply: `ArenaController.rebuild_view()` re-applies look / scale, re-runs the quality setup, rebuilds the `MapView` and recreates the unit views (units, HP and camera stay; selection is dropped). Not re-created: the salvo FX pool and muzzle flash keep the quality they were built with (their particle switch changes on the next arena entry).
+- Panel: *View* section (quality, scale, look pickers; grid, FPS overlay, unlock camera boxes) and *Selected unit* editor (HP / moves spin boxes, dug-in / ambush boxes; disabled without a selection; edits go to the state directly like Place, then `UnitView.refresh_label` + HUD refresh). `MapView.set_grid_auto` added.
+- `FpsOverlay` (src/presentation/fps_overlay.gd): "NN FPS  X.X ms" top right, real-time refresh every 250 ms, visible while `DevTunables.fps_overlay`; added to the arena and, in a `--debug` run, to the main menu. DEVTOOLS page: four plates (quality, scale, look, FPS overlay) that cycle the store; they count once the arena opens.
+- Tests: `tests/unit/test_dev_switches.gd`. Not verified in a running window (headless cannot draw): rebuild in place, panel layout, the menu overlay.

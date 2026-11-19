@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name MapView
 extends Node3D
 ## Map view: builds one continuous terrain mesh (heights from TerrainSurface, per-vertex ground
@@ -831,6 +832,12 @@ func cycle_grid_mode() -> bool:
 	_grid_auto = not _grid_auto
 	_update_grid()
 	return _grid_auto
+
+
+## Sets the grid mode (auto on / off) without toggling; a view setting only.
+func set_grid_auto(on: bool) -> void:
+	_grid_auto = on
+	_update_grid()
 
 
 func _update_grid() -> void:

@@ -91,7 +91,7 @@ static func camera_offset_at_pitch(yaw: float, d: float, p: float) -> Vector3:
 ## Positive notches zoom out, negative zoom in; the result is clamped.
 static func zoom(d: float, notches: float) -> float:
 	var factor := pow(ZOOM_OUT_FACTOR, notches) if notches > 0.0 else pow(ZOOM_IN_FACTOR, -notches)
-	return clampf(d * factor, MIN_DISTANCE, MAX_DISTANCE)
+	return clampf(d * factor, DevTunables.camera_min_distance(), DevTunables.camera_max_distance())
 
 
 ## XZ change of the target for a screen drag (grab semantics: the ground follows the cursor).

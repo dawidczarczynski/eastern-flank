@@ -214,7 +214,9 @@ func _notification(what: int) -> void:
 ## Picks LOW/HIGH (`--quality=` user argument, else detected from renderer and adapter) and applies
 ## the environment, sun and viewport switches this scene owns.
 func _setup_graphics_quality() -> void:
-	var override := GraphicsQuality.parse_override(OS.get_cmdline_user_args())
+	var override := DevTunables.quality_override()
+	if override < 0:
+		override = GraphicsQuality.parse_override(OS.get_cmdline_user_args())
 	var adapter := RenderingServer.get_video_adapter_name()
 	var level: GraphicsQuality.Level
 	var source: String

@@ -28,6 +28,12 @@ var _effects_box: VBoxContainer
 var _effects_scroll: ScrollContainer
 var _effects_toggle: Button
 var _sliders := {}  # DevTunables key (or &"slow_motion") -> {slider, value label}
+var _hp_spin: SpinBox
+var _moves_spin: SpinBox
+var _dug_check: CheckBox
+var _ambush_check: CheckBox
+var _editor_box: VBoxContainer
+var _switch_boxes := {}  # &"grid" / &"fps" / &"camera" -> CheckBox
 
 
 ## Flat plains of ARENA_WIDTH x ARENA_HEIGHT tiles, two sides, no units, no victory conditions.
@@ -51,6 +57,8 @@ func _ready() -> void:
 	await super._ready()
 	if is_built:
 		_build_panel()
+		add_child(FpsOverlay.new())
+		_apply_switches()
 
 
 ## Leaving the arena: tunables stop counting and the slow motion ends.
@@ -218,6 +226,144 @@ func _after_edit() -> void:
 	_sync_panel()
 
 
+## The unit editor's target: the selected unit, null without a selection.
+func _edited_unit() -> Unit:
+	if _sim == null:
+		return null
+	return _sim.state.get_unit(_selected_unit_id)
+
+
+## Unit editor (bench only, nothing recorded, like Place / Remove): HP clamped to 1..max HP.
+func set_selected_hp(value: int) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	unit.hp = clampi(value, 1, unit.definition.max_hp)
+	var view: UnitView = _unit_views.get(unit.id)
+	if view != null:
+		view.set_shown_hp(unit.hp)
+	_finish_unit_edit()
+
+
+## Moves left clamped to 0..the unit's move points.
+func set_selected_moves(value: int) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	unit.moves_left = clampi(value, 0, unit.definition.move_points)
+	_finish_unit_edit()
+
+
+func set_selected_dug(on: bool) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	unit.dug = on
+	_finish_unit_edit()
+
+
+func set_selected_ambush(on: bool) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	unit.ambush = on
+	_finish_unit_edit()
+
+
+func _finish_unit_edit() -> void:
+	if not is_built:
+		return
+	var view: UnitView = _unit_views.get(_selected_unit_id)
+	if view != null:
+		view.refresh_label()
+	_after_edit()
+
+
+## The selection changed: the editor follows it.
+func _refresh_selection_ui() -> void:
+	super()
+	_sync_editor()
+
+
+func _sync_editor() -> void:
+	if _hp_spin == null:
+		return
+	var unit := _edited_unit()
+	_editor_box.modulate.a = 1.0 if unit != null else 0.45
+	for control: Control in [_hp_spin, _moves_spin, _dug_check, _ambush_check]:
+		if control is SpinBox:
+			(control as SpinBox).editable = unit != null
+		else:
+			(control as CheckBox).disabled = unit == null
+	if unit == null:
+		return
+	_hp_spin.max_value = unit.definition.max_hp
+	_moves_spin.max_value = unit.definition.move_points
+	_hp_spin.set_value_no_signal(unit.hp)
+	_moves_spin.set_value_no_signal(unit.moves_left)
+	_dug_check.set_pressed_no_signal(unit.dug)
+	_ambush_check.set_pressed_no_signal(unit.ambush)
+
+
+## Quality, scale and look changed: re-reads the switches and rebuilds the map and the unit views
+## in place (placed units, their HP and the camera stay). Selection is dropped.
+func rebuild_view() -> void:
+	DevTunables.apply_look()
+	_setup_graphics_quality()
+	_wrecks.quality = quality
+	_select(-1)
+	for view: UnitView in _unit_views.values():
+		view.queue_free()
+	_unit_views.clear()
+	_map_view.build(_sim.state.grid)
+	for unit: Unit in _sim.state.units.values():
+		_create_unit_view(unit)
+	_apply_switches()
+	_after_edit()
+
+
+## Grid and the other view switches of the store onto the scene.
+func _apply_switches() -> void:
+	_map_view.set_grid_auto(DevTunables.grid_on)
+	if _hud != null:
+		_hud.action_bar().set_active(BattleHud.ACTION_GRID, DevTunables.grid_on)
+	for key: StringName in _switch_boxes:
+		var box: CheckBox = _switch_boxes[key]
+		match key:
+			&"grid":
+				box.set_pressed_no_signal(DevTunables.grid_on)
+			&"fps":
+				box.set_pressed_no_signal(DevTunables.fps_overlay)
+			&"camera":
+				box.set_pressed_no_signal(DevTunables.unlock_camera)
+
+
+func _on_quality_picked(index: int) -> void:
+	DevTunables.quality_choice = index as DevTunables.QualityChoice
+	rebuild_view()
+
+
+func _on_scale_picked(index: int) -> void:
+	DevTunables.true_size = index == 1
+	rebuild_view()
+
+
+func _on_look_picked(index: int) -> void:
+	DevTunables.look_name = LookPreset.PRESETS.keys()[index]
+	rebuild_view()
+
+
+func _on_switch_toggled(on: bool, key: StringName) -> void:
+	match key:
+		&"grid":
+			DevTunables.grid_on = on
+		&"fps":
+			DevTunables.fps_overlay = on
+		&"camera":
+			DevTunables.unlock_camera = on
+	_apply_switches()
+
+
 func _picked_definition() -> UnitDefinition:
 	if _unit_picker == null or _unit_picker.item_count == 0:
 		return null
@@ -321,12 +467,110 @@ func _build_panel() -> void:
 	_fire_again_button.focus_mode = Control.FOCUS_NONE
 	_fire_again_button.pressed.connect(fire_again)
 	box.add_child(_fire_again_button)
+	_build_editor(box)
+	_build_view_switches(box)
 	_build_effects(box)
 	_status = Label.new()
 	box.add_child(_status)
 	$HUD.add_child(panel)
 	_fill_units()
 	_sync_panel()
+
+
+## Unit editor: HP and moves spin boxes, dug-in and ambush check boxes for the selected unit.
+func _build_editor(box: VBoxContainer) -> void:
+	_editor_box = VBoxContainer.new()
+	box.add_child(_editor_box)
+	var title := Label.new()
+	title.text = "Selected unit"
+	_editor_box.add_child(title)
+	_hp_spin = _add_spin(_editor_box, "HP", set_selected_hp)
+	_moves_spin = _add_spin(_editor_box, "Moves", set_selected_moves)
+	_dug_check = _add_check(_editor_box, "Dug in", set_selected_dug)
+	_ambush_check = _add_check(_editor_box, "Ambush", set_selected_ambush)
+	_sync_editor()
+
+
+func _add_spin(parent: Control, label: String, handler: Callable) -> SpinBox:
+	var row := HBoxContainer.new()
+	var title := Label.new()
+	title.text = label
+	title.custom_minimum_size = Vector2(52.0, 0.0)
+	var spin := SpinBox.new()
+	spin.min_value = 0 if label == "Moves" else 1
+	spin.max_value = 99
+	spin.step = 1
+	spin.value_changed.connect(func(value: float) -> void: handler.call(int(value)))
+	row.add_child(title)
+	row.add_child(spin)
+	parent.add_child(row)
+	return spin
+
+
+func _add_check(parent: Control, label: String, handler: Callable) -> CheckBox:
+	var check := CheckBox.new()
+	check.text = label
+	check.focus_mode = Control.FOCUS_NONE
+	check.toggled.connect(func(on: bool) -> void: handler.call(on))
+	parent.add_child(check)
+	return check
+
+
+## Collapsible "View" section: quality, unit scale, look, grid, FPS overlay, camera limits.
+func _build_view_switches(box: VBoxContainer) -> void:
+	var toggle := Button.new()
+	toggle.toggle_mode = true
+	toggle.focus_mode = Control.FOCUS_NONE
+	toggle.text = "View >"
+	box.add_child(toggle)
+	var inner := VBoxContainer.new()
+	inner.visible = false
+	box.add_child(inner)
+	toggle.toggled.connect(
+		func(open: bool) -> void:
+			inner.visible = open
+			toggle.text = "View v" if open else "View >"
+	)
+	_add_picker(
+		inner, "Quality", ["Auto", "LOW", "HIGH"], DevTunables.quality_choice, _on_quality_picked
+	)
+	_add_picker(
+		inner,
+		"Scale",
+		["Current", "True size"],
+		1 if DevTunables.true_size else 0,
+		_on_scale_picked
+	)
+	var looks: Array = LookPreset.PRESETS.keys()
+	var names: Array = []
+	for look in looks:
+		names.append(String(look))
+	_add_picker(inner, "Look", names, looks.find(DevTunables.look_name), _on_look_picked)
+	for entry in [
+		[&"grid", "Grid"], [&"fps", "FPS overlay"], [&"camera", "Unlock camera distance"]
+	]:
+		var key: StringName = entry[0]
+		var check := _add_check(inner, entry[1], _on_switch_toggled.bind(key))
+		_switch_boxes[key] = check
+	_apply_switches()
+
+
+func _add_picker(
+	parent: Control, label: String, items: Array, selected: int, handler: Callable
+) -> void:
+	var row := HBoxContainer.new()
+	var title := Label.new()
+	title.text = label
+	title.custom_minimum_size = Vector2(52.0, 0.0)
+	var picker := OptionButton.new()
+	picker.focus_mode = Control.FOCUS_NONE
+	for item in items:
+		picker.add_item(item)
+	picker.select(selected)
+	picker.item_selected.connect(handler)
+	row.add_child(title)
+	row.add_child(picker)
+	parent.add_child(row)
 
 
 ## The collapsible "Effects" section: slow motion and one slider per DevTunables key.

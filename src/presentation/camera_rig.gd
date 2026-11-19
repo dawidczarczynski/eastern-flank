@@ -110,10 +110,10 @@ func set_target(target: Vector2) -> void:
 func set_view(target: Vector2, yaw: float, distance: float) -> void:
 	_target = target
 	_yaw = yaw
-	var lowest := CameraMath.MIN_DISTANCE
+	var lowest := DevTunables.camera_min_distance()
 	if _min_distance_override > 0.0:
 		lowest = minf(lowest, _min_distance_override)
-	_distance = clampf(distance, lowest, CameraMath.MAX_DISTANCE)
+	_distance = clampf(distance, lowest, DevTunables.camera_max_distance())
 	_apply()
 
 
