@@ -71,15 +71,15 @@ In a battle fought from the operational map each side has a number of fire-suppo
 | T-72B3 (Russia) | 8 | 5 | 6 | 4 | 2.0 km (8 hex), max 3.0 km | a T-72 tank |
 | Homar-K (Poland) | 6 | 3 | 6 | 1 | 70 km (whole map), min 750 m | a Homar-K truck with a turning rocket launcher |
 | 9K57 Uragan (Russia) | 6 | 3 | 6 | 1 | 30 km (whole map), min 750 m | a BM-27 truck with sixteen rocket tubes over the cab |
-| 2S19 Msta-S (Russia, Belarus) | 8 | 3 | 5 | 2 | 21.6 km (86 hexes), max 24.7 km, min 750 m | a tracked self-propelled howitzer with a long 152 mm gun in a turret |
-| K9 Thunder (Poland) | 8 | 3 | 5 | 2 | 35 km (whole map), max 40 km, min 750 m | a tracked self-propelled howitzer with a long gun in a turret |
+| 2S19 Msta-S (Russia, Belarus) | 8 | 3 | 6 | 2 | 21.6 km (86 hexes), max 24.7 km, min 750 m | a tracked self-propelled howitzer with a long 152 mm gun in a turret |
+| K9 Thunder (Poland) | 8 | 3 | 6 | 2 | 35 km (whole map), max 40 km, min 750 m | a tracked self-propelled howitzer with a long gun in a turret |
 
 - **HP**: the unit's strength – how much damage it can take, and how many shots it fires (see Combat). Every unit is a company: a unit that has lost HP also fights worse, because it fires fewer shots. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
 - **Movement**: movement points per turn (see Movement).
 - **Attack** / **Defense**: used in the damage calculation (see Combat).
 - **Range**: how far away the unit can attack, in metres or kilometres (one hex is 250 m). Out to the **effective range** the weapon hits at full chance; beyond it the hit chance falls steadily to half at the **maximum range**, the farthest it can fire at all (see Combat). Artillery (rocket and howitzer) also has a **minimum range** of 750 m (3 hexes) and cannot fire at closer targets.
 
-Roles in short: **infantry squads** are tough and slow but barely scratch a tank; **tanks** are fast, well armoured and hit hard – the Abrams is stronger and tougher than the T-72B3, which is why Russia brings two; **artillery** (rocket and howitzer) hits from a distance (it reaches the whole map, never targets closer than 3 hexes and needs no line of sight) but dies quickly if the enemy reaches it – the **K9 Thunder** is a tracked howitzer that fires one heavy shell instead of a rocket salvo, so it hits a little weaker than the Homar-K, but it is tougher (8 HP, Defense 2). The two squads have the same stats.
+Roles in short: **infantry squads** are tough and slow but barely scratch a tank; **tanks** are fast, well armoured and hit hard – the Abrams is stronger and tougher than the T-72B3, which is why Russia brings two; **artillery** (rocket and howitzer) hits from a distance (it reaches the whole map, never targets closer than 3 hexes and needs no line of sight) but dies quickly if the enemy reaches it – the **K9 Thunder** is a tracked howitzer that fires a barrage of three heavy shells instead of a rocket salvo, hits as hard as the Homar-K and is tougher (8 HP, Defense 2). The two squads have the same stats.
 
 Every unit has a small tag above it: a coloured tab for its side (blue for Poland, red for Russia), a short name – **INF** for the infantry squads (PIECH in the Polish version), the real designation for vehicles (**M1A2**, **HOMAR**, **T-72B3**, **BM-27**) – and an HP bar that turns from green to yellow to red as the unit loses HP.
 

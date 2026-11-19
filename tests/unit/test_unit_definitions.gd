@@ -8,8 +8,8 @@ const TABLE := {
 	&"m1a2_sepv3": ["M1A2 SEPv3 Abrams", "M1A2", &"tank", &"tracked", 10, 5, 7, 4],
 	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4],
 	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1],
-	&"k9_thunder": ["K9 Thunder", "K9", &"sp_artillery", &"tracked", 8, 3, 5, 2],
-	&"2s19_msta_s": ["2S19 Msta-S", "Msta-S", &"sp_artillery", &"tracked", 8, 3, 5, 2],
+	&"k9_thunder": ["K9 Thunder", "K9", &"sp_artillery", &"tracked", 8, 3, 6, 2],
+	&"2s19_msta_s": ["2S19 Msta-S", "Msta-S", &"sp_artillery", &"tracked", 8, 3, 6, 2],
 	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1],
 	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
 	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
@@ -148,9 +148,9 @@ func test_damage_spot_checks() -> void:
 	assert_eq(_damage(&"m1a2_sepv3", &"bm27_uragan"), 6)
 	assert_eq(_damage(&"homar_k", &"bm27_uragan"), 5)
 	assert_eq(_damage(&"ru_motor_rifle", &"m1a2_sepv3"), 1)
-	assert_eq(_damage(&"k9_thunder", &"ru_motor_rifle"), 2)
-	assert_eq(_damage(&"k9_thunder", &"t72b3"), 1)
-	assert_eq(_damage(&"k9_thunder", &"bm27_uragan"), 4)
+	assert_eq(_damage(&"k9_thunder", &"ru_motor_rifle"), 3)
+	assert_eq(_damage(&"k9_thunder", &"t72b3"), 2)
+	assert_eq(_damage(&"k9_thunder", &"bm27_uragan"), 5)
 	assert_eq(_damage(&"homar_k", &"k9_thunder"), 4)
 	assert_eq(_damage(&"t72b3", &"pl_mech_infantry"), 3)
 	assert_eq(_damage(&"m1a2_sepv3", &"ru_motor_rifle", Terrain.Type.HILLS), 2)
