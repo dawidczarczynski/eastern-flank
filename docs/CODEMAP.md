@@ -137,21 +137,15 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SupportRules` – Pure rules of outside support (TASK-121, GDD "Outside support"): when a package can be (`support_rules.gd`)
 - `SupportState` – Dynamic state of one support package in an operation (TASK-121). Changed only by (`support_state.gd`)
 
-## src/presentation/audio/
-
-- `AudioDirector` – Plays the battle sound (TASK-123). Presentation only: BattleController calls it at the sa… (`audio_director.gd`)
-- `AudioSalvoEffects` – Sound of a rocket salvo (TASK-123): one launch sound per rocket at its tube and an explos… (`audio_salvo_effects.gd`)
-- `SoundMix` – Audio buses and volume settings (TASK-123): Master -> SFX, UI, Ambient. Buses are created… (`sound_mix.gd`)
-- `SoundPlanner` – Pure rules of the battle sound (TASK-123): which sound id plays for which UI action, shot, (`sound_planner.gd`)
-
 ## src/presentation/
 
+- `ArenaController` – Dev arena (devtools, not part of the game): an empty flat battlefield where the human pla… (`arena_controller.gd`)
 - `BackdropCanopy` – Distant forest of the backdrop: a shell over the backdrop lattice (BackdropMesh) drawn by (`backdrop_canopy.gd`)
 - `BackdropHeights` – Ground height of the non-playable scenery ring around the map (TASK-052). Pure and (`backdrop_heights.gd`)
 - `BackdropMesh` – Lattice and mesh of the non-playable scenery ring around the playable terrain mesh (`backdrop_mesh.gd`)
 - `BackdropSurface` – TerrainSurface whose heights come from a callable (the drawn ground), so that ScatterPlan… (`backdrop_surface.gd`)
 - `BackdropTypes` – Which map terrain the backdrop ring around the playable mesh copies (TASK-052): the type… (`backdrop_types.gd`)
-- `battle_controller` – Battle scene: connects the simulation (GameSimulation) with the 3D view and player input. (`battle_controller.gd`)
+- `BattleController` – Battle scene: connects the simulation (GameSimulation) with the 3D view and player input. (`battle_controller.gd`)
 - `BattleOptions` – Debug options of the battle scene read from the user command line (after `--`), e.g. (`battle_options.gd`)
 - `BurntGround` – Scorched ground around a wreck: the planted scatter (bushes, trees, undergrowth, twigs) i… (`burnt_ground.gd`)
 - `CameraMath` – Pure camera formulas (no nodes), shared by CameraRig and tested in tests/unit/. (`camera_math.gd`)
@@ -235,6 +229,13 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `WreckLife` – Lifecycle bookkeeping of one wreck (TASK-065), no nodes: the smoke thins after the first (`wreck_life.gd`)
 - `WreckPlan` – Pure numbers of a destroyed vehicle's death playback and wreck (TASK-065): which units le… (`wreck_plan.gd`)
 - `WreckView` – The burnt-out hulk a destroyed vehicle leaves behind (TASK-065): the unit's body (already (`wreck_view.gd`)
+
+## src/presentation/audio/
+
+- `AudioDirector` – Plays the battle sound (TASK-123). Presentation only: BattleController calls it at the sa… (`audio_director.gd`)
+- `AudioSalvoEffects` – Sound of a rocket salvo (TASK-123): one launch sound per rocket at its tube and an explos… (`audio_salvo_effects.gd`)
+- `SoundMix` – Audio buses and volume settings (TASK-123): Master -> SFX, UI, Ambient. Buses are created… (`sound_mix.gd`)
+- `SoundPlanner` – Pure rules of the battle sound (TASK-123): which sound id plays for which UI action, shot, (`sound_planner.gd`)
 
 ## src/presentation/catalog/
 

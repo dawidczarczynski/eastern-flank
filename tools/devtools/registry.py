@@ -96,6 +96,14 @@ def _game(editor: bool) -> Callable[[Dict[str, Any]], List[str]]:
     return build
 
 
+def _arena(p: Dict[str, Any]) -> List[str]:
+    script = "tools/run_windows.sh" if p.get("build", "windows") == "windows" else "tools/run.sh"
+    argv = [script, "--scene=arena"]
+    if p["quality"] != "auto":
+        argv.append("--quality=" + p["quality"])
+    return argv
+
+
 BUILD = _param("build", "choice", "Godot", "windows", choices=lambda: ["windows", "linux"])
 
 COMMANDS: List[Dict[str, Any]] = [
@@ -164,6 +172,13 @@ COMMANDS: List[Dict[str, Any]] = [
                    _param("scenario", "choice", "scenario", "default_battle", choices=scenarios),
                    _param("quality", "choice", "quality", "auto", choices=lambda: ["auto", "high", "low"])],
         "argv": _game(editor=False),
+    },
+    {
+        "id": "arena", "group": "Game", "label": "Arena", "script": "tools/run_windows.sh / tools/run.sh --scene=arena",
+        "description": "Dev bench: an empty flat map where you place units of both sides (keys 1-3, Tab) and command them freely",
+        "exclusive": False,
+        "params": [BUILD, _param("quality", "choice", "quality", "auto", choices=lambda: ["auto", "high", "low"])],
+        "argv": _arena,
     },
     {
         "id": "editor", "group": "Game", "label": "Godot editor", "script": "tools/run_windows.sh --editor", "description": "Open the project in the editor",

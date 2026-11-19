@@ -1,0 +1,38 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/presentation/arena_controller.gd" id="1_battle"]
+[ext_resource type="Script" path="res://src/presentation/map_view.gd" id="2_map"]
+[ext_resource type="Script" path="res://src/presentation/camera_rig.gd" id="3_camera"]
+[ext_resource type="Environment" path="res://assets/environments/battle_environment.tres" id="4_env"]
+
+[node name="Arena" type="Node3D"]
+script = ExtResource("1_battle")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("4_env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.6141, 0.4847, -0.6224, 0, 0.7886, 0.6143, 0.789, -0.3773, 0.4844, 0, 10, 0)
+light_color = Color(1, 0.93333334, 0.8666667, 1)
+light_energy = 1.1
+light_angular_distance = 1.0
+shadow_blur = 1.2
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.0
+directional_shadow_max_distance = 80.0
+
+[node name="MapView" type="Node3D" parent="."]
+script = ExtResource("2_map")
+
+[node name="Units" type="Node3D" parent="."]
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("3_camera")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 40.0
+near = 0.1
+far = 220.0
+
+[node name="HUD" type="CanvasLayer" parent="."]

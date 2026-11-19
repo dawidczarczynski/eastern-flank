@@ -8,6 +8,7 @@ const ScreenshotOptions := preload("res://tools/screenshot_options.gd")
 const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const PerfProfile := preload("res://tools/perf_profile.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
+const ARENA_SCENE_PATH := "res://scenes/battle/arena.tscn"
 const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
 const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
 const STAFF_MAP_SCENE_PATH := "res://scenes/operational/staff_map.tscn"
@@ -76,12 +77,18 @@ func _initialize() -> void:
 			scene_path = STAFF_MAP_SCENE_PATH
 		"", "battle":
 			pass
+		"arena":
+			scene_path = ARENA_SCENE_PATH
 		_:
 			_fail(
-				"unknown SCREENSHOT_SCENE '%s' (battle, menu, catalog or staff_map)" % scene_name, 2
+				(
+					"unknown SCREENSHOT_SCENE '%s' (battle, menu, catalog, staff_map or arena)"
+					% scene_name
+				),
+				2
 			)
 			return
-	_is_battle = scene_path == SCENE_PATH
+	_is_battle = scene_path == SCENE_PATH or scene_path == ARENA_SCENE_PATH
 	_is_staff_map = scene_path == STAFF_MAP_SCENE_PATH
 	var scene: PackedScene = load(scene_path)
 	if scene == null:
@@ -123,6 +130,12 @@ func _process(_delta: float) -> bool:
 		var wreck_unit := OS.get_environment("SCREENSHOT_WRECK")
 		if wreck_unit.is_valid_int():  # early, so the smoke has the other frames to rise
 			_battle.call("debug_wreck_demo", wreck_unit.to_int())
+		for spec in OS.get_environment("SCREENSHOT_ARENA").split(",", false):
+			var parts := spec.split(":")  # <owner>:<unit type id>:<col>:<row>
+			if parts.size() == 4 and _battle.has_method("debug_place"):
+				_battle.call(
+					"debug_place", parts[0].to_int(), parts[1], parts[2].to_int(), parts[3].to_int()
+				)
 		var salvo := OS.get_environment("SCREENSHOT_SALVO").split(",")
 		if salvo.size() == 2 and salvo[0].is_valid_int() and salvo[1].is_valid_int():
 			_battle.call("debug_salvo", salvo[0].to_int(), salvo[1].to_int())
@@ -333,6 +346,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## unit's tile (TASK-058), without animation.
 ## SCREENSHOT_WRECK=<unit id> destroys that unit's view on the first frame (TASK-065: burnt hulk,
 ## turret askew, smoke; use --frames=200 or more to see the column).
+## SCREENSHOT_SCENE=arena SCREENSHOT_ARENA=<owner>:<unit type id>:<col>:<row>,... places units on
+## the dev arena (unit ids 1, 2, ... in that order), e.g. SCREENSHOT_SCENE=arena
+## SCREENSHOT_ARENA=0:k9_thunder:3:5,1:2s19_msta_s:9:5 SCREENSHOT_SALVO=1,2.
 ## SCREENSHOT_SALVO=<attacker id>,<target id> plays that rocket launcher's volley at the target
 ## view-only from the first frame (TASK-074: aim, ripple salvo, HP steps; no command, no state
 ## change); --frames=N picks the moment (≈ N / 60 s in, the aim takes 2-3 s before the first
