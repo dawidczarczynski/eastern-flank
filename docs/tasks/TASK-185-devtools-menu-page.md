@@ -1,6 +1,6 @@
 # TASK-185: Devtools page in the main menu (debug runs)
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: TASK-184
 - **Sections**: docs/TOOLS.md
@@ -28,7 +28,7 @@ none (developer tool).
 
 ## Out of scope
 
-- More content on the page: TASK-186.
+- More content on the page: TASK-186a, TASK-186b.
 
 ## Implementation notes
 
