@@ -152,7 +152,8 @@ func _front_from_normalisation(path: String) -> String:
 	return ""
 
 
-## The visible triangles of the game model in metres (model space is 1 unit = 10 m, faces +X).
+## The visible triangles of the game model in metres (model space is the model's own
+## 1 / UnitModels.model_units_per_metre() m per unit, faces +X).
 func _model_mesh(unit_id: String, faction_id: String) -> Dictionary:
 	var faction := FactionRegistry.get_faction(StringName(faction_id))
 	var model_root := UnitModels.build(StringName(unit_id), 0, faction)
@@ -163,9 +164,8 @@ func _model_mesh(unit_id: String, faction_id: String) -> Dictionary:
 	var indices := PackedInt32Array()
 	_collect(model_root, Transform3D.IDENTITY, positions, indices)
 	model_root.free()
-	var to_metres := Transform3D(
-		Basis.from_scale(Vector3.ONE * UnitModels.METERS_PER_UNIT), Vector3.ZERO
-	)
+	var metres_per_unit := 1.0 / UnitModels.model_units_per_metre(StringName(unit_id))
+	var to_metres := Transform3D(Basis.from_scale(Vector3.ONE * metres_per_unit), Vector3.ZERO)
 	return {"positions": to_metres * positions, "indices": indices}
 
 

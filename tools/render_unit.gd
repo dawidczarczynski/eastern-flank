@@ -106,7 +106,7 @@ func _run() -> void:
 
 
 func _print_result(out: String) -> void:
-	var aabb_m := _aabb.size * UnitModels.METERS_PER_UNIT
+	var aabb_m := _aabb.size / UnitModels.model_units_per_metre(StringName(_options["unit_id"]))
 	var meshes := _all_meshes(_model)
 	var triangles := 0
 	for instance in meshes:
