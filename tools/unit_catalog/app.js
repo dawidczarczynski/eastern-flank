@@ -463,9 +463,11 @@ function readiness(u) {
   const pos = (v) => typeof v === "number" && v > 0;
   const feats = (u.silhouette_features || []).filter((s) => s.trim());
   const views = referenceViews(u);
-  const hasImage = (u.images || []).some((i) => views.includes(i.view));
+  const hasGlb = !!(u.reference_glb && u.reference_glb.file);
+  const hasImage = hasGlb || (u.images || []).some((i) => views.includes(i.view));
+  const minFeats = hasGlb ? 1 : 3;
   const candidates = (u.image_candidates || []).filter((c) => views.includes(c.view)).length;
-  const imageLabel = isFoot(u) ? "A side, front or three-quarter photo of a soldier" : "A side or drawing image";
+  const imageLabel = (isFoot(u) ? "A side, front or three-quarter photo of a soldier" : "A side or drawing image") + " (or a reference GLB)";
   const dimItems = isFoot(u) ? [["Soldier height", pos(dims.height)]]
     : [["Height", pos(dims.height)], ["Width", pos(dims.width)], ["Hull length", pos(dims.hull_length)]];
   const critical = MODEL_CRITICAL.filter((p) => !p.startsWith("dimensions.") || !isFoot(u) || p === "dimensions.height");
@@ -477,7 +479,7 @@ function readiness(u) {
     ["Class", !!u.class],
     ["At least one operator", (u.operators || []).length >= 1],
     ...dimItems,
-    ["At least 3 silhouette features (" + feats.length + ")", feats.length >= 3],
+    ["At least " + minFeats + " silhouette feature" + (minFeats > 1 ? "s" : "") + " (" + feats.length + ")", feats.length >= minFeats],
     [hasImage || !candidates ? imageLabel : imageLabel + " (Download one of the " + candidates + " candidate(s) under Images)", hasImage],
   ].concat(critical.filter((p) => ((u.provenance || {})[p] || {}).verified === false).map((p) => ["Verify " + pretty(p.replace("dimensions.", "")) + " (AI value)", false]), mechItems);
 }
@@ -769,6 +771,55 @@ async function unitScreen(id) {
     showMechErrors(lastMechErrors);
   }
 
+  // ---- reference GLB (Meshy model: the analysis renders and measures it; the file itself is not in git)
+  const glbBox = h("div");
+  const glbInput = h("input", { type: "file", accept: ".glb,model/gltf-binary", hidden: true });
+  glbInput.addEventListener("change", () => { const f = glbInput.files[0]; glbInput.value = ""; if (f) uploadGlb(f); });
+  async function uploadGlb(file) {
+    if (activeJob) return;
+    if (file.size > 200 * 1024 * 1024) { errBox.textContent = file.name + ": larger than 200 MB"; return; }
+    state.className = "savestate saving"; state.textContent = "uploading...";
+    try {
+      save.flush();
+      await chain;
+      const resp = await fetch("/api/units/" + encodeURIComponent(id) + "/reference_glb", { method: "PUT", headers: { "Content-Type": "model/gltf-binary" }, body: file });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok) { const err = new Error("upload failed"); err.errors = (data && data.errors) || [{ field: "request", message: "HTTP " + resp.status }]; err.status = resp.status; throw err; }
+      if (data.analysis_error) alert("Uploaded, but the analysis did not start: " + data.analysis_error);
+      route();
+    } catch (e) {
+      if (e.status === 409) { onConflict(); return; }
+      state.className = "savestate error"; state.textContent = "upload failed"; errBox.textContent = errText(e);
+    }
+  }
+  async function removeGlb() {
+    if (!confirm("Remove the reference GLB of this unit?")) return;
+    try { save.flush(); await chain; await api("DELETE", "/api/units/" + encodeURIComponent(id) + "/reference_glb"); route(); } catch (e) { errBox.textContent = errText(e); }
+  }
+  function renderGlb() {
+    glbBox.textContent = "";
+    const g = detail.glb;
+    glbBox.append(glbInput);
+    if (!g) {
+      glbBox.append(h("p", { class: "muted", text: "A GLB (e.g. from Meshy) can replace the photos: the analysis renders it in four views and measures the hull, deck and turret; /model-unit then builds from the measurements and finishes when the silhouettes match." }),
+        h("button", { class: "primary", text: "Upload GLB", disabled: !!activeJob, onclick: () => glbInput.click() }));
+      return;
+    }
+    glbBox.append(h("div", { class: "row" },
+      h("strong", { text: "reference.glb" }),
+      h("span", { class: g.file_present ? "muted" : "bad", text: g.file_present ? "(local file, not in git)" : "file missing on this computer - upload it again to re-run the analysis" }),
+      h("button", { class: "small", text: "Replace GLB", disabled: !!activeJob, onclick: () => glbInput.click() }),
+      h("button", { class: "small", text: "Re-run analysis", disabled: !!activeJob || !g.file_present, onclick: () => runJob("analyze") }),
+      h("button", { class: "small", text: "Remove", disabled: !!activeJob, onclick: removeGlb })));
+    if (!g.analysed) { glbBox.append(h("p", { class: "muted", text: activeJob ? "Analysis running - see the live log." : "Not analysed yet." })); return; }
+    const sheet = fileUrl(id, "reference_views/glb_sheet.png", bust);
+    glbBox.append(h("div", { class: "cards", style: "margin-top:10px" },
+      g.views.filter((v) => v !== "sheet").map((v) => h("div", { class: "card" }, h("img", { src: fileUrl(id, "reference_views/glb_" + v + ".png", bust), title: pretty(v), onclick: () => showLightbox(fileUrl(id, "reference_views/glb_" + v + ".png", bust)) }), h("div", { class: "muted", text: pretty(v) })))));
+    if (g.views.includes("sheet")) glbBox.append(h("p", {}, h("a", { href: sheet, target: "_blank", text: "Open the render sheet" })));
+    glbBox.append(h("p", { class: g.has_measurements ? "muted" : "warn-note", text: g.has_measurements ? "measurements.json written (commit it)." : "No measurements.json (the measurement step was skipped or failed)." }));
+    if (g.warnings.length) glbBox.append(h("div", { class: "warn-note" }, h("strong", { text: g.warnings.length + " warning(s):" }), h("ul", {}, g.warnings.map((w) => h("li", { text: w })))));
+  }
+
   // ---- images
   let uploadView = "side";
   const viewSel = h("select", { style: "width:auto", onchange: (e) => { uploadView = e.target.value; } }, catalog.views.map((v) => h("option", { value: v, text: pretty(v), selected: v === uploadView })));
@@ -942,6 +993,7 @@ async function unitScreen(id) {
         field("Skip (leave out, one per line)", linesIn(u, "skip", ""), false, "skip"),
         field("Camo note", areaIn(u, "camo_note", "How the real vehicle is painted / what to do with faction camo", 3), true, "camo_note"))),
     section("Mechanisms", mechBox),
+    section("Reference GLB", glbBox),
     section("Images", candBox, dropzone, imagesBox),
     reviewBox,
     section("Status & feedback", h("div", { class: "grid two" },
@@ -1031,7 +1083,7 @@ async function unitScreen(id) {
     h("div", { class: "editor-head" }, h("a", { href: "#/", text: "< Overview" }), h("h1", { text: u.real_name }), h("span", { class: "mono muted", text: id }),
       h("a", { class: "btn", href: "/files/units/" + encodeURIComponent(id) + "/unit.json", target: "_blank", text: "unit.json" }), state),
     errBox, h("div", { class: "layout" }, h("fieldset", { class: "lock", disabled: !!activeJob }, mainCol), side));
-  renderStatus(); renderFeatures(); renderMechanisms(); renderCandidates(); renderImages(); renderReview();
+  renderStatus(); renderFeatures(); renderMechanisms(); renderCandidates(); renderGlb(); renderImages(); renderReview();
 }
 
 route();

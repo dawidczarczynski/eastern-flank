@@ -47,6 +47,23 @@ out({"type": "result", "subtype": "success", "is_error": uid == "error_unit", "r
 '''
 
 
+# Behaves like tools/analyze_glb.sh: writes the reference views next to the GLB; "broken_glb" fails.
+FAKE_ANALYZE = r'''#!%(python)s
+import sys, os
+uid = sys.argv[1]
+print("normalising " + uid, flush=True)
+if uid == "broken_glb":
+    print("ERROR: no mesh in the GLB", flush=True)
+    sys.exit(1)
+udir = os.path.join("docs", "design", "units", "units", uid)
+os.makedirs(os.path.join(udir, "reference_views"), exist_ok=True)
+for v in ("side", "sheet"):
+    open(os.path.join(udir, "reference_views", "glb_%%s.png" %% v), "wb").write(b"\x89PNG")
+open(os.path.join(udir, "measurements.json"), "w").write('{"warnings": ["MEASUREMENT WARNING: x"]}')
+print("MEASUREMENT WARNING: x", flush=True)
+'''
+
+
 class JobsCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="unit_catalog_jobs_")
@@ -58,6 +75,13 @@ class JobsCase(unittest.TestCase):
         catalog.create_faction(self.root, base.FACTION)
         for uid in ("k2", "slow_unit", "crash_unit", "error_unit"):
             catalog.create_unit(self.root, uid.upper(), uid)
+        (self.repo / "tools").mkdir()
+        analyze = self.repo / "tools" / "analyze_glb.sh"
+        analyze.write_text(FAKE_ANALYZE % {"python": sys.executable})
+        analyze.chmod(analyze.stat().st_mode | stat.S_IXUSR)
+        for uid in ("with_glb", "broken_glb"):
+            catalog.create_unit(self.root, uid.upper(), uid)
+            catalog.add_glb_bytes(self.root, uid, base.GLB)
         self.claude = Path(self.tmp) / "fake_claude"
         self.claude.write_text(FAKE_CLAUDE % {"python": sys.executable})
         self.claude.chmod(self.claude.stat().st_mode | stat.S_IXUSR)
@@ -153,6 +177,30 @@ class TestJobManager(JobsCase):
         self.assertIn("WebSearch: k2 dimensions", [e["text"] for e in detail["log"]])
         unit = catalog.load_unit(self.root, "k2")
         self.assertEqual(unit["provenance"]["weight_t"]["verified"], False)
+
+    def test_analysis_job_runs_script_without_claude(self):
+        manager = jobs.JobManager(self.repo, self.root, None)
+        job = manager.submit("analyze", "with_glb")
+        self.assertTrue(manager.wait_idle(20))
+        detail = manager.get(job["id"])
+        self.assertEqual(detail["state"], "done", detail)
+        self.assertEqual(detail["report"]["views"], ["side", "sheet"])
+        self.assertEqual(detail["report"]["warnings"], ["MEASUREMENT WARNING: x"])
+        self.assertIn("normalising with_glb", [e["text"] for e in detail["log"]])
+        self.assertFalse(detail["resumable"])
+        manager.shutdown()
+
+    def test_analysis_job_failure_and_validation(self):
+        job = self.manager.submit("analyze", "broken_glb")
+        self.assertTrue(self.manager.wait_idle(20))
+        detail = self.manager.get(job["id"])
+        self.assertEqual(detail["state"], "failed")
+        self.assertIn("ERROR: no mesh in the GLB", detail["error"])
+        with self.assertRaises(catalog.CatalogError) as ctx:  # k2 has no GLB
+            self.manager.submit("analyze", "k2")
+        self.assertEqual(ctx.exception.status, 409)
+        with self.assertRaises(catalog.CatalogError):
+            self.manager.submit("analyze", "with_glb", "poland")  # only model jobs take a faction
 
     def test_log_since(self):
         job = self.manager.submit("research", "k2")
@@ -312,6 +360,30 @@ class TestJobsServer(JobsCase):
         self.assertEqual((status, resumed["resume_of"]), (201, job["id"]))
         self.manager.cancel(resumed["id"])
         self.assertTrue(self.manager.wait_idle(10))
+
+    def test_glb_upload_starts_analysis(self):
+        import http.client
+
+        def put(path, body, ctype):
+            conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=10)
+            conn.request("PUT", path, body=body, headers={"Content-Type": ctype})
+            resp = conn.getresponse()
+            raw = resp.read()
+            conn.close()
+            return resp.status, json.loads(raw.decode("utf-8"))
+
+        path = "/api/units/k2/reference_glb?note=Meshy"
+        self.assertEqual(put(path, base.GLB, "application/json")[0], 403)  # a GLB upload is not JSON
+        self.assertEqual(put("/api/units/k2/notes", base.GLB, "model/gltf-binary")[0], 403)
+        self.assertEqual(put(path, b"nope nope nope nope nope", "model/gltf-binary")[0], 400)
+        status, data = put(path, base.GLB, "model/gltf-binary")
+        self.assertEqual(status, 201, data)
+        self.assertEqual((data["unit"]["reference_glb"]["note"], data["analysis_job"]["kind"]), ("Meshy", "analyze"))
+        self.manager.wait_idle(20)
+        status, data = self.jreq("GET", "/api/units/k2")
+        self.assertEqual(data["glb"]["views"], ["side", "sheet"])
+        self.assertEqual(self.jreq("DELETE", "/api/units/k2/reference_glb")[0], 200)
+        self.assertIsNone(self.jreq("GET", "/api/units/k2")[1]["glb"])
 
     def test_job_post_needs_csrf_headers(self):
         import http.client

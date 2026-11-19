@@ -109,10 +109,14 @@ class Handler(BaseHTTPRequestHandler):
             raise catalog.CatalogError([{"field": "request", "message": "body must be a JSON object"}])
         return data
 
-    def _csrf_ok(self) -> bool:
-        """Mutating requests need a JSON content type and, if sent, a localhost Origin."""
+    def _is_glb_upload(self, method: str) -> bool:
+        parts = urlsplit(self.path).path.strip("/").split("/")
+        return method == "PUT" and len(parts) == 4 and parts[0] == "api" and parts[1] == "units" and parts[3] == "reference_glb"
+
+    def _csrf_ok(self, binary_upload: bool = False) -> bool:
+        """Mutating requests need a JSON content type (a GLB upload: model/gltf-binary) and, if sent, a localhost Origin."""
         ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
-        if ctype != "application/json":
+        if ctype != ("model/gltf-binary" if binary_upload else "application/json"):
             return False
         origin = self.headers.get("Origin")
         if origin is not None:
@@ -145,7 +149,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._host_ok():
             self._error(403, "forbidden host")
             return
-        if method != "GET" and not self._csrf_ok():
+        if method != "GET" and not self._csrf_ok(binary_upload=self._is_glb_upload(method)):
             self._error(403, "mutating requests need Content-Type: application/json and a localhost Origin")
             return
         split = urlsplit(self.path)
@@ -196,6 +200,11 @@ class Handler(BaseHTTPRequestHandler):
                 b.get("source_url", ""), b.get("license", ""), b.get("note", ""),
             )  # fmt: skip
             self._json(201, {"image": entry, **catalog.unit_detail(r, parts[1], self.screenshots)})
+        elif len(parts) == 3 and parts[0] == "units" and parts[2] == "reference_glb" and method == "PUT":
+            self._upload_glb(parts[1])
+        elif len(parts) == 3 and parts[0] == "units" and parts[2] == "reference_glb" and method == "DELETE":
+            catalog.delete_glb(r, parts[1])
+            self._json(200, self._unit(parts[1]))
         elif len(parts) == 4 and parts[0] == "units" and parts[2:] == ["images", "restore"] and method == "POST":
             self._json(200, {"report": self._restore(parts[1]), **self._unit(parts[1])})
         elif parts == ["images", "restore"] and method == "POST":
@@ -229,6 +238,26 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, catalog.save_faction(r, parts[1], self._body()))
         else:
             self._error(404, "unknown API route")
+
+    def _upload_glb(self, unit_id: str) -> None:
+        """PUT /api/units/<id>/reference_glb: the raw GLB as the body (metadata in the query), then the analysis job."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = -1
+        if length <= 0:
+            raise catalog.CatalogError([{"field": "data", "message": "empty body"}])
+        if length > catalog.MAX_GLB_BYTES:
+            raise catalog.CatalogError([{"field": "data", "message": "GLB too large"}], 413)
+        data = self.rfile.read(length)
+        q = {k: v[0] for k, v in self.query.items() if v}
+        entry = catalog.add_glb_bytes(self.root, unit_id, data, q.get("source_url", ""), q.get("license", ""), q.get("note", ""))
+        job, error = None, ""
+        try:
+            job = self.jobs.submit("analyze", unit_id)
+        except catalog.CatalogError as exc:
+            error = "; ".join(e["message"] for e in exc.errors)
+        self._json(201, {"glb": entry, "analysis_job": job, "analysis_error": error, **self._unit(unit_id)})
 
     def _unit(self, unit_id: str) -> Any:
         detail = catalog.unit_detail(self.root, unit_id, self.screenshots)

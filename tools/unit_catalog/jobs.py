@@ -6,6 +6,8 @@ the unit id and the render faction, never any part of the command line:
 - `research`: `/research-unit <id>` - the agent searches the web and writes `research.json`, which is then
   merged into unit.json (`catalog.apply_research`) as unverified values for the human to check.
 - `model`: `/model-unit <id> [--faction=<id>]` - builds or reworks the unit's 3D model.
+- `analyze`: `tools/analyze_glb.sh <id>` - no agent: normalises and renders the unit's reference GLB and
+  measures it (TASK-182); needs no Claude Code CLI.
 
 Each job runs with `--permission-mode dontAsk` and an allow-list of tools (nobody can answer a permission
 prompt), one job at a time (agents share the working tree and `tools/check.sh`).
@@ -31,7 +33,7 @@ import catalog  # noqa: E402
 import claude_cli  # noqa: E402
 from claude_cli import SESSION_RE, parse_stream_line  # noqa: E402,F401  (re-exported for the server and tests)
 
-KINDS = ("research", "model")
+KINDS = ("research", "model", "analyze")
 ACTIVE = ("queued", "running")
 MAX_LOG = 2000  # log entries kept per job
 MAX_JOBS = 50  # finished jobs kept in memory
@@ -60,10 +62,16 @@ def allowed_tools(kind: str, unit_id: str, repo_root: Path) -> List[str]:
                         base + "/tests/unit/test_unit_model*.gd"):  # fmt: skip
             tools.append("Edit(%s)" % pattern)
         for cmd in ("tools/check.sh", "tools/test.sh", "tools/lint.sh", "tools/render_unit.sh", "tools/screenshot.sh",
+                    "tools/analyze_glb.sh", "tools/compare_silhouette.sh",
                     "godot --headless", "git status", "git diff"):  # fmt: skip
             tools.append("Bash(%s:*)" % cmd)
         return tools
     raise catalog._err("kind", "must be one of %s" % ", ".join(KINDS))
+
+
+def analysis_command(unit_id: str, repo_root: Path) -> List[str]:
+    """argv of an `analyze` job: the fixed script and the validated unit id."""
+    return [str(Path(repo_root) / "tools" / "analyze_glb.sh"), catalog.check_id(unit_id)]
 
 
 def check_session(session_id: Any) -> str:
@@ -209,15 +217,23 @@ class JobManager:
             return job.detail(since)
 
     def submit(self, kind: Any, unit_id: Any, faction: Any = "") -> Dict[str, Any]:
-        if self.claude is None:
-            raise catalog._err("ai", self.status()["hint"], 503)
         if kind not in KINDS:
             raise catalog._err("kind", "must be one of %s" % ", ".join(KINDS))
+        if self.claude is None and kind != "analyze":
+            raise catalog._err("ai", self.status()["hint"], 503)
         faction = faction or ""
         if not isinstance(faction, str):
             raise catalog._err("faction", "must be a faction id")
-        build_command(self.claude, kind, unit_id, self.repo_root, faction)  # validates the ids
-        catalog.load_unit(self.catalog_root, unit_id)  # 404 for unknown units
+        if kind == "analyze":
+            if faction:
+                raise catalog._err("faction", "only model jobs take a faction")
+            analysis_command(unit_id, self.repo_root)  # validates the id
+            unit = catalog.load_unit(self.catalog_root, unit_id)
+            if not catalog.has_glb(unit) or not (catalog.unit_dir(self.catalog_root, unit_id) / catalog.GLB_FILE).is_file():
+                raise catalog._err("reference_glb", "upload a reference GLB first", 409)
+        else:
+            build_command(self.claude or "claude", kind, unit_id, self.repo_root, faction)  # validates the ids
+            catalog.load_unit(self.catalog_root, unit_id)  # 404 for unknown units
         if faction and not catalog.faction_path(self.catalog_root, faction).is_file():
             raise catalog._err("faction", "unknown faction %r" % faction)
         with self._lock:
@@ -391,7 +407,51 @@ class JobManager:
         except (OSError, AttributeError):
             proc.terminate()
 
+    def _run_analysis(self, job: Job) -> None:
+        """`tools/analyze_glb.sh`: stream its output into the log; its exit code decides the state."""
+        cmd = analysis_command(job.unit_id, self.repo_root)
+        job.add_log({"kind": "info", "text": "$ tools/analyze_glb.sh " + job.unit_id})
+        try:
+            proc = self._popen(cmd, cwd=str(self.repo_root), env=dict(os.environ), stdin=subprocess.DEVNULL,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                               start_new_session=True)  # fmt: skip
+        except OSError as exc:
+            job.error = "cannot start the analysis: %s" % exc
+            job.state = "failed"
+            return
+        with self._lock:
+            job.proc = proc
+            job.pid = getattr(proc, "pid", None)
+            if job.cancel_requested or job.stopping:
+                self._terminate(job)
+        last = ""
+        for line in proc.stdout:
+            text = line.rstrip()
+            if text:
+                last = text
+                with self._lock:
+                    job.add_log({"kind": "error" if "WARNING" in text or "ERROR" in text else "info", "text": text})
+            self._save(throttle=True)
+        code = proc.wait()
+        if job.stopping:
+            return
+        if job.cancel_requested:
+            job.state = "cancelled"
+            return
+        if code != 0:
+            job.error = "the analysis failed (exit code %d): %s" % (code, last)
+            job.state = "failed"
+            return
+        info = catalog.glb_info(self.catalog_root, catalog.load_unit(self.catalog_root, job.unit_id))
+        job.report = info
+        job.result = "Analysis done: %d view(s), %d warning(s)." % (len(info["views"]) if info else 0,
+                                                                     len(info["warnings"]) if info else 0)  # fmt: skip
+        job.state = "done"
+
     def _run(self, job: Job) -> None:
+        if job.kind == "analyze":
+            self._run_analysis(job)
+            return
         cmd = build_command(str(self.claude), job.kind, job.unit_id, self.repo_root, job.faction, job.resume_session)
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)  # the tool may itself be started from a Claude Code session

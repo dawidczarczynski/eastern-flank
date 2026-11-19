@@ -1,6 +1,6 @@
 # TASK-183: Batch mode and pilot: several units from GLBs in one run
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: tooling (presentation tools, no game rules)
 - **Depends on**: TASK-182
 - **Sections**: ADR 0010 (budgets), ADR 0014 (mechanisms), docs/TOOLS.md (render_unit, unit_catalog)

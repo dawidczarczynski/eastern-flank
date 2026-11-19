@@ -38,12 +38,17 @@ UNIT_KEY_ORDER = [
     "country_of_origin", "crew", "weight_t", "armament", "protection", "speed_road_kmh",
     "speed_offroad_kmh", "range_km", "fire_range_km", "effective_range_m", "max_range_m", "min_range_m", "notes",
     "dimensions",
-    "silhouette_features", "details", "skip", "camo_note", "mechanisms", "images", "image_candidates", "provenance", "status",
+    "silhouette_features", "details", "skip", "camo_note", "mechanisms", "reference_glb", "images", "image_candidates", "provenance", "status",
     "feedback", "updated", "revision",
 ]  # fmt: skip
 ARMAMENT_KEYS = ["main", "secondary"]
 DIMENSION_KEYS = ["hull_length", "overall_length", "width", "height", "sources"]
 IMAGE_KEYS = ["file", "view", "source_url", "license", "note"]
+GLB_KEYS = ["file", "source_url", "license", "note"]
+GLB_FILE = "reference.glb"  # the one reference GLB of a unit (not in git, see README)
+MAX_GLB_BYTES = 200 * 1024 * 1024
+MIN_FEATURES = 3  # silhouette features before ready_for_model
+MIN_FEATURES_WITH_GLB = 1  # the GLB gives the shape; features then only name what to emphasise
 CLASS_KEYS = ["id", "label", "mobility", "required_views", "default_mechanisms"]
 FACTION_KEY_ORDER = ["id", "name", "iso_code", "color", "camo", "vest_color", "notes"]
 
@@ -188,6 +193,8 @@ def normalize_unit(unit: Dict[str, Any], registry: Optional[List[Dict[str, Any]]
         u["armament"] = _ordered(u["armament"], ARMAMENT_KEYS)
     if "dimensions" in u:
         u["dimensions"] = _ordered(u["dimensions"], DIMENSION_KEYS)
+    if "reference_glb" in u and isinstance(u["reference_glb"], dict):
+        u["reference_glb"] = _ordered(u["reference_glb"], GLB_KEYS)
     if "images" in u:
         u["images"] = [_ordered(img, IMAGE_KEYS) for img in u["images"]]
     if "image_candidates" in u:
@@ -660,6 +667,19 @@ def validate_unit(unit: Any, classes: List[Dict[str, Any]], faction_ids: List[st
             for k in ("source_url", "license", "note"):
                 if not isinstance(img.get(k, ""), str):
                     add("images[%d].%s" % (i, k), "must be a string")
+    glb = unit.get("reference_glb")
+    if glb is not None:
+        if not isinstance(glb, dict):
+            add("reference_glb", "must be an object")
+        else:
+            for key in glb:
+                if key not in GLB_KEYS:
+                    add("reference_glb." + str(key), "unknown field")
+            if glb.get("file") != GLB_FILE:
+                add("reference_glb.file", "must be %s" % GLB_FILE)
+            for k in ("source_url", "license", "note"):
+                if not isinstance(glb.get(k, ""), str):
+                    add("reference_glb.%s" % k, "must be a string")
     errors.extend(_validate_candidates(unit.get("image_candidates", [])))
     errors.extend(_validate_mechanisms(unit.get("mechanisms", {}), registry))
     errors.extend(_validate_provenance(unit.get("provenance", {}), registry))
@@ -746,6 +766,11 @@ def is_foot(unit: Dict[str, Any]) -> bool:
     return unit.get("mobility") == "foot"
 
 
+def has_glb(unit: Dict[str, Any]) -> bool:
+    """The unit has a reference GLB (recorded in unit.json; the file itself is not in git)."""
+    return isinstance(unit.get("reference_glb"), dict) and bool(unit["reference_glb"].get("file"))
+
+
 def required_dimensions(unit: Dict[str, Any]) -> List[str]:
     return FOOT_REQUIRED_DIMENSIONS if is_foot(unit) else VEHICLE_REQUIRED_DIMENSIONS
 
@@ -776,9 +801,10 @@ def readiness_missing(unit: Dict[str, Any]) -> List[str]:
         if not _is_number(v) or v <= 0:
             missing.append(key)
     feats = [f for f in (unit.get("silhouette_features") or []) if str(f).strip()]
-    if len(feats) < 3:
-        missing.append("silhouette_features (at least 3)")
-    if not any(i.get("view") in reference_views(unit) for i in (unit.get("images") or [])):
+    need = MIN_FEATURES_WITH_GLB if has_glb(unit) else MIN_FEATURES
+    if len(feats) < need:
+        missing.append("silhouette_features (at least %d)" % need)
+    if not has_glb(unit) and not any(i.get("view") in reference_views(unit) for i in (unit.get("images") or [])):
         missing.append("side, front or three-quarter photo of a soldier" if is_foot(unit) else "side or drawing image")
     unverified = unverified_fields(unit)
     for path in model_critical_fields(unit):
@@ -805,8 +831,8 @@ def completeness(unit: Dict[str, Any]) -> float:
         bool(arm.get("main")), bool(unit.get("protection")),
         bool(dims.get("height")), bool(dims.get("sources")),
         len(unit.get("silhouette_features") or []) >= 3,
-        any(i.get("view") in reference_views(unit) for i in images),
-        len(images) >= 3,
+        has_glb(unit) or any(i.get("view") in reference_views(unit) for i in images),
+        len(images) >= 3 or has_glb(unit),
     ]  # fmt: skip
     if is_foot(unit):  # one soldier: no weight or speeds; the uniform pattern matters instead
         checks.append(bool(unit.get("camo_note")))
@@ -941,6 +967,12 @@ def update_unit(root: Path, unit_id: str, incoming: Dict[str, Any]) -> Dict[str,
                 "note": m.get("note", img.get("note", "")),
             })  # fmt: skip
         new["images"] = merged
+        if has_glb(stored):  # only add_glb / delete_glb change the GLB; the form may edit its metadata
+            m = incoming.get("reference_glb") if isinstance(incoming.get("reference_glb"), dict) else {}
+            old = stored["reference_glb"]
+            new["reference_glb"] = {"file": old["file"], **{k: m.get(k, old.get(k, "")) for k in GLB_KEYS[1:]}}
+        else:
+            new.pop("reference_glb", None)
         return save_unit(root, new)
 
 
@@ -1015,6 +1047,72 @@ def add_image_bytes(root: Path, unit_id: str, view: str, data: bytes, source_url
     return entry
 
 
+def sniff_glb(data: bytes) -> bool:
+    """Binary glTF: magic `glTF`, version 2, and the declared length matches."""
+    return len(data) >= 20 and data[:4] == b"glTF" and int.from_bytes(data[4:8], "little") == 2 \
+        and int.from_bytes(data[8:12], "little") == len(data)  # fmt: skip
+
+
+def add_glb_bytes(root: Path, unit_id: str, data: bytes, source_url: str = "", license: str = "",
+                  note: str = "") -> Dict[str, Any]:  # fmt: skip
+    """Store `data` as the unit's reference GLB (replacing an earlier one) and record it in unit.json."""
+    udir = unit_dir(root, unit_id)
+    if len(data) > MAX_GLB_BYTES:
+        raise _err("data", "GLB larger than %d MB" % (MAX_GLB_BYTES // (1024 * 1024)), 413)
+    if not sniff_glb(data):
+        raise _err("data", "not a binary glTF (.glb, version 2)")
+    with _WRITE_LOCK:
+        unit = load_unit(root, unit_id)
+        atomic_write(udir / GLB_FILE, data)
+        entry = {"file": GLB_FILE, "source_url": str(source_url or ""), "license": str(license or ""),
+                 "note": str(note or "")}  # fmt: skip
+        unit["reference_glb"] = entry
+        save_unit(root, unit)
+    return entry
+
+
+def delete_glb(root: Path, unit_id: str) -> None:
+    udir = unit_dir(root, unit_id)
+    with _WRITE_LOCK:
+        unit = load_unit(root, unit_id)
+        if not has_glb(unit):
+            raise _err("reference_glb", "no reference GLB", 404)
+        if unit.get("status") == "ready_for_model" and not any(
+                i.get("view") in reference_views(unit) for i in unit.get("images", [])):  # fmt: skip
+            raise _err("reference_glb", "this is the only reference of a ready_for_model unit - "
+                       "set the status back to draft first", 409)  # fmt: skip
+        unit.pop("reference_glb")
+        save_unit(root, unit)
+        if (udir / GLB_FILE).exists():
+            (udir / GLB_FILE).unlink()
+
+
+def _read_optional_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def glb_info(root: Path, unit: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """What the GLB analysis (tools/analyze_glb.sh) left in the unit folder: the file's presence, rendered views,
+    normalisation and measurement warnings. None when the unit has no reference GLB."""
+    if not has_glb(unit):
+        return None
+    udir = unit_dir(root, unit["id"])
+    views = [v for v in ("side", "front", "top", "three_quarter", "sheet")
+             if (udir / "reference_views" / ("glb_%s.png" % v)).is_file()]  # fmt: skip
+    norm = _read_optional_json(udir / "normalisation.json")
+    meas = _read_optional_json(udir / "measurements.json")
+    warnings: List[str] = []
+    if isinstance(norm, dict):
+        warnings += [str(w) for w in norm.get("warnings") or []]
+    if isinstance(meas, dict):
+        warnings += [str(w) for w in meas.get("warnings") or []]
+    return {"file_present": (udir / GLB_FILE).is_file(), "views": views, "analysed": bool(views),
+            "has_measurements": isinstance(meas, dict), "warnings": warnings}  # fmt: skip
+
+
 def missing_image_files(root: Path, unit: Dict[str, Any]) -> List[str]:
     """Images listed in unit.json whose file is not on disk (image files are not in git - see README)."""
     udir = unit_dir(root, unit["id"])
@@ -1062,7 +1160,7 @@ def delete_image(root: Path, unit_id: str, file: str) -> None:
         if not any(i.get("file") == file for i in images):
             raise _err("file", "image not found", 404)
         remaining = [i for i in images if i.get("file") != file]
-        if unit.get("status") == "ready_for_model" and not any(i.get("view") in reference_views(unit) for i in remaining):
+        if unit.get("status") == "ready_for_model" and not has_glb(unit) and not any(i.get("view") in reference_views(unit) for i in remaining):
             raise _err("file", "this is the only reference image of a ready_for_model unit - "
                        "set the status back to draft first", 409)  # fmt: skip
         unit["images"] = remaining
@@ -1271,4 +1369,5 @@ def unit_detail(root: Path, unit_id: str, screenshots_dir: Path) -> Dict[str, An
         "review": {"blueprint": read_blueprint(root, unit_id), "sheet": latest_sheet(screenshots_dir, unit_id)},
         "pending_research": (unit_dir(root, unit_id) / RESEARCH_FILE).is_file(),
         "missing_images": missing_image_files(root, unit),
+        "glb": glb_info(root, unit),
     }

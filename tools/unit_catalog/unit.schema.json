@@ -53,6 +53,18 @@
         "additionalProperties": {"type": ["number", "string", "array"]}
       }
     },
+    "reference_glb": {
+      "type": "object",
+      "description": "a reference GLB (e.g. from Meshy) instead of photos: the file is docs/design/units/units/<id>/reference.glb (not in git); tools/analyze_glb.sh renders and measures it (reference_views/, normalisation.json, measurements.json). Counts as the side image for ready_for_model and lowers the silhouette feature minimum from 3 to 1",
+      "required": ["file"],
+      "properties": {
+        "file": {"const": "reference.glb"},
+        "source_url": {"type": "string"},
+        "license": {"type": "string"},
+        "note": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "images": {
       "type": "array",
       "items": {

@@ -15,6 +15,7 @@ import server  # noqa: E402
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 24
 JPG = b"\xff\xd8\xff\xe0" + b"\x00" * 24
+GLB = b"glTF" + (2).to_bytes(4, "little") + (24).to_bytes(4, "little") + b"\x00" * 12
 CLASSES = [
     {"id": "tank", "label": "Tank", "mobility": "tracked", "required_views": ["side", "top"]},
     {"id": "infantry", "label": "Infantry", "mobility": "foot", "required_views": ["side"]},
@@ -124,6 +125,67 @@ class TestReadiness(CatalogTestCase):
         unit = complete_unit(status="ready_for_model")
         self.assertEqual(catalog.readiness_missing(unit), [])
         self.assertEqual(catalog.save_unit(self.root, unit)["status"], "ready_for_model")
+
+    def test_glb_replaces_side_image_and_relaxes_features(self):
+        glb = {"file": "reference.glb"}
+        unit = complete_unit(images=[], silhouette_features=["long barrel"])
+        self.assertEqual(catalog.readiness_missing(unit),
+                         ["silhouette_features (at least 3)", "side or drawing image"])  # fmt: skip
+        unit["reference_glb"] = glb
+        self.assertEqual(catalog.readiness_missing(unit), [])
+        unit["silhouette_features"] = []
+        self.assertEqual(catalog.readiness_missing(unit), ["silhouette_features (at least 1)"])
+        unit.update(silhouette_features=["long barrel"], status="ready_for_model")
+        self.assertEqual(catalog.save_unit(self.root, unit)["reference_glb"], glb)
+
+    def test_reference_glb_validation_and_key_order(self):
+        unit = complete_unit(reference_glb={"file": "x.glb", "bogus": 1})
+        fields = [e["field"] for e in catalog.validate_unit(unit, CLASSES, ["poland"])]
+        self.assertIn("reference_glb.file", fields)
+        self.assertIn("reference_glb.bogus", fields)
+        ordered = catalog.normalize_unit(complete_unit(reference_glb={"note": "n", "file": "reference.glb"}))
+        self.assertEqual(list(ordered["reference_glb"]), ["file", "note"])
+
+    def test_add_and_delete_glb(self):
+        catalog.save_unit(self.root, complete_unit())
+        with self.assertRaises(catalog.CatalogError):
+            catalog.add_glb_bytes(self.root, "leopard_2a4", b"not a glb at all, just text bytes")
+        entry = catalog.add_glb_bytes(self.root, "leopard_2a4", GLB, "https://meshy.example/m", "own")
+        self.assertEqual(entry["file"], "reference.glb")
+        udir = catalog.unit_dir(self.root, "leopard_2a4")
+        self.assertEqual((udir / "reference.glb").read_bytes(), GLB)
+        unit = catalog.load_unit(self.root, "leopard_2a4")
+        self.assertEqual(unit["reference_glb"]["license"], "own")
+        info = catalog.glb_info(self.root, unit)
+        self.assertEqual((info["file_present"], info["analysed"], info["warnings"]), (True, False, []))
+        (udir / "reference_views").mkdir()
+        (udir / "reference_views" / "glb_side.png").write_bytes(PNG)
+        (udir / "measurements.json").write_text(json.dumps({"warnings": ["gun elevated"]}))
+        info = catalog.glb_info(self.root, unit)
+        self.assertEqual((info["views"], info["has_measurements"], info["warnings"]), (["side"], True, ["gun elevated"]))
+        catalog.delete_glb(self.root, "leopard_2a4")
+        self.assertFalse((udir / "reference.glb").exists())
+        self.assertNotIn("reference_glb", catalog.load_unit(self.root, "leopard_2a4"))
+        self.assertIsNone(catalog.glb_info(self.root, catalog.load_unit(self.root, "leopard_2a4")))
+
+    def test_put_keeps_glb_and_edits_its_metadata(self):
+        catalog.save_unit(self.root, complete_unit())
+        catalog.add_glb_bytes(self.root, "leopard_2a4", GLB)
+        incoming = catalog.load_unit(self.root, "leopard_2a4")
+        incoming["reference_glb"] = {"file": "reference.glb", "note": "from Meshy"}
+        self.assertEqual(catalog.update_unit(self.root, "leopard_2a4", incoming)["reference_glb"]["note"], "from Meshy")
+        del incoming["reference_glb"], incoming["revision"]
+        self.assertEqual(catalog.update_unit(self.root, "leopard_2a4", incoming)["reference_glb"]["note"], "from Meshy")
+        incoming["reference_glb"] = {"file": "reference.glb"}
+        catalog.delete_glb(self.root, "leopard_2a4")
+        self.assertNotIn("reference_glb", catalog.update_unit(self.root, "leopard_2a4", incoming))
+
+    def test_delete_only_reference_glb_of_ready_unit_refused(self):
+        catalog.save_unit(self.root, complete_unit(images=[], silhouette_features=["a"], reference_glb={"file": "reference.glb"},
+                                                   status="ready_for_model"))  # fmt: skip
+        with self.assertRaises(catalog.CatalogError) as ctx:
+            catalog.delete_glb(self.root, "leopard_2a4")
+        self.assertEqual(ctx.exception.status, 409)
 
     def test_foot_unit_needs_only_soldier_height_and_any_soldier_photo(self):
         unit = complete_unit(id="pl_squad", real_name="Squad", **{"class": "infantry"}, mobility="foot",

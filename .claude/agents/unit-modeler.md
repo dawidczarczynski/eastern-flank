@@ -11,6 +11,7 @@ Scope: the unit's model file `src/presentation/models/<unit_id>.gd`, shared part
 ## Inputs
 
 - `docs/design/units/units/<unit_id>/unit.json`: `real_name`, `class`, `mobility`, dimensions (metres), `silhouette_features` (most recognisable first), `details`, `skip`, `camo_note`, `images` (with `view`: side / front / rear / top / three_quarter / detail / drawing) and the human's `feedback` on your previous attempt – feedback has priority.
+- **Reference GLB (when `reference_glb` is set)**: `docs/design/units/units/<unit_id>/measurements.json` (written by `tools/analyze_glb.sh`; metres in the model files' frame: `constants` such as `DECK_H`, `ROOF_H`, `TURRET_X`, `TURRET_RING_R`, `TRUNNION`, `GUN_LENGTH`, `ROAD_WHEELS`, each with a `confidence` and `note`, plus `profiles` along x and `warnings`), `reference_views/glb_sheet.png` and `normalisation.json`. **Take the model's constants from `measurements.json`** instead of estimating them from photos (convert metres to model units; values below 0.5 confidence and every `warnings` entry are hints to check by eye, never to paste blindly – e.g. an elevated gun means GUN_OVERHANG is not level). **Judge by IoU, not by eye**: `tools/compare_silhouette.sh <unit_id>` prints `IoU side=… front=… top=… (min 0.90: ok)`, writes `.screenshots/units/<unit_id>_diff_<view>.png` (grey both, red only in the model, blue only in the GLB) and up to 3 `Mismatch:` lines with the region in metres – fix the largest first. Photos, `silhouette_features` and `details` supply what a silhouette cannot: hatches, optics, markings, camouflage, small parts. The GLB is a reference only: never import it into the game.
 - `docs/design/units/classes.json` – the class's mobility and default mechanisms; the entry's `mechanisms` (with parameters) and the registry `docs/design/units/mechanisms.json` (each mechanism's `pivots`, `params`, `help`).
 - `docs/design/v2/game_screen.scene.js` (`makeTank`, `soldier`, `makeMLRS`) and `docs/design/v2/README.md` – style, detail level, material palette.
 - Existing models of the same class – reuse their parts. Side views and line drawings (`drawing`) are the most reliable; perspective photos show features, not exact proportions.
@@ -41,7 +42,7 @@ A unit is a few dozen pixels in the battle view, so a model's cost is decided by
 2. **Build** largest parts first, reusing shared parts with parameters.
 3. **Render**: `tools/render_unit.sh <unit_id> --faction=<one of operators>` (the catalog's first existing side image, else drawing, is the default reference; `--reference=<path>` overrides it; `--views=side,top` renders fewer views; when the unit has a launcher, render once more with `--pose=fire` – the launcher at traverse 0 and its `max_elevation_deg` – and check the actuators stay connected at full extension), then Read the sheet PNG (`.screenshots/units/<unit_id>_<faction>_sheet.png`, per-view PNGs next to it) (orthographic side / front / top on the 1 m grid, three-quarter view, reference next to the side view) and the stats line (AABB in metres vs. real, triangles, mesh instances).
 4. **Compare** in this order: proportions (length : width : height), silhouette features, part placement, details. Note the 2–3 biggest differences and fix those.
-5. Repeat 3–4 **at most 4 rounds**, then stop and list the remaining differences.
+5. Repeat 3–4 **at most 4 rounds**, then stop and list the remaining differences. **With a reference GLB** each round also runs `tools/compare_silhouette.sh <unit_id>`; stop as soon as every view reaches the IoU target (0.90 unless the task says otherwise), or after the 4th round, and report the final `IoU side=… front=… top=…` line, the iteration count and the remaining `Mismatch:` lines.
 6. Check it in battle: `tools/screenshot.sh` – at game zoom the silhouette must read clearly; drop details that only add noise.
 7. Refresh the README shot: `tools/readme_screenshot.sh`, then Read `docs/images/gameplay.png` (only if the unit appears in the battle scenario).
 8. `tools/check.sh` must pass. Set the catalog entry's `status` to `modeled` (leave `feedback` as is).
@@ -49,6 +50,6 @@ A unit is a few dozen pixels in the battle view, so a model's cost is decided by
 ## Summary you return
 
 - What was built and reused, key blueprint numbers, final AABB in metres vs. the catalog dimensions, triangle and mesh-instance counts.
-- Paths of the final render sheet and the battle screenshot.
+- Paths of the final render sheet and the battle screenshot; with a GLB the final IoU per view, the iteration count and the diff image paths.
 - Remaining differences from the references, how the human's feedback was addressed, and needs outside your scope.
 - Playtest steps for the human (zoom in on the unit, move it, attack with it, hover it; compare in the catalog's Model review screen).

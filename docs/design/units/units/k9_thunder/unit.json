@@ -23,6 +23,7 @@
   "effective_range_m": 35000,
   "max_range_m": 40000,
   "min_range_m": 750,
+  "notes": "side_1.png is an orthographic render of a Meshy AI model (k9.glb, kept outside the repo), scaled to the real length; use it for proportions and part positions, not for camouflage.",
   "dimensions": {
     "hull_length": 7.44,
     "overall_length": 12.0,
@@ -53,6 +54,16 @@
       "recoil_m": 0.5
     }
   },
+  "reference_glb": {
+    "file": "reference.glb",
+    "note": "Meshy model (TASK-179 pilot)"
+  },
+  "images": [
+    {
+      "file": "side_1.png",
+      "view": "side"
+    }
+  ],
   "image_candidates": [
     {
       "url": "https://upload.wikimedia.org/wikipedia/commons/d/d6/A_Polish_K9_howitzer_maneuvers_on_the_firing_range_for_a_live_fire_demonstration.jpg",
@@ -172,13 +183,6 @@
     }
   },
   "status": "modeled",
-  "updated": "2026-11-17",
-  "revision": 3,
-  "images": [
-    {
-      "file": "side_1.png",
-      "view": "side"
-    }
-  ],
-  "notes": "side_1.png is an orthographic render of a Meshy AI model (k9.glb, kept outside the repo), scaled to the real length; use it for proportions and part positions, not for camouflage."
+  "updated": "2026-11-19",
+  "revision": 4
 }

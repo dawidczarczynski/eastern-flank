@@ -18,6 +18,10 @@ docs/design/units/
   units/<unit_id>/
     unit.json                   # identity, real-world facts, dimensions, silhouette features, images, status, feedback
     side_1.jpg  front_1.png  drawing_1.png  …
+    reference.glb               # optional reference model (Meshy…), not in git; see "Reference GLB"
+    reference_views/glb_*.png   # its renders (side, front, top, three_quarter, sheet), committed
+    normalisation.json          # how the GLB was fitted to the catalog dimensions, committed
+    measurements.json           # section profiles and model constants measured on the GLB, committed
     blueprint.md                # written by unit-modeler, shown read-only in the tool
 ```
 
@@ -73,6 +77,14 @@ The tool knows foot units by `mobility: foot`. **Readiness** for them needs only
 4. When the readiness checklist is green, set the status to `ready_for_model`.
 5. Click **Build model** in the tool's AI panel (or run `/model-unit <id>` in Claude Code). Afterwards look at the render vs. photo in the tool's Model review screen and write remarks into **feedback**, then click **Rework model** (or run `/model-unit <id>` again) if needed.
 6. The game-designer adds the stats (`data/units/<id>.tres`) and puts the unit into faction rosters → status `in_game`.
+
+## Reference GLB
+
+A GLB (e.g. a Meshy model of the real vehicle) can replace the photos. `unit.json` records it as `reference_glb: {file: "reference.glb", source_url, license, note}`; the file is `units/<id>/reference.glb` and **not in git** (like the images), the renders and measurements are. It is a reference only – the game model stays procedural.
+
+- **Upload** in `tools/unit_catalog.sh` (section *Reference GLB*, up to 200 MB). The tool then runs the analysis as a background job (`kind analyze`, no Claude needed, ~1 min): `tools/analyze_glb.sh <id>` normalises the GLB to the catalog dimensions, renders four views (`reference_views/glb_*.png`) and measures it (`measurements.json`, TASK-180). The unit screen shows the views and the warnings (a size more than 25 % off the catalog fails the run; low-confidence or conflicting measurements are listed). **Re-run analysis** repeats it, **Remove** deletes the file and the field.
+- **Readiness:** a GLB counts as the `side` / `drawing` image (a foot unit: as a soldier photo), and the **silhouette features minimum drops from 3 to 1** – the shape comes from the GLB, the features only say what to emphasise. The dimensions (with sources) are still required: they fix the scale of the GLB.
+- **Modelling:** `/model-unit <id>` runs the analysis if needed, gives the modeler `measurements.json` (take the model constants from it) and judges the result with `tools/compare_silhouette.sh` (IoU of the model against the GLB in side / front / top, target 0.90, at most 4 iterations); details come from photos and the silhouette features.
 
 ## Images and licences
 
