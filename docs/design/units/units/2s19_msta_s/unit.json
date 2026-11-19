@@ -19,6 +19,9 @@
   "speed_road_kmh": 60,
   "range_km": 500,
   "fire_range_km": 24.7,
+  "effective_range_m": 21600,
+  "max_range_m": 24700,
+  "min_range_m": 750,
   "dimensions": {
     "hull_length": 7.15,
     "overall_length": 12,
@@ -113,6 +116,18 @@
     },
     "fire_range_km": {
       "source": "https://en.wikipedia.org/wiki/2S19_Msta",
+      "verified": true
+    },
+    "effective_range_m": {
+      "source": "design value [ASSUMPTION]: effective range = 0.875 x maximum, the K9 ratio (35/40 km)",
+      "verified": false
+    },
+    "max_range_m": {
+      "source": "https://en.wikipedia.org/wiki/2S19_Msta - fire range 24.7 km (catalog fire_range_km)",
+      "verified": true
+    },
+    "min_range_m": {
+      "source": "design value [ASSUMPTION]: 750 m = 3 hexes, as for the other artillery (TASK-131a)",
       "verified": true
     },
     "dimensions.width": {

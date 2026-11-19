@@ -1,5 +1,5 @@
 extends TestCase
-## The seven real units of TASK-039a / TASK-176 (GDD "Stat derivation rules", "First rosters").
+## The eight real units of TASK-039a / TASK-176 (GDD "Stat derivation rules", "First rosters").
 
 const Fixtures := preload("res://tests/fixtures.gd")
 const UNITS_DIR := "res://data/units"
@@ -9,6 +9,7 @@ const TABLE := {
 	&"t72b3": ["T-72B3", "T-72B3", &"tank", &"tracked", 8, 5, 6, 4],
 	&"homar_k": ["Homar-K", "HOMAR", &"mlrs", &"wheeled", 6, 3, 6, 1],
 	&"k9_thunder": ["K9 Thunder", "K9", &"sp_artillery", &"tracked", 8, 3, 5, 2],
+	&"2s19_msta_s": ["2S19 Msta-S", "Msta-S", &"sp_artillery", &"tracked", 8, 3, 5, 2],
 	&"bm27_uragan": ["9K57 Uragan", "BM-27", &"mlrs", &"wheeled", 6, 3, 6, 1],
 	&"pl_mech_infantry": ["Mechanised Infantry Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
 	&"ru_motor_rifle": ["Motor Rifle Squad", "INF", &"infantry", &"foot", 10, 3, 4, 3],
@@ -20,6 +21,7 @@ const RANGES := {
 	&"t72b3": [&"direct", 2000, 3000, 0, 8, 12, 0],
 	&"homar_k": [&"indirect", 70000, 80000, 750, 280, 320, 3],
 	&"k9_thunder": [&"indirect", 35000, 40000, 750, 140, 160, 3],
+	&"2s19_msta_s": [&"indirect", 21600, 24700, 750, 86, 98, 3],
 	&"bm27_uragan": [&"indirect", 30000, 35000, 750, 120, 140, 3],
 	&"pl_mech_infantry": [&"direct", 500, 750, 0, 2, 3, 0],
 	&"ru_motor_rifle": [&"direct", 500, 750, 0, 2, 3, 0],
@@ -38,7 +40,7 @@ func _unit(id: StringName) -> UnitDefinition:
 	return load("%s/%s.tres" % [UNITS_DIR, id]) as UnitDefinition
 
 
-func test_exactly_the_seven_real_units_exist() -> void:
+func test_exactly_the_eight_real_units_exist() -> void:
 	var ids: Array[StringName] = []
 	for definition in _definitions():
 		ids.append(definition.id)

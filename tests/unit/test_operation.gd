@@ -204,7 +204,7 @@ func test_shipped_operation_builds() -> void:
 	var totals := [0, 0]
 	for f in state.formations:
 		totals[f.owner_id] += f.strength()
-	assert_eq(totals, [392, 416])
+	assert_eq(totals, [392, 420])
 
 
 func test_build_is_deterministic() -> void:

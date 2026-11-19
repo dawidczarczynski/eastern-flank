@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="FactionDefinition" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="FactionDefinition" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_mx61n"]
 [ext_resource type="Resource" path="res://data/units/ru_motor_rifle.tres" id="2_squad"]
 [ext_resource type="Resource" path="res://data/units/t72b3.tres" id="3_t72b3"]
 [ext_resource type="Resource" path="res://data/units/bm27_uragan.tres" id="4_uragan"]
+[ext_resource type="Resource" path="res://data/units/2s19_msta_s.tres" id="10_msta"]
 [ext_resource type="Script" path="res://src/core/data/faction_definition.gd" id="5_tgnu3"]
 [ext_resource type="Texture2D" path="res://assets/flags/russia.svg" id="9_flag"]
 
@@ -12,7 +13,7 @@ script = ExtResource("5_tgnu3")
 id = &"russia"
 display_name = "Russia"
 short_name = "RU"
-roster = Array[ExtResource("1_mx61n")]([ExtResource("2_squad"), ExtResource("3_t72b3"), ExtResource("4_uragan")])
+roster = Array[ExtResource("1_mx61n")]([ExtResource("2_squad"), ExtResource("3_t72b3"), ExtResource("4_uragan"), ExtResource("10_msta")])
 default_force = Array[ExtResource("1_mx61n")]([ExtResource("2_squad"), ExtResource("3_t72b3"), ExtResource("2_squad"), ExtResource("2_squad"), ExtResource("2_squad"), ExtResource("4_uragan")])
 color = Color(0.84313726, 0.41568628, 0.32156864, 1)
 ink_color = Color(0.16470589, 0.06666667, 0.043137256, 1)

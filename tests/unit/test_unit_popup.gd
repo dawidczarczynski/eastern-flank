@@ -10,6 +10,7 @@ const UNITS: Array[String] = [
 	"t72b3",
 	"homar_k",
 	"k9_thunder",
+	"2s19_msta_s",
 	"bm27_uragan",
 	"ru_motor_rifle"
 ]

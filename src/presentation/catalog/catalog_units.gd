@@ -12,6 +12,7 @@ const PATHS: Array[String] = [
 	"res://data/units/homar_k.tres",
 	"res://data/units/bm27_uragan.tres",
 	"res://data/units/k9_thunder.tres",
+	"res://data/units/2s19_msta_s.tres",
 ]
 ## Class order in the list.
 const CLASS_ORDER: Array[StringName] = [&"infantry", &"tank", &"mlrs", &"sp_artillery"]

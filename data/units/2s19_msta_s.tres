@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="UnitDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/unit_definition.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+id = &"2s19_msta_s"
+display_name = "2S19 Msta-S"
+short_name = "Msta-S"
+unit_class = &"sp_artillery"
+mobility = &"tracked"
+max_hp = 8
+move_points = 3
+attack = 5
+defense = 2
+effective_range_m = 21600
+max_range_m = 24700
+min_range_m = 750
+fire_mode = &"indirect"
+fire_sound = &"tank_cannon"
+engine_sound = &"diesel_heavy"
+move_sound = &"tracks"

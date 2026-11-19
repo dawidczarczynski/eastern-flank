@@ -97,7 +97,11 @@ func test_rosters_hold_the_real_units() -> void:
 	)
 	assert_eq(
 		_sorted(_ids(FactionRegistry.get_faction(&"russia").roster)),
-		_sorted([&"ru_motor_rifle", &"t72b3", &"bm27_uragan"] as Array[StringName])
+		_sorted([&"ru_motor_rifle", &"t72b3", &"bm27_uragan", &"2s19_msta_s"] as Array[StringName])
+	)
+	assert_eq(
+		_sorted(_ids(FactionRegistry.get_faction(&"belarus").roster)),
+		_sorted([&"ru_motor_rifle", &"t72b3", &"bm27_uragan", &"2s19_msta_s"] as Array[StringName])
 	)
 	assert_eq(FactionRegistry.get_faction(&"poland").find_unit(&"m1a2_sepv3"), ABRAMS)
 	assert_eq(FactionRegistry.get_faction(&"russia").find_unit(&"m1a2_sepv3"), null)

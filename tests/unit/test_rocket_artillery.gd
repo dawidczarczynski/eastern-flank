@@ -94,6 +94,14 @@ func test_k9_thunder_is_no_volley_class_and_needs_no_line_of_sight() -> void:
 	assert_true(K9.is_indirect())
 
 
+func test_msta_is_indirect_howitzer_with_a_shorter_reach_than_the_k9() -> void:
+	var msta := load("res://data/units/2s19_msta_s.tres") as UnitDefinition
+	assert_false(UnitModels.fires_volley(msta))
+	assert_true(msta.is_indirect())
+	assert_eq(msta.max_hexes(), 98)
+	assert_true(msta.max_hexes() < K9.max_hexes())
+
+
 func test_k9_thunder_range_window_is_3_to_160_hexes() -> void:
 	var state := GameState.new(Fixtures.plains_grid(90), 2, 1)
 	var gun := state.add_unit(0, K9, Vector2i(-80, 0))

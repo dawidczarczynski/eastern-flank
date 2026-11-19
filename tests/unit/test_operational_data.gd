@@ -5,18 +5,19 @@ const TYPE_STRENGTHS := {
 	&"pl_mech_battalion": 66,
 	&"pl_tank_battalion": 64,
 	&"ru_motor_rifle_battalion": 60,
-	&"ru_tank_battalion": 58,
+	&"ru_tank_battalion": 60,
 }
 const _MBT := &"m1a2_sepv3"
 const _MR := &"ru_motor_rifle"
 const _PMI := &"pl_mech_infantry"
 const _MLRS_PL := &"homar_k"
 const _MLRS_RU := &"bm27_uragan"
+const _MSTA := &"2s19_msta_s"
 const TYPE_COMPANIES := {
 	&"pl_mech_battalion": [_PMI, _PMI, _PMI, _PMI, _MBT, _MBT, _MLRS_PL],
 	&"pl_tank_battalion": [_MBT, _MBT, _MBT, _MBT, _PMI, &"k9_thunder", _MLRS_PL],
 	&"ru_motor_rifle_battalion": [_MR, _MR, _MR, &"t72b3", &"t72b3", &"t72b3", _MLRS_RU],
-	&"ru_tank_battalion": [&"t72b3", &"t72b3", &"t72b3", &"t72b3", _MR, _MR, _MLRS_RU],
+	&"ru_tank_battalion": [&"t72b3", &"t72b3", &"t72b3", &"t72b3", _MR, _MR, _MSTA],
 }
 
 
@@ -84,7 +85,7 @@ func test_suwalki_gap_definition() -> void:
 		assert_false(p.display_name.is_empty(), "%s name" % p.id)
 		assert_false(p.parent.is_empty(), "%s parent" % p.id)
 	assert_eq(counts, [6, 7])
-	assert_eq(strength, [392, 416])
+	assert_eq(strength, [392, 420])
 	assert_eq(types[0], {&"pl_mech_battalion": 4, &"pl_tank_battalion": 2})
 	assert_eq(types[1], {&"ru_motor_rifle_battalion": 5, &"ru_tank_battalion": 2})
 

@@ -97,5 +97,12 @@ func test_every_faction_matches_its_catalog_palette() -> void:
 	assert_true(checked > 0, "at least one faction checked")
 
 
+func test_catalog_lists_the_msta() -> void:
+	var ids: Array[StringName] = []
+	for definition in CatalogUnits.definitions():
+		ids.append(definition.id)
+	assert_true(ids.has(&"2s19_msta_s"), "2S19 Msta-S in the catalog")
+
+
 func test_class_order_lists_the_howitzer_after_the_rocket_artillery() -> void:
 	assert_eq(CatalogUnits.CLASS_ORDER, [&"infantry", &"tank", &"mlrs", &"sp_artillery"])

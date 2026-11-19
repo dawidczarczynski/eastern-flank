@@ -71,6 +71,7 @@ In a battle fought from the operational map each side has a number of fire-suppo
 | T-72B3 (Russia) | 8 | 5 | 6 | 4 | 2.0 km (8 hex), max 3.0 km | a T-72 tank |
 | Homar-K (Poland) | 6 | 3 | 6 | 1 | 70 km (whole map), min 750 m | a Homar-K truck with a turning rocket launcher |
 | 9K57 Uragan (Russia) | 6 | 3 | 6 | 1 | 30 km (whole map), min 750 m | a BM-27 truck with sixteen rocket tubes over the cab |
+| 2S19 Msta-S (Russia, Belarus) | 8 | 3 | 5 | 2 | 21.6 km (86 hexes), max 24.7 km, min 750 m | a tracked self-propelled howitzer with a long 152 mm gun in a turret |
 | K9 Thunder (Poland) | 8 | 3 | 5 | 2 | 35 km (whole map), max 40 km, min 750 m | a tracked self-propelled howitzer with a long gun in a turret |
 
 - **HP**: the unit's strength – how much damage it can take, and how many shots it fires (see Combat). Every unit is a company: a unit that has lost HP also fights worse, because it fires fewer shots. At 0 HP it is destroyed and removed from the map. HP doesn't come back.
@@ -192,7 +193,7 @@ The hit number of the attacker against the defender, depending on the defender's
 | M1A2 SEPv3 Abrams (Attack 7) | 4 / 3 / 2 | 3 / 2 / 1 | 6 / 5 / 4 |
 | T-72B3 (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
 | Homar-K / Uragan (Attack 6) | 3 / 2 / 1 | 2 / 1 / 1 | 5 / 4 / 3 |
-| K9 Thunder (Attack 5) | 2 / 1 / 1 | 1 / 1 / 1 | 4 / 3 / 2 |
+| K9 Thunder / 2S19 Msta-S (Attack 5) | 2 / 1 / 1 | 1 / 1 / 1 | 4 / 3 / 2 |
 
 The K9 Thunder has Defense 2, so attackers hit it one point softer than a Homar-K (Defense 1) on plains – for example the Homar-K deals it 4 on plains, an Abrams 5, a T-72B3 4, a squad 2.
 
@@ -659,9 +660,9 @@ Pointing at a counter brightens it; the hex card keeps working underneath.
 | Mechanised Battalion | NATO | 4 × Mechanised Infantry Squad, 2 × M1A2 SEPv3 Abrams, 1 × Homar-K | 66 |
 | Tank Battalion | NATO | 4 × M1A2 SEPv3 Abrams, 1 × Mechanised Infantry Squad, 1 × K9 Thunder, 1 × Homar-K | 64 |
 | Motor Rifle Battalion | Russia | 3 × Motor Rifle Squad, 3 × T-72B3, 1 × 9K57 Uragan | 60 |
-| Tank Battalion | Russia | 4 × T-72B3, 2 × Motor Rifle Squad, 1 × 9K57 Uragan | 58 |
+| Tank Battalion | Russia | 4 × T-72B3, 2 × Motor Rifle Squad, 1 × 2S19 Msta-S | 60 |
 
-Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one rocket-artillery company** of its own (the Polish tank battalion also has a K9 Thunder howitzer); there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**. Artillery is meant to fire from **behind the front**, and the enemy AI uses it that way: its rocket company stays back and shells your units in range instead of rushing forward. A defending AI also **holds around its objective** rather than marching out to meet you.
+Strength is the sum of the companies' hit points – the same units that fight when a battle starts. Every battalion has seven companies and **brings one artillery company** of its own: rocket artillery (Homar-K or Uragan), except the Russian tank battalion, whose artillery company is a 2S19 Msta-S howitzer (the Polish tank battalion has a K9 Thunder howitzer besides its Homar-K); there are no standalone artillery counters on the staff map, so a contact battle is **7 against 7**. Artillery is meant to fire from **behind the front**, and the enemy AI uses it that way: its rocket company stays back and shells your units in range instead of rushing forward. A defending AI also **holds around its objective** rather than marching out to meet you.
 
 **Formation panel.** The full panel shows the name, the brigade or corps above it, type, side (enemy formations are marked **HOSTILE** in red), total strength with the five bars, location (hex coordinate as on the hex card) and the companies, each with its unit type, strength and reference (e.g. `pl_mech_1/4` – the 4th company of the 1st Mechanised Battalion). Of a hostile formation it shows only what you know: estimated figures marked **EST.** and **?** for the rest. Selecting a counter no longer opens it; see **Unit info** below for how to open it. While open it follows the selection, so clicking another counter switches it. **Tab** jumps to your next formation (the camera moves to it if it is off screen). **✕**, **Esc**, **I** or a click on empty map closes the panel.
 
