@@ -23,6 +23,8 @@ const VIEW_FX_KEY := &"view_fx"
 const FX_ROCKET_VOLLEY := &"rocket_volley"
 ## A turreted vehicle's attack: turret turns, gun elevates, hit, turret returns (TASK-047).
 const FX_DIRECT_FIRE := &"direct_fire"
+## A barrel-artillery barrage: the gun lifts with the distance and fires a few shells in a row.
+const FX_BARRAGE := &"barrage"
 
 var _events: Array[Dictionary] = []
 
@@ -95,9 +97,10 @@ func begin_burst() -> float:
 	return maxf(1.0, burst_duration() / MAX_BURST_SECONDS)
 
 
-## Whether `event` is annotated as a rocket volley (VIEW_FX_KEY == FX_ROCKET_VOLLEY).
+## Whether `event` is annotated as a rocket volley or a barrel-artillery barrage (both play a
+## multi-shot salvo).
 static func is_volley(event: Dictionary) -> bool:
-	return event.get(VIEW_FX_KEY, &"") == FX_ROCKET_VOLLEY
+	return event.get(VIEW_FX_KEY, &"") in [FX_ROCKET_VOLLEY, FX_BARRAGE]
 
 
 ## Speed one event plays at within a burst of `burst_speed`: a volley at most MAX_VOLLEY_SPEED.

@@ -173,7 +173,15 @@ static func effects(pool: SalvoFxPool, quality: Dictionary) -> SalvoEffects:
 ## Pool implementation of SalvoEffects for one volley. Without `with_impacts` only the launch and
 ## the flight show (the unit catalog's rockets land far off-screen, over no ground).
 func effects_for_volley(with_lights := true, with_impacts := true) -> SalvoEffects:
-	return VolleyFx.new(self, with_lights, with_impacts)
+	return VolleyFx.new(self, with_lights, with_impacts, false)
+
+
+## Same for a barrel-artillery barrage: a muzzle blast along the bore instead of a backblast, no
+## trail or plume, the same fireball, smoke and columns at the impacts as a rocket salvo.
+static func barrage_effects(pool: SalvoFxPool, quality: Dictionary) -> SalvoEffects:
+	if pool == null or not quality.get("particles", false):
+		return SalvoEffects.new()
+	return VolleyFx.new(pool, quality.get("fx_lights", false), true, true)
 
 
 ## Direction the backblast leaves in: opposite to the tube horizontally, but never into the ground
@@ -583,6 +591,7 @@ class VolleyFx:
 	var _pool: SalvoFxPool
 	var _with_lights: bool
 	var _with_impacts: bool
+	var _shells: bool
 	var _volley: Node3D
 	var _shooter: UnitView
 	var _pod_length := SalvoFxPool.POD_LENGTH_FALLBACK
@@ -598,10 +607,11 @@ class VolleyFx:
 	var _impact_light: SalvoLight
 	var _rocket_length := 0.3
 
-	func _init(pool: SalvoFxPool, with_lights: bool, with_impacts: bool) -> void:
+	func _init(pool: SalvoFxPool, with_lights: bool, with_impacts: bool, shells: bool) -> void:
 		_pool = pool
 		_with_lights = with_lights
 		_with_impacts = with_impacts
+		_shells = shells
 
 	func begin(context: Dictionary) -> void:
 		_volley = context["volley"]
@@ -636,6 +646,13 @@ class VolleyFx:
 			_volley.add_child(_impact_light)
 
 	func on_launch(index: int, mouth: Vector3, tube_dir: Vector3) -> void:
+		if _shells:
+			# The blast leaves along the bore: backblast_dir() flips its argument.
+			_pool.emit_backblast(mouth, -tube_dir, _ground_y, _launcher_dust)
+			if _launch_light != null:
+				_launch_light.position = mouth
+				_launch_light.pulse()
+			return
 		var rear := SalvoFxPool.backblast_origin(mouth, tube_dir, _pod_length)
 		_pool.emit_backblast(rear, tube_dir, _ground_y, _launcher_dust)
 		_carries[index] = 0.0
@@ -647,6 +664,8 @@ class VolleyFx:
 			_launch_light.pulse()
 
 	func on_flight(index: int, from: Vector3, to: Vector3, s: float, motor: bool) -> void:
+		if _shells:
+			return
 		var trail: SalvoTrail = _trails.get(index)
 		var step := to - from
 		_pose_plume(index, step, to, s * _flight)

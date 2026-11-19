@@ -1,4 +1,5 @@
 # gdlint: disable=max-file-lines
+class_name BattleController
 extends Node3D
 ## Battle scene: connects the simulation (GameSimulation) with the 3D view and player input.
 ## Rule: this script only translates input into commands and events into animations – no game rules.
@@ -926,6 +927,13 @@ func _annotate(event: Dictionary) -> Dictionary:
 		return annotated
 	if event["type"] == &"unit_attacked":
 		var gunner: UnitView = _unit_views.get(event["attacker_id"])
+		if gunner != null and gunner.has_turret() and _fires_barrage(event["attacker_id"]):
+			var plan := _barrage_plan(event)
+			var barrage := EventQueue.with_view_duration(
+				event, _barrage_event_duration(gunner.turret_limited(), plan)
+			)
+			barrage[EventQueue.VIEW_FX_KEY] = EventQueue.FX_BARRAGE
+			return barrage
 		if gunner != null and gunner.has_turret():
 			var direct := EventQueue.with_view_duration(
 				event, _direct_fire_duration(gunner.turret_limited())
@@ -938,6 +946,23 @@ func _annotate(event: Dictionary) -> Dictionary:
 func _fires_volley(attacker_id: int) -> bool:
 	var attacker := _sim.state.get_unit(attacker_id)
 	return attacker != null and UnitModels.fires_volley(attacker.definition)
+
+
+func _fires_barrage(attacker_id: int) -> bool:
+	var attacker := _sim.state.get_unit(attacker_id)
+	return attacker != null and UnitModels.fires_barrage(attacker.definition)
+
+
+## World distance between the tiles the attacker and the target of `event` stand on.
+func _event_distance(event: Dictionary) -> float:
+	var from := Hex.to_world(_sim.state.get_unit(event["attacker_id"]).coord, _map_view.hex_size)
+	var to := Hex.to_world(_sim.state.get_unit(event["target_id"]).coord, _map_view.hex_size)
+	return VolleyPlayback.horizontal_distance(from, to)
+
+
+## A barrage event's shells when it is emitted (VolleyPlayback.barrage_plan).
+func _barrage_plan(event: Dictionary) -> Dictionary:
+	return VolleyPlayback.barrage_plan(_event_distance(event))
 
 
 ## A volley event's salvo when it is emitted (VolleyPlayback.salvo_plan): the shooter's tubes, the
@@ -965,6 +990,13 @@ static func _volley_event_duration(
 			duration += 2.0 * DEPLOY_DURATION
 		return duration + AIM_DURATION if limited else duration
 	return AIM_DURATION + salvo
+
+
+## Turret aim + barrage (SalvoTiming.salvo_duration) + turret back; a limited traverse always has
+## the body turn first (see _volley_event_duration for why).
+static func _barrage_event_duration(limited: bool, plan: Dictionary) -> float:
+	var duration := 2.0 * TURRET_AIM_DURATION + VolleyPlayback.plan_duration(plan)
+	return duration + AIM_DURATION if limited else duration
 
 
 ## Turret aim + hit + turret back; a limited traverse always has the body turn first (see
@@ -1017,6 +1049,12 @@ func _play_attack(event: Dictionary) -> Tween:
 		and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_ROCKET_VOLLEY
 	):
 		return _play_volley(shooter, target, event["target_hp"], event)
+	if (
+		target != null
+		and shooter != null
+		and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_BARRAGE
+	):
+		return _play_barrage(shooter, target, event["target_hp"], event)
 	if (
 		target != null
 		and shooter != null
@@ -1113,6 +1151,44 @@ func _play_volley(shooter: UnitView, target: UnitView, target_hp: int, event: Di
 	)
 	if shooter.has_launcher():
 		VolleyPlayback.append_stow(tween, shooter, pose.x, pose.y)
+	return tween
+
+
+## A self-propelled gun fires a barrage: [limited: the hull turns], the turret traverses and the
+## barrel lifts by the distance to the target, a few shells leave one after another (the gun
+## recoils at each) and the target's HP steps down as they land, turret and gun return to the
+## front. One tween lasts the whole event (_barrage_event_duration).
+func _play_barrage(shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary) -> Tween:
+	var aim_point := target.global_position
+	var aim := shooter.turret_aim_towards(aim_point)
+	var distance := VolleyPlayback.horizontal_distance(shooter.global_position, aim_point)
+	var hexes := distance / (_map_view.hex_size * sqrt(3.0))
+	var elevation := shooter.clamp_gun_elevation(VolleyPlayback.barrage_elevation(hexes))
+	var pose := Vector2(aim.y, elevation)
+	var tween := create_tween()
+	if shooter.turret_limited():
+		VolleyPlayback.tween_body_turn(tween, shooter, aim.x, AIM_DURATION)
+	VolleyPlayback.tween_turret(tween, shooter, Vector2.ZERO, pose, TURRET_AIM_DURATION)
+	var context := VolleyPlayback.terrain_context(shooter.global_position, aim_point, _terrain_at)
+	var rng := VolleyPlayback.scatter_rng(_event_serial, event["attacker_id"])
+	var radius := SalvoTiming.LANDING_RADIUS * _map_view.hex_size
+	var volley := VolleyPlayback.append_barrage(
+		tween,
+		self,
+		shooter,
+		aim_point,
+		rng,
+		radius,
+		_muzzle_flash,
+		context,
+		_map_view.mesh_height_at
+	)
+	var fx := SalvoFxPool.barrage_effects(_salvo_fx_pool, quality)
+	volley.effects = _audio.salvo_effects(fx, _definition_of(event), event["damage"])
+	VolleyPlayback.connect_hp_steps(
+		volley, target, target_hp, _event_speed, _add_impact_marks.bind(event, target, shooter)
+	)
+	VolleyPlayback.tween_turret(tween, shooter, pose, Vector2.ZERO, TURRET_AIM_DURATION)
 	return tween
 
 
@@ -1254,7 +1330,8 @@ func _add_impact_marks(event: Dictionary, target: UnitView, shooter: UnitView) -
 ## command, no state change); its tween runs although the tool disables the scene's processing.
 func debug_salvo(attacker_id: int, target_id: int) -> void:
 	var target := _sim.state.get_unit(target_id)
-	if target == null or not _fires_volley(attacker_id) or not _unit_views.has(target_id):
+	var fires := _fires_volley(attacker_id) or _fires_barrage(attacker_id)
+	if target == null or not fires or not _unit_views.has(target_id):
 		push_error("debug_salvo: %d cannot fire a volley at %d" % [attacker_id, target_id])
 		return
 	var event := VolleyPlayback.show_attack(attacker_id, target_id, target.hp)

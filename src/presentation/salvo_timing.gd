@@ -12,6 +12,14 @@ const PROFILES := {
 	&"bm27_uragan": {"count": 16, "interval": 0.38},
 }
 const DEFAULT_PROFILE := {"count": 6, "interval": 0.35}
+## A barrel-artillery barrage: shells in a row from the one gun, a look choice like the profiles.
+const BARRAGE_COUNT := 3
+const BARRAGE_INTERVAL := 0.5
+## Shells are fast: flight time of a barrage = BASE + PER_UNIT x distance, within MIN..MAX.
+const BARRAGE_FLIGHT_BASE := 0.4
+const BARRAGE_FLIGHT_PER_UNIT := 0.04
+const BARRAGE_FLIGHT_MIN := 0.6
+const BARRAGE_FLIGHT_MAX := 1.0
 const FLIGHT_BASE := 1.0
 const FLIGHT_PER_UNIT := 0.09
 const FLIGHT_MIN := 1.1
@@ -36,6 +44,12 @@ static func rocket_count(unit_id: StringName, mouth_count: int) -> int:
 ## Seconds between two launches.
 static func interval(unit_id: StringName) -> float:
 	return float(_profile(unit_id)["interval"])
+
+
+## Flight time of every shell of a barrage over the horizontal world `distance`.
+static func barrage_flight_time(distance: float) -> float:
+	var t := BARRAGE_FLIGHT_BASE + BARRAGE_FLIGHT_PER_UNIT * distance
+	return clampf(t, BARRAGE_FLIGHT_MIN, BARRAGE_FLIGHT_MAX)
 
 
 ## Flight time of every rocket of a salvo over the horizontal world `distance`.

@@ -42,12 +42,19 @@ const LAUNCH_FLASH_TIME := 0.1
 const IMPACT_FLASH_COLOR := Color("#fff0b0")
 const IMPACT_FLASH_SIZE := 0.5
 const IMPACT_FLASH_TIME := 0.12
+## Barrage shells (barrel artillery, `shells`): no body at all, just a small glowing tracer for the
+## whole flight.
+const SHELL_GLOW_SIZE := 0.04
 ## Pod recoil per launch (elevation offset, rad) and the time it eases back.
 const JOLT := 0.012
 const JOLT_TIME := 0.12
 
 ## The salvo's effect hooks; the base class does nothing. Assign before setup().
 var effects: SalvoEffects = SalvoEffects.new()
+## A barrage of gun shells instead of rockets (set before setup()): the shooter's gun recoils and
+## `muzzle_flash` (optional) bursts at every shot; no tail glow while a motor burns, no tubes.
+var shells := false
+var muzzle_flash: MuzzleFlash
 var count := 0
 var interval := 0.35
 var flight := 1.1
@@ -64,6 +71,7 @@ var _last_positions: Array[Vector3] = []  # per rocket: its position at the prev
 var _last_t := -1.0
 var _target_centre := Vector3.ZERO
 var _shooter: UnitView  # jolted per launch when it has a launcher
+var _gunner: UnitView  # recoils per shot in a barrage
 var _jolt := 0.0  # pod offset last applied
 var _begun := false
 var _ended := false
@@ -170,6 +178,7 @@ func setup(
 	_target_centre = context.get("target_centre", _target_centre)
 	var shooter: UnitView = context.get("shooter")
 	_shooter = shooter if shooter != null and shooter.has_launcher() else null
+	_gunner = shooter if shells and shooter != null and shooter.has_gun_recoil() else null
 	_build_meshes()
 	var full := context.duplicate()
 	full["volley"] = self
@@ -221,6 +230,7 @@ func _build_meshes() -> void:
 			body_mesh, body_material, Vector3(0.0, 0.0, length / 2.0 - body_length / 2.0)
 		)
 		body.name = "Body"
+		body.visible = not shells
 		rocket.add_child(body)
 		var nose := _part(
 			nose_mesh,
@@ -228,14 +238,16 @@ func _build_meshes() -> void:
 			Vector3(0.0, 0.0, -length / 2.0 + length * NOSE_FRACTION / 2.0)
 		)
 		nose.name = "Nose"
+		nose.visible = not shells
 		rocket.add_child(nose)
 		var glow := MeshInstance3D.new()
 		glow.name = "Glow"
 		glow.mesh = glow_mesh
 		glow.material_override = flame_material
 		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		glow.scale = Vector3.ONE * GLOW_SIZE
-		glow.position = Vector3(0.0, 0.0, length / 2.0 + GLOW_SIZE * 0.3)
+		var glow_size := SHELL_GLOW_SIZE if shells else GLOW_SIZE
+		glow.scale = Vector3.ONE * glow_size
+		glow.position = Vector3(0.0, 0.0, length / 2.0 + glow_size * 0.3)
 		glow.visible = false
 		rocket.add_child(glow)
 		rocket.visible = false
@@ -302,6 +314,8 @@ func update(t: float) -> void:
 	for i: int in crossed["launches"]:
 		_last_positions[i] = _origins[i]
 		effects.on_launch(i, _origins[i], _directions[i])
+		if muzzle_flash != null and is_instance_valid(muzzle_flash):
+			muzzle_flash.fire(_origins[i], _directions[i])
 		rocket_launched.emit(i)
 	for i in count:
 		var launch := SalvoTiming.launch_time(i, interval)
@@ -309,7 +323,7 @@ func update(t: float) -> void:
 		var flying := s >= 0.0 and s < 1.0
 		var rocket := _rockets[i]
 		rocket.visible = flying
-		_glows[i].visible = flying and s < SalvoTiming.MOTOR_BURN
+		_glows[i].visible = flying and (shells or s < SalvoTiming.MOTOR_BURN)
 		if flying:
 			_pose_rocket(i, s)
 		if forward and launch <= t and launch + flight > t0:
@@ -322,6 +336,7 @@ func update(t: float) -> void:
 		effects.on_impact(i, _landings[i], i == 0, i == count - 1)
 		rocket_impacted.emit(i, _landings[i])
 	_apply_jolt(t)
+	_apply_recoil(t)
 
 
 func _pose_rocket(index: int, s: float) -> void:
@@ -352,9 +367,26 @@ func _apply_jolt(t: float) -> void:
 		_shooter.set_launcher_jolt(offset)
 
 
+## A barrage: the gun runs back with VolleyPlayback.recoil_at() after every shot and the muzzle
+## flash follows the latest one.
+func _apply_recoil(t: float) -> void:
+	if not shells or t < 0.0:
+		return
+	var latest := mini(count - 1, floori(t / interval + 0.000001))
+	var age := t - SalvoTiming.launch_time(latest, interval)
+	if _gunner != null and is_instance_valid(_gunner):
+		_gunner.set_gun_recoil(VolleyPlayback.recoil_at(age))
+	if muzzle_flash != null and is_instance_valid(muzzle_flash):
+		muzzle_flash.pose(age)
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and _begun and not _ended:
 		_ended = true
+		if _gunner != null and is_instance_valid(_gunner):
+			_gunner.set_gun_recoil(0.0)
+		if muzzle_flash != null and is_instance_valid(muzzle_flash):
+			muzzle_flash.pose(-1.0)
 		if _jolt != 0.0 and _shooter != null and is_instance_valid(_shooter):
 			_shooter.set_launcher_jolt(0.0)
 		effects.end(_target_centre)

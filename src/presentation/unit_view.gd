@@ -417,6 +417,11 @@ func gun_elevation_towards(target: Vector3) -> float:
 	return UnitModels.gun_elevation(_model, gun.global_position, target)
 
 
+## `angle` (rad) limited to the gun's elevation range.
+func clamp_gun_elevation(angle: float) -> float:
+	return UnitModels.clamp_gun_elevation(_model, angle)
+
+
 ## Poses the turret (about Y) and the gun (elevation) relative to their built pose.
 func set_turret_pose(traverse: float, elevation: float) -> void:
 	if not _dying:

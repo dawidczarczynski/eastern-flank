@@ -14,6 +14,8 @@ const MODEL_PATH := "res://src/presentation/models/%s.gd"
 const VEHICLE_MOBILITY: Array[StringName] = [&"wheeled", &"tracked"]
 ## Unit class whose attacks play as a rocket volley.
 const VOLLEY_CLASS := &"mlrs"
+## Unit class whose attacks play as a barrage of a few shells (barrel artillery).
+const BARRAGE_CLASS := &"sp_artillery"
 ## Soldiers in a squad model (Soldier0..4) and wheel pivots a vehicle may have (Wheel0..19).
 const SQUAD_SIZE := 5
 ## Model units per metre of a soldier at soldier scale 1 (models/parts/soldier.gd `M`).
@@ -61,6 +63,11 @@ static func is_tracked(definition: UnitDefinition) -> bool:
 ## Whether the unit's attacks play as a rocket volley (every MLRS, whatever its id).
 static func fires_volley(definition: UnitDefinition) -> bool:
 	return definition != null and definition.unit_class == VOLLEY_CLASS
+
+
+## Whether the unit's attacks play as a barrel-artillery barrage (every self-propelled gun).
+static func fires_barrage(definition: UnitDefinition) -> bool:
+	return definition != null and definition.unit_class == BARRAGE_CLASS
 
 
 ## Weathering seed of a unit (camo shader `wear_seed`): a view-local, deterministic hash of its id
@@ -317,9 +324,13 @@ static func turret_aim(model: Node3D, facing_yaw: float, target_yaw: float) -> V
 ## Gun elevation (rad) that points from `from` to `to` (world positions), clamped to the model's
 ## `elevation_deg` [depression, elevation]; positive = muzzle up.
 static func gun_elevation(model: Node3D, from: Vector3, to: Vector3) -> float:
-	var limits: Array = turret_params(model)["elevation_deg"]
 	var flat := Vector2(to.x - from.x, to.z - from.z).length()
-	var angle := atan2(to.y - from.y, flat)
+	return clamp_gun_elevation(model, atan2(to.y - from.y, flat))
+
+
+## `angle` (rad) limited to the elevation range of `model`'s gun.
+static func clamp_gun_elevation(model: Node3D, angle: float) -> float:
+	var limits: Array = turret_params(model)["elevation_deg"]
 	return clampf(angle, deg_to_rad(float(limits[0])), deg_to_rad(float(limits[1])))
 
 

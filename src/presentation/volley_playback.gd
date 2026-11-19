@@ -15,6 +15,12 @@ const DEPLOY_DURATION := 0.6
 ## A tank turns its turret and elevates its gun this long before / after the hit (seconds at
 ## speed 1, each way; global pacing).
 const TURRET_AIM_DURATION := 0.5
+## Barrel artillery lifts its gun with the distance to the target, symbolically (not a ballistic
+## solution): BARREL_MIN_ELEVATION_DEG at point blank up to BARREL_MAX_ELEVATION_DEG from
+## BARREL_FULL_DISTANCE_HEXES tiles on, then limited by the model's own range.
+const BARREL_MIN_ELEVATION_DEG := 15.0
+const BARREL_MAX_ELEVATION_DEG := 65.0
+const BARREL_FULL_DISTANCE_HEXES := 8.0
 ## Gun recoil profile (TASK-048): the barrel kicks back for RECOIL_KICK, then runs out over
 ## RECOIL_RETURN (seconds at speed 1); together within EventQueue.ATTACK_DURATION.
 const RECOIL_KICK := 0.05
@@ -160,6 +166,23 @@ static func salvo_plan(unit_id: StringName, mouth_count: int, distance: float) -
 	}
 
 
+## Barrel-artillery barrage over the horizontal world `distance`: {"count", "interval", "flight"}
+## like salvo_plan(); the shells are much faster than rockets.
+static func barrage_plan(distance: float) -> Dictionary:
+	return {
+		"count": SalvoTiming.BARRAGE_COUNT,
+		"interval": SalvoTiming.BARRAGE_INTERVAL,
+		"flight": SalvoTiming.barrage_flight_time(distance),
+	}
+
+
+## Gun elevation (rad) for a target `distance_hexes` tiles away: rises linearly with the distance
+## between BARREL_MIN_ELEVATION_DEG and BARREL_MAX_ELEVATION_DEG.
+static func barrage_elevation(distance_hexes: float) -> float:
+	var f := clampf(distance_hexes / BARREL_FULL_DISTANCE_HEXES, 0.0, 1.0)
+	return deg_to_rad(lerpf(BARREL_MIN_ELEVATION_DEG, BARREL_MAX_ELEVATION_DEG, f))
+
+
 ## Salvo phase length of a salvo_plan().
 static func plan_duration(plan: Dictionary) -> float:
 	return SalvoTiming.salvo_duration(plan["count"], plan["interval"], plan["flight"])
@@ -182,6 +205,60 @@ static func terrain_context(from: Vector3, to: Vector3, terrain_at: Callable) ->
 		"launcher_terrain": terrain_name(terrain_at.call(from.x, from.z)),
 		"target_terrain": terrain_name(terrain_at.call(to.x, to.z)),
 	}
+
+
+## Appends the barrage of `shooter` at `target_centre` (barrage_plan over the world distance
+## between the two): the shells leave the muzzle along the bore, fly like rockets
+## (RocketVolley.shells) and land in a disc of `landing_radius` around the target; the gun recoils
+## and `flash` (optional) bursts at every shot. The caller aims first (the gun must already point
+## at the target when the salvo starts) and connects the volley's signals and effects.
+static func append_barrage(
+	tween: Tween,
+	parent: Node,
+	shooter: UnitView,
+	target_centre: Vector3,
+	rng: RandomNumberGenerator,
+	landing_radius: float,
+	flash: MuzzleFlash,
+	context: Dictionary = {},
+	ground_height: Callable = Callable()
+) -> RocketVolley:
+	var shooter_at := UnitModels.world_transform(shooter).origin
+	var plan := barrage_plan(horizontal_distance(shooter_at, target_centre))
+	var landings := landing_points(rng, target_centre, plan["count"], landing_radius, ground_height)
+	var volley := RocketVolley.new()
+	volley.name = "Barrage"
+	volley.shells = true
+	volley.muzzle_flash = flash
+	parent.add_child(volley)
+	tween.tween_callback(
+		setup_barrage.bind(volley, shooter, target_centre, landings, plan, context)
+	)
+	var duration := plan_duration(plan)
+	tween.tween_method(volley.update, 0.0, duration, duration)
+	tween.tween_callback(volley.queue_free)
+	return volley
+
+
+## Sets `volley` up for a barrage: every shell leaves the muzzle along the bore as they are now
+## (call it after aiming).
+static func setup_barrage(
+	volley: RocketVolley,
+	shooter: UnitView,
+	target_centre: Vector3,
+	landings: Array[Vector3],
+	plan: Dictionary,
+	context: Dictionary = {}
+) -> void:
+	var origins: Array[Vector3] = []
+	var directions: Array[Vector3] = []
+	for i in landings.size():
+		origins.append(shooter.muzzle_point())
+		directions.append(shooter.bore_direction())
+	var full := context.duplicate()
+	full["shooter"] = shooter
+	full["target_centre"] = target_centre
+	volley.setup(origins, directions, landings, plan["interval"], plan["flight"], full)
 
 
 ## Aims `shooter` at `aim_point` before a salvo: a limited launcher turns the hull first (taking
