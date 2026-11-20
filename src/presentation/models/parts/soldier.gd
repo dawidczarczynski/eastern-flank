@@ -30,6 +30,11 @@ const HIP_STANCE := SoldierPose.HIP
 const ASSAULT_STANCE := SoldierPose.ASSAULT
 ## Key of a variant's marker frames (SoldierPose.markers) next to its meshes.
 const MARKERS := &"_markers"
+## Keys of a variant's two leg pivots (TASK-188a): {role: ArrayMesh} per leg, and the hip positions
+## (model units) the pivots sit at. Node names of the pivots: LEG_NODES (left, right).
+const LEGS := &"_legs"
+const HIPS := &"_hips"
+const LEG_NODES: Array[StringName] = [&"LegL", &"LegR"]
 ## Openness (vertex mask g) of a helmet's lip and inner wall.
 const HELMET_INSIDE := 0.45
 ## Material roles, in build order (the uniform camo first).
@@ -234,7 +239,19 @@ static func soldier(
 	var markers: Dictionary = meshes.get(MARKERS, {})
 	var only_meshes := meshes.duplicate()
 	only_meshes.erase(MARKERS)
+	only_meshes.erase(LEGS)
+	only_meshes.erase(HIPS)
 	MeshKits.add_meshes(into, only_meshes, mats)
+	var legs: Array = meshes.get(LEGS, [])
+	var hips: Array = meshes.get(HIPS, [])
+	for i in legs.size():
+		# The pivot sits at the hip; its meshes keep the soldier frame (offset back by the hip).
+		var pivot := Node3D.new()
+		pivot.name = LEG_NODES[i]
+		pivot.position = hips[i]
+		into.add_child(pivot)
+		for mi in MeshKits.add_meshes(pivot, legs[i], mats):
+			mi.position = -(hips[i] as Vector3)
 	add_markers(into, markers)
 
 
@@ -260,25 +277,42 @@ static func add_markers(into: Node3D, markers: Dictionary) -> void:
 ## AO_ROLES (indexed meshes: each shared vertex is baked once), plus the kit's marker frames under
 ## MARKERS when it set any.
 static func variant_meshes(pose: SoldierPose, dress: Callable) -> Dictionary:
-	var meshes := soldier_kits(pose, dress).commit_all(AO_ROLES)
+	var leg_kits: Array[MeshKits] = [_new_kits(), _new_kits()]
+	var meshes := soldier_kits(pose, dress, leg_kits).commit_all(AO_ROLES)
 	for role: StringName in meshes:
 		if role in AO_ROLES:
 			meshes[role] = pose.occluders.bake(meshes[role], M)
+	var legs: Array = []
+	var hips: Array = []
+	for i in 2:
+		var leg := leg_kits[i].commit_all(AO_ROLES)
+		legs.append(pose.occluders.bake_all(leg, M))
+		hips.append((pose.joints[StringName("hip_" + ("l" if i == 0 else "r"))] as Vector3) * M)
+	meshes[LEGS] = legs
+	meshes[HIPS] = hips
 	if not pose.markers.is_empty():
 		meshes[MARKERS] = pose.markers.duplicate()
 	return meshes
 
 
-## The kits of one soldier: legs, torso, head, the kit from `dress` and the arms reaching its grips.
-static func soldier_kits(pose: SoldierPose, dress: Callable) -> MeshKits:
-	var k := MeshKits.new(null, Transform3D(Basis.from_scale(Vector3.ONE * M), Vector3.ZERO))
-	for role in ROLES:
-		k.k(role)
-	Body.legs(k, pose)
+## The kits of one soldier: legs (into `leg_kits` – two kits – when given, else into the result),
+## torso, head, the kit from `dress` and the arms reaching its grips.
+static func soldier_kits(
+	pose: SoldierPose, dress: Callable, leg_kits: Array[MeshKits] = []
+) -> MeshKits:
+	var k := _new_kits()
+	Body.legs(k, pose, leg_kits)
 	Body.torso(k, pose)
 	Body.head(k, pose)
 	var hands: Array = dress.call(k, pose)
 	Body.arms(k, pose, hands, &"light")
+	return k
+
+
+static func _new_kits() -> MeshKits:
+	var k := MeshKits.new(null, Transform3D(Basis.from_scale(Vector3.ONE * M), Vector3.ZERO))
+	for role in ROLES:
+		k.k(role)
 	return k
 
 

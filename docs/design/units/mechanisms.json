@@ -17,9 +17,9 @@
   },
   {
     "id": "squad_march",
-    "label": "Squad march (step bob, kneelers stand)",
+    "label": "Squad march (leg swing, step bob, kneelers stand)",
     "status": "implemented",
-    "description": "Soldiers bob with their steps while the squad moves; kneeling soldiers stand up first.",
+    "description": "Soldiers walk: each leg is a pivot at the hip and the two legs swing in alternating steps with the body sinking slightly as the legs spread so the feet stay on the ground (no sway); weapon and arms stay still. Kneeling soldiers stand up first.",
     "params": {},
     "pivots": [
       {

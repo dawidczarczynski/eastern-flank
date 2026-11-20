@@ -168,6 +168,8 @@ func test_soldier_meshes_carry_baked_occlusion() -> void:
 		var pose := _standing()
 		var meshes := Soldier.variant_meshes(pose, Callable(MODELS[id], &"dress"))
 		for role: StringName in meshes:
+			if not meshes[role] is ArrayMesh:
+				continue  # the legs' pivots (Soldier.LEGS / HIPS), checked below
 			var colors: PackedColorArray = (meshes[role] as ArrayMesh).surface_get_arrays(0)[
 				Mesh.ARRAY_COLOR
 			]
@@ -180,6 +182,12 @@ func test_soldier_meshes_carry_baked_occlusion() -> void:
 			var colors: PackedColorArray = (meshes[role] as ArrayMesh).surface_get_arrays(0)[
 				Mesh.ARRAY_COLOR
 			]
+			# The trousers are the legs' pivots now.
+			for leg: Dictionary in meshes[Soldier.LEGS]:
+				if leg.has(role):
+					colors.append_array(
+						(leg[role] as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+					)
 			var dark := 0
 			var open := 0
 			for c in colors:
@@ -192,6 +200,26 @@ func test_soldier_meshes_carry_baked_occlusion() -> void:
 				assert_true(
 					open > colors.size() / 2,
 					"%s %s: open %d of %d" % [id, role, open, colors.size()]
+				)
+
+
+func test_legs_are_separate_pivots_with_baked_occlusion() -> void:
+	for id: StringName in MODELS:
+		var meshes := Soldier.variant_meshes(_standing(), Callable(MODELS[id], &"dress"))
+		var legs: Array = meshes[Soldier.LEGS]
+		var hips: Array = meshes[Soldier.HIPS]
+		assert_eq(legs.size(), 2)
+		assert_eq(hips.size(), 2)
+		for i in 2:
+			assert_true(
+				(legs[i] as Dictionary).has(&"uniform") and (legs[i] as Dictionary).has(&"dark")
+			)
+			assert_true((hips[i] as Vector3).y > 0.05)
+			for role: StringName in legs[i]:
+				var arrays := (legs[i][role] as ArrayMesh).surface_get_arrays(0)
+				assert_eq(
+					(arrays[Mesh.ARRAY_COLOR] as PackedColorArray).size(),
+					(arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 				)
 
 

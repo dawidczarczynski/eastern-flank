@@ -1,6 +1,6 @@
 # TASK-188a: Infantry walks normally: leg swing (legs as separate pivots)
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: (soft: TASK-183)
 - **Sections**: docs/design/units/mechanisms.json (`squad_march`), ARCHITECTURE "Events" (only to confirm no new events are needed)
@@ -12,7 +12,7 @@ An infantry squad marches like soldiers walking: legs swing in alternating steps
 
 ## Decisions (2026-11-19, the human)
 
-- March: legs only. The legs swing in alternating steps with a small vertical bob. Weapon and arms stay still, and there is no lateral sway of the body. Kneelers stand up first (as today).
+- March: legs only. The legs swing in alternating steps with a small dip of the body (feet stay on the ground). Weapon and arms stay still, and there is no lateral sway of the body. Kneelers stand up first (as today).
 
 ## Working-tree note
 
@@ -28,7 +28,7 @@ The soldier parts (`src/presentation/models/parts/soldier_body.gd`, `soldier_pos
 
 ## Playtest (for the human)
 
-1. Move an infantry squad: legs swing in alternating steps with a small vertical bob.
+1. Move an infantry squad: legs swing in alternating steps with a small dip of the body (feet stay on the ground).
 2. Arms and weapons stay still, no side-to-side rocking of the body.
 3. Kneelers stand up first; when the squad stops it returns exactly to the standing/kneeling pose.
 4. Open the unit catalog, play the march animation: the same leg swing.
@@ -43,4 +43,6 @@ none (visual only)
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Each soldier's legs are now two pivots `LegL` / `LegR` at the hips (under `Rig`, or `Rig/Stand` for kneelers): `Soldier.legs` builds each leg into its own `MeshKits`; `variant_meshes` caches them under `Soldier.LEGS` / `Soldier.HIPS` (AO baked in the soldier frame, meshes offset back by the hip). Standing look unchanged.
+- `Locomotion.leg_swing` (±0.45 rad about Z, cos of the step phase, so legs pass under the body at the highest bob); `step_sway` and `LEAN` removed. `UnitModels.pose_infantry`: Rig only gets the y bob, legs swing in opposite directions, everything is reset at rest. Leg pivots keep the hip offset as position; at rest their rotation is the identity.
+- `mechanisms.json` `squad_march` description updated; tests in test_locomotion.gd and test_soldier_anatomy.gd.

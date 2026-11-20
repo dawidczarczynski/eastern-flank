@@ -44,14 +44,18 @@ func test_step_phase() -> void:
 
 
 func test_step_bob_and_sway() -> void:
-	_near(Locomotion.step_bob(0.0, 0.0), 0.0)
-	_near(Locomotion.step_bob(1.0 / 3.0, 0.0), 0.012)
-	_near(Locomotion.step_bob(2.0 / 3.0, 0.0), 0.0)
-	_near(Locomotion.step_sway(1.0 / 3.0, 0.0), 0.06)
-	_near(Locomotion.step_sway(1.0, 0.0), -0.06)
-	_near(Locomotion.step_bob(0.0, 0.5), 0.012)
+	var dip := -Locomotion.HIP_HEIGHT * (1.0 - cos(Locomotion.LEG_SWING))
+	_near(Locomotion.step_bob(0.0, 0.0), dip)
+	_near(Locomotion.step_bob(1.0 / 3.0, 0.0), 0.0)
+	_near(Locomotion.step_bob(2.0 / 3.0, 0.0), dip)
+	_near(Locomotion.leg_swing(0.0, 0.0), Locomotion.LEG_SWING)
+	_near(Locomotion.leg_swing(1.0 / 3.0, 0.0), 0.0)
+	_near(Locomotion.leg_swing(2.0 / 3.0, 0.0), -Locomotion.LEG_SWING)
+	_near(Locomotion.step_bob(0.0, 0.5), 0.0)
 	for k in 101:
-		assert_true(Locomotion.step_bob(k * 0.05, 0.3) >= 0.0)
+		# Feet stay on the ground: the body only ever sinks, by no more than the full dip.
+		var bob := Locomotion.step_bob(k * 0.05, 0.3)
+		assert_true(bob <= 0.0 and bob >= dip - 0.00001)
 
 
 func test_wheel_angle() -> void:
@@ -116,8 +120,20 @@ func test_pose_infantry() -> void:
 	var root := UnitModels.build(&"pl_mech_infantry", 0, _faction(0))
 	UnitModels.pose_infantry(root, 1.0 / 3.0, 1.0, true)
 	var rig: Node3D = root.get_node("Model/Soldier0/Rig")
-	_near(rig.position.y, 0.012 * absf(sin(PI * (0.5 + Locomotion.step_phase(0)))))
-	_near(rig.rotation.z, -0.08)
+	_near(rig.position.y, Locomotion.step_bob(1.0 / 3.0, Locomotion.step_phase(0)))
+	assert_eq(rig.rotation, Vector3.ZERO)
+	var left := root.get_node("Model/Soldier0/Rig/LegL") as Node3D
+	var right := root.get_node("Model/Soldier0/Rig/LegR") as Node3D
+	var swing := Locomotion.leg_swing(1.0 / 3.0, Locomotion.step_phase(0))
+	_near(left.rotation.z, swing)
+	_near(right.rotation.z, -swing)
+	assert_eq(left.rotation.x, 0.0)
+	UnitModels.pose_infantry(root, 0.0, 1.0, true)
+	assert_true(absf(left.rotation.z) > 0.05)
+	assert_true(right.rotation.z * left.rotation.z < 0.0)
+	var stand_left := root.get_node("Model/Soldier1/Rig/Stand/LegL") as Node3D
+	assert_true(absf(stand_left.rotation.z) > 0.0)
+	UnitModels.pose_infantry(root, 1.0 / 3.0, 1.0, true)
 	assert_true((root.get_node("Model/Soldier1/Rig/Stand") as Node3D).visible)
 	assert_true(not (root.get_node("Model/Soldier1/Rig/Kneel") as Node3D).visible)
 	UnitModels.pose_infantry(root, 0.0, 0.0, false)
@@ -125,6 +141,12 @@ func test_pose_infantry() -> void:
 		assert_true(
 			(root.get_node("Model/Soldier%d/Rig" % i) as Node3D).transform == Transform3D.IDENTITY
 		)
+		var legs := root.get_node("Model/Soldier%d/Rig" % i) as Node3D
+		if legs.has_node("Stand"):
+			legs = legs.get_node("Stand")
+		# A leg pivot sits at its hip: at rest only the rotation is the identity.
+		assert_eq((legs.get_node("LegL") as Node3D).basis, Basis.IDENTITY)
+		assert_eq((legs.get_node("LegR") as Node3D).basis, Basis.IDENTITY)
 	assert_true((root.get_node("Model/Soldier4/Rig/Kneel") as Node3D).visible)
 	assert_true(not (root.get_node("Model/Soldier4/Rig/Stand") as Node3D).visible)
 	root.free()

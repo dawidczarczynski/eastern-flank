@@ -1,14 +1,14 @@
 class_name Locomotion
 extends RefCounted
-## Pure math for unit locomotion (TASK-025): marching bob/sway of infantry, wheel spin and
+## Pure math for unit locomotion (TASK-025): marching bob and leg swing of infantry, wheel spin and
 ## hull rocking / slope tilt of tanks. Everything is a function of the move's animation time or
 ## travelled distance – nothing advances from frame delta. Feel constants, not balance.
 
 const ENVELOPE_RAMP := 0.25
 const STEPS_PER_UNIT := 1.5
-const STEP_BOB := 0.012
-const STEP_SWAY := 0.06
-const LEAN := -0.08
+## Hip height of a soldier (soldier-local units, 0.94 m at 0.1 per metre).
+const HIP_HEIGHT := 0.094
+const LEG_SWING := 0.45
 const WHEEL_RADIANS_PER_UNIT := 5.0
 const HULL_PITCH := 0.012
 const HULL_PITCH_FREQ := 0.9
@@ -56,14 +56,17 @@ static func _steps(distance: float, phase: float) -> float:
 	return distance * STEPS_PER_UNIT + phase
 
 
-## Vertical bob of a soldier (soldier-local units), without envelope.
+## Vertical offset of a soldier's body (soldier-local units, never positive), without envelope:
+## the hips sink exactly as far as the swung legs shorten (HIP_HEIGHT * (1 - cos swing)), so the
+## feet stay on the ground; zero where the legs pass each other.
 static func step_bob(distance: float, phase: float) -> float:
-	return STEP_BOB * absf(sin(PI * _steps(distance, phase)))
+	return -HIP_HEIGHT * (1.0 - cos(leg_swing(distance, phase)))
 
 
-## Side sway (radians, rotation.x) of a soldier, without envelope.
-static func step_sway(distance: float, phase: float) -> float:
-	return STEP_SWAY * sin(PI * _steps(distance, phase))
+## Swing of the left leg (radians about the soldier's Z axis, + = foot forward), without envelope;
+## the right leg swings the opposite way. Zero where the bob is highest (legs pass each other).
+static func leg_swing(distance: float, phase: float) -> float:
+	return LEG_SWING * cos(PI * _steps(distance, phase))
 
 
 static func wheel_angle(distance: float) -> float:

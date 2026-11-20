@@ -182,10 +182,12 @@ static func _spow(x: float, e: float) -> float:
 
 ## Both legs: trouser sweeps hip – knee – boot top, cargo pockets, knee pads (on the ground for a
 ## kneeling right knee), boots; AO proxies for thighs, shins and boots.
-static func legs(k: MeshKits, pose: SoldierPose) -> void:
-	var uni := k.k(&"uniform")
-	var dark := k.k(&"dark")
+static func legs(k: MeshKits, pose: SoldierPose, leg_kits: Array[MeshKits] = []) -> void:
 	for i in 2:
+		# Separate pivots (TASK-188a): leg i goes into its own kits, else into `k`.
+		var lk: MeshKits = leg_kits[i] if leg_kits.size() == 2 else k
+		var uni := lk.k(&"uniform")
+		var dark := lk.k(&"dark")
 		var side := -1.0 if i == 0 else 1.0
 		var tag := "l" if i == 0 else "r"
 		var hip: Vector3 = pose.joints[StringName("hip_" + tag)]
@@ -225,7 +227,7 @@ static func legs(k: MeshKits, pose: SoldierPose) -> void:
 			)
 		uni.sweep_profile(path, profiles, side0)
 		var frames := MeshKit.sweep_frames(path, side0)
-		_leg_kit(k, path, frames, knee_index, mirror, i == 1 and pose.kneel)
+		_leg_kit(lk, path, frames, knee_index, mirror, i == 1 and pose.kneel)
 		boot(dark, pose.feet[i], knee)
 		pose.occluders.capsule(hip, knee, 0.066)
 		pose.occluders.capsule(knee, ankle, 0.046)

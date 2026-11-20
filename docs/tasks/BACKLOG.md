@@ -160,7 +160,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-185](TASK-185-devtools-menu-page.md) | Devtools page in the main menu (debug runs) | 🔵 done | TASK-184 |
 | [TASK-186a](TASK-186a-devtools-tunables.md) | Devtools: live effect tunables, Fire again and slow motion (arena) | 🔵 done | TASK-185 |
 | [TASK-186b](TASK-186b-devtools-switches.md) | Devtools: look / performance switches and arena unit editor | 🔵 done | TASK-186a |
-| [TASK-188a](TASK-188a-infantry-march.md) | Infantry walks normally: leg swing (legs as separate pivots) | 🟢 ready | (soft: TASK-183) |
+| [TASK-188a](TASK-188a-infantry-march.md) | Infantry walks normally: leg swing (legs as separate pivots) | 🔵 done | (soft: TASK-183) |
 | [TASK-188b](TASK-188b-infantry-fire-effects.md) | Infantry fire effects: tracers vs. infantry, anti-tank launcher rocket vs. vehicles | 🟢 ready | – |
 | [TASK-187](TASK-187-msta-s-playable.md) | 2S19 Msta-S self-propelled howitzer playable in the Russian army | 🔵 done | TASK-176, TASK-181 |
 | [TASK-176](TASK-176-k9-thunder-unit.md) | K9 Thunder (K9PL) 155 mm self-propelled howitzer: new class `sp_artillery`, stats derived from the catalog, Poland roster and tank battalion | 🔵 done | – |

@@ -7,6 +7,7 @@ extends RefCounted
 
 ## The model scale comes from VisualScale.unit_model_scale() (preset `current` = 1.3).
 ## 1 model unit = 10 m before that scale.
+const Soldier := preload("res://src/presentation/models/parts/soldier.gd")
 const METERS_PER_UNIT := 10.0
 const MODEL_PATH := "res://src/presentation/models/%s.gd"
 ## Mobility of the units driven by vehicle locomotion (wheel spin, hull rocking, slope tilt)
@@ -170,8 +171,9 @@ static func has_mechanism(model: Node3D, id: String) -> bool:
 	return mechanisms(model).has(id)
 
 
-## Poses a squad: `moving` makes kneelers stand; at env 0 / not moving every Rig is exactly
-## the identity transform.
+## Poses a squad: `moving` makes kneelers stand, the body bobs and the two leg pivots swing in
+## opposite directions (no sway of body, arms or weapon); at env 0 / not moving every Rig and leg
+## is exactly the identity transform.
 static func pose_infantry(model: Node3D, distance: float, env: float, moving: bool) -> void:
 	var m := _model_of(model)
 	for i in SQUAD_SIZE:
@@ -182,14 +184,19 @@ static func pose_infantry(model: Node3D, distance: float, env: float, moving: bo
 		if kneel != null:
 			kneel.visible = not moving
 			(rig.get_node("Stand") as Node3D).visible = moving
-		if not moving or env <= 0.0:
-			rig.transform = Transform3D.IDENTITY
-			continue
+		var walking := moving and env > 0.0
 		var phase := Locomotion.step_phase(i)
-		rig.position = Vector3(0.0, Locomotion.step_bob(distance, phase) * env, 0.0)
-		rig.rotation = Vector3(
-			Locomotion.step_sway(distance, phase) * env, 0.0, Locomotion.LEAN * env
-		)
+		rig.transform = Transform3D.IDENTITY
+		if walking:
+			rig.position = Vector3(0.0, Locomotion.step_bob(distance, phase) * env, 0.0)
+		var swing := Locomotion.leg_swing(distance, phase) * env if walking else 0.0
+		var legs := rig.get_node_or_null("Stand") as Node3D
+		if legs == null:
+			legs = rig
+		for j in 2:
+			var leg := legs.get_node_or_null(NodePath(Soldier.LEG_NODES[j])) as Node3D
+			if leg != null:
+				leg.rotation = Vector3(0.0, 0.0, swing if j == 0 else -swing)
 
 
 ## Whether the model's launcher turns and elevates ("Launcher" turntable with the "Pod" on it);
