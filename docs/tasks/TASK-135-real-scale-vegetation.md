@@ -2,13 +2,13 @@
 
 - **Status**: ready
 - **Layers**: presentation (`TreeField`, `ScatterPlanner`, `BackdropCanopy`, grass / bush layers, `VisualScale`)
-- **Depends on**: – (soft: TASK-072, TASK-134, TASK-110)
+- **Depends on**: – (soft: TASK-072a, TASK-072b, TASK-134, TASK-110)
 - **Sections**: GDD "Visual direction", "Open questions" (Realistic scale); ADR 0021
 - **Model**: opus (performance budgets, LOD, determinism of scatter)
 
 ## Goal
 
-With trees at real size (`true` preset) forests still read as forests: real density (~2 000 trees per forest hex) through impostors and canopy shells, with distance budgets so Suwałki keeps its frame time. Overlaps TASK-072 (distance budgets for large maps): reuse its benchmark and budgets if it lands first, otherwise this task introduces the vegetation part and TASK-072 builds on it.
+With trees at real size (`true` preset) forests still read as forests: real density (~2 000 trees per forest hex) through impostors and canopy shells, with distance budgets so Suwałki keeps its frame time. TASK-072 is split: TASK-072a (benchmark) and TASK-072b (chunk manager with metre-based rings). If 072b lands first, the vegetation layers (impostors, shells, budgets) plug into its chunk interface; otherwise this task adds its budgets per chunk in `TreeField`/`GrassField` and 072b absorbs them. 072b does not implement impostors, shells or real density.
 
 ## Acceptance criteria (testable)
 

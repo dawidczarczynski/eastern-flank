@@ -28,6 +28,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `HexGrid` – Map: a set of hex tiles with a terrain type and an elevation. (`hex_grid.gd`)
 - `LineOfSight` – Line of sight of direct fire (TASK-131a, GDD "Combat"). Pure and static. (`line_of_sight.gd`)
 - `MapGenerator` – Procedural map generation from elevation and moisture noise (TerrainField). (`map_generator.gd`)
+- `MapTiler` – Tiles a map grid into a larger one for the large-map benchmark (TASK-072a): every second… (`map_tiler.gd`)
 - `MatchRecord` – A whole match as scenario + seed + executed commands (their `to_dict()` form). (`match_record.gd`)
 - `OrderRules` – Unit orders (TASK-081a, GDD "Unit orders"): which orders a unit has and whether one can be (`order_rules.gd`)
 - `Replay` – Rebuilds a match from a MatchRecord: the scenario's starting state from the seed, then ev… (`replay.gd`)
