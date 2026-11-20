@@ -56,7 +56,7 @@ static func compute_at(
 	var f := CombatForecast.new()
 	f.distance = Hex.distance(from, defender.coord)
 	f.range_factor = AttackCommand.range_factor(attacker.definition, f.distance)
-	f.line_of_sight = LineOfSight.visible(state.grid, from, defender.coord, state.smoke_hexes)
+	f.line_of_sight = state.has_line_of_sight(from, defender.coord)
 	f.problem = AttackCommand.fire_problem(state, attacker.definition, from, defender.coord)
 	f.shots = attacker.hp
 	f.die = attacker.definition.max_hp

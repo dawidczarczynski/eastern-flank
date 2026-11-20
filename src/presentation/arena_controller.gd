@@ -13,7 +13,20 @@ enum Tool { COMMAND, PLACE, REMOVE }
 const ARENA_WIDTH := 18
 const ARENA_HEIGHT := 11
 const ARENA_FACTIONS: Array[StringName] = [&"poland", &"russia"]
-const TOOL_NAMES := ["Command (1)", "Place (2)", "Remove (3)"]
+const TOOL_NAMES := ["Command", "Place", "Remove"]
+const PANEL_WIDTH := 292.0
+const ROW_LABEL_WIDTH := 104.0
+## Editable stats of the selected unit: [UnitDefinition property, label, min, max, step]. Ranges
+## are metres, one step = one hex (UnitDefinition.HEX_METRES).
+const STAT_SPECS: Array = [
+	[&"max_hp", "Max HP", 1, 99, 1],
+	[&"move_points", "Move points", 0, 30, 1],
+	[&"attack", "Attack", 0, 99, 1],
+	[&"defense", "Defense", 0, 99, 1],
+	[&"effective_range_m", "Full range", 0, 12000, 250],
+	[&"max_range_m", "Max range", 0, 12000, 250],
+	[&"min_range_m", "Min range", 0, 12000, 250],
+]
 
 var _tool := Tool.COMMAND
 var _side := 0
@@ -25,8 +38,12 @@ var _side_button: Button
 var _last_attack := {}  # the last non-counter unit_attacked event (Fire again replays it)
 var _fire_again_button: Button
 var _effects_box: VBoxContainer
-var _effects_scroll: ScrollContainer
-var _effects_toggle: Button
+var _stats_box: VBoxContainer
+var _los_check: CheckBox
+var _stat_spins := {}  # UnitDefinition property -> SpinBox
+var _fire_mode_picker: OptionButton
+var _reset_stats_button: Button
+var _original_definitions := {}  # unit id -> the shared definition before its first stat edit
 var _sliders := {}  # DevTunables key (or &"slow_motion") -> {slider, value label}
 var _hp_spin: SpinBox
 var _moves_spin: SpinBox
@@ -219,6 +236,13 @@ func _clear_all() -> void:
 	_after_edit()
 
 
+## Bench switch: direct fire ignores line of sight (orders, forecast and range overlay).
+func set_ignore_line_of_sight(on: bool) -> void:
+	_sim.state.ignore_line_of_sight = on
+	if is_built:
+		_refresh_selection_ui()
+
+
 func _after_edit() -> void:
 	_sim.state.record_starting_hp()
 	_refresh_hud()
@@ -270,6 +294,73 @@ func set_selected_ambush(on: bool) -> void:
 	_finish_unit_edit()
 
 
+## Sets a stat of the selected unit (bench only, nothing recorded). The unit gets its own copy of
+## its definition on the first edit, so the data file and the other units of the type stay as they
+## are; values are clamped to STAT_SPECS and the ranges keep min <= full <= max.
+func set_selected_stat(value: int, property: StringName) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	for spec: Array in STAT_SPECS:
+		if spec[0] == property:
+			value = clampi(value, spec[2], spec[3])
+	_own_definition(unit)
+	var definition := unit.definition
+	definition.set(property, value)
+	match property:
+		&"effective_range_m":
+			definition.max_range_m = maxi(definition.max_range_m, value)
+		&"max_range_m":
+			definition.effective_range_m = mini(definition.effective_range_m, value)
+			definition.min_range_m = mini(definition.min_range_m, value)
+		&"min_range_m":
+			definition.max_range_m = maxi(definition.max_range_m, value)
+			definition.effective_range_m = maxi(definition.effective_range_m, value)
+	_after_stat_edit(unit)
+
+
+## Direct (line of sight) or indirect fire for the selected unit.
+func set_selected_fire_mode(mode: StringName) -> void:
+	var unit := _edited_unit()
+	if unit == null:
+		return
+	_own_definition(unit)
+	unit.definition.fire_mode = mode
+	_after_stat_edit(unit)
+
+
+## Gives the selected unit back the shared definition of its type.
+func reset_selected_stats() -> void:
+	var unit := _edited_unit()
+	if unit == null or not _original_definitions.has(unit.id):
+		return
+	unit.definition = _original_definitions[unit.id]
+	_original_definitions.erase(unit.id)
+	_after_stat_edit(unit)
+
+
+func _own_definition(unit: Unit) -> void:
+	if not _original_definitions.has(unit.id):
+		_original_definitions[unit.id] = unit.definition
+		unit.definition = unit.definition.duplicate()
+
+
+func _after_stat_edit(unit: Unit) -> void:
+	unit.hp = clampi(unit.hp, 1, unit.definition.max_hp)
+	unit.moves_left = clampi(unit.moves_left, 0, unit.definition.move_points)
+	var view: UnitView = _unit_views.get(unit.id)
+	if view != null:
+		view.set_shown_hp(unit.hp, unit.definition.max_hp)
+	_finish_unit_edit()
+	_sync_editor()
+
+
+func _on_fire_mode_picked(index: int) -> void:
+	set_selected_fire_mode(
+		UnitDefinition.FIRE_INDIRECT if index == 1 else UnitDefinition.FIRE_DIRECT
+	)
+
+
 func _finish_unit_edit() -> void:
 	if not is_built:
 		return
@@ -286,17 +377,26 @@ func _refresh_selection_ui() -> void:
 
 
 func _sync_editor() -> void:
-	if _hp_spin == null:
+	if _hp_spin == null or _fire_mode_picker == null:
 		return
 	var unit := _edited_unit()
 	_editor_box.modulate.a = 1.0 if unit != null else 0.45
-	for control: Control in [_hp_spin, _moves_spin, _dug_check, _ambush_check]:
+	_stats_box.modulate.a = 1.0 if unit != null else 0.45
+	var controls: Array = [_hp_spin, _moves_spin, _dug_check, _ambush_check, _fire_mode_picker]
+	controls.append_array(_stat_spins.values())
+	for control: Control in controls:
 		if control is SpinBox:
 			(control as SpinBox).editable = unit != null
+		elif control is OptionButton:
+			(control as OptionButton).disabled = unit == null
 		else:
 			(control as CheckBox).disabled = unit == null
+	_reset_stats_button.disabled = unit == null or not _original_definitions.has(unit.id)
 	if unit == null:
 		return
+	for property: StringName in _stat_spins:
+		(_stat_spins[property] as SpinBox).set_value_no_signal(unit.definition.get(property))
+	_fire_mode_picker.select(1 if unit.definition.is_indirect() else 0)
 	_hp_spin.max_value = unit.definition.max_hp
 	_moves_spin.max_value = unit.definition.move_points
 	_hp_spin.set_value_no_signal(unit.hp)
@@ -419,26 +519,149 @@ func _on_faction_picked(index: int, side: int) -> void:
 
 
 func _build_panel() -> void:
-	var panel := PanelContainer.new()
-	panel.name = "ArenaPanel"
-	panel.position = Vector2(12.0, 96.0)
+	var frame := FramedPanel.new()
+	frame.name = "ArenaPanel"
+	frame.chamfers = Vector4(0.0, 12.0, 0.0, 12.0)
+	frame.fill = UiPalette.PANEL_STRONG
+	frame.tab_text = "ARENA"
+	frame.tab_right_text = "DEV BENCH"
+	frame.padding = Vector2(10.0, 8.0)
+	frame.position = Vector2(12.0, 96.0)
+	frame.theme = _panel_theme()
+	var scroll := ScrollContainer.new()
+	var height := get_viewport().get_visible_rect().size.y - 96.0 - 130.0
+	scroll.custom_minimum_size = Vector2(PANEL_WIDTH, clampf(height, 240.0, 760.0))
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	frame.add_child(scroll)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override(&"margin_right", 8)
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(margin)
 	var box := VBoxContainer.new()
-	panel.add_child(box)
-	var title := Label.new()
-	title.text = "ARENA (dev bench)"
-	box.add_child(title)
+	box.add_theme_constant_override(&"separation", 6)
+	margin.add_child(box)
+	_build_tools(_section(box, "Tools", true))
+	_build_armies(_section(box, "Armies", true))
+	_build_editor(_section(box, "Selected unit", true))
+	_build_stats(_section(box, "Unit stats", true))
+	_build_view_switches(_section(box, "View", false))
+	_build_effects(_section(box, "Effects", false))
+	_status = MenuStyle.label("", HudTheme.mono(400), 11, UiPalette.HUD_MUTED)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(_status)
+	$HUD.add_child(frame)
+	_fill_units()
+	_sync_panel()
+
+
+## Theme of the panel: the HUD theme plus dark inputs (spin boxes, pickers) in the HUD look.
+func _panel_theme() -> Theme:
+	var theme := HudTheme.build()
+	var input := MenuStyle.box(Color(UiPalette.PANEL, 1.0), UiPalette.LINE)
+	input.content_margin_top = 3
+	input.content_margin_bottom = 3
+	for kind: StringName in [&"LineEdit", &"OptionButton"]:
+		theme.set_stylebox(&"normal", kind, input)
+		theme.set_stylebox(&"read_only", kind, input)
+		theme.set_stylebox(
+			&"hover", kind, MenuStyle.box(Color(UiPalette.AMBER, 0.12), UiPalette.AMBER)
+		)
+		theme.set_stylebox(&"pressed", kind, input)
+		theme.set_stylebox(&"focus", kind, MenuStyle.box(Color(0, 0, 0, 0), UiPalette.AMBER))
+		theme.set_color(&"font_color", kind, UiPalette.HUD_TEXT)
+		theme.set_font(&"font", kind, HudTheme.mono(500))
+		theme.set_font_size(&"font_size", kind, 12)
+	theme.set_font(&"font", &"CheckBox", HudTheme.mono(400))
+	theme.set_font_size(&"font_size", &"CheckBox", 12)
+	theme.set_color(&"font_color", &"CheckBox", UiPalette.HUD_TEXT)
+	return theme
+
+
+## A collapsible section: an amber caption bar that folds the returned body. Divider line above.
+func _section(parent: VBoxContainer, title: String, open: bool) -> VBoxContainer:
+	var line := ColorRect.new()
+	line.color = UiPalette.LINE
+	line.custom_minimum_size = Vector2(0.0, 1.0)
+	parent.add_child(line)
+	var head := Button.new()
+	head.toggle_mode = true
+	head.button_pressed = open
+	head.flat = true
+	head.focus_mode = Control.FOCUS_NONE
+	head.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	head.add_theme_font_override(&"font", HudTheme.mono(600, 3))
+	head.add_theme_font_size_override(&"font_size", 11)
+	for state in [
+		&"font_color", &"font_hover_color", &"font_pressed_color", &"font_hover_pressed_color"
+	]:
+		head.add_theme_color_override(state, UiPalette.AMBER)
+	parent.add_child(head)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override(&"separation", 4)
+	body.visible = open
+	parent.add_child(body)
+	head.text = ("v  " if open else ">  ") + title.to_upper()
+	head.toggled.connect(
+		func(on: bool) -> void:
+			body.visible = on
+			head.text = ("v  " if on else ">  ") + title.to_upper()
+	)
+	return body
+
+
+## A HUD button, compact for the panel.
+func _button(text: String, toggle := false) -> Button:
+	var button := MenuStyle.button(text, toggle)
+	button.custom_minimum_size = Vector2(0.0, 28.0)
+	button.add_theme_font_size_override(&"font_size", 12)
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return button
+
+
+## A row "label | control": the label in muted mono, then the control filling the rest.
+func _row(parent: Control, label: String, control: Control) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 6)
+	var title := MenuStyle.label(label, HudTheme.mono(400), 11, UiPalette.HUD_MUTED)
+	title.custom_minimum_size = Vector2(ROW_LABEL_WIDTH, 0.0)
+	row.add_child(title)
+	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(control)
+	parent.add_child(row)
+
+
+## Tool buttons, side switch and the bench actions.
+func _build_tools(box: VBoxContainer) -> void:
+	var tools := HBoxContainer.new()
+	tools.add_theme_constant_override(&"separation", 4)
+	box.add_child(tools)
 	for i in TOOL_NAMES.size():
-		var button := Button.new()
-		button.text = TOOL_NAMES[i]
-		button.toggle_mode = true
-		button.focus_mode = Control.FOCUS_NONE
+		var button := _button(TOOL_NAMES[i], true)
+		button.tooltip_text = "Key %d" % (i + 1)
 		button.pressed.connect(_set_tool.bind(i))
-		box.add_child(button)
+		tools.add_child(button)
 		_tool_buttons.append(button)
-	_side_button = Button.new()
-	_side_button.focus_mode = Control.FOCUS_NONE
+	_side_button = _button("")
 	_side_button.pressed.connect(func() -> void: _pick_side(1 - _side))
 	box.add_child(_side_button)
+	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override(&"separation", 4)
+	box.add_child(actions)
+	var refill := _button("Refill (4)")
+	refill.pressed.connect(_refill_all)
+	actions.add_child(refill)
+	var clear := _button("Clear all")
+	clear.pressed.connect(_clear_all)
+	actions.add_child(clear)
+	_fire_again_button = _button("Fire again")
+	_fire_again_button.pressed.connect(fire_again)
+	box.add_child(_fire_again_button)
+	_los_check = _add_check(box, "Ignore line of sight", set_ignore_line_of_sight)
+
+
+## Factions of both sides and the unit to place.
+func _build_armies(box: VBoxContainer) -> void:
 	var ids := FactionRegistry.ids()
 	for side in 2:
 		var picker := OptionButton.new()
@@ -447,63 +670,56 @@ func _build_panel() -> void:
 			picker.add_item(String(id))
 		picker.select(ids.find(_sim.state.player_factions[side]))
 		picker.item_selected.connect(_on_faction_picked.bind(side))
-		box.add_child(picker)
+		_row(box, "Side %d" % side, picker)
 		_faction_pickers.append(picker)
 	_unit_picker = OptionButton.new()
 	_unit_picker.focus_mode = Control.FOCUS_NONE
-	box.add_child(_unit_picker)
-	var refill := Button.new()
-	refill.text = "Refill all (4)"
-	refill.focus_mode = Control.FOCUS_NONE
-	refill.pressed.connect(_refill_all)
-	box.add_child(refill)
-	var clear := Button.new()
-	clear.text = "Clear all"
-	clear.focus_mode = Control.FOCUS_NONE
-	clear.pressed.connect(_clear_all)
-	box.add_child(clear)
-	_fire_again_button = Button.new()
-	_fire_again_button.text = "Fire again"
-	_fire_again_button.focus_mode = Control.FOCUS_NONE
-	_fire_again_button.pressed.connect(fire_again)
-	box.add_child(_fire_again_button)
-	_build_editor(box)
-	_build_view_switches(box)
-	_build_effects(box)
-	_status = Label.new()
-	box.add_child(_status)
-	$HUD.add_child(panel)
-	_fill_units()
-	_sync_panel()
+	_row(box, "Place", _unit_picker)
 
 
 ## Unit editor: HP and moves spin boxes, dug-in and ambush check boxes for the selected unit.
 func _build_editor(box: VBoxContainer) -> void:
-	_editor_box = VBoxContainer.new()
-	box.add_child(_editor_box)
-	var title := Label.new()
-	title.text = "Selected unit"
-	_editor_box.add_child(title)
-	_hp_spin = _add_spin(_editor_box, "HP", set_selected_hp)
-	_moves_spin = _add_spin(_editor_box, "Moves", set_selected_moves)
-	_dug_check = _add_check(_editor_box, "Dug in", set_selected_dug)
-	_ambush_check = _add_check(_editor_box, "Ambush", set_selected_ambush)
+	_editor_box = box
+	_hp_spin = _add_spin(box, "HP", set_selected_hp, 1)
+	_moves_spin = _add_spin(box, "Moves left", set_selected_moves, 0)
+	_dug_check = _add_check(box, "Dug in", set_selected_dug)
+	_ambush_check = _add_check(box, "Ambush", set_selected_ambush)
 	_sync_editor()
 
 
-func _add_spin(parent: Control, label: String, handler: Callable) -> SpinBox:
-	var row := HBoxContainer.new()
-	var title := Label.new()
-	title.text = label
-	title.custom_minimum_size = Vector2(52.0, 0.0)
+## Stat editor: the selected unit gets its own copy of the definition (the shared data file and
+## the other units of the type stay untouched); ranges are in metres, one step = one hex.
+func _build_stats(box: VBoxContainer) -> void:
+	_stats_box = box
+	for spec: Array in STAT_SPECS:
+		var property: StringName = spec[0]
+		var spin := _add_spin(
+			box, spec[1], set_selected_stat.bind(property), spec[2], spec[3], spec[4]
+		)
+		if spec[4] > 1:
+			spin.suffix = "m"
+		_stat_spins[property] = spin
+	_fire_mode_picker = OptionButton.new()
+	_fire_mode_picker.focus_mode = Control.FOCUS_NONE
+	_fire_mode_picker.add_item("Direct")
+	_fire_mode_picker.add_item("Indirect")
+	_fire_mode_picker.item_selected.connect(_on_fire_mode_picked)
+	_row(box, "Fire mode", _fire_mode_picker)
+	_reset_stats_button = _button("Reset unit stats")
+	_reset_stats_button.pressed.connect(reset_selected_stats)
+	box.add_child(_reset_stats_button)
+	_sync_editor()
+
+
+func _add_spin(
+	parent: Control, label: String, handler: Callable, low := 0, high := 99, step := 1
+) -> SpinBox:
 	var spin := SpinBox.new()
-	spin.min_value = 0 if label == "Moves" else 1
-	spin.max_value = 99
-	spin.step = 1
+	spin.min_value = low
+	spin.max_value = high
+	spin.step = step
 	spin.value_changed.connect(func(value: float) -> void: handler.call(int(value)))
-	row.add_child(title)
-	row.add_child(spin)
-	parent.add_child(row)
+	_row(parent, label, spin)
 	return spin
 
 
@@ -516,21 +732,8 @@ func _add_check(parent: Control, label: String, handler: Callable) -> CheckBox:
 	return check
 
 
-## Collapsible "View" section: quality, unit scale, look, grid, FPS overlay, camera limits.
-func _build_view_switches(box: VBoxContainer) -> void:
-	var toggle := Button.new()
-	toggle.toggle_mode = true
-	toggle.focus_mode = Control.FOCUS_NONE
-	toggle.text = "View >"
-	box.add_child(toggle)
-	var inner := VBoxContainer.new()
-	inner.visible = false
-	box.add_child(inner)
-	toggle.toggled.connect(
-		func(open: bool) -> void:
-			inner.visible = open
-			toggle.text = "View v" if open else "View >"
-	)
+## The "View" section body: quality, unit scale, look, grid, FPS overlay, camera limits.
+func _build_view_switches(inner: VBoxContainer) -> void:
 	_add_picker(
 		inner, "Quality", ["Auto", "LOW", "HIGH"], DevTunables.quality_choice, _on_quality_picked
 	)
@@ -558,41 +761,18 @@ func _build_view_switches(box: VBoxContainer) -> void:
 func _add_picker(
 	parent: Control, label: String, items: Array, selected: int, handler: Callable
 ) -> void:
-	var row := HBoxContainer.new()
-	var title := Label.new()
-	title.text = label
-	title.custom_minimum_size = Vector2(52.0, 0.0)
 	var picker := OptionButton.new()
 	picker.focus_mode = Control.FOCUS_NONE
 	for item in items:
 		picker.add_item(item)
 	picker.select(selected)
 	picker.item_selected.connect(handler)
-	row.add_child(title)
-	row.add_child(picker)
-	parent.add_child(row)
+	_row(parent, label, picker)
 
 
-## The collapsible "Effects" section: slow motion and one slider per DevTunables key.
+## The "Effects" section body: slow motion and one slider per DevTunables key.
 func _build_effects(box: VBoxContainer) -> void:
-	_effects_toggle = Button.new()
-	_effects_toggle.toggle_mode = true
-	_effects_toggle.focus_mode = Control.FOCUS_NONE
-	_effects_toggle.toggled.connect(
-		func(open: bool) -> void:
-			_effects_scroll.visible = open
-			_effects_toggle.text = "Effects v" if open else "Effects >"
-	)
-	_effects_toggle.text = "Effects >"
-	box.add_child(_effects_toggle)
-	_effects_scroll = ScrollContainer.new()  # twenty sliders do not fit the screen height
-	_effects_scroll.custom_minimum_size = Vector2(0.0, 280.0)
-	_effects_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_effects_scroll.visible = false
-	box.add_child(_effects_scroll)
-	_effects_box = VBoxContainer.new()
-	_effects_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_effects_scroll.add_child(_effects_box)
+	_effects_box = box
 	_add_slider(
 		&"slow_motion",
 		"Slow motion",
@@ -603,38 +783,40 @@ func _build_effects(box: VBoxContainer) -> void:
 	for key: StringName in DevTunables.keys():
 		var spec: Dictionary = DevTunables.SPECS[key]
 		_add_slider(key, spec["label"], spec["min"], spec["max"], spec["step"])
-	var reset_all := Button.new()
-	reset_all.text = "Reset all"
-	reset_all.focus_mode = Control.FOCUS_NONE
+	var reset_all := _button("Reset all effects")
 	reset_all.pressed.connect(_reset_all_effects)
 	_effects_box.add_child(reset_all)
 
 
 func _add_slider(key: StringName, label: String, low: float, high: float, step: float) -> void:
-	var title := Label.new()
-	title.text = label
-	_effects_box.add_child(title)
-	var row := HBoxContainer.new()
+	var head := HBoxContainer.new()
+	var title := MenuStyle.label(label, HudTheme.mono(400), 11, UiPalette.HUD_MUTED)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var readout := MenuStyle.label("", HudTheme.mono(600), 11, UiPalette.AMBER)
+	readout.custom_minimum_size = Vector2(44.0, 0.0)
+	readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var reset := Button.new()
+	reset.text = "x"
+	reset.flat = true
+	reset.tooltip_text = "Reset to default"
+	reset.focus_mode = Control.FOCUS_NONE
+	reset.add_theme_color_override(&"font_color", UiPalette.HUD_MUTED)
+	reset.add_theme_color_override(&"font_hover_color", UiPalette.AMBER)
+	reset.pressed.connect(_reset_one.bind(key))
+	head.add_child(title)
+	head.add_child(readout)
+	head.add_child(reset)
+	_effects_box.add_child(head)
 	var slider := HSlider.new()
 	slider.min_value = low
 	slider.max_value = high
 	slider.step = step
 	slider.value = _slider_value(key)
-	slider.custom_minimum_size = Vector2(120.0, 0.0)
 	slider.focus_mode = Control.FOCUS_NONE
-	var readout := Label.new()
-	readout.custom_minimum_size = Vector2(44.0, 0.0)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	readout.text = _format_value(slider.value)
 	slider.value_changed.connect(_on_slider_changed.bind(key, readout))
-	var reset := Button.new()
-	reset.text = "R"
-	reset.tooltip_text = "Reset to default"
-	reset.focus_mode = Control.FOCUS_NONE
-	reset.pressed.connect(_reset_one.bind(key))
-	row.add_child(slider)
-	row.add_child(readout)
-	row.add_child(reset)
-	_effects_box.add_child(row)
+	_effects_box.add_child(slider)
 	_sliders[key] = {"slider": slider, "readout": readout}
 
 
@@ -685,7 +867,9 @@ func _sync_panel() -> void:
 	_fire_again_button.disabled = not can_fire_again()
 	for i in _tool_buttons.size():
 		_tool_buttons[i].button_pressed = i == _tool
-	_side_button.text = "Side %d: %s (Tab)" % [_side, _sim.state.player_factions[_side]]
+	_side_button.text = (
+		("Side %d: %s (Tab)" % [_side, _sim.state.player_factions[_side]]).to_upper()
+	)
 	_status.text = (
 		"Turn %d, side %d commands.\nPlace: left click on a tile,\nright click leaves the tool."
 		% [_sim.state.turn, _sim.state.current_player]

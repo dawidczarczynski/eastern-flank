@@ -25,6 +25,10 @@ const FX_ROCKET_VOLLEY := &"rocket_volley"
 const FX_DIRECT_FIRE := &"direct_fire"
 ## A barrel-artillery barrage: the gun lifts with the distance and fires a few shells in a row.
 const FX_BARRAGE := &"barrage"
+## An infantry squad's rifle fire with tracers (TASK-188b), and the same with one anti-tank rocket
+## from the launcher gunner when the target is a vehicle.
+const FX_INFANTRY_FIRE := &"infantry_fire"
+const FX_INFANTRY_AT := &"infantry_at"
 
 var _events: Array[Dictionary] = []
 

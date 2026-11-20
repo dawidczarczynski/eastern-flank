@@ -57,6 +57,7 @@ var _menu: BattleMenu  # hamburger: Save, Leave battle / Exit to main menu
 var _sim: GameSimulation
 var _salvo_fx_pool: SalvoFxPool  # TASK-075; null on LOW (no particles)
 var _muzzle_flash: MuzzleFlash  # TASK-048; one for every tank shot of the battle
+var _infantry_fire: InfantryFire  # TASK-188b; tracers and the anti-tank rocket of infantry attacks
 var _audio: AudioDirector  # TASK-123: sound at the same playback moments as the animations
 var _ai := AiPlayer.new()
 var _unit_views: Dictionary = {}  # unit id -> UnitView
@@ -133,6 +134,7 @@ func _ready() -> void:
 	_camera_rig.set_bounds(_map_bounds())
 	_salvo_fx_pool = SalvoFxPool.create(self, quality, _map_bounds(), _camera_rig)
 	_muzzle_flash = MuzzleFlash.create(self, quality)
+	_infantry_fire = InfantryFire.create(self, quality, _salvo_fx_pool)
 	_camera_rig.set_ground_query(_map_view.visible_ground_height)
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
@@ -928,6 +930,9 @@ func _annotate(event: Dictionary) -> Dictionary:
 		annotated[EventQueue.VIEW_FX_KEY] = EventQueue.FX_ROCKET_VOLLEY
 		return annotated
 	if event["type"] == &"unit_attacked":
+		var infantry := _annotate_infantry(event)
+		if not infantry.is_empty():
+			return infantry
 		var gunner: UnitView = _unit_views.get(event["attacker_id"])
 		if gunner != null and gunner.has_turret() and _fires_barrage(event["attacker_id"]):
 			var plan := _barrage_plan(event)
@@ -943,6 +948,36 @@ func _annotate(event: Dictionary) -> Dictionary:
 			direct[EventQueue.VIEW_FX_KEY] = EventQueue.FX_DIRECT_FIRE
 			return direct
 	return event
+
+
+## An infantry squad's attack as rifle fire with tracers, plus one anti-tank rocket against a
+## vehicle when the squad has a launcher gunner (TASK-188b); `{}` for any other attacker.
+func _annotate_infantry(event: Dictionary) -> Dictionary:
+	var attacker := _sim.state.get_unit(event["attacker_id"])
+	var target := _sim.state.get_unit(event["target_id"])
+	var shooter: UnitView = _unit_views.get(event["attacker_id"])
+	if attacker == null or target == null or shooter == null:
+		return {}
+	if attacker.definition.unit_class != &"infantry":
+		return {}
+	var squad := shooter.squad_muzzles()
+	if squad.is_empty():
+		return {}
+	var rocket := target.definition.unit_class != &"infantry" and shooter.at_slot() >= 0
+	var distance := _event_distance(event)
+	var rifles: Array[Vector3] = []
+	rifles.resize(squad.size() - (1 if rocket else 0))
+	rifles.fill(Vector3.ZERO)
+	var shots := TracerPlan.rifle_shots(
+		rifles, Vector3(distance, 0.0, 0.0), DevTunables.get_int(DevTunables.TRACER_INTERVAL)
+	)
+	var annotated := EventQueue.with_view_duration(
+		event, TracerPlan.duration(shots, distance if rocket else -1.0)
+	)
+	annotated[EventQueue.VIEW_FX_KEY] = (
+		EventQueue.FX_INFANTRY_AT if rocket else EventQueue.FX_INFANTRY_FIRE
+	)
+	return annotated
 
 
 func _fires_volley(attacker_id: int) -> bool:
@@ -1063,6 +1098,17 @@ func _play_attack(event: Dictionary) -> Tween:
 		and event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_DIRECT_FIRE
 	):
 		return _play_direct_fire(shooter, target, event["target_hp"], event)
+	if (
+		target != null
+		and shooter != null
+		and (
+			event.get(EventQueue.VIEW_FX_KEY)
+			in [EventQueue.FX_INFANTRY_FIRE, EventQueue.FX_INFANTRY_AT]
+		)
+	):
+		var squad_fire := _play_infantry_fire(shooter, target, event["target_hp"], event)
+		if squad_fire != null:
+			return squad_fire
 	if target != null:
 		_add_impact_marks(event, target, shooter)
 		_audio.play_attack(_definition_of(event), shooter, target, event["damage"])
@@ -1211,6 +1257,29 @@ func _play_direct_fire(
 	tween.tween_callback(_play_direct_hit.bind(target, target_hp, event, shooter))
 	VolleyPlayback.append_shot(tween, shooter, _muzzle_flash, EventQueue.ATTACK_DURATION)
 	VolleyPlayback.tween_turret(tween, shooter, pose, Vector2.ZERO, TURRET_AIM_DURATION)
+	return tween
+
+
+## A squad fires: every soldier's rounds (every Nth a tracer) and, against a vehicle, the launcher
+## gunner's rocket; the target reacts like to a tank shell when the first round / the rocket lands.
+## Null when the squad model has no soldiers to fire from.
+func _play_infantry_fire(
+	shooter: UnitView, target: UnitView, target_hp: int, event: Dictionary
+) -> Tween:
+	var rocket: bool = event.get(EventQueue.VIEW_FX_KEY) == EventQueue.FX_INFANTRY_AT
+	var aim := target.global_position + Vector3(0.0, 0.15, 0.0)
+	var shots := TracerPlan.rifle_shots(
+		shooter.squad_muzzles(shooter.at_slot() if rocket else -1),
+		aim,
+		DevTunables.get_int(DevTunables.TRACER_INTERVAL)
+	)
+	if shots.is_empty():
+		return null
+	var plan := InfantryFire.rocket_plan(shooter.at_muzzle_point(), aim) if rocket else {}
+	var tween := create_tween()
+	_infantry_fire.append_to(
+		tween, shots, plan, _play_direct_hit.bind(target, target_hp, event, shooter)
+	)
 	return tween
 
 

@@ -53,10 +53,7 @@ static func fire_problem(
 		return "out_of_range"
 	if d < definition.min_hexes():
 		return "too_close"
-	if (
-		not definition.is_indirect()
-		and not LineOfSight.visible(state.grid, from, to, state.smoke_hexes)
-	):
+	if not definition.is_indirect() and not state.has_line_of_sight(from, to):
 		return "no_line_of_sight"
 	return ""
 

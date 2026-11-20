@@ -54,7 +54,16 @@ var fire_support_used_turn: Array[bool] = []
 ## (EndTurnCommand). Part of snapshot() only when non-empty.
 var smoke_hexes: Array[Dictionary] = []
 
+## Dev arena switch (bench only, never set by a scenario): direct fire ignores line of sight.
+var ignore_line_of_sight := false
+
 var _next_unit_id: int = 1
+
+
+## Whether direct fire from `from` to `to` has a clear line (smoke included); always true while
+## `ignore_line_of_sight` is on.
+func has_line_of_sight(from: Vector2i, to: Vector2i) -> bool:
+	return ignore_line_of_sight or LineOfSight.visible(grid, from, to, smoke_hexes)
 
 
 func _init(p_grid: HexGrid, p_player_count: int = 2, seed_value: int = 0) -> void:

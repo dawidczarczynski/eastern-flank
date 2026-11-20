@@ -1,6 +1,6 @@
 # TASK-188b: Infantry fire effects: tracers vs. infantry, anti-tank launcher rocket vs. vehicles
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation
 - **Depends on**: –
 - **Sections**: ARCHITECTURE "Events" (`unit_attacked`, `view_fx`)
@@ -47,4 +47,10 @@ none (visual only)
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Follow-up (human): the rocket also explodes on the target (fireball flash, light pulse, SalvoFxPool impact particles, camera shake; flash only on LOW). Tracers are red and laser-like, default interval 2 (every 2nd round).
+- `TracerPlan` (pure): tracer rhythm (`is_tracer`), 2 rounds per soldier, flight/rocket timing, `duration`. `DevTunables.TRACER_INTERVAL` (1..12, default 4) gives the arena slider automatically.
+- `InfantryFire` (pooled Node3D, created next to `MuzzleFlash`): muzzle flash + impact puff per round, additive tracer streaks, light pulse on HIGH, the rocket (launch flash, body streak, `SalvoTrail` smoke + `emit_backblast` from `SalvoFxPool`, none on LOW). Pose is a pure function of the attack's age, driven by one tween.
+- `EventQueue.FX_INFANTRY_FIRE` / `FX_INFANTRY_AT`, set in `BattleController._annotate_infantry` (only for `infantry` attackers whose model has Soldier nodes; vehicle target + launcher gunner = AT). The hit reuses `_play_direct_hit` (rocket arrival / first round landing).
+- `UnitModels.at_slot / at_muzzle_of / squad_muzzles`: rifles have no muzzle marker, so the rifle muzzle is a fixed offset in the Soldier node frame (`RIFLE_MUZZLE`) – check the position in game.
+- Non-tracer rounds draw no bullet (muzzle flash + impact puff only). Soldiers do not die individually, so all five always fire.
+- Tests: tests/unit/test_infantry_fire.gd.

@@ -371,6 +371,22 @@ func has_turret() -> bool:
 	return UnitModels.has_turret(_model)
 
 
+## Slot of the anti-tank launcher gunner of a squad model, -1 without one (TASK-188b).
+func at_slot() -> int:
+	return UnitModels.at_slot(_model)
+
+
+## World muzzle of the anti-tank launcher; the view's origin without one.
+func at_muzzle_point() -> Vector3:
+	var muzzle := UnitModels.at_muzzle_of(_model, UnitModels.at_slot(_model))
+	return UnitModels.world_transform(muzzle).origin if muzzle != null else global_position
+
+
+## World rifle muzzles of the squad's soldiers without slot `skip` (empty for a non-squad model).
+func squad_muzzles(skip := -1) -> Array[Vector3]:
+	return UnitModels.squad_muzzles(_model, skip)
+
+
 ## Whether the gun recoils and flashes when it fires (TASK-048).
 func has_gun_recoil() -> bool:
 	return UnitModels.has_gun_recoil(_model)
@@ -460,10 +476,12 @@ func shown_hp() -> int:
 
 
 ## Shows `hp` on the label without the hit reaction (a rocket salvo's HP steps, TASK-074).
-func set_shown_hp(hp: int) -> void:
+func set_shown_hp(hp: int, max_hp := -1) -> void:
 	if _dying:
 		return
 	_hp = hp
+	if max_hp >= 0:
+		_max_hp = max_hp
 	_label.set_hp(hp, _max_hp)
 
 

@@ -27,6 +27,7 @@ const DEBRIS := &"impact_debris"
 const DUST_RING := &"impact_dust_ring"
 const MUZZLE_FLASH_SIZE := &"muzzle_flash_size"
 const CAMERA_SHAKE := &"camera_shake"
+const TRACER_INTERVAL := &"tracer_interval"
 
 ## Slow motion (Engine.time_scale) while active; 1.0 = normal.
 const SLOW_MOTION_MIN := 0.1
@@ -67,6 +68,8 @@ const SPECS := {
 	&"muzzle_flash_size":
 	{"label": "Muzzle flash size", "def": 0.16, "min": 0.01, "max": 1.0, "step": 0.01},
 	&"camera_shake": {"label": "Camera shake", "def": 0.03, "min": 0.0, "max": 0.3, "step": 0.005},
+	&"tracer_interval":
+	{"label": "Infantry tracer every", "def": 2.0, "min": 1.0, "max": 12.0, "step": 1.0},
 }
 
 ## Look / performance switches (TASK-186b). Stored for the session like the tunables; the readers

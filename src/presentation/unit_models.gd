@@ -21,6 +21,9 @@ const BARRAGE_CLASS := &"sp_artillery"
 const SQUAD_SIZE := 5
 ## Model units per metre of a soldier at soldier scale 1 (models/parts/soldier.gd `M`).
 const SOLDIER_METRE := 0.1
+## Rifle muzzle in a Soldier node's local frame (x along the bore); the squads carry no muzzle
+## marker on rifles, only the anti-tank launcher has one (TASK-188b).
+const RIFLE_MUZZLE := Vector3(0.06, 0.115, 0.0)
 const MAX_WHEELS := 20
 ## Params of the `launcher` mechanism a model doesn't declare (= the defaults in
 ## docs/design/units/mechanisms.json; a test keeps them equal).
@@ -197,6 +200,35 @@ static func pose_infantry(model: Node3D, distance: float, env: float, moving: bo
 			var leg := legs.get_node_or_null(NodePath(Soldier.LEG_NODES[j])) as Node3D
 			if leg != null:
 				leg.rotation = Vector3(0.0, 0.0, swing if j == 0 else -swing)
+
+
+## Slot (0..SQUAD_SIZE-1) of the soldier with the anti-tank launcher, -1 when the model has none.
+static func at_slot(model: Node3D) -> int:
+	for i in SQUAD_SIZE:
+		if at_muzzle_of(model, i) != null:
+			return i
+	return -1
+
+
+## The launcher's `Muzzle` marker of soldier `slot` (kneeling or standing posture), or null.
+static func at_muzzle_of(model: Node3D, slot: int) -> Node3D:
+	var rig := _model_of(model).get_node_or_null("Soldier%d/Rig" % slot) as Node3D
+	if rig == null:
+		return null
+	var found := rig.get_node_or_null("Kneel/AtLauncher/Muzzle") as Node3D
+	return found if found != null else rig.get_node_or_null("AtLauncher/Muzzle") as Node3D
+
+
+## World rifle muzzles of the squad's soldiers, in slot order, without slot `skip` (-1 = none);
+## empty for a model without Soldier nodes.
+static func squad_muzzles(model: Node3D, skip: int) -> Array[Vector3]:
+	var muzzles: Array[Vector3] = []
+	var m := _model_of(model)
+	for i in SQUAD_SIZE:
+		var soldier := m.get_node_or_null("Soldier%d" % i) as Node3D
+		if soldier != null and i != skip:
+			muzzles.append(world_transform(soldier) * RIFLE_MUZZLE)
+	return muzzles
 
 
 ## Whether the model's launcher turns and elevates ("Launcher" turntable with the "Pod" on it);

@@ -125,3 +125,53 @@ func test_editing_without_a_selection_changes_nothing() -> void:
 	assert_eq(unit.hp, hp)
 	assert_false(unit.dug)
 	arena.free()
+
+
+func test_stat_edit_changes_only_the_selected_units_copy() -> void:
+	var pair := _arena_with_unit()
+	var arena: ArenaController = pair[0]
+	var unit: Unit = pair[1]
+	var shared := unit.definition
+	var shared_range := shared.max_range_m
+	arena._selected_unit_id = unit.id
+	arena.set_selected_stat(2000, &"max_range_m")
+	arena.set_selected_stat(7, &"attack")
+	assert_eq(unit.definition.max_range_m, 2000)
+	assert_eq(unit.definition.attack, 7)
+	assert_true(unit.definition != shared)
+	assert_eq(shared.max_range_m, shared_range)
+	arena.reset_selected_stats()
+	assert_true(unit.definition == shared)
+	arena.free()
+
+
+func test_stat_edit_keeps_ranges_ordered_and_hp_within_max() -> void:
+	var pair := _arena_with_unit()
+	var arena: ArenaController = pair[0]
+	var unit: Unit = pair[1]
+	arena._selected_unit_id = unit.id
+	arena.set_selected_stat(5000, &"effective_range_m")
+	assert_true(unit.definition.max_range_m >= 5000)
+	arena.set_selected_stat(1000, &"max_range_m")
+	assert_true(unit.definition.effective_range_m <= 1000)
+	arena.set_selected_stat(1, &"max_hp")
+	assert_eq(unit.hp, 1)
+	arena.set_selected_fire_mode(UnitDefinition.FIRE_INDIRECT)
+	assert_true(unit.definition.is_indirect())
+	arena.free()
+
+
+func test_ignoring_line_of_sight_is_a_state_switch() -> void:
+	var pair := _arena_with_unit()
+	var arena: ArenaController = pair[0]
+	var state: GameState = arena._sim.state
+	var far := Vector2i(10, 2)
+	state.smoke_hexes.append({"coord": Vector2i(6, 2), "owner": 0})
+	var blocked := not state.has_line_of_sight(Vector2i(2, 2), Vector2i(9, 2))
+	arena.set_ignore_line_of_sight(true)
+	assert_true(blocked)
+	assert_true(state.has_line_of_sight(Vector2i(2, 2), Vector2i(9, 2)))
+	assert_true(state.has_line_of_sight(Vector2i(2, 2), far))
+	arena.set_ignore_line_of_sight(false)
+	assert_false(state.has_line_of_sight(Vector2i(2, 2), Vector2i(9, 2)))
+	arena.free()

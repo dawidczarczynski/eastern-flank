@@ -28,6 +28,10 @@ static func build(state: GameState, unit: Unit) -> Dictionary:
 			effective.append(c)
 		else:
 			extended.append(c)
-		if direct and not LineOfSight.visible(state.grid, unit.coord, c):
+		if (
+			direct
+			and not state.ignore_line_of_sight
+			and not LineOfSight.visible(state.grid, unit.coord, c)
+		):
 			blocked.append(c)
 	return {"effective": effective, "extended": extended, "blocked": blocked}
