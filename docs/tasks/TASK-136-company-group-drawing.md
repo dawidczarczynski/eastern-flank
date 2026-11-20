@@ -16,6 +16,7 @@ Below ~3 units camera distance a company is drawn as 3–4 real-size vehicles or
 - [ ] Offsets: deterministic slots 50–80 m (0.35–0.55 units) from the hex centre, fully inside the hex, ≥ 40 m apart; the same unit always gets the same slots (no RNG draw).
 - [ ] The group is drawn only when camera distance < `CameraMath.GROUP_DRAW_DISTANCE` (3.0, TASK-111); above it one model (or none) plus the marker.
 - [ ] Each model's base touches the drawn terrain surface (± 0.1 m) on the Suwałki map, sampled at 20 hexes; none sunk or floating.
+- [ ] Follow-up from TASK-134 (ADR 0025): the touch-the-surface check uses the drawn near surface (`TerrainNear.drawn_height_at`) wherever near chunks are built; `MapView.mesh_height_at` (36 m lattice) can be off by 0.2 m on average and a few metres on steep slopes. Grid lines and overlays at the group distance have the same gap – record in the notes whether they were fixed.
 - [ ] A damage event removing strength turns the last model(s) into wrecks (smoke, no pop); a kill leaves wrecks for all; no state read except via events / `GameState`.
 - [ ] Movement, attacks, muzzle flash and selection use the group's lead model as origin/target; hex-based picking unchanged.
 - [ ] Frame time at distance 1.2 and 3 on Suwałki with 4 groups visible ≤ the ADR 0021 numbers + 1 ms.

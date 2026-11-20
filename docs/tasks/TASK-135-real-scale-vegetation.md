@@ -17,6 +17,7 @@ With trees at real size (`true` preset) forests still read as forests: real dens
 - [ ] Per-frame budget: full-tree instance count ≤ a data-driven cap (`LookPreset`); exceeding it drops the farthest first (test with a synthetic camera).
 - [ ] Scatter stays deterministic: same seed → same tree positions (no new RNG outside the existing streams); the `true` preset adds no extra simulation draws.
 - [ ] Grass and ground cover at real size (0.3–1.5 m) and real density only within ~100 m of the camera.
+- [ ] Follow-up from TASK-134 (ADR 0025): grass, ground cover and full trees within the near-terrain reach (≤ 3 units) sit on the drawn near surface (`TerrainNear.drawn_height_at`), not on the 36 m lattice (`MapView.mesh_height_at`), which is off by 0.2 m on average and a few metres on steep slopes; test: mean and max offset to the near surface on Suwałki ≤ 0.1 m.
 - [ ] Frame time on Suwałki at distances 46 / 24 / 7 with `SCREENSHOT_SCALE_PRESET=true` ≤ 16.7 ms avg on the RX 580 (or the shortfall is recorded for the human); numbers in the implementation notes.
 - [ ] Screenshots Read by the agent: a forest hex at 46, 24, 7 and 1.2 reads as a closed forest, no visible pop between levels.
 
