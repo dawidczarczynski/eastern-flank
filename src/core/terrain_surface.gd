@@ -63,9 +63,19 @@ func height_at(x: float, z: float) -> float:
 	return h
 
 
+## Fills the shared neighbour-offset array (used by authored-elevation surfaces) once.
+static func _fill_neighbour_offsets() -> void:
+	if not _neighbour_offsets.is_empty():
+		return
+	for d in Hex.DIRECTIONS:
+		var w := Hex.to_world(d, TerrainField.HEX_SIZE)
+		_neighbour_offsets.append(Vector2(w.x, w.z))
+
+
 ## Fills the per-tile cache `height_at` builds lazily, so that later calls only read – needed
 ## before the surface is queried from several threads. Changes no height.
 func prime() -> void:
+	_fill_neighbour_offsets()
 	if _grid.field == null:
 		return
 	for c in _grid.coords():
@@ -127,10 +137,7 @@ func _center_height(c: Vector2i, center: Vector3) -> float:
 ## centres around the point, weighted by smoothstep of the barycentric weights. Off-map neighbours
 ## count with c's elevation, so the map edge stays level.
 func _authored_height(c: Vector2i, x: float, z: float) -> float:
-	if _neighbour_offsets.is_empty():
-		for d in Hex.DIRECTIONS:
-			var w := Hex.to_world(d, TerrainField.HEX_SIZE)
-			_neighbour_offsets.append(Vector2(w.x, w.z))
+	_fill_neighbour_offsets()
 	var center := Hex.to_world(c, TerrainField.HEX_SIZE)
 	var p := Vector2(x - center.x, z - center.z)
 	var own := _grid.elevation(c)

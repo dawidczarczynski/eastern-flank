@@ -97,7 +97,7 @@ func tree_layer() -> ChunkLayer:
 
 ## Main thread, before plans run on the worker threads: fills the lazy caches they read.
 func prepare() -> void:
-	MapView.prime_surface(_surface, _grid)
+	_surface.prime()
 	TreeField.prime_sizes()
 	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
 

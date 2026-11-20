@@ -241,7 +241,7 @@ func build(grid: HexGrid) -> void:
 		bake.call()
 	# The planners read the surface and the ribbon index from the worker threads: fill their lazy
 	# caches first.
-	prime_surface(_surface, grid)
+	_surface.prime()
 	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
 	_lattice = TerrainLattice.new(rect, _surface)
 	_mesh_origin = _lattice.origin
@@ -320,18 +320,6 @@ func build(grid: HexGrid) -> void:
 		)
 	)
 	_update_grid()
-
-
-## Fills every lazy cache of `surface` before worker threads query it: TerrainSurface.prime()
-## covers the field's tile centres, and one query on a tile fills the neighbour offsets the
-## authored-elevation surface (imported maps) builds on first use – two threads filling that static
-## array at once corrupted it (TASK-072b).
-static func prime_surface(surface: TerrainSurface, grid: HexGrid) -> void:
-	surface.prime()
-	var coords := grid.coords()
-	if not coords.is_empty():
-		var w := Hex.to_world(coords[0], TerrainField.HEX_SIZE)
-		surface.height_at(w.x + 0.1, w.z + 0.1)
 
 
 ## The chunk manager of this view: other systems (GroundMarksView) register their layers here.

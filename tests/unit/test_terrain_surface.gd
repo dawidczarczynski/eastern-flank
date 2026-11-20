@@ -228,3 +228,34 @@ func test_prime_changes_no_height() -> void:
 	for c in grid.coords():
 		var w := Hex.to_world(c, TerrainField.HEX_SIZE)
 		assert_eq(primed.height_at(w.x + 0.2, w.z - 0.1), plain.height_at(w.x + 0.2, w.z - 0.1))
+
+
+## prime() fills the shared neighbour offsets, so threads querying an authored-elevation surface
+## afterwards only read.
+func test_prime_fills_neighbour_offsets_and_threaded_queries_match() -> void:
+	var grid := Fixtures.plains_grid(4)
+	grid.authored_elevation = true
+	var surface := TerrainSurface.new(grid)
+	TerrainSurface._neighbour_offsets.clear()
+	surface.prime()
+	assert_eq(TerrainSurface._neighbour_offsets.size(), 6)
+	var coords := grid.coords()
+	var expected: Array[float] = []
+	for c in coords:
+		var w := Hex.to_world(c, TerrainField.HEX_SIZE)
+		expected.append(surface.height_at(w.x + 0.3, w.z + 0.2))
+	var results: Array[Array] = [[], [], [], []]
+	var threads: Array[Thread] = []
+	for i in 4:
+		var t := Thread.new()
+		t.start(
+			func() -> void:
+				for c in coords:
+					var w := Hex.to_world(c, TerrainField.HEX_SIZE)
+					results[i].append(surface.height_at(w.x + 0.3, w.z + 0.2))
+		)
+		threads.append(t)
+	for t in threads:
+		t.wait_to_finish()
+	for r in results:
+		assert_eq(r, expected)

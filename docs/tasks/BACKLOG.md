@@ -233,7 +233,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-072](TASK-072-large-map-scalability.md) | Scalability for very large maps (umbrella, split into 072a / 072b) | 🔵 done (superseded by TASK-072a and TASK-072b) | – |
 | [TASK-072a](TASK-072a-large-map-benchmark.md) | Large-map benchmark: synthetic 1× / 4× / 16× Suwałki maps, build time, memory, instances, frame time at fixed cameras + pan sweep, baseline table | 🔵 done | – |
 | [TASK-072b](TASK-072b-chunked-lazy-world.md) | Chunked lazy world: `ChunkManager` builds/frees terrain, scatter, trees, grass and ground marks around the camera by metre rings; 16× map costs about Suwałki per frame; 134/135 plug into it | 🔵 done | TASK-072a |
-| [TASK-072c](TASK-072c-prime-neighbour-offsets.md) | `TerrainSurface.prime()` fills the neighbour offsets so threaded chunk planning is safe; removes the `MapView.prime_surface` workaround | 🟢 ready | TASK-072b |
+| [TASK-072c](TASK-072c-prime-neighbour-offsets.md) | `TerrainSurface.prime()` fills the neighbour offsets so threaded chunk planning is safe; removes the `MapView.prime_surface` workaround | 🔵 done | TASK-072b |
 | TASK-035 | Rivers, roads, named cities with buildings (v2 design, lines 41–130, 504–594) | ⚪ merged into TASK-108 (terrain from real data) | – |
 | [TASK-123](TASK-123-sound.md) | Sound: UI clicks, per-unit gunshots, explosions, engines, tracks, forest ambience on zoom (CC0 assets, `AudioDirector` + `SoundPlanner`) | 🔵 done | – (soft: TASK-064, TASK-048, TASK-075) |
 | [TASK-124](TASK-124-menu-reorganisation.md) | Menu reorganisation: Start scenario (scenario list + map preview, back), Unit catalog (back), Settings (language, sound; back) | 🔵 done | – (soft: TASK-084, TASK-123) |
