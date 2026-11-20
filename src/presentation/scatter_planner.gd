@@ -1,8 +1,11 @@
 class_name ScatterPlanner
 extends RefCounted
 ## Pure placement planner for cosmetic scatter: trees on forest/plains tiles, rocks on hills
-## (TASK-018). Uses its own RandomNumberGenerator – never GameState.rng – so the same map and
-## seed always give the same scatter and the simulation stays deterministic.
+## (TASK-018). Uses its own RandomNumberGenerators – never GameState.rng – so the same map and
+## seed always give the same scatter and the simulation stays deterministic. Every tile seeds its
+## own streams from (seed, tile, stream salt) (TASK-072b), so a tile's scatter does not depend on
+## which other tiles are planned: the chunked world plans the tiles of each chunk (`plan_rect`), in
+## any order, and together they give exactly the eager plan.
 
 const FOREST_TREES := 30
 const PLAINS_TREES := 4
@@ -59,8 +62,16 @@ const HEDGE_CHANCE := 0.5
 const HEDGE_STEP_M := 40.0
 const HEDGE_GAP_CHANCE := 0.25
 const HEDGE_TREE_CHANCE := 0.3
+const PLAN_KEYS: Array[String] = [
+	"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover", "meadow_scrub"
+]
 const SHRUB := &"shrub"
 const UNDERGROWTH := &"undergrowth"
+const TREE_SEED_SALT := 0x7EE5
+## No planned item lies farther than this from its tile centre (trees 0.95, bushes 0.92, edges
+## 0.95, meadow scrub 0.92 + 0.14 companion offset): a chunk's items stand at most this far
+## outside it.
+const TILE_REACH := 1.2
 
 
 ## `parcels` (TASK-108f) removes everything that stands on a farmland parcel.
@@ -70,27 +81,32 @@ const UNDERGROWTH := &"undergrowth"
 ## last three) drawn by the TreeField. Meadow scrub follows LookPreset.meadow().
 ## Tree: {position, scale, height_scale, yaw, conifer, k}. Rock: {position, scale, rotation}.
 ## Bush: {position, scale, height_scale, yaw, k}.
+## `coords` limits the plan to those tiles (default: every tile of the grid, in grid order).
 static func plan(
-	grid: HexGrid, surface: TerrainSurface, seed_value: int, parcels: ParcelMap = null
+	grid: HexGrid,
+	surface: TerrainSurface,
+	seed_value: int,
+	parcels: ParcelMap = null,
+	coords: Array[Vector2i] = []
 ) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
 	var trees: Array[Dictionary] = []
 	var rocks: Array[Dictionary] = []
 	var bushes: Array[Dictionary] = []
 	var bush_rng := RandomNumberGenerator.new()
-	bush_rng.seed = seed_value ^ BUSH_SEED_SALT
 	var edge_rng := RandomNumberGenerator.new()
-	edge_rng.seed = seed_value ^ EDGE_SEED_SALT
 	var edge_shrubs: Array[Dictionary] = []
 	var young_trees: Array[Dictionary] = []
 	var ground_cover: Array[Dictionary] = []
 	var meadow_scrub: Array[Dictionary] = []
 	var meadow_rng := RandomNumberGenerator.new()
-	meadow_rng.seed = seed_value ^ MEADOW_SEED_SALT
 	var meadow := LookPreset.meadow()
-	for c in grid.coords():
+	for c in coords if not coords.is_empty() else grid.coords():
 		var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+		rng.seed = tile_seed(seed_value, c, TREE_SEED_SALT)
+		bush_rng.seed = tile_seed(seed_value, c, BUSH_SEED_SALT)
+		edge_rng.seed = tile_seed(seed_value, c, EDGE_SEED_SALT)
+		meadow_rng.seed = tile_seed(seed_value, c, MEADOW_SEED_SALT)
 		plan_tile_meadow(grid, surface, meadow_rng, c, meadow_scrub, meadow)
 		match grid.get_terrain(c):
 			Terrain.Type.FOREST:
@@ -142,6 +158,63 @@ static func plan(
 			kept.assign(FeatureRibbonPlanner.without_ribbons(grid, plan[key]))
 			plan[key] = kept
 	return plan
+
+
+## The plan() of the tiles whose centre lies in `rect` (XZ, end exclusive; their items may stand
+## up to TILE_REACH outside it): every tile belongs to exactly one rectangle of a chunk grid, and
+## a tile's items do not depend on what else is planned, so the chunks together give exactly the
+## eager plan, in any order.
+static func plan_rect(
+	grid: HexGrid, surface: TerrainSurface, seed_value: int, rect: Rect2, parcels: ParcelMap = null
+) -> Dictionary:
+	var coords := coords_near(grid, rect)
+	if coords.is_empty():
+		var result := {}
+		for key: String in PLAN_KEYS:
+			result[key] = [] as Array[Dictionary]
+		return result
+	return plan(grid, surface, seed_value, parcels, coords)
+
+
+## Whether world point `p` lies in `rect` (XZ), the end edges excluded (so every point belongs to
+## exactly one chunk).
+static func in_rect(p: Vector3, rect: Rect2) -> bool:
+	return (
+		p.x >= rect.position.x and p.x < rect.end.x and p.z >= rect.position.y and p.z < rect.end.y
+	)
+
+
+## The grid's tiles whose centre lies in `rect` (XZ, end exclusive), in (r, q) order.
+static func coords_near(grid: HexGrid, rect: Rect2) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var size := TerrainField.HEX_SIZE
+	var r0 := floori(rect.position.y / (1.5 * size))
+	var r1 := ceili(rect.end.y / (1.5 * size))
+	for r in range(r0, r1 + 1):
+		var q0 := floori(rect.position.x / (Hex.SQRT3 * size) - r / 2.0)
+		var q1 := ceili(rect.end.x / (Hex.SQRT3 * size) - r / 2.0)
+		for q in range(q0, q1 + 1):
+			var c := Vector2i(q, r)
+			if not grid.has_tile(c):
+				continue
+			var w := Hex.to_world(c, size)
+			if rect.has_point(Vector2(w.x, w.z)):
+				result.append(c)
+	return result
+
+
+## Seed of one tile's stream: a hash of the plan seed, the tile and the stream's salt.
+static func tile_seed(seed_value: int, c: Vector2i, salt: int) -> int:
+	var h := _mix((seed_value ^ salt) & 0xFFFFFFFF)
+	h = _mix(h ^ (c.x & 0xFFFFFFFF))
+	return _mix(h ^ (c.y & 0xFFFFFFFF))
+
+
+## 32-bit integer finaliser (the operands stay below 2^59, no overflow).
+static func _mix(h: int) -> int:
+	h = ((h ^ (h >> 16)) * 0x45D9F3B) & 0xFFFFFFFF
+	h = ((h ^ (h >> 16)) * 0x45D9F3B) & 0xFFFFFFFF
+	return h ^ (h >> 16)
 
 
 ## A thorny thicket (one shrub plus bramble/nettle undergrowth) on the open ground of one land
@@ -444,7 +517,11 @@ static func _plan_rocks(
 ## Hedgerow trees and shrubs on the balks of some farmland strips (TASK-108f), by position hash
 ## (no RNG stream): {"trees": [...], "edge_shrubs": [...]} in the formats of plan(), for the
 ## playable map only (the planned ring around it has no parcels of its own).
-static func plan_hedges(grid: HexGrid, surface: TerrainSurface, parcels: ParcelMap) -> Dictionary:
+## `within` (world units, optional) keeps only the items in that rectangle (in_rect) and visits only
+## the parcels that touch it: the chunked world's share of the eager result.
+static func plan_hedges(
+	grid: HexGrid, surface: TerrainSurface, parcels: ParcelMap, within := Rect2()
+) -> Dictionary:
 	var trees: Array[Dictionary] = []
 	var shrubs: Array[Dictionary] = []
 	if parcels == null:
@@ -452,6 +529,12 @@ static func plan_hedges(grid: HexGrid, surface: TerrainSurface, parcels: ParcelM
 	var scale_m := MapScale.metres_per_unit
 	var size_m := Vector2(parcels.size_px()) * parcels.metres_per_pixel
 	var area := Rect2(parcels.origin_m, size_m)
+	var limited := within.has_area()
+	if limited:
+		var within_m := Rect2(within.position * scale_m, within.size * scale_m)
+		if not area.intersects(within_m):
+			return {"trees": trees, "edge_shrubs": shrubs}
+		area = area.intersection(within_m)
 	var first := Vector2i((area.position / FieldParcels.BLOCK_M).floor())
 	var last := Vector2i((area.end / FieldParcels.BLOCK_M).floor())
 	for bx in range(first.x, last.x + 1):
@@ -486,6 +569,8 @@ static func plan_hedges(grid: HexGrid, surface: TerrainSurface, parcels: ParcelM
 						continue
 					var x := x_m / scale_m
 					var z := z_m / scale_m
+					if limited and not in_rect(Vector3(x, 0.0, z), within):
+						continue
 					var y := surface.ground_height(x, z)
 					if y < MIN_TREE_GROUND:
 						continue

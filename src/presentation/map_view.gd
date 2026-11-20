@@ -1,11 +1,16 @@
 # gdlint: disable=max-public-methods
 class_name MapView
 extends Node3D
-## Map view: builds one continuous terrain mesh (heights from TerrainSurface, per-vertex ground
-## layer weights from TerrainSplat drawn by assets/shaders/terrain.gdshader with the
-## TerrainTextures arrays), a translucent water plane and faint hex grid lines from a HexGrid,
-## draws the reach wash, attack-target rings, hover ring and path dots (TASK-017).
+## Map view: builds the terrain (heights from TerrainSurface, per-vertex ground layer weights from
+## TerrainSplat drawn by assets/shaders/terrain.gdshader with the TerrainTextures arrays), a
+## translucent water plane and faint hex grid lines from a HexGrid, draws the reach wash,
+## attack-target rings, hover ring and path dots (TASK-017).
 ## Port of the design's terrain (docs/design/v1/game_screen.scene.js, "terrain mesh").
+## The world is chunked (TASK-072b, ADR 0024): terrain, bushes and rocks, trees, grass, grid lines
+## and ground marks are ChunkLayers of one ChunkManager and exist only within metre-based rings
+## around the camera target (ChunkRings); the coarse terrain covers the rest of the map. Call
+## set_camera_target() when the camera moves; _process() builds within the frame budget, and
+## finish_chunks() builds everything at once (loading screen, tests, screenshots).
 
 ## The terrain mesh covers the map bounds plus this margin (world units) on every side.
 const EXTENT := 6.0
@@ -13,7 +18,7 @@ const EXTENT := 6.0
 ## TerrainField.height costs ~75 µs per call in GDScript, so 5 took ~3.5 s for the 12×10
 ## map. TASK-027 measured the default map: 3 -> ~0.95 s, 4 -> ~1.6 s, 5 -> ~2.5 s, 6 -> ~3.7 s
 ## (excluding ~0.3 s once for the detail textures); 4 is the compromise, the normal map
-## supplies the fine detail.
+## supplies the fine detail (TerrainLattice.RESOLUTION).
 const RESOLUTION := 4.0
 ## Farmland parcels (TASK-108f) reach this far beyond the playable mesh into the backdrop ring.
 const PARCEL_MARGIN := 2.0
@@ -88,9 +93,6 @@ const RING_SEGMENTS := 5
 const DOT_RADIUS := 0.05
 const DOT_LIFT := 0.1
 const LAST_DOT_SCALE := 1.8
-const _PLAN_KEYS: Array[String] = [
-	"trees", "rocks", "bushes", "edge_shrubs", "young_trees", "ground_cover"
-]
 ## Scatter (TASK-018): view-local seed (never the simulation RNG) and mesh values.
 const SCATTER_SEED := 20240518
 const BUSH_COLOR_A := Color("#3f5a28")
@@ -115,16 +117,20 @@ static var _water_normal: ImageTexture
 
 ## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
 var quality: Dictionary = {}
-## The rows of the terrain mesh are built on the worker threads (TerrainRows); off: on the
-## caller's thread, same mesh.
-var terrain_threads := true
+## Chunk plans and the coarse terrain run on the worker threads; off: on the caller's thread,
+## same result.
+var threads := true
 var _grid: HexGrid
 var _surface: TerrainSurface
-## Terrain mesh height grid, kept so the grid lines can sit exactly on the mesh.
+## The terrain lattice (its origin, cell size and cell counts are kept as _mesh_* for the
+## overlays and the backdrop seam).
+var _lattice: TerrainLattice
 var _mesh_origin := Vector2.ZERO
 var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
-var _mesh_heights := PackedFloat32Array()
+var _terrain: TerrainChunks
+var _chunks := ChunkManager.new()
+var _foliage: FoliageChunks
 var _backdrop: BackdropMesh
 ## The ground ShaderMaterial shared by the terrain and the backdrop (one per build).
 var _ground_material: ShaderMaterial
@@ -132,13 +138,18 @@ var _ground_material: ShaderMaterial
 var _parcels: ParcelMap
 ## The map terrain the backdrop copies (one per build, after the terrain mesh).
 var _backdrop_types: BackdropTypes
+## Mean linear albedo per ground layer (TerrainTextures "average_colors"), read by the grass
+## planning threads; filled on the main thread before they start.
+var _layer_averages: Array[Color] = []
 var _tiles_root := Node3D.new()
 var _reach_line := MeshInstance3D.new()
 var _dim := MeshInstance3D.new()
 ## Reach tiles of the current selection (the unit's own tile excluded) and its colour.
 var _reach_set := {}
 var _reach_color := Color.WHITE
-var _grid_lines: MeshInstance3D
+## Parent of the grid line chunks ("GridLines_<x>_<z>"); Vector2i chunk -> MeshInstance3D.
+var _grid_lines: Node3D
+var _grid_chunks: Dictionary = {}
 var _grid_material: StandardMaterial3D
 var _grid_auto := true
 var _camera_distance := CameraRig.DEFAULT_DISTANCE
@@ -156,9 +167,6 @@ var _shape_cache: Dictionary = {}
 var _dots := MultiMeshInstance3D.new()
 var _grass := GrassField.new()
 var _trees := TreeField.new()
-## Planned trees of the last build (map scatter, backdrop scatter), handed to the TreeField.
-var _map_trees: Array = []
-var _backdrop_trees: Array = []
 
 
 func _ready() -> void:
@@ -187,8 +195,16 @@ func _ready() -> void:
 	_setup_dots()
 
 
-## The hover ring pulses; geometry is only rebuilt in set_hover().
+## Worker threads may still be planning chunks of this view: let them finish before it goes.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_chunks.wait()
+
+
+## The hover ring pulses; geometry is only rebuilt in set_hover(). Chunks around the camera
+## target are built within the frame budget (ChunkManager.process).
 func _process(_delta: float) -> void:
+	_chunks.process()
 	if _hover_ring.visible:
 		var color := GroundOverlay.color_of(_hover_ring_material)
 		color.a = OverlayGeometry.hover_alpha(Time.get_ticks_msec())
@@ -196,59 +212,166 @@ func _process(_delta: float) -> void:
 
 
 func build(grid: HexGrid) -> void:
+	_chunks.reset()
+	_chunks = ChunkManager.new(ChunkRings.load_default(), quality.get("small_chunk_rings", false))
+	_chunks.threads = threads
 	_grid = grid
 	_surface = TerrainSurface.new(grid)
 	_shape_cache.clear()
 	_clear_children(_tiles_root)
+	_grid_chunks.clear()
 	var centers: Array[Vector3] = []
 	for c in grid.coords():
 		centers.append(Hex.to_world(c, hex_size))
-	var rect := CameraMath.map_bounds(centers, hex_size).grow(EXTENT)
+	var playable := CameraMath.map_bounds(centers, hex_size)
+	var rect := playable.grow(EXTENT)
 	# Packs the ground textures on worker threads while the mesh is built.
 	TerrainTextures.request(TerrainGround.texture_size(quality))
 	_ground_material = null
-	# Farmland parcels (TASK-108f) over the mesh and the near backdrop; null without fields.
-	_parcels = FieldParcels.bake(grid, hex_size, rect.grow(PARCEL_MARGIN))
-	_tiles_root.add_child(_build_terrain(rect))
-	_tiles_root.add_child(_build_backdrop(rect))
+	# Farmland parcels (TASK-108f) over the mesh and the near backdrop; null without fields. Baked
+	# on a worker thread while the terrain and the backdrop are built (it reads the grid only).
+	_parcels = null
+	var bake_rect := rect.grow(PARCEL_MARGIN)
+	var baked: Array = [null]
+	var bake := func() -> void: baked[0] = FieldParcels.bake(grid, hex_size, bake_rect)
+	var bake_task := -1
+	if threads:
+		bake_task = WorkerThreadPool.add_task(bake, true, "Farmland parcels")
+	else:
+		bake.call()
+	# The planners read the surface and the ribbon index from the worker threads: fill their lazy
+	# caches first.
+	prime_surface(_surface, grid)
+	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
+	_lattice = TerrainLattice.new(rect, _surface)
+	_mesh_origin = _lattice.origin
+	_mesh_step = Vector2.ONE * TerrainLattice.STEP
+	_mesh_cells = _lattice.cells
+	_terrain = TerrainChunks.new(grid, hex_size, _lattice, _terrain_material())
+	_tiles_root.add_child(_terrain.coarse_root)
+	_tiles_root.add_child(_terrain.fine_root)
+	_terrain.build_all_coarse(threads)
+	_chunks.register(_terrain.chunk_layer())
+	_tiles_root.add_child(_build_backdrop(_lattice.rect()))
 	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
 		var ribbon := FeatureRibbons.build(_grid, kind, _drape, _terrain_material())
 		if ribbon != null:
 			_tiles_root.add_child(ribbon)
-	_map_trees = []
-	_backdrop_trees = []
+	if bake_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(bake_task)
+	_parcels = baked[0]
+	TerrainGround.set_parcels(_terrain_material(), _parcels)
+	_trees.clear()
+	_foliage = null
 	if quality.get("foliage", true):
-		var plan := ScatterPlanner.plan(grid, _surface, SCATTER_SEED, _parcels)
-		var hedges := ScatterPlanner.plan_hedges(grid, _surface, _parcels)
-		plan["trees"].append_array(hedges["trees"])
-		plan["edge_shrubs"].append_array(hedges["edge_shrubs"])
-		_build_scatter(plan, "")
+		var ring: HexGrid = null
+		var ring_surface: TerrainSurface = null
 		if quality.get("backdrop_scatter", true):
-			_build_backdrop_scatter(rect)
+			ring = _backdrop_ring(_lattice.rect())
+			ring_surface = BackdropSurface.new(ring, visible_ground_height)
 			_tiles_root.add_child(_build_backdrop_canopy())
+		_foliage = FoliageChunks.new(
+			grid,
+			_surface,
+			_parcels,
+			SCATTER_SEED,
+			_lattice.rect(),
+			playable,
+			_trees,
+			ring,
+			ring_surface
+		)
+		for parent in _foliage.parents():
+			_tiles_root.add_child(parent)
+		_chunks.register(_foliage.scatter_layer())
+		_chunks.register(_foliage.tree_layer())
 	_tiles_root.add_child(_build_water(rect))
 	Wind.setup(quality.get("wind", true))
-	# After Wind.setup: the foliage shader reads the wind globals.
-	_trees.setup(_map_trees, _backdrop_trees, CameraMath.map_bounds(centers, hex_size))
 	# The grass stands on the drawn mesh: its heights are a lookup in the mesh's height grid,
 	# far cheaper than the surface (noise octaves per query) and safe on the planning threads.
+	var grass_free := _chunks.free_radius(&"grass")
 	_grass.setup(
 		grid,
 		BackdropSurface.new(grid, mesh_height_at),
-		CameraMath.map_bounds(centers, hex_size),
+		playable,
 		quality.get("grass_density", 1.0),
 		_grass_color,
 		GrassPlanner.INSTANCE_BUDGET,
-		_parcels
+		_parcels,
+		PI * grass_free * grass_free
 	)
+	if _grass.is_active():
+		var grass_layer := _grass.chunk_layer(_chunks.invalidate)
+		var grass_prepare := grass_layer.prepare
+		grass_layer.prepare = func() -> void:
+			grass_prepare.call()
+			_prime_grass_colors()
+		_chunks.register(grass_layer)
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
+	_chunks.register(
+		ChunkLayer.new(
+			&"grid",
+			TreeField.CHUNK_SIZE,
+			_lattice.rect(),
+			_build_grid_chunk,
+			_free_grid_chunk,
+			_plan_grid_chunk
+		)
+	)
 	_update_grid()
 
 
-## Where the camera looks (XZ); grass chunks near it get built.
+## Fills every lazy cache of `surface` before worker threads query it: TerrainSurface.prime()
+## covers the field's tile centres, and one query on a tile fills the neighbour offsets the
+## authored-elevation surface (imported maps) builds on first use – two threads filling that static
+## array at once corrupted it (TASK-072b).
+static func prime_surface(surface: TerrainSurface, grid: HexGrid) -> void:
+	surface.prime()
+	var coords := grid.coords()
+	if not coords.is_empty():
+		var w := Hex.to_world(coords[0], TerrainField.HEX_SIZE)
+		surface.height_at(w.x + 0.1, w.z + 0.1)
+
+
+## The chunk manager of this view: other systems (GroundMarksView) register their layers here.
+func chunks() -> ChunkManager:
+	return _chunks
+
+
+## Where the camera looks (XZ): chunks near it are built (in _process, within the frame budget),
+## chunks far from it freed.
 func set_camera_target(target: Vector2) -> void:
-	_grass.set_target(target)
+	_chunks.update(target)
+
+
+## Builds every chunk the rings ask for around the current camera target now (loading screen,
+## tests, screenshots); `target` moves the target first.
+func finish_chunks(target: Variant = null) -> void:
+	if target != null:
+		_chunks.update(target)
+	_chunks.finish_all()
+
+
+## True when every chunk around the camera target is built.
+func chunks_settled() -> bool:
+	return _chunks.is_settled()
+
+
+## The terrain chunks (fine and coarse nodes), for tests and statistics.
+func terrain() -> TerrainChunks:
+	return _terrain
+
+
+## The bushes and rocks (null without foliage), for tests and statistics.
+func foliage() -> FoliageChunks:
+	return _foliage
+
+
+## Burns the scatter around a wreck (BurntGround), also in chunks built later.
+func burn_ground(center: Vector2, radius: float) -> void:
+	if _foliage != null:
+		_foliage.burn(center, radius)
 
 
 ## The grass (TASK-057), for tests and statistics.
@@ -266,17 +389,17 @@ func surface() -> TerrainSurface:
 	return _surface
 
 
-## Height of the drawn terrain mesh at (x, z) – what overlays and markers drape onto.
+## Height of the drawn terrain mesh at (x, z) – what overlays and markers drape onto. Thread-safe
+## (the grass plans read it).
 func mesh_height_at(x: float, z: float) -> float:
-	return _mesh_ground_height(x, z)
+	return _lattice.mesh_height_at(x, z)
 
 
 ## Height of the ground the player sees at (x, z): the terrain mesh on the playable rectangle,
 ## the backdrop beyond it. The camera keeps its clearance above this.
 func visible_ground_height(x: float, z: float) -> float:
-	var inner := Rect2(_mesh_origin, Vector2(_mesh_cells) * _mesh_step)
-	if inner.has_point(Vector2(x, z)):
-		return _mesh_ground_height(x, z)
+	if _lattice.rect().has_point(Vector2(x, z)):
+		return _lattice.mesh_height_at(x, z)
 	return maxf(_backdrop.height_at(x, z), TerrainSurface.WATER_SURFACE)
 
 
@@ -296,77 +419,6 @@ func tile_top_position(c: Vector2i) -> Vector3:
 	var p := Hex.to_world(c, hex_size)
 	p.y = _surface.ground_height(p.x, p.z)
 	return p
-
-
-func _build_terrain(rect: Rect2) -> MeshInstance3D:
-	# Even cell counts: the half-resolution backdrop reuses every second border vertex.
-	var nx := 2 * maxi(1, roundi(rect.size.x * RESOLUTION / 2.0))
-	var nz := 2 * maxi(1, roundi(rect.size.y * RESOLUTION / 2.0))
-	var step := Vector2(rect.size.x / nx, rect.size.y / nz)
-	var row := nx + 1
-	var count := row * (nz + 1)
-	_mesh_origin = rect.position
-	_mesh_step = step
-	_mesh_cells = Vector2i(nx, nz)
-	var rows := TerrainRows.new(_grid, _surface, rect.position, step, _mesh_cells, hex_size)
-	rows.threads = terrain_threads
-	rows.build_heights()
-	_mesh_heights = rows.heights
-	var vertices := rows.vertices
-	# Odd border vertices sit on the line between their even neighbours, so the coarser backdrop
-	# edge meets the border without cracks (the border is outside the map, nobody notices).
-	for i in range(1, nx, 2):
-		for j: int in [0, nz]:
-			_set_border_height(vertices, j * row + i, 1)
-	for j in range(1, nz, 2):
-		for i: int in [0, nx]:
-			_set_border_height(vertices, j * row + i, row)
-	rows.vertices = vertices
-	rows.build_attributes()
-	var normals := rows.normals
-	var tangents := rows.tangents
-	var uvs := rows.uvs
-	var weights := rows.weights
-	var tints := rows.tints
-	assert(normals.size() == count and weights.size() == count * TerrainSplat.LAYER_COUNT)
-
-	var indices := PackedInt32Array()
-	indices.resize(nx * nz * 6)
-	var w := 0
-	for j in nz:
-		for i in nx:
-			var a := j * row + i
-			var b := a + 1
-			var c := a + row
-			var d := c + 1
-			# Clockwise seen from above (+Y): Godot's front-face winding.
-			indices[w] = a
-			indices[w + 1] = b
-			indices[w + 2] = c
-			indices[w + 3] = b
-			indices[w + 4] = d
-			indices[w + 5] = c
-			w += 6
-
-	# Blend across tile borders: average with the neighbours within one mesh step.
-	weights = TerrainSplat.smooth(weights, row, nz + 1)
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_TEX_UV2] = tints
-	arrays[Mesh.ARRAY_TANGENT] = tangents
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	TerrainGround.add_surface(mesh, arrays, weights)
-	mesh.surface_set_material(0, _terrain_material())
-	var instance := MeshInstance3D.new()
-	instance.name = "Terrain"
-	instance.set_layer_mask_value(TERRAIN_VISUAL_LAYER, true)
-	instance.mesh = mesh
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	return instance
 
 
 ## The two TerrainSplat noises at world (x, z): fine moisture (x) and the dry/moist macro (y).
@@ -390,17 +442,14 @@ func _terrain_material() -> ShaderMaterial:
 	return _ground_material
 
 
-func _set_border_height(vertices: PackedVector3Array, index: int, stride: int) -> void:
-	var h := (vertices[index - stride].y + vertices[index + stride].y) * 0.5
-	vertices[index].y = h
-	_mesh_heights[index] = h
-
-
 ## The non-playable scenery ring around `rect` (the playable mesh), see BackdropMesh.
 func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 	_backdrop_types = BackdropTypes.new(_grid, hex_size, _mesh_origin, _mesh_step)
-	_backdrop = BackdropMesh.new(rect, _mesh_cells, _mesh_heights, BACKDROP_WIDTH, DETAIL_TILE)
-	var mesh := _backdrop.build_mesh(_backdrop_vertex, TerrainGround.add_surface)
+	_backdrop = BackdropMesh.new(rect, _mesh_cells, _lattice.height, BACKDROP_WIDTH, DETAIL_TILE)
+	# The vertex callbacks run on the worker threads: fill the shares they read first.
+	for key in _backdrop.border_keys():
+		_backdrop_types.border_shares(key.x, key.y)
+	var mesh := _backdrop.build_mesh(_backdrop_vertex, TerrainGround.add_surface, threads)
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Backdrop"
@@ -418,17 +467,27 @@ func _backdrop_vertex(
 	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
 ) -> PackedFloat32Array:
 	var v := Vector3(x, h, z)
-	var noise := _splat_noise(x, z)
-	var seam := _splat(-1, normal_y, v, noise)
+	var t := TerrainNoise.smooth(0.0, BACKDROP_FADE, distance)
 	var shares := _backdrop_types.border_shares(ca, cb)
+	# The noises and the splats a vertex does not show are skipped (TASK-072b: tens of thousands
+	# of ring vertices on a large map); the weights are the same.
+	var noisy := t < 1.0
+	for type: int in shares:
+		noisy = noisy or TerrainSplat.uses_noise(type)
+	var noise := _splat_noise(x, z) if noisy else Vector2.ZERO
+	var seam := _splat(-1, normal_y, v, noise) if t < 1.0 else PackedFloat32Array()
 	var land := PackedFloat32Array()
 	land.resize(TerrainSplat.LAYER_COUNT)
-	for type: int in shares:
-		var share: float = shares[type]
-		var w := _splat(type, normal_y, v, noise)
-		for layer in TerrainSplat.LAYER_COUNT:
-			land[layer] += w[layer] * share
-	var t := TerrainNoise.smooth(0.0, BACKDROP_FADE, distance)
+	if t > 0.0:
+		for type: int in shares:
+			var share: float = shares[type]
+			var w := _splat(type, normal_y, v, noise)
+			for layer in TerrainSplat.LAYER_COUNT:
+				land[layer] += w[layer] * share
+	if t >= 1.0:
+		seam = land
+	elif t <= 0.0:
+		land = seam
 	var result := PackedFloat32Array()
 	for layer in TerrainSplat.LAYER_COUNT:
 		result.append(lerpf(seam[layer], land[layer], t))
@@ -442,7 +501,7 @@ func _backdrop_vertex(
 ## drawn by canopy.gdshader as crowns.
 func _build_backdrop_canopy() -> MeshInstance3D:
 	var lift := VisualScale.tree_scale() * BackdropCanopy.HEIGHT
-	var mesh := _backdrop.build_mesh(_canopy_vertex, BackdropCanopy.add_surface.bind(lift))
+	var mesh := _backdrop.build_mesh(_canopy_vertex, BackdropCanopy.add_surface.bind(lift), threads)
 	mesh.surface_set_material(0, BackdropCanopy.material())
 	var instance := MeshInstance3D.new()
 	instance.name = "BackdropCanopy"
@@ -464,82 +523,35 @@ func _canopy_vertex(
 	return result
 
 
-## Trees, bushes and rocks on the backdrop: ScatterPlanner over a virtual tile ring that copies
-## the nearest map tile's terrain, at BACKDROP_SCATTER_DENSITY, sitting on the backdrop ground.
-func _build_backdrop_scatter(inner: Rect2) -> void:
+## The virtual tiles of the backdrop scatter (FoliageChunks): a tile ring around the map that
+## copies the nearest map tile's terrain, as far as the backdrop scatter reaches (plus a margin for
+## the edge plants, which look at the neighbours).
+func _backdrop_ring(inner: Rect2) -> HexGrid:
 	var ring := HexGrid.new()
-	var outer := _backdrop.outer_rect()
-	var lo := Hex.from_world(Vector3(outer.position.x, 0.0, outer.position.y), hex_size)
-	var hi := Hex.from_world(Vector3(outer.end.x, 0.0, outer.end.y), hex_size)
-	var reach := maxi(absi(hi.x - lo.x), absi(hi.y - lo.y)) + 2
-	var center := Hex.from_world(Vector3(outer.get_center().x, 0.0, outer.get_center().y), hex_size)
-	for q in range(center.x - reach, center.x + reach + 1):
-		for r in range(center.y - reach, center.y + reach + 1):
-			var c := Vector2i(q, r)
-			var w := Hex.to_world(c, hex_size)
-			var p := Vector2(w.x, w.z)
-			if _grid.has_tile(c) or inner.has_point(p) or not outer.has_point(p):
-				continue
-			var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
-			ring.set_terrain(c, _backdrop_types.nearest_tile_type(border) as Terrain.Type)
-	var surface := BackdropSurface.new(ring, visible_ground_height)
-	var plan := ScatterPlanner.plan(ring, surface, SCATTER_SEED, _parcels)
-	# Far away: the ground cover is not worth its triangles.
-	plan["ground_cover"] = []
-	# Deterministic per-position thinning (no spatial pattern from the plan order).
-	for key: String in _PLAN_KEYS:
-		var kept: Array = []
-		for item: Dictionary in plan[key]:
-			var p: Vector3 = item["position"]
-			var q := Vector2(p.x, p.z)
-			if (
-				q.distance_to(q.clamp(inner.position, inner.end)) <= BACKDROP_SCATTER_REACH
-				and (
-					TerrainNoise.hash(p.x * 7.13, p.z * 5.71, BACKDROP_THIN_SEED)
-					< BACKDROP_SCATTER_DENSITY
-				)
-			):
-				kept.append(item)
-		plan[key] = kept
-	_build_scatter(plan, "Backdrop")
+	var outer := _backdrop.outer_rect().intersection(
+		inner.grow(BACKDROP_SCATTER_REACH + ScatterPlanner.TILE_REACH + 2.0 * hex_size)
+	)
+	for c in ScatterPlanner.coords_near(_all_tiles_grid(outer), outer):
+		var w := Hex.to_world(c, hex_size)
+		var p := Vector2(w.x, w.z)
+		if _grid.has_tile(c) or inner.has_point(p):
+			continue
+		var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
+		ring.set_terrain(c, _backdrop_types.nearest_tile_type(border) as Terrain.Type)
+	return ring
 
 
-## Bushes and rocks as MultiMeshInstance3Ds – no node per bush or rock; the trees of the plan are
-## collected for the TreeField (TASK-060). Instance colours multiply the baked vertex colours of
-## the foliage meshes.
-func _build_scatter(plan: Dictionary, prefix: String) -> void:
-	var tree_list := _backdrop_trees if prefix == "Backdrop" else _map_trees
-	tree_list.append_array(plan["trees"])
-	for key: String in ["young_trees", "edge_shrubs", "ground_cover"]:
-		tree_list.append_array(plan[key])
-	# Thickets on open ground (TASK-070) belong to the playable map only.
-	if prefix != "Backdrop":
-		tree_list.append_array(plan["meadow_scrub"])
-	var crown_material := _scatter_material(Color.WHITE, 0.92, true)
-	var bushes: Array = plan["bushes"]
-	_add_scatter(
-		prefix + "Bushes",
-		FoliageMeshes.bush(),
-		crown_material,
-		_tree_transforms(bushes, VisualScale.bush_scale()),
-		_tree_colors(bushes, BUSH_COLOR_A, BUSH_COLOR_B),
-		FoliageMeshes.bush_far()
-	)
-	var rock_transforms: Array[Transform3D] = []
-	var rock_colors := PackedColorArray()
-	for r: Dictionary in plan["rocks"]:
-		var s: float = r["scale"] * VisualScale.rock_scale()
-		var basis := (
-			Basis.from_euler(r["rotation"], EULER_ORDER_XYZ)
-			* Basis.from_scale(Vector3(s, 0.7 * s, s))
-		)
-		rock_transforms.append(Transform3D(basis, r["position"]))
-		rock_colors.append(ROCK_COLOR_A.lerp(ROCK_COLOR_B, fposmod(s * ROCK_SHADE_FREQ, 1.0)))
-	# The rock mesh has no vertex colours (white); the instance colour tints it.
-	var rock_material := _scatter_material(Color.WHITE, 0.95, true)
-	_add_scatter(
-		prefix + "Rocks", FoliageMeshes.rock(), rock_material, rock_transforms, rock_colors
-	)
+## A grid with a tile on every hex centre of `rect` (to enumerate the hexes there).
+func _all_tiles_grid(rect: Rect2) -> HexGrid:
+	var all := HexGrid.new()
+	var r0 := floori(rect.position.y / (1.5 * hex_size))
+	var r1 := ceili(rect.end.y / (1.5 * hex_size))
+	for r in range(r0, r1 + 1):
+		var q0 := floori(rect.position.x / (Hex.SQRT3 * hex_size) - r / 2.0)
+		var q1 := ceili(rect.end.x / (Hex.SQRT3 * hex_size) - r / 2.0)
+		for q in range(q0, q1 + 1):
+			all.set_terrain(Vector2i(q, r), Terrain.Type.PLAINS)
+	return all
 
 
 ## Bush transforms (trees: TreeField.tree_transform): the meshes are built with their base at
@@ -573,26 +585,21 @@ static func _scatter_material(
 	return material
 
 
-func _add_scatter(
-	node_name: String,
-	mesh: Mesh,
-	material: Material,
-	transforms: Array[Transform3D],
-	colors: PackedColorArray,
-	far_mesh: Mesh = null
-) -> void:
-	_tiles_root.add_child(
-		ScatterChunks.build(node_name, mesh, material, transforms, colors, far_mesh)
-	)
+## Main thread, before grass plans run: the layer colours the planning threads read.
+func _prime_grass_colors() -> void:
+	if _layer_averages.is_empty():
+		_layer_averages.assign(
+			TerrainTextures.arrays(TerrainGround.texture_size(quality))["average_colors"]
+		)
 
 
 ## Linear ground colour under a grass clump: the mean albedo of each ground layer
 ## (TerrainTextures "average_colors", tint included) weighted by the TerrainSplat weights the
 ## terrain shader blends.
 func _grass_color(p: Vector3) -> Color:
-	var averages: Array[Color] = (
-		TerrainTextures.arrays(TerrainGround.texture_size(quality))["average_colors"]
-	)
+	if _layer_averages.is_empty():
+		_prime_grass_colors()
+	var averages := _layer_averages
 	var slope := GrassPlanner.slope(_surface, p.x, p.z)
 	var normal_y := 1.0 / sqrt(1.0 + slope * slope)
 	var terrain := _grid.get_terrain(Hex.from_world(p, hex_size))
@@ -633,41 +640,42 @@ func _build_water(rect: Rect2) -> MeshInstance3D:
 	return instance
 
 
-## Height of the terrain mesh at (x, z), interpolated on the same triangles the mesh is
-## drawn with (cell split along the b–c diagonal), clamped to the water surface.
-## Matches the drawn mesh exactly (lines never sink into it) and is much cheaper than
-## TerrainSurface.ground_height.
+## Height of the terrain mesh at (x, z) (TerrainLattice.mesh_height_at): matches the drawn mesh
+## exactly (lines never sink into it) and is much cheaper than TerrainSurface.ground_height.
 func _mesh_ground_height(x: float, z: float) -> float:
-	var fx := clampf((x - _mesh_origin.x) / _mesh_step.x, 0.0, _mesh_cells.x)
-	var fz := clampf((z - _mesh_origin.y) / _mesh_step.y, 0.0, _mesh_cells.y)
-	var i := mini(floori(fx), _mesh_cells.x - 1)
-	var j := mini(floori(fz), _mesh_cells.y - 1)
-	var u := fx - i
-	var v := fz - j
-	var row := _mesh_cells.x + 1
-	var ha := _mesh_heights[j * row + i]
-	var hb := _mesh_heights[j * row + i + 1]
-	var hc := _mesh_heights[(j + 1) * row + i]
-	var h: float
-	if u + v <= 1.0:
-		h = ha + u * (hb - ha) + v * (hc - ha)
-	else:
-		var hd := _mesh_heights[(j + 1) * row + i + 1]
-		h = hd + (1.0 - u) * (hc - hd) + (1.0 - v) * (hb - hd)
-	return maxf(h, TerrainSurface.WATER_SURFACE)
+	return _lattice.mesh_height_at(x, z)
 
 
-## All tile outlines as one line mesh; shared edges are drawn twice, like in the design.
-func _build_grid_lines() -> MeshInstance3D:
+## The parent of the grid line chunks and their shared material (the "grid" chunk layer builds
+## the lines of the tiles whose centre lies in a chunk; shared edges are drawn twice, like in the
+## design).
+func _build_grid_lines() -> Node3D:
+	var material := StandardMaterial3D.new()
+	_grid_material = material
+	material.albedo_color = GRID_LINE_COLOR
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+	var root := Node3D.new()
+	root.name = "GridLines"
+	return root
+
+
+## The line points of the tile outlines in `chunk` (worker thread: reads the grid and the mesh
+## heights only).
+func _plan_grid_chunk(chunk: Vector2i) -> PackedVector3Array:
 	var corners: Array[Vector2] = []
 	for s in 7:
 		var angle := deg_to_rad(60.0 * s - 30.0)
 		corners.append(Vector2(cos(angle), sin(angle)) * hex_size)
+	var rect := Rect2(Vector2(chunk) * TreeField.CHUNK_SIZE, Vector2.ONE * TreeField.CHUNK_SIZE)
 	var points := PackedVector3Array()
-	for c in _grid.coords():
+	for c in ScatterPlanner.coords_near(_grid, rect):
+		var center := Hex.to_world(c, hex_size)
+		if not ScatterPlanner.in_rect(center, rect):
+			continue  # on the chunk's end edge: the next chunk draws it
 		if _grid.get_terrain(c) == Terrain.Type.WATER:
 			continue  # never over water; shared shore edges are drawn by the land side
-		var center := Hex.to_world(c, hex_size)
 		for s in 6:
 			for k in GRID_LINE_SEGMENTS:
 				for t: float in [float(k) / GRID_LINE_SEGMENTS, float(k + 1) / GRID_LINE_SEGMENTS]:
@@ -675,23 +683,40 @@ func _build_grid_lines() -> MeshInstance3D:
 					var x := center.x + p.x
 					var z := center.z + p.y
 					points.append(Vector3(x, _mesh_ground_height(x, z) + GRID_LINE_OFFSET, z))
+	return points
+
+
+func _build_grid_chunk(chunk: Vector2i, points: PackedVector3Array) -> void:
+	_free_grid_chunk(chunk)
+	if points.is_empty():
+		return
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = points
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES, arrays)
-	var material := StandardMaterial3D.new()
-	_grid_material = material
-	material.albedo_color = GRID_LINE_COLOR
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	mesh.surface_set_material(0, material)
+	mesh.surface_set_material(0, _grid_material)
 	var instance := MeshInstance3D.new()
-	instance.name = "GridLines"
+	instance.name = "GridLines_%d_%d" % [chunk.x, chunk.y]
 	instance.mesh = mesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return instance
+	_grid_lines.add_child(instance)
+	_grid_chunks[chunk] = instance
+
+
+func _free_grid_chunk(chunk: Vector2i) -> void:
+	var node: MeshInstance3D = _grid_chunks.get(chunk)
+	if node != null:
+		_grid_lines.remove_child(node)
+		node.queue_free()
+	_grid_chunks.erase(chunk)
+
+
+## The built grid line chunks, for tests.
+func grid_line_nodes() -> Array[MeshInstance3D]:
+	var result: Array[MeshInstance3D] = []
+	result.assign(_grid_chunks.values())
+	return result
 
 
 func center() -> Vector3:

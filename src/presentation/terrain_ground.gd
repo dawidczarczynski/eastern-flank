@@ -33,6 +33,17 @@ const COLOR_QUANT_BIAS := 0.25
 ## (TerrainSplat.LAYER_COUNT per vertex): layers 0-3 in ARRAY_COLOR, 4-6 in ARRAY_CUSTOM0
 ## (RGBA float: x = layer 4, y = layer 5, z = layer 6 soil; w stays free for TASK-035).
 static func add_surface(mesh: ArrayMesh, arrays: Array, weights: PackedFloat32Array) -> void:
+	var packed := pack_weights(weights)
+	arrays[Mesh.ARRAY_COLOR] = packed[0]
+	arrays[Mesh.ARRAY_CUSTOM0] = packed[1]
+	var format := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, format)
+
+
+## The ground weights as add_surface stores them: [PackedColorArray (layers 0-3),
+## PackedFloat32Array (custom0, 4 floats per vertex)]. Pure, so chunk plans run it on the worker
+## threads (TerrainChunks).
+static func pack_weights(weights: PackedFloat32Array) -> Array:
 	var layers := TerrainSplat.LAYER_COUNT
 	var count := weights.size() / layers
 	var colors := PackedColorArray()
@@ -55,10 +66,7 @@ static func add_surface(mesh: ArrayMesh, arrays: Array, weights: PackedFloat32Ar
 		custom[v * 4] = weights[o + 4]
 		custom[v * 4 + 1] = weights[o + 5]
 		custom[v * 4 + 2] = weights[o + TerrainSplat.SOIL]
-	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_CUSTOM0] = custom
-	var format := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, format)
+	return [colors, custom]
 
 
 ## Texture array size for the graphics quality switches `quality` (GraphicsQuality.features).

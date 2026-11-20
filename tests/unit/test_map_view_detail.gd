@@ -34,6 +34,8 @@ func _build_low() -> void:
 
 
 func _surface_mesh(node_name: String) -> ArrayMesh:
+	if node_name == "Terrain":
+		return Fixtures.terrain_mesh(_view)
 	var instance := _view._tiles_root.get_node(node_name) as MeshInstance3D
 	return instance.mesh as ArrayMesh
 
@@ -81,9 +83,16 @@ func test_off_map_margin_is_darkened() -> void:
 	var arrays := _surface_mesh("Terrain").surface_get_arrays(0)
 	var tints: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	# Vertex 0 is the mesh corner (off the map); the map centre is on it.
+	# Vertex 0 is the corner of the first chunk, the mesh corner (off the map); the map centre is
+	# on it.
 	assert_true(is_equal_approx(tints[0].x, MapView.OFF_MAP_VALUE))
-	var centre := vertices.size() / 2
+	var centre := 0
+	for i in vertices.size():
+		if (
+			Vector2(vertices[i].x, vertices[i].z).length()
+			< Vector2(vertices[centre].x, vertices[centre].z).length()
+		):
+			centre = i
 	assert_true(is_equal_approx(tints[centre].x, 1.0), "on-map vertex %s" % vertices[centre])
 
 

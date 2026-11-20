@@ -13,14 +13,66 @@ static func plains_grid(radius: int) -> HexGrid:
 	return grid
 
 
-## A MapView built on `grid` with `quality`, outside a scene tree (its _ready() is run here).
-## The caller frees it.
+## A MapView built on `grid` with `quality`, outside a scene tree (its _ready() is run here),
+## with every chunk around the map centre built (TASK-072b: the small test maps lie within the
+## rings). The caller frees it.
 static func map_view(grid: HexGrid, quality: Dictionary = {}) -> MapView:
 	var view := MapView.new()
 	view._ready()
 	view.quality = quality
 	view.build(grid)
+	finish_at_centre(view)
 	return view
+
+
+## Builds the chunks around `view`'s map centre.
+static func finish_at_centre(view: MapView) -> void:
+	var c := view.center()
+	view.finish_chunks(Vector2(c.x, c.z))
+
+
+## The built fine terrain chunks of `view` merged into one point-list surface (their surface
+## vertices, skirts left out, with every attribute and the terrain material), for tests written
+## against the single terrain mesh.
+static func terrain_mesh(view: MapView) -> ArrayMesh:
+	var merged := []
+	merged.resize(Mesh.ARRAY_MAX)
+	var keys := [
+		Mesh.ARRAY_VERTEX,
+		Mesh.ARRAY_NORMAL,
+		Mesh.ARRAY_TANGENT,
+		Mesh.ARRAY_TEX_UV,
+		Mesh.ARRAY_TEX_UV2,
+		Mesh.ARRAY_COLOR,
+		Mesh.ARRAY_CUSTOM0
+	]
+	var per_vertex := {Mesh.ARRAY_TANGENT: 4, Mesh.ARRAY_CUSTOM0: 4}
+	var material: Material = null
+	var nodes := view.terrain().fine_nodes()
+	nodes.sort_custom(func(a: Node, b: Node) -> bool: return String(a.name) < String(b.name))
+	for node in nodes:
+		var mesh := node.mesh as ArrayMesh
+		material = mesh.surface_get_material(0)
+		var arrays := mesh.surface_get_arrays(0)
+		var count: int = node.get_meta(&"surface_vertices")
+		for key: int in keys:
+			var n: int = per_vertex.get(key, 1)
+			if merged[key] == null:
+				merged[key] = arrays[key].slice(0, 0)
+			merged[key].append_array(arrays[key].slice(0, count * n))
+	var result := ArrayMesh.new()
+	var format := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	result.add_surface_from_arrays(Mesh.PRIMITIVE_POINTS, merged, [], {}, format)
+	result.surface_set_material(0, material)
+	return result
+
+
+## The vertices of every built grid line chunk of `view`.
+static func grid_line_vertices(view: MapView) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	for node in view.grid_line_nodes():
+		result.append_array(node.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX])
+	return result
 
 
 ## Undoes what tests change on a MapView shared between them (TestCase.before_all): highlights,

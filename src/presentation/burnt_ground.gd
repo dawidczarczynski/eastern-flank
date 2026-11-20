@@ -25,9 +25,20 @@ static func indices_within(
 
 ## Burns every scatter instance of `root`'s subtree (the playable map, not the backdrop).
 static func burn(root: Node, center: Vector2, radius: float) -> void:
-	for node: Node in root.find_children("*", "MultiMeshInstance3D", true, false):
+	burn_instances(root.find_children("*", "MultiMeshInstance3D", true, false), center, radius)
+
+
+## Burns the instances of the MultiMeshInstance3D `nodes` (others are skipped) inside the circle;
+## backdrop and grass nodes are left alone. The chunked world (FoliageChunks) burns chunks built
+## after the wreck burnt with this too.
+static func burn_instances(nodes: Array, center: Vector2, radius: float) -> void:
+	for node: Variant in nodes:
 		var instance := node as MultiMeshInstance3D
-		if instance.multimesh == null or _is_excluded(instance):
+		if instance == null or instance.multimesh == null or _is_excluded(instance):
+			continue
+		# Chunk nodes sit at their chunk's centre and hold only that chunk's instances.
+		var origin := Vector2(instance.position.x, instance.position.z)
+		if origin.distance_to(center) > radius + TreeField.CHUNK_SIZE:
 			continue
 		var multi := instance.multimesh
 		var transforms: Array[Transform3D] = []

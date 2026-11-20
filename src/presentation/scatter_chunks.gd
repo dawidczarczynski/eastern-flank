@@ -32,20 +32,49 @@ static func build(
 	chunks.sort()
 	for chunk: Vector2i in chunks:
 		var members: Array = groups[chunk]
-		var origin := TreeField.chunk_center(chunk)
-		var near := _chunk(mesh, material, transforms, colors, members, origin)
-		near.name = "%s_%d_%d" % [node_name, chunk.x, chunk.y]
-		parent.add_child(near)
-		if far_mesh == null:
-			continue
-		near.visibility_range_end = BUSH_LOD_DISTANCE
-		near.visibility_range_end_margin = BUSH_LOD_MARGIN
-		var far := _chunk(far_mesh, material, transforms, colors, members, origin)
-		far.name = "%sFar_%d_%d" % [node_name, chunk.x, chunk.y]
-		far.visibility_range_begin = BUSH_LOD_DISTANCE
-		far.visibility_range_begin_margin = BUSH_LOD_MARGIN
-		parent.add_child(far)
+		var chunk_transforms: Array[Transform3D] = []
+		var chunk_colors := PackedColorArray()
+		for index: int in members:
+			chunk_transforms.append(transforms[index])
+			if not colors.is_empty():
+				chunk_colors.append(colors[index])
+		for node in build_chunk(
+			node_name, mesh, material, chunk_transforms, chunk_colors, chunk, far_mesh
+		):
+			parent.add_child(node)
 	return parent
+
+
+## The nodes of one chunk (TASK-072b: the chunked world builds them one chunk at a time):
+## "<node_name>_<x>_<z>" and, with a far mesh, "<node_name>Far_<x>_<z>". `transforms` are world
+## transforms of the chunk's instances.
+static func build_chunk(
+	node_name: String,
+	mesh: Mesh,
+	material: Material,
+	transforms: Array[Transform3D],
+	colors: PackedColorArray,
+	chunk: Vector2i,
+	far_mesh: Mesh = null
+) -> Array[MultiMeshInstance3D]:
+	var result: Array[MultiMeshInstance3D] = []
+	if transforms.is_empty():
+		return result
+	var members: Array = range(transforms.size())
+	var origin := TreeField.chunk_center(chunk)
+	var near := _chunk(mesh, material, transforms, colors, members, origin)
+	near.name = "%s_%d_%d" % [node_name, chunk.x, chunk.y]
+	result.append(near)
+	if far_mesh == null:
+		return result
+	near.visibility_range_end = BUSH_LOD_DISTANCE
+	near.visibility_range_end_margin = BUSH_LOD_MARGIN
+	var far := _chunk(far_mesh, material, transforms, colors, members, origin)
+	far.name = "%sFar_%d_%d" % [node_name, chunk.x, chunk.y]
+	far.visibility_range_begin = BUSH_LOD_DISTANCE
+	far.visibility_range_begin_margin = BUSH_LOD_MARGIN
+	result.append(far)
+	return result
 
 
 ## One chunk: the `members` of `transforms` / `colors` relative to `origin`.

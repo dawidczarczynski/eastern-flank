@@ -32,10 +32,14 @@ func _build_own(quality: Dictionary) -> void:
 
 
 func _mesh(node_name: String) -> ArrayMesh:
+	if node_name == "Terrain":
+		return Fixtures.terrain_mesh(_view)
 	return (_view._tiles_root.get_node(node_name) as MeshInstance3D).mesh as ArrayMesh
 
 
 func _vertices(node_name: String) -> PackedVector3Array:
+	if node_name == "GridLines":
+		return Fixtures.grid_line_vertices(_view)
 	return _mesh(node_name).surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
 
 

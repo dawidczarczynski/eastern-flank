@@ -77,7 +77,7 @@ for scale in "${scales[@]}"; do
 done
 
 echo
-printf '%-6s %-7s %-9s %-9s %-10s %-9s %-11s %-9s %s\n' scale hexes build_s grass_s static_MB video_MB instances tris_k draws
+printf '%-6s %-7s %-9s %-9s %-10s %-9s %-11s %-9s %s\n' scale hexes build_s chunks_s static_MB video_MB instances tris_k draws
 for row in "${build_rows[@]}"; do
 	read -r _ s h b g m v i t d <<<"$row"
 	printf '%-6s %-7s %-9s %-9s %-10s %-9s %-11s %-9s %s\n' "${s}x" "$h" "$b" "$g" "$m" "$v" "$i" "$t" "$d"

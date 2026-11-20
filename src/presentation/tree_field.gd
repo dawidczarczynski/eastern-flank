@@ -1,7 +1,8 @@
 class_name TreeField
 extends Node3D
 ## The trees of a MapView (TASK-060): the planned trees (ScatterPlanner, map and backdrop) are
-## grouped into CHUNK_SIZE x CHUNK_SIZE world-unit chunks; each chunk gets one
+## grouped into CHUNK_SIZE x CHUNK_SIZE world-unit chunks (built and freed around the camera by the
+## ChunkManager, TASK-072b, through FoliageChunks); each chunk gets one
 ## MultiMeshInstance3D per species x variant x LOD that has instances, with its origin at the
 ## chunk centre (visibility ranges measure from the node origin, so whole chunks switch).
 ## LOD0 (TreeMeshes.lod0: bark + leaf cards) is drawn up to LOD_DISTANCE from the camera, LOD1
@@ -70,6 +71,8 @@ const SOLID_LUMINANCE_FACTOR := 0.68
 ## Shader defaults of lod_band_in / lod_band_out: always in, never out.
 const NO_LOD_IN := Vector2(-2.0, -1.0)
 const NO_LOD_OUT := Vector2(1.0e8, 1.0e9)
+## MultiMesh buffer floats per tree: TRANSFORM_3D (12) and the custom data (4).
+const BUFFER_STRIDE := 16
 
 static var _textures: Dictionary = {}
 
@@ -77,32 +80,63 @@ var _planned := 0
 var _backdrop := 0
 var _materials: Dictionary = {}
 var _nodes: Dictionary = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: [], Lod.DISTANT: []}
-## Node -> its instance transforms relative to the node (the headless dummy renderer keeps no
-## MultiMesh instance data, so tests and statistics read them here).
+## Node -> its MultiMesh buffer (the headless dummy renderer keeps no MultiMesh instance data, so
+## tests and statistics read the transforms here).
 var _local_transforms: Dictionary = {}
+## Vector2i chunk -> Array[MultiMeshInstance3D] of the built chunks, and their tree counts
+## (Vector2i(map, backdrop)).
+var _chunk_nodes: Dictionary = {}
+var _chunk_counts: Dictionary = {}
 
 
-## Builds the chunk nodes for the map trees and the backdrop trees (ScatterPlanner tree
-## dictionaries). `playable` is the rectangle of the playable tiles (XZ).
+## Builds the chunk nodes for all the map trees and the backdrop trees at once (ScatterPlanner
+## tree dictionaries). `playable` is the rectangle of the playable tiles (XZ). The chunked world
+## (TASK-072b, FoliageChunks) uses plan_chunk / build_chunk / free_chunk instead.
 func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
+	clear()
+	var by_chunk: Dictionary = {}  # chunk -> [map trees, backdrop trees]
+	for list_index in 2:
+		for tree: Dictionary in [map_trees, backdrop_trees][list_index]:
+			var lists: Array = by_chunk.get_or_add(chunk_of(tree["position"]), [[], []])
+			(lists[list_index] as Array).append(tree)
+	var chunks := by_chunk.keys()
+	chunks.sort()
+	for chunk: Vector2i in chunks:
+		var lists: Array = by_chunk[chunk]
+		build_chunk(chunk, plan_chunk(chunk, lists[0], lists[1], playable))
+
+
+## Frees every chunk.
+func clear() -> void:
 	for child in get_children():
 		remove_child(child)
 		child.free()
 	_nodes = {Lod.NEAR: [], Lod.FAR_RANGE: [], Lod.FAR_ONLY: [], Lod.DISTANT: []}
 	_local_transforms.clear()
-	_planned = map_trees.size() + backdrop_trees.size()
-	_backdrop = backdrop_trees.size()
-	if _planned == 0:
-		return
-	# group key -> {chunk, species, variant, lod, transforms, customs}
+	_chunk_nodes.clear()
+	_chunk_counts.clear()
+	_planned = 0
+	_backdrop = 0
+
+
+## The MultiMesh groups of one chunk's trees: {"map": count, "backdrop": count, "groups": [{key,
+## species, variant, lod, backdrop, count, buffer (PackedFloat32Array: MultiMesh TRANSFORM_3D
+## relative to the chunk centre + custom data, BUFFER_STRIDE floats per tree)}]}, sorted by key.
+## Pure (TreeSpecies.pick and VisualScale only; prime_sizes() first when it runs on a worker
+## thread).
+static func plan_chunk(
+	chunk: Vector2i, map_trees: Array, backdrop_trees: Array, playable: Rect2
+) -> Dictionary:
 	var groups: Dictionary = {}
-	for i in _planned:
+	var origin := chunk_center(chunk)
+	var total := map_trees.size() + backdrop_trees.size()
+	for i in total:
 		var backdrop := i >= map_trees.size()
 		var tree: Dictionary = backdrop_trees[i - map_trees.size()] if backdrop else map_trees[i]
 		var pick := TreeSpecies.pick(tree)
 		var transform := tree_transform(tree, pick["species"], pick["variant"])
+		var local := Transform3D(transform.basis, transform.origin - origin)
 		var p: Vector3 = tree["position"]
-		var chunk := chunk_of(p)
 		var far_only := (
 			backdrop and _outside_distance(playable, Vector2(p.x, p.z)) > BACKDROP_LOD0_REACH
 		)
@@ -111,6 +145,7 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 			lods.append(Lod.DISTANT)
 		if far_only:
 			lods = [Lod.FAR_ONLY]
+		var custom: Color = pick["custom"]
 		for lod in lods:
 			var variant: int = pick["variant"] if lod == Lod.NEAR else 0
 			var key := (
@@ -119,20 +154,98 @@ func setup(map_trees: Array, backdrop_trees: Array, playable: Rect2) -> void:
 			)
 			if not groups.has(key):
 				groups[key] = {
-					"chunk": chunk,
+					"key": key,
 					"species": pick["species"],
 					"variant": variant,
 					"lod": lod,
 					"backdrop": backdrop,
-					"transforms": [],
+					"local": [] as Array[Transform3D],
 					"customs": [],
 				}
-			(groups[key]["transforms"] as Array).append(transform)
-			(groups[key]["customs"] as Array).append(pick["custom"])
+			var group: Dictionary = groups[key]
+			(group["local"] as Array[Transform3D]).append(local)
+			(group["customs"] as Array).append(custom)
 	var keys := groups.keys()
 	keys.sort()
+	var sorted: Array = []
 	for key: String in keys:
-		_add_group(key, groups[key])
+		var group: Dictionary = groups[key]
+		group["buffer"] = _buffer(group["local"], group["customs"])
+		group["count"] = (group["local"] as Array).size()
+		group.erase("customs")
+		group.erase("local")
+		sorted.append(group)
+	return {"map": map_trees.size(), "backdrop": backdrop_trees.size(), "groups": sorted}
+
+
+## MultiMesh buffer of TRANSFORM_3D instances with custom data (BUFFER_STRIDE floats each).
+static func _buffer(local: Array[Transform3D], customs: Array) -> PackedFloat32Array:
+	var buffer := PackedFloat32Array()
+	buffer.resize(local.size() * BUFFER_STRIDE)
+	for i in local.size():
+		var b := local[i].basis
+		var o := local[i].origin
+		var custom: Color = customs[i]
+		var k := i * BUFFER_STRIDE
+		buffer[k] = b.x.x
+		buffer[k + 1] = b.y.x
+		buffer[k + 2] = b.z.x
+		buffer[k + 3] = o.x
+		buffer[k + 4] = b.x.y
+		buffer[k + 5] = b.y.y
+		buffer[k + 6] = b.z.y
+		buffer[k + 7] = o.y
+		buffer[k + 8] = b.x.z
+		buffer[k + 9] = b.y.z
+		buffer[k + 10] = b.z.z
+		buffer[k + 11] = o.z
+		buffer[k + 12] = custom.r
+		buffer[k + 13] = custom.g
+		buffer[k + 14] = custom.b
+		buffer[k + 15] = custom.a
+	return buffer
+
+
+## Fills the lazy caches plan_chunk reads (the model heights under the `true` VisualScale preset),
+## so worker threads only read them.
+static func prime_sizes() -> void:
+	for species in TreeSpecies.all():
+		for variant in TreeMeshes.VARIANTS:
+			VisualScale.tree_size(species, variant)
+
+
+## Adds the nodes of a planned chunk (main thread).
+func build_chunk(chunk: Vector2i, plan: Dictionary) -> void:
+	free_chunk(chunk)
+	var nodes: Array[MultiMeshInstance3D] = []
+	for group: Dictionary in plan["groups"]:
+		nodes.append(_add_group(chunk, group))
+	_chunk_nodes[chunk] = nodes
+	_chunk_counts[chunk] = Vector2i(plan["map"], plan["backdrop"])
+	_planned += plan["map"] + plan["backdrop"]
+	_backdrop += plan["backdrop"]
+
+
+## Drops the nodes of `chunk`.
+func free_chunk(chunk: Vector2i) -> void:
+	if not _chunk_nodes.has(chunk):
+		return
+	for node: MultiMeshInstance3D in _chunk_nodes[chunk]:
+		for lod: Lod in _nodes:
+			(_nodes[lod] as Array).erase(node)
+		_local_transforms.erase(node)
+		remove_child(node)
+		node.queue_free()
+	var counts: Vector2i = _chunk_counts[chunk]
+	_planned -= counts.x + counts.y
+	_backdrop -= counts.y
+	_chunk_nodes.erase(chunk)
+	_chunk_counts.erase(chunk)
+
+
+## The nodes of a built chunk (none when it is not built).
+func chunk_nodes(chunk: Vector2i) -> Array[MultiMeshInstance3D]:
+	return _chunk_nodes.get(chunk, [] as Array[MultiMeshInstance3D])
 
 
 ## World transform of a planned tree: base at the planted position, scaled by the planned scale
@@ -194,9 +307,21 @@ func lod2_nodes() -> Array[MultiMeshInstance3D]:
 	return _typed(_nodes[Lod.DISTANT])
 
 
-## Instance transforms of one of this field's nodes, relative to the node.
+## Instance transforms of one of this field's nodes, relative to the node (decoded from the kept
+## MultiMesh buffer: the headless dummy renderer keeps no instance data).
 func instance_transforms(node: MultiMeshInstance3D) -> Array[Transform3D]:
-	return _local_transforms.get(node, [] as Array[Transform3D])
+	var result: Array[Transform3D] = []
+	var buffer: PackedFloat32Array = _local_transforms.get(node, PackedFloat32Array())
+	for k in range(0, buffer.size(), BUFFER_STRIDE):
+		result.append(
+			Transform3D(
+				Vector3(buffer[k], buffer[k + 4], buffer[k + 8]),
+				Vector3(buffer[k + 1], buffer[k + 5], buffer[k + 9]),
+				Vector3(buffer[k + 2], buffer[k + 6], buffer[k + 10]),
+				Vector3(buffer[k + 3], buffer[k + 7], buffer[k + 11])
+			)
+		)
+	return result
 
 
 static func instance_total(nodes: Array[MultiMeshInstance3D]) -> int:
@@ -231,13 +356,10 @@ static func _outside_distance(rect: Rect2, p: Vector2) -> float:
 	return p.distance_to(p.clamp(rect.position, rect.end))
 
 
-func _add_group(key: String, group: Dictionary) -> void:
+func _add_group(chunk: Vector2i, group: Dictionary) -> MultiMeshInstance3D:
 	var species: StringName = group["species"]
 	var lod: Lod = group["lod"]
-	var chunk: Vector2i = group["chunk"]
-	var origin := chunk_center(chunk)
-	var transforms: Array = group["transforms"]
-	var customs: Array = group["customs"]
+	var count: int = group["count"]
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.use_custom_data = true
@@ -248,18 +370,13 @@ func _add_group(key: String, group: Dictionary) -> void:
 			multi.mesh = TreeMeshes.lod2(species)
 		_:
 			multi.mesh = TreeMeshes.lod1(species)
-	multi.instance_count = transforms.size()
-	var local: Array[Transform3D] = []
-	for i in transforms.size():
-		var t: Transform3D = transforms[i]
-		local.append(Transform3D(t.basis, t.origin - origin))
-		multi.set_instance_transform(i, local[i])
-		multi.set_instance_custom_data(i, customs[i])
+	multi.instance_count = count
+	multi.buffer = group["buffer"]
 	var instance := MultiMeshInstance3D.new()
-	instance.name = "Trees_" + key
+	instance.name = "Trees_" + String(group["key"])
 	instance.multimesh = multi
 	instance.material_override = _material(species, lod)
-	instance.position = origin
+	instance.position = chunk_center(chunk)
 	instance.set_meta(&"species", species)
 	instance.set_meta(&"backdrop", group["backdrop"])
 	instance.cast_shadow = (
@@ -276,7 +393,8 @@ func _add_group(key: String, group: Dictionary) -> void:
 		instance.visibility_range_end = band_out.y + RANGE_SLACK
 	add_child(instance)
 	(_nodes[lod] as Array).append(instance)
-	_local_transforms[instance] = local
+	_local_transforms[instance] = group["buffer"]
+	return instance
 
 
 ## The shader's switch bands of a species' LOD: {in, out}, each (begin, end) as the distance of a

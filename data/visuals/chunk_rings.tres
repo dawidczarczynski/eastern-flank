@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ChunkRings" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/presentation/chunk_rings.gd" id="1_rings"]
+
+[resource]
+script = ExtResource("1_rings")
+reach_m = {
+&"grass": 1925.0,
+&"grid": 4040.0,
+&"marks": 4040.0,
+&"scatter": 4040.0,
+&"terrain": 4040.0,
+&"trees": 4040.0
+}
+build_factor = 1.5
+free_factor = 1.2
+low_quality_factor = 0.66

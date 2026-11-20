@@ -152,7 +152,8 @@ func _band(node: MultiMeshInstance3D, param: StringName) -> Vector2:
 
 func test_chunk_origins_and_instances_inside_the_chunk() -> void:
 	_use_forest()
-	var half := TreeField.CHUNK_SIZE * 0.5 + 1e-4
+	# A chunk holds the trees of the tiles whose centre lies in it (ScatterPlanner.plan_rect).
+	var half := TreeField.CHUNK_SIZE * 0.5 + ScatterPlanner.TILE_REACH + 1e-4
 	for node: MultiMeshInstance3D in _view.trees().get_children():
 		var p := node.position
 		var chunk := TreeField.chunk_of(p)
@@ -203,6 +204,7 @@ func test_lod0_triangle_budget_on_the_default_map() -> void:
 	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.HIGH)
 	_view.quality["grass_density"] = 0.0
 	_view.build(grid)
+	Fixtures.finish_at_centre(_view)
 	var worst := 0
 	for c in grid.coords():
 		var w := Hex.to_world(c, 1.0)
@@ -241,8 +243,7 @@ func test_low_quality_has_no_meadow_scrub_or_flowers() -> void:
 	var grid := Scenario.default_battle(Battle.MAP_SEED).grid
 	_view.quality = GraphicsQuality.features(GraphicsQuality.Level.LOW)
 	_view.build(grid)
-	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().update(1000)
+	_view.finish_chunks(Vector2.ZERO)
 	assert_eq(_view.trees().planned_count(), 0)
 	assert_eq(_view.grass().instance_count(), 0)
 	assert_eq(_view.grass().flower_nodes().size(), 0)

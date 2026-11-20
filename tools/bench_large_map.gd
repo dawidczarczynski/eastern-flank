@@ -5,7 +5,9 @@ extends SceneTree
 ## Run via tools/bench_large_map.sh. Manually:
 ##   godot --path . --script res://tools/bench_large_map.gd -- --scale=4 --quality=high
 ## Output lines (the shell wrapper collects them into tables):
-##   BUILD <scale> <hexes> <build s> <grass s> <static MB> <video MB> <instances> <tris k> <draws>
+##   BUILD <scale> <hexes> <build s> <chunks s> <static MB> <video MB> <instances> <tris k> <draws>
+## (build s: MapView.build; chunks s: the chunks around the first camera, ChunkManager.finish_all –
+## before TASK-072b that column was the grass prebuild only)
 ##   FRAME <scale> <camera> <avg ms> <max ms> <frames> <frames > 33 ms>
 ## Exit codes: 0 done, 1 failure, 2 invalid arguments.
 
@@ -19,7 +21,6 @@ const PAN_DISTANCE := 24.0
 const SLOW_FRAME_MS := 33.0
 ## Camera distances of ADR 0021 (world units): overview, default, closest game zoom, study zoom.
 const CAMERA_DISTANCES: Array[float] = [46.0, 24.0, 7.0, 1.2]
-const PREBUILD_CHUNKS_PER_FRAME := 4
 
 var _scale := 1
 var _level := -1
@@ -36,7 +37,7 @@ var _samples: Array[float] = []
 var _pan_start_usec := 0
 var _hexes := 0
 var _finished := false
-## [build s, grass s, static MB, video bytes before], printed with the first camera's frame.
+## [build s, chunks s, static MB, video bytes before], printed with the first camera's frame.
 var _pending_build: Array = []
 
 
@@ -82,7 +83,7 @@ func _build() -> void:
 	var n := MapTiler.tiles_for_scale(_scale)
 	_grid = MapTiler.tile(map.to_grid(), map.width, map.height, n, n)
 	_hexes = _grid.coords().size()
-	var quality := _setup_scene()
+	_setup_scene()
 	var static_before := OS.get_static_memory_usage()
 	var video_before := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)
 	var started := Time.get_ticks_usec()
@@ -98,18 +99,15 @@ func _build() -> void:
 	_rig.set_min_distance_override(CAMERA_DISTANCES[-1])
 	_rig.set_view(_center, 0.0, CAMERA_DISTANCES[0])
 	_map_view.set_camera_target(_rig.target())
-	var grass_s := 0.0
-	if quality.get("grass_density", 1.0) > 0.0:
-		started = Time.get_ticks_usec()
-		var grass := _map_view.grass()
-		grass.begin_prebuild()
-		while not grass.prebuild_step(PREBUILD_CHUNKS_PER_FRAME, true):
-			pass
-		grass_s = (Time.get_ticks_usec() - started) / 1e6
+	# The world around the start camera (every chunk the rings ask for, TASK-072b), as the battle
+	# builds it behind the loading screen.
+	started = Time.get_ticks_usec()
+	_map_view.finish_chunks()
+	var chunks_s := (Time.get_ticks_usec() - started) / 1e6
 	var static_mb := (OS.get_static_memory_usage() - static_before) / 1048576.0
 	_camera_index = 0
 	_begin_settle()
-	_pending_build = [build_s, grass_s, static_mb, video_before]
+	_pending_build = [build_s, chunks_s, static_mb, video_before]
 
 
 ## The scene the battle has, minus units and HUD; returns the quality switches in use.

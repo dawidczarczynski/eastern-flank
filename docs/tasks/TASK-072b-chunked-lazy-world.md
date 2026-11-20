@@ -1,6 +1,6 @@
 # TASK-072b: Chunked lazy world – build and free terrain, scatter, trees, grass and marks around the camera
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`MapView`, `TerrainGround`, `TreeField`, `GrassField` / `GrassPlanner`, `ScatterChunks` / `ScatterPlanner`, `BackdropMesh` / `BackdropCanopy`, ground marks), tools; no core rule change
 - **Depends on**: TASK-072a
 - **Sections**: GDD "Visual direction" (Performance); ADR 0021, ADR 0022, ADR 0023
@@ -59,4 +59,10 @@ None.
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Chunk manager (`ChunkManager`, `ChunkLayer`, data rings `ChunkRings` / `data/visuals/chunk_rings.tres`, ADR 0024). Layers: terrain (`TerrainLattice` + `TerrainChunks`: fine chunks in the ring, coarse 4x4 groups everywhere), scatter and trees (`FoliageChunks`; `ScatterPlanner` seeds every tile, `plan_rect` plans the tiles a chunk owns), grass (`GrassField`), grid lines, ground marks (hidden, not dropped). Plans run on the WorkerThreadPool (cores - 2 threads in play, all on the loading screen); builds and frees on the main thread within 4 ms (frees <= half). Scatter positions changed once (per-tile seeding), per-layer counts within ~1 %.
+
+Bench 2026-11-20 (Windows, RX 580, HIGH): 1x 1.42 + 4.86 s chunks, 59 MB, 10.5 ms, pan 0 frames > 33 ms; 4x 2.47 + 8.24 s, 126 MB, 11.8 ms, pan 0; 16x 5.62 + 9.07 s, 187 MB, 15.8 ms, pan 0 (was 51.7 s, 609 MB, 21.6 ms).
+
+Not met: 16x frame <= Suwalki + 1 ms and overview instances <= Suwalki (denser forest at the 16x centre, live ring ~2.4x Suwalki's area; far forests need TASK-135 shells); 16x memory <= Suwalki + 25 % and 16x build-only <= 1.5x 4x (parcel texture ~72 MB at 16x and the coarse terrain still grow with area); 16x build + chunks 14.7 s vs 12.1 s bar. Perf criteria are covered by the benchmark only, not by unit tests.
+
+Follow-ups: windowed parcel texture with an analytic planner query; `TerrainSurface.prime()` should fill the neighbour offsets (core; worked around in `MapView.prime_surface`); canopy over coarse forest (TASK-135). check.sh --full: only load-sensitive timing tests flaked (pass alone).

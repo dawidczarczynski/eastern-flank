@@ -16,7 +16,9 @@ const LAUNCHER_TRAVERSE_DURATION := VolleyPlayback.LAUNCHER_TRAVERSE_DURATION
 const DEPLOY_DURATION := VolleyPlayback.DEPLOY_DURATION
 const TURRET_AIM_DURATION := VolleyPlayback.TURRET_AIM_DURATION
 
-const PREBUILD_GRASS_CHUNKS_PER_FRAME := 8
+## Main-thread time per loading frame spent on building chunks (TASK-072b): the loading screen's
+## hatch keeps moving while the world around the start camera is built.
+const PREBUILD_CHUNK_BUDGET_USEC := 50000
 ## Gap above the terrain / unit strip slot in the bottom bar (the strips share one fixed height).
 const SLOT_PADDING_TOP := 9
 ## The unit strip's tab ("JEDNOSTKA · WŁASNA") is wider than its title column: reserve that, so the
@@ -128,6 +130,7 @@ func _ready() -> void:
 	_marks.name = "GroundMarks"
 	_marks.setup(quality.get("decals_max", 0))
 	add_child(_marks)
+	_map_view.chunks().register(_marks.chunk_layer(_map_view.terrain().lattice.rect()))
 	_wrecks.name = "Wrecks"
 	_wrecks.quality = quality
 	_units_root.add_child(_wrecks)
@@ -144,7 +147,7 @@ func _ready() -> void:
 	await _next_frame()
 	_prerender_portraits(state)
 	await _next_frame()
-	await _prebuild_grass()
+	await _prebuild_chunks()
 	await _warm_up()
 	_refresh_hud()
 	_refresh_selection_ui()
@@ -186,15 +189,18 @@ func _next_frame() -> void:
 	await RenderingServer.frame_post_draw
 
 
-## Builds the grass around the start camera behind the loading screen (planned on worker threads,
-## then a few chunks per frame), so the first seconds of the battle are not spent building it at
-## 4-5 FPS.
-func _prebuild_grass() -> void:
+## Builds the world around the start camera (terrain, scatter, trees, grass, ... – the chunks the
+## rings ask for, TASK-072b) behind the loading screen: planned on worker threads, built within a
+## generous budget per frame, so the first seconds of the battle are not spent building it.
+func _prebuild_chunks() -> void:
 	_map_view.set_camera_target(_camera_rig.target())
-	var grass := _map_view.grass()
-	grass.begin_prebuild()
-	while not grass.prebuild_step(PREBUILD_GRASS_CHUNKS_PER_FRAME):
+	var chunks := _map_view.chunks()
+	var budget := chunks.budget_usec
+	chunks.budget_usec = PREBUILD_CHUNK_BUDGET_USEC
+	while not chunks.is_settled():
+		chunks.process()
 		await _next_frame()
+	chunks.budget_usec = budget
 
 
 ## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
@@ -475,10 +481,9 @@ func debug_campaign(kind: String) -> void:
 	debug_result(kind)
 
 
-## Screenshot tool: _process is disabled, so build the grass chunks around the camera now.
+## Screenshot tool: _process is disabled, so build the chunks around the camera now.
 func debug_build_grass() -> void:
-	_map_view.set_camera_target(_camera_rig.target())
-	_map_view.grass().update(1000)
+	_map_view.finish_chunks(_camera_rig.target())
 
 
 ## Writes the command history (+ seed) to MatchSaver.LAST_MATCH_PATH and prints where it went.
@@ -1315,7 +1320,7 @@ func _burn_ground(serial: int, position: Vector3, animate: bool) -> void:
 	_marks.add_marks([GroundMarks.wreck_burnt(serial, position)], animate)
 	var center := Vector2(position.x, position.z)
 	_map_view.grass().add_clearing(center, GroundMarks.WRECK_BURNT_RADIUS)
-	BurntGround.burn(_map_view, center, GroundMarks.WRECK_BURNT_RADIUS)
+	_map_view.burn_ground(center, GroundMarks.WRECK_BURNT_RADIUS)
 
 
 func _on_unit_died(unit_id: int) -> Tween:

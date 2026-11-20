@@ -51,6 +51,15 @@ const SHORE_DIRT_MAX := 0.25
 ## `slope` = 1 - normal.y, `height` the vertex height, `moisture` a fine noise in [0, 1]
 ## (> DIRT_PATCH_FROM: dirt patches on plains), `macro` the large-scale dry/moist noise in
 ## [0, 1] (> DRY_FROM: dry grass).
+## Whether weights() reads the moisture and macro noise for `terrain` (only the open base cover
+## does), so callers can skip computing them.
+static func uses_noise(terrain: int) -> bool:
+	return (
+		terrain
+		not in [Terrain.Type.FOREST, Terrain.Type.FIELDS, Terrain.Type.URBAN, Terrain.Type.MARSH]
+	)
+
+
 static func weights(
 	terrain: int, slope: float, height: float, water_level: float, moisture: float, macro: float
 ) -> PackedFloat32Array:

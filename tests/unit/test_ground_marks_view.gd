@@ -74,8 +74,7 @@ func test_decal_box_follows_the_mark() -> void:
 
 func test_grass_chunks_sit_on_the_grass_layer() -> void:
 	var map := _shared_map()
-	map.set_camera_target(Vector2.ZERO)
-	map.grass().update(1000)
+	map.finish_chunks(Vector2.ZERO)
 	assert_true(map.grass().chunk_nodes().size() > 0)
 	for node in map.grass().chunk_nodes():
 		assert_eq(node.layers, MapView.GRASS_LAYER_MASK)
@@ -84,13 +83,17 @@ func test_grass_chunks_sit_on_the_grass_layer() -> void:
 func test_terrain_and_backdrop_sit_on_the_decal_layer() -> void:
 	var map := _shared_map()
 	var found := 0
+	var nodes: Array = []
+	nodes.append_array(map.terrain().fine_nodes())
+	nodes.append_array(map.terrain().coarse_nodes())
 	for node in map.find_children("*", "MeshInstance3D", true, false):
-		if node.name == &"Terrain" or node.name == &"Backdrop":
-			found += 1
-			var mesh := node as MeshInstance3D
-			assert_true(mesh.get_layer_mask_value(1), "still on the default layer")
-			assert_true(mesh.get_layer_mask_value(MapView.TERRAIN_VISUAL_LAYER), "decal layer")
-	assert_eq(found, 2)
+		if node.name == &"Backdrop":
+			nodes.append(node)
+	for node: MeshInstance3D in nodes:
+		found += 1
+		assert_true(node.get_layer_mask_value(1), "still on the default layer")
+		assert_true(node.get_layer_mask_value(MapView.TERRAIN_VISUAL_LAYER), "decal layer")
+	assert_true(found > 2, "terrain chunks (fine and coarse) and the backdrop: %d" % found)
 
 
 func test_growing_tracks_are_hidden_until_revealed() -> void:

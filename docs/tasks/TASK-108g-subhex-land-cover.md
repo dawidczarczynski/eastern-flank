@@ -45,6 +45,10 @@ real data (OSM areas / lines, metres) -> land-cover raster (10-20 m / px)
 - [ ] Chunk file size and load time recorded; frame budget on Suwałki not worse than today.
 - [ ] ADR "Sub-hex land cover; hexes are mechanics only" + ARCHITECTURE updated.
 
+## Carried over from TASK-072b
+
+- The farmland parcel texture still covers the whole map (~72 MB at 16x). Replace it with a windowed texture / analytic planner query per chunk as part of the land-cover plane, so static memory stops growing with map area.
+
 ## Playtest (for the human)
 
 1. `tools/run.sh --scenario=suwalki_battle`, grid off (`G`): forest edges, fields, villages and meadows follow natural outlines and cross hex borders; no hex-shaped patches anywhere.

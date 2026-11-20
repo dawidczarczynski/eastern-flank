@@ -137,9 +137,7 @@ func test_grid_lines_stay_out_of_water() -> void:
 	grid.set_terrain(Vector2i(0, 0), Terrain.Type.WATER)
 	grid.set_terrain(Vector2i(1, 0), Terrain.Type.WATER)
 	_make(grid)
-	var vertices := (
-		_view._grid_lines.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
-	)
+	var vertices := Fixtures.grid_line_vertices(_view)
 	assert_true(vertices.size() > 0)
 	for water: Vector2i in [Vector2i(0, 0), Vector2i(1, 0)]:
 		var w := Hex.to_world(water, _view.hex_size)

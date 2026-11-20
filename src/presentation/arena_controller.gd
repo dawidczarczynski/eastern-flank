@@ -416,6 +416,7 @@ func rebuild_view() -> void:
 		view.queue_free()
 	_unit_views.clear()
 	_map_view.build(_sim.state.grid)
+	_map_view.chunks().register(_marks.chunk_layer(_map_view.terrain().lattice.rect()))
 	for unit: Unit in _sim.state.units.values():
 		_create_unit_view(unit)
 	_apply_switches()

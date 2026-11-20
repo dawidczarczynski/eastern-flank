@@ -5,6 +5,9 @@ extends Node3D
 ## so units and trees are never covered. At most `max_decals` exist (GraphicsQuality "decals_max");
 ## GroundMarks.Pool decides which one goes when it is full. New marks fade in over FADE_IN.
 ## The view holds no game state – BattleController feeds it while the matching animation plays.
+## In the chunked world (TASK-072b) it is the "marks" layer of MapView's ChunkManager: a decal is
+## shown only while its chunk (TreeField.CHUNK_SIZE, by the decal's centre) is live, and hidden –
+## not dropped, so reveal levels and the pool stay – when the camera moves away.
 
 ## Decals project onto the terrain layer and the grass layer only (the grass would otherwise hide
 ## the marks on plains: blades are tinted like the ground below them). Units, trees, bushes, rocks
@@ -28,6 +31,10 @@ static var _textures := {}
 static var _reveal_textures := {}
 
 var _pool: GroundMarks.Pool = GroundMarks.Pool.new(0)
+## Registered with a ChunkManager: decals show only in live chunks (else always).
+var _chunked := false
+## Vector2i chunk -> true for the live chunks.
+var _live: Dictionary = {}
 
 
 ## `max_decals` from GraphicsQuality.features (0 = no marks at all).
@@ -36,6 +43,39 @@ func setup(max_decals: int) -> void:
 		remove_child(child)
 		child.free()
 	_pool = GroundMarks.Pool.new(max_decals)
+
+
+## The decals as the "marks" chunk layer over `area` (the terrain).
+func chunk_layer(area: Rect2) -> ChunkLayer:
+	_chunked = true
+	_live.clear()
+	for decal in decals():
+		_refresh_visible(decal)
+	return ChunkLayer.new(&"marks", TreeField.CHUNK_SIZE, area, build_chunk, free_chunk)
+
+
+## Shows the decals of `chunk` (ChunkLayer.build_chunk; marks have no plan).
+func build_chunk(chunk: Vector2i, _plan: Variant) -> void:
+	_live[chunk] = true
+	_refresh_chunk(chunk)
+
+
+## Hides the decals of `chunk`.
+func free_chunk(chunk: Vector2i) -> void:
+	_live.erase(chunk)
+	_refresh_chunk(chunk)
+
+
+func _refresh_chunk(chunk: Vector2i) -> void:
+	for decal in decals():
+		if TreeField.chunk_of(decal.position) == chunk:
+			_refresh_visible(decal)
+
+
+## A decal shows when its reveal level (growing tracks) is above 0 and its chunk is live.
+func _refresh_visible(decal: Decal) -> void:
+	var level: int = decal.get_meta(_LEVEL_META, 1)
+	decal.visible = level > 0 and (not _chunked or _live.has(TreeField.chunk_of(decal.position)))
 
 
 func is_active() -> bool:
@@ -93,7 +133,7 @@ func _set_level(decal: Decal, level: int) -> void:
 	if decal.get_meta(_LEVEL_META, -1) == level:
 		return
 	decal.set_meta(_LEVEL_META, level)
-	decal.visible = level > 0
+	_refresh_visible(decal)
 	if level > 0:
 		decal.texture_albedo = _reveal_texture(decal.get_meta(&"mark_kind"), level)
 
@@ -117,6 +157,7 @@ func _add(mark: Dictionary, animate: bool) -> Decal:
 	var alpha := _alpha(kind)
 	decal.modulate = Color(1, 1, 1, 0.0 if animate else alpha)
 	add_child(decal)
+	_refresh_visible(decal)
 	if animate:
 		decal.create_tween().tween_property(decal, "modulate:a", alpha, FADE_IN)
 	for evicted: Decal in _pool.add(kind, decal):

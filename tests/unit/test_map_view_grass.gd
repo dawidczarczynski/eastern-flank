@@ -24,8 +24,7 @@ func _build_grass_only(quality: Dictionary, radius := 4) -> void:
 
 func _build(quality: Dictionary) -> void:
 	_build_grass_only(quality)
-	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().update(1000)
+	_view.finish_chunks(Vector2.ZERO)
 
 
 func test_density_zero_creates_no_grass() -> void:
@@ -50,14 +49,19 @@ func test_full_density_creates_faded_unshadowed_chunks() -> void:
 
 func test_chunks_are_built_lazily_near_the_camera_target() -> void:
 	_build_grass_only({"grass_density": 1.0, "wind": true})
-	_view.grass().update(1000)
+	_view.chunks().process()
 	assert_eq(_view.grass().chunk_nodes().size(), 0, "no target yet")
-	_view.set_camera_target(Vector2(-100, -100))
-	_view.grass().update(1000)
+	_view.finish_chunks(Vector2(-100, -100))
 	assert_eq(_view.grass().chunk_nodes().size(), 0, "target far away")
+	_view.chunks().threads = false
+	_view.chunks().budget_usec = 0
 	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().update(1)
-	assert_eq(_view.grass().built_chunks(), 1, "at most the per-frame count")
+	_view.chunks().process()
+	assert_true(_view.grass().built_chunks() <= 1, "one chunk a frame on a zero budget")
+	_view.finish_chunks()
+	assert_true(_view.grass().built_chunks() > 1)
+	var radius := _view.chunks().build_radius(&"grass")
+	assert_true(absf(radius - 20.0) < 0.01, "the grass ring builds 20 units around the target")
 
 
 func test_wind_parameters_exist_and_follow_quality() -> void:
@@ -87,12 +91,34 @@ func test_density_is_cut_back_to_a_tiny_budget() -> void:
 	)
 	assert_true(field.density() < 1.0, "density cut: %s" % field.density())
 	assert_true(field.density() > 0.0)
-	field.set_target(Vector2.ZERO)
-	field.update(1000)
+	field.build_rect(Rect2(-8, -8, 16, 16))
 	assert_true(
 		field.instance_count() <= budget * 1.1, "within budget: %d" % field.instance_count()
 	)
 	field.free()
+
+
+## On a map larger than the grass ring the budget is for what the ring can hold at once, not for
+## the whole map (TASK-072b: the 16x map cut the density to 0.06).
+func test_density_budget_is_for_the_live_ring_on_a_large_map() -> void:
+	var grid := Fixtures.plains_grid(4)
+	var budget := 5000
+	var whole := GrassField.new()
+	var ring := GrassField.new()
+	for field: GrassField in [whole, ring]:
+		field.setup(
+			grid,
+			TerrainSurface.new(grid),
+			Rect2(-8, -8, 16, 16),
+			1.0,
+			func(_p: Vector3) -> Color: return Color.GREEN,
+			budget,
+			null,
+			INF if field == whole else 10.0
+		)
+	assert_true(ring.density() > whole.density(), "%s > %s" % [ring.density(), whole.density()])
+	whole.free()
+	ring.free()
 
 
 func test_grass_shader_loads_and_the_material_instantiates() -> void:
@@ -121,8 +147,7 @@ func test_card_texture_is_neutral_grey() -> void:
 
 func _meadow_build() -> void:
 	_build_grass_only({"grass_density": 1.0, "wind": false}, 8)
-	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().update(1000)
+	_view.finish_chunks(Vector2.ZERO)
 
 
 func test_flower_nodes_are_faded_unshadowed_flower_mode_chunks() -> void:
@@ -195,7 +220,7 @@ func test_clearing_removes_grass_and_flowers_inside_it() -> void:
 	var before := _view.grass().instance_count()
 	var center := Vector2(1.0, 1.0)
 	_view.grass().add_clearing(center, 1.0)
-	_view.grass().update(1000)
+	_view.finish_chunks()
 	assert_true(_view.grass().instance_count() < before, "clumps inside are gone")
 	var nodes := _view.grass().chunk_nodes() + _view.grass().flower_nodes()
 	for node in nodes:
@@ -206,20 +231,11 @@ func test_clearing_removes_grass_and_flowers_inside_it() -> void:
 
 func test_grass_is_settled_once_the_chunks_around_the_target_are_built() -> void:
 	_build_grass_only({"grass_density": 1.0, "wind": false})
-	assert_true(_view.grass().is_settled(), "no target yet: nothing to build")
+	assert_false(_view.chunks_settled(), "no target yet")
 	_view.set_camera_target(Vector2.ZERO)
-	assert_false(_view.grass().is_settled())
-	_view.grass().update(1000)
-	assert_true(_view.grass().is_settled())
-
-
-func _prebuild(view: MapView) -> void:
-	view.grass().begin_prebuild()
-	for i in 20000:
-		if view.grass().prebuild_step(1000):
-			return
-		OS.delay_msec(1)
-	_fail("the prebuild never finished")
+	assert_false(_view.chunks_settled())
+	_view.finish_chunks()
+	assert_true(_view.chunks_settled())
 
 
 ## Chunk name -> instance transforms of every grass node of the view.
@@ -233,9 +249,10 @@ func _grass_snapshot(view: MapView) -> Dictionary:
 	return result
 
 
-## The prebuild behind the loading screen plans the chunks on worker threads: same grass as the
-## per-frame build.
-func test_prebuild_builds_the_same_grass_as_update() -> void:
+## The chunks are planned on worker threads behind the loading screen and in play: same grass as
+## a build on one thread.
+func test_threaded_chunks_build_the_same_grass_as_one_thread() -> void:
+	_view.threads = false
 	_build({"grass_density": 1.0, "wind": false})
 	var expected := _grass_snapshot(_view)
 	var expected_count := _view.grass().instance_count()
@@ -244,56 +261,40 @@ func test_prebuild_builds_the_same_grass_as_update() -> void:
 	other.quality = {"grass_density": 1.0, "wind": false, "foliage": false}
 	other.build(Fixtures.plains_grid(4))
 	other.set_camera_target(Vector2.ZERO)
-	assert_false(other.grass().is_settled())
-	_prebuild(other)
-	assert_true(other.grass().is_settled())
+	for i in 20000:
+		other.chunks().process()
+		if other.chunks_settled():
+			break
+		OS.delay_msec(1)
+	assert_true(other.chunks_settled())
 	assert_eq(other.grass().instance_count(), expected_count)
 	assert_eq(_grass_snapshot(other), expected)
 	other.free()
 
 
-func test_prebuild_instantiates_at_most_the_asked_chunks_per_step() -> void:
+func test_the_grass_plan_carries_the_multimesh_buffer() -> void:
+	_build_grass_only({"grass_density": 1.0, "wind": false})
+	var plan := _view.grass().plan_chunk(Vector2i.ZERO)
+	var part: Dictionary = plan["grass"]
+	var items: Array = part["items"]
+	assert_true(items.size() > 0)
+	var buffer: PackedFloat32Array = part["buffer"]
+	assert_eq(buffer.size(), items.size() * GrassField.STRIDE)
+	var origin := Vector3(GrassPlanner.CHUNK_SIZE * 0.5, 0.0, GrassPlanner.CHUNK_SIZE * 0.5)
+	var t := GrassField.clump_transform(items[0], origin)
+	assert_true(is_equal_approx(buffer[3], t.origin.x), "origin x relative to the chunk centre")
+	assert_true(is_equal_approx(buffer[11], t.origin.z))
+
+
+## A wreck burns the ground while chunks are still being planned: those plans are dropped and the
+## chunks planned again, so the clearing applies to them too.
+func test_clearing_during_planning_still_clears() -> void:
 	_build_grass_only({"grass_density": 1.0, "wind": false})
 	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().begin_prebuild()
-	var steps := 0
-	var before := 0
-	for i in 20000:
-		var done := _view.grass().prebuild_step(2)
-		assert_true(_view.grass().built_chunks() - before <= 2, "at most 2 chunks a step")
-		before = _view.grass().built_chunks()
-		steps += 1
-		if done:
-			break
-		assert_false(_view.grass().is_settled(), "not settled while prebuilding")
-		OS.delay_msec(1)
-	assert_true(steps > 1)
-	assert_true(_view.grass().is_settled())
-	assert_true(_view.grass().built_chunks() > 2)
-
-
-func test_prebuild_without_a_target_or_grass_is_done_at_once() -> void:
-	_build_grass_only({"grass_density": 1.0, "wind": false})
-	_view.grass().begin_prebuild()
-	assert_true(_view.grass().prebuild_step(10), "no target")
-	_view.free()
-	_view = MapView.new()
-	_view._ready()
-	_build_grass_only({"grass_density": 0.0, "wind": false})
-	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().begin_prebuild()
-	assert_true(_view.grass().prebuild_step(10), "no grass")
-
-
-## A wreck burns the ground while chunks are still being planned: the prebuild is finished
-## first, so the clearing applies to them too.
-func test_clearing_during_a_prebuild_still_clears() -> void:
-	_build_grass_only({"grass_density": 1.0, "wind": false})
-	_view.set_camera_target(Vector2.ZERO)
-	_view.grass().begin_prebuild()
+	_view.chunks().process()
 	_view.grass().add_clearing(Vector2.ZERO, 1.0)
-	_view.grass().update(1000)
-	assert_true(_view.grass().is_settled())
+	_view.finish_chunks()
+	assert_true(_view.chunks_settled())
 	for node in _view.grass().chunk_nodes():
 		for i in node.multimesh.instance_count:
 			var p := node.position + node.multimesh.get_instance_transform(i).origin

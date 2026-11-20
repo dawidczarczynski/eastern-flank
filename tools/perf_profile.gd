@@ -35,7 +35,7 @@ func _init(root: Window, battle: Node, only: String = "") -> void:
 	_add_hide("backdrop ground", ["Backdrop"])
 	_add_hide("backdrop canopy", ["BackdropCanopy"])
 	_add_hide("water", ["Water"])
-	_add_hide("terrain", ["Terrain"])
+	_add_hide("terrain", ["Terrain", "TerrainFar"])
 	_add_hide("units", ["Units"])
 	_add_hide("HUD", ["HUD"])
 	_cases.append({"name": "all shadows (sun)", "apply": _sun_shadows_off})

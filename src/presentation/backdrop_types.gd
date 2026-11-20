@@ -18,7 +18,7 @@ var _nearest_cache: Dictionary = {}
 var _shares_cache: Dictionary = {}
 
 
-## `mesh_origin` and `mesh_step` describe the playable terrain mesh grid (MapView).
+## `mesh_origin` and `mesh_step` describe the playable terrain mesh grid (MapView's TerrainLattice).
 func _init(grid: HexGrid, hex_size: float, mesh_origin: Vector2, mesh_step: Vector2) -> void:
 	_grid = grid
 	_hex_size = hex_size
@@ -46,17 +46,48 @@ func border_shares(ca: int, cb: int) -> Dictionary:
 	return _shares_cache[key]
 
 
-## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in).
+## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in). Searches
+## hex rings around the point (TASK-072b: scanning every tile per hex cost seconds on large maps)
+## until no farther ring can hold a closer centre (ring k is at least 1.5 k hex sizes from the
+## start hex's centre, and `p` lies within one hex size of it).
+## Ties go to the lowest (q, r), so the result does not depend on the grid's insertion order.
 func nearest_tile_type(p: Vector2) -> int:
 	var key := Hex.from_world(Vector3(p.x, 0.0, p.y), _hex_size)
 	if not _nearest_cache.has(key):
-		var best := -1
-		var best_distance := INF
-		for c in _grid.coords():
+		_nearest_cache[key] = _nearest_type(key, p)
+	return _nearest_cache[key]
+
+
+func _nearest_type(start: Vector2i, p: Vector2) -> int:
+	if _grid.coords().is_empty():
+		return -1
+	var best := Vector2i.ZERO
+	var best_distance := INF
+	var radius := 0
+	while best_distance == INF or (1.5 * radius - 1.0) * _hex_size <= sqrt(best_distance):
+		for c in _ring(start, radius):
+			if not _grid.has_tile(c):
+				continue
 			var w := Hex.to_world(c, _hex_size)
 			var dist := Vector2(w.x, w.z).distance_squared_to(p)
-			if dist < best_distance:
+			if (
+				dist < best_distance
+				or (dist == best_distance and (c.x < best.x or (c.x == best.x and c.y < best.y)))
+			):
 				best_distance = dist
-				best = int(_grid.get_terrain(c))
-		_nearest_cache[key] = best
-	return _nearest_cache[key]
+				best = c
+		radius += 1
+	return int(_grid.get_terrain(best))
+
+
+## The hexes at hex distance `radius` from `center`.
+static func _ring(center: Vector2i, radius: int) -> Array[Vector2i]:
+	if radius == 0:
+		return [center]
+	var result: Array[Vector2i] = []
+	var c := center + Hex.DIRECTIONS[4] * radius
+	for side in 6:
+		for step in radius:
+			result.append(c)
+			c += Hex.DIRECTIONS[side]
+	return result
