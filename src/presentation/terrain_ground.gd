@@ -5,12 +5,25 @@ extends RefCounted
 ## mesh surface. Shared by the playable terrain mesh and the backdrop ring.
 
 const SHADER := preload("res://assets/shaders/terrain.gdshader")
-## Ground texture repeat: the layers' real-world size (TerrainTextures.SOURCE_METRES) at the
-## game scale (METRES_PER_UNIT), enlarged by REPEAT_SCALE so the texture still reads at the
-## default zoom (repeats: grass 0.73, dry grass / dirt / gravel 1.04, mud 0.68, rock 0.78,
-## soil 1.56 world units).
-const METRES_PER_UNIT := 7.7
-const REPEAT_SCALE := 4.0
+## Ground texture repeat (TASK-134): one repeat of a layer covers its scanned real size
+## (TerrainTextures.SOURCE_METRES, 1.3-3 m), in world units through MapScale – real metres, not the
+## former 7.7 m / unit x 4: close up it is real grass, gravel, soil.
+## Farther than SCALE_FADE (view distance, world units: from x to y) the layers cross-fade to a
+## pattern FAR_PATTERN_FACTOR x their real size (~100 m for grass, the former look), which still
+## reads from the default zoom, where a real-size repeat is under a pixel.
+const FAR_PATTERN_FACTOR := 75.0
+const SCALE_FADE := Vector2(2.5, 6.0)
+## The ground detail texture: a tileable procedural height / normal map (DetailTexture) repeating
+## every DETAIL_METRES (a second, rotated sample at DETAIL_SECOND x that size), which brightens /
+## darkens the albedo and tilts the normal between the scanned texel scale and the mesh – faded in
+## by view distance (world units): none beyond DETAIL_FADE.y, full below DETAIL_FADE.x.
+const DETAIL_METRES := 24.0
+const DETAIL_SECOND := 0.3
+const DETAIL_FADE := Vector2(4.0, 6.0)
+const DETAIL_SIZE := 128
+const DETAIL_PERIODS: Array[int] = [4, 8, 16, 32]
+const DETAIL_SEED := 1341
+const DETAIL_NORMAL_STRENGTH := 3.0
 ## Texture array size when no quality switches are set (GraphicsQuality "terrain_texture_size").
 const DEFAULT_TEXTURE_SIZE := 1024
 ## Linear albedo tint per ground layer (TerrainSplat order) towards the game's olive palette:
@@ -27,6 +40,9 @@ const LAYER_TINTS: Array[Vector3] = [
 ]
 ## Added to each 8-bit colour level so the truncating conversion keeps the intended level.
 const COLOR_QUANT_BIAS := 0.25
+
+## Generated once per run: the ground detail texture.
+static var _detail: ImageTexture
 
 
 ## Adds the triangle surface of `arrays` with the per-vertex ground weights `weights`
@@ -82,10 +98,14 @@ static func material(quality: Dictionary) -> ShaderMaterial:
 	var maps := TerrainTextures.arrays(texture_size(quality))
 	material.set_shader_parameter(&"albedo_height", maps["albedo_height"])
 	material.set_shader_parameter(&"normal_rough_ao", maps["normal_rough_ao"])
-	var repeats := PackedFloat32Array()
-	for metres in TerrainTextures.SOURCE_METRES:
-		repeats.append(metres / METRES_PER_UNIT * REPEAT_SCALE)
-	material.set_shader_parameter(&"layer_repeat", repeats)
+	material.set_shader_parameter(&"layer_repeat", layer_repeats())
+	material.set_shader_parameter(&"layer_repeat_far", layer_repeats(FAR_PATTERN_FACTOR))
+	material.set_shader_parameter(&"scale_fade", SCALE_FADE)
+	material.set_shader_parameter(&"detail_on", quality.get("terrain_detail", true))
+	material.set_shader_parameter(&"detail_map", detail_texture())
+	material.set_shader_parameter(&"detail_repeat", MapScale.to_units(DETAIL_METRES))
+	material.set_shader_parameter(&"detail_second", DETAIL_SECOND)
+	material.set_shader_parameter(&"detail_fade", DETAIL_FADE)
 	material.set_shader_parameter(
 		&"layer_tint", PackedVector3Array(LookPreset.layer_tints(LAYER_TINTS))
 	)
@@ -93,6 +113,40 @@ static func material(quality: Dictionary) -> ShaderMaterial:
 	material.set_shader_parameter(&"triplanar", quality.get("terrain_triplanar", true))
 	material.set_shader_parameter(&"water_level", TerrainSurface.WATER_SURFACE)
 	return material
+
+
+## World units per texture repeat of each ground layer: its real size (x `factor`) through
+## MapScale.
+static func layer_repeats(factor := 1.0) -> PackedFloat32Array:
+	var repeats := PackedFloat32Array()
+	for metres in TerrainTextures.SOURCE_METRES:
+		repeats.append(MapScale.to_units(metres * factor))
+	return repeats
+
+
+## The ground detail texture (RGBA8, mipmapped): tangent-space normal (OpenGL) in RGB, height in A.
+static func detail_texture() -> ImageTexture:
+	if _detail == null:
+		var heights := DetailTexture.height_map(DETAIL_SIZE, DETAIL_PERIODS, DETAIL_SEED)
+		# The octave sum clusters around 0.5: stretch it to the full range (contrast).
+		var low := 1.0
+		var high := 0.0
+		for h in heights:
+			low = minf(low, h)
+			high = maxf(high, h)
+		for i in heights.size():
+			heights[i] = (heights[i] - low) / maxf(high - low, 1e-6)
+		var image := DetailTexture.normal_image(heights, DETAIL_SIZE, DETAIL_NORMAL_STRENGTH)
+		image.clear_mipmaps()
+		image.convert(Image.FORMAT_RGBA8)
+		for y in DETAIL_SIZE:
+			for x in DETAIL_SIZE:
+				var c := image.get_pixel(x, y)
+				c.a = heights[y * DETAIL_SIZE + x]
+				image.set_pixel(x, y, c)
+		image.generate_mipmaps()
+		_detail = ImageTexture.create_from_image(image)
+	return _detail
 
 
 ## Turns the farmland parcels of the shader on with the baked `parcels` (FieldParcels.bake) and

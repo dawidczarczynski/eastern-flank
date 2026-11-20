@@ -19,6 +19,9 @@ extends RefCounted
 const COARSE_STRIDE := 4
 const COARSE_GROUP := 4
 const SKIRT_DEPTH := 0.4
+## Cells per side of the blocks a fine chunk's index buffer is split into: one block is the area
+## of one near chunk (TerrainNear), left out while that one is built.
+const BLOCK_CELLS := 4
 const FINE_NODE := "Terrain"
 const COARSE_NODE := "TerrainFar"
 
@@ -35,6 +38,10 @@ var _fine: Dictionary = {}
 ## Vector2i group -> {"node": MeshInstance3D, "arrays": merged vertex arrays, "indices":
 ## {chunk: PackedInt32Array (merged numbering)}}.
 var _coarse: Dictionary = {}
+## Vector2i chunk -> its full-resolution plan (kept to rebuild the index buffer around holes).
+var _fine_plans: Dictionary = {}
+## Vector2i chunk -> {block index: true}: the blocks a near chunk (TerrainNear) draws instead.
+var _holes: Dictionary = {}
 
 
 func _init(
@@ -161,9 +168,12 @@ func _refresh_group(group: Vector2i) -> void:
 
 
 func build_fine(chunk: Vector2i, chunk_plan: Variant) -> void:
-	var node := _instance(chunk_plan, "%s_%d_%d" % [FINE_NODE, chunk.x, chunk.y], true)
+	var node := chunk_instance(chunk_plan, "%s_%d_%d" % [FINE_NODE, chunk.x, chunk.y], true)
 	fine_root.add_child(node)
 	_fine[chunk] = node
+	_fine_plans[chunk] = chunk_plan
+	if _holes.has(chunk):
+		_refresh_fine(chunk)
 	_refresh_group(group_of(chunk))
 
 
@@ -173,7 +183,60 @@ func free_fine(chunk: Vector2i) -> void:
 		fine_root.remove_child(node)
 		node.queue_free()
 	_fine.erase(chunk)
+	_fine_plans.erase(chunk)
 	_refresh_group(group_of(chunk))
+
+
+## Leaves block `block` (row-major index of the BLOCK_CELLS blocks) of fine chunk `chunk` out of
+## its mesh (`hole`) or puts it back: a near chunk (TerrainNear) draws that area. Remembered for a
+## fine chunk built later.
+func set_hole(chunk: Vector2i, block: int, hole: bool) -> void:
+	var holes: Dictionary = _holes.get(chunk, {})
+	if hole == holes.has(block):
+		return
+	if hole:
+		holes[block] = true
+		_holes[chunk] = holes
+	else:
+		holes.erase(block)
+		if holes.is_empty():
+			_holes.erase(chunk)
+	if _fine.has(chunk):
+		_refresh_fine(chunk)
+
+
+## The blocks of `chunk` left out for near chunks.
+func holes(chunk: Vector2i) -> Array:
+	return (_holes.get(chunk, {}) as Dictionary).keys()
+
+
+## Fine chunk and block index that hold the near chunk `near` (TerrainNear chunk coordinates).
+static func block_of(near: Vector2i) -> Array:
+	var per_chunk := TerrainLattice.CELLS_PER_CHUNK / BLOCK_CELLS
+	var chunk := Vector2i(floori(float(near.x) / per_chunk), floori(float(near.y) / per_chunk))
+	var local := near - chunk * per_chunk
+	return [chunk, local.y * per_chunk + local.x]
+
+
+## Rebuilds fine chunk `chunk`'s mesh without its hole blocks (hidden when every block is one).
+func _refresh_fine(chunk: Vector2i) -> void:
+	var node: MeshInstance3D = _fine[chunk]
+	var chunk_plan: Dictionary = _fine_plans[chunk]
+	var holes: Dictionary = _holes.get(chunk, {})
+	var arrays: Array = (chunk_plan["arrays"] as Array).duplicate()
+	if not holes.is_empty():
+		var indices := PackedInt32Array()
+		var blocks: Array[PackedInt32Array] = chunk_plan["blocks"]
+		for k in blocks.size():
+			if not holes.has(k):
+				indices.append_array(blocks[k])
+		if indices.is_empty():
+			node.mesh = null
+			node.visible = false
+			return
+		arrays[Mesh.ARRAY_INDEX] = indices
+	node.visible = true
+	node.mesh = mesh_of(arrays)
 
 
 ## Whether the coarse mesh of `chunk` is drawn (no fine chunk built there).
@@ -195,14 +258,19 @@ func coarse_nodes() -> Array[MeshInstance3D]:
 	return result
 
 
-func _instance(chunk_plan: Dictionary, node_name: String, shadows: bool) -> MeshInstance3D:
+## A triangle mesh of terrain `arrays` (weights in colour + custom0) with the ground material.
+func mesh_of(arrays: Array) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	var format := Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, chunk_plan["arrays"], [], {}, format)
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, format)
 	mesh.surface_set_material(0, _material)
+	return mesh
+
+
+func chunk_instance(chunk_plan: Dictionary, node_name: String, shadows: bool) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.name = node_name
-	instance.mesh = mesh
+	instance.mesh = mesh_of(chunk_plan["arrays"])
 	# The surface vertices come first, the skirt after them.
 	instance.set_meta(&"surface_vertices", chunk_plan["vertices"])
 	instance.set_layer_mask_value(MapView.TERRAIN_VISUAL_LAYER, true)
@@ -214,25 +282,24 @@ func _instance(chunk_plan: Dictionary, node_name: String, shadows: bool) -> Mesh
 	return instance
 
 
-## The mesh arrays of `chunk` with every `stride`-th lattice vertex (1 = full resolution):
-## {"arrays": Mesh arrays (vertex, normal, tangent, uv, uv2 = tint, colour + custom0 = weights,
-## index), "vertices": surface vertex count (the skirt follows)}. Pure: reads the lattice, grid and
-## noise only.
-func plan(chunk: Vector2i, stride: int) -> Dictionary:
+## Per-vertex attributes of the (nx + 1) x (nz + 1) lattice vertices (i0 + a * stride,
+## j0 + b * stride), row-major: {"heights": PackedFloat32Array, "normals": PackedVector3Array,
+## "weights": PackedFloat32Array (TerrainSplat.LAYER_COUNT per vertex, smoothed over the
+## neighbours), "tints": PackedVector2Array (UV2)}. Every value is a function of the lattice index
+## alone (normals by central differences, one-sided on the lattice border), so any window gives the
+## same values for a shared vertex – the near terrain (TerrainNear) interpolates them. `block`
+## (optional) is the lattice block whose corner is (i0, j0) (stride 1 only, saves the queries).
+## Pure: reads the lattice, grid and noise only.
+func vertex_attributes(
+	i0: int, j0: int, nx: int, nz: int, stride: int, block := PackedFloat32Array()
+) -> Dictionary:
 	var c := TerrainLattice.CELLS_PER_CHUNK
-	var i0 := chunk.x * c
-	var j0 := chunk.y * c
-	var i1 := mini(i0 + c, lattice.cells.x)
-	var j1 := mini(j0 + c, lattice.cells.y)
-	var nx := (i1 - i0) / stride
-	var nz := (j1 - j0) / stride
-	# Heights two vertices beyond the chunk (normals one beyond, their weights smooth the edge).
+	# Heights two vertices beyond the window (normals one beyond, their weights smooth the edge).
 	var pad := 2
 	var w := nx + 1 + 2 * pad
 	var h := nz + 1 + 2 * pad
 	var heights := PackedFloat32Array()
 	heights.resize(w * h)
-	var block := lattice.block(chunk) if stride == 1 else PackedFloat32Array()
 	var side := c + 1
 	for b in h:
 		var j := clampi(j0 + (b - pad) * stride, 0, lattice.cells.y)
@@ -240,11 +307,11 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 			var i := clampi(i0 + (a - pad) * stride, 0, lattice.cells.x)
 			var la := i - i0
 			var lb := j - j0
-			if stride == 1 and la >= 0 and la <= c and lb >= 0 and lb <= c:
+			if not block.is_empty() and la >= 0 and la <= c and lb >= 0 and lb <= c:
 				heights[b * w + a] = block[lb * side + la]
 			else:
 				heights[b * w + a] = lattice.height(i, j)
-	# Normals and raw weights for the chunk plus one vertex around it.
+	# Normals and raw weights for the window plus one vertex around it.
 	var layers := TerrainSplat.LAYER_COUNT
 	var rw := nx + 3
 	var rh := nz + 3
@@ -252,7 +319,6 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 	normals_ring.resize(rw * rh)
 	var weights_ring := PackedFloat32Array()
 	weights_ring.resize(rw * rh * layers)
-	var step := TerrainLattice.STEP * stride
 	for b in rh:
 		var j := j0 + (b - 1) * stride
 		for a in rw:
@@ -289,16 +355,11 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 			var splat := MapView._splat(jittered_type, n.y, v, noise)
 			for layer in layers:
 				weights_ring[(b * rw + a) * layers + layer] = splat[layer]
-	# Surface vertices.
 	var count := (nx + 1) * (nz + 1)
-	var vertices := PackedVector3Array()
-	vertices.resize(count)
+	var out_heights := PackedFloat32Array()
+	out_heights.resize(count)
 	var normals := PackedVector3Array()
 	normals.resize(count)
-	var tangents := PackedFloat32Array()
-	tangents.resize(count * 4)
-	var uvs := PackedVector2Array()
-	uvs.resize(count)
 	var tints := PackedVector2Array()
 	tints.resize(count)
 	var weights := PackedFloat32Array()
@@ -308,20 +369,11 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 		for a in nx + 1:
 			var i := i0 + a * stride
 			var k := b * (nx + 1) + a
-			var v := Vector3(lattice.x_of(i), heights[(b + pad) * w + a + pad], lattice.z_of(j))
-			vertices[k] = v
-			var n := normals_ring[(b + 1) * rw + a + 1]
-			normals[k] = n
-			# U runs along +x, so the tangent is the slope direction made perpendicular to the
-			# normal; w = +1 puts the binormal up the normal map image (DetailTexture's convention).
-			var t := Vector3(1.0, -n.x / maxf(n.y, 1e-6), 0.0)
-			t = (t - n * n.dot(t)).normalized()
-			tangents[k * 4] = t.x
-			tangents[k * 4 + 1] = t.y
-			tangents[k * 4 + 2] = t.z
-			tangents[k * 4 + 3] = 1.0
-			uvs[k] = Vector2(v.x, v.z) / MapView.DETAIL_TILE
-			var on_map := _grid.has_tile(Hex.from_world(v, _hex_size))
+			out_heights[k] = heights[(b + pad) * w + a + pad]
+			normals[k] = normals_ring[(b + 1) * rw + a + 1]
+			var on_map := _grid.has_tile(
+				Hex.from_world(Vector3(lattice.x_of(i), 0.0, lattice.z_of(j)), _hex_size)
+			)
 			tints[k] = Vector2(1.0 if on_map else MapView.OFF_MAP_VALUE, 1.0)
 			# Blend across tile borders: the mean of the neighbours within one step (clamped to
 			# the lattice, like TerrainSplat.smooth on the single mesh).
@@ -340,6 +392,20 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 					total += 1
 			for layer in layers:
 				weights[k * layers + layer] /= total
+	return {"heights": out_heights, "normals": normals, "weights": weights, "tints": tints}
+
+
+## The tangent of a vertex with normal `n`: U runs along +x, so the tangent is the slope direction
+## made perpendicular to the normal; w = +1 puts the binormal up the normal map image
+## (DetailTexture's convention).
+static func tangent_of(n: Vector3) -> Vector3:
+	var t := Vector3(1.0, -n.x / maxf(n.y, 1e-6), 0.0)
+	return (t - n * n.dot(t)).normalized()
+
+
+## Triangle indices of an nx x nz cell grid of (nx + 1) x (nz + 1) row-major vertices, 6 per cell
+## in row-major cell order, each cell split along its b–c diagonal (TerrainLattice.mesh_height_at).
+static func grid_indices(nx: int, nz: int) -> PackedInt32Array:
 	var indices := PackedInt32Array()
 	indices.resize(nx * nz * 6)
 	var p := 0
@@ -358,7 +424,54 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 			indices[p + 4] = id
 			indices[p + 5] = ic
 			p += 6
-	_add_skirt(nx, nz, vertices, normals, tangents, uvs, tints, weights, indices)
+	return indices
+
+
+## The mesh arrays of `chunk` with every `stride`-th lattice vertex (1 = full resolution):
+## {"arrays": Mesh arrays (vertex, normal, tangent, uv, uv2 = tint, colour + custom0 = weights,
+## index), "vertices": surface vertex count (the skirt follows)}; at full resolution also
+## "blocks": the index lists of the BLOCK_CELLS x BLOCK_CELLS cell blocks (row-major, each with its
+## skirt quads), so a block under a near chunk (TerrainNear) can be left out. Pure: reads the
+## lattice, grid and noise only.
+func plan(chunk: Vector2i, stride: int) -> Dictionary:
+	var c := TerrainLattice.CELLS_PER_CHUNK
+	var i0 := chunk.x * c
+	var j0 := chunk.y * c
+	var i1 := mini(i0 + c, lattice.cells.x)
+	var j1 := mini(j0 + c, lattice.cells.y)
+	var nx := (i1 - i0) / stride
+	var nz := (j1 - j0) / stride
+	var block := lattice.block(chunk) if stride == 1 else PackedFloat32Array()
+	var attributes := vertex_attributes(i0, j0, nx, nz, stride, block)
+	var heights: PackedFloat32Array = attributes["heights"]
+	var normals: PackedVector3Array = attributes["normals"]
+	var tints: PackedVector2Array = attributes["tints"]
+	var weights: PackedFloat32Array = attributes["weights"]
+	var count := (nx + 1) * (nz + 1)
+	var vertices := PackedVector3Array()
+	vertices.resize(count)
+	var tangents := PackedFloat32Array()
+	tangents.resize(count * 4)
+	var uvs := PackedVector2Array()
+	uvs.resize(count)
+	for b in nz + 1:
+		var j := j0 + b * stride
+		for a in nx + 1:
+			var i := i0 + a * stride
+			var k := b * (nx + 1) + a
+			var v := Vector3(lattice.x_of(i), heights[k], lattice.z_of(j))
+			vertices[k] = v
+			var t := tangent_of(normals[k])
+			tangents[k * 4] = t.x
+			tangents[k * 4 + 1] = t.y
+			tangents[k * 4 + 2] = t.z
+			tangents[k * 4 + 3] = 1.0
+			uvs[k] = Vector2(v.x, v.z) / MapView.DETAIL_TILE
+	var indices := grid_indices(nx, nz)
+	var owners := PackedInt32Array()
+	add_skirt(
+		nx, nz, vertices, normals, tangents, uvs, tints, weights, indices, SKIRT_DEPTH, owners
+	)
 	var packed := TerrainGround.pack_weights(weights)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -370,13 +483,39 @@ func plan(chunk: Vector2i, stride: int) -> Dictionary:
 	arrays[Mesh.ARRAY_COLOR] = packed[0]
 	arrays[Mesh.ARRAY_CUSTOM0] = packed[1]
 	arrays[Mesh.ARRAY_INDEX] = indices
-	return {"arrays": arrays, "vertices": count}
+	var result := {"arrays": arrays, "vertices": count}
+	if stride == 1:
+		result["blocks"] = _blocks_of(nx, nz, indices, owners)
+	return result
+
+
+## Splits the index buffer of an nx x nz cell grid (grid_indices, then the skirt quads of
+## add_skirt with their `owners` cells) into BLOCK_CELLS x BLOCK_CELLS cell blocks, row-major.
+static func _blocks_of(
+	nx: int, nz: int, indices: PackedInt32Array, owners: PackedInt32Array
+) -> Array[PackedInt32Array]:
+	var across := ceili(float(nx) / BLOCK_CELLS)
+	var down := ceili(float(nz) / BLOCK_CELLS)
+	var blocks: Array[PackedInt32Array] = []
+	blocks.resize(across * down)
+	for cell in nx * nz:
+		var k := (cell / nx / BLOCK_CELLS) * across + (cell % nx) / BLOCK_CELLS
+		blocks[k].append_array(indices.slice(cell * 6, cell * 6 + 6))
+	var skirt := nx * nz * 6
+	for s in owners.size():
+		var cell := owners[s]
+		var k := (cell / nx / BLOCK_CELLS) * across + (cell % nx) / BLOCK_CELLS
+		blocks[k].append_array(indices.slice(skirt + s * 12, skirt + s * 12 + 12))
+	return blocks
 
 
 ## Appends a skirt along the four edges of the (nx + 1) x (nz + 1) surface: a copy of each edge
-## vertex SKIRT_DEPTH lower with the same attributes, joined to the edge by quads drawn from both
+## vertex `depth` lower with the same attributes, joined to the edge by quads drawn from both
 ## sides (cheaper to reason about than the winding of four edges, and never seen from the side).
-static func _add_skirt(
+## Edge order: z = 0 row, z = nz row, x = 0 column, x = nx column; edge e's copies start at
+## surface count + e * (edge length). `owners` (optional) gets the row-major cell index each
+## segment (12 indices) borders.
+static func add_skirt(
 	nx: int,
 	nz: int,
 	vertices: PackedVector3Array,
@@ -385,7 +524,9 @@ static func _add_skirt(
 	uvs: PackedVector2Array,
 	tints: PackedVector2Array,
 	weights: PackedFloat32Array,
-	indices: PackedInt32Array
+	indices: PackedInt32Array,
+	depth := SKIRT_DEPTH,
+	owners := PackedInt32Array()
 ) -> void:
 	var row := nx + 1
 	var edges: Array[PackedInt32Array] = []
@@ -395,10 +536,20 @@ static func _add_skirt(
 			edge.append((line[1] + s * line[3]) * row + line[0] + s * line[2])
 		edges.append(edge)
 	var layers := TerrainSplat.LAYER_COUNT
-	for edge in edges:
+	# The cell each edge's segment s borders.
+	var cells: Array[Callable] = [
+		func(s: int) -> int: return s,
+		func(s: int) -> int: return (nz - 1) * nx + s,
+		func(s: int) -> int: return s * nx,
+		func(s: int) -> int: return s * nx + nx - 1,
+	]
+	for e in edges.size():
+		var edge := edges[e]
 		var first := vertices.size()
+		for s in edge.size() - 1:
+			owners.append(cells[e].call(s))
 		for k in edge:
-			vertices.append(vertices[k] - Vector3(0.0, SKIRT_DEPTH, 0.0))
+			vertices.append(vertices[k] - Vector3(0.0, depth, 0.0))
 			normals.append(normals[k])
 			tangents.append_array(tangents.slice(k * 4, k * 4 + 4))
 			uvs.append(uvs[k])

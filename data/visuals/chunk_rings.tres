@@ -10,6 +10,7 @@ reach_m = {
 &"marks": 4040.0,
 &"scatter": 4040.0,
 &"terrain": 4040.0,
+&"terrain_near": 433.0,
 &"trees": 4040.0
 }
 build_factor = 1.5

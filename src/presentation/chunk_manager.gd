@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name ChunkManager
 extends RefCounted
 ## The chunked lazy world (TASK-072b, ADR 0024): every registered ChunkLayer keeps only the
@@ -19,8 +20,10 @@ const BATCH_SIZE := 24
 const PLAY_THREADS_SPARED := 2
 ## The rings are only rescanned after the target moved this far (world units) or a layer changed:
 ## the build ring is 1.5 x the draw reach, so a few units of lag never show, and a fast pan does not
-## rescan every frame.
+## rescan every frame. A small ring (the near terrain, TASK-134) rescans after RESCAN_FRACTION of
+## its build radius instead, so its lag stays within the margin between reach and build ring.
 const RESCAN_DISTANCE := 2.0
+const RESCAN_FRACTION := 0.25
 
 ## Plans on the WorkerThreadPool (off: on the main thread, inside the budget).
 var threads := true
@@ -57,6 +60,8 @@ var _scanned_target := Vector2.ZERO
 var _scan_needed := false
 var _built_total := 0
 var _freed_total := 0
+## Layer ids switched off (set_enabled): nothing built, everything built freed.
+var _disabled: Dictionary = {}
 
 
 func _init(rings: ChunkRings = null, low_quality := false) -> void:
@@ -85,12 +90,31 @@ func layers() -> Array[ChunkLayer]:
 	return _layers
 
 
+## 0 for a disabled layer.
 func build_radius(id: StringName) -> float:
+	if _disabled.has(id):
+		return 0.0
 	return _rings.build_radius(id, _low_quality)
 
 
+## Negative for a disabled layer (every built chunk lies beyond it).
 func free_radius(id: StringName) -> float:
+	if _disabled.has(id):
+		return -1.0
 	return _rings.free_radius(id, _low_quality)
+
+
+## Switches layer `id` on or off (TASK-134: the near terrain only while the camera is close). Off,
+## its built chunks are freed (within the frame budget) and none is built; on, the rings apply
+## again from the next scan.
+func set_enabled(id: StringName, enabled: bool) -> void:
+	if enabled != _disabled.has(id):
+		return
+	if enabled:
+		_disabled.erase(id)
+	else:
+		_disabled[id] = true
+	_scan_needed = true
 
 
 ## The built chunks of layer `id`.
@@ -156,7 +180,7 @@ func is_settled() -> bool:
 ## build rings (only after RESCAN_DISTANCE of movement, or when something asked for a rescan).
 func update(target: Vector2) -> void:
 	_target = target
-	if not _has_target or target.distance_to(_scanned_target) > RESCAN_DISTANCE:
+	if not _has_target or target.distance_to(_scanned_target) > _rescan_distance():
 		_scan_needed = true
 	_has_target = true
 	if _scan_needed:
@@ -268,6 +292,18 @@ func reset() -> void:
 	_plan_usec = []
 	_build_usec = []
 	_has_target = false
+	_disabled.clear()
+
+
+## How far the target may move before the rings are scanned again: RESCAN_DISTANCE, or less for
+## an enabled layer with a small build ring.
+func _rescan_distance() -> float:
+	var result := RESCAN_DISTANCE
+	for l in _layers:
+		var build := build_radius(l.id)
+		if build > 0.0:
+			result = minf(result, build * RESCAN_FRACTION)
+	return result
 
 
 func _scan() -> void:

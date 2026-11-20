@@ -217,6 +217,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `TerrainChunks` – MapView's chunked terrain ground (TASK-072b): the playable terrain rectangle split into (`terrain_chunks.gd`)
 - `TerrainGround` – The terrain ground of MapView (TASK-055): the ShaderMaterial on assets/shaders/terrain.gd… (`terrain_ground.gd`)
 - `TerrainLattice` – The vertex lattice of MapView's chunked terrain (TASK-072b): vertex (i, j) sits at (`terrain_lattice.gd`)
+- `TerrainNear` – The near terrain LOD of MapView (TASK-134, ADR 0025): around the camera target the ground… (`terrain_near.gd`)
 - `TerrainPanelModel` – Pure model of the bottom-left terrain panel. Returns untranslated English strings; (`terrain_panel_model.gd`)
 - `TerrainSplat` – Pure per-vertex ground layer weights for the terrain shader (TASK-055): which of the seven (`terrain_splat.gd`)
 - `TerrainTextures` – The seven CC0 ground layers of the terrain shader (TASK-055, credits in (`terrain_textures.gd`)

@@ -254,3 +254,51 @@ func test_a_camera_jump_frees_the_old_ring_over_several_frames() -> void:
 	)
 	manager.finish_all()
 	assert_eq(stub.freed, count, "all freed once settled")
+
+
+## TASK-134: the near terrain layer only exists while the camera is close.
+func test_a_disabled_layer_frees_its_chunks_and_builds_nothing_until_enabled() -> void:
+	var stub := Stub.new()
+	var manager := _manager(stub)
+	manager.update(Vector2.ZERO)
+	manager.finish_all()
+	var count := stub.live.size()
+	assert_true(count > 0)
+	manager.set_enabled(&"stub", false)
+	assert_eq(manager.build_radius(&"stub"), 0.0)
+	manager.update(Vector2.ZERO)
+	manager.finish_all()
+	assert_eq(stub.live.size(), 0, "every chunk freed, the one under the target too")
+	manager.update(Vector2(30.0, 0.0))
+	manager.finish_all()
+	assert_eq(stub.live.size(), 0, "nothing built while disabled")
+	manager.set_enabled(&"stub", true)
+	manager.update(Vector2(30.0, 0.0))
+	manager.finish_all()
+	assert_eq(
+		stub.live.size(),
+		(
+			_expected(
+				manager.layer(&"stub"), Vector2(30.0, 0.0), _rings(20.0).build_radius(&"stub")
+			)
+			. size()
+		)
+	)
+
+
+## A small ring is rescanned after a quarter of its build radius, not after RESCAN_DISTANCE.
+func test_a_small_ring_is_rescanned_after_a_quarter_of_its_build_radius() -> void:
+	var stub := Stub.new()
+	var manager := ChunkManager.new(_rings(2.0))
+	manager.threads = false
+	manager.register(ChunkLayer.new(&"stub", 1.0, AREA, stub.build, stub.free_chunk, stub.plan))
+	var build := manager.build_radius(&"stub")
+	assert_true(build * 0.25 < ChunkManager.RESCAN_DISTANCE)
+	manager.update(Vector2.ZERO)
+	manager.finish_all()
+	var target := Vector2(build * 0.3, 0.0)
+	manager.update(target)
+	manager.finish_all()
+	var layer := manager.layer(&"stub")
+	for chunk: Vector2i in _expected(layer, target, build):
+		assert_true(stub.live.has(chunk), "built around the moved target %s" % chunk)

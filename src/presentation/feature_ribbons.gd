@@ -112,8 +112,11 @@ static func drape_lifted(
 static func road_material(ground: ShaderMaterial) -> ShaderMaterial:
 	var result := ShaderMaterial.new()
 	result.shader = ROAD_SHADER
-	for key: StringName in [&"albedo_height", &"layer_repeat", &"layer_tint"]:
+	for key: StringName in [&"albedo_height", &"layer_tint"]:
 		result.set_shader_parameter(key, ground.get_shader_parameter(key))
+	# One sample per pixel, no distance cross-fade: the ground's far pattern (TASK-134), which
+	# reads at every zoom of a 14 m road.
+	result.set_shader_parameter(&"layer_repeat", ground.get_shader_parameter(&"layer_repeat_far"))
 	result.set_shader_parameter(
 		&"half_width", FeatureRibbonPlanner.width(FeatureRibbonPlanner.Kind.ROAD) / 2.0
 	)

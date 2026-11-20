@@ -101,6 +101,7 @@ func test_low_quality_switches_anti_tiling_and_triplanar_off() -> void:
 	var material := _surface_mesh("Terrain").surface_get_material(0) as ShaderMaterial
 	assert_false(material.get_shader_parameter(&"anti_tiling"))
 	assert_false(material.get_shader_parameter(&"triplanar"))
+	assert_false(material.get_shader_parameter(&"detail_on"), "no ground detail on LOW")
 	var array := material.get_shader_parameter(&"albedo_height") as Texture2DArray
 	assert_eq(array.get_width(), 512)
 

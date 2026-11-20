@@ -129,6 +129,10 @@ var _mesh_origin := Vector2.ZERO
 var _mesh_step := Vector2.ONE
 var _mesh_cells := Vector2i.ZERO
 var _terrain: TerrainChunks
+## The near terrain LOD (TASK-134), null on LOW quality.
+var _near: TerrainNear
+## Whether the near terrain layer is on (camera close enough, TerrainNear.wanted).
+var _near_on := false
 var _chunks := ChunkManager.new()
 var _foliage: FoliageChunks
 var _backdrop: BackdropMesh
@@ -252,6 +256,13 @@ func build(grid: HexGrid) -> void:
 	_tiles_root.add_child(_terrain.fine_root)
 	_terrain.build_all_coarse(threads)
 	_chunks.register(_terrain.chunk_layer())
+	_near = null
+	if quality.get("terrain_lod", true):
+		_near = TerrainNear.new(_terrain, _surface)
+		_tiles_root.add_child(_near.root)
+		_chunks.register(_near.chunk_layer())
+		_near_on = TerrainNear.wanted(_camera_distance, false)
+		_chunks.set_enabled(TerrainNear.LAYER, _near_on)
 	_tiles_root.add_child(_build_backdrop(_lattice.rect()))
 	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
 		var ribbon := FeatureRibbons.build(_grid, kind, _drape, _terrain_material())
@@ -349,6 +360,11 @@ func chunks_settled() -> bool:
 ## The terrain chunks (fine and coarse nodes), for tests and statistics.
 func terrain() -> TerrainChunks:
 	return _terrain
+
+
+## The near terrain LOD (null on LOW quality), for tests and statistics.
+func terrain_near() -> TerrainNear:
+	return _near
 
 
 ## The bushes and rocks (null without foliage), for tests and statistics.
@@ -837,6 +853,9 @@ func set_camera_distance(distance: float) -> void:
 	if is_equal_approx(distance, _camera_distance):
 		return
 	_camera_distance = distance
+	if _near != null:
+		_near_on = TerrainNear.wanted(distance, _near_on)
+		_chunks.set_enabled(TerrainNear.LAYER, _near_on)
 	_update_grid()
 
 

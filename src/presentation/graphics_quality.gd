@@ -71,6 +71,10 @@ static func features(level: Level) -> Dictionary:
 		# triplanar rock on steep slopes, and the ground texture array size in texels per side
 		# (1024: ~84 MB of uncompressed arrays, packed in the background during the mesh build).
 		"terrain_anti_tiling": high,
+		# TASK-134: the near terrain LOD (LOW keeps the lattice mesh only).
+		"terrain_lod": high,
+		# TASK-134: the ground detail texture close to the camera.
+		"terrain_detail": high,
 		"terrain_triplanar": high,
 		"terrain_texture_size": 1024 if high else 512,
 		# HDRI sky (TASK-054): the sky is static, so HIGH bakes the radiance map once at full

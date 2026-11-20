@@ -1,4 +1,4 @@
-// Terrain ground (TASK-055, farmland parcels TASK-108f): seven CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
+// Terrain ground (TASK-055, farmland parcels TASK-108f, real-size repeats and detail TASK-134): seven CC0 PBR layers (TerrainTextures, TerrainSplat order: grass,
 // dry_grass, dirt, mud, gravel, rock, soil) blended by per-vertex weights – layers 0-3 in COLOR,
 // 4-6 in CUSTOM0.xyz (CUSTOM0.w is free for TASK-035). Layers are sampled in world space
 // (x, z) / layer_repeat; with anti_tiling a second, larger and rotated sample is mixed in by a
@@ -19,8 +19,12 @@ uniform sampler2DArray albedo_height : source_color, filter_linear_mipmap_anisot
 // Normal x, y (OpenGL, z is rebuilt) in RG, roughness in B, ambient occlusion in A. Trilinear:
 // anisotropic filtering only pays on the albedo (~0.35 ms on the target GPU for no visible gain).
 uniform sampler2DArray normal_rough_ao : hint_default_white, filter_linear_mipmap, repeat_enable;
-// World units per texture repeat, and a linear albedo tint, per layer.
+// World units per texture repeat, and a linear albedo tint, per layer. layer_repeat is the layer's
+// real size (TASK-134), shown close up; farther than scale_fade (view distance, world units) it
+// cross-fades to layer_repeat_far, the larger pattern that still reads from the default zoom.
 uniform float layer_repeat[7];
+uniform float layer_repeat_far[7];
+uniform vec2 scale_fade = vec2(2.5, 6.0);
 uniform vec3 layer_tint[7];
 // Second sample: repeat * far_scale, rotated by far_rotation (radians), mixed by a noise of
 // this frequency (per world unit).
@@ -43,6 +47,19 @@ uniform float ao_strength = 0.8;
 // Low-frequency world-space brightness variation (+-macro_brightness).
 uniform float macro_brightness = 0.08;
 uniform float macro_frequency = 0.08;
+// Ground detail (TASK-134, TerrainGround.detail_texture): normal (RGB) + height (A), one repeat per
+// detail_repeat world units plus a rotated sample at detail_second x that size; faded in by view
+// distance: full below detail_fade.x, none beyond detail_fade.y (world units).
+uniform bool detail_on = true;
+uniform sampler2D detail_map : filter_linear_mipmap, repeat_enable, hint_default_white;
+uniform float detail_repeat = 0.0624;
+uniform float detail_second = 0.27;
+uniform vec2 detail_fade = vec2(4.0, 6.0);
+// Albedo brightness +- detail_albedo, a drier tint where the second sample is high, and the
+// normal tilt of the detail at full strength.
+uniform float detail_albedo = 0.3;
+uniform vec3 detail_dry = vec3(1.1, 1.0, 0.78);
+uniform float detail_normal = 0.7;
 // Lake and river beds darken with depth below the water level.
 uniform float water_level = 0.0;
 uniform float bed_darkening = 0.6;
@@ -108,8 +125,8 @@ struct Planar {
 	vec2 far_dy;
 };
 
-Planar planar_coords(int layer, vec2 xz, vec2 dx, vec2 dy, mat2 far_rot) {
-	float inv = 1.0 / layer_repeat[layer];
+Planar planar_coords(int layer, float repeat, vec2 xz, vec2 dx, vec2 dy, mat2 far_rot) {
+	float inv = 1.0 / repeat;
 	float far_inv = inv / far_scale;
 	Planar c;
 	c.near = vec3(xz * inv, float(layer));
@@ -168,8 +185,8 @@ vec3 triplanar_blend(vec3 wn) {
 }
 
 // Triplanar rock: albedo / height blended over the three projections.
-vec4 triplanar_albedo(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn) {
-	float inv = 1.0 / layer_repeat[ROCK];
+vec4 triplanar_albedo(float repeat, vec3 pos, vec3 dpx, vec3 dpy, vec3 wn) {
+	float inv = 1.0 / repeat;
 	vec3 blend = triplanar_blend(wn);
 	float l = float(ROCK);
 	return textureGrad(albedo_height, vec3(pos.zy * inv, l), dpx.zy * inv, dpy.zy * inv) * blend.x
@@ -178,8 +195,8 @@ vec4 triplanar_albedo(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn) {
 }
 
 // Triplanar rock: the world-space normal (whiteout blend per projection) and roughness / AO.
-vec3 triplanar_detail(vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out vec2 ra) {
-	float inv = 1.0 / layer_repeat[ROCK];
+vec3 triplanar_detail(float repeat, vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out vec2 ra) {
+	float inv = 1.0 / repeat;
 	vec3 blend = triplanar_blend(wn);
 	float l = float(ROCK);
 	vec2 rax;
@@ -220,6 +237,9 @@ void fragment() {
 	if (triplanar) {
 		tri = smoothstep(triplanar_slope - triplanar_band, triplanar_slope + triplanar_band, 1.0 - wn.y);
 	}
+	// Real-size texture close up, the far pattern beyond (both only inside the cross-fade band).
+	float view_distance = length(world_pos - CAMERA_POSITION_WORLD);
+	float scale_far = smoothstep(scale_fade.x, scale_fade.y, view_distance);
 
 	// First the albedo / height of every layer with a weight: the heights decide which layers
 	// survive the height blending.
@@ -228,11 +248,19 @@ void fragment() {
 	for (int i = 0; i < LAYER_COUNT; i++) {
 		ah[i] = vec4(0.0);
 		if (w[i] > WEIGHT_EPSILON) {
-			if (i != ROCK || tri < 1.0) {
-				ah[i] = planar_albedo(planar_coords(i, xz, dpx.xz, dpy.xz, far_rot), far_mix);
-			}
-			if (i == ROCK && tri > 0.0) {
-				ah[i] = mix(ah[i], triplanar_albedo(world_pos, dpx, dpy, wn), tri);
+			for (int s = 0; s < 2; s++) {
+				float f = s == 0 ? 1.0 - scale_far : scale_far;
+				if (f > 0.0) {
+					float repeat = s == 0 ? layer_repeat[i] : layer_repeat_far[i];
+					vec4 one = vec4(0.0);
+					if (i != ROCK || tri < 1.0) {
+						one = planar_albedo(planar_coords(i, repeat, xz, dpx.xz, dpy.xz, far_rot), far_mix);
+					}
+					if (i == ROCK && tri > 0.0) {
+						one = mix(one, triplanar_albedo(repeat, world_pos, dpx, dpy, wn), tri);
+					}
+					ah[i] += one * f;
+				}
 			}
 			best = max(best, w[i] + ah[i].a);
 		}
@@ -248,18 +276,28 @@ void fragment() {
 		if (w[i] > WEIGHT_EPSILON) {
 			float hw = max(0.0, w[i] + ah[i].a - best + height_blend);
 			if (hw > 0.0) {
-				vec3 nt = vec3(0.0, 0.0, 1.0);
-				vec2 ra = vec2(1.0);
-				if (i != ROCK || tri < 1.0) {
-					nt = planar_detail(planar_coords(i, xz, dpx.xz, dpy.xz, far_rot), far_mix, far_rot, ra);
-				}
-				if (i == ROCK && tri > 0.0) {
-					vec2 tra;
-					vec3 twn = triplanar_detail(world_pos, dpx, dpy, wn, tra);
-					// World normal -> tangent space of this fragment (view-space TBN).
-					vec3 v = (VIEW_MATRIX * vec4(twn, 0.0)).xyz;
-					nt = mix(nt, vec3(dot(v, TANGENT), dot(v, BINORMAL), dot(v, NORMAL)), tri);
-					ra = mix(ra, tra, tri);
+				vec3 nt = vec3(0.0);
+				vec2 ra = vec2(0.0);
+				for (int s = 0; s < 2; s++) {
+					float f = s == 0 ? 1.0 - scale_far : scale_far;
+					if (f > 0.0) {
+						float repeat = s == 0 ? layer_repeat[i] : layer_repeat_far[i];
+						vec3 one = vec3(0.0, 0.0, 1.0);
+						vec2 one_ra = vec2(1.0);
+						if (i != ROCK || tri < 1.0) {
+							one = planar_detail(planar_coords(i, repeat, xz, dpx.xz, dpy.xz, far_rot), far_mix, far_rot, one_ra);
+						}
+						if (i == ROCK && tri > 0.0) {
+							vec2 tra;
+							vec3 twn = triplanar_detail(repeat, world_pos, dpx, dpy, wn, tra);
+							// World normal -> tangent space of this fragment (view-space TBN).
+							vec3 v = (VIEW_MATRIX * vec4(twn, 0.0)).xyz;
+							one = mix(one, vec3(dot(v, TANGENT), dot(v, BINORMAL), dot(v, NORMAL)), tri);
+							one_ra = mix(one_ra, tra, tri);
+						}
+						nt += one * f;
+						ra += one_ra * f;
+					}
 				}
 				albedo += ah[i].rgb * layer_tint[i] * hw;
 				n += nt * hw;
@@ -303,6 +341,22 @@ void fragment() {
 			cover *= 1.0 - smoothstep(0.2, 0.6, w[3]);
 			cover *= 1.0 - smoothstep(0.1, 0.4, w[ROCK]);
 			albedo = mix(albedo, crop, cover);
+		}
+	}
+
+	// Ground detail close to the camera (explicit gradients: the branch is not uniform).
+	if (detail_on) {
+		float detail = 1.0 - smoothstep(detail_fade.x, detail_fade.y, view_distance);
+		if (detail > 0.0) {
+			float inv = 1.0 / detail_repeat;
+			float inv2 = inv / detail_second;
+			vec4 d1 = textureGrad(detail_map, xz * inv, dpx.xz * inv, dpy.xz * inv);
+			vec4 d2 = textureGrad(detail_map, far_rot * xz * inv2, far_rot * dpx.xz * inv2, far_rot * dpy.xz * inv2);
+			float h = (d1.a + d2.a) * 0.5;
+			albedo *= 1.0 + detail_albedo * detail * (2.0 * h - 1.0);
+			albedo *= mix(vec3(1.0), detail_dry, smoothstep(0.45, 0.85, d2.a) * detail);
+			vec2 tilt = (d1.rg * 2.0 - 1.0) + far_rot * (d2.rg * 2.0 - 1.0);
+			n = normalize(vec3(n.xy + tilt * detail_normal * detail, n.z));
 		}
 	}
 
