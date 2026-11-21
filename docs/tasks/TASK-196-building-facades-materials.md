@@ -5,6 +5,7 @@
 - **Depends on**: TASK-194
 - **Sections**: ADR for buildings (TASK-193); ADR 0025 (textures in real metres); look reference (TASK-190)
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 

@@ -5,6 +5,7 @@
 - **Depends on**: TASK-190 (soft: TASK-191)
 - **Sections**: ARCHITECTURE "Terrain", "Real-scale vegetation"; ADR 0018 (maps from real geography); look reference (TASK-190)
 - **Model**: opus (data pipeline, licence, shader blending)
+- **Tags**: battle-look
 
 ## Goal
 

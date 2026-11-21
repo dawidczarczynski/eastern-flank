@@ -5,6 +5,7 @@
 - **Depends on**: TASK-193
 - **Sections**: ADR for buildings (TASK-193); `src/presentation/models/` for the procedural-mesh habit
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 

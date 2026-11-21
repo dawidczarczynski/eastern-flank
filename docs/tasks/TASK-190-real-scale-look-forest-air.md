@@ -5,6 +5,7 @@
 - **Depends on**: TASK-135
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; look reference: Arma 3 Chernarus / Arma Reforger Everon aerial views (human, 2026-11-21)
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

@@ -5,6 +5,7 @@
 - **Depends on**: TASK-193, TASK-194
 - **Sections**: ARCHITECTURE "Chunked lazy world"; ADR 0024, ADR 0026, ADR 0027
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 

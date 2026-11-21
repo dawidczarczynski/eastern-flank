@@ -5,6 +5,7 @@
 - **Depends on**: TASK-195
 - **Sections**: ARCHITECTURE "Chunked lazy world"; look reference (TASK-190); ADR 0026
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

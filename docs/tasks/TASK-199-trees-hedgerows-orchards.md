@@ -5,6 +5,7 @@
 - **Depends on**: TASK-135
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; look reference (TASK-190)
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

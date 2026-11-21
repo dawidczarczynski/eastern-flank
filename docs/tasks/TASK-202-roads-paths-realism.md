@@ -5,6 +5,7 @@
 - **Depends on**: TASK-134
 - **Sections**: ARCHITECTURE "Terrain" (road ribbons); look reference (TASK-190)
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

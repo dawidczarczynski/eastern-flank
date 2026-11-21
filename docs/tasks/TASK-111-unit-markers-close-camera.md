@@ -4,6 +4,7 @@
 - **Layers**: presentation (`UnitLabel` → unit marker with class icon, anchoring, `CameraMath` / `CameraRig` zoom range and pitch curve, near plane, pan speed) + docs (ARCHITECTURE, MANUAL)
 - **Depends on**: TASK-110 (marker look, camera numbers and the real-size preset come from the study) (priority: after the operational core loop 092 → 094 → 095)
 - **Model**: opus (camera curves, near plane and every distance-based LOD / visibility range interact)
+- **Tags**: battle-look
 - **Topic**: Visual realism
 
 ## Goal

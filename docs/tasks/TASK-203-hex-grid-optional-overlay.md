@@ -5,6 +5,7 @@
 - **Depends on**: –
 - **Sections**: ARCHITECTURE "Chunked lazy world" (grid layer); docs/design/ mockups for any HUD element
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

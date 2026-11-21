@@ -5,6 +5,7 @@
 - **Depends on**: TASK-191
 - **Sections**: ARCHITECTURE "Graphics quality"; ADR 0023 (frame budget); look reference (TASK-190)
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 

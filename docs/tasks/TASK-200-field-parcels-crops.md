@@ -5,6 +5,7 @@
 - **Depends on**: TASK-190
 - **Sections**: ARCHITECTURE "Terrain"; TASK-192 (satellite colour); look reference (TASK-190)
 - **Model**: sonnet
+- **Tags**: battle-look
 
 ## Goal
 

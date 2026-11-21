@@ -5,6 +5,7 @@
 - **Depends on**: –
 - **Sections**: ADR 0018 (maps from real geography), ARCHITECTURE "Terrain"; look reference (TASK-190)
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 

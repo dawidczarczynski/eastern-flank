@@ -5,6 +5,7 @@
 - **Depends on**: TASK-189
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; ADR 0026, ADR 0027; look reference (TASK-190)
 - **Model**: opus (baked normals, matching the full trees' shading)
+- **Tags**: battle-look
 
 ## Goal
 

@@ -5,6 +5,7 @@
 - **Depends on**: TASK-194, TASK-196
 - **Sections**: ADR for buildings (TASK-193); `/model-unit` habit for reference images
 - **Model**: opus
+- **Tags**: battle-look
 
 ## Goal
 
