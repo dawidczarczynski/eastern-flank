@@ -15,6 +15,7 @@ The landscape has the contrast and depth of the reference: forests cast soft sha
 
 - [ ] Shadow plan decided and recorded (ADR): cascaded sun shadows with a longer far cascade under `true` (distance in metres through `MapScale`), whether impostors / the canopy shell cast (a cheap proxy: forest hexes darken the terrain by a baked or per-chunk shadow mask) and the cost of each option measured on the RX 580.
 - [ ] Terrain and trees receive a visible, stable shadow from forest edges and relief at the default camera range (no shimmering when the camera moves, no peter-panning on trunks); LOW keeps its current setup.
+- [ ] Moving cloud shadows (merged in from TASK-066, whose design is the starting point): a soft, slow world-space noise mask over terrain, grass and foliage, strength a look value (0 on LOW), matching the sky's clouds; decide whether units receive it (readability first).
 - [ ] Sun direction, colour and ambient are data in the look (`LookPreset`): a warm, lower sun for `true` (reference: golden-hour feel without crushing the shadows); `balanced` unchanged.
 - [ ] Colour grade for `true`: saturation / contrast / shadow-tint values tuned from the reference screenshots (recorded) and applied by the existing grade path.
 - [ ] Frame time at 1.2 / 5 / 24 <= 16.7 ms avg on the RX 580 (`true`, HIGH, 720p), or the shortfall and the quality level that holds it recorded.

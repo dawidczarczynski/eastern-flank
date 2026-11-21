@@ -1,6 +1,6 @@
 # TASK-108d: Real-terrain look v2 – real-size village farmsteads on urban hexes (MultiMesh, LOW fallback)
 
-- **Status**: ready
+- **Status**: merged into **TASK-193 … TASK-198** (2026-11-21, human) – villages and towns are drawn from real OSM footprints (import 193, masses 194, chunked world 195, facades 196, landmarks 197, plots and surroundings 198), not as hand-placed farmsteads on urban hexes (hexes are mechanics only, TASK-108g). This file is kept for history only.
 - **Layers**: presentation (`MapScale` if not there yet, new pure `VillagePlanner`, `HouseMeshes`, `VillageField` node built by `MapView`, scatter/grass exclusion, `GraphicsQuality` use) + docs (ARCHITECTURE, MANUAL)
 - **Depends on**: TASK-108 (done) (soft: TASK-108b – `MapScale`, real road widths, farmyard soil; TASK-110 – realistic scale; priority: after the operational core loop 092 → 094 → 095)
 - **Model**: sonnet

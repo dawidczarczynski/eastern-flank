@@ -1,6 +1,6 @@
 # TASK-066: Moving cloud shadows on terrain, foliage and units
 
-- **Status**: idea – after the custom ground/foliage shaders exist; decide whether units receive the shadows too (camo shader) and how strong it may be without hurting readability.
+- **Status**: merged into **TASK-201** (2026-11-21, human) – moving cloud shadows are part of the real-scale shadows and scene lighting there (the design below is its starting point). This file is kept for history only.
 - **Layers**: presentation (`assets/shaders/cloud_shadow.gdshaderinc`, global shader uniforms, terrain/grass/foliage/camo/water shaders)
 - **Depends on**: **TASK-055** (terrain shader), **TASK-057** (global uniforms, grass shader), soft **TASK-060** (foliage shader), **TASK-054** (sky clouds to match), TASK-050 (off on LOW)
 - **Model**: sonnet

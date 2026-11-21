@@ -1,4 +1,4 @@
-# TASK-203: Hex grid as an optional overlay (appearance without the grid)
+# TASK-203: Hex grid off by default under real scale – what is still missing next to key G
 
 - **Status**: idea
 - **Layers**: presentation (`MapView` grid layer, HUD toggle, settings)
@@ -9,24 +9,23 @@
 
 ## Goal
 
-The landscape can be seen as the reference shows it – with no hex grid on it – while the hexes stay the mechanics: the grid becomes an overlay the player toggles (and which shows automatically while targeting or moving).
+The hex grid can already be hidden (key **G**, modes `auto` / `off`, TASK-049; the bottom bar has the button; MANUAL.md describes it). What is missing for the reference look: under the `true` preset the landscape is shown **without** the grid by default, and with it hidden the selection, reach and target hints still read clearly.
 
 ## Acceptance criteria (testable)
 
-- [ ] A setting / key (default decided with the human: on in the tactical battle, off in screenshots and `true` showcase) toggles the grid lines and tile tints (`MapView` grid layer); the state is kept for the session; `DevTunables.grid_on` / the arena keep working.
-- [ ] While off, the interaction hints that need the grid stay: the hovered tile outline, selectable / reachable tiles when a unit is selected, attack targets, objective tiles – drawn as soft decals instead of the full grid.
-- [ ] No game rule or event changes; the grid layer is freed when off (no cost) and rebuilt on toggling within one second.
-- [ ] If a HUD element is added, it follows the existing HUD parts (`/design-ui` first if there is no mockup – the human picks a variant).
-- [ ] Tests: toggling does not change `GameState`; the layer count with the grid off; hover hints still produced.
-- [ ] Screenshots Read: the same view with the grid off and on.
+- [ ] Under `true` the grid mode starts `off` (the setting is per preset: `balanced` keeps `auto`); G and the bottom-bar button still switch it, and the choice is kept for the session.
+- [ ] With the grid off the hints that need it stay: the hovered tile outline, reachable tiles when a unit is selected, attack targets and objective tiles are drawn as soft ground decals (no full-grid lines); verified by a screenshot of a selected unit with the grid off.
+- [ ] No game rule or event changes; toggling does not change `GameState` (test); the grid layer is freed when off and rebuilt on toggling within one second.
+- [ ] If a HUD element changes, it follows the existing HUD parts (`/design-ui` first when there is no mockup).
+- [ ] Screenshots Read: the same view with the grid off and on, with a unit selected.
 
 ## Playtest (for the human)
 
-1. Toggle the grid in a battle: with it off the landscape shows no lines, units can still be selected, moved and targeted with clear hints.
+1. Start a battle under the `true` preset: no grid on the landscape; select a unit – its reach and targets are still clearly marked; press G to bring the grid back.
 
 ## Player manual
 
-MANUAL.md: how to toggle the grid and what stays visible without it (by `game-designer`).
+MANUAL.md §10 / controls table: the default under real scale and what stays visible without the grid (by `game-designer`).
 
 ## Out of scope
 

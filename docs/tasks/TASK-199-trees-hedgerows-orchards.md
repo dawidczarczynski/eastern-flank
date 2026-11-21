@@ -2,7 +2,7 @@
 
 - **Status**: idea
 - **Layers**: presentation (`ScatterPlanner` meadow features, `TreeField`)
-- **Depends on**: TASK-135
+- **Depends on**: TASK-135, TASK-108g (parcel edges, copses and orchards follow the land-cover raster, not hexes)
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; look reference (TASK-190)
 - **Model**: sonnet
 - **Tags**: battle-look

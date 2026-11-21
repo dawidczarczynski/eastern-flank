@@ -2,7 +2,7 @@
 
 - **Status**: idea
 - **Layers**: presentation (`SettlementDecor`, scatter planners)
-- **Depends on**: TASK-195
+- **Depends on**: TASK-195 (soft: TASK-108g – plots and yards follow the land-cover raster, not hexes)
 - **Sections**: ARCHITECTURE "Chunked lazy world"; look reference (TASK-190); ADR 0026
 - **Model**: sonnet
 - **Tags**: battle-look

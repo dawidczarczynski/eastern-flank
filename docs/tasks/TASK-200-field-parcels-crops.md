@@ -2,7 +2,7 @@
 
 - **Status**: idea
 - **Layers**: presentation (`FieldParcels`, `ParcelMap`, terrain ground shader)
-- **Depends on**: TASK-190
+- **Depends on**: TASK-190, TASK-108g (parcels from the land-cover raster; `FieldParcels` is the follow-up TASK-108f's)
 - **Sections**: ARCHITECTURE "Terrain"; TASK-192 (satellite colour); look reference (TASK-190)
 - **Model**: sonnet
 - **Tags**: battle-look
