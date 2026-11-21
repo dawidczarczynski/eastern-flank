@@ -80,7 +80,7 @@ static func plan_chunk(
 		return result
 	if meadow.is_empty():
 		meadow = LookPreset.meadow()
-	var keeps := _parcel_keeps(parcels)
+	var keeps := parcel_keeps(parcels)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed_value, chunk.x, chunk.y])
 	var origin := Vector2(chunk) * CHUNK_SIZE
@@ -92,7 +92,7 @@ static func plan_chunk(
 		var scale_k := rng.randf()
 		var tint := rng.randf()
 		var accept := rng.randf()
-		var clump := _clump_at(
+		var clump := clump_at(
 			x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow, parcels, keeps
 		)
 		if not clump.is_empty():
@@ -109,7 +109,7 @@ static func plan_chunk(
 			var yaw := extra_rng.randf() * TAU
 			var scale_k := extra_rng.randf()
 			var tint := extra_rng.randf()
-			var clump := _clump_at(
+			var clump := clump_at(
 				x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow, parcels, keeps
 			)
 			if not clump.is_empty():
@@ -119,7 +119,7 @@ static func plan_chunk(
 
 ## One clump candidate, or {} when it is rejected. `extra` candidates (the marsh surplus) only
 ## count on marsh and are always accepted by density.
-static func _clump_at(
+static func clump_at(
 	x: float,
 	z: float,
 	yaw: float,
@@ -165,7 +165,7 @@ static func _clump_at(
 
 
 ## Grass keep factor per FieldParcels kind (1 for none and the balk), from the look data.
-static func _parcel_keeps(parcels: ParcelMap) -> PackedFloat32Array:
+static func parcel_keeps(parcels: ParcelMap) -> PackedFloat32Array:
 	var keeps := PackedFloat32Array()
 	keeps.resize(FieldParcels.CROPS.size())
 	keeps.fill(1.0)

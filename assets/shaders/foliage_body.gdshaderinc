@@ -32,6 +32,9 @@ uniform float wind_fade = 8.0;
 // (~5 ms on the target GPU); a dithered discard keeps the prepass but costs the early depth test.
 uniform vec2 lod_in = vec2(-2.0, -1.0);
 uniform vec2 lod_out = vec2(1.0e8, 1.0e9);
+// Real-scale forest (TASK-135, ForestField): the full-tree budget's reach – no tree is drawn by
+// this LOD from that camera distance on (the impostors take the same cap as their lod_in).
+uniform float lod_cap = 1.0e9;
 
 varying vec3 tint;
 varying float ao;
@@ -73,7 +76,7 @@ void vertex() {
 	}
 #endif
 	float lod_from = mix(lod_in.x, lod_in.y, INSTANCE_CUSTOM.a);
-	float lod_to = mix(lod_out.x, lod_out.y, INSTANCE_CUSTOM.a);
+	float lod_to = min(mix(lod_out.x, lod_out.y, INSTANCE_CUSTOM.a), lod_cap);
 	if (camera_distance < lod_from || camera_distance >= lod_to) {
 		// Another LOD draws this tree: collapse it to a point (no pixels).
 		VERTEX = vec3(0.0);

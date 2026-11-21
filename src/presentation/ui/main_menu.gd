@@ -374,12 +374,16 @@ func _on_quality_pressed() -> void:
 
 func _on_scale_pressed() -> void:
 	DevTunables.true_size = not DevTunables.true_size
+	DevTunables.battle_overrides = true
+	DevTunables.apply_look()
 	_refresh_devtools_switches()
 
 
 func _on_look_pressed() -> void:
 	var looks: Array = LookPreset.PRESETS.keys()
 	DevTunables.look_name = looks[(looks.find(DevTunables.look_name) + 1) % looks.size()]
+	DevTunables.battle_overrides = true
+	DevTunables.apply_look()
 	_refresh_devtools_switches()
 
 

@@ -29,6 +29,9 @@ const SHADER := preload("res://assets/shaders/grass.gdshader")
 const STRIDE := 16
 const KINDS: Array[String] = ["grass", "flowers", "reeds"]
 
+## Callable(rect: Rect2) per listener, called by add_clearing (GrassNear rebuilds its chunks).
+var clearing_listeners: Array[Callable] = []
+
 var _grid: HexGrid
 var _parcels: ParcelMap
 var _surface: TerrainSurface
@@ -161,6 +164,18 @@ static func max_clump_height() -> float:
 	)
 
 
+## What GrassNear draws its clumps with (TASK-135): {"mesh": the clump mesh, "grass" / "reeds":
+## the materials, "meadow": LookPreset.meadow() of the last setup, "parcels": the ParcelMap}.
+func clump_look() -> Dictionary:
+	return {
+		"mesh": _mesh,
+		"grass": _material,
+		"reeds": _reed_material,
+		"meadow": _meadow,
+		"parcels": _parcels,
+	}
+
+
 func is_active() -> bool:
 	return _density > 0.0
 
@@ -177,6 +192,8 @@ func add_clearing(center: Vector2, radius: float) -> void:
 	if _density <= 0.0:
 		return
 	var area := Rect2(center - Vector2.ONE * radius, Vector2.ONE * 2.0 * radius)
+	for listener in clearing_listeners:
+		listener.call(area)
 	if _invalidate.is_valid():
 		_invalidate.call(&"grass", area)
 		return
@@ -279,9 +296,10 @@ func plan_chunk(chunk: Vector2i) -> Dictionary:
 	var origin := _chunk_origin(chunk)
 	var cells := {}
 	return {
-		"grass": {"items": clumps, "buffer": _buffer(clumps, origin, cells, false)},
-		"flowers": {"items": flowers, "buffer": _buffer(flowers, origin, cells, false, true)},
-		"reeds": {"items": reeds, "buffer": _buffer(reeds, origin, cells, true)},
+		"grass": {"items": clumps, "buffer": instance_buffer(clumps, origin, cells, false)},
+		"flowers":
+		{"items": flowers, "buffer": instance_buffer(flowers, origin, cells, false, true)},
+		"reeds": {"items": reeds, "buffer": instance_buffer(reeds, origin, cells, true)},
 	}
 
 
@@ -306,7 +324,7 @@ func build_chunk(chunk: Vector2i, plan: Dictionary) -> void:
 			items = items.filter(
 				func(item: Dictionary) -> bool: return not is_cleared(item["position"])
 			)
-			buffer = _buffer(items, origin, {}, kind == "reeds", kind == "flowers")
+			buffer = instance_buffer(items, origin, {}, kind == "reeds", kind == "flowers")
 		if items.is_empty():
 			continue
 		var multi := MultiMesh.new()
@@ -340,7 +358,7 @@ func _chunk_origin(chunk: Vector2i) -> Vector3:
 ## MultiMesh buffer (STRIDE floats per item: transform relative to `origin`, then the linear
 ## colour). Clumps and reeds take the ground colour (cached per COLOR_CELL in `cells`), reeds
 ## also the dryness; flowers their own colour.
-func _buffer(
+func instance_buffer(
 	items: Array, origin: Vector3, cells: Dictionary, reeds: bool, flowers := false
 ) -> PackedFloat32Array:
 	var buffer := PackedFloat32Array()

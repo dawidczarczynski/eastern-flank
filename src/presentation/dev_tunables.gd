@@ -82,6 +82,8 @@ static var active := false
 
 static var quality_choice := QualityChoice.AUTO
 static var true_size := false
+## Debug run: the devtools page's scale / look switches also apply to normal battles.
+static var battle_overrides := false
 static var look_name: StringName = LookPreset.DEFAULT_PRESET
 static var grid_on := true
 static var fps_overlay := false
@@ -105,14 +107,14 @@ static func quality_override() -> int:
 
 ## VisualScale preset the arena should show (the default one outside the arena).
 static func scale_preset() -> StringName:
-	if active and true_size:
+	if (active or battle_overrides) and true_size:
 		return VisualScale.TRUE_PRESET
 	return VisualScale.DEFAULT_PRESET
 
 
 ## LookPreset the arena should show (the default one outside the arena).
 static func look_preset() -> StringName:
-	return look_name if active else LookPreset.DEFAULT_PRESET
+	return look_name if (active or battle_overrides) else LookPreset.DEFAULT_PRESET
 
 
 static func grid_enabled() -> bool:

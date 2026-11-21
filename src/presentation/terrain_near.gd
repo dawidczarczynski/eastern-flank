@@ -313,6 +313,33 @@ func drawn_height_at(x: float, z: float) -> float:
 	return hd + (1.0 - u) * (hc - hd) + (1.0 - v) * (hb - hd)
 
 
+## Height of the near mesh at (x, z) as it is drawn wherever its edges are raw (inside the near
+## ring: every edge but the outermost), computed from the surface instead of the built meshes, so
+## it works for chunks not built yet. The same triangles and vertex heights as drawn_height_at.
+## Pure: the planning threads place real-size vegetation with it (TASK-135).
+func surface_height_at(x: float, z: float) -> float:
+	var fx := (x - _lattice.origin.x) / STEP
+	var fz := (z - _lattice.origin.y) / STEP
+	var gi := floori(fx)
+	var gj := floori(fz)
+	var u := fx - gi
+	var v := fz - gj
+	var ha := raw_height(gi, gj)
+	var hb := raw_height(gi + 1, gj)
+	var hc := raw_height(gi, gj + 1)
+	if u + v <= 1.0:
+		return ha + u * (hb - ha) + v * (hc - ha)
+	var hd := raw_height(gi + 1, gj + 1)
+	return hd + (1.0 - u) * (hc - hd) + (1.0 - v) * (hb - hd)
+
+
+## The surface height at (x, z) itself (one query instead of surface_height_at's three): within a
+## few centimetres of the drawn triangles, for what is only seen from afar (tree impostors).
+## Pure, thread-safe.
+func surface_point_height(x: float, z: float) -> float:
+	return _surface.height_at(x, z)
+
+
 ## Switches one edge of a built chunk between its variants and rebuilds its mesh.
 func _set_edge(chunk: Vector2i, edge: int, raw: bool) -> void:
 	var entry: Dictionary = _built[chunk]

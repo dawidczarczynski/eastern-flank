@@ -13,6 +13,10 @@ extends RefCounted
 const SCATTER_NODES: Array[String] = ["Bushes", "Rocks", "BackdropBushes", "BackdropRocks"]
 const LAYER_COUNT := 2
 
+## Real scale (TASK-135): Callable(x, z) -> the drawn near surface height the map trees stand on
+## (unset: their planned height).
+var ground := Callable()
+
 var _grid: HexGrid
 var _surface: TerrainSurface
 var _parcels: ParcelMap
@@ -239,7 +243,14 @@ func plan_trees(chunk: Vector2i) -> Dictionary:
 		if part_name == "map":
 			trees.append_array(part["meadow_scrub"])
 		lists.append(trees)
-	return TreeField.plan_chunk(chunk, lists[0], lists[1], _playable)
+	return TreeField.plan_chunk(chunk, lists[0], lists[1], _playable, ground, is_forest)
+
+
+## Whether `position` lies on a forest tile of the map (its trees' impostors end at the canopy
+## shell, TASK-135). Pure.
+func is_forest(position: Vector3) -> bool:
+	var coord := Hex.from_world(position, TerrainField.HEX_SIZE)
+	return _grid.has_tile(coord) and _grid.get_terrain(coord) == Terrain.Type.FOREST
 
 
 func build_trees(chunk: Vector2i, plan: Dictionary) -> void:

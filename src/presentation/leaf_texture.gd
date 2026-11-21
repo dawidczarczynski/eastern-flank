@@ -8,6 +8,8 @@ extends RefCounted
 ## filtering and mipmaps do not darken or lighten the cut edges.
 
 const CLUSTER_LEAVES := 30
+const SMALL_LEAVES := 140
+const SMALL_TWIGS := 44
 const NEEDLE_SHOOTS := 5
 const BACKGROUND := 0.8
 
@@ -27,6 +29,27 @@ static func cluster(size: int, seed_value: int) -> Image:
 		var length := (0.22 + 0.1 * rng.randf()) * n
 		var width := length * (0.42 + 0.12 * rng.randf())
 		var shade := 0.72 + 0.28 * rng.randf()
+		_leaf(image, base, Vector2(cos(direction), sin(direction)), length, width, shade)
+	image.generate_mipmaps()
+	return image
+
+
+## An RGBA8 card of many small leaves (real-size crowns, TASK-135: a card is metres wide there),
+## scattered over a disc, `size` x `size` pixels with mipmaps.
+static func small_leaves(size: int, seed_value: int) -> Image:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var image := _blank(size)
+	var n := float(size)
+	for i in SMALL_LEAVES:
+		var r := sqrt(rng.randf()) * 0.4 * n
+		var angle := rng.randf() * TAU
+		var base := Vector2(n * 0.5, n * 0.5) + Vector2(cos(angle), sin(angle)) * r
+		var direction := angle + (rng.randf() * 2.0 - 1.0) * 1.2
+		var length := (0.07 + 0.05 * rng.randf()) * n
+		var width := length * (0.45 + 0.15 * rng.randf())
+		# A wider spread of shades than the cluster: leaves deeper in the spray are darker.
+		var shade := 0.55 + 0.45 * rng.randf()
 		_leaf(image, base, Vector2(cos(direction), sin(direction)), length, width, shade)
 	image.generate_mipmaps()
 	return image
@@ -59,6 +82,35 @@ static func needles(size: int, seed_value: int) -> Image:
 				var shade := 0.72 + 0.28 * rng.randf()
 				_stroke(image, p, Vector2(cos(a), sin(a)), needle, maxf(2.2, n * 0.026), shade)
 			_stroke(image, p, dir, 2.5, 2.4, 0.55)
+	image.generate_mipmaps()
+	return image
+
+
+## An RGBA8 card of many short needle twigs (real-size conifer crowns, TASK-135: the balanced
+## spray is one twig across a card metres wide), `size` x `size` pixels with mipmaps.
+static func small_needles(size: int, seed_value: int) -> Image:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var image := _blank(size)
+	var n := float(size)
+	for s in SMALL_TWIGS:
+		var r := sqrt(rng.randf()) * 0.38 * n
+		var angle := rng.randf() * TAU
+		var p := Vector2(n * 0.5, n * 0.5) + Vector2(cos(angle), sin(angle)) * r
+		var heading := rng.randf() * TAU
+		var bend := (rng.randf() * 2.0 - 1.0) * 0.4
+		var length := n * (0.16 + 0.12 * rng.randf())
+		var steps := int(length / 1.5)
+		var twig_shade := 0.5 + 0.4 * rng.randf()
+		for step in steps:
+			var t := float(step) / steps
+			var dir := Vector2(cos(heading + bend * t), sin(heading + bend * t))
+			p += dir * 1.5
+			var needle := (0.045 + 0.03 * rng.randf()) * n * (1.0 - 0.4 * t)
+			for side: float in [-1.0, 1.0]:
+				var a := heading + bend * t + side * (0.8 + 0.35 * rng.randf())
+				var shade := twig_shade + 0.1 * rng.randf()
+				_stroke(image, p, Vector2(cos(a), sin(a)), needle, maxf(1.6, n * 0.014), shade)
 	image.generate_mipmaps()
 	return image
 

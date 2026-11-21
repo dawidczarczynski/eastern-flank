@@ -6,6 +6,8 @@ render_mode specular_disabled;
 // jittered Voronoi pattern in world space: each crown is a dome in a species leaf colour, and a
 // crown is dropped when its hash exceeds the cover, so forest edges and the fade-in towards the
 // real trees are ragged instead of hard.
+// The real-scale forest shell (TASK-135, ForestShell) uses it over the map's forest tiles too: it
+// fades in crown by crown with the camera distance over `near_fade`, where the tree impostors end.
 
 uniform vec3 pine_color : source_color = vec3(0.25, 0.38, 0.25);
 uniform vec3 spruce_color : source_color = vec3(0.19, 0.31, 0.23);
@@ -16,8 +18,24 @@ uniform vec3 alder_color : source_color = vec3(0.33, 0.49, 0.21);
 uniform vec4 shares = vec4(0.35, 0.25, 0.1, 0.15);
 // Crown spacing in world units.
 uniform float crown_cell = 0.34;
+// Camera distance (from, to; world units) over which the shell fades in crown by crown; the
+// default keeps it always on (the backdrop).
+uniform vec2 near_fade = vec2(-2.0, -1.0);
+// Albedo factor (the real-scale shell matches the darker tree impostors with it).
+uniform float brightness = 1.0;
+// 1: the crowns are lit as domes (a normal from the dome's slope, so the sun picks out single
+// crowns) and the species mix by stands rather than crown by crown – the real-scale forest shell,
+// which is seen from low cameras. 0: the flat painted look of the backdrop.
+uniform float lit_domes = 0.0;
+// The real-scale shell (ForestField coverage mask): where `coverage` is dark – tree impostors not
+// built yet there – the shell ignores `near_fade` and stands in for them.
+uniform float use_coverage = 0.0;
+uniform sampler2D coverage : filter_nearest, repeat_disable;
+uniform vec2 coverage_origin = vec2(0.0);
+uniform vec2 coverage_extent = vec2(1.0);
 
 varying vec2 world_xz;
+varying vec3 world_position;
 varying float cover;
 
 vec2 hash22(vec2 p) {
@@ -27,7 +45,8 @@ vec2 hash22(vec2 p) {
 }
 
 void vertex() {
-	world_xz = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz;
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	world_xz = world_position.xz;
 	cover = COLOR.r;
 	NORMAL = normalize(vec3(0.0, 1.0, 0.0) + NORMAL * 0.4);
 }
@@ -37,6 +56,7 @@ void fragment() {
 	vec2 base = floor(p);
 	float best = 8.0;
 	vec2 best_id = base;
+	vec2 best_centre = base;
 	for (int j = -1; j <= 1; j++) {
 		for (int i = -1; i <= 1; i++) {
 			vec2 id = base + vec2(float(i), float(j));
@@ -45,11 +65,19 @@ void fragment() {
 			if (d < best) {
 				best = d;
 				best_id = id;
+				best_centre = centre;
 			}
 		}
 	}
 	vec2 h = hash22(best_id + 17.0);
-	if (h.x > smoothstep(0.05, 0.95, cover)) {
+	float fade = smoothstep(near_fade.x, near_fade.y, distance(world_position, CAMERA_POSITION_WORLD));
+	if (use_coverage > 0.5) {
+		vec2 cell = (world_xz - coverage_origin) / coverage_extent;
+		if (texture(coverage, cell).r < 0.5) {
+			fade = 1.0;
+		}
+	}
+	if (h.x > min(smoothstep(0.05, 0.95, cover), fade)) {
 		discard;
 	}
 	vec3 color = alder_color;
@@ -69,9 +97,28 @@ void fragment() {
 	// Pulled towards the mean forest colour so the patchwork stays calm from afar.
 	vec3 mean_color = (pine_color + spruce_color + birch_color + oak_color + alder_color) / 5.0;
 	color = mix(mean_color, color, 0.45);
+	if (lit_domes > 0.5) {
+		// Stands of one dominant species a few crowns wide, each crown a little off it.
+		vec2 stand_h = hash22(floor(world_xz / (crown_cell * 6.0)) + 5.0);
+		vec3 stand_color = alder_color;
+		if (stand_h.y < t1) {
+			stand_color = pine_color;
+		} else if (stand_h.y < t2) {
+			stand_color = spruce_color;
+		} else if (stand_h.y < t3) {
+			stand_color = birch_color;
+		} else if (stand_h.y < t4) {
+			stand_color = oak_color;
+		}
+		color = mix(mean_color, mix(stand_color, color, 0.35), 0.7);
+		float slope = clamp(best / 0.8, 0.0, 1.0);
+		vec2 outward = (p - best_centre) / max(best, 0.001);
+		vec3 n_world = normalize(vec3(outward.x * slope * 1.3, 1.0, outward.y * slope * 1.3));
+		NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
+	}
 	// Dome shading: bright crown top, dark gaps between crowns.
 	float dome = clamp(1.0 - best / 0.8, 0.0, 1.0);
 	float shade = mix(0.4, 0.85, sqrt(dome)) * (0.92 + 0.16 * h.x);
-	ALBEDO = color * shade;
+	ALBEDO = color * shade * brightness;
 	ROUGHNESS = 0.9;
 }

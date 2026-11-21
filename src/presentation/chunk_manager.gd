@@ -16,6 +16,10 @@ extends RefCounted
 const DEFAULT_BUDGET_USEC := 4000
 ## Jobs per worker batch: big enough to keep the threads busy, small enough to follow the camera.
 const BATCH_SIZE := 24
+## A batch of slow plans stops growing once its estimated work per worker reaches this (usec): a
+## batch is delivered only when all its jobs are planned, so 24 jobs of ~400 ms (the real-scale
+## forest) would keep the nearest chunk waiting for seconds.
+const BATCH_USEC_PER_WORKER := 150000
 ## Cores left to the main and render threads while planning in play (not on the loading screen).
 const PLAY_THREADS_SPARED := 2
 ## The rings are only rescanned after the target moved this far (world units) or a layer changed:
@@ -50,6 +54,8 @@ var _batch_task := -1
 var _ready: Array = []
 ## Average build_chunk time per layer (usec), for the budget estimate.
 var _build_cost: Array[float] = []
+## Average plan time per layer (usec), for sizing the batches.
+var _plan_cost: Array[float] = []
 ## Totals per layer (usec): plan time (worker or main thread) and build time (main thread).
 var _plan_usec: Array[int] = []
 var _build_usec: Array[int] = []
@@ -74,6 +80,7 @@ func register(layer: ChunkLayer) -> void:
 	_layers.append(layer)
 	_live.append({})
 	_build_cost.append(0.0)
+	_plan_cost.append(0.0)
 	_plan_usec.append(0)
 	_build_usec.append(0)
 	_scan_needed = true
@@ -289,6 +296,7 @@ func reset() -> void:
 	_layers = []
 	_live = []
 	_build_cost = []
+	_plan_cost = []
 	_plan_usec = []
 	_build_usec = []
 	_has_target = false
@@ -401,7 +409,16 @@ func _plan_now(count: int) -> void:
 func _start_batch(all_threads: bool) -> void:
 	if _batch_task >= 0 or not _batch.is_empty() or _pending.is_empty():
 		return
+	var workers := -1 if all_threads else maxi(1, OS.get_processor_count() - PLAY_THREADS_SPARED)
+	var threads_used := OS.get_processor_count() if workers < 0 else workers
+	var budget := float(BATCH_USEC_PER_WORKER * threads_used)
+	var estimate := 0.0
 	while not _pending.is_empty() and _batch.size() < BATCH_SIZE:
+		var next: Vector3i = _pending.back()
+		var cost := _plan_cost[next.x]
+		if not _batch.is_empty() and estimate + cost > budget:
+			break
+		estimate += cost
 		_batch.append(_pending.pop_back())
 	var prepared := {}
 	for job in _batch:
@@ -413,7 +430,6 @@ func _start_batch(all_threads: bool) -> void:
 	_batch_plans.resize(_batch.size())
 	_batch_usec = []
 	_batch_usec.resize(_batch.size())
-	var workers := -1 if all_threads else maxi(1, OS.get_processor_count() - PLAY_THREADS_SPARED)
 	_batch_task = WorkerThreadPool.add_group_task(
 		_plan_batch_job, _batch.size(), workers, all_threads, "Chunk plans"
 	)
@@ -440,6 +456,11 @@ func _collect_batch(wait: bool) -> void:
 	for k in _batch.size():
 		_ready.push_front([_batch[k], _batch_plans[k]])
 		_plan_usec[_batch[k].x] += _batch_usec[k]
+		var layer_index := _batch[k].x
+		var took := float(_batch_usec[k])
+		_plan_cost[layer_index] = (
+			took if _plan_cost[layer_index] == 0.0 else lerpf(_plan_cost[layer_index], took, 0.2)
+		)
 	_batch = []
 	_batch_plans = []
 

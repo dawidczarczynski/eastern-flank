@@ -169,6 +169,17 @@ static func edge_distance(grid: HexGrid, kind: Kind, x: float, z: float) -> floa
 	return _nearest(grid, kind, x, z, true)
 
 
+## Whether any road or river comes near tile `coord` (is_clear can only say no there). Pure.
+static func has_ribbons(grid: HexGrid, coord: Vector2i) -> bool:
+	if not grid.has_links():
+		return false
+	var index := _clearance_index(grid)
+	for kind: Kind in _KINDS:
+		if (index[kind] as Dictionary).has(coord):
+			return true
+	return false
+
+
 ## Whether scatter (trees, rocks, bushes, grass) may stand at (x, z): farther than the local half
 ## width + CLEARANCE from every road and river ribbon. Always true on grids without links.
 static func is_clear(grid: HexGrid, x: float, z: float) -> bool:

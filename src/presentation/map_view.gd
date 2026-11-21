@@ -11,6 +11,7 @@ extends Node3D
 ## around the camera target (ChunkRings); the coarse terrain covers the rest of the map. Call
 ## set_camera_target() when the camera moves; _process() builds within the frame budget, and
 ## finish_chunks() builds everything at once (loading screen, tests, screenshots).
+## Real scale (TASK-135): RealScaleVegetation (dense forest, near grass, camera-centred chunks).
 
 ## The terrain mesh covers the map bounds plus this margin (world units) on every side.
 const EXTENT := 6.0
@@ -39,14 +40,6 @@ const BACKDROP_THIN_SEED := 311.0
 ## beyond it a cheap canopy shell (assets/shaders/canopy.gdshader) over the forest ground, faded
 ## in over BackdropCanopy.FADE_FROM..FADE_TO.
 const BACKDROP_SCATTER_REACH := 4.0
-## The water plane is this much larger than the terrain mesh.
-const WATER_MARGIN := 80.0
-## Water shader (TASK-056): colours, depths, ripple speeds and normal scale are its defaults.
-const WATER_SHADER := preload("res://assets/shaders/water.gdshader")
-## Water normal texture parameters.
-const WATER_NORMAL_PERIODS: Array[int] = [4, 8, 16, 32]
-const WATER_NORMAL_SEED := 303
-const WATER_NORMAL_STRENGTH := 5.0
 ## Terrain mesh UVs: world (x, z) / DETAIL_TILE (the shader samples in world space; the UVs
 ## only define the tangent frame). DETAIL_SIZE is the procedural water normal map size.
 const DETAIL_TILE := 1.45
@@ -111,7 +104,6 @@ const GRASS_VISUAL_LAYER := 3
 const GRASS_LAYER_MASK := 1 << (GRASS_VISUAL_LAYER - 1)
 
 ## Generated once per run: the water normal texture.
-static var _water_normal: ImageTexture
 
 @export var hex_size: float = 1.0
 
@@ -134,6 +126,8 @@ var _near: TerrainNear
 ## Whether the near terrain layer is on (camera close enough, TerrainNear.wanted).
 var _near_on := false
 var _chunks := ChunkManager.new()
+## Real-scale forest and near grass, and the camera-centred chunk manager (TASK-135).
+var _vegetation := RealScaleVegetation.new()
 var _foliage: FoliageChunks
 var _backdrop: BackdropMesh
 ## The ground ShaderMaterial shared by the terrain and the backdrop (one per build).
@@ -179,6 +173,8 @@ func _ready() -> void:
 	add_child(_grass)
 	_trees.name = "Trees"
 	add_child(_trees)
+	add_child(_vegetation.forest)
+	add_child(_vegetation.grass_near)
 	for overlay in [
 		_reach_line,
 		_dim,
@@ -203,12 +199,15 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		_chunks.wait()
+		_vegetation.chunks.wait()
 
 
 ## The hover ring pulses; geometry is only rebuilt in set_hover(). Chunks around the camera
 ## target are built within the frame budget (ChunkManager.process).
 func _process(_delta: float) -> void:
 	_chunks.process()
+	_follow_viewport_camera()
+	_vegetation.process()
 	if _hover_ring.visible:
 		var color := GroundOverlay.color_of(_hover_ring_material)
 		color.a = OverlayGeometry.hover_alpha(Time.get_ticks_msec())
@@ -219,6 +218,7 @@ func build(grid: HexGrid) -> void:
 	_chunks.reset()
 	_chunks = ChunkManager.new(ChunkRings.load_default(), quality.get("small_chunk_rings", false))
 	_chunks.threads = threads
+	_vegetation.reset(_chunks, quality.get("small_chunk_rings", false), threads)
 	_grid = grid
 	_surface = TerrainSurface.new(grid)
 	_shape_cache.clear()
@@ -296,14 +296,25 @@ func build(grid: HexGrid) -> void:
 			_tiles_root.add_child(parent)
 		_chunks.register(_foliage.scatter_layer())
 		_chunks.register(_foliage.tree_layer())
-	_tiles_root.add_child(_build_water(rect))
+	if _foliage != null:
+		# Real scale (TASK-135): the map trees on the drawn near surface, the dense forest.
+		if VisualScale.is_true_size():
+			_foliage.ground = vegetation_ground_height
+		var shell := _vegetation.build_forest(
+			grid, vegetation_ground_height, mesh_height_at, SCATTER_SEED, _lattice.rect(), _parcels
+		)
+		if shell != null:
+			_tiles_root.add_child(shell)
+	_tiles_root.add_child(WaterPlane.build(rect, DETAIL_SIZE))
 	Wind.setup(quality.get("wind", true))
 	# The grass stands on the drawn mesh: its heights are a lookup in the mesh's height grid,
 	# far cheaper than the surface (noise octaves per query) and safe on the planning threads.
 	var grass_free := _chunks.free_radius(&"grass")
+	# Real scale: the clumps stand on the drawn near surface, not the 36 m lattice (TASK-135).
+	var grass_ground := vegetation_ground_height if VisualScale.is_true_size() else mesh_height_at
 	_grass.setup(
 		grid,
-		BackdropSurface.new(grid, mesh_height_at),
+		BackdropSurface.new(grid, grass_ground),
 		playable,
 		quality.get("grass_density", 1.0),
 		_grass_color,
@@ -318,6 +329,9 @@ func build(grid: HexGrid) -> void:
 			grass_prepare.call()
 			_prime_grass_colors()
 		_chunks.register(grass_layer)
+	_vegetation.build_grass(
+		_grass, grid, BackdropSurface.new(grid, grass_ground), playable, _prime_grass_colors
+	)
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
 	_chunks.register(
@@ -345,16 +359,45 @@ func set_camera_target(target: Vector2) -> void:
 
 
 ## Builds every chunk the rings ask for around the current camera target now (loading screen,
-## tests, screenshots); `target` moves the target first.
+## tests, screenshots); `target` moves the target first; the camera-centred layers too.
 func finish_chunks(target: Variant = null) -> void:
 	if target != null:
 		_chunks.update(target)
+	_follow_viewport_camera()
 	_chunks.finish_all()
+	_vegetation.finish()
 
 
-## True when every chunk around the camera target is built.
+## True when every chunk around the camera target (and the camera) is built.
 func chunks_settled() -> bool:
-	return _chunks.is_settled()
+	return _chunks.is_settled() and _vegetation.is_settled()
+
+
+func vegetation() -> RealScaleVegetation:
+	return _vegetation
+
+
+## Camera position (world) for the real-scale vegetation; _process() passes the viewport camera's.
+func set_camera_position(position: Vector3) -> void:
+	if _lattice == null:
+		return
+	_vegetation.set_camera(position, position.y - visible_ground_height(position.x, position.z))
+
+
+func _follow_viewport_camera() -> void:
+	if not is_inside_tree():
+		return
+	var camera := get_viewport().get_camera_3d()
+	if camera != null and camera.global_position != _vegetation.camera_position:
+		set_camera_position(camera.global_position)
+
+
+## The drawn ground real-size vegetation stands on (TASK-135): the near terrain surface, else the
+## lattice; `point`: the surface at the point (impostors: 1/3 of the cost, cm apart). Thread-safe.
+func vegetation_ground_height(x: float, z: float, point := false) -> float:
+	if _near != null and _lattice.rect().has_point(Vector2(x, z)):
+		return _near.surface_point_height(x, z) if point else _near.surface_height_at(x, z)
+	return _lattice.mesh_height_at(x, z)
 
 
 ## The terrain chunks (fine and coarse nodes), for tests and statistics.
@@ -376,6 +419,7 @@ func foliage() -> FoliageChunks:
 func burn_ground(center: Vector2, radius: float) -> void:
 	if _foliage != null:
 		_foliage.burn(center, radius)
+	_vegetation.burn(center, radius)
 
 
 ## The grass (TASK-057), for tests and statistics.
@@ -612,36 +656,6 @@ func _grass_color(p: Vector3) -> Color:
 	for layer in TerrainSplat.LAYER_COUNT:
 		color += averages[layer] * weights[layer]
 	return Color(color.r, color.g, color.b)
-
-
-static func _water_normal_texture() -> ImageTexture:
-	if _water_normal == null:
-		var heights := DetailTexture.height_map(
-			DETAIL_SIZE, WATER_NORMAL_PERIODS, WATER_NORMAL_SEED
-		)
-		_water_normal = ImageTexture.create_from_image(
-			DetailTexture.normal_image(heights, DETAIL_SIZE, WATER_NORMAL_STRENGTH)
-		)
-	return _water_normal
-
-
-func _build_water(rect: Rect2) -> MeshInstance3D:
-	var plane := PlaneMesh.new()
-	plane.size = rect.size + Vector2.ONE * WATER_MARGIN
-	var material := ShaderMaterial.new()
-	material.shader = WATER_SHADER
-	material.set_shader_parameter(&"normal_map", _water_normal_texture())
-	var look_water := LookPreset.water_params()
-	for key: String in look_water:
-		material.set_shader_parameter(StringName(key), look_water[key])
-	plane.material = material
-	var instance := MeshInstance3D.new()
-	instance.name = "Water"
-	instance.mesh = plane
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var center := rect.get_center()
-	instance.position = Vector3(center.x, TerrainSurface.WATER_SURFACE, center.y)
-	return instance
 
 
 ## Height of the terrain mesh at (x, z) (TerrainLattice.mesh_height_at): matches the drawn mesh

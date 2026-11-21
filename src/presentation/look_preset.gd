@@ -89,6 +89,61 @@ const FIELDS_DEFAULT := {
 	"row_fade_to": 0.8,
 }
 
+## Real-scale vegetation (TASK-135, ADR 0026): used only under the `true` VisualScale preset
+## (`balanced` never reads it). Sizes and distances in metres (MapScale converts them), so they
+## hold at any map scale. A preset's "vegetation" entry is merged over it by vegetation().
+## - forest_trees_per_ha: visual tree density of a forest tile (planned trees + ForestFill),
+##   370 / ha ≈ 2 000 per 250 m hex; forest_clearing_m: the fill keeps the tile centre clear
+##   (where the unit stands); forest_crown_width_m: crown width of the dense fill trees (closed
+##   stands grow narrow crowns; the models are open-grown, ~17-24 m wide at real height).
+## - Ranges (VegetationRanges) for a tree reference_height_m tall, scaled by each species' real
+##   height: full 3D trees to full_range_m, impostors to impostor_range_m (then the canopy shell
+##   on forest tiles), floors min_full_range_m / min_impostor_range_m for small scrub; off-forest
+##   items keep their impostor until they are under vanish_angle (radians, ~2 px at 720p);
+##   band_share: half width of the per-tree hand-over band as a share of its distance.
+## - full_tree_cap: most full (LOD0) dense-forest trees submitted per frame, nearest chunks first.
+## - tree_sink_m / scrub_sink_m: how far a trunk / a shrub base sinks into the drawn ground.
+## - near_grass_range_m / near_grass_per_m2: GrassNear draws real-density grass (clumps per m² on
+##   meadow; other terrain by GrassPlanner's density ratio) within this range of the camera.
+## - shell_fade: the canopy shell fades in over (from, to) x the reference impostor range;
+##   shell_height_share: shell lift as a share of the mean tree height; shell_crown_m: crown
+##   pattern cell of the shell; shell_brightness: its albedo factor (to meet the impostors' tone).
+const VEGETATION_DEFAULT := {
+	"forest_trees_per_ha": 370.0,
+	"forest_clearing_m": 15.0,
+	"forest_crown_width_m": 7.0,
+	"reference_height_m": 24.0,
+	"full_range_m": 250.0,
+	"impostor_range_m": 1400.0,
+	"min_full_range_m": 30.0,
+	"min_impostor_range_m": 100.0,
+	"vanish_angle": 0.002,
+	"band_share": 0.08,
+	"full_tree_cap": 6000,
+	"tree_sink_m": 0.3,
+	"scrub_sink_m": 0.05,
+	"near_grass_range_m": 100.0,
+	"near_grass_per_m2": 1.2,
+	"shell_fade": Vector2(0.72, 0.95),
+	"shell_height_share": 0.8,
+	"shell_crown_m": 9.0,
+	"shell_brightness": 1.9,
+}
+
+## Leaf colours under the `true` VisualScale preset, for every look (TASK-135 playtest): at real
+## size thousands of crowns show them, and the looks' yellowed greens (muted_summer's birch) and
+## autumn share read as a beige forest. Summer greens, birch the lightest; few autumn trees.
+const REAL_SIZE_LEAF_COLORS := {
+	&"pine": Color("#3b5a3a"),
+	&"spruce": Color("#2a4535"),
+	&"birch": Color("#7a9a44"),
+	&"oak": Color("#58773a"),
+	&"alder": Color("#4f6e36"),
+	&"shrub": Color("#5d7a3a"),
+	&"undergrowth": Color("#6f8a40"),
+}
+const REAL_SIZE_AUTUMN_SHARE := 0.015
+
 ## Open-ground vegetation (TASK-070). MEADOW_OFF turns every feature off (the `current` look =
 ## TASK-057/061 output); a preset's "meadow" entry is merged over it by meadow().
 const MEADOW_OFF := {
@@ -422,6 +477,8 @@ static func layer_tints(base: Array[Vector3]) -> Array[Vector3]:
 
 
 static func leaf_color(species: StringName, base: Color) -> Color:
+	if VisualScale.is_true_size() and REAL_SIZE_LEAF_COLORS.has(species):
+		return REAL_SIZE_LEAF_COLORS[species]
 	return (_active.get("leaf_colors", {}) as Dictionary).get(species, base)
 
 
@@ -430,6 +487,8 @@ static func share(species: StringName, base: float) -> float:
 
 
 static func autumn_share(base: float) -> float:
+	if VisualScale.is_true_size():
+		return REAL_SIZE_AUTUMN_SHARE
 	return _active.get("autumn_share", base)
 
 
@@ -438,6 +497,14 @@ static func autumn_share(base: float) -> float:
 static func meadow() -> Dictionary:
 	var merged := MEADOW_OFF.duplicate(true)
 	merged.merge((_active.get("meadow", {}) as Dictionary).duplicate(true), true)
+	return merged
+
+
+## Real-scale vegetation values of the active preset (a copy): VEGETATION_DEFAULT with the
+## preset's "vegetation" entry merged in.
+static func vegetation() -> Dictionary:
+	var merged := VEGETATION_DEFAULT.duplicate(true)
+	merged.merge((_active.get("vegetation", {}) as Dictionary).duplicate(true), true)
 	return merged
 
 
