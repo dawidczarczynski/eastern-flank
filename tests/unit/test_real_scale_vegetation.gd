@@ -185,6 +185,25 @@ func test_real_size_summer_greens_replace_the_looks_yellowed_leaves() -> void:
 	assert_eq(LookPreset.leaf_color(&"birch", TreeField.LEAF_COLORS[&"birch"]), balanced)
 
 
+func test_real_size_air_hazes_the_distance_blue() -> void:
+	# Aerial perspective (look reference, 2026-11-21): at real size the haze starts within a few
+	# km and is bluer than the balanced fog; balanced keeps its own.
+	var balanced := Environment.new()
+	LookPreset.apply_to_environment(balanced)
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var real := Environment.new()
+	LookPreset.apply_to_environment(real)
+	var begin_m := real.fog_depth_begin * MapScale.metres_per_unit
+	assert_true(begin_m > 500.0 and begin_m < 2000.0, "haze from %d m" % begin_m)
+	assert_true(real.fog_depth_end < balanced.fog_depth_end, "dense before the balanced end")
+	assert_true(real.fog_light_color.b > real.fog_light_color.r, "bluish haze")
+	assert_true(real.fog_aerial_perspective >= 0.8, "takes the sky's colour")
+	VisualScale.reset()
+	var again := Environment.new()
+	LookPreset.apply_to_environment(again)
+	assert_eq(again.fog_depth_begin, balanced.fog_depth_begin)
+
+
 func test_real_size_broadleaf_cards_carry_small_leaves() -> void:
 	# A real-size crown card is metres wide: the balanced cluster's 5 broad leaves would be a metre
 	# each, so `true` uses a card of many small leaves.

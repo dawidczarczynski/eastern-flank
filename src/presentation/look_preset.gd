@@ -127,22 +127,37 @@ const VEGETATION_DEFAULT := {
 	"shell_fade": Vector2(0.72, 0.95),
 	"shell_height_share": 0.8,
 	"shell_crown_m": 9.0,
-	"shell_brightness": 1.9,
+	"shell_brightness": 2.7,
 }
 
 ## Leaf colours under the `true` VisualScale preset, for every look (TASK-135 playtest): at real
 ## size thousands of crowns show them, and the looks' yellowed greens (muted_summer's birch) and
-## autumn share read as a beige forest. Summer greens, birch the lightest; few autumn trees.
+## autumn share read as a beige forest. Close, dark summer greens (a forest reads as one canopy
+## from above, look reference 2026-11-21), birch only a little lighter; few autumn trees.
 const REAL_SIZE_LEAF_COLORS := {
-	&"pine": Color("#3b5a3a"),
-	&"spruce": Color("#2a4535"),
-	&"birch": Color("#7a9a44"),
-	&"oak": Color("#58773a"),
-	&"alder": Color("#4f6e36"),
-	&"shrub": Color("#5d7a3a"),
-	&"undergrowth": Color("#6f8a40"),
+	&"pine": Color("#34502f"),
+	&"spruce": Color("#2a422e"),
+	&"birch": Color("#56743a"),
+	&"oak": Color("#47652f"),
+	&"alder": Color("#42602e"),
+	&"shrub": Color("#4b6832"),
+	&"undergrowth": Color("#587437"),
 }
 const REAL_SIZE_AUTUMN_SHARE := 0.015
+
+## Aerial perspective under the `true` VisualScale preset (look reference 2026-11-21): the
+## distance fades into a bluish haze from ~1 km, so the real-size landscape reads deep (distances
+## in metres, through MapScale). Depth fog, so it costs no frame time.
+const REAL_SIZE_AIR := {
+	"begin_m": 700.0,
+	"end_m": 11000.0,
+	"curve": 1.0,
+	"color": Color("#a8bccf"),
+	"energy": 0.62,
+	"sun_scatter": 0.18,
+	"aerial_perspective": 0.85,
+	"sky_affect": 0.35,
+}
 
 ## Open-ground vegetation (TASK-070). MEADOW_OFF turns every feature off (the `current` look =
 ## TASK-057/061 output); a preset's "meadow" entry is merged over it by meadow().
@@ -492,6 +507,19 @@ static func autumn_share(base: float) -> float:
 	return _active.get("autumn_share", base)
 
 
+static func _apply_real_size_air(env: Environment) -> void:
+	env.fog_enabled = true
+	env.fog_mode = Environment.FOG_MODE_DEPTH
+	env.fog_depth_begin = MapScale.to_units(REAL_SIZE_AIR["begin_m"])
+	env.fog_depth_end = MapScale.to_units(REAL_SIZE_AIR["end_m"])
+	env.fog_depth_curve = REAL_SIZE_AIR["curve"]
+	env.fog_light_color = REAL_SIZE_AIR["color"]
+	env.fog_light_energy = REAL_SIZE_AIR["energy"]
+	env.fog_sun_scatter = REAL_SIZE_AIR["sun_scatter"]
+	env.fog_aerial_perspective = REAL_SIZE_AIR["aerial_perspective"]
+	env.fog_sky_affect = REAL_SIZE_AIR["sky_affect"]
+
+
 ## Open-ground vegetation values of the active preset (a copy): MEADOW_OFF with the preset's
 ## "meadow" entry merged in.
 static func meadow() -> Dictionary:
@@ -536,5 +564,7 @@ static func apply_to_environment(env: Environment) -> void:
 		env.fog_depth_begin = _active["fog_depth_begin"]
 	if _active.has("fog_depth_end"):
 		env.fog_depth_end = _active["fog_depth_end"]
+	if VisualScale.is_true_size():
+		_apply_real_size_air(env)
 	if _active.has("exposure"):
 		env.tonemap_exposure = _active["exposure"]
