@@ -12,8 +12,8 @@ Decided 2026-10-31: unit models are drawn at real size, with no enlarged units. 
 
 ## Confirmed targets (human, 2026-11-10, TASK-110 study; they override the proposals below)
 
-- **Minimum camera distance ~1.0 world units (≈ 144 m)** (range 0.6–1.2 on the screenshots: tank ≥ 40 px at 1.2, ~95 px at 0.6). `MAX_DISTANCE` stays 46.
-- **Close-range camera** as in the prototype (`CameraRig` / `SCREENSHOT_MIN_DISTANCE`): below 7 the camera looks at the ground under the target; ground clearance ∝ (d / 7)²; the pitch curve approaches the horizon at the minimum. The "2 m above terrain" rule below stays.
+- **Minimum camera distance ~0.18 world units (≈ 26 m)** – changed 2026-11-21 (human, after a zoom study on a Leopard-class tank in the `true` preset, `.screenshots/zoom/`: at 0.15–0.25 the vehicle reads well and the model's simplicity (flat colour, boxy track guards, no texture detail) is not yet exposed; at 0.12 it is; at 0.3 the shot reads as a map). Supersedes the earlier ~1.0 (≈ 144 m, 2026-11-10, tank ≥ 40 px at 1.2). `MAX_DISTANCE` stays 46.
+- **Close-range camera** as in the prototype (`CameraRig` / `SCREENSHOT_MIN_DISTANCE`): below 7 the camera looks at the ground under the target; ground clearance ∝ (d / 7)²; the pitch curve approaches the horizon at the minimum (about 17°, `PITCH_CLOSE` 0.30 rad, at 0.18–0.25). The "2 m above terrain" rule below stays (26 m at 17° is ~7.6 m high).
 - **Marker look**: class icon next to today's fixed-pixel tag; the label is anchored to the unit's ground point (fixed pixel offset), no longer 0.62 units (90 m) above the unit.
 - **Group-drawing hook** (for the company group, TASK-136): the camera/marker code exposes one constant `GROUP_DRAW_DISTANCE` = 3.0 units. Below it the unit is drawn as a 3–4 model group (TASK-136) and the marker stays; above it only the marker (plus the single model). TASK-111 adds only the constant and a `UnitView`-readable "distance to camera" query, no group drawing.
 
@@ -23,7 +23,7 @@ Decided 2026-10-31: unit models are drawn at real size, with no enlarged units. 
 - **Anchor**: the marker sits a fixed **18 px** above the screen position of the unit's **ground point** (tile centre at terrain height), not above the model top, so it doesn't move with the model scale. Hidden behind terrain like today's labels (same occlusion rule).
 - **Overlap**: when two markers would overlap on screen (zoomed out), the one closer to the camera wins and the other is shifted up by its height (at most one shift step); the HUD never hides a unit's marker.
 - **Picking and hover** stay hex-based (a 3 px model can't be clicked); clicking a marker selects its unit.
-- **Camera**: `CameraMath.MIN_DISTANCE` from 7 to the study's value (confirmed **1.0 units ≈ 144 m**: a real tank is then ~55 px long at 720p; ≥ 40 px at 1.2), `MAX_DISTANCE` stays 46. The pitch curve extends to the new close range, approaching the horizon at the closest zoom; zoom steps are geometric (each wheel step × the same factor), so going from 46 to 0.4 takes a similar number of steps to today plus the extra range; pan speed scales with the distance; the camera never goes below the terrain plus **2 m**; near clip plane small enough (≤ 0.01 units) at the closest zoom, with no z-fighting of ribbons and overlays (checked on screenshots).
+- **Camera**: `CameraMath.MIN_DISTANCE` from 7 to the study's value (**0.18 units ≈ 26 m** since 2026-11-21: a real tank is then ~300 px long at 720p; it was 1.0 ≈ 144 m, ~55 px, before), `MAX_DISTANCE` stays 46. The pitch curve extends to the new close range, approaching the horizon at the closest zoom; zoom steps are geometric (each wheel step × the same factor), so going from 46 to 0.4 takes a similar number of steps to today plus the extra range; pan speed scales with the distance; the camera never goes below the terrain plus **2 m**; near clip plane small enough (≤ 0.01 units) at the closest zoom, with no z-fighting of ribbons and overlays (checked on screenshots).
 - **Distance-based ranges** (grass `visibility_range_end`, tree / bush LODs, wind distance, decals) are measured from the camera or chunk, so they keep working; TASK-110's follow-ups rescale them to metres. This task only makes sure nothing breaks at the new close range.
 
 ## Acceptance criteria (testable)
@@ -32,20 +32,21 @@ Decided 2026-10-31: unit models are drawn at real size, with no enlarged units. 
 - [ ] The marker's screen anchor = `camera.unproject_position(ground point)` − (0, 18 px) (± 0.5 px) for a unit at a known position, at any model scale (the model's AABB doesn't change it).
 - [ ] Overlap: two units whose markers would overlap → the farther one is shifted up by its height; no shift without overlap.
 - [ ] `CameraMath.GROUP_DRAW_DISTANCE` = 3.0.
-- [ ] `CameraMath.MIN_DISTANCE` = 1.0 (confirmed 2026-11-10); zooming in from the default reaches it; the pitch at MIN_DISTANCE is within the new curve's limit and the camera height over the terrain is ≥ 2 m (in world units via `MapScale`) everywhere on the Suwałki map (sampled).
-- [ ] Zoom steps: the ratio between consecutive distances is constant (± 1 %).
+- [ ] `CameraMath.MIN_DISTANCE` = 0.18 (changed 2026-11-21 from the earlier 1.0); zooming in from the default reaches it; the near plane, pan speed per step, the "distance to camera" query and every distance-based range (unit label hide distance, decals, effects, `visibility_range`) work at 26 m; the pitch at MIN_DISTANCE is within the new curve's limit and the camera height over the terrain is ≥ 2 m (in world units via `MapScale`) everywhere on the Suwałki map (sampled).
+- [ ] Zoom steps: the ratio between consecutive distances is constant (± 1 %); from 46 to 0.18 takes at most ~25 wheel steps.
+- [ ] Close-up readability (from the 2026-11-21 zoom study): at 0.18 / 0.25 the near grass (`GrassNear`) and the river / lake overlays show no artefact that exposes the camera (grass cards read as paper cut-outs and the water ribbon hovers over the terrain in the study screenshots: record what was done or file a follow-up; at least no flicker, no ground clipping the camera, no rings or decals popping).
 - [ ] Clicking a marker selects its unit; hovering and selecting by hex are unchanged.
 - [ ] Screenshots Read by the agent: Suwałki and the default battle at distances 46, 24 and the minimum, with the real-size preset from TASK-110 (`SCREENSHOT_SCALE_PRESET=true`) and with today's preset: every unit has a readable marker, no ribbon / overlay flicker at the minimum distance; frame time at the minimum distance recorded (60 FPS rule).
 
 ## Playtest (for the human)
 
 1. Zoom all the way out and in: every unit always has its marker (icon + name + HP bar) at the same size on screen.
-2. Zoom in much closer than before: the camera goes down to a few tens of metres above the ground, looking towards the horizon; you can look at a single vehicle up close. No flickering roads, rings or ground.
+2. Zoom in much closer than before: the camera goes down to ~26 m from the unit (a few metres above the ground), looking towards the horizon; you can look at a single vehicle up close and it still looks good. No flickering roads, rings or ground.
 3. Click a marker: selects the unit. Hover and select hexes as before.
 
 ## Player manual
 
-§10 "Screen": unit tags become unit markers with a class icon (infantry / tank / rocket artillery), always at the same size on screen. Camera controls table: the zoom now goes much closer (down to about 140 m from the focus point, looking towards the horizon). Units are drawn at their real size, so at a distance you find them by their markers – write this once TASK-110's follow-up switches the models to real size.
+§10 "Screen": unit tags become unit markers with a class icon (infantry / tank / rocket artillery), always at the same size on screen. Camera controls table: the zoom now goes much closer (down to about 25 m from the focus point, looking towards the horizon). Units are drawn at their real size, so at a distance you find them by their markers – write this once TASK-110's follow-up switches the models to real size.
 
 ## Out of scope
 
