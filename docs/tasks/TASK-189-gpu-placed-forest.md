@@ -1,6 +1,6 @@
 # TASK-189: GPU-placed forest impostors – no CPU planning of impostor trees
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`ForestField`, `ForestFill`, `TreeImpostors`, `tree_impostor.gdshader`, `TerrainNear`, `MapView`)
 - **Depends on**: TASK-135
 - **Sections**: ARCHITECTURE "Real-scale vegetation", "Chunked lazy world"; ADR 0026, ADR 0027 (proposed – accept it when starting)

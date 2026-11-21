@@ -1,6 +1,6 @@
 # TASK-135: Vegetation at real scale – real density, impostors / canopy shells, distance budgets
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`TreeField`, `ScatterPlanner`, `BackdropCanopy`, grass / bush layers, `VisualScale`)
 - **Depends on**: – (soft: TASK-072a, TASK-072b, TASK-134, TASK-110)
 - **Sections**: GDD "Visual direction", "Open questions" (Realistic scale); ADR 0021
