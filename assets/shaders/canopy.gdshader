@@ -52,6 +52,20 @@ vec2 hash22(vec2 p) {
 	return fract((q.xx + q.yz) * q.zy);
 }
 
+const mat2 rot = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8));
+
+// Smooth value noise 0..1.
+float value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = hash22(i).x;
+	float b = hash22(i + vec2(1.0, 0.0)).x;
+	float c = hash22(i + vec2(0.0, 1.0)).x;
+	float d = hash22(i + vec2(1.0, 1.0)).x;
+	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
 void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_xz = world_position.xz;
@@ -107,16 +121,19 @@ void fragment() {
 	vec3 mean_color = (pine_color + spruce_color + birch_color + oak_color + alder_color) / 5.0;
 	color = mix(mean_color, color, 0.45);
 	if (lit_domes > 0.5) {
-		// Stands of one dominant species a few crowns wide, each crown a little off it.
-		vec2 stand_h = hash22(floor(world_xz / (crown_cell * 6.0)) + 5.0);
+		// Stands of one dominant species a few crowns wide: smooth noise (two rotated octaves, no
+		// square grid to show from afar) picks the species by the shares.
+		vec2 sp = world_xz / (crown_cell * 7.0);
+		float stand_n = 0.65 * value_noise(rot * sp) + 0.35 * value_noise(rot * sp * 2.3 + 11.0);
+		float stand_roll = clamp((stand_n - 0.5) * 2.0 + 0.5, 0.0, 0.999);
 		vec3 stand_color = alder_color;
-		if (stand_h.y < t1) {
+		if (stand_roll < t1) {
 			stand_color = pine_color;
-		} else if (stand_h.y < t2) {
+		} else if (stand_roll < t2) {
 			stand_color = spruce_color;
-		} else if (stand_h.y < t3) {
+		} else if (stand_roll < t3) {
 			stand_color = birch_color;
-		} else if (stand_h.y < t4) {
+		} else if (stand_roll < t4) {
 			stand_color = oak_color;
 		}
 		color = mix(mean_color, mix(stand_color, color, 0.35), 0.7);

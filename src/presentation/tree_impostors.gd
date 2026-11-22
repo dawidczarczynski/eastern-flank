@@ -213,7 +213,10 @@ static func _bake_viewport(
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.keep_aspect = Camera3D.KEEP_HEIGHT
-	camera.size = VERTICAL_SPAN * height
+	# The camera looks down by ELEVATION, so a vertical metre spans cos(ELEVATION) of the picture;
+	# the quad maps the picture to world height 1:1, so the span shrinks by that to keep the
+	# impostor as tall as the full tree.
+	camera.size = VERTICAL_SPAN * height * cos(deg_to_rad(ELEVATION))
 	camera.near = 0.01
 	camera.far = 20.0
 	viewport.add_child(camera)

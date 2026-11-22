@@ -130,7 +130,7 @@ const VEGETATION_DEFAULT := {
 	"full_tree_cap": 6000,
 	"tree_sink_m": 0.3,
 	"scrub_sink_m": 0.05,
-	"impostor_sink_m": 1.5,
+	"impostor_sink_m": 0.5,
 	"impostor_thin_from_m": 900.0,
 	"impostor_thin_widen": 1.4,
 	"near_grass_range_m": 100.0,
