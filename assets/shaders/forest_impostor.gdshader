@@ -1,12 +1,13 @@
 shader_type spatial;
-render_mode world_vertex_coords, unshaded, cull_disabled;
+render_mode world_vertex_coords, cull_disabled, specular_disabled;
 // The GPU-placed impostors of the real-scale forest (TASK-189, ADR 0027). A chunk is a MultiMesh of
 // the TreeImpostors quad with one instance per fill grid cell and no per-instance data: the cell
 // comes from INSTANCE_ID and the chunk's `cells` (instance uniform), and everything else from the
 // same formulas as ForestFill.cell_tree (forest_hash.gdshaderinc) and the map textures ForestFill /
 // ForestField bind once per map – the stand mask (ForestMaskSource), the parcels, the drawn
 // lattice heights. A cell that holds no tree (or whose tree is outside the impostor
-// bands, or burnt) collapses to a point. The picture: tree_impostor_view.gdshaderinc.
+// bands, or burnt) collapses to a point. The picture and its lighting (TASK-191: lit by the
+// scene, normals turned with the lattice slope): tree_impostor_view.gdshaderinc.
 
 #include "res://assets/shaders/forest_hash.gdshaderinc"
 #include "res://assets/shaders/tree_impostor_view.gdshaderinc"
@@ -160,6 +161,9 @@ void vertex() {
 	tint = vec3(1.0);
 	row = 0.0;
 	view_position = 0.0;
+	basis_x = vec3(1.0, 0.0, 0.0);
+	basis_y = vec3(0.0, 1.0, 0.0);
+	basis_z = vec3(0.0, 0.0, 1.0);
 	VERTEX = origin;
 	if (alive) {
 		uint values_hash = forest_tile_seed(forest_seed, cell, FOREST_VALUE_SALT);
@@ -201,6 +205,18 @@ void vertex() {
 				origin, cam, size.x * s * widen, size.y * height_scale, k * 6.0, UV, view
 			);
 			view_position = view;
+			// The lattice slope under the tree turns its picture's normals (slope_share).
+			float dx = lattice_height(p + vec2(height_step, 0.0)) - ground;
+			float dz = lattice_height(p + vec2(0.0, height_step)) - ground;
+			vec3 ground_normal = normalize(vec3(-dx, height_step, -dz));
+			vec3 bx;
+			vec3 by;
+			vec3 bz;
+			impostor_basis(origin, cam, ground_normal, bx, by, bz);
+			basis_x = bx;
+			basis_y = by;
+			basis_z = bz;
+			NORMAL = bz;
 		}
 	}
 }
@@ -211,4 +227,7 @@ void fragment() {
 		discard;
 	}
 	ALBEDO = color.rgb;
+	NORMAL = normalize((VIEW_MATRIX * vec4(impostor_world_normal(UV), 0.0)).xyz);
+	ROUGHNESS = 0.85;
+	BACKLIGHT = color.rgb * backlight_strength;
 }

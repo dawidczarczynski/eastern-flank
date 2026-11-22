@@ -1,10 +1,10 @@
 shader_type spatial;
-render_mode world_vertex_coords, unshaded, cull_disabled;
+render_mode world_vertex_coords, cull_disabled, specular_disabled;
 // Tree impostors with per-instance data (TASK-135, TreeImpostors; the planned trees of TreeField –
 // the dense forest is GPU-placed, forest_impostor.gdshader). Instance data: transform = base +
 // scale (x quad width, y tree height), COLOR = tint relative to the baked colour, CUSTOM = (full
 // range centre, impostor range centre, atlas row, phase). The picture, the bands and the view
-// choice: tree_impostor_view.gdshaderinc.
+// choice and the lighting: tree_impostor_view.gdshaderinc.
 
 #include "res://assets/shaders/tree_impostor_view.gdshaderinc"
 
@@ -20,6 +20,15 @@ void vertex() {
 	float view;
 	VERTEX = impostor_corner(origin, cam, width, height, yaw, UV, view);
 	view_position = view;
+	// Upright: the planned trees carry no ground normal.
+	vec3 bx;
+	vec3 by;
+	vec3 bz;
+	impostor_basis(origin, cam, vec3(0.0, 1.0, 0.0), bx, by, bz);
+	basis_x = bx;
+	basis_y = by;
+	basis_z = bz;
+	NORMAL = bz;
 	if (!impostor_in_band(distance(origin, cam), INSTANCE_CUSTOM.r, INSTANCE_CUSTOM.g, phase)) {
 		VERTEX = origin;
 	}
@@ -31,4 +40,7 @@ void fragment() {
 		discard;
 	}
 	ALBEDO = color.rgb;
+	NORMAL = normalize((VIEW_MATRIX * vec4(impostor_world_normal(UV), 0.0)).xyz);
+	ROUGHNESS = 0.85;
+	BACKLIGHT = color.rgb * backlight_strength;
 }

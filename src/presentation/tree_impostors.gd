@@ -9,6 +9,11 @@ extends RefCounted
 ## One MultiMesh holds every species (the atlas row travels per instance), so a chunk costs one
 ## draw.
 ##
+## Lit by the scene (TASK-191): the bake renders every view twice with the unlit bake shader
+## (assets/shaders/foliage_bake.gdshader) – the unlit albedo (atlas()) and the view-space normal of
+## the cards (normal_atlas(), same layout) – and the impostor shader turns the baked normal to
+## the view, so the scene's sun and ambient light the impostors as they light the full trees.
+##
 ## Where nothing can be rendered (headless tests, the dummy renderer) the atlas is a flat
 ## silhouette per cell; the data paths are the same.
 ##
@@ -20,6 +25,8 @@ extends RefCounted
 ## each is VegetationRanges.band.
 
 const SHADER := preload("res://assets/shaders/tree_impostor.gdshader")
+## The unlit bake pass of the LOD0 card shader (albedo or encoded view-space normal).
+const BAKE_SHADER := preload("res://assets/shaders/foliage_bake.gdshader")
 ## The GPU-placed dense forest (TASK-189, ForestField): same picture, trees from their cells.
 const FOREST_SHADER := preload("res://assets/shaders/forest_impostor.gdshader")
 ## Floats per instance: TRANSFORM_3D (12), colour (4), custom (4).
@@ -44,18 +51,17 @@ const BELOW_BASE := 0.12
 const FILL_WIDTH := 0.85
 ## Camera elevation of the pictures (degrees): a little from above, as the game camera looks.
 const ELEVATION := 15.0
-## Light of the picture: from above and a little to the side, with this ambient.
-const AMBIENT := Color(0.62, 0.66, 0.7)
-const AMBIENT_ENERGY := 0.8
-const SUN_ENERGY := 1.1
+## Encoded normal of the flat silhouette cells (no renderer): towards the camera, a little up.
+const FLAT_NORMAL := Color(0.5, 0.75, 0.93, 1.0)
 
 static var _atlas: ImageTexture
+static var _normal_atlas: ImageTexture
 static var _atlas_key := ""
 ## Species -> linear leaf colour of the active look (what the per-tree tint is relative to).
 static var _leaf: Dictionary = {}
 ## Species -> Vector3(hue, saturation, value) of `_leaf` (tint() runs per tree).
 static var _leaf_hsv: Dictionary = {}
-## Species -> mean sRGB colour of its baked picture (the canopy shell paints it too).
+## Species -> mean sRGB colour of its unlit baked albedo (the canopy shell paints it too).
 static var _mean: Dictionary = {}
 ## Species -> per variant [atlas row, quad width per unit of crown width].
 static var _rows: Dictionary = {}
@@ -82,25 +88,38 @@ static func prime() -> void:
 		var leaf: Color = _leaf[species]
 		_leaf_hsv[species] = Vector3(leaf.h, leaf.s, leaf.v)
 	var row_count := SPECIES.size() * TreeMeshes.VARIANTS
-	var images := _bake_images()
-	var atlas := Image.create(CELL.x * VIEWS, CELL.y * row_count, false, Image.FORMAT_RGBA8)
-	var baked := images.size() == row_count * VIEWS
+	var albedo_images := _bake_images(false)
+	var normal_images: Array[Image] = []
+	if albedo_images.size() == row_count * VIEWS:
+		normal_images = _bake_images(true)
+	var baked := normal_images.size() == row_count * VIEWS
+	var size := Vector2i(CELL.x * VIEWS, CELL.y * row_count)
+	var atlas := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
+	var normals := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	for r in row_count:
 		var species: StringName = SPECIES[r / TreeMeshes.VARIANTS]
 		var variant := r % TreeMeshes.VARIANTS
 		var model := TreeField.model_size(species, variant)
 		(_rows.get_or_add(species, []) as Array).append([r, _width_factor(model)])
+		var flat: Image = null if baked else _flat_cell(species)
+		var flat_normal: Image = null if baked else _flat_normal_cell(flat)
 		for v in VIEWS:
-			var cell: Image = images[r * VIEWS + v] if baked else _flat_cell(species)
-			atlas.blit_rect(cell, Rect2i(Vector2i.ZERO, CELL), Vector2i(v * CELL.x, r * CELL.y))
+			var at := Vector2i(v * CELL.x, r * CELL.y)
+			var cell: Image = albedo_images[r * VIEWS + v] if baked else flat
+			var normal: Image = normal_images[r * VIEWS + v] if baked else flat_normal
+			atlas.blit_rect(cell, Rect2i(Vector2i.ZERO, CELL), at)
+			normals.blit_rect(normal, Rect2i(Vector2i.ZERO, CELL), at)
 	for species in SPECIES:
 		_mean[species] = _mean_color(atlas, SPECIES.find(species) * TreeMeshes.VARIANTS)
 	atlas.generate_mipmaps()
+	normals.generate_mipmaps()
 	_atlas = ImageTexture.create_from_image(atlas)
+	_normal_atlas = ImageTexture.create_from_image(normals)
 
 
-## The baked cells, row-major (species, variant) x view, or [] when nothing could be rendered.
-static func _bake_images() -> Array[Image]:
+## The baked cells of one pass (`normal`: the encoded view-space normals, else the unlit albedo),
+## row-major (species, variant) x view, or [] when nothing could be rendered.
+static func _bake_images(normal: bool) -> Array[Image]:
 	var result: Array[Image] = []
 	var loop := Engine.get_main_loop()
 	if not loop is SceneTree or DisplayServer.get_name() == "headless":
@@ -114,7 +133,7 @@ static func _bake_images() -> Array[Image]:
 	for species in SPECIES:
 		for variant in TreeMeshes.VARIANTS:
 			for first in range(0, VIEWS, BAKE_BATCH):
-				if not _bake_batch(holder, species, variant, first, result):
+				if not _bake_batch(holder, species, variant, first, normal, result):
 					root.remove_child(holder)
 					holder.free()
 					return []
@@ -126,11 +145,11 @@ static func _bake_images() -> Array[Image]:
 ## Renders the views first .. first + BAKE_BATCH - 1 of a model (one draw) and appends their cells;
 ## false when the renderer gives nothing back.
 static func _bake_batch(
-	holder: Node, species: StringName, variant: int, first: int, result: Array[Image]
+	holder: Node, species: StringName, variant: int, first: int, normal: bool, result: Array[Image]
 ) -> bool:
 	var viewports: Array[SubViewport] = []
 	for view in range(first, first + BAKE_BATCH):
-		var viewport := _bake_viewport(species, variant, view)
+		var viewport := _bake_viewport(species, variant, view, normal)
 		holder.add_child(viewport)
 		_push_poses(viewport)
 		viewports.append(viewport)
@@ -149,18 +168,18 @@ static func _bake_batch(
 	return ok
 
 
-## Sends the poses of a bake viewport's camera, tree and light to the renderer.
+## Sends the poses of a bake viewport's camera and tree to the renderer.
 static func _push_poses(viewport: SubViewport) -> void:
 	var poses: Array = viewport.get_meta(&"poses")
 	var camera: Camera3D = poses[0]
 	var tree: MultiMeshInstance3D = poses[1]
-	var sun: DirectionalLight3D = poses[2]
 	RenderingServer.camera_set_transform(camera.get_camera_rid(), camera.global_transform)
 	RenderingServer.instance_set_transform(tree.get_instance(), tree.global_transform)
-	RenderingServer.instance_set_transform(sun.get_instance(), sun.global_transform)
 
 
-static func _bake_viewport(species: StringName, variant: int, view: int) -> SubViewport:
+static func _bake_viewport(
+	species: StringName, variant: int, view: int, normal: bool
+) -> SubViewport:
 	var model := TreeField.model_size(species, variant)
 	var height := model.y
 	var viewport := SubViewport.new()
@@ -169,23 +188,14 @@ static func _bake_viewport(species: StringName, variant: int, view: int) -> SubV
 	viewport.own_world_3d = true
 	viewport.msaa_3d = Viewport.MSAA_DISABLED
 	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	# Unlit, linear tone mapping at exposure 1: the target holds linear_to_srgb(ALBEDO).
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_CLEAR_COLOR
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = AMBIENT
-	environment.ambient_light_energy = AMBIENT_ENERGY
 	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	var world_environment := WorldEnvironment.new()
 	world_environment.environment = environment
 	viewport.add_child(world_environment)
-	var sun := DirectionalLight3D.new()
-	sun.light_energy = SUN_ENERGY
-	sun.rotation_degrees = Vector3(-55.0, -30.0, 0.0)
-	sun.shadow_enabled = false
-	viewport.add_child(sun)
-	var material := TreeField.new_material(species, TreeField.Lod.NEAR)
-	material.set_shader_parameter(&"lod_in", TreeField.NO_LOD_IN)
-	material.set_shader_parameter(&"lod_out", TreeField.NO_LOD_OUT)
+	var material := bake_material(species, normal)
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D
 	multi.use_custom_data = true
@@ -212,8 +222,23 @@ static func _bake_viewport(species: StringName, variant: int, view: int) -> SubV
 	var eye := centre + Vector3(0.0, sin(elevation), cos(elevation)) * 5.0
 	camera.transform = Transform3D(Basis.looking_at(centre - eye, Vector3.UP), eye)
 	# Node3D transforms reach the renderer only on the next frame; the bake draws at once.
-	viewport.set_meta(&"poses", [camera, tree, sun])
+	viewport.set_meta(&"poses", [camera, tree])
 	return viewport
+
+
+## The LOD0 material of a species on the unlit bake shader (`normal`: the normal pass), all
+## distances drawn.
+static func bake_material(species: StringName, normal: bool) -> ShaderMaterial:
+	var source := TreeField.new_material(species, TreeField.Lod.NEAR)
+	var material := ShaderMaterial.new()
+	material.shader = BAKE_SHADER
+	for info in source.shader.get_shader_uniform_list():
+		var parameter: StringName = info["name"]
+		material.set_shader_parameter(parameter, source.get_shader_parameter(parameter))
+	material.set_shader_parameter(&"lod_in", TreeField.NO_LOD_IN)
+	material.set_shader_parameter(&"lod_out", TreeField.NO_LOD_OUT)
+	material.set_shader_parameter(&"bake_normal", normal)
+	return material
 
 
 ## World width of the baked picture in model units.
@@ -244,6 +269,16 @@ static func _flat_cell(species: StringName) -> Image:
 	image.fill_rect(
 		Rect2i(CELL.x / 2 - 2, bottom, 4, int(CELL.y * 0.9) - bottom), Color(0.3, 0.24, 0.17, 1.0)
 	)
+	return image
+
+
+## The flat normal cells: FLAT_NORMAL where `albedo` (a flat cell) is opaque.
+static func _flat_normal_cell(albedo: Image) -> Image:
+	var image := Image.create(CELL.x, CELL.y, false, Image.FORMAT_RGBA8)
+	for y in CELL.y:
+		for x in CELL.x:
+			if albedo.get_pixel(x, y).a > 0.5:
+				image.set_pixel(x, y, FLAT_NORMAL)
 	return image
 
 
@@ -299,11 +334,26 @@ static func material(band_share: float, shader: Shader = SHADER) -> ShaderMateri
 	result.shader = shader
 	result.set_shader_parameter(&"band_share", band_share)
 	result.set_shader_parameter(&"atlas", _atlas)
+	result.set_shader_parameter(&"normal_atlas", _normal_atlas)
+	result.set_shader_parameter(&"bake_elevation", deg_to_rad(ELEVATION))
+	var values := LookPreset.vegetation()
+	result.set_shader_parameter(&"exposure", values["impostor_albedo"])
+	result.set_shader_parameter(&"slope_share", values["impostor_slope_share"])
 	result.set_shader_parameter(&"rows", float(SPECIES.size() * TreeMeshes.VARIANTS))
 	result.set_shader_parameter(&"views", float(VIEWS))
 	result.set_shader_parameter(&"below_base", BELOW_BASE)
 	result.set_shader_parameter(&"vertical_span", VERTICAL_SPAN)
 	return result
+
+
+## The unlit albedo atlas (prime() first).
+static func atlas() -> ImageTexture:
+	return _atlas
+
+
+## The encoded view-space normal atlas, same layout as atlas() (prime() first).
+static func normal_atlas() -> ImageTexture:
+	return _normal_atlas
 
 
 ## [atlas row, quad width per unit of crown width] of a species' variant (prime() first).
@@ -316,7 +366,7 @@ static func leaf_color(species: StringName) -> Color:
 	return _leaf[species]
 
 
-## Mean sRGB colour of a species' baked picture (prime() first).
+## Mean sRGB colour of a species' unlit baked albedo (prime() first).
 static func base_color(species: StringName) -> Color:
 	return _mean[species]
 

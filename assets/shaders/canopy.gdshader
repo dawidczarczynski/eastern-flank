@@ -21,12 +21,19 @@ uniform float crown_cell = 0.34;
 // Camera distance (from, to; world units) over which the shell fades in crown by crown; the
 // default keeps it always on (the backdrop).
 uniform vec2 near_fade = vec2(-2.0, -1.0);
-// Albedo factor (the real-scale shell matches the darker tree impostors with it).
+// Albedo factor (the real-scale shell meets the tree impostors' tone with it).
 uniform float brightness = 1.0;
 // 1: the crowns are lit as domes (a normal from the dome's slope, so the sun picks out single
 // crowns) and the species mix by stands rather than crown by crown – the real-scale forest shell,
-// which is seen from low cameras. 0: the flat painted look of the backdrop.
+// which is seen from low cameras. 0: the flat painted look of the backdrop. The real-scale shell's
+// colours are the impostors' unlit albedo (TASK-191) and the domes stand on the ground's normal
+// turned by `slope_share` (as the impostors' pictures), so the same sun lights both.
 uniform float lit_domes = 0.0;
+uniform float slope_share = 1.0;
+// The real-scale shell: how far the crowns' normals lean towards the camera (0..1). The visible
+// half of a crown faces the viewer, so the impostors' baked normals do (sunlit crowns with the sun
+// behind the camera, shaded ones against it); the shell leans the same way to meet them.
+uniform float view_share = 0.0;
 // The real-scale shell (ForestField coverage mask): where `coverage` is dark – tree impostors not
 // built yet there – the shell ignores `near_fade` and stands in for them.
 uniform float use_coverage = 0.0;
@@ -37,6 +44,7 @@ uniform vec2 coverage_extent = vec2(1.0);
 varying vec2 world_xz;
 varying vec3 world_position;
 varying float cover;
+varying vec3 surface_normal;
 
 vec2 hash22(vec2 p) {
 	vec3 q = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -48,6 +56,7 @@ void vertex() {
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_xz = world_position.xz;
 	cover = COLOR.r;
+	surface_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	NORMAL = normalize(vec3(0.0, 1.0, 0.0) + NORMAL * 0.4);
 }
 
@@ -113,7 +122,10 @@ void fragment() {
 		color = mix(mean_color, mix(stand_color, color, 0.35), 0.7);
 		float slope = clamp(best / 0.8, 0.0, 1.0);
 		vec2 outward = (p - best_centre) / max(best, 0.001);
-		vec3 n_world = normalize(vec3(outward.x * slope * 1.3, 1.0, outward.y * slope * 1.3));
+		vec3 ground_n = normalize(mix(vec3(0.0, 1.0, 0.0), surface_normal, slope_share));
+		vec3 to_camera = normalize(CAMERA_POSITION_WORLD - world_position);
+		ground_n = normalize(mix(ground_n, to_camera, view_share));
+		vec3 n_world = normalize(ground_n + vec3(outward.x, 0.0, outward.y) * slope * 1.3);
 		NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
 	}
 	// Dome shading: bright crown top, dark gaps between crowns.

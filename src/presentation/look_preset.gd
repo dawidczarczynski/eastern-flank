@@ -110,7 +110,12 @@ const FIELDS_DEFAULT := {
 ##   meadow; other terrain by GrassPlanner's density ratio) within this range of the camera.
 ## - shell_fade: the canopy shell fades in over (from, to) x the reference impostor range;
 ##   shell_height_share: shell lift as a share of the mean tree height; shell_crown_m: crown
-##   pattern cell of the shell; shell_brightness: its albedo factor (to meet the impostors' tone).
+##   pattern cell of the shell; shell_brightness: its albedo factor (to meet the impostors' tone);
+##   shell_view_share: how far its crown normals lean towards the camera (as the visible half of
+##   an impostor's crown does, TASK-191).
+## - impostor_albedo: albedo factor of the lit impostors against the full trees (TASK-191; a full
+##   crown shades its own inner leaves, the picture does not); impostor_slope_share: how far the
+##   impostors' and the shell's normals turn with the ground's slope (0 upright .. 1 the slope).
 const VEGETATION_DEFAULT := {
 	"forest_trees_per_ha": 370.0,
 	"forest_clearing_m": 15.0,
@@ -133,7 +138,10 @@ const VEGETATION_DEFAULT := {
 	"shell_fade": Vector2(0.72, 0.95),
 	"shell_height_share": 0.8,
 	"shell_crown_m": 9.0,
-	"shell_brightness": 2.7,
+	"shell_brightness": 1.55,
+	"shell_view_share": 0.55,
+	"impostor_albedo": 1.08,
+	"impostor_slope_share": 0.6,
 }
 
 ## Leaf colours under the `true` VisualScale preset, for every look (TASK-135 playtest): at real

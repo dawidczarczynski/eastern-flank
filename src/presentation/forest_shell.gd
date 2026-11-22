@@ -7,8 +7,9 @@ extends RefCounted
 ## zoomed-out forest reads as a closed canopy at the cost of a few triangles per cell.
 ## The mesh is a regular grid of STEP cells over the map: a vertex's cover is 1 on a forest tile
 ## and 0 elsewhere (the shader drops crowns where the interpolated cover is low, so the edges are
-## ragged), its height the drawn ground plus `lift` x cover. Only cells touching the forest are
-## emitted.
+## ragged), its height the drawn ground plus `lift` x cover, its normal the drawn ground's
+## (TASK-191: the dome normals of the crowns stand on it, so a slope facing away from the sun is
+## darker). Only cells touching the forest are emitted.
 
 const STEP := 0.125
 const NODE := "ForestShell"
@@ -38,7 +39,7 @@ static func build_mesh(
 	if not any:
 		return null
 	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
+	var ground := PackedVector3Array()
 	var colors := PackedColorArray()
 	var indices := PackedInt32Array()
 	var index_of: Dictionary = {}
@@ -58,12 +59,14 @@ static func build_mesh(
 					var x := rect.position.x + (k % row) * STEP
 					var z := rect.position.y + floori(float(k) / row) * STEP
 					var c := float(cover[k])
+					var h: float = height_fn.call(x, z)
 					index_of[k] = vertices.size()
-					vertices.append(Vector3(x, height_fn.call(x, z) + lift * c, z))
-					normals.append(Vector3.UP)
+					vertices.append(Vector3(x, h + lift * c, z))
+					ground.append(Vector3(x, h, z))
 					colors.append(Color(c, 0.0, 0.0, 1.0))
 				ids.append(index_of[k])
 			indices.append_array([ids[0], ids[1], ids[2], ids[1], ids[3], ids[2]])
+	var normals := ground_normals(ground, indices)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = vertices
@@ -73,6 +76,25 @@ static func build_mesh(
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+
+## Vertex normals of the ground under the shell (the lift is left out: it would tilt the forest
+## edges): area-weighted face normals of `indices` over `ground`, upwards.
+static func ground_normals(
+	ground: PackedVector3Array, indices: PackedInt32Array
+) -> PackedVector3Array:
+	var sums := PackedVector3Array()
+	sums.resize(ground.size())
+	for t in range(0, indices.size(), 3):
+		var a := ground[indices[t]]
+		var face := (ground[indices[t + 2]] - a).cross(ground[indices[t + 1]] - a)
+		if face.y < 0.0:
+			face = -face
+		for k in 3:
+			sums[indices[t + k]] += face
+	for i in sums.size():
+		sums[i] = sums[i].normalized() if sums[i].length_squared() > 0.0 else Vector3.UP
+	return sums
 
 
 ## The shell node for the active look: canopy material in the species colours, the crown cell and
@@ -91,7 +113,10 @@ static func build(
 	material.set_shader_parameter(&"crown_cell", MapScale.to_units(values["shell_crown_m"]))
 	material.set_shader_parameter(&"brightness", values["shell_brightness"])
 	material.set_shader_parameter(&"lit_domes", 1.0)
-	# The species colours of the impostors (the shader's colour uniforms are sRGB).
+	material.set_shader_parameter(&"slope_share", values["impostor_slope_share"])
+	material.set_shader_parameter(&"view_share", values["shell_view_share"])
+	# The species colours of the impostors' unlit albedo (the shader's colour uniforms are sRGB);
+	# the sun and ambient light the shell as they light the impostors.
 	TreeImpostors.prime()
 	for species in BackdropCanopy.SPECIES:
 		material.set_shader_parameter(

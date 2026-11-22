@@ -35,6 +35,10 @@ uniform vec2 lod_out = vec2(1.0e8, 1.0e9);
 // Real-scale forest (TASK-135, ForestField): the full-tree budget's reach – no tree is drawn by
 // this LOD from that camera distance on (the impostors take the same cap as their lod_in).
 uniform float lod_cap = 1.0e9;
+#ifdef IMPOSTOR_BAKE
+// The bake pass: false the unlit albedo, true the encoded view-space normal.
+uniform bool bake_normal = false;
+#endif
 
 varying vec3 tint;
 varying float ao;
@@ -127,5 +131,19 @@ void fragment() {
 		ALPHA_SCISSOR_THRESHOLD = 0.5;
 		ROUGHNESS = 0.95;
 	}
+#ifdef IMPOSTOR_BAKE
+	// The impostor bake (TASK-191, foliage_bake.gdshader, unshaded, linear tone mapping): the
+	// render target stores linear_to_srgb(ALBEDO), so the albedo pass writes the albedo as it is
+	// and the normal pass writes the view-space normal encoded 0..1, pre-linearised so the 8-bit
+	// target holds the encoding itself (the impostor samples it as plain data).
+	if (bake_normal) {
+		vec3 encoded = clamp(normalize(NORMAL) * 0.5 + 0.5, 0.0, 1.0);
+		ALBEDO = mix(
+			pow((encoded + 0.055) / 1.055, vec3(2.4)),
+			encoded / 12.92,
+			lessThan(encoded, vec3(0.04045))
+		);
+	}
+#endif
 #endif
 }
