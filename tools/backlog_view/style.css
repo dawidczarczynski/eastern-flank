@@ -96,6 +96,22 @@ td.layers { color: var(--text-3); font-size: 12.5px; max-width: 240px; }
 .card-title { font-size: 13.5px; line-height: 1.4; }
 .card .chips-cell .label { font-size: 11px; color: var(--text-3); margin-right: 2px; align-self: center; }
 
+/* ---- order: the recommended order as swimlanes */
+.order-view { padding-top: 16px; display: flex; flex-direction: column; gap: 18px; }
+.plan { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.plan-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-weight: 600; }
+.plan-head .n { margin-left: auto; font: 500 12px var(--mono); color: var(--text-3); white-space: nowrap; }
+.swim { display: flex; border-top: 1px solid var(--line); }
+.swim-label { flex: 0 0 150px; padding: 12px 14px; font-weight: 600; font-size: 13px; color: var(--text-2); background: var(--surface-2); border-right: 1px solid var(--line); text-transform: capitalize; }
+.swim-n { display: inline-block; min-width: 20px; margin-right: 6px; font: 600 12px var(--mono); color: var(--accent); }
+.swim-items { flex: 1; display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; padding: 10px 12px; min-width: 0; }
+.swim-items .card { flex: 0 0 250px; border-top: 3px solid var(--c); }
+.swim-items .card.finished { opacity: .55; }
+.swim-items .card.missing { opacity: .6; }
+.swim-items .sep { align-self: center; font: 600 16px var(--mono); color: var(--text-3); }
+.swim-items .sep.parallel { color: var(--accent); }
+.plan-note { font-size: 12px; color: var(--text-3); line-height: 1.4; }
+
 /* ---- tree: one lane per topic, cards placed by app.js (layoutTopic), links as SVG curves */
 .tree-view { padding: 16px 0 0; display: flex; flex-direction: column; gap: 14px; }
 .topic { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); width: max-content; min-width: 100%; box-sizing: border-box; }

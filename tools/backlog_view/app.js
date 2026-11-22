@@ -9,7 +9,7 @@ const state = Object.assign(
   { sort: "order", desc: false, statuses: OPEN.slice(), query: "", model: "", tag: "", view: "table", folded: [] },
   JSON.parse(localStorage.getItem(STORE) || "{}")
 );
-const VIEWS = ["table", "board", "tree"];
+const VIEWS = ["table", "board", "order", "tree"];
 const urlParams = new URLSearchParams(location.search);
 const urlView = urlParams.get("view"); // ?view=board / ?view=table / ?view=tree
 if (VIEWS.includes(urlView)) state.view = urlView;
@@ -284,6 +284,36 @@ function renderBoard(rows) {
   }).join("");
 }
 
+// Order: the recommended order from the notes (`Recommended order of the open `tag` tasks`) as swimlanes –
+// one lane per numbered step, its tasks left to right (→ one after another, ‖ in parallel). Shows every task
+// of the plan whatever the status filter says; done ones are dimmed. Without a tag filter, every plan.
+function renderOrder() {
+  const names = Object.keys(data.plans || {}).filter((n) => !state.tag || n === state.tag);
+  if (!names.length) {
+    $("#order").innerHTML = '<div class="empty">No recommended order for ' + (state.tag ? "tag <b>" + esc(state.tag) + "</b>" : "any tag") +
+      " – add a <code>Recommended order of the open `tag` tasks</code> list to BACKLOG.md notes.</div>";
+    return;
+  }
+  $("#order").innerHTML = names.map((name) => {
+    const plan = data.plans[name];
+    const all = plan.steps.flatMap((s) => s.items.map((i) => byId(i.id)).filter(Boolean));
+    const done = all.filter((r) => r.status === "done" || r.status === "merged").length;
+    return '<section class="plan"><div class="plan-head"><span class="tag">' + esc(name) + "</span><span>" + inline(plan.head) + '</span><span class="n">' + done + " / " + all.length + " done</span></div>" +
+      plan.steps.map((step) => '<div class="swim"><div class="swim-label"><span class="swim-n">' + step.n + "</span>" + esc(step.label) + "</div>" +
+        '<div class="swim-items">' + step.items.map((item, i) => {
+          const row = byId(item.id);
+          const sep = i === 0 ? "" : '<span class="sep ' + item.sep + '" title="' + (item.sep === "then" ? "after the previous" : "in parallel with the previous") + '">' + (item.sep === "then" ? "→" : "‖") + "</span>";
+          if (!row) return sep + '<div class="card missing"><div class="card-top"><span>' + esc(item.id) + "</span></div></div>";
+          const pending = depChips(row, true);
+          const finished = row.status === "done" || row.status === "merged";
+          return sep + '<div class="card ' + cls(row.status) + (finished ? " finished " : " ") + relation(row.id) + '" data-row="' + row.id + '"><div class="card-top"><span>' + row.id + "</span>" + pill(row.status) + "</div>" +
+            '<div class="card-title">' + inline(row.title) + "</div>" +
+            (item.note ? '<div class="plan-note">' + inline(item.note) + "</div>" : "") +
+            (pending ? '<div class="chips-cell"><span class="label">waits for</span>' + pending + "</div>" : "") + "</div>";
+        }).join("") + "</div></div>").join("") + "</section>";
+  }).join("");
+}
+
 // Tree: one lane per topic, a left-to-right diagram in it – each task right of the dependency it builds on,
 // joined by curves; other dependencies in the topic as dashed curves. A task that does not match the filters
 // still shows as a small tag while something right of it does, so the branches keep their shape; a run of
@@ -442,8 +472,10 @@ function renderBody() {
   $("#table").hidden = state.view !== "table" || !rows.length;
   $("#board").hidden = state.view !== "board";
   $("#tree").hidden = state.view !== "tree" || !rows.length;
-  $("#nothing").hidden = rows.length > 0;
-  if (state.view === "board") renderBoard(rows);
+  $("#order").hidden = state.view !== "order";
+  $("#nothing").hidden = rows.length > 0 || state.view === "order";
+  if (state.view === "order") renderOrder();
+  else if (state.view === "board") renderBoard(rows);
   else if (state.view === "tree") renderTree(rows);
   else renderTable(rows);
   const filtered = data.rows.filter((r) => matches(r, true)).length;
@@ -671,8 +703,8 @@ document.addEventListener("keydown", (ev) => {
   const typing = ev.target.closest("input, select, textarea");
   if (ev.key === "/" && !typing) { ev.preventDefault(); $("#search").focus(); }
   else if (ev.key === "Escape") { if (typing) ev.target.blur(); else closeTask(); }
-  else if (!typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey && ["b", "t", "r"].includes(ev.key)) {
-    state.view = { b: "board", t: "table", r: "tree" }[ev.key];
+  else if (!typing && !ev.ctrlKey && !ev.metaKey && !ev.altKey && ["b", "t", "r", "o"].includes(ev.key)) {
+    state.view = { b: "board", t: "table", r: "tree", o: "order" }[ev.key];
     save();
     renderHeader();
     renderBody();

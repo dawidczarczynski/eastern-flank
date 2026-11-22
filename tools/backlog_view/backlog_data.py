@@ -71,6 +71,58 @@ def tag_lines(notes: str) -> Dict[str, Dict[str, Any]]:
     return tags
 
 
+PLAN_HEAD = re.compile(r"^Recommended order of the open `([\w-]+)` tasks\b([^\n]*)$")
+PLAN_STEP = re.compile(r"^(\d+)\. (.+)$")
+PLAN_ITEM = re.compile(r"^(\d{3}[a-z]?)\b\s*(.*)$", re.DOTALL)
+
+
+def _split_top(text: str) -> List[tuple]:
+    """Split at `→` (then) and `‖` (parallel) outside parentheses: [(separator before, segment)]."""
+    parts: List[tuple] = []
+    depth, sep, start = 0, "start", 0
+    for i, ch in enumerate(text):
+        depth += ch == "("
+        depth -= ch == ")"
+        if depth == 0 and ch in "→‖":
+            parts.append((sep, text[start:i].strip()))
+            sep, start = ("then" if ch == "→" else "parallel"), i + 1
+    parts.append((sep, text[start:].strip()))
+    return parts
+
+
+def order_plans(notes: str) -> Dict[str, Dict[str, Any]]:
+    """The recommended orders the notes give: `Recommended order of the open `tag` tasks (…):` followed by
+    numbered lines `1. label: 190 (note) → 189 ‖ 199`. Each numbered line is one lane (step); its items keep
+    the separator before them (start / then / parallel). Tag name → {"head", "steps"}."""
+    plans: Dict[str, Dict[str, Any]] = {}
+    current: Optional[Dict[str, Any]] = None
+    for line in notes.splitlines():
+        head = PLAN_HEAD.match(line)
+        if head:
+            current = plans.setdefault(head.group(1), {"head": line.strip(), "steps": []})
+            continue
+        step = PLAN_STEP.match(line)
+        if not (current and step):
+            current = None
+            continue
+        body = step.group(2).rstrip(".; ")
+        depth, colon = 0, -1
+        for i, ch in enumerate(body):
+            depth += ch == "("
+            depth -= ch == ")"
+            if depth == 0 and ch == ":":
+                colon = i
+                break
+        label, rest = (body[:colon].strip(), body[colon + 1 :]) if colon >= 0 else ("", body)
+        items = []
+        for sep, segment in _split_top(rest):
+            item = PLAN_ITEM.match(segment)
+            if item:
+                items.append({"id": "TASK-" + item.group(1), "sep": sep, "note": item.group(2).strip().strip("()")})
+        current["steps"].append({"n": int(step.group(1)), "label": label, "items": items})
+    return plans
+
+
 def topic_sections(notes: str) -> List[Dict[str, Any]]:
     """The topics the notes below the table open: name, task ID range and the paragraphs' text."""
     sections: List[Dict[str, Any]] = []
@@ -257,6 +309,7 @@ def load(tasks_dir: Optional[Path] = None, limits_file: Optional[Path] = None) -
         "intro": intro,
         "notes": notes,
         "statuses": STATUS_ORDER,
+        "plans": order_plans(notes),
         "tags": {name: tag["description"] for name, tag in sorted(tags.items())},
         "icons": backlog.STATUS_ICONS,
         "tree": build_tree(rows, topic_of, topic_order),

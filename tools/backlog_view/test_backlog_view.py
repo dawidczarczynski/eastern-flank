@@ -168,6 +168,29 @@ class BacklogDataTest(unittest.TestCase):
         self.assertEqual(sorted(listed), sorted(r["id"] for r in data["rows"]))
         self.assertTrue(all(r["topic"] for r in data["rows"]))
 
+    def test_order_plans_from_notes(self) -> None:
+        notes = (
+            "Recommended order of the open `look` tasks (2026-11-21):\n"
+            "1. finish: 190 (playtest) -> x\n"
+            "2. open country: 192 (colour; needs 190) → 200 ‖ 199 (a: b)\n"
+            "\nOther paragraph.\n"
+        )
+        plans = backlog_data.order_plans(notes)
+        self.assertEqual(list(plans), ["look"])
+        steps = plans["look"]["steps"]
+        self.assertEqual([s["label"] for s in steps], ["finish", "open country"])
+        self.assertEqual([(i["id"], i["sep"]) for i in steps[1]["items"]],
+                         [("TASK-192", "start"), ("TASK-200", "then"), ("TASK-199", "parallel")])
+        self.assertEqual(steps[1]["items"][0]["note"], "colour; needs 190")
+
+    def test_real_backlog_has_battle_look_plan(self) -> None:
+        plan = backlog_data.load()["plans"].get("battle-look")
+        self.assertTrue(plan and len(plan["steps"]) >= 5)
+        ids = {r["id"] for r in backlog_data.load()["rows"]}
+        for step in plan["steps"]:
+            for item in step["items"]:
+                self.assertIn(item["id"], ids)
+
     def test_real_backlog_parses(self) -> None:
         data = backlog_data.load()
         self.assertGreater(len(data["rows"]), 0)
