@@ -29,7 +29,7 @@ None (look only).
 
 ## Out of scope
 
-- Terrain colour (TASK-192), impostor lighting (TASK-191), loading (TASK-189).
+- Terrain colour (TASK-192a/b), impostor lighting (TASK-191), loading (TASK-189).
 
 ## Implementation notes
 

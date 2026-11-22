@@ -2,7 +2,7 @@
 
 - **Status**: idea
 - **Layers**: presentation (`BackdropMesh`, `BackdropTypes`, `BackdropCanopy`, `ForestShell`, `MapView`, camera clamp), data (`TacticalLayer` read beyond the playable rect)
-- **Depends on**: TASK-135, TASK-108g, TASK-190 (soft: TASK-192, TASK-189)
+- **Depends on**: TASK-135, TASK-108g, TASK-190 (soft: TASK-192b, TASK-189)
 - **Sections**: ARCHITECTURE "Real-scale vegetation", "Chunked lazy world"; ADR 0026; TASK-052 (backdrop ring); look reference (TASK-190)
 - **Model**: opus (data beyond the playable rect, LOD of a large ring, seams)
 - **Tags**: battle-look
@@ -15,7 +15,7 @@ The end of the playable map does not show: the landscape continues past it as re
 
 - [ ] The backdrop ring (`BACKDROP_WIDTH` 14 units ≈ 2 km) takes its ground heights and land cover from the real data around the playable map (the theatre `TacticalLayer` / DEM beyond the rect, via TASK-108g's `LandCover`), not from copies of the border hex types (`BackdropTypes`); where no data exists (outside the layer) it falls back to the border copy with the same fade.
 - [ ] Forest over the ring has the same look as on the map: the canopy shell (lit crowns, atlas colours, tone matched; `ForestShell` / `canopy.gdshader`) over the ring's forest cover, with tree impostors in the inner part of the ring (their range is the impostor range) – no step in density, colour or brightness at the map border (screenshot crop comparison, ≤ 10 % mean-luminance difference across the border).
-- [ ] Ground colour and detail continue across the border: the ground splat / satellite colour (TASK-192 when present) covers the ring; the ring's value / saturation factors (`BACKDROP_VALUE` / `BACKDROP_SATURATION`) are retuned so the border is not visible at distances 5, 12 and 24.
+- [ ] Ground colour and detail continue across the border: the ground splat / satellite colour (TASK-192b when present) covers the ring; the ring's value / saturation factors (`BACKDROP_VALUE` / `BACKDROP_SATURATION`) are retuned so the border is not visible at distances 5, 12 and 24.
 - [ ] The hex-shaped cut of forest, bare ground and villages at the border is gone (follows from the land-cover raster); the hex overlay may end at the border, the landscape may not.
 - [ ] The ring's outer edge ends in haze (TASK-190's aerial perspective) and sky: no visible rim, seam or hard cut at any camera height and yaw on the Suwałki map; the horizon band is checked at the camera's lowest pitch.
 - [ ] The camera target stays inside the playable rect (clamp with a soft stop); the camera at its widest zoom over a corner shows no void.

@@ -119,6 +119,9 @@ from operator import itemgetter
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import import_map_colour as colour  # noqa: E402
+
 DEFAULT_CACHE = Path(os.path.expanduser("~/.cache/eastern-flank/maps"))
 DEM_URL = "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif"
 DEM_URLS = {"glo30": DEM_URL, "glo90": "https://copernicus-dem-90m.s3.amazonaws.com/{name}/{name}.tif"}
@@ -2108,6 +2111,12 @@ def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, 
             "land_cover_origin_easting = %s" % _f(result["cover_min_e"], 3),
             "land_cover_origin_northing = %s" % _f(top_n, 3),
         ]
+    raster = result.get("colour")
+    colour_columns: List[Tuple[int, int]] = []
+    colour_rows: List[Tuple[int, int]] = []
+    if raster:
+        lines[-1:-1] = colour_fields(raster)
+        colour_columns, colour_rows = colour_windows(layout, raster)
     index = out_dir / "layer.tres"
     with open(index, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
@@ -2141,6 +2150,17 @@ def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, 
                     "cover_width = %d" % (i1 - i0),
                     "cover_height = %d" % (j1 - j0),
                     'cover = PackedByteArray("%s")' % base64.b64encode(cells).decode("ascii"),
+                ]
+            if raster:
+                (i0, w_px), (j0, h_px) = colour_columns[cx // LAYER_CHUNK], colour_rows[cy // LAYER_CHUNK]
+                jpg = colour.jpeg_rgb(w_px, h_px, colour.interleave(raster["planes"], raster["width"], i0, j0, w_px,
+                                                                    h_px), raster.get("quality", colour.COLOUR_QUALITY))  # fmt: skip
+                chunk[-1:-1] = [
+                    "colour_column = %d" % i0,
+                    "colour_row = %d" % j0,
+                    "colour_width = %d" % w_px,
+                    "colour_height = %d" % h_px,
+                    'colour_jpg = PackedByteArray("%s")' % base64.b64encode(jpg).decode("ascii"),
                 ]
             path = out_dir / ("chunk_%d_%d.tres" % (cx // LAYER_CHUNK, cy // LAYER_CHUNK))
             with open(path, "w", encoding="utf-8", newline="\n") as out:
@@ -2243,6 +2263,11 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
             'land_cover = PackedByteArray("%s")' % base64.b64encode(zlib.compress(land_cover["cells"], 9)).decode(
                 "ascii"),
         ]  # fmt: skip
+    colour = result.get("colour")
+    if colour:
+        at = lines.index("sources = %s" % _string(sources)) + 1
+        lines[at:at] = colour_fields(colour) + [
+            'colour_jpg = PackedByteArray("%s")' % base64.b64encode(colour["jpg"]).decode("ascii")]
     layers = result.get("layers")
     if layers:
         at = lines.index("sources = %s" % _string(sources)) + 1
@@ -2263,6 +2288,70 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Satellite colour layer (TASK-192a, ADR 0031; tools/import_map_colour.py).
+
+
+def colour_attribution(years: Sequence[str]) -> str:
+    return ("Imagery: Contains modified Copernicus Sentinel data %s (Sentinel-2 L2A, ESA / European Union, "
+            "Copernicus Sentinel data terms), from the Sentinel-2 Cloud-Optimized GeoTIFFs on AWS "
+            "(registry.opendata.aws/sentinel-2-l2a-cogs)") % " & ".join(years)  # fmt: skip
+
+
+def colour_raster(layout: HexLayout, zone: int, cell: float, scenes: List[dict], root: Path, offline: bool) -> dict:
+    """The colour composite over the map's hexes (`layout.bounds()`): ceil(extent / cell) pixels each way, pixel
+    (0, 0) with its north-west corner on the bounds' north-west corner."""
+    min_e, min_n, max_e, max_n = layout.bounds()
+    width = max(1, int(math.ceil((max_e - min_e) / cell - 1e-9)))
+    height = max(1, int(math.ceil((max_n - min_n) / cell - 1e-9)))
+    planes, used = colour.composite(width, height, cell, min_e, max_n, zone, scenes, root, offline, from_utm, to_utm)
+    by_id = {s["id"]: s for s in scenes}
+    years = sorted({by_id[i]["datetime"][:4] for i in used})
+    return {"width": width, "height": height, "cell_m": cell, "west_e": min_e, "north_n": max_n,
+            "planes": planes, "scenes": used, "sources": colour_attribution(years) + "; scenes " + ", ".join(used)}  # fmt: skip
+
+
+def colour_fields(raster: dict) -> List[str]:
+    """The geometry lines of a colour layer (ImportedMap / TacticalLayer): pixel (0, 0)'s centre."""
+    c = raster["cell_m"]
+    return [
+        "colour_cell_m = %s" % _f(c, 1),
+        "colour_width = %d" % raster["width"],
+        "colour_height = %d" % raster["height"],
+        "colour_origin_easting = %s" % _f(raster["west_e"] + c / 2.0, 3),
+        "colour_origin_northing = %s" % _f(raster["north_n"] - c / 2.0, 3),
+        "colour_sources = %s" % _string(raster["sources"]),
+    ]
+
+
+def colour_windows(layout: HexLayout, raster: dict) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]]]:
+    """(first, count) of the colour pixels of every chunk column / row of the tactical layer: chunk column cx
+    starts at the pixel holding the west edge of hex column cx * LAYER_CHUNK, chunk row cy at the pixel holding
+    the line halfway between hex rows cy * LAYER_CHUNK - 1 and cy * LAYER_CHUNK (as `cover_windows`); each window
+    also holds the first pixel column / row of the next one, so a bilinear sample never needs two windows."""
+    c = raster["cell_m"]
+    m = layout.metres_per_unit
+    columns, rows = [0], [0]
+    for col in range(LAYER_CHUNK, layout.width, LAYER_CHUNK):
+        edge = layout.origin_e + (col - 0.5) * layout.spacing
+        columns.append(min(raster["width"] - 1, max(0, int(math.floor((edge - raster["west_e"]) / c)))))
+    for row in range(LAYER_CHUNK, layout.height, LAYER_CHUNK):
+        edge = layout.origin_n - (1.5 * row - 0.75) * m
+        rows.append(min(raster["height"] - 1, max(0, int(math.floor((raster["north_n"] - edge) / c)))))
+    return colour.windows(columns, raster["width"]), colour.windows(rows, raster["height"])
+
+
+def colour_scenes(args: argparse.Namespace, cache: Path, bbox: Tuple[float, float, float, float],
+                  zone: int) -> Tuple[Path, List[dict]]:  # fmt: skip
+    """(band root, scenes) from `--s2-manifest` or the cache's manifest of the map's bbox (lon / lat order)."""
+    if args.s2_manifest:
+        path = Path(args.s2_manifest)
+        return path.parent, json.loads(path.read_text(encoding="utf-8"))["scenes"]
+    west, south, east, north = (round(v, 5) for v in bbox)
+    path, scenes = colour.scene_manifest(cache, south, west, north, east, zone, args.offline)
+    return path.parent, scenes
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2519,8 +2608,17 @@ def run(argv: Sequence[str]) -> Path:
     parser.add_argument("--cover-cell", type=float,
                         help="metres of a land-cover raster cell (tactical / layer, TASK-108g; default %.0f, "
                              "0 = no raster)" % COVER_CELL_M)  # fmt: skip
+    parser.add_argument("--colour", action="store_true",
+                        help="add the Sentinel-2 colour layer (tactical / layer, TASK-192a, ADR 0031)")
+    parser.add_argument("--colour-cell", type=float,
+                        help="metres of a colour pixel (default %.0f tactical, %.0f layer)" % (
+                            colour.COLOUR_CELL_TACTICAL_M, colour.COLOUR_CELL_LAYER_M))  # fmt: skip
+    parser.add_argument("--colour-quality", type=int, default=colour.COLOUR_QUALITY, help="JPEG quality (1-100)")
+    parser.add_argument("--s2-manifest", help="Sentinel-2 scene manifest instead of the cache (band files next to it)")
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
+    if args.colour and profile is OPERATIONAL:
+        parser.error("--colour needs --profile=tactical or layer")
     try:
         countries = parse_countries(args.countries)
     except ValueError as error:
@@ -2597,8 +2695,15 @@ def run(argv: Sequence[str]) -> Path:
                         relief_z=args.relief_z, relief_step=args.relief_step, cover_m=args.cover_cell)  # fmt: skip
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
+    colour_input = None
+    if args.colour:
+        colour_input = colour_scenes(args, cache, map_bbox, zone)
+    colour_cell = args.colour_cell or (colour.COLOUR_CELL_LAYER_M if profile is LAYER else colour.COLOUR_CELL_TACTICAL_M)
     if profile is LAYER:
         layer = build_layer(layout, zone, Dem(dem_files), osm, settings, landuse_files)
+        if colour_input:
+            layer["colour"] = colour_raster(layout, zone, colour_cell, colour_input[1], colour_input[0], args.offline)
+            layer["colour"]["quality"] = args.colour_quality
         size = write_layer(out, args.name, args.display_name or args.name, layout, zone, layer, map_bbox, settings,
                            sources)  # fmt: skip
         counts = [layer["terrain"].count(code) for code in range(len(LAYER_TERRAIN_CODES))]
@@ -2609,6 +2714,14 @@ def run(argv: Sequence[str]) -> Path:
                   layer["sea_points"], downloaded - started, time.time() - downloaded))  # fmt: skip
         return out
     result = build_map(layout, zone, Dem(dem_files), osm, settings, border_files, place_files)
+    if colour_input:
+        raster = colour_raster(layout, zone, colour_cell, colour_input[1], colour_input[0], args.offline)
+        raster["jpg"] = colour.jpeg_rgb(raster["width"], raster["height"],
+                                        colour.interleave(raster["planes"], raster["width"], 0, 0, raster["width"],
+                                                          raster["height"]), args.colour_quality)  # fmt: skip
+        result["colour"] = raster
+        print("Colour layer: %dx%d px of %.0f m from %s; %.2f MB" % (raster["width"], raster["height"], colour_cell,
+              ", ".join(raster["scenes"]), len(raster["jpg"]) / 1e6))  # fmt: skip
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():

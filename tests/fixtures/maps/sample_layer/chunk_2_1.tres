@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TacticalChunk" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/tactical_chunk.gd" id="1_chunk"]
+
+[resource]
+script = ExtResource("1_chunk")
+column = 32
+row = 16
+width = 4
+height = 12
+data = PackedByteArray("eNpjZWVlwAeY0QCyHCcQMFAZPHry7PnT5y9fv3j15t3b9x8/f/j05dvX7z9///j159+ffwxM/xmZWVnYOLjYObl5efgEhFjwAlZWIEIBAK9mHvA=")
+cover_column = 500
+cover_row = 219
+cover_width = 71
+cover_height = 165
+cover = PackedByteArray("eNrtzMEJADAIBDDhoPuP3AX00VdBkgGSPKpWPjXR7GoKAAAAAAAANjgAAAAAowsGOGbQ")
+colour_column = 200
+colour_row = 87
+colour_width = 29
+colour_height = 67
+colour_jpg = PackedByteArray("/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx4BBQUFBwYHDggIDh4UERQeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHv/AABEIAEMAHQMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AKoFLinAUoFfMXPeTG4pcU7FKBU3NEwAoApwFOAqbnOmNxS4pwFGKVzRMMUuKcBSgVNznTG4pcU4ClxSuaJiAUuKcBSgVNzBMbilxTgKXFK5aYlKKSlFIxQopcUlLSZoj//Z")

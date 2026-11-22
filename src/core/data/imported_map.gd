@@ -1,3 +1,4 @@
+# gdlint: disable=max-public-methods
 class_name ImportedMap
 extends Resource
 ## A map imported from real geography by tools/import_map.py (TASK-087, ADR 0018):
@@ -125,6 +126,19 @@ const RELIEF_FLAT := 180
 @export var land_cover_origin_easting: float
 @export var land_cover_origin_northing: float
 @export var land_cover: PackedByteArray
+## Satellite colour layer (TASK-192a, ADR 0031 "Satellite colour layer"): a baseline JPEG of
+## `colour_width` x `colour_height` sRGB pixels of `colour_cell_m` metres (Sentinel-2 L2A, corrected
+## by the importer), row 0 north; the centre of pixel (0, 0) (north-west) is at
+## (`colour_origin_easting`, `colour_origin_northing`). Only the view reads it (`sample`).
+## Empty = none (operational and older maps).
+@export var colour_cell_m: float = 0.0
+@export var colour_width: int
+@export var colour_height: int
+@export var colour_origin_easting: float
+@export var colour_origin_northing: float
+## Attribution and the Sentinel-2 scenes the layer was made from (see data/maps/CREDITS).
+@export var colour_sources: String
+@export var colour_jpg: PackedByteArray
 
 ## Graphic layers for drawing the operational map (TASK-126; GDD "Operational map", map
 ## principle): images of the importer's sample lattice, finer than the hexes and never read by a
@@ -148,6 +162,10 @@ const RELIEF_FLAT := 180
 @export var layer_cover_png: PackedByteArray
 ## 8-bit PNG: hillshade of the DEM (RELIEF_FLAT on flat ground, brighter facing the north-west).
 @export var layer_relief_png: PackedByteArray
+
+## The decoded colour layer (first use decodes it, then it is kept).
+var _colour: ColourRaster
+var _colour_tried := false
 
 
 ## The map data/maps/<map_id>.tres; null when there is none (or the id is not a plain name).
@@ -548,3 +566,33 @@ func projected_to_tile(p_easting: float, p_northing: float) -> Vector2i:
 	var m := metres_per_world_unit()
 	var world := Vector3((p_easting - origin_easting) / m, 0.0, (origin_northing - p_northing) / m)
 	return Hex.from_world(world, TerrainField.HEX_SIZE)
+
+
+## True when the map has a satellite colour layer (TASK-192a).
+func has_colour_layer() -> bool:
+	return (
+		colour_cell_m > 0.0 and colour_width > 0 and colour_height > 0 and not colour_jpg.is_empty()
+	)
+
+
+## The decoded colour layer in the frame of `sample` (metres east / south of tile (0, 0)'s centre);
+## null when there is none or it does not decode.
+func colour_raster() -> ColourRaster:
+	if not _colour_tried:
+		_colour_tried = true
+		if has_colour_layer():
+			var pixel_origin := Vector2(
+				colour_origin_easting - origin_easting, origin_northing - colour_origin_northing
+			)
+			_colour = ColourRaster.from_jpg(
+				colour_jpg, colour_width, colour_height, colour_cell_m, pixel_origin
+			)
+	return _colour
+
+
+## sRGB colour of the ground at `x_m` metres east and `z_m` metres south of tile (0, 0)'s centre
+## (world x and z times metres_per_world_unit), clamped to the layer's edge; transparent black
+## when the map has no colour layer.
+func sample(x_m: float, z_m: float) -> Color:
+	var raster := colour_raster()
+	return raster.sample(x_m, z_m) if raster != null else Color(0.0, 0.0, 0.0, 0.0)

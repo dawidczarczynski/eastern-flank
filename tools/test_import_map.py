@@ -364,18 +364,181 @@ def fixture_country_osm(case: str) -> dict:
     return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
 
 
+# Synthetic Sentinel-2 scenes (TASK-192a): UTM 34N COG-like bands (uint16 B04 / B03 / B02 at 10 m, uint8 SCL at
+# 20 m, tiled, deflate, predictor 2, two 2x overviews), a manifest per test area in tools/import_map_fixtures/s2/.
+S2_FIXTURES = FIXTURES / "s2"
+S2_SAMPLE_MANIFEST = S2_FIXTURES / "manifest_sample.json"
+S2_LAYER_MANIFEST = S2_FIXTURES / "manifest_layer.json"
+SAMPLE_COLOUR_MAP = REPO / "tests" / "fixtures" / "maps" / "sample_colour_map.tres"
+SAMPLE_COLOUR_ARGS = ["--center=54.2,22.9", "--size=6x5", "--hex=250", "--name=sample_colour_map",
+                      "--display-name=Sample with colour (synthetic)", "--colour"]  # fmt: skip
+SAMPLE_LAYER = REPO / "tests" / "fixtures" / "maps" / "sample_layer"
+# Bounds of the sample map (6x5 hexes of 250 m around 54.2 N 22.9 E): 623127.0 .. 624752.0 E, 6006863.6 .. 6008018.3 N.
+S2_SAMPLE_X0, S2_SAMPLE_Y0, S2_SAMPLE_W, S2_SAMPLE_H = 622900.0, 6008300.0, 220, 180
+S2_LAYER_X0, S2_LAYER_Y0, S2_LAYER_W, S2_LAYER_H = 592400.0, 6043400.0, 940, 640
+# DN of the sample scenes (reflectance = DN * 1e-4 - 0.1) and their sRGB after the importer's correction.
+S2_WEST, S2_MIDDLE, S2_EAST, S2_FILL = (1300, 1500, 1200), (1800, 1900, 1500), (2400, 2200, 1900), (1150, 1400, 1100)
+SRGB_MIDDLE, SRGB_FILL, SRGB_EAST = (126, 133, 101), (56, 91, 45), (163, 152, 133)
+
+
+def write_utm_cog(path: Path, rows: list, x0: float, y0: float, res: float, bits: int, levels: int = 3,
+                  tile: int = 64, average: bool = True, epsg: int = 32634) -> None:  # fmt: skip
+    """Tiled, deflated, predictor-2 uint8 / uint16 GeoTIFF in UTM (34N by default) (pixel-is-area) with `levels` - 1 overviews
+    (2x2 means, or the top-left pixel for classes), the overviews' data first as in a COG."""
+    images = [rows]
+    for _ in range(levels - 1):
+        prev = images[-1]
+        h, w = len(prev), len(prev[0])
+        nxt = []
+        for j in range(0, h - h % 2 if h > 1 else 1, 2):
+            row = []
+            for i in range(0, w - w % 2 if w > 1 else 1, 2):
+                if average:
+                    row.append((prev[j][i] + prev[j][i + 1] + prev[j + 1][i] + prev[j + 1][i + 1] + 2) // 4)
+                else:
+                    row.append(prev[j][i])
+            nxt.append(row)
+        images.append(nxt)
+    code = "H" if bits == 16 else "B"
+    mask = 0xFFFF if bits == 16 else 0xFF
+    level_blocks = []
+    for img in images:
+        h, w = len(img), len(img[0])
+        blocks = []
+        for bj in range(-(-h // tile)):
+            for bi in range(-(-w // tile)):
+                raw = bytearray()
+                for r in range(tile):
+                    j = bj * tile + r
+                    vals = [img[j][bi * tile + k] if j < h and bi * tile + k < w else 0 for k in range(tile)]
+                    diffs = [vals[0]] + [(vals[k] - vals[k - 1]) & mask for k in range(1, tile)]
+                    raw += struct.pack("<%d%s" % (tile, code), *diffs)
+                blocks.append(zlib.compress(bytes(raw), 9))
+        level_blocks.append(blocks)
+    codes = {3: "H", 4: "I", 12: "d"}
+
+    def entries(k: int) -> list:
+        img = images[k]
+        out = [(254, 4, [1])] if k else []
+        out += [(256, 3, [len(img[0])]), (257, 3, [len(img)]), (258, 3, [bits]), (259, 3, [8]), (262, 3, [1])]
+        out += [(277, 3, [1]), (284, 3, [1]), (317, 3, [2]), (322, 3, [tile]), (323, 3, [tile])]
+        out += [(324, 4, None), (325, 4, [len(b) for b in level_blocks[k]]), (339, 3, [1])]
+        if k == 0:
+            out += [(33550, 12, [res, res, 0.0]), (33922, 12, [0.0, 0.0, 0.0, x0, y0, 0.0])]
+            out += [(34735, 3, [1, 1, 0, 3, 1024, 0, 1, 1, 1025, 0, 1, 1, 3072, 0, 1, epsg])]
+        return out
+
+    all_entries = [entries(k) for k in range(len(images))]
+    # Layout: header, every IFD with its out-of-line values, then the blocks (smallest level first).
+    sizes = []
+    for ents in all_entries:
+        extra = 0
+        for tag, typ, values in ents:
+            n = len(level_blocks[all_entries.index(ents)]) if values is None else len(values)
+            size = struct.calcsize(codes[typ]) * n
+            extra += size if size > 4 else 0
+        sizes.append(2 + 12 * len(ents) + 4 + extra)
+    ifd_at = [8]
+    for size in sizes[:-1]:
+        ifd_at.append(ifd_at[-1] + size)
+    pos = ifd_at[-1] + sizes[-1]
+    offsets = [None] * len(images)
+    for k in reversed(range(len(images))):
+        offsets[k] = []
+        for b in level_blocks[k]:
+            offsets[k].append(pos)
+            pos += len(b)
+    out = bytearray(b"II" + struct.pack("<HI", 42, 8))
+    for k, ents in enumerate(all_entries):
+        ifd = bytearray(struct.pack("<H", len(ents)))
+        extra = bytearray()
+        extra_at = ifd_at[k] + 2 + 12 * len(ents) + 4
+        for tag, typ, values in ents:
+            values = offsets[k] if values is None else values
+            packed = struct.pack("<%d%s" % (len(values), codes[typ]), *values)
+            if len(packed) <= 4:
+                ifd += struct.pack("<HHI", tag, typ, len(values)) + packed.ljust(4, b"\0")
+            else:
+                ifd += struct.pack("<HHII", tag, typ, len(values), extra_at + len(extra))
+                extra += packed
+        ifd += struct.pack("<I", ifd_at[k + 1] if k + 1 < len(images) else 0)
+        out += ifd + extra
+    for k in reversed(range(len(images))):
+        out += b"".join(level_blocks[k])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(bytes(out))
+
+
+def _s2_scene(scene_id: str, x0: float, y0: float, w: int, h: int, colour, scl) -> dict:
+    """Writes the four bands of a synthetic scene: `colour(e, n)` -> (r, g, b) DN, `scl(e, n)` -> class, at the
+    pixel centres; returns its manifest entry."""
+    folder = S2_FIXTURES / scene_id
+    centres = [[(x0 + (i + 0.5) * 10.0, y0 - (j + 0.5) * 10.0) for i in range(w)] for j in range(h)]
+    rgb = [[colour(e, n) for e, n in row] for row in centres]
+    for k, band in enumerate(("B04", "B03", "B02")):
+        write_utm_cog(folder / ("%s_L0.tif" % band), [[px[k] for px in row] for row in rgb], x0, y0, 10.0, 16)
+    classes = [[scl(x0 + (i + 0.5) * 20.0, y0 - (j + 0.5) * 20.0) for i in range(w // 2)] for j in range(h // 2)]
+    write_utm_cog(folder / "SCL_L0.tif", classes, x0, y0, 20.0, 8, average=False)
+    return _s2_entry(scene_id)
+
+
+def _s2_entry(scene_id: str, cloud: float = 0.0) -> dict:
+    bands = {b: "https://example.invalid/%s/%s.tif" % (scene_id, b) for b in ("B04", "B03", "B02", "SCL")}
+    return {"id": scene_id, "datetime": "2024-07-10T09:55:23Z", "tile": "MGRS-34UFE", "epsg": 32634, "cloud": cloud,
+            "nodata": 0.0, "scale": 0.0001, "offset": -0.1, "bands": bands}  # fmt: skip
+
+
+def make_s2_fixtures() -> None:
+    shutil.rmtree(S2_FIXTURES, ignore_errors=True)
+    min_e, min_n, max_e, max_n = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34)).bounds()
+    third = (max_e - min_e) / 3.0
+
+    def colour_a(e: float, n: float) -> tuple:
+        if e < min_e + third:
+            return S2_WEST
+        if e < min_e + 2 * third:
+            return (0, 0, 0) if n < min_n + 150.0 else S2_MIDDLE  # a strip without data in the south
+        return S2_EAST
+
+    def scl_a(e: float, n: float) -> int:
+        if min_e + third <= e < min_e + 2 * third and n < min_n + 150.0:
+            return 0
+        return 9 if e < min_e + 400.0 and n > max_n - 300.0 else 4  # a cloud over the north-west corner
+
+    scenes = [_s2_scene("S2_FIXTURE_A", S2_SAMPLE_X0, S2_SAMPLE_Y0, S2_SAMPLE_W, S2_SAMPLE_H, colour_a, scl_a),
+              _s2_scene("S2_FIXTURE_B", S2_SAMPLE_X0, S2_SAMPLE_Y0, S2_SAMPLE_W, S2_SAMPLE_H, lambda e, n: S2_FILL,
+                        lambda e, n: 4),
+              _s2_entry("S2_FIXTURE_UNUSED", 5.0)]  # fmt: skip (no band files: never needed)
+    S2_SAMPLE_MANIFEST.write_text(json.dumps({"scenes": scenes}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+    def colour_l(e: float, n: float) -> tuple:
+        return (1100 + int(e - S2_LAYER_X0) // 8, 1200 + int(S2_LAYER_Y0 - n) // 8, 1300)
+
+    layer = [_s2_scene("S2_FIXTURE_L", S2_LAYER_X0, S2_LAYER_Y0, S2_LAYER_W, S2_LAYER_H, colour_l, lambda e, n: 4)]
+    S2_LAYER_MANIFEST.write_text(json.dumps({"scenes": layer}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def make_fixtures() -> None:
     FIXTURES.mkdir(parents=True, exist_ok=True)
     rows = [[synthetic_height(DEM_LAT0 - j * DEM_DLAT, DEM_LON0 + i * DEM_DLON) for i in range(DEM_COLS)] for j in range(DEM_ROWS)]
     write_geotiff(DEM_FIXTURE, rows, DEM_LAT0, DEM_LON0, DEM_DLAT, DEM_DLON)
     OSM_FIXTURE.write_text(json.dumps(fixture_osm(), indent=1, sort_keys=True) + "\n", encoding="utf-8")
     import_map.run(SAMPLE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE, "--out=%s" % SAMPLE_MAP])
+    make_s2_fixtures()
+    import_map.run(SAMPLE_COLOUR_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                         "--s2-manifest=%s" % S2_SAMPLE_MANIFEST, "--out=%s" % SAMPLE_COLOUR_MAP])
     op_rows = [[synthetic_op_height(OP_DEM_LAT0 - j * OP_DEM_DLAT, OP_DEM_LON0 + i * OP_DEM_DLON)
                 for i in range(OP_DEM_COLS)] for j in range(OP_DEM_ROWS)]  # fmt: skip
     write_geotiff(OP_DEM_FIXTURE, op_rows, OP_DEM_LAT0, OP_DEM_LON0, OP_DEM_DLAT, OP_DEM_DLON, tile=64)
     shutil.rmtree(OP_CACHE, ignore_errors=True)
     write_op_cache(OP_CACHE, import_map.OSM_TILE_DEG)
     import_map.run(OP_ARGS + ["--offline", "--cache=%s" % OP_CACHE, "--dem=%s" % OP_DEM_FIXTURE, "--out=%s" % SAMPLE_OP_MAP])
+    chunk = import_map.LAYER_CHUNK
+    import_map.LAYER_CHUNK = 16
+    try:
+        import_map.run(ColourLayerTest.ARGS + ["--out=%s" % SAMPLE_LAYER])
+    finally:
+        import_map.LAYER_CHUNK = chunk
     for case in COUNTRY_CASES:
         (FIXTURES / ("country_%s.json" % case)).write_text(json.dumps(fixture_country_osm(case), indent=1, sort_keys=True) + "\n",
                                                            encoding="utf-8")  # fmt: skip
@@ -2128,6 +2291,212 @@ class LandCoverRasterTest(unittest.TestCase):
 
     def test_operational_maps_have_no_raster(self) -> None:
         self.assertNotIn("land_cover", SAMPLE_OP_MAP.read_text(encoding="utf-8"))
+
+
+class ColourTest(unittest.TestCase):
+    """Sentinel-2 colour layer pieces (TASK-192a, ADR 0031)."""
+
+    def test_reflectance_to_srgb(self) -> None:
+        # 2.6 x reflectance, sRGB transfer: 0.08 -> 0.208 -> 126; no data stays 0; bright roofs keep a shoulder
+        lut = import_map.colour.srgb_lut(0.0001, -0.1)
+        self.assertEqual(lut[1800], 126)
+        self.assertEqual(lut[0], 0)
+        self.assertEqual(lut[1000], 0, "zero reflectance is black")
+        self.assertLess(lut[5000], 255, "0.4 reflectance is not clipped")
+        self.assertEqual(sorted(lut[1:20000]), list(lut[1:20000]), "monotonic")
+
+    def test_cog_reader_levels_and_rows(self) -> None:
+        band = import_map.colour.CogBand(S2_FIXTURES / "S2_FIXTURE_L" / "B04_L0.tif")
+        self.assertEqual(band.level_count(), 3)
+        self.assertEqual(band.epsg, 32634)
+        self.assertEqual([band.resolution(k) for k in range(3)], [10.0, 20.0, 40.0])
+        self.assertEqual(band.level_for(40.0), 2)
+        self.assertEqual(band.level_for(10.0), 0)
+        self.assertEqual(band.value(0, 80, 3), 1100 + 805 // 8)
+        self.assertEqual(list(band.row(0, 3, 78, 82)), [1100 + (i * 10 + 5) // 8 for i in range(78, 82)])
+
+    def test_select_scenes_keeps_the_best_per_tile_and_orbit_in_priority_order(self) -> None:
+        def item(scene_id: str, tile: str, cloud: float, nodata: float, epsg: int = 32634, orbit: int = 79) -> dict:
+            assets = {k: {"href": "u/%s/%s" % (scene_id, k), "raster:bands": [{"scale": 0.0001, "offset": -0.1}]}
+                      for k in ("red", "green", "blue", "scl")}  # fmt: skip
+            return {"id": scene_id, "assets": assets, "properties": {"grid:code": tile, "eo:cloud_cover": cloud,
+                    "s2:nodata_pixel_percentage": nodata, "proj:epsg": epsg, "datetime": "2024-07-01",
+                    "s2:product_uri": "S2A_MSIL2A_20240710T095031_N0510_R%03d_%s_X.SAFE" % (orbit, tile)}}  # fmt: skip
+
+        items = [item("a%d" % k, "T1", float(k), 0.0) for k in range(5)] + [item("b", "T2", 0.5, 60.0),
+                 item("c", "T3", 0.0, 0.0, 32635), item("d", "T2", 0.5, 10.0), item("e", "T1", 9.0, 50.0, orbit=36)]  # fmt: skip
+        chosen = [s["id"] for s in import_map.colour.select_scenes(items, 34)]
+        self.assertEqual(chosen, ["a0", "d", "b", "a1", "a2", "e", "c"],
+                         "three per tile and orbit; the map's zone first, then cloud, then no data")  # fmt: skip
+        first = import_map.colour.select_scenes(items, 34)[0]
+        self.assertEqual(first["bands"]["B04"], "u/a0/red")
+        self.assertEqual(first["bands"]["SCL"], "u/a0/scl")
+        self.assertEqual(first["orbit"], 79)
+
+    def test_offline_without_a_manifest_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SystemExit):
+                import_map.colour.scene_manifest(Path(tmp), 54.0, 22.0, 54.1, 22.1, 34, True)
+
+    def test_jpeg_is_deterministic_and_well_formed(self) -> None:
+        rgb = bytes((i * 7 + j) % 256 for j in range(37) for i in range(3 * 21))
+        a = import_map.colour.jpeg_rgb(21, 37, rgb, 85)
+        self.assertEqual(a, import_map.colour.jpeg_rgb(21, 37, rgb, 85))
+        self.assertTrue(a.startswith(b"\xff\xd8\xff\xe0") and a.endswith(b"\xff\xd9"))
+        sof = a.index(b"\xff\xc0")
+        self.assertEqual(struct.unpack(">HH", a[sof + 5 : sof + 9]), (37, 21))
+
+    def test_windows_overlap_by_one_pixel_and_cover_everything(self) -> None:
+        self.assertEqual(import_map.colour.windows([0, 10, 25], 40), [(0, 11), (10, 16), (25, 15)])
+
+
+class ColourMapTest(unittest.TestCase):
+    """The colour layer of a tactical map from the synthetic scenes."""
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _import(self, name: str, *extra: str) -> Path:
+        out = self.dir / name
+        import_map.run(SAMPLE_COLOUR_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                             "--s2-manifest=%s" % S2_SAMPLE_MANIFEST, "--out=%s" % out] + list(extra))  # fmt: skip
+        return out
+
+    def test_byte_identical_and_matches_the_committed_sample(self) -> None:
+        a, b = self._import("a.tres"), self._import("b.tres")
+        self.assertEqual(a.read_bytes(), b.read_bytes())
+        self.assertEqual(a.read_text(encoding="utf-8"), SAMPLE_COLOUR_MAP.read_text(encoding="utf-8"),
+                         "re-run tools/test_import_map.py --make-fixtures")  # fmt: skip
+
+    def test_committed_scene_fixtures_are_current(self) -> None:
+        saved = {p: p.read_bytes() for p in sorted(S2_FIXTURES.rglob("*")) if p.is_file()}
+        make_s2_fixtures()
+        now = {p: p.read_bytes() for p in sorted(S2_FIXTURES.rglob("*")) if p.is_file()}
+        self.assertEqual(saved, now)
+
+    def test_size_and_geometry(self) -> None:
+        fields = dict(line.split(" = ", 1) for line in self._import("g.tres").read_text(encoding="utf-8").splitlines()
+                      if " = " in line)  # fmt: skip
+        min_e, min_n, max_e, max_n = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34)).bounds()
+        self.assertEqual(float(fields["colour_cell_m"]), 10.0)
+        self.assertEqual(int(fields["colour_width"]), math.ceil((max_e - min_e) / 10.0))
+        self.assertEqual(int(fields["colour_height"]), math.ceil((max_n - min_n) / 10.0))
+        self.assertAlmostEqual(float(fields["colour_origin_easting"]), min_e + 5.0, places=2)
+        self.assertAlmostEqual(float(fields["colour_origin_northing"]), max_n - 5.0, places=2)
+        self.assertIn("Contains modified Copernicus Sentinel data 2024", fields["colour_sources"])
+        self.assertIn("S2_FIXTURE_A, S2_FIXTURE_B", fields["colour_sources"])
+        self.assertNotIn("S2_FIXTURE_UNUSED", fields["colour_sources"])
+        jpg = base64.b64decode(fields["colour_jpg"].split('"')[1])
+        self.assertTrue(jpg.startswith(b"\xff\xd8"))
+        self.assertLess(len(jpg), 40000)
+
+    def test_composite_pixels(self) -> None:
+        layout = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34))
+        scenes = json.loads(S2_SAMPLE_MANIFEST.read_text(encoding="utf-8"))["scenes"]
+        raster = import_map.colour_raster(layout, 34, 10.0, scenes, S2_FIXTURES, True)
+        w, h = raster["width"], raster["height"]
+
+        def px(i: int, j: int) -> tuple:
+            return tuple(raster["planes"][k][j * w + i] for k in range(3))
+
+        self.assertEqual(px(w // 2, h // 2), SRGB_MIDDLE, "the known centre pixel after L2A -> sRGB")
+        self.assertEqual(px(0, 0), SRGB_FILL, "under the cloud of scene A: scene B")
+        self.assertEqual(px(w // 2, h - 1), SRGB_FILL, "no data in scene A: scene B")
+        self.assertEqual(px(w - 1, h - 1), SRGB_EAST)
+        self.assertEqual(raster["scenes"], ["S2_FIXTURE_A", "S2_FIXTURE_B"])
+
+    def test_a_scene_in_the_next_utm_zone_is_reprojected(self) -> None:
+        layout = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34))
+        min_e, min_n, max_e, max_n = layout.bounds()
+        # the scene's grid in zone 35, around the map (corner of its north-west pixel 500 m off the map)
+        x0, y0 = import_map.to_utm(*import_map.from_utm(min_e - 500.0, max_n + 500.0, 34), 35)
+        x0, y0 = math.floor(x0 / 10.0) * 10.0, math.ceil(y0 / 10.0) * 10.0
+        folder = self.dir / "s2" / "Z35"
+        rows = [[1800 if (y0 - (j + 0.5) * 10.0) > y0 - 1000.0 else 1150 for i in range(250)] for j in range(250)]
+        for band in ("B04", "B03", "B02"):
+            write_utm_cog(folder / ("%s_L0.tif" % band), rows, x0, y0, 10.0, 16, epsg=32635)
+        write_utm_cog(folder / "SCL_L0.tif", [[4] * 125 for _ in range(125)], x0, y0, 20.0, 8, average=False, epsg=32635)
+        scene = dict(_s2_entry("Z35"), epsg=32635)
+        raster = import_map.colour_raster(layout, 34, 10.0, [scene], self.dir / "s2", True)
+        w = raster["width"]
+        lut = import_map.colour.srgb_lut(0.0001, -0.1)
+        self.assertEqual(raster["planes"][0][0], lut[1800], "within 1 km of the scene's north edge")
+        self.assertEqual(raster["planes"][0][(raster["height"] - 1) * w + w - 1], lut[1150])
+        self.assertEqual(raster["scenes"], ["Z35"])
+
+    def test_without_colour_the_map_is_unchanged(self) -> None:
+        plain = self.dir / "p.tres"
+        import_map.run(SAMPLE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE, "--out=%s" % plain])
+        self.assertEqual(plain.read_text(encoding="utf-8"), SAMPLE_MAP.read_text(encoding="utf-8"))
+        self.assertNotIn("colour", plain.read_text(encoding="utf-8"))
+
+    def test_operational_refuses_colour(self) -> None:
+        with self.assertRaises(SystemExit):
+            import_map.run(OP_ARGS + ["--colour", "--offline", "--out=%s" % (self.dir / "o.tres")])
+
+
+class ColourLayerTest(unittest.TestCase):
+    """The colour layer of the tactical layer: one global raster at 40 m, a JPEG window per chunk."""
+
+    ARGS = TacticalLayerTest.ARGS + ["--display-name=Layer with colour (synthetic)", "--colour",
+                                     "--s2-manifest=%s" % S2_LAYER_MANIFEST]  # fmt: skip
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+        self._chunk = import_map.LAYER_CHUNK
+        import_map.LAYER_CHUNK = 16
+
+    def tearDown(self) -> None:
+        import_map.LAYER_CHUNK = self._chunk
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_byte_identical_and_matches_the_committed_sample(self) -> None:
+        a, b = self.dir / "a", self.dir / "b"
+        import_map.run(self.ARGS + ["--out=%s" % a])
+        import_map.run(self.ARGS + ["--out=%s" % b])
+        names = sorted(f.name for f in a.iterdir())
+        self.assertEqual(names, sorted(f.name for f in SAMPLE_LAYER.iterdir()))
+        for name in names:
+            self.assertEqual((a / name).read_bytes(), (b / name).read_bytes(), name)
+            self.assertEqual((a / name).read_bytes(), (SAMPLE_LAYER / name).read_bytes(),
+                             "%s: re-run tools/test_import_map.py --make-fixtures" % name)  # fmt: skip
+
+    def test_windows_tile_the_raster_and_share_their_edge_pixels(self) -> None:
+        layout = import_map.HexLayout.centred(36, 28, 250.0, *import_map.to_utm(54.5, 22.5, 34))
+        scenes = json.loads(S2_LAYER_MANIFEST.read_text(encoding="utf-8"))["scenes"]
+        raster = import_map.colour_raster(layout, 34, 40.0, scenes, S2_FIXTURES, True)
+        min_e, min_n, max_e, max_n = layout.bounds()
+        self.assertEqual(raster["width"], math.ceil((max_e - min_e) / 40.0))
+        self.assertEqual(raster["height"], math.ceil((max_n - min_n) / 40.0))
+        columns, rows = import_map.colour_windows(layout, raster)
+        self.assertEqual((len(columns), len(rows)), (3, 2))
+        for wins, size in ((columns, raster["width"]), (rows, raster["height"])):
+            self.assertEqual(wins[0][0], 0)
+            self.assertEqual(wins[-1][0] + wins[-1][1], size)
+            for (a, n), (b, _) in zip(wins, wins[1:]):
+                self.assertEqual(a + n - 1, b, "a window's last pixel is the next one's first")
+        width = raster["width"]
+        for k in range(2):
+            (i0, w0), (i1, w1) = columns[k], columns[k + 1]
+            for j0, h in rows:
+                left = import_map.colour.interleave(raster["planes"], width, i0, j0, w0, h)
+                right = import_map.colour.interleave(raster["planes"], width, i1, j0, w1, h)
+                for j in range(h):
+                    self.assertEqual(left[3 * (j * w0 + w0 - 1) : 3 * (j * w0 + w0)], right[3 * j * w1 : 3 * j * w1 + 3])
+        # the 40 m pixels come from the scene's 40 m overview (2x2 means of 2x2 means)
+        e, n = min_e + 20.0, max_n - 20.0
+        i, j = int((e - S2_LAYER_X0) // 40.0), int((S2_LAYER_Y0 - n) // 40.0)
+        band = import_map.colour.CogBand(S2_FIXTURES / "S2_FIXTURE_L" / "B04_L0.tif")
+        lut = import_map.colour.srgb_lut(0.0001, -0.1)
+        self.assertEqual(raster["planes"][0][0], lut[band.value(2, i, j)])
+
+    def test_the_index_and_every_chunk_carry_the_colour(self) -> None:
+        for name in sorted(f.name for f in SAMPLE_LAYER.iterdir()):
+            text = (SAMPLE_LAYER / name).read_text(encoding="utf-8")
+            self.assertIn("colour_cell_m = 40.0" if name == "layer.tres" else "colour_jpg = PackedByteArray", text)
 
 
 if __name__ == "__main__":

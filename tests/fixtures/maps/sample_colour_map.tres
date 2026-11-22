@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="ImportedMap" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/imported_map.gd" id="1_map"]
+
+[resource]
+script = ExtResource("1_map")
+id = &"sample_colour_map"
+display_name = "Sample with colour (synthetic)"
+width = 6
+height = 5
+hex_spacing_m = 250.0
+crs = "EPSG:32634"
+origin_easting = 623252.0
+origin_northing = 6007874.0
+bbox_wgs84 = PackedFloat64Array(22.88732, 54.19462, 22.91269, 54.20538)
+reference_m = 152.1
+vertical_scale = 0.010392
+terrain_rows = PackedStringArray("FFFPHH", "FPFPHH", "FFFPPA", "WWPUUA", "WWMUUA")
+cover_rows = PackedStringArray("FFF...", "F.F...", "FFF..A", "WW.UUA", "WWMUUA")
+road_rows = PackedStringArray("......", "......", "MMMMMM", "..6666", "......")
+river_rows = PackedStringArray("....k.", "...y..", "....k.", "...y..", "....k.")
+elevation_m = PackedFloat32Array(155.4, 159.5, 154.2, 155.6, 161.8, 191.4, 152.4, 158.0, 152.5, 155.2, 171.7, 173.5, 153.0, 152.5, 153.7, 153.9, 154.2, 155.6, 150.5, 152.4, 153.2, 153.5, 153.3, 153.2, 149.4, 147.5, 152.1, 152.4, 152.4, 152.4)
+elevation = PackedFloat32Array(0.154, 0.197, 0.142, 0.156, 0.221, 0.528, 0.123, 0.181, 0.124, 0.152, 0.324, 0.342, 0.129, 0.124, 0.137, 0.139, 0.142, 0.156, -0.400, -0.400, 0.131, 0.135, 0.132, 0.131, -0.400, -0.400, 0.120, 0.123, 0.123, 0.123)
+land_cover_cell_m = 16.0
+land_cover_width = 102
+land_cover_height = 73
+land_cover_origin_easting = 623127.000
+land_cover_origin_northing = 6008015.637
+land_cover = PackedByteArray("eNrt1zEKwCAMQNFgU+9/5C6dUsVEUwT5fxYfTomqM0kwRTlIUZQNiuMMCgrKVkVQUFBcCnMfBeUIpdiyH1GaLXx9Aookh4KC0u8yhZX6NrzZodRhKCh/K7cNJcqgoEQYFBSUT921z6usLZfSmLj5K+wD6hdC6Q==")
+sources = "Elevation: Copernicus GLO-30 DEM, produced using Copernicus WorldDEM-30 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Land cover: (c) OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). See data/maps/CREDITS."
+colour_cell_m = 10.0
+colour_width = 163
+colour_height = 116
+colour_origin_easting = 623132.000
+colour_origin_northing = 6008013.338
+colour_sources = "Imagery: Contains modified Copernicus Sentinel data 2024 (Sentinel-2 L2A, ESA / European Union, Copernicus Sentinel data terms), from the Sentinel-2 Cloud-Optimized GeoTIFFs on AWS (registry.opendata.aws/sentinel-2-l2a-cogs); scenes S2_FIXTURE_A, S2_FIXTURE_B"
+colour_jpg = PackedByteArray("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")

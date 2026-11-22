@@ -47,6 +47,16 @@ const INDEX_FILE := "layer.tres"
 @export var land_cover_height: int
 @export var land_cover_origin_easting: float
 @export var land_cover_origin_northing: float
+## Satellite colour raster of the whole layer (TASK-192a, ADR 0031): `colour_width` x
+## `colour_height` sRGB pixels of `colour_cell_m` metres, row 0 north; the centre of pixel (0, 0)
+## (north-west) is at (`colour_origin_easting`, `colour_origin_northing`). Stored as one JPEG
+## window per chunk (TacticalChunk.colour_*), decoded on first use. 0 / empty = none.
+@export var colour_cell_m: float = 0.0
+@export var colour_width: int
+@export var colour_height: int
+@export var colour_origin_easting: float
+@export var colour_origin_northing: float
+@export var colour_sources: String
 
 ## Folder of the chunk files ("" for a layer built in memory).
 var _folder := ""
@@ -57,6 +67,9 @@ var _chunk_sizes: Dictionary = {}  # chunk index -> Vector2i (width, height)
 ## decoded cover window (PackedByteArray, loaded on first use by region_land_cover).
 var _chunks: Dictionary = {}
 var _covers: Dictionary = {}
+## Chunk index (Vector2i) -> its decoded colour window (ColourRaster in global raster pixels, or
+## null when it has none or does not decode).
+var _colours: Dictionary = {}
 
 
 ## The layer data/maps/<layer_id>/layer.tres; null when there is none or the id is not a plain name.
@@ -64,7 +77,11 @@ static func find(layer_id: StringName) -> TacticalLayer:
 	var name := String(layer_id)
 	if name == "" or not name.is_valid_filename() or name.contains("."):
 		return null
-	var folder := MAPS_DIR + name + "/"
+	return from_folder(MAPS_DIR + name + "/")
+
+
+## The layer in `folder` (ending in "/": layer.tres and its chunk files); null when there is none.
+static func from_folder(folder: String) -> TacticalLayer:
 	if not ResourceLoader.exists(folder + INDEX_FILE):
 		return null
 	var layer := load(folder + INDEX_FILE) as TacticalLayer
@@ -287,6 +304,7 @@ func _planes_at(tile: Vector2i) -> PackedByteArray:
 func add_cover_chunk(key: Vector2i, chunk: TacticalChunk) -> void:
 	_chunks[key] = chunk
 	_covers.erase(key)
+	_colours.erase(key)
 
 
 ## True when the layer has a land-cover raster (layers imported before TASK-108g have none).
@@ -406,6 +424,75 @@ func _cover_cells(rect: Rect2i) -> PackedByteArray:
 			gap.fill(LandCover.Kind.OPEN)
 			out.append_array(gap)
 	return out
+
+
+## True when the layer has a satellite colour raster (TASK-192a; older layers have none).
+func has_colour_layer() -> bool:
+	return colour_cell_m > 0.0 and colour_width > 0 and colour_height > 0
+
+
+## sRGB colour of the ground at `x_m` metres east and `z_m` metres south of tile (0, 0)'s centre,
+## bilinear between pixel centres and clamped to the raster's edge, read from the colour window of
+## the chunk around the point; transparent black when the layer has no colour or the window is
+## missing.
+func sample(x_m: float, z_m: float) -> Color:
+	if not has_colour_layer():
+		return Color(0.0, 0.0, 0.0, 0.0)
+	var c := colour_cell_m
+	var fx := clampf(
+		(origin_easting + x_m - colour_origin_easting) / c, 0.0, float(colour_width - 1)
+	)
+	var fy := clampf(
+		(colour_origin_northing - origin_northing + z_m) / c, 0.0, float(colour_height - 1)
+	)
+	var pixel := Vector2i(
+		mini(floori(fx), maxi(colour_width - 2, 0)), mini(floori(fy), maxi(colour_height - 2, 0))
+	)
+	var need := Rect2i(pixel, Vector2i(mini(2, colour_width), mini(2, colour_height)))
+	var tile := projected_to_offset(
+		colour_origin_easting + pixel.x * c, colour_origin_northing - pixel.y * c
+	)
+	var centre := _chunk_key(tile.clamp(Vector2i.ZERO, Vector2i(width - 1, height - 1)))
+	for dy in [0, -1, 1]:
+		for dx in [0, -1, 1]:
+			var key: Vector2i = centre + Vector2i(dx, dy)
+			var raster := _colour_window(key)
+			if raster == null:
+				continue
+			var window := Rect2i(Vector2i(raster.origin / c), raster.size())
+			if window.encloses(need):
+				return raster.sample(fx * c, fy * c)
+	return Color(0.0, 0.0, 0.0, 0.0)
+
+
+## The decoded colour window of chunk `key` with its origin at the window's first pixel (frame:
+## metres from the centre of raster pixel (0, 0)); null when there is none.
+func _colour_window(key: Vector2i) -> ColourRaster:
+	if _colours.has(key):
+		return _colours[key]
+	var raster: ColourRaster = null
+	if key.x >= 0 and key.y >= 0 and key.x * chunk_size < width and key.y * chunk_size < height:
+		_planes_at(key * chunk_size)
+		var chunk: TacticalChunk = _chunks.get(key)
+		if chunk != null and not chunk.colour_jpg.is_empty():
+			raster = ColourRaster.from_jpg(
+				chunk.colour_jpg,
+				chunk.colour_width,
+				chunk.colour_height,
+				colour_cell_m,
+				Vector2(chunk.colour_column, chunk.colour_row) * colour_cell_m
+			)
+	_colours[key] = raster
+	return raster
+
+
+## Colour windows decoded so far (tests).
+func loaded_colour_windows() -> int:
+	var count := 0
+	for key: Vector2i in _colours:
+		if _colours[key] != null:
+			count += 1
+	return count
 
 
 ## Chunks decoded so far (tests, the debug preview's load statistics).

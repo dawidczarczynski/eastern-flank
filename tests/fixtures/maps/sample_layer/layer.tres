@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="TacticalLayer" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/tactical_layer.gd" id="1_layer"]
+
+[resource]
+script = ExtResource("1_layer")
+id = &"sample_layer"
+display_name = "Layer with colour (synthetic)"
+width = 36
+height = 28
+chunk_size = 16
+hex_spacing_m = 250.0
+crs = "EPSG:32634"
+origin_easting = 592701.0
+origin_northing = 6043112.0
+bbox_wgs84 = PackedFloat64Array(22.42861, 54.47155, 22.57148, 54.52841)
+elevation_offset_m = 100.0
+elevation_step_m = 0.10
+land_min = 0.120
+top_elevation = 2.200
+water_elevation = -0.400
+exaggeration = 1.500
+sources = "Elevation: Copernicus GLO-90 DEM, produced using Copernicus WorldDEM-90 (c) DLR e.V. 2010-2014 and (c) Airbus Defence and Space GmbH 2014-2018 provided under COPERNICUS by the European Union and ESA; all rights reserved. Land cover: (c) OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). See data/maps/CREDITS."
+land_cover_cell_m = 16.0
+land_cover_width = 571
+land_cover_height = 384
+land_cover_origin_easting = 592576.000
+land_cover_origin_northing = 6043249.991
+colour_cell_m = 40.0
+colour_width = 229
+colour_height = 154
+colour_origin_easting = 592596.000
+colour_origin_northing = 6043236.338
+colour_sources = "Imagery: Contains modified Copernicus Sentinel data 2024 (Sentinel-2 L2A, ESA / European Union, Copernicus Sentinel data terms), from the Sentinel-2 Cloud-Optimized GeoTIFFs on AWS (registry.opendata.aws/sentinel-2-l2a-cogs); scenes S2_FIXTURE_L"

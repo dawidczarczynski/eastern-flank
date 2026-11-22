@@ -60,6 +60,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `AutoResolveRules` – Numbers of the battle auto-resolve (TASK-120, GDD "Battle hand-off and auto-resolve"), ke… (`auto_resolve_rules.gd`)
 - `BattleConditionsRules` – Effects of installations (TASK-099a, GDD "Battle conditions"): the integrity of a side's (`battle_conditions_rules.gd`)
 - `BattleObjectives` – How a battle is won and how long it lasts (GDD "Vision decisions", TASK-088): a turn limi… (`battle_objectives.gd`)
+- `ColourRaster` – A decoded satellite colour image (TASK-192a, ADR 0031 "Satellite colour layer"): sRGB pix… (`colour_raster.gd`)
 - `ContactSettings` – How a contact battle's map is cut and set up (TASK-094b, GDD "Battle hand-off and (`contact_settings.gd`)
 - `CountryDefinition` – A country of an operational map (TASK-114, GDD "Countries and stances"). Instances are ke… (`country_definition.gd`)
 - `CountrySetup` – Start stance of one country in an operation (TASK-114; a sub-resource of OperationDefinit… (`country_setup.gd`)

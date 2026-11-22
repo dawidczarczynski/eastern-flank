@@ -3,7 +3,7 @@
 - **Status**: idea
 - **Layers**: presentation (`FieldParcels`, `ParcelMap`, terrain ground shader)
 - **Depends on**: TASK-190, TASK-108g (parcels from the land-cover raster; `FieldParcels` is the follow-up TASK-108f's)
-- **Sections**: ARCHITECTURE "Terrain"; TASK-192 (satellite colour); look reference (TASK-190)
+- **Sections**: ARCHITECTURE "Terrain"; TASK-192b (satellite colour); look reference (TASK-190)
 - **Model**: sonnet
 - **Tags**: battle-look
 
@@ -16,7 +16,7 @@ Farmland reads as a patchwork of crops like the reference: each parcel with its 
 - [ ] Crop kinds and their colours are data (`FIELDS_DEFAULT` / a resource); each parcel gets a crop by rule (region mix, neighbours differ, hash of the parcel id) and a harvest-state tone; `balanced` keeps its look (test).
 - [ ] Under `true` the parcel colour is stronger and mottled (large-scale noise), with row structure (direction per parcel, spacing in real metres 0.3–0.75 m by crop) fading in below ~150 m, and a darker headland strip along the edge; meadows keep the grass look.
 - [ ] Edges: balks / tracks between parcels (the existing BALK kind) are lighter strips; field roads cross the patchwork on `highway=track` data.
-- [ ] If TASK-192 (satellite colour) landed, the far colour follows it and only the near rows and crop tint come from this task; otherwise the colours come from the rule.
+- [ ] If TASK-192b (satellite colour) landed, the far colour follows it and only the near rows and crop tint come from this task; otherwise the colours come from the rule.
 - [ ] Frame time unchanged within 0.3 ms (one more texture sample at most).
 - [ ] Tests: crop assignment deterministic and neighbours differ; row direction constant per parcel; no row pattern beyond its fade distance.
 - [ ] Screenshots Read at 1.2 / 5 / 24 against the reference.

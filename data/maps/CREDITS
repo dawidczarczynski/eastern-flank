@@ -26,6 +26,22 @@ Licence: the Copernicus DEM GLO-30 public licence (free use with this attributio
 https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model – tiles from
 the public bucket https://copernicus-dem-30m.s3.amazonaws.com.
 
+Imagery: Copernicus Sentinel-2 (satellite colour layer, TASK-192a, ADR 0031)
+------------------------------------------------------------------------------
+Contains modified Copernicus Sentinel data 2023 & 2024.
+Sentinel-2 Level-2A surface reflectance (bands B04 / B03 / B02 and the scene classification SCL),
+processed by ESA for the European Union's Copernicus programme; free, full and open use including
+modification and redistribution under the Copernicus Sentinel data terms (Commission Delegated
+Regulation (EU) No 1159/2013, Sentinel Data Legal Notice:
+https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice).
+Sentinel-2 Cloud-Optimized GeoTIFFs was accessed on 2026-11-22 from
+https://registry.opendata.aws/sentinel-2-l2a-cogs (collection sentinel-2-c1-l2a, found through the
+Earth Search STAC API https://earth-search.aws.element84.com/v1).
+The importer composites cloud-free summer scenes and corrects them to sRGB (tools/import_map_colour.py);
+the scenes of each map are listed below and in its colour_sources field. The raw bands stay in the cache
+(~/.cache/eastern-flank/maps/s2/, with the scene manifest that pins the scenes); only the processed
+JPEG colour layers are committed.
+
 Maps
 ----
 suwalki.tres – Suwalki Lakeland around Szurpily (Suwalki Landscape Park, Poland), 30x24 hexes
@@ -39,6 +55,8 @@ of 250 m, UTM 34N. Real data, downloaded 2026-10-31:
   the same cached inputs with --offline added to the command above.
   Re-imported 2026-11-22 (TASK-108g: 16 m land-cover raster, hex types counted on its cells)
   offline from the same cached inputs, same command with --offline.
+  Colour layer added 2026-11-22 (TASK-192a): same command with --colour (10 m, JPEG quality 85);
+  Sentinel-2 scene S2B_T34UFF_20240824T094545_L2A (2024-08-24); the hex data is unchanged.
 
 suwalki_theatre.tres – the operational theatre around the Suwalki Gap (north-east Poland, the
 Kaliningrad oblast, southern Lithuania, western Belarus), 68x64 hexes of 5 km, UTM 34N for the
@@ -79,8 +97,20 @@ meadows, grass, grassland, heath, scrub - for the fields terrain). Imported 2026
            --out=data/maps/suwalki_tactical
   (re-imported 2026-11-22 offline from the same cache for TASK-108g: 16 m land-cover raster in
   every chunk, hex types counted on its cells)
+  (colour layer added 2026-11-22, TASK-192a: same command with --colour - 40 m pixels, one JPEG
+  window per chunk, hex data unchanged; 27 Sentinel-2 L2A scenes of June-August 2023 / 2024:
+  S2A_T34UEF_20240710T095042_L2A, S2B_T34UGD_20240709T092859_L2A, S2B_T34UFG_20240828T093224_L2A,
+  S2A_T34UED_20230815T095102_L2A, S2B_T34UFF_20240824T094545_L2A, S2A_T34UEG_20230606T095031_L2A,
+  S2A_T34UEE_20240630T095031_L2A, S2A_T34UFG_20230606T095031_L2A, S2A_T34UDG_20240829T095026_L2A,
+  S2B_T34UFF_20240828T093224_L2A, S2B_T34UFD_20240828T093224_L2A, S2B_T34UDF_20230611T094803_L2A,
+  S2A_T34UFE_20240829T095026_L2A, S2B_T34UDE_20230611T094803_L2A, S2B_T34UFE_20240828T093224_L2A,
+  S2B_T34UDD_20230611T094803_L2A, S2B_T34UGE_20230705T092902_L2A, S2A_T34UED_20230812T094203_L2A,
+  S2A_T34UFE_20240627T094033_L2A, S2A_T34UFG_20240627T094033_L2A, S2A_T34UFF_20240627T094033_L2A,
+  S2A_T34UFD_20240627T094033_L2A, S2A_T34UEE_20230812T094203_L2A, S2B_T35UMA_20240828T093224_L2A,
+  S2B_T35ULB_20240828T093224_L2A, S2A_T35UMB_20240627T094033_L2A, S2B_T35ULA_20240828T093224_L2A;
+  the first import downloaded the SCL of the 132 candidate scenes and the 40 m overviews of these)
   (the committed layer was built with --offline added, after the lu1 tiles were downloaded;
   a re-download gets today's OpenStreetMap, so the result may differ from the committed files)
 
-The test maps tests/fixtures/maps/sample_map.tres and sample_op_map.tres are built from SYNTHETIC
-fixtures (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.
+The test maps tests/fixtures/maps/sample_map.tres, sample_colour_map.tres, sample_layer/ and
+sample_op_map.tres are built from SYNTHETIC fixtures (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.
