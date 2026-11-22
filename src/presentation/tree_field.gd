@@ -50,6 +50,13 @@ const SCRUB_LOD_DISTANCE := {&"shrub": 22.0, &"undergrowth": 12.0}
 const SCRUB_LOD_MARGIN := 2.0
 const CLUSTER_SEED := 11
 const NEEDLE_SEED := 23
+const BARK_TEXTURE_PATH := "res://assets/textures/bark/bark_oak_ambientcg_Bark012.jpg"
+const BARK_TEXTURE_PATHS := {
+	&"pine": "res://assets/textures/bark/bark_conifer_ambientcg_Bark014.jpg",
+	&"spruce": "res://assets/textures/bark/bark_conifer_ambientcg_Bark014.jpg",
+	&"birch": "res://assets/textures/bark/bark_birch_ambientcg_Bark009.jpg",
+}
+const BARK_TEXTURE_SIZE := 512
 const SHADER := preload("res://assets/shaders/foliage.gdshader")
 ## LOD1 / LOD2: the opaque variant (solid crown, no alpha, no wind).
 const SOLID_SHADER := preload("res://assets/shaders/foliage_solid.gdshader")
@@ -82,6 +89,8 @@ const NO_LOD_OUT := Vector2(1.0e8, 1.0e9)
 const BUFFER_STRIDE := 16
 
 static var _textures: Dictionary = {}
+static var _bark_textures: Dictionary = {}
+static var _bark_means: Dictionary = {}
 ## "species:variant" -> LOD0 model size (scale 1), filled by prime_sizes().
 static var _model_sizes: Dictionary = {}
 
@@ -574,6 +583,8 @@ static func new_material(species: StringName, lod: Lod) -> ShaderMaterial:
 	)
 	material.set_shader_parameter(&"bark_color", BARK_COLORS[species])
 	material.set_shader_parameter(&"birch_bark", species == &"birch")
+	material.set_shader_parameter(&"bark_texture", bark_texture(species))
+	material.set_shader_parameter(&"bark_texture_mean", bark_texture_mean(species))
 	material.set_shader_parameter(
 		&"solid_luminance", mean_leaf_luminance(conifer) * SOLID_LUMINANCE_FACTOR
 	)
@@ -584,6 +595,32 @@ static func new_material(species: StringName, lod: Lod) -> ShaderMaterial:
 	material.set_shader_parameter(&"lod_in", bands["in"])
 	material.set_shader_parameter(&"lod_out", bands["out"])
 	return material
+
+
+## The cached bark map of a species (assets/textures/bark, CC0): luminance only, BARK_TEXTURE_SIZE
+## square, with mipmaps (the imported texture has none, and a runtime image works in an export
+## too). Maps are shared by species of one kind.
+static func bark_texture(species: StringName = &"oak") -> ImageTexture:
+	var path: String = BARK_TEXTURE_PATHS.get(species, BARK_TEXTURE_PATH)
+	if not _bark_textures.has(path):
+		var source := load(path) as Texture2D
+		var image := source.get_image()
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_L8)
+		image.resize(BARK_TEXTURE_SIZE, BARK_TEXTURE_SIZE, Image.INTERPOLATE_LANCZOS)
+		var one := image.duplicate() as Image
+		one.resize(1, 1, Image.INTERPOLATE_BILINEAR)
+		_bark_means[path] = maxf(one.get_pixel(0, 0).r, 0.05)
+		image.generate_mipmaps()
+		_bark_textures[path] = ImageTexture.create_from_image(image)
+	return _bark_textures[path]
+
+
+## The mean value of a species' bark map, so the bark keeps its species colour on average.
+static func bark_texture_mean(species: StringName = &"oak") -> float:
+	bark_texture(species)
+	return _bark_means[BARK_TEXTURE_PATHS.get(species, BARK_TEXTURE_PATH)]
 
 
 ## The cached card texture: needles for conifers, a leaf cluster otherwise – many small twigs /

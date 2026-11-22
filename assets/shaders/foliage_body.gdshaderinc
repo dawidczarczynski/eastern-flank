@@ -11,6 +11,14 @@
 uniform sampler2D leaf_texture : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec3 leaf_color : source_color = vec3(0.3, 0.42, 0.2);
 uniform vec3 bark_color : source_color = vec3(0.29, 0.23, 0.16);
+// Bark detail (assets/textures/bark, CC0 ambientCG Bark012): a tileable luminance map (mipmapped,
+// TreeField.bark_texture) and its mean; the albedo is bark_color times the map over its mean.
+uniform sampler2D bark_texture : filter_linear_mipmap, repeat_enable;
+uniform float bark_texture_mean = 0.5;
+// How many times the map tiles around the trunk (whole numbers: u closes the circle) and along it.
+uniform vec2 bark_tiling = vec2(1.0, 0.6);
+// Contrast of the map (1 = as painted): the trunks are thin, so the pattern is exaggerated.
+uniform float bark_contrast = 2.6;
 // Birch bark: light with dark horizontal marks.
 uniform bool birch_bark = false;
 // Solid crowns (foliage_solid.gdshader, LOD1 / LOD2): the albedo is the cards' mean luminance.
@@ -18,6 +26,9 @@ uniform float solid_luminance = 0.8;
 // Model-space reference height (TreeMeshes.TREE_HEIGHT): the sway grows with y / tree_height.
 uniform float tree_height = 0.3;
 uniform float backlight_strength = 0.35;
+// Share of the global wind (wind.gdshaderinc) the trees take: the sway of the trunk and the crown
+// and the flutter of the leaf cards. The grass keeps the full wind.
+uniform float tree_wind_scale = 0.4;
 // Wind only moves trees near the camera: full strength up to wind_distance - wind_fade, none from
 // wind_distance on (the sway is a fraction of a tile, invisible from afar). The solid crowns skip
 // it altogether.
@@ -76,7 +87,7 @@ void vertex() {
 	if (wind_mask > 0.0) {
 		vec3 offset = wind_offset(origin, h, INSTANCE_CUSTOM.a * 6.2831853);
 		offset += wind_flutter(origin, COLOR.g + INSTANCE_CUSTOM.a) * leaf;
-		VERTEX += inverse(mat3(MODEL_MATRIX)) * offset * wind_mask;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * offset * (wind_mask * tree_wind_scale);
 	}
 #endif
 	float lod_from = mix(lod_in.x, lod_in.y, INSTANCE_CUSTOM.a);
@@ -91,14 +102,19 @@ float hash12(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-// Procedural bark: vertical streaks (u around, v along the height), birch: light bark with dark
-// horizontal marks.
+// Bark (u around, v along the height): the bark map, tinted by the species colour. Birch: light
+// bark with dark horizontal marks (lenticels).
 vec3 bark_albedo(vec2 uv) {
-	float streak = hash12(vec2(floor(uv.x * 14.0), floor(uv.y * 1.5)));
-	vec3 bark = bark_color * (0.8 + 0.3 * streak);
+	float detail = texture(bark_texture, uv * bark_tiling).r / bark_texture_mean;
+	vec3 bark = bark_color * clamp(pow(detail, bark_contrast), 0.15, 2.6);
 	if (birch_bark) {
-		float mark = step(0.72, hash12(vec2(floor(uv.x * 5.0), floor(uv.y * 6.0))));
-		bark = mix(bark, vec3(0.06, 0.05, 0.045), mark * 0.85);
+		// Dark lenticels: thin horizontal lens-shaped slashes (never a cell's square outline), their
+		// edges broken up by the bark map.
+		vec2 cell = vec2(uv.x * 3.0, uv.y * 26.0);
+		vec2 local = abs(fract(cell) - 0.5) * 2.0;
+		float gate = step(0.62, hash12(floor(cell)));
+		float lens = (1.0 - smoothstep(0.25, 0.7, local.y)) * (1.0 - smoothstep(0.35, 0.95, local.x));
+		bark = mix(bark, vec3(0.05, 0.045, 0.04), gate * lens * smoothstep(0.1, 0.5, 1.5 - detail));
 	}
 	return bark;
 }

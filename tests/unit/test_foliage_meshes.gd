@@ -107,3 +107,19 @@ func test_trunk_and_rock_shapes() -> void:
 	assert_eq(rock.size(), 20 * 4 * 3)
 	for v in rock:
 		assert_true(v.length() >= 0.05 * 0.75 - EPSILON and v.length() <= 0.05 * 1.25 + EPSILON)
+
+
+func test_bark_maps_are_mipmapped_and_shared_by_kind() -> void:
+	var maps := {}
+	for species in [&"oak", &"alder", &"pine", &"spruce", &"birch"]:
+		var material := TreeField.new_material(species, TreeField.Lod.NEAR)
+		var texture: ImageTexture = material.get_shader_parameter(&"bark_texture")
+		assert_true(texture != null, "%s has a bark map" % species)
+		assert_true(texture.get_image().has_mipmaps(), "%s mipmapped" % species)
+		var mean := float(material.get_shader_parameter(&"bark_texture_mean"))
+		assert_true(mean > 0.05 and mean < 1.0, "%s mean %f" % [species, mean])
+		maps[species] = texture
+	assert_true(maps[&"oak"] == maps[&"alder"], "deciduous share a map")
+	assert_true(maps[&"pine"] == maps[&"spruce"], "conifers share a map")
+	assert_true(maps[&"birch"] != maps[&"oak"], "birch has its own map")
+	assert_true(maps[&"pine"] != maps[&"oak"], "conifers differ from deciduous")
