@@ -99,3 +99,60 @@ func test_early_autumn_meadow_overrides() -> void:
 	assert_eq(m["dry_stalk_share"], 0.5)
 	assert_eq(m["flower_density"], 12.0)
 	assert_eq((m["flowers"] as Array)[1]["share"], 0.45)
+
+
+## TASK-201a: the sun is look data. Every preset resolves every sun field.
+func test_every_preset_has_all_sun_fields() -> void:
+	for preset_name: StringName in LookPreset.PRESETS:
+		LookPreset.apply(preset_name)
+		for scale: StringName in [&"balanced", VisualScale.TRUE_PRESET]:
+			VisualScale.apply(scale)
+			var sun := LookPreset.sun()
+			for key: String in LookPreset.SUN_DEFAULT:
+				assert_true(sun.has(key), "%s / %s lacks sun.%s" % [preset_name, scale, key])
+				assert_eq(typeof(sun[key]), typeof(LookPreset.SUN_DEFAULT[key]), key)
+	VisualScale.reset()
+
+
+## Outside `true` the sun is the battle scene's Sun node and its environment's ambient energy.
+func test_balanced_sun_is_the_battle_scene_sun() -> void:
+	var battle := (load("res://scenes/battle/battle.tscn") as PackedScene).instantiate()
+	var scene_sun := battle.get_node("Sun") as DirectionalLight3D
+	var env := (battle.get_node("WorldEnvironment") as WorldEnvironment).environment
+	var sun := LookPreset.sun()
+	var toward := scene_sun.transform.basis.z
+	assert_true(absf(rad_to_deg(asin(toward.y)) - sun["elevation_deg"]) < 0.05, "elevation")
+	var azimuth := rad_to_deg(atan2(toward.x, -toward.z))
+	assert_true(absf(wrapf(azimuth - sun["azimuth_deg"], -180.0, 180.0)) < 0.05, "azimuth")
+	assert_true((sun["color"] as Color).is_equal_approx(scene_sun.light_color))
+	assert_true(is_equal_approx(sun["energy"], scene_sun.light_energy))
+	assert_true(is_equal_approx(sun["angular_distance"], scene_sun.light_angular_distance))
+	assert_true(is_equal_approx(sun["shadow_blur"], scene_sun.shadow_blur))
+	assert_true(is_equal_approx(sun["shadow_bias"], scene_sun.shadow_bias))
+	assert_true(is_equal_approx(sun["shadow_normal_bias"], scene_sun.shadow_normal_bias))
+	assert_true(is_equal_approx(sun["ambient_energy"], env.ambient_light_energy))
+	# Applying it changes nothing on the scene's light.
+	var light := DirectionalLight3D.new()
+	var light_env := Environment.new()
+	LookPreset.apply_to_sun(light, light_env)
+	assert_true(light.transform.basis.z.distance_to(toward) < 0.001)
+	assert_true(light.transform.basis.x.distance_to(scene_sun.transform.basis.x) < 0.001)
+	assert_true(is_equal_approx(light.light_energy, scene_sun.light_energy))
+	assert_true(is_equal_approx(light_env.ambient_light_energy, env.ambient_light_energy))
+	light.free()
+	battle.free()
+
+
+## The `true` sun stands lower and warmer (slopes away from it darker), with an ambient floor so
+## the shadows are not crushed.
+func test_true_sun_is_lower_and_warmer_with_an_ambient_floor() -> void:
+	var balanced := LookPreset.sun()
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var real := LookPreset.sun()
+	VisualScale.reset()
+	assert_true(real["elevation_deg"] < balanced["elevation_deg"])
+	assert_true(real["elevation_deg"] > 10.0)
+	assert_true(real["ambient_energy"] > 0.0)
+	var warm: Color = real["color"]
+	var base: Color = balanced["color"]
+	assert_true(warm.r / warm.b > base.r / base.b, "warmer sun")

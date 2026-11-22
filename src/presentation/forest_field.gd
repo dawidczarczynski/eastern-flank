@@ -435,7 +435,9 @@ func _build_impostors(chunk: Vector2i, _plan: Variant) -> void:
 	node.multimesh = _impostor_multimesh
 	node.material_override = _impostor_material
 	node.position = Vector3(rect.position.x, 0.0, rect.position.y)
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# TASK-201a (ADR 0030): the impostors cast, turned to the sun in the shadow pass
+	# (tree_impostor_view.gdshaderinc impostor_facing), so forest edges throw a stable shadow.
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	node.visibility_range_end = _max_impostor + IMPOSTOR_CHUNK
 	# Quads reach past the chunk border (a quad turns with the camera: the larger of its height and
 	# width, with margin); the picture starts below_base x its height under the sunk base.

@@ -242,6 +242,7 @@ func _setup_graphics_quality() -> void:
 	world_env.environment = world_env.environment.duplicate() as Environment
 	GraphicsQuality.apply_environment(world_env.environment, quality)
 	GraphicsQuality.apply_sun($Sun as DirectionalLight3D, quality)
+	LookPreset.apply_to_sun($Sun as DirectionalLight3D, world_env.environment)
 	GraphicsQuality.apply_viewport(get_viewport(), quality)
 	_map_view.quality = quality
 

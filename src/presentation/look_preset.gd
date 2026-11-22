@@ -173,6 +173,37 @@ const REAL_SIZE_AIR := {
 	"sky_affect": 0.35,
 }
 
+## The sun and the ambient light (TASK-201a, ADR 0030). SUN_DEFAULT is the battle scene's Sun
+## node and its environment's ambient energy (tested to stay equal), so outside `true` nothing
+## changes; a preset's "sun" entry is merged over it, and REAL_SIZE_SUN over that under the `true`
+## VisualScale preset. Direction: elevation above the horizon and azimuth of the side the sun is
+## on (atan2(x, -z) of the toward-sun vector, as the HDRI sun in test_battle_look), degrees.
+## color (sRGB), energy, angular_distance (degrees, the PCSS penumbra), shadow_blur / shadow_bias /
+## shadow_normal_bias as on DirectionalLight3D, ambient_energy = Environment.ambient_light_energy
+## (the floor that keeps the shaded side from going black).
+const SUN_DEFAULT := {
+	"elevation_deg": 37.901,
+	"azimuth_deg": -127.893,
+	"color": Color("#ffeedd"),
+	"energy": 1.1,
+	"angular_distance": 0.3,
+	"shadow_blur": 0.8,
+	"shadow_bias": 0.03,
+	"shadow_normal_bias": 1.0,
+	"ambient_energy": 0.65,
+}
+
+## The real-size sun (look reference: Arma 3 / Reforger aerial views, TASK-190): a lower, warmer
+## late-afternoon sun from the HDRI sun's side, so hillsides facing away from it read darker and
+## forests throw long shadows over the fields; more energy keeps the flats as bright as before,
+## less ambient deepens the shaded side without crushing it.
+const REAL_SIZE_SUN := {
+	"elevation_deg": 24.0,
+	"color": Color("#ffdcb8"),
+	"energy": 1.45,
+	"ambient_energy": 0.5,
+}
+
 ## Open-ground vegetation (TASK-070). MEADOW_OFF turns every feature off (the `current` look =
 ## TASK-057/061 output); a preset's "meadow" entry is merged over it by meadow().
 const MEADOW_OFF := {
@@ -548,6 +579,36 @@ static func vegetation() -> Dictionary:
 	var merged := VEGETATION_DEFAULT.duplicate(true)
 	merged.merge((_active.get("vegetation", {}) as Dictionary).duplicate(true), true)
 	return merged
+
+
+## Sun and ambient values of the active preset (a copy): SUN_DEFAULT with the preset's "sun"
+## entry merged in, and REAL_SIZE_SUN under the `true` VisualScale preset.
+static func sun() -> Dictionary:
+	var merged := SUN_DEFAULT.duplicate(true)
+	merged.merge((_active.get("sun", {}) as Dictionary).duplicate(true), true)
+	if VisualScale.is_true_size():
+		merged.merge(REAL_SIZE_SUN.duplicate(true), true)
+	return merged
+
+
+## The active sun on the battle's light and environment (BattleController, after
+## GraphicsQuality.apply_sun): direction, colour, energy, penumbra, shadow filter / bias and the
+## ambient energy.
+static func apply_to_sun(light: DirectionalLight3D, env: Environment) -> void:
+	var values := sun()
+	var elevation := deg_to_rad(values["elevation_deg"])
+	var azimuth := deg_to_rad(values["azimuth_deg"])
+	var toward := Vector3(
+		sin(azimuth) * cos(elevation), sin(elevation), -cos(azimuth) * cos(elevation)
+	)
+	light.basis = Basis.looking_at(-toward, Vector3.UP)
+	light.light_color = values["color"]
+	light.light_energy = values["energy"]
+	light.light_angular_distance = values["angular_distance"]
+	light.shadow_blur = values["shadow_blur"]
+	light.shadow_bias = values["shadow_bias"]
+	light.shadow_normal_bias = values["shadow_normal_bias"]
+	env.ambient_light_energy = values["ambient_energy"]
 
 
 ## Farmland look values of the active preset (a copy): FIELDS_DEFAULT with the preset's "fields"

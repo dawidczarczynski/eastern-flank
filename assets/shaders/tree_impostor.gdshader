@@ -18,13 +18,14 @@ void vertex() {
 	float height = length(MODEL_MATRIX[1].xyz);
 	float yaw = fract(phase * 7.31 + origin.x * 3.17 + origin.z * 1.93) * 6.2831853;
 	float view;
-	VERTEX = impostor_corner(origin, cam, width, height, yaw, UV, view);
+	vec3 face = impostor_facing(origin, MAIN_CAM_INV_VIEW_MATRIX, INV_VIEW_MATRIX);
+	VERTEX = impostor_corner(origin, face, width, height, yaw, UV, view);
 	view_position = view;
 	// Upright: the planned trees carry no ground normal.
 	vec3 bx;
 	vec3 by;
 	vec3 bz;
-	impostor_basis(origin, cam, vec3(0.0, 1.0, 0.0), bx, by, bz);
+	impostor_basis(origin, face, vec3(0.0, 1.0, 0.0), bx, by, bz);
 	basis_x = bx;
 	basis_y = by;
 	basis_z = bz;

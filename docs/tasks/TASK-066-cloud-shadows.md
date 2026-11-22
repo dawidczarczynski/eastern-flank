@@ -1,6 +1,6 @@
 # TASK-066: Moving cloud shadows on terrain, foliage and units
 
-- **Status**: merged into **TASK-201** (2026-11-21, human) – moving cloud shadows are part of the real-scale shadows and scene lighting there (the design below is its starting point). This file is kept for history only.
+- **Status**: merged into **TASK-201b** (via TASK-201, 2026-11-21, human; 201 split 2026-11-22) – moving cloud shadows are part of TASK-201b (the design below is its starting point). This file is kept for history only.
 - **Layers**: presentation (`assets/shaders/cloud_shadow.gdshaderinc`, global shader uniforms, terrain/grass/foliage/camo/water shaders)
 - **Depends on**: **TASK-055** (terrain shader), **TASK-057** (global uniforms, grass shader), soft **TASK-060** (foliage shader), **TASK-054** (sky clouds to match), TASK-050 (off on LOW)
 - **Model**: sonnet

@@ -49,6 +49,17 @@ bool impostor_in_band(float camera_distance, float full_centre, float out_centre
 	return camera_distance >= lod_from && camera_distance < lod_to;
 }
 
+// The point a quad turns to (TASK-201a): the main camera; in a shadow pass (the view is the
+// light's, not the main camera's) a point far towards the light instead, so the quad casts the
+// tree's silhouette as the sun sees it, which does not turn or shimmer when the camera orbits.
+// The bands (camera distances) stay the main camera's in both passes.
+vec3 impostor_facing(vec3 origin, mat4 main_inv_view, mat4 inv_view) {
+	vec3 main_cam = main_inv_view[3].xyz;
+	bool shadow_pass = distance(inv_view[3].xyz, main_cam) > 1.0e-3
+		|| dot(inv_view[2].xyz, main_inv_view[2].xyz) < 0.99999;
+	return shadow_pass ? origin + inv_view[2].xyz * 1.0e4 : main_cam;
+}
+
 // The world position of a quad corner (`uv`) of a tree at `origin`; `view` is the view_position
 // for the fragment: the view whose rotation of the tree shows the camera's side (the tree's yaw
 // minus the camera's azimuth, both from +z towards +x, in turns of the views).

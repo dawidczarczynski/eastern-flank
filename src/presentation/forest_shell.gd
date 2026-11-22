@@ -135,5 +135,7 @@ static func build(
 	var instance := MeshInstance3D.new()
 	instance.name = NODE
 	instance.mesh = mesh
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# TASK-201a (ADR 0030): beyond the impostors the shell casts the forest's shadow (its edge onto
+	# the fields); it fades by the main camera's distance in the shadow pass as well.
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	return instance

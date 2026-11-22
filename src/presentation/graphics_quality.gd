@@ -8,6 +8,8 @@ extends RefCounted
 enum Level { LOW, HIGH }
 
 const OPTION_PREFIX := "--quality="
+## Godot's PSSM split defaults (the battle scene's Sun keeps them outside the `true` preset).
+const DEFAULT_SHADOW_SPLITS := Vector3(0.1, 0.2, 0.5)
 const SLOW_ADAPTERS: Array[String] = [
 	"llvmpipe", "softpipe", "swiftshader", "microsoft basic render"
 ]
@@ -52,6 +54,13 @@ static func features(level: Level) -> Dictionary:
 		"shadows": high,
 		"shadow_atlas_size": 4096 if high else 2048,
 		"shadow_max_distance": 80.0 if high else 40.0,
+		# Real-scale sun shadows (TASK-201a, ADR 0030; `true` VisualScale preset only): the far end
+		# of the last cascade in metres (MapScale converts it; 80 units = 11.5 km at 250 m hexes)
+		# and the three PSSM split fractions, tighter near the camera than Godot's 0.1 / 0.2 / 0.5
+		# so that the first cascade keeps trunk and tank detail. 0 = keep shadow_max_distance (LOW
+		# has no shadows at all).
+		"shadow_max_distance_true_m": 14000.0 if high else 0.0,
+		"shadow_splits_true": Vector3(0.04, 0.12, 0.35),
 		# HIGH is 4x MSAA (Viewport.MSAA_4X) to match project.godot (anti_aliasing/quality/msaa_3d=2),
 		# so that HIGH looks exactly like before the presets existed.
 		"msaa_3d": Viewport.MSAA_4X if high else Viewport.MSAA_DISABLED,
@@ -114,7 +123,16 @@ static func apply_environment(env: Environment, feature_set: Dictionary) -> void
 
 static func apply_sun(sun: DirectionalLight3D, feature_set: Dictionary) -> void:
 	sun.shadow_enabled = feature_set["shadows"]
-	sun.directional_shadow_max_distance = feature_set["shadow_max_distance"]
+	var true_distance_m: float = feature_set["shadow_max_distance_true_m"]
+	var splits := DEFAULT_SHADOW_SPLITS
+	if VisualScale.is_true_size() and true_distance_m > 0.0:
+		sun.directional_shadow_max_distance = MapScale.to_units(true_distance_m)
+		splits = feature_set["shadow_splits_true"]
+	else:
+		sun.directional_shadow_max_distance = feature_set["shadow_max_distance"]
+	sun.directional_shadow_split_1 = splits.x
+	sun.directional_shadow_split_2 = splits.y
+	sun.directional_shadow_split_3 = splits.z
 
 
 ## Shared unit materials: the uniform camo's fabric term on or off (ModelParts.set_fabric; also for

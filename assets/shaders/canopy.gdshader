@@ -45,6 +45,9 @@ varying vec2 world_xz;
 varying vec3 world_position;
 varying float cover;
 varying vec3 surface_normal;
+// The main camera's position: the fade follows it in the shadow pass too (TASK-201a: the
+// real-scale shell casts the forest's shadow where it stands in for the trees).
+varying vec3 main_camera;
 
 vec2 hash22(vec2 p) {
 	vec3 q = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -71,6 +74,7 @@ void vertex() {
 	world_xz = world_position.xz;
 	cover = COLOR.r;
 	surface_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	main_camera = MAIN_CAM_INV_VIEW_MATRIX[3].xyz;
 	NORMAL = normalize(vec3(0.0, 1.0, 0.0) + NORMAL * 0.4);
 }
 
@@ -93,7 +97,7 @@ void fragment() {
 		}
 	}
 	vec2 h = hash22(best_id + 17.0);
-	float fade = smoothstep(near_fade.x, near_fade.y, distance(world_position, CAMERA_POSITION_WORLD));
+	float fade = smoothstep(near_fade.x, near_fade.y, distance(world_position, main_camera));
 	if (use_coverage > 0.5) {
 		vec2 cell = (world_xz - coverage_origin) / coverage_extent;
 		if (texture(coverage, cell).r < 0.5) {
@@ -140,7 +144,7 @@ void fragment() {
 		float slope = clamp(best / 0.8, 0.0, 1.0);
 		vec2 outward = (p - best_centre) / max(best, 0.001);
 		vec3 ground_n = normalize(mix(vec3(0.0, 1.0, 0.0), surface_normal, slope_share));
-		vec3 to_camera = normalize(CAMERA_POSITION_WORLD - world_position);
+		vec3 to_camera = normalize(main_camera - world_position);
 		ground_n = normalize(mix(ground_n, to_camera, view_share));
 		vec3 n_world = normalize(ground_n + vec3(outward.x, 0.0, outward.y) * slope * 1.3);
 		NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);

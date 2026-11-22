@@ -112,7 +112,8 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-198](TASK-198-settlements-surroundings.md) | Real-scale look: Villages and towns as places: plots, fences / hedges, yards, gardens, orchards, roadside trees | 💡 idea | TASK-195 (soft: TASK-108g) |
 | [TASK-199](TASK-199-trees-hedgerows-orchards.md) | Real-scale look: Solitary trees, tree lines, hedgerows, copses and orchards in the open country (OSM + rules) | 💡 idea | TASK-135, TASK-108g |
 | [TASK-200](TASK-200-field-parcels-crops.md) | Real-scale look: Field parcels as distinct crops: strong crop colours, rows in real metres, edges and tracks | 💡 idea | TASK-190, TASK-108g |
-| [TASK-201](TASK-201-shadows-scene-lighting.md) | Real-scale look: Real-scale shadows and scene lighting: forest shadows, longer sun range, warm sun, colour grade (ADR with measured options) | 💡 idea | TASK-191 |
+| [TASK-201a](TASK-201a-real-scale-shadows.md) | Real-scale look: real-scale shadows and sun data (forest shadows, longer far cascade, warm lower sun in LookPreset; ADR with measured options) | 🔵 done | TASK-191 |
+| [TASK-201b](TASK-201b-cloud-shadows-colour-grade.md) | Real-scale look: moving cloud shadows (terrain, grass, foliage; not units) and colour grade for `true` | 🟢 ready | TASK-201a |
 | [TASK-202](TASK-202-roads-paths-realism.md) | Real-scale look: Real-scale roads, tracks and paths: widths and surfaces by class, soft verges, ruts, close-up detail | 💡 idea | TASK-134 |
 | [TASK-203](TASK-203-hex-grid-optional-overlay.md) | Real-scale look: Hex grid off by default under real scale (key G exists since TASK-049): selection / reach / target hints stay clear without it | 💡 idea | – |
 | [TASK-204](TASK-204-map-edge-backdrop.md) | Real-scale look: map edge and backdrop – the landscape continues past the playable map (real data from the theatre layer, same forest / colour / haze, soft fade, camera clamp), no visible end of the map | 💡 idea | TASK-135, TASK-108g, TASK-190 (soft: TASK-192, TASK-189) |
@@ -248,7 +249,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-082](TASK-082-hud-v3-radial-orders-menu.md) | HUD v3: radial orders menu on RMB (geometry, detail card, keys 1–6, targeting mode) | 🔴 blocked | **TASK-076**, **TASK-081** (soft: TASK-080, TASK-078) |
 | [TASK-083](TASK-083-map-view-build-speed.md) | Faster MapView.build: profile and speed up, share builds between tests (test suite is ~90 % MapView builds) | 🔵 done | – |
 | [TASK-084](TASK-084-in-game-unit-catalog.md) | In-game unit catalog: main menu (start operation, language, unit catalog) + model viewer (orbit, zoom, per-unit animations from its mechanisms) | 🔵 done | – (soft: TASK-023, TASK-045, TASK-047) |
-| [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | ⚪ merged into TASK-201 | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
+| [TASK-066](TASK-066-cloud-shadows.md) | Moving cloud shadows on terrain, foliage (and units?) | ⚪ merged into TASK-201b | **TASK-055**, **TASK-057**, TASK-054 (soft: TASK-060) |
 | [TASK-068](TASK-068-squad-carry-poses.md) | Squad readability at battle zoom: mixed weapon carries (aim / ready / low) and a flank watcher | 🔵 done | – ; open: Polish vest colour contrast |
 | [TASK-067](TASK-067-infantry-v3.md) | Infantry v3: smooth procedural soldiers (swept bodies, soft gear, chamfered weapons), squad budget 40k | 🔵 done | **TASK-030**, **TASK-062** (soft: TASK-063); reference `docs/design/showcase/` |
 | [TASK-085](TASK-085-soldier-v4-anatomy-materials.md) | Soldier v4 (A + C): anatomical body, ANSUR proportions, IK static poses, baked AO, fabric / gear materials | 🔵 done | – (soft: TASK-067 – builds on its code; its playtest folds into this one) |
@@ -275,7 +276,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 Recommended order of the open `battle-look` tasks (2026-11-21; tasks on the same line can run in parallel, a later line needs the earlier ones):
 1. finish what is open: 190 (playtest) → 189 (forest on the GPU; its mask source is swappable);
 2. foundations: 108g (land-cover raster: shapes without hexes) ‖ 111 (close camera 0.18 – it frames every later check; priority vs. the operational loop is the human's call);
-3. light and tone: 191 (impostor / canopy lighting; needs 189) → 201 (shadows, cloud shadows, grade);
+3. light and tone: 191 (impostor / canopy lighting; needs 189) → 201a (real-scale shadows, sun) → 201b (cloud shadows, grade);
 4. open country: 192 (satellite colour; needs 190 + 108g) → 200 (field crops; same terrain shader, so after 192) ‖ 199 (trees, hedges) ‖ 108c (river water, bridges) ‖ 202 (roads) ‖ 204 (map edge and backdrop: needs 108g + 190, best after 192 so the ring gets the same colour);
 5. buildings: 193 (OSM import; can start any time, it only touches the tools) → 194 → 195 → 196 → 197 ‖ 198 (after 195, best after 196);
 6. units close up: 136 (company groups; needs 111) → 137 (effects, decals) ‖ 063 (markings, any time) ‖ 203 (grid default);
@@ -285,7 +286,7 @@ Recommended order of the open `battle-look` tasks (2026-11-21; tasks on the same
 
 Tag `mvp` – the first complete playable Suwałki campaign for both sides: TASK-092a, TASK-093a, TASK-092b, TASK-093b, TASK-092c, TASK-092d, TASK-092e, TASK-093c, TASK-094a, TASK-094b, TASK-094c, TASK-094d, TASK-120, TASK-095, TASK-113, TASK-114, TASK-115, TASK-116, TASK-117, TASK-118, TASK-121, TASK-119a, TASK-119b, TASK-097a, TASK-097b, TASK-122, TASK-101, TASK-099a, TASK-099b, TASK-102a, TASK-102b, TASK-102c, TASK-103a, TASK-103b, TASK-107a, TASK-107b
 
-Tag `battle-look` – the look of the tactical battle (terrain, vegetation, buildings, light, camera, effects; unit models are separate): TASK-049, TASK-050, TASK-051, TASK-052, TASK-053, TASK-054, TASK-055, TASK-056, TASK-057, TASK-058, TASK-059, TASK-060, TASK-061, TASK-062, TASK-063, TASK-064, TASK-065, TASK-066, TASK-108b, TASK-108c, TASK-108d, TASK-108e, TASK-108f, TASK-108g, TASK-108h, TASK-110, TASK-111, TASK-134, TASK-135, TASK-136, TASK-137, TASK-138, TASK-189, TASK-190, TASK-191, TASK-192, TASK-193, TASK-194, TASK-195, TASK-196, TASK-197, TASK-198, TASK-199, TASK-200, TASK-201, TASK-202, TASK-203, TASK-204
+Tag `battle-look` – the look of the tactical battle (terrain, vegetation, buildings, light, camera, effects; unit models are separate): TASK-049, TASK-050, TASK-051, TASK-052, TASK-053, TASK-054, TASK-055, TASK-056, TASK-057, TASK-058, TASK-059, TASK-060, TASK-061, TASK-062, TASK-063, TASK-064, TASK-065, TASK-066, TASK-108b, TASK-108c, TASK-108d, TASK-108e, TASK-108f, TASK-108g, TASK-108h, TASK-110, TASK-111, TASK-134, TASK-135, TASK-136, TASK-137, TASK-138, TASK-189, TASK-190, TASK-191, TASK-192, TASK-193, TASK-194, TASK-195, TASK-196, TASK-197, TASK-198, TASK-199, TASK-200, TASK-201a, TASK-201b, TASK-202, TASK-203, TASK-204
 
 Tag `continuous-space` – the tactical battle without hexes (ADR 0029, human 2026-11-22; turn-based orders stay, positions, movement and ranges become continuous; the operational layer is decided later in TASK-214): TASK-205, TASK-206, TASK-207, TASK-208, TASK-209, TASK-210, TASK-211, TASK-212, TASK-213, TASK-214.
 

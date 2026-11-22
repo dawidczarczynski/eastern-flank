@@ -201,8 +201,9 @@ void vertex() {
 				thin_widen,
 				smoothstep(thin_from * (1.0 - band_share), thin_from * (1.0 + band_share), camera_distance)
 			);
+			vec3 face = impostor_facing(origin, MAIN_CAM_INV_VIEW_MATRIX, INV_VIEW_MATRIX);
 			VERTEX = impostor_corner(
-				origin, cam, size.x * s * widen, size.y * height_scale, k * 6.0, UV, view
+				origin, face, size.x * s * widen, size.y * height_scale, k * 6.0, UV, view
 			);
 			view_position = view;
 			// The lattice slope under the tree turns its picture's normals (slope_share).

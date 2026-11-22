@@ -117,6 +117,46 @@ func test_apply_high_enables_ssao_and_keeps_configured_effects() -> void:
 	assert_false(env.glow_enabled)
 
 
+func after_each() -> void:
+	VisualScale.reset()
+
+
+## TASK-201a: the `true` preset's far cascade is given in metres and reaches farther than the
+## 80 units of HIGH; LOW keeps its setup (no shadows, 40 units).
+func test_true_far_cascade_is_in_metres_and_longer() -> void:
+	var high := GraphicsQuality.features(HIGH)
+	var true_m: float = high["shadow_max_distance_true_m"]
+	assert_true(
+		MapScale.to_units(true_m) > high["shadow_max_distance"], "far cascade %s m" % true_m
+	)
+	var splits: Vector3 = high["shadow_splits_true"]
+	assert_true(splits.x > 0.0 and splits.x < splits.y and splits.y < splits.z and splits.z < 1.0)
+	assert_eq(GraphicsQuality.features(LOW)["shadow_max_distance_true_m"], 0.0)
+
+
+func test_apply_sun_under_true_uses_the_metre_distance() -> void:
+	var sun := DirectionalLight3D.new()
+	var high := GraphicsQuality.features(HIGH)
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	GraphicsQuality.apply_sun(sun, high)
+	assert_true(
+		is_equal_approx(
+			sun.directional_shadow_max_distance,
+			MapScale.to_units(high["shadow_max_distance_true_m"])
+		)
+	)
+	var splits: Vector3 = high["shadow_splits_true"]
+	assert_true(is_equal_approx(sun.directional_shadow_split_1, splits.x))
+	GraphicsQuality.apply_sun(sun, GraphicsQuality.features(LOW))
+	assert_eq(sun.directional_shadow_max_distance, 40.0)
+	VisualScale.reset()
+	GraphicsQuality.apply_sun(sun, high)
+	assert_eq(sun.directional_shadow_max_distance, 80.0)
+	assert_true(is_equal_approx(sun.directional_shadow_split_1, 0.1))
+	assert_true(is_equal_approx(sun.directional_shadow_split_3, 0.5))
+	sun.free()
+
+
 func test_apply_sun() -> void:
 	var sun := DirectionalLight3D.new()
 	GraphicsQuality.apply_sun(sun, GraphicsQuality.features(LOW))
