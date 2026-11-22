@@ -8,6 +8,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 #include "res://assets/shaders/forest_hash.gdshaderinc"
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
 
 const int LAYER_COUNT = 7;
 const int ROCK = 5;
@@ -429,6 +430,7 @@ void fragment() {
 	albedo = mix(vec3(lum), albedo, vertex_tint.y) * vertex_tint.x;
 	albedo *= mix(1.0, 1.0 - bed_darkening, smoothstep(0.0, bed_depth, water_level - world_pos.y));
 
+	albedo *= cloud_shadow_factor(xz);
 	ALBEDO = albedo;
 	ROUGHNESS = mix(roughness_min, 1.0, rough_ao.x);
 	SPECULAR = specular;

@@ -157,6 +157,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `ChunkLayer` – One layer of the chunked world (TASK-072b): what a system (terrain, scatter, trees, grass, (`chunk_layer.gd`)
 - `ChunkManager` – The chunked lazy world (TASK-072b, ADR 0024): every registered ChunkLayer keeps only the (`chunk_manager.gd`)
 - `ChunkRings` – Distance rings of the chunked world (TASK-072b, ChunkManager): per chunk layer the draw r… (`chunk_rings.gd`)
+- `CloudShadows` – Global shader parameters of the moving cloud shadows (TASK-201b): a tileable noise textur… (`cloud_shadows.gd`)
 - `ColorGrade` – Colour grade of the battle scene (TASK-051): muted, slightly olive military palette. (`color_grade.gd`)
 - `ConditionsModel` – Pure view model of a side's battle conditions (TASK-099b, GDD "Battle conditions"): the l… (`conditions_model.gd`)
 - `CoverLook` – The look of a land-cover raster (TASK-108g, ADR 0028 "Sub-hex land cover; hexes are mecha… (`cover_look.gd`)

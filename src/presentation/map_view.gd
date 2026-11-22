@@ -219,6 +219,8 @@ func _process(_delta: float) -> void:
 
 
 func build(grid: HexGrid) -> void:
+	# Before any material: the world shaders read the cloud globals (a texture one must exist).
+	CloudShadows.setup(quality.get("clouds", true))
 	_chunks.reset()
 	_chunks = ChunkManager.new(ChunkRings.load_default(), quality.get("small_chunk_rings", false))
 	_chunks.threads = threads

@@ -9,6 +9,8 @@ render_mode specular_disabled;
 // The real-scale forest shell (TASK-135, ForestShell) uses it over the map's forest tiles too: it
 // fades in crown by crown with the camera distance over `near_fade`, where the tree impostors end.
 
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
+
 uniform vec3 pine_color : source_color = vec3(0.25, 0.38, 0.25);
 uniform vec3 spruce_color : source_color = vec3(0.19, 0.31, 0.23);
 uniform vec3 birch_color : source_color = vec3(0.56, 0.66, 0.31);
@@ -152,6 +154,6 @@ void fragment() {
 	// Dome shading: bright crown top, dark gaps between crowns.
 	float dome = clamp(1.0 - best / 0.8, 0.0, 1.0);
 	float shade = mix(0.4, 0.85, sqrt(dome)) * (0.92 + 0.16 * h.x);
-	ALBEDO = color * shade * brightness;
+	ALBEDO = color * shade * brightness * cloud_shadow_factor(world_xz);
 	ROUGHNESS = 0.9;
 }

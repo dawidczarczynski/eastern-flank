@@ -50,6 +50,7 @@ func test_features_values() -> void:
 		"foliage",
 		"particles",
 		"wind",
+		"clouds",
 		"backdrop_scatter",
 		"terrain_anti_tiling",
 		"terrain_triplanar"

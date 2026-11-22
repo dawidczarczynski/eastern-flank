@@ -7,6 +7,8 @@ render_mode cull_disabled, specular_disabled, shadows_disabled;
 // `min_px` pixels on screen (a 5 m road is below one pixel zoomed out and would shimmer).
 // Uses only what the Compatibility renderer has (sampler2DArray, no compute, no screen reads).
 
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
+
 uniform sampler2DArray albedo_height : source_color, filter_linear_mipmap, repeat_enable;
 // Same layer indices, repeat and tints as terrain.gdshader (TerrainGround).
 uniform float layer_repeat[6];
@@ -51,7 +53,7 @@ void fragment() {
 	vec3 road = mix(gravel, gravel * dirt * 2.0, rut * rut_darkening * 2.0);
 	vec3 verge = mix(dirt, dry, 0.45);
 	float edge = smoothstep(carriageway - 0.04, carriageway + 0.04, a);
-	ALBEDO = mix(road, verge, edge);
+	ALBEDO = mix(road, verge, edge) * cloud_shadow_factor(xz);
 	ROUGHNESS = 1.0;
 	ALPHA = 1.0 - smoothstep(verge_fade.x, verge_fade.y, a);
 }

@@ -1,6 +1,6 @@
 # TASK-201b: Moving cloud shadows and colour grade for `true`
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`assets/shaders/cloud_shadow.gdshaderinc`, global shader uniforms, `LookPreset` grade)
 - **Depends on**: TASK-201a
 - **Sections**: ARCHITECTURE "Graphics quality", "Real-scale vegetation"; ADR 0023, 0026, 0027; look reference TASK-190
@@ -45,4 +45,10 @@ None.
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- `assets/shaders/cloud_shadow.gdshaderinc`: global uniforms `cloud_noise` (tileable 128² value noise, `CloudShadows.noise_image()`), `cloud_shadow_strength`, `cloud_scale`, `cloud_speed`, `cloud_drift` (wind direction), `cloud_sun_offset`; `cloud_shadow_factor(xz)` = 1 - smoothstep(0.38, 0.50, noise) * strength * 0.6. Included by terrain, road, grass, foliage (body; not the impostor bake), canopy and both impostor shaders; not by camo/skin (units stay evenly lit).
+- `CloudShadows.setup()` (src/presentation/cloud_shadows.gd) registers the globals at the start of `MapView.build` (the sampler global must exist before any material). Look values `LookPreset.clouds()`: strength 0 everywhere except `true` (0.55), pattern period 2600 m, drift 22 m/s, cloud height 2000 m. LOW: feature `clouds` false -> strength 0. `balanced` unchanged (0).
+- Grade for `true` (`LookPreset.REAL_SIZE_GRADE`, merged over the look's grade; `ColorGrade` re-bakes when the scale preset changes): saturation 1.0, contrast 1.1, shadow tint #1c2b3d weight 0.11, highlight tint #ffeacc weight 0.08, green shift -0.01.
+- Seam test compares the wrap step with the largest interior step (as TASK-027), not a literal 1/255: value noise has natural per-pixel steps.
+- Frame time (true, HIGH, 1280x720, RX 580): camera 1.2 / 5 / 24 = 10.2 / 7.8 / 5.8 ms avg (budget 16.7).
+- Drift follows the wind direction; the HDRI sky is static, so "matches the sky" is by scale only.
+- tests/unit/test_cloud_shadows.gd.

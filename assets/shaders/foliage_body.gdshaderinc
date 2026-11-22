@@ -7,6 +7,9 @@
 // shift, g value factor, b saturation factor, a wind phase).
 
 #include "res://assets/shaders/wind.gdshaderinc"
+#ifndef IMPOSTOR_BAKE
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
+#endif
 
 uniform sampler2D leaf_texture : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec3 leaf_color : source_color = vec3(0.3, 0.42, 0.2);
@@ -161,5 +164,8 @@ void fragment() {
 		);
 	}
 #endif
+#endif
+#ifndef IMPOSTOR_BAKE
+	ALBEDO *= cloud_shadow_factor((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xz);
 #endif
 }

@@ -204,6 +204,28 @@ const REAL_SIZE_SUN := {
 	"ambient_energy": 0.5,
 }
 
+## Moving cloud shadows (TASK-201b, CloudShadows): strength 0 = off (every look but `true`), the
+## cloud pattern's period scale_m and drift speed_m (m/s) in metres (MapScale converts them), and
+## height_m, the cloud height that shifts the shadow away from the sun. A preset's "clouds" entry
+## is merged over CLOUDS_DEFAULT, and REAL_SIZE_CLOUDS over that under the `true` VisualScale
+## preset (patches a few km wide, as on the aerial look reference).
+const CLOUDS_DEFAULT := {"strength": 0.0, "scale_m": 2600.0, "speed_m": 22.0, "height_m": 2000.0}
+const REAL_SIZE_CLOUDS := {"strength": 0.55}
+
+## The colour grade under the `true` VisualScale preset (look reference: Arma 3 / Reforger aerial
+## views, TASK-190): fuller colour than the muted looks, a little more contrast, cool blue-ish
+## shadows and warm highlights (the late-afternoon sun), the greens kept natural. Merged over the
+## active look's grade; `balanced` is untouched.
+const REAL_SIZE_GRADE := {
+	"saturation": 1.0,
+	"contrast": 1.1,
+	"shadow_tint": Color("#1c2b3d"),
+	"shadow_weight": 0.11,
+	"highlight_tint": Color("#ffeacc"),
+	"highlight_weight": 0.08,
+	"green_shift": -0.01,
+}
+
 ## Open-ground vegetation (TASK-070). MEADOW_OFF turns every feature off (the `current` look =
 ## TASK-057/061 output); a preset's "meadow" entry is merged over it by meadow().
 const MEADOW_OFF := {
@@ -619,10 +641,23 @@ static func fields() -> Dictionary:
 	return merged
 
 
-## `base` with the active preset's overrides merged in.
+## Cloud shadow values of the active preset (a copy): CLOUDS_DEFAULT with the preset's "clouds"
+## entry merged in, and REAL_SIZE_CLOUDS under the `true` VisualScale preset.
+static func clouds() -> Dictionary:
+	var merged := CLOUDS_DEFAULT.duplicate(true)
+	merged.merge((_active.get("clouds", {}) as Dictionary).duplicate(true), true)
+	if VisualScale.is_true_size():
+		merged.merge(REAL_SIZE_CLOUDS.duplicate(true), true)
+	return merged
+
+
+## `base` with the active preset's overrides merged in, and REAL_SIZE_GRADE under the `true`
+## VisualScale preset.
 static func grade(base: Dictionary) -> Dictionary:
 	var merged := base.duplicate()
 	merged.merge(_active.get("grade", {}), true)
+	if VisualScale.is_true_size():
+		merged.merge(REAL_SIZE_GRADE, true)
 	return merged
 
 

@@ -73,6 +73,8 @@ static func features(level: Level) -> Dictionary:
 		"decals_max": 64 if high else 16,
 		"particles": high,
 		"wind": high,
+		# Moving cloud shadows (TASK-201b): a noise lookup per pixel in the world shaders.
+		"clouds": high,
 		"backdrop_scatter": high,
 		# Chunked world (TASK-072b): LOW builds within smaller rings (ChunkRings.low_quality_factor).
 		"small_chunk_rings": not high,

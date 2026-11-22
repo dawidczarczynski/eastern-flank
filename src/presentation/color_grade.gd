@@ -20,6 +20,8 @@ const GREEN_HUE := 0.28
 const GREEN_HUE_RANGE := 0.16
 
 static var _cached: ImageTexture3D
+## Whether `_cached` was baked under the `true` VisualScale preset (its grade differs).
+static var _cached_true := false
 
 
 static func _luminance(c: Color) -> float:
@@ -63,7 +65,8 @@ static func lut(size: int, p: Dictionary) -> Array[Image]:
 
 ## The default grade as a 3D texture, built once.
 static func cached_texture() -> ImageTexture3D:
-	if _cached == null:
+	if _cached == null or _cached_true != VisualScale.is_true_size():
+		_cached_true = VisualScale.is_true_size()
 		var tex := ImageTexture3D.new()
 		var slices := lut(LUT_SIZE, LookPreset.grade(DEFAULT))
 		tex.create(Image.FORMAT_RGBA8, LUT_SIZE, LUT_SIZE, LUT_SIZE, false, slices)

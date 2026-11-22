@@ -7,6 +7,7 @@ render_mode world_vertex_coords, cull_disabled, specular_disabled;
 // choice and the lighting: tree_impostor_view.gdshaderinc.
 
 #include "res://assets/shaders/tree_impostor_view.gdshaderinc"
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -40,7 +41,7 @@ void fragment() {
 	if (color.a < 0.5) {
 		discard;
 	}
-	ALBEDO = color.rgb;
+	ALBEDO = color.rgb * cloud_shadow_factor((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xz);
 	NORMAL = normalize((VIEW_MATRIX * vec4(impostor_world_normal(UV), 0.0)).xyz);
 	ROUGHNESS = 0.85;
 	BACKLIGHT = color.rgb * backlight_strength;

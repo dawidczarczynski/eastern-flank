@@ -4,6 +4,7 @@ render_mode cull_disabled, specular_disabled;
 // the hue is the per-instance colour (linear), the root darkening happens only here.
 
 #include "res://assets/shaders/wind.gdshaderinc"
+#include "res://assets/shaders/cloud_shadow.gdshaderinc"
 
 uniform sampler2D card : source_color, filter_linear_mipmap, repeat_disable;
 uniform float root_darkening = 0.55;
@@ -40,6 +41,7 @@ void fragment() {
 	} else {
 		ALBEDO = texel.rgb * COLOR.rgb * mix(root_darkening, 1.0, height_k);
 	}
+	ALBEDO *= cloud_shadow_factor((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xz);
 	ROUGHNESS = 0.9;
 	// Ground-like lighting on both faces: always the up normal (view space), whatever the face.
 	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);

@@ -113,7 +113,7 @@ Operational map principle (human, 2026-11-07, GDD "Operational map"): hexes are 
 | [TASK-199](TASK-199-trees-hedgerows-orchards.md) | Real-scale look: Solitary trees, tree lines, hedgerows, copses and orchards in the open country (OSM + rules) | 💡 idea | TASK-135, TASK-108g |
 | [TASK-200](TASK-200-field-parcels-crops.md) | Real-scale look: Field parcels as distinct crops: strong crop colours, rows in real metres, edges and tracks | 💡 idea | TASK-190, TASK-108g |
 | [TASK-201a](TASK-201a-real-scale-shadows.md) | Real-scale look: real-scale shadows and sun data (forest shadows, longer far cascade, warm lower sun in LookPreset; ADR with measured options) | 🔵 done | TASK-191 |
-| [TASK-201b](TASK-201b-cloud-shadows-colour-grade.md) | Real-scale look: moving cloud shadows (terrain, grass, foliage; not units) and colour grade for `true` | 🟢 ready | TASK-201a |
+| [TASK-201b](TASK-201b-cloud-shadows-colour-grade.md) | Real-scale look: moving cloud shadows (terrain, grass, foliage; not units) and colour grade for `true` | 🔵 done | TASK-201a |
 | [TASK-202](TASK-202-roads-paths-realism.md) | Real-scale look: Real-scale roads, tracks and paths: widths and surfaces by class, soft verges, ruts, close-up detail | 💡 idea | TASK-134 |
 | [TASK-203](TASK-203-hex-grid-optional-overlay.md) | Real-scale look: Hex grid off by default under real scale (key G exists since TASK-049): selection / reach / target hints stay clear without it | 💡 idea | – |
 | [TASK-204](TASK-204-map-edge-backdrop.md) | Real-scale look: map edge and backdrop – the landscape continues past the playable map (real data from the theatre layer, same forest / colour / haze, soft fade, camera clamp), no visible end of the map | 💡 idea | TASK-135, TASK-108g, TASK-190 (soft: TASK-192, TASK-189) |
