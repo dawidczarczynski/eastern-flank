@@ -1,6 +1,6 @@
 # TASK-191: Real-scale look (B): impostors and canopy lit by the scene's sun
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`TreeImpostors`, `tree_impostor.gdshader`, `canopy.gdshader`)
 - **Depends on**: TASK-189
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; ADR 0026, ADR 0027; look reference (TASK-190)

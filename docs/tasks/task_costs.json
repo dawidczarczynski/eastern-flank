@@ -3034,6 +3034,25 @@
     "input": 284,
     "output": 81644
    }
+  },
+  "TASK-189": {
+   "active_hours": 1.9,
+   "cost": 40.3072,
+   "first": "2026-11-21T20:02:01.899Z",
+   "last": "2026-11-21T21:56:11.473Z",
+   "main_cost": 13.1958,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 71082546,
+    "cache_write": 1222637,
+    "input": 546,
+    "output": 259916
+   }
   }
  },
  "unit": "API-equivalent US$ (tokens x WEIGHTS)",

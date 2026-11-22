@@ -15,6 +15,10 @@ extends RefCounted
 ## caches the planners read (TerrainSurface.prime).
 ## A chunk is the square Rect2(origin + chunk * chunk_size, chunk_size); only chunks that touch
 ## `area` exist.
+## `instant` layers (TASK-189: GPU-placed forest impostors, whose chunk is one node) have no
+## worker plan: their chunks are built on the main thread nearest first, by the scan that finds
+## them and then by process(), within ChunkManager.instant_budget_usec each (`plan_chunk`, if
+## any, is called right there).
 
 ## Ring id in ChunkRings.reach_m.
 var id: StringName
@@ -25,6 +29,11 @@ var plan_chunk := Callable()
 var build_chunk := Callable()
 var free_chunk := Callable()
 var prepare := Callable()
+var instant := false
+## Planning order across layers: every queued job of a higher priority is planned before any of a
+## lower one (nearest first within a priority). The full trees (TASK-189) go before the near grass:
+## a missing full chunk is drawn as impostors meanwhile, but only once it is planned.
+var priority := 0
 
 
 func _init(

@@ -301,7 +301,7 @@ func build(grid: HexGrid) -> void:
 		if VisualScale.is_true_size():
 			_foliage.ground = vegetation_ground_height
 		var shell := _vegetation.build_forest(
-			grid, vegetation_ground_height, mesh_height_at, SCATTER_SEED, _lattice.rect(), _parcels
+			grid, vegetation_ground_height, _lattice, SCATTER_SEED, _lattice.rect(), _parcels
 		)
 		if shell != null:
 			_tiles_root.add_child(shell)

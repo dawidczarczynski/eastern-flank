@@ -20,6 +20,8 @@ extends RefCounted
 ## each is VegetationRanges.band.
 
 const SHADER := preload("res://assets/shaders/tree_impostor.gdshader")
+## The GPU-placed dense forest (TASK-189, ForestField): same picture, trees from their cells.
+const FOREST_SHADER := preload("res://assets/shaders/forest_impostor.gdshader")
 ## Floats per instance: TRANSFORM_3D (12), colour (4), custom (4).
 const STRIDE := 20
 ## Species with an atlas row per variant, in row order.
@@ -289,11 +291,12 @@ static func mesh() -> ArrayMesh:
 	return _mesh
 
 
-## A new impostor material (`band_share`: VegetationRanges' hand-over band).
-static func material(band_share: float) -> ShaderMaterial:
+## A new impostor material (`band_share`: VegetationRanges' hand-over band) of `shader` (SHADER
+## or FOREST_SHADER).
+static func material(band_share: float, shader: Shader = SHADER) -> ShaderMaterial:
 	prime()
 	var result := ShaderMaterial.new()
-	result.shader = SHADER
+	result.shader = shader
 	result.set_shader_parameter(&"band_share", band_share)
 	result.set_shader_parameter(&"atlas", _atlas)
 	result.set_shader_parameter(&"rows", float(SPECIES.size() * TreeMeshes.VARIANTS))
@@ -301,6 +304,16 @@ static func material(band_share: float) -> ShaderMaterial:
 	result.set_shader_parameter(&"below_base", BELOW_BASE)
 	result.set_shader_parameter(&"vertical_span", VERTICAL_SPAN)
 	return result
+
+
+## [atlas row, quad width per unit of crown width] of a species' variant (prime() first).
+static func row(species: StringName, variant: int) -> Array:
+	return (_rows[species] as Array)[variant]
+
+
+## The linear leaf colour a species' tint is relative to (prime() first).
+static func leaf_color(species: StringName) -> Color:
+	return _leaf[species]
 
 
 ## Mean sRGB colour of a species' baked picture (prime() first).

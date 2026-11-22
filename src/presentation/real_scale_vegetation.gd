@@ -49,23 +49,22 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool) -> void:
 
 
 ## The forest of `grid` over `rect`; returns the canopy shell node to add (null without forest).
-## `ground` is MapView.vegetation_ground_height (thread-safe; its `point` variant places the
-## impostors near the target), `shell_ground` the drawn lattice (far impostors and the shell, only
-## seen from afar).
+## `ground` is MapView.vegetation_ground_height (thread-safe: the full trees), `lattice` the drawn
+## terrain lattice (the GPU-placed impostors and the shell, ADR 0027).
 func build_forest(
 	grid: HexGrid,
 	ground: Callable,
-	shell_ground: Callable,
+	lattice: TerrainLattice,
 	seed_value: int,
 	rect: Rect2,
 	parcels: ParcelMap
 ) -> MeshInstance3D:
 	if not _active:
 		return null
-	forest.setup(grid, ground, seed_value, rect, parcels, shell_ground, ground.bind(true))
+	forest.setup(grid, ground, seed_value, rect, lattice, parcels)
 	_main.register(forest.impostor_layer())
 	chunks.register(forest.full_layer())
-	var shell := ForestShell.build(grid, rect, shell_ground)
+	var shell := ForestShell.build(grid, rect, lattice.mesh_height_at)
 	if shell != null:
 		forest.bind_shell(shell.mesh.surface_get_material(0) as ShaderMaterial)
 	return shell
@@ -100,9 +99,8 @@ func set_camera(position: Vector3, gap: float) -> void:
 	var ranges := forest.max_ranges()
 	_switch(chunks, ForestField.FULL_LAYER, gap, ranges.x)
 	_switch(chunks, GrassNear.LAYER, gap, grass_near.draw_range())
-	# The impostors stay planned at any height: they cost nothing drawn beyond their range
-	# (visibility range) but take seconds to plan again when the camera zooms back in.
-	forest.set_plan_target(_main.target() if _main.has_target() else Vector2.INF)
+	# The impostors stay built at any height: they cost nothing drawn beyond their range
+	# (visibility range).
 	forest.update(position)
 
 

@@ -56,7 +56,7 @@ func test_a_forest_hex_holds_about_2000_trees_derived_from_the_map_scale() -> vo
 	var centre := Hex.to_world(c, TerrainField.HEX_SIZE)
 	var rect := Rect2(Vector2(centre.x, centre.z) - Vector2.ONE * 1.2, Vector2.ONE * 2.4)
 	var count := 0
-	for tree in ForestFill.plan_rect(grid, _flat, SEED, rect):
+	for tree in ForestFill.new(grid, _flat, SEED, rect).plan_rect(rect):
 		if Hex.from_world(tree["position"], TerrainField.HEX_SIZE) == c:
 			count += 1
 	var planned: Array = (
@@ -143,32 +143,21 @@ func test_the_full_tree_cap_holds_for_a_synthetic_camera() -> void:
 func test_scatter_is_deterministic_and_the_true_preset_adds_no_draws() -> void:
 	var grid := _forest_grid(3)
 	var rect := Rect2(-1.0, -1.0, 2.0, 2.0)
-	var first := ForestFill.plan_rect(grid, _flat, SEED, rect)
-	assert_eq(ForestFill.plan_rect(grid, _flat, SEED, rect), first, "same seed, same trees")
-	var halves := ForestFill.plan_rect(grid, _flat, SEED, Rect2(-1.0, -1.0, 1.0, 2.0))
-	halves.append_array(ForestFill.plan_rect(grid, _flat, SEED, Rect2(0.0, -1.0, 1.0, 2.0)))
+	var fill := ForestFill.new(grid, _flat, SEED, Rect2(-4.0, -4.0, 8.0, 8.0))
+	var first := fill.plan_rect(rect)
+	assert_true(first.size() > 1000, "%d trees" % first.size())
+	assert_eq(fill.plan_rect(rect), first, "same seed, same trees")
+	var halves := fill.plan_rect(Rect2(-1.0, -1.0, 1.0, 2.0))
+	halves.append_array(fill.plan_rect(Rect2(0.0, -1.0, 1.0, 2.0)))
 	assert_eq(halves.size(), first.size(), "chunks add up to the whole")
-	assert_true(ForestFill.plan_rect(grid, _flat, SEED + 1, rect) != first, "another seed")
+	var other := ForestFill.new(grid, _flat, SEED + 1, Rect2(-4.0, -4.0, 8.0, 8.0))
+	assert_true(other.plan_rect(rect) != first, "another seed")
 	var surface := BackdropSurface.new(grid, _flat)
 	var balanced := ScatterPlanner.plan(grid, surface, SEED)
 	VisualScale.apply(VisualScale.TRUE_PRESET)
 	assert_eq(
 		ScatterPlanner.plan(grid, surface, SEED), balanced, "the planned scatter is unchanged"
 	)
-
-
-func test_thinned_fill_keeps_every_other_cell_of_the_full_fill() -> void:
-	# Far impostor chunks plan half the trees (wider crowns make up for it): the same trees, no new.
-	var grid := _forest_grid(3)
-	var rect := Rect2(-1.0, -1.0, 2.0, 2.0)
-	var full := ForestFill.plan_rect(grid, _flat, SEED, rect)
-	var thin := ForestFill.plan_rect(grid, _flat, SEED, rect, null, {}, true)
-	assert_true(
-		thin.size() > full.size() * 0.4 and thin.size() < full.size() * 0.6,
-		"about half: %d of %d" % [thin.size(), full.size()]
-	)
-	for tree in thin:
-		assert_true(full.has(tree), "a thinned tree is one of the full fill")
 
 
 func test_real_size_summer_greens_replace_the_looks_yellowed_leaves() -> void:
@@ -255,3 +244,141 @@ func test_near_grass_is_real_size_within_100_m_of_the_camera() -> void:
 		/ GrassPlanner.PLAINS_DENSITY
 	)
 	assert_true(count / area_m2 > expected * 0.5, "%.3f clumps per m²" % (count / area_m2))
+
+
+## TASK-189 (ADR 0027): an impostor chunk is one node sharing one MultiMesh without instance
+## data; its cells travel as an instance uniform and the shader derives the trees.
+func test_impostor_chunks_carry_no_instance_data_and_build_in_under_half_a_millisecond() -> void:
+	var forest := _view.vegetation().forest
+	var nodes := forest.impostor_nodes()
+	assert_true(nodes.size() > 4, "%d impostor chunks" % nodes.size())
+	var shared := nodes[0].multimesh
+	assert_false(shared.use_colors or shared.use_custom_data, "no per-instance colour or custom")
+	for node in nodes:
+		assert_true(node.multimesh == shared, "one MultiMesh for every chunk")
+		var chunk: Vector2i = node.get_meta(&"chunk")
+		var cells := forest.impostor_cells(chunk)
+		assert_eq(
+			node.get_instance_shader_parameter(&"cells"),
+			Vector4(cells.position.x, cells.position.y, cells.size.x, cells.size.y)
+		)
+		assert_true(cells.size.x * cells.size.y <= shared.instance_count, "fits the instances")
+	# The layer plans nothing (instant) and a build is a node.
+	var layer := forest.impostor_layer()
+	assert_true(layer.instant and not layer.plan_chunk.is_valid())
+	var chunks: Array[Vector2i] = []
+	for node in nodes:
+		chunks.append(node.get_meta(&"chunk"))
+	# The best of a few rounds (a loaded test machine only makes a round slower).
+	var best_ms := INF
+	for round in 5:
+		var started := Time.get_ticks_usec()
+		for chunk in chunks:
+			layer.build_chunk.call(chunk, null)
+		best_ms = minf(best_ms, (Time.get_ticks_usec() - started) / 1000.0 / chunks.size())
+	assert_true(best_ms < 0.5, "%.3f ms per impostor chunk" % best_ms)
+	assert_eq(forest.impostor_nodes().size(), nodes.size(), "rebuilt in place")
+
+
+## The full trees come from the worker plans (MultiMesh buffers), the impostor positions from the
+## reference the shader follows; both derive from ForestFill.cell_tree, so this checks the full
+## layer's planning, ownership and grounding, not the GPU: every full tree has its impostor cell
+## at the same point, and the height gap is exactly near surface - lattice + the extra sink.
+func test_every_full_tree_has_its_impostor_cell_at_the_same_point() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var forest := _view.vegetation().forest
+	var a := forest.fill().spacing
+	var full := {}
+	for node in forest.full_nodes():
+		for p in forest.instance_positions(node):
+			# A point keeps a tenth of a cell off its cell's border.
+			full[Vector2i(floori(p.x / a), floori(p.z / a))] = p
+	assert_true(full.size() > 500, "%d full trees" % full.size())
+	var extra := MapScale.to_units(float(LookPreset.vegetation()["impostor_sink_m"]))
+	var matched := 0
+	for node in forest.impostor_nodes():
+		for p in forest.instance_positions(node):
+			var key := Vector2i(floori(p.x / a), floori(p.z / a))
+			if not full.has(key):
+				continue
+			matched += 1
+			var at: Vector3 = full[key]
+			assert_true(Vector2(at.x, at.z).distance_to(Vector2(p.x, p.z)) < 1.0e-5)
+			var near := _view.vegetation_ground_height(p.x, p.z)
+			var lattice := _view.mesh_height_at(p.x, p.z)
+			var gap := at.y - p.y
+			assert_true(absf(gap - (near - lattice + extra)) < 1.0e-4, "gap %.4f" % gap)
+	assert_eq(matched, full.size(), "every full tree has its impostor cell")
+
+
+## The shader's inputs line up with the reference: every lattice height texel is the lattice
+## vertex (orientation, no off-by-one) and every stand mask texel is mask_allows at its centre.
+func test_the_height_and_mask_textures_match_the_reference() -> void:
+	var lattice: TerrainLattice = _view._lattice
+	var heights := ForestFill.height_image(lattice)
+	assert_eq(heights.get_size(), lattice.cells + Vector2i.ONE)
+	for j in heights.get_height():
+		for i in heights.get_width():
+			assert_eq(heights.get_pixel(i, j).r, lattice.height(i, j), "vertex (%d, %d)" % [i, j])
+	var fill := _view.vegetation().forest.fill()
+	var mask := fill.mask_image()
+	var origin := fill.area.position
+	var on := 0
+	for j in range(0, mask.get_height(), 3):
+		for i in range(0, mask.get_width(), 3):
+			var x := origin.x + (i + 0.5) / ForestFill.MASK_PER_UNIT
+			var z := origin.y + (j + 0.5) / ForestFill.MASK_PER_UNIT
+			var allowed := mask.get_pixel(i, j).r > 0.5
+			assert_eq(fill.mask_allows(x, z), allowed, "texel (%d, %d)" % [i, j])
+			if allowed:
+				on += 1
+	assert_true(on > 100, "%d forest texels checked" % on)
+
+
+## The GLSL twin of ForestFill keeps the reference's expressions (a drift fails here; the values
+## are fixed by test_forest_fill).
+func test_the_shader_keeps_the_reference_expressions() -> void:
+	var include := FileAccess.get_file_as_string("res://assets/shaders/forest_hash.gdshaderinc")
+	var shader := FileAccess.get_file_as_string("res://assets/shaders/forest_impostor.gdshader")
+	for expression in [
+		"(float(h & 65535u) / 65536.0 - 0.5)",
+		"(float((h >> 16u) & 65535u) / 65536.0 - 0.5)",
+		"return float(x & 16777215u) / 16777216.0;",
+		"uint x = h ^ (uint(part + 1) * FOREST_UNIT_MULTIPLIER);",
+		"h = forest_mix(h ^ uint(cell.x));",
+	]:
+		assert_true(include.contains(expression), "include: %s" % expression)
+	for expression in [
+		"FOREST_SCALE_RANGE * float(values_hash & 1023u) / 1024.0",
+		"float k = float((values_hash >> 10u) & 1023u) / 1024.0;",
+		"float conifer_roll = float((values_hash >> 20u) & 1023u) / 1024.0;",
+		"float height_scale = s * (0.9 + k * 0.3);",
+		"k * 6.0",
+		"((cell.x + cell.y) & 1) != 0",
+		"vec2 p = forest_point(point_hash, cell, spacing);",
+		"ivec2(int(cells.x) + INSTANCE_ID % nx, int(cells.y) + INSTANCE_ID / nx)",
+	]:
+		assert_true(shader.contains(expression), "shader: %s" % expression)
+
+
+## The field keeps the last MAX_BURNS circles, for the full trees and the impostors alike.
+func test_burns_beyond_the_cap_drop_the_oldest_for_both_paths() -> void:
+	var forest := _view.vegetation().forest
+	var saved: Array[Vector3] = forest._burns.duplicate()
+	for n in ForestField.MAX_BURNS + 5:
+		forest.burn(Vector2(-100.0 - n, -100.0), 0.01)
+	var burns := forest.impostor_burns()
+	assert_eq(burns.size(), ForestField.MAX_BURNS)
+	assert_eq(forest._burns.size(), ForestField.MAX_BURNS, "full trees keep the same circles")
+	assert_true(is_equal_approx(burns[0].x, -105.0), "the oldest five dropped: %s" % burns[0])
+	forest._burns = saved
+	forest._push_burns()
+
+
+func test_a_burn_reaches_the_impostor_shader() -> void:
+	var forest := _view.vegetation().forest
+	var before := forest.impostor_burns().size()
+	forest.burn(Vector2(_camera.x, _camera.z), 0.05)
+	var burns := forest.impostor_burns()
+	assert_eq(burns.size(), before + 1)
+	assert_true(is_equal_approx(burns[burns.size() - 1].z, 0.05))

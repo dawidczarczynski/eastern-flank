@@ -102,7 +102,10 @@ const FIELDS_DEFAULT := {
 ##   items keep their impostor until they are under vanish_angle (radians, ~2 px at 720p);
 ##   band_share: half width of the per-tree hand-over band as a share of its distance.
 ## - full_tree_cap: most full (LOD0) dense-forest trees submitted per frame, nearest chunks first.
-## - tree_sink_m / scrub_sink_m: how far a trunk / a shrub base sinks into the drawn ground.
+## - tree_sink_m / scrub_sink_m: how far a trunk / a shrub base sinks into the drawn ground;
+##   impostor_sink_m: how much deeper the GPU-placed forest impostors sink (they stand on the
+##   coarser lattice, TASK-189); impostor_thin_from_m / impostor_thin_widen: beyond this camera
+##   distance the impostors keep every other tree, crowns this much wider.
 ## - near_grass_range_m / near_grass_per_m2: GrassNear draws real-density grass (clumps per m² on
 ##   meadow; other terrain by GrassPlanner's density ratio) within this range of the camera.
 ## - shell_fade: the canopy shell fades in over (from, to) x the reference impostor range;
@@ -122,6 +125,9 @@ const VEGETATION_DEFAULT := {
 	"full_tree_cap": 6000,
 	"tree_sink_m": 0.3,
 	"scrub_sink_m": 0.05,
+	"impostor_sink_m": 1.5,
+	"impostor_thin_from_m": 900.0,
+	"impostor_thin_widen": 1.4,
 	"near_grass_range_m": 100.0,
 	"near_grass_per_m2": 1.2,
 	"shell_fade": Vector2(0.72, 0.95),

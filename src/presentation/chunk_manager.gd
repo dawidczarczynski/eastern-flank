@@ -10,10 +10,13 @@ extends RefCounted
 ## wobbling at a border from rebuilding. Frees are spread over frames too (half the budget). The
 ## result never depends on the build order: a chunk's plan is a function of the chunk alone.
 ## Usage: register(layer)…; each frame update(target) and process(); behind a loading screen or in
-## tests finish_all() builds everything the rings ask for at once.
+## tests finish_all() builds everything the rings ask for at once. An `instant` layer (cheap
+## builds, no worker plan) skips the worker queue: its new chunks are built nearest first on the
+## main thread, by the scan itself and then by process(), each within `instant_budget_usec`.
 
 ## Main-thread time per frame spent on build_chunk / free_chunk calls.
 const DEFAULT_BUDGET_USEC := 4000
+const DEFAULT_INSTANT_BUDGET_USEC := 4000
 ## Jobs per worker batch: big enough to keep the threads busy, small enough to follow the camera.
 const BATCH_SIZE := 24
 ## A batch of slow plans stops growing once its estimated work per worker reaches this (usec): a
@@ -28,10 +31,15 @@ const PLAY_THREADS_SPARED := 2
 ## its build radius instead, so its lag stays within the margin between reach and build ring.
 const RESCAN_DISTANCE := 2.0
 const RESCAN_FRACTION := 0.25
+## Bits of a queued job's distance (1/1000 units) and the layer priorities the order key holds.
+const DISTANCE_BITS := 30
+const PRIORITY_RANKS := 16
 
 ## Plans on the WorkerThreadPool (off: on the main thread, inside the budget).
 var threads := true
 var budget_usec := DEFAULT_BUDGET_USEC
+## Main-thread time for instant-layer builds per scan and per process() (the nearest always runs).
+var instant_budget_usec := DEFAULT_INSTANT_BUDGET_USEC
 
 var _rings: ChunkRings
 var _low_quality := false
@@ -48,6 +56,8 @@ var _stale: Dictionary = {}
 ## within the frame budget (a camera jump leaves hundreds at once: ~0.4 ms each).
 var _to_free: Dictionary = {}
 var _batch: Array[Vector3i] = []
+## Instant-layer jobs waiting for their build, farthest first (pop_back), all in _queued.
+var _instant: Array[Vector3i] = []
 var _batch_plans: Array = []
 var _batch_task := -1
 ## Planned jobs waiting for build_chunk: [Vector3i job, Variant plan], nearest last.
@@ -178,6 +188,7 @@ func is_settled() -> bool:
 		and not _scan_needed
 		and _to_free.is_empty()
 		and _pending.is_empty()
+		and _instant.is_empty()
 		and _batch.is_empty()
 		and _ready.is_empty()
 	)
@@ -202,6 +213,7 @@ func process() -> void:
 	if _scan_needed:
 		_scan()
 	var started := Time.get_ticks_usec()
+	_build_instant()
 	if not _to_free.is_empty():
 		_free_queued(started + budget_usec / 2)
 	if threads:
@@ -232,6 +244,7 @@ func finish_all() -> void:
 		if _scan_needed:
 			_scan()
 		_free_queued(0)
+		_build_instant(true)
 		if threads:
 			_collect_batch(true)
 			_start_batch(true)
@@ -257,7 +270,7 @@ func invalidate(id: StringName, rect: Rect2) -> void:
 				_freed_total += 1
 		# Jobs still waiting are planned later anyway; planned or planning ones are stale.
 		for job: Vector3i in _queued:
-			if job.x == i and job not in _pending:
+			if job.x == i and job not in _pending and job not in _instant:
 				if l.chunk_rect(Vector2i(job.y, job.z)).intersects(rect):
 					_stale[job] = true
 	_scan_needed = true
@@ -278,6 +291,7 @@ func clear() -> void:
 	_batch = []
 	_batch_plans = []
 	_pending = []
+	_instant = []
 	_ready = []
 	_queued.clear()
 	_stale.clear()
@@ -346,27 +360,57 @@ func _scan() -> void:
 					or not l.chunk_rect(chunk).intersects(l.area)
 				):
 					continue
-				_pending.append(job)
 				_queued[job] = true
-	# Queued jobs that left the free ring are dropped; the rest is ordered farthest first. The
-	# order key is one int per job (distance in 1/1000 units, then the job's index), sorted
-	# natively: a GDScript comparator over hundreds of jobs cost tens of ms on a fast pan.
+				if l.instant:
+					_instant.append(job)
+					continue
+				_pending.append(job)
+	_pending = _ordered(_pending, frees)
+	_instant = _ordered(_instant, frees)
+	_build_instant()
+
+
+## Queued jobs that left the free ring are dropped; the rest is ordered farthest first (lowest
+## layer priority first). The order key is one int per job (priority rank, distance in 1/1000
+## units, then the job's index), sorted natively: a GDScript comparator over hundreds of jobs cost
+## tens of ms on a fast pan.
+func _ordered(jobs: Array[Vector3i], frees: Array[float]) -> Array[Vector3i]:
 	var keys := PackedInt64Array()
 	var kept: Array[Vector3i] = []
-	for job in _pending:
+	for job in jobs:
 		var distance := _job_distance(job)
 		if distance > frees[job.x]:
 			_queued.erase(job)
 			_stale.erase(job)
 			continue
-		keys.append((roundi(distance * 1000.0) << 20) | kept.size())
+		var rank := (
+			PRIORITY_RANKS / 2
+			- clampi(_layers[job.x].priority, 1 - PRIORITY_RANKS / 2, PRIORITY_RANKS / 2)
+		)
+		var millis := mini(roundi(distance * 1000.0), (1 << DISTANCE_BITS) - 1)
+		keys.append((((rank << DISTANCE_BITS) | millis) << 20) | kept.size())
 		kept.append(job)
 	keys.sort()
 	var ordered: Array[Vector3i] = []
 	ordered.resize(kept.size())
 	for k in keys.size():
 		ordered[keys.size() - 1 - k] = kept[keys[k] & 0xFFFFF]
-	_pending = ordered
+	return ordered
+
+
+## Builds queued instant-layer chunks, nearest first, for up to instant_budget_usec (0: all).
+func _build_instant(all := false) -> void:
+	var started := Time.get_ticks_usec()
+	var first := true
+	while not _instant.is_empty():
+		if not all and not first and Time.get_ticks_usec() - started >= instant_budget_usec:
+			return
+		first = false
+		var job: Vector3i = _instant.pop_back()
+		_queued.erase(job)
+		var chunk := Vector2i(job.y, job.z)
+		if not _live[job.x].has(chunk):
+			_build_now(job.x, chunk)
 
 
 ## Frees queued chunks (beyond the free ring) until `deadline` (usec ticks; 0 = all of them).
@@ -463,6 +507,18 @@ func _collect_batch(wait: bool) -> void:
 		)
 	_batch = []
 	_batch_plans = []
+
+
+## Builds a chunk of an instant layer on this thread (plan included).
+func _build_now(index: int, chunk: Vector2i) -> void:
+	var l := _layers[index]
+	var started := Time.get_ticks_usec()
+	l.build_chunk.call(chunk, l.plan(chunk))
+	var cost := float(Time.get_ticks_usec() - started)
+	_build_usec[index] += int(cost)
+	_build_cost[index] = cost if _build_cost[index] == 0.0 else lerpf(_build_cost[index], cost, 0.2)
+	_live[index][chunk] = true
+	_built_total += 1
 
 
 ## Builds the nearest planned job (or drops it when it went stale or out of the free ring).

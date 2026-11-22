@@ -1,6 +1,6 @@
 # ADR 0027: GPU-placed forest – impostor trees derived in the vertex shader, not planned on the CPU
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-11-21
 - **Task**: TASK-189 (builds on ADR 0024 chunked world, ADR 0026 real-scale vegetation)
 
@@ -26,3 +26,15 @@ Everything that decides a fill tree is a pure function of its grid cell: a hash 
 - (−) Headless tests cannot see GPU placement: they test the GDScript reference and the mask / height textures, not the drawn trees.
 - (−) Vertex work for every cell of a chunk, tree or not (a chunk is only created where it touches forest); to be measured on the RX 580 against the 16.7 ms budget.
 - (−) The near-surface height cache is new state in the view layer (filled by `TerrainNear`, read by the shader), with its own resolution / memory limit.
+
+## Implementation refinements (TASK-189)
+
+- **No near-surface height cache.** The impostors stand on the drawn lattice height (an RF texture of the lattice vertices, interpolated in the shader exactly as `TerrainLattice.mesh_height_at`), sunk 1.5 m more than the full trees (`LookPreset.vegetation()` `impostor_sink_m`). Impostors start at ~230–250 m from the camera, where the lattice and the near surface differ by well under the sink; screenshots at distance 0.8–1.2 showed no floating impostors. The cache (decision 2) stays an option if a playtest shows floating or buried trees at the hand-over.
+- **Every decision reads the lattice height** (shore, conifer share), in GDScript and GLSL alike, so the CPU and the GPU pick the same cells; only the drawn base differs (full trees: near surface).
+- **Species from the integer hash.** The fill no longer uses `TreeSpecies.pick` (a `sin` hash, not reproducible on the GPU): `ForestFill` derives species, variant and colour variation from a third hash (`PICK_SALT`) with `ForestFill.unit`. `TreeSpecies.pick` itself is unchanged, so `balanced` and the planned trees are untouched.
+- **One mask source (human decision, 2026-11-21: forests must not stay hex-shaped).** Where forest may stand comes from one small interface, `ForestMaskSource.build(grid, area, per_unit) -> {forest, keep_off}` (two L8 masks at a resolution the caller picks, independent of the hex). `ForestFill` merges them into one stand mask at 32 texels per unit (~4.5 m) that both its GDScript reference and `forest_impostor.gdshader` read; the shader knows no hexes. Today's source, `HexForestMaskSource`, fills the FOREST tiles row by row and keeps the tile-centre clearing and the road / river ribbons (widened by their clearance, near forest only) off – **transitional**: the forests are hex-edged until TASK-108g's sub-hex land-cover raster (~16 m) becomes a second source; then only the source changes, not the shader, the layers or the mask resolution. TASK-108g is a soft follow-up, not a prerequisite. Suwałki: the fill with its mask ~0.12 s, the whole impostor setup ~0.18 s at load. The parcels stay `ParcelMap`'s own texture.
+- **Chunks own cells by centre** (`ForestFill.cells_of`): one shared MultiMesh (instances = the largest chunk's cells, no colour / custom data) for every chunk; the chunk's first cell and counts are an instance uniform; culling bounds come from `custom_aabb` over the chunk's lattice heights.
+- **`instant` ChunkLayer**: no worker plan; new chunks are built on the main thread nearest first by the scan and then by `process()`, each within `instant_budget_usec` (4 ms; ~0.13 ms a chunk headless on Suwałki). After a ~2 km jump the target update takes ~3.8 ms and every impostor chunk within 1 km exists after the first `process()`. A layer `priority` lets the full trees plan before the near grass on the camera manager (otherwise ~20 s of near-grass plans delayed them after a jump).
+- **Far thinning in the shader**: beyond 900 m from the camera every other cell is left out and the rest widen 1.4× (each tree at its own point of the band) – the CPU path did this per chunk by target distance; without it the GPU path cost +2–4 ms at distance 5–24.
+- **Impostor yaw = full tree yaw**: the impostor picks its atlas view from the tree's own yaw (`k × 6`), so the hand-over shows the same side of the tree.
+- **Burns** reach the impostors as a uniform array; the field keeps the last 128 circles (`ForestField.MAX_BURNS`, a battle leaves a few dozen wrecks) for full trees and impostors alike.

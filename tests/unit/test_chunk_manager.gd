@@ -302,3 +302,77 @@ func test_a_small_ring_is_rescanned_after_a_quarter_of_its_build_radius() -> voi
 	var layer := manager.layer(&"stub")
 	for chunk: Vector2i in _expected(layer, target, build):
 		assert_true(stub.live.has(chunk), "built around the moved target %s" % chunk)
+
+
+## TASK-189: an instant layer (one cheap node per chunk, no worker plan) is built by the scan
+## itself: after a camera jump its whole build ring exists before the first process().
+func test_an_instant_layer_builds_its_ring_in_the_update_that_finds_it() -> void:
+	var stub := Stub.new()
+	var manager := ChunkManager.new(_rings(20.0))
+	manager.threads = true
+	manager.budget_usec = 0
+	var layer := ChunkLayer.new(&"stub", SIZE, AREA, stub.build, stub.free_chunk)
+	layer.instant = true
+	manager.register(layer)
+	manager.update(Vector2.ZERO)
+	var expected := _expected(layer, Vector2.ZERO, manager.build_radius(&"stub"))
+	assert_eq(stub.live.size(), expected.size(), "the whole ring, no frame later")
+	assert_true(stub.plans.values().all(func(p: Variant) -> bool: return p == null), "no plan")
+	var target := Vector2(150.0, 150.0)
+	manager.update(target)
+	expected = _expected(layer, target, manager.build_radius(&"stub"))
+	for chunk: Vector2i in expected:
+		assert_true(stub.live.has(chunk), "%s built at once after the jump" % chunk)
+	manager.finish_all()
+	assert_eq(stub.live.size(), expected.size(), "the old ring freed as usual")
+	assert_true(manager.is_settled())
+
+
+## TASK-189: a layer of a higher priority is planned before any job of a lower one.
+func test_a_higher_priority_layer_is_planned_first() -> void:
+	var near := Stub.new()
+	var first := Stub.new()
+	var rings := ChunkRings.new()
+	rings.reach_m = {
+		&"near": 20.0 * MapScale.metres_per_unit, &"first": 20.0 * MapScale.metres_per_unit
+	}
+	var manager := ChunkManager.new(rings)
+	manager.threads = false
+	manager.budget_usec = 0
+	manager.register(ChunkLayer.new(&"near", SIZE, AREA, near.build, near.free_chunk, near.plan))
+	var layer := ChunkLayer.new(&"first", SIZE, AREA, first.build, first.free_chunk, first.plan)
+	layer.priority = 1
+	manager.register(layer)
+	manager.update(Vector2.ZERO)
+	var total := _expected(layer, Vector2.ZERO, manager.build_radius(&"first")).size()
+	while first.live.size() < total:
+		manager.process()
+		assert_eq(near.live.size(), 0, "nothing of the lower priority before the higher is done")
+	manager.finish_all()
+	assert_true(near.live.size() > 0)
+
+
+## TASK-189: instant builds stay within their budget per scan / process(), nearest first.
+func test_instant_builds_are_budgeted_nearest_first() -> void:
+	var stub := Stub.new()
+	stub.delay_usec = 1500
+	var manager := ChunkManager.new(_rings(40.0))
+	manager.instant_budget_usec = 3000
+	var layer := ChunkLayer.new(&"stub", SIZE, AREA, stub.build, stub.free_chunk)
+	layer.instant = true
+	manager.register(layer)
+	manager.update(Vector2.ZERO)
+	var total := _expected(layer, Vector2.ZERO, manager.build_radius(&"stub")).size()
+	assert_true(
+		stub.live.size() >= 1 and stub.live.size() <= 3, "%d in the scan" % stub.live.size()
+	)
+	assert_true(stub.live.has(Vector2i(0, 0)) or stub.live.has(Vector2i(-1, -1)), "nearest first")
+	assert_false(manager.is_settled())
+	var frames := 0
+	while stub.live.size() < total and frames < 1000:
+		var before := stub.live.size()
+		manager.process()
+		assert_true(stub.live.size() - before <= 3, "within the budget")
+		frames += 1
+	assert_eq(stub.live.size(), total)
+	assert_true(manager.is_settled())
