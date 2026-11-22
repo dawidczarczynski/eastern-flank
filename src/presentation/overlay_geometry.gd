@@ -134,14 +134,12 @@ static func hover_alpha(time_ms: float) -> float:
 	return 0.6 + 0.25 * sin(time_ms / 260.0)
 
 
-## Hex grid line opacity (TASK-049): fades linearly from GRID_ALPHA_NEAR at the closest zoom to
-## GRID_ALPHA_FAR at the farthest, stronger while a unit is selected (hex counting matters then).
+## Hex grid line opacity (TASK-049): fades linearly from GRID_ALPHA_NEAR at the close range
+## (CameraMath.CLOSE_RANGE_DISTANCE and closer) to GRID_ALPHA_FAR at the farthest zoom, stronger
+## while a unit is selected (hex counting matters then).
 static func grid_alpha(distance: float, selected: bool) -> float:
-	var t := clampf(
-		(distance - CameraMath.MIN_DISTANCE) / (CameraMath.MAX_DISTANCE - CameraMath.MIN_DISTANCE),
-		0.0,
-		1.0
-	)
+	var near := CameraMath.CLOSE_RANGE_DISTANCE
+	var t := clampf((distance - near) / (CameraMath.MAX_DISTANCE - near), 0.0, 1.0)
 	var alpha := lerpf(GRID_ALPHA_NEAR, GRID_ALPHA_FAR, t)
 	return alpha * GRID_SELECTED_FACTOR if selected else alpha
 

@@ -36,7 +36,8 @@ const LOD2_MARGIN := 4.0
 ## A node's visibility range (measured from the chunk centre at y = 0) reaches this much past the
 ## switch band of its trees (measured per tree): no tree is farther from its chunk's centre.
 const RANGE_SLACK := 8.0
-## LOD_DISTANCE + LOD_MARGIN + CameraMath.MIN_DISTANCE: the worst case at full zoom-in.
+## LOD_DISTANCE + LOD_MARGIN + CameraMath.CLOSE_RANGE_DISTANCE (7, the closest zoom before
+## TASK-111; closer zooms bring the camera nearer its target, so this still bounds them).
 const BUDGET_RADIUS := 41.0
 const LOD0_TRIANGLE_BUDGET := 1100000
 const BACKDROP_LOD0_REACH := 14.0

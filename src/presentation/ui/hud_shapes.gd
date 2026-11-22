@@ -218,3 +218,101 @@ static func enter_glyph(size: Vector2 = Vector2(9, 8)) -> Array[PackedVector2Arr
 		]
 	)
 	return [shaft, arrow]
+
+
+## APP-6-like unit class symbol (TASK-111 unit marker icon) as open polylines inside a `size` box
+## (the icon frame, 15 x 11 px): infantry = cross, tank = oval, mechanised infantry / IFV = cross
+## and oval, APC = cross and wheels (class_glyph_dots), recon = one slash, self-propelled artillery
+## = oval and dot, MLRS = dot and two rockets, air defence = dome, ATGM = inverted V, engineer =
+## bridge mark. Unknown classes draw nothing (the frame alone).
+static func class_glyph(unit_class: StringName, size: Vector2) -> Array[PackedVector2Array]:
+	var a := Rect2(Vector2.ONE * 1.5, size - Vector2.ONE * 3.0)  # inner area, off the frame
+	var lines: Array[PackedVector2Array] = []
+	match unit_class:
+		&"infantry":
+			lines.append_array(_cross(a))
+		&"mech_infantry", &"ifv":
+			lines.append_array(_cross(a))
+			lines.append(_oval(a, Vector2(0.62, 0.56)))
+		&"apc":
+			var top := Rect2(a.position, Vector2(a.size.x, a.size.y * 0.72))
+			lines.append_array(_cross(top))
+		&"tank":
+			lines.append(_oval(a, Vector2(0.8, 0.72)))
+		&"recon":
+			lines.append(
+				PackedVector2Array([Vector2(a.position.x, a.end.y), Vector2(a.end.x, a.position.y)])
+			)
+		&"sp_artillery":
+			lines.append(_oval(a, Vector2(0.8, 0.72)))
+		&"mlrs":
+			for dx: float in [-a.size.x * 0.3, a.size.x * 0.3]:
+				var x := a.get_center().x + dx
+				var tip := Vector2(x, a.position.y)
+				lines.append(PackedVector2Array([Vector2(x, a.end.y), tip]))
+				lines.append(
+					PackedVector2Array([tip + Vector2(-1.5, 1.8), tip, tip + Vector2(1.5, 1.8)])
+				)
+		&"air_defense":
+			var dome := PackedVector2Array()
+			var c := Vector2(a.get_center().x, a.end.y)
+			for i in 13:
+				var t := PI + PI * i / 12.0
+				dome.append(c + Vector2(cos(t) * a.size.x * 0.5, sin(t) * a.size.y * 0.75))
+			lines.append(dome)
+		&"atgm":
+			lines.append(
+				PackedVector2Array(
+					[
+						Vector2(a.position.x, a.end.y),
+						Vector2(a.get_center().x, a.position.y),
+						Vector2(a.end.x, a.end.y)
+					]
+				)
+			)
+		&"engineer":
+			var y0 := a.position.y + a.size.y * 0.25
+			var y1 := a.end.y - a.size.y * 0.15
+			var x0 := a.position.x + a.size.x * 0.12
+			var x1 := a.end.x - a.size.x * 0.12
+			var xm := a.get_center().x
+			lines.append(
+				PackedVector2Array(
+					[Vector2(x0, y1), Vector2(x0, y0), Vector2(x1, y0), Vector2(x1, y1)]
+				)
+			)
+			lines.append(PackedVector2Array([Vector2(xm, y0), Vector2(xm, y1)]))
+	return lines
+
+
+## Filled dots of class_glyph (centres, radius ~1.3 px): the artillery dot of sp_artillery and
+## mlrs, the two wheels of apc.
+static func class_glyph_dots(unit_class: StringName, size: Vector2) -> PackedVector2Array:
+	var a := Rect2(Vector2.ONE * 1.5, size - Vector2.ONE * 3.0)
+	match unit_class:
+		&"sp_artillery":
+			return PackedVector2Array([a.get_center()])
+		&"mlrs":
+			return PackedVector2Array([a.get_center() + Vector2(0, a.size.y * 0.15)])
+		&"apc":
+			var y := a.end.y - 1.0
+			var c := a.get_center().x
+			return PackedVector2Array([Vector2(c - 2.5, y), Vector2(c + 2.5, y)])
+	return PackedVector2Array()
+
+
+static func _cross(a: Rect2) -> Array[PackedVector2Array]:
+	return [
+		PackedVector2Array([a.position, a.end]),
+		PackedVector2Array([Vector2(a.position.x, a.end.y), Vector2(a.end.x, a.position.y)])
+	]
+
+
+static func _oval(a: Rect2, fraction: Vector2) -> PackedVector2Array:
+	var c := a.get_center()
+	var radius := a.size * fraction * 0.5
+	var points := PackedVector2Array()
+	for i in 21:
+		var t := TAU * i / 20.0
+		points.append(c + Vector2(cos(t) * radius.x, sin(t) * radius.y))
+	return points

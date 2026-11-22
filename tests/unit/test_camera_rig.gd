@@ -115,10 +115,20 @@ func _home(echo: bool) -> void:
 
 
 func test_min_distance_override_lets_set_view_go_closer() -> void:
-	_rig.set_view(Vector2.ZERO, 0.0, 1.5)
+	_rig.set_view(Vector2.ZERO, 0.0, 0.1)
 	assert_eq(_rig.distance(), CameraMath.MIN_DISTANCE, "clamped without the override")
-	_rig.set_min_distance_override(1.0)
-	_rig.set_view(Vector2.ZERO, 0.0, 1.5)
-	assert_eq(_rig.distance(), 1.5)
-	_rig.set_view(Vector2.ZERO, 0.0, 0.5)
-	assert_eq(_rig.distance(), 1.0)
+	_rig.set_min_distance_override(0.08)
+	_rig.set_view(Vector2.ZERO, 0.0, 0.1)
+	assert_eq(_rig.distance(), 0.1)
+	_rig.set_view(Vector2.ZERO, 0.0, 0.05)
+	assert_eq(_rig.distance(), 0.08)
+
+
+func test_wheel_zooms_in_from_the_default_to_the_minimum() -> void:
+	assert_eq(_rig.distance(), CameraRig.DEFAULT_DISTANCE)
+	var notches := 0
+	while _rig.distance() > CameraMath.MIN_DISTANCE and notches < 100:
+		_wheel(MOUSE_BUTTON_WHEEL_UP, false)
+		notches += 1
+	assert_eq(_rig.distance(), CameraMath.MIN_DISTANCE)
+	assert_true(notches <= 22, "%d notches from the default" % notches)

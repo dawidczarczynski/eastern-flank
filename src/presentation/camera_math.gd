@@ -2,21 +2,41 @@ class_name CameraMath
 extends RefCounted
 ## Pure camera formulas (no nodes), shared by CameraRig and tested in tests/unit/.
 
-const MIN_DISTANCE := 7.0
+## Zoom range (TASK-111): MIN_DISTANCE 0.18 units is ~26 m at the 250 m hex scale, close enough
+## to look at a real-size vehicle (TASK-110 zoom study); MAX_DISTANCE shows the whole map.
+const MIN_DISTANCE := 0.18
 const MAX_DISTANCE := 46.0
-const ZOOM_OUT_FACTOR := 1.12
-const ZOOM_IN_FACTOR := 0.88
+## Closer than this the camera is in its close range: it looks at the ground under the target
+## (look_height), its ground clearance shrinks with the square of the distance (clearance) and the
+## pitch stays at PITCH_CLOSE. It was the closest zoom before TASK-111.
+const CLOSE_RANGE_DISTANCE := 7.0
+## Group-drawing hook (TASK-136): closer than this a unit may be drawn as a 3-4 model group, its
+## marker stays; farther only the marker and the single model. Compared with
+## UnitView.distance_to_camera.
+const GROUP_DRAW_DISTANCE := 3.0
+## Every wheel notch multiplies (out) or divides (in) the distance by this factor, so the zoom feels
+## the same at every distance: 46 -> 0.18 in 25 notches.
+const ZOOM_STEP_FACTOR := 1.25
+## The camera never goes lower than this many metres above the drawn ground (MapScale converts).
+const MIN_HEIGHT_METRES := 2.0
+## Near clip plane: NEAR_PLANE_PER_DISTANCE x the distance, within [NEAR_PLANE_MIN, NEAR_PLANE_MAX]
+## (0.1 = the scene's value at the default zoom, 0.009 at MIN_DISTANCE).
+const NEAR_PLANE_PER_DISTANCE := 0.05
+const NEAR_PLANE_MIN := 0.005
+const NEAR_PLANE_MAX := 0.1
 const PAN_PER_PIXEL := 0.0016  # world units per pixel per unit of distance
 const DRAG_THRESHOLD := 4.0  # pixels
 
 ## Pitch curve control points (distance, pitch in radians), TASK-052: close up the horizon is in
 ## frame (pitch < half the vertical FOV), the default shows far land at the top, zoomed out is
-## nearly top-down. Piecewise linear between them, clamped outside [MIN_DISTANCE, MAX_DISTANCE].
-const PITCH_CLOSE := 0.30  # at MIN_DISTANCE, ~17 degrees
+## nearly top-down. Piecewise linear between them, flat PITCH_CLOSE in the close range (down to
+## MIN_DISTANCE: towards the horizon, TASK-111) and clamped beyond MAX_DISTANCE.
+const PITCH_CLOSE := 0.30  # at CLOSE_RANGE_DISTANCE and closer, ~17 degrees
 const PITCH_DEFAULT := 0.56  # at PITCH_DEFAULT_DISTANCE, ~32 degrees
 const PITCH_DEFAULT_DISTANCE := 24.0
 const PITCH_FAR := 1.05  # at MAX_DISTANCE, ~60 degrees
-## The camera never goes lower than this above the ground under it.
+## The camera never goes lower than this above the ground under it (at CLOSE_RANGE_DISTANCE and
+## farther; closer see clearance()).
 const GROUND_CLEARANCE := 1.5
 const CLEAR_PITCH_ITERATIONS := 8
 
@@ -34,7 +54,9 @@ const TILT_RESET_SECONDS := 0.3  # a full-range offset returns to 0 in this time
 ## Camera pitch above the horizon (radians): flatter when close, more top-down when far.
 static func pitch_for_distance(d: float) -> float:
 	if d <= PITCH_DEFAULT_DISTANCE:
-		var t := clampf((d - MIN_DISTANCE) / (PITCH_DEFAULT_DISTANCE - MIN_DISTANCE), 0.0, 1.0)
+		var t := clampf(
+			(d - CLOSE_RANGE_DISTANCE) / (PITCH_DEFAULT_DISTANCE - CLOSE_RANGE_DISTANCE), 0.0, 1.0
+		)
 		return lerpf(PITCH_CLOSE, PITCH_DEFAULT, t)
 	var t := clampf(
 		(d - PITCH_DEFAULT_DISTANCE) / (MAX_DISTANCE - PITCH_DEFAULT_DISTANCE), 0.0, 1.0
@@ -88,10 +110,40 @@ static func camera_offset_at_pitch(yaw: float, d: float, p: float) -> Vector3:
 	return Vector3(sin(yaw) * cos(p) * d, sin(p) * d, cos(yaw) * cos(p) * d)
 
 
-## Positive notches zoom out, negative zoom in; the result is clamped.
+## Positive notches zoom out, negative zoom in (geometric: x ZOOM_STEP_FACTOR per notch); the
+## result is clamped.
 static func zoom(d: float, notches: float) -> float:
-	var factor := pow(ZOOM_OUT_FACTOR, notches) if notches > 0.0 else pow(ZOOM_IN_FACTOR, -notches)
+	var factor := pow(ZOOM_STEP_FACTOR, notches)
 	return clampf(d * factor, DevTunables.camera_min_distance(), DevTunables.camera_max_distance())
+
+
+## Ground clearance (world units) at distance `d`: GROUND_CLEARANCE from CLOSE_RANGE_DISTANCE out,
+## shrinking with (d / CLOSE_RANGE_DISTANCE)^2 closer (a 216 m clearance would force a top-down
+## close-up), never below MIN_HEIGHT_METRES.
+static func clearance(d: float) -> float:
+	var near := minf(d / CLOSE_RANGE_DISTANCE, 1.0)
+	return maxf(GROUND_CLEARANCE * near * near, MapScale.to_units(MIN_HEIGHT_METRES))
+
+
+## Height of the look-at point at distance `d` over ground `ground` (the terrain under the
+## target): `base` (CameraRig.TARGET_HEIGHT above y = 0) from 2 x CLOSE_RANGE_DISTANCE out; in
+## the close range the ground plus a share of `base` that shrinks with the distance (a real-size
+## tank is ~0.02 units tall); blended linearly in between, so zooming never jumps.
+static func look_height(d: float, ground: float, base: float) -> float:
+	var close := ground + base * minf(d / CLOSE_RANGE_DISTANCE, 1.0)
+	var t := clampf((d - CLOSE_RANGE_DISTANCE) / CLOSE_RANGE_DISTANCE, 0.0, 1.0)
+	return lerpf(close, base, t)
+
+
+## Near clip plane (world units) at camera distance `d`: small enough close up for a 26 m view,
+## the scene's 0.1 from the default zoom out (depth precision far away).
+static func near_plane(d: float) -> float:
+	return clampf(d * NEAR_PLANE_PER_DISTANCE, NEAR_PLANE_MIN, NEAR_PLANE_MAX)
+
+
+## True when a unit `distance_to_camera` away is drawn as a group (TASK-136 hook).
+static func draws_group(distance_to_camera: float) -> bool:
+	return distance_to_camera < GROUP_DRAW_DISTANCE
 
 
 ## XZ change of the target for a screen drag (grab semantics: the ground follows the cursor).
@@ -145,8 +197,8 @@ static func clamp_target(target: Vector2, bounds: Rect2, margin: float) -> Vecto
 ## Smallest pitch >= the offset curve at which the camera is at least GROUND_CLEARANCE above
 ## `ground_fn(x, z) -> float`. Raising the pitch moves the camera towards the target, so the ground
 ## is re-sampled until it settles; if it does not settle (steep terrain) the camera goes straight
-## above the target, which always clears. `clearance` overrides GROUND_CLEARANCE (the TASK-110
-## close-up study camera, CameraRig.set_min_distance_override).
+## above the target, which always clears. `clearance` overrides GROUND_CLEARANCE (CameraRig passes
+## clearance(d)).
 static func clear_pitch(
 	ground_fn: Callable,
 	target: Vector2,

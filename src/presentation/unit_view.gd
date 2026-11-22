@@ -51,7 +51,6 @@ var _fill_material := _marker_material(false)
 var _ground_height: Callable
 var _marker_origin := Vector3.INF  # where the marker geometry was last built
 var _marker_selected := false  # selected state the ring geometry was built for
-var _label_height := UnitModels.DEFAULT_LABEL_HEIGHT
 var _owner_color := Color.WHITE
 var _selected := false
 var _hovered := false
@@ -122,11 +121,12 @@ func setup(
 	_ring.material_override = _ring_material
 	_fill.material_override = _fill_material
 
-	_label_height = UnitModels.label_height(model_id)
 	_label = UnitLabel.new()
 	hud_root.add_child(_label)
 	hud_root.move_child(_label, 0)  # below the other HUD panels
-	_label.setup(tr(unit.definition.short_name), _owner_color, _hp, _max_hp)
+	_label.setup(
+		tr(unit.definition.short_name), _owner_color, _hp, _max_hp, unit.definition.unit_class
+	)
 	_refresh_markers()
 	_update_label()
 
@@ -715,9 +715,62 @@ func _set_death_alpha(alpha: float) -> void:
 	_set_alpha(_death_material, alpha)
 
 
+## The marker is anchored at the unit's ground point (its feet: tile centre at terrain height, or
+## the terrain under it while it moves), not above the model, so the model scale does not move it.
 func _update_label() -> void:
-	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
-	_label.place(camera, _world_position() + Vector3.UP * _label_height)
+	_label.place(_camera(), ground_point())
+
+
+## The point the marker is anchored at: the unit's feet on the terrain (its node origin).
+func ground_point() -> Vector3:
+	return _world_position()
+
+
+func _camera() -> Camera3D:
+	return get_viewport().get_camera_3d() if is_inside_tree() else null
+
+
+## The unit's marker (HUD label); null once the unit is dying.
+func label() -> UnitLabel:
+	return _label if _label != null and is_instance_valid(_label) else null
+
+
+## Distance (world units) from the active camera to the unit's ground point; INF without a camera.
+## The group-drawing hook (CameraMath.draws_group, TASK-136) and the marker overlap order read it.
+func distance_to_camera() -> float:
+	var camera := _camera()
+	return INF if camera == null else distance_from(camera.global_position)
+
+
+## Distance (world units) from `point` (a camera position) to the unit's ground point.
+func distance_from(point: Vector3) -> float:
+	return point.distance_to(ground_point())
+
+
+## The marker's unshifted screen rectangle this frame, or an empty Rect2 when it is not shown
+## (dying, behind the camera, or hidden with the unit markers).
+func marker_rect() -> Rect2:
+	var camera := _camera()
+	var tag := label()
+	if _dying or tag == null or camera == null or camera.is_position_behind(ground_point()):
+		return Rect2()
+	return tag.rect_at(UnitLabel.anchor(camera.unproject_position(ground_point())))
+
+
+## Sets the marker's overlap shift (UnitLabel.overlap_shifts) and re-places it.
+func set_marker_shift(pixels: float) -> void:
+	var tag := label()
+	if tag != null and not _dying:
+		tag.shift = pixels
+		_update_label()
+
+
+## True when screen point `point` is on the marker as drawn (shift included).
+func marker_hit(point: Vector2) -> bool:
+	var tag := label()
+	if _dying or tag == null or not tag.visible:
+		return false
+	return Rect2(tag.position, tag.size).has_point(point)
 
 
 ## global_position errors outside the tree (headless tests); the local position is the same there.

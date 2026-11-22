@@ -38,7 +38,7 @@ var _tilt_dragging := false  # middle mouse held
 var _ground_height := Callable()
 var _shake := 0.0  # current shake amplitude (world units)
 ## Study override (TASK-110, screenshot tool only): set_view clamps to this instead of
-## CameraMath.MIN_DISTANCE, and below MIN_DISTANCE the camera looks at the ground under the target.
+## CameraMath.MIN_DISTANCE.
 var _min_distance_override := 0.0
 var _shake_clock := 0.0
 
@@ -95,7 +95,7 @@ func set_bounds(rect: Rect2) -> void:
 	_apply()
 
 
-## The camera keeps CameraMath.GROUND_CLEARANCE above the ground this query returns.
+## The camera keeps CameraMath.clearance() above the ground this query returns.
 func set_ground_query(query: Callable) -> void:
 	_ground_height = query
 	_apply()
@@ -123,14 +123,13 @@ func set_min_distance_override(distance: float) -> void:
 	_min_distance_override = maxf(distance, 0.0)
 
 
-## Height of the look-at point: TARGET_HEIGHT above y = 0, or, closer than MIN_DISTANCE (only
-## reachable through set_min_distance_override), the ground under the target plus a share of
-## TARGET_HEIGHT that shrinks with the distance (a real-size tank is ~0.02 units tall).
+## Height of the look-at point (CameraMath.look_height): TARGET_HEIGHT above y = 0 when far, the
+## ground under the target in the close range.
 func _look_height() -> float:
-	if _distance >= CameraMath.MIN_DISTANCE or not _ground_height.is_valid():
+	if not _ground_height.is_valid() or _distance >= 2.0 * CameraMath.CLOSE_RANGE_DISTANCE:
 		return TARGET_HEIGHT
 	var ground: float = _ground_height.call(_target.x, _target.y)
-	return ground + TARGET_HEIGHT * _distance / CameraMath.MIN_DISTANCE
+	return CameraMath.look_height(_distance, ground, TARGET_HEIGHT)
 
 
 ## Largest shake amplitude: SHAKE_MAX, or the dev arena's tunable.
@@ -283,20 +282,22 @@ func _apply() -> void:
 	if _camera == null:
 		return
 	var look_at_point := Vector3.UP * _look_height()
+	_camera.near = CameraMath.near_plane(_distance)
 	_camera.position = look_at_point + _clear_offset(look_at_point)
-	_camera.look_at(global_position + look_at_point, Vector3.UP)
+	# The rig only translates, so aiming in its local space equals look_at() (and works headless).
+	_camera.basis = Basis.looking_at(look_at_point - _camera.position, Vector3.UP)
 	if _shake > 0.0:  # translation only: the rig target, the pitch and the aim stay untouched
 		var t := _shake_clock
-		_camera.position += (Vector3(sin(t * 91.0), sin(t * 77.0 + 1.3), cos(t * 63.0)) * _shake)
+		# In the close range the offset shrinks with the distance (the same angular shake), so a
+		# 26 m close-up neither jumps 4 m nor dips under the ground clearance.
+		var amplitude := _shake * minf(_distance / CameraMath.CLOSE_RANGE_DISTANCE, 1.0)
+		_camera.position += Vector3(sin(t * 91.0), sin(t * 77.0 + 1.3), cos(t * 63.0)) * amplitude
 
 
 ## Camera offset with the pitch raised where needed so the camera stays above the ground under it.
 func _clear_offset(look_at_point: Vector3) -> Vector3:
 	if not _ground_height.is_valid():
 		return CameraMath.camera_offset(_yaw, _distance, 0.0, _pitch_offset)
-	# Closer than MIN_DISTANCE (study override only) the clearance shrinks with the square of the
-	# distance, otherwise a 1.5-unit (216 m) clearance would force a top-down view of a close-up.
-	var near := minf(_distance / CameraMath.MIN_DISTANCE, 1.0)
 	var pitch := CameraMath.clear_pitch(
 		_ground_height,
 		_target,
@@ -304,6 +305,6 @@ func _clear_offset(look_at_point: Vector3) -> Vector3:
 		_distance,
 		look_at_point.y,
 		_pitch_offset,
-		CameraMath.GROUND_CLEARANCE * near * near
+		CameraMath.clearance(_distance)
 	)
 	return CameraMath.camera_offset_at_pitch(_yaw, _distance, pitch)

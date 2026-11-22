@@ -338,9 +338,8 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_SCALE_PRESET=<current|balanced|realistic|true> is applied in _initialize (`true`:
 ## units, trees, scrub, rocks and grass at 1:1 of MapScale, TASK-110 study).
 ## SCREENSHOT_MIN_DISTANCE=<world units, 0.05-7> lets SCREENSHOT_CAMERA / SCREENSHOT_FOCUS go
-## closer than the game's zoom limit (CameraMath.MIN_DISTANCE); below it the camera looks at the
-## ground under the target (TASK-110 real-scale close-ups, e.g. SCREENSHOT_MIN_DISTANCE=1
-## SCREENSHOT_CAMERA=2,-40,1.5).
+## closer than the game's zoom limit (CameraMath.MIN_DISTANCE, 0.18 since TASK-111; only values
+## below it have an effect), e.g. SCREENSHOT_MIN_DISTANCE=0.1 SCREENSHOT_CAMERA=2,-40,0.1.
 ## SCREENSHOT_LOOK=<current|muted_summer|early_autumn|overcast> is applied in _initialize.
 ## SCREENSHOT_MARKS=<unit id> draws demo ground decals (tracks, craters, scorch) around that
 ## unit's tile (TASK-058), without animation.

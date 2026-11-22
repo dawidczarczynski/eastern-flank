@@ -12,7 +12,8 @@ extends RefCounted
 ## after the warm-up (0 = no measurement, capped at MAX_FRAMES).
 ## ScreenshotOptions.parse_min_distance("1.5") (SCREENSHOT_MIN_DISTANCE, TASK-110) -> the closest
 ## camera distance the debug camera may use (world units, MIN_DISTANCE_FLOOR..CameraMath
-## MIN_DISTANCE), 0.0 for an empty spec, -1.0 if invalid.
+## CLOSE_RANGE_DISTANCE; only values below CameraMath.MIN_DISTANCE go past the game's zoom limit),
+## 0.0 for an empty spec, -1.0 if invalid.
 
 const DEFAULT_FRAMES := 10
 const MIN_FRAMES := 1
@@ -98,7 +99,7 @@ static func parse_min_distance(spec: String) -> float:
 	if not text.is_valid_float():
 		return -1.0
 	var value := text.to_float()
-	if value < MIN_DISTANCE_FLOOR or value > CameraMath.MIN_DISTANCE:
+	if value < MIN_DISTANCE_FLOOR or value > CameraMath.CLOSE_RANGE_DISTANCE:
 		return -1.0
 	return value
 

@@ -20,6 +20,7 @@ func test_pitch_for_distance_control_points() -> void:
 
 func test_pitch_for_distance_is_clamped_outside_the_zoom_range() -> void:
 	_near(CameraMath.pitch_for_distance(2.0), 0.30)
+	_near(CameraMath.pitch_for_distance(CameraMath.MIN_DISTANCE), CameraMath.PITCH_CLOSE)
 	_near(CameraMath.pitch_for_distance(100.0), 1.05)
 
 
@@ -49,9 +50,9 @@ func test_min_pitch_for_ground() -> void:
 	_near(CameraMath.min_pitch_for_ground(50.0, 0.4, 7.0), PI / 2.0)
 
 
-func test_camera_stays_above_ground_at_every_distance() -> void:
+func test_camera_stays_above_ground_at_every_distance_out_of_the_close_range() -> void:
 	var ground := 2.0
-	var d := CameraMath.MIN_DISTANCE
+	var d := CameraMath.CLOSE_RANGE_DISTANCE
 	while d <= CameraMath.MAX_DISTANCE:
 		var offset := CameraMath.camera_offset(
 			0.3, d, CameraMath.min_pitch_for_ground(ground, 0.4, d)
@@ -82,11 +83,41 @@ func test_camera_offset_quarter_turn() -> void:
 
 
 func test_zoom() -> void:
-	_near(CameraMath.zoom(24.0, 1.0), 26.88)
-	_near(CameraMath.zoom(24.0, -1.0), 21.12)
+	_near(CameraMath.zoom(24.0, 1.0), 30.0)
+	_near(CameraMath.zoom(24.0, -1.0), 19.2)
 	_near(CameraMath.zoom(45.0, 1.0), 46.0)
-	_near(CameraMath.zoom(7.5, -1.0), 7.0)
+	_near(CameraMath.zoom(0.2, -1.0), CameraMath.MIN_DISTANCE)
 	_near(CameraMath.zoom(24.0, 0.0), 24.0)
+
+
+func test_zoom_range_and_hooks() -> void:
+	assert_eq(CameraMath.MIN_DISTANCE, 0.18)
+	assert_eq(CameraMath.MAX_DISTANCE, 46.0)
+	assert_eq(CameraMath.GROUP_DRAW_DISTANCE, 3.0)
+	assert_true(CameraMath.draws_group(2.9))
+	assert_false(CameraMath.draws_group(3.0))
+
+
+func test_look_height_follows_the_ground_in_the_close_range_and_never_jumps() -> void:
+	_near(CameraMath.look_height(30.0, 5.0, 0.4), 0.4)
+	_near(CameraMath.look_height(14.0, 5.0, 0.4), 0.4)
+	_near(CameraMath.look_height(7.0, 5.0, 0.4), 5.4)
+	_near(CameraMath.look_height(0.7, 5.0, 0.4), 5.04)
+	var previous := CameraMath.look_height(CameraMath.MIN_DISTANCE, 5.0, 0.4)
+	var d := CameraMath.MIN_DISTANCE
+	while d <= 20.0:
+		var h := CameraMath.look_height(d, 5.0, 0.4)
+		assert_true(absf(h - previous) < 0.15, "jump at d %s: %s -> %s" % [d, previous, h])
+		previous = h
+		d += 0.05
+
+
+func test_pitch_at_the_minimum_is_towards_the_horizon_within_the_limits() -> void:
+	var p := CameraMath.pitch_with_offset(CameraMath.MIN_DISTANCE, 0.0)
+	_near(p, CameraMath.PITCH_CLOSE)
+	assert_true(p >= CameraMath.PITCH_MIN and p <= deg_to_rad(20.0))
+	# The tilt offset still stays within the clamp at the minimum.
+	assert_true(CameraMath.pitch_with_offset(CameraMath.MIN_DISTANCE, -1.0) >= CameraMath.PITCH_MIN)
 
 
 func test_pan_delta() -> void:

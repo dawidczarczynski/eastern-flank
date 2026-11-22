@@ -12,7 +12,7 @@
 #   SCREENSHOT_RESOLUTION=<W>x<H> window and PNG size (default 1280x720)
 #   SCREENSHOT_SCENARIO=objective_battle starts that scenario (Scenario.NAMES) instead of the default battle
 #   SCREENSHOT_CONTACT=<col>:<row>:<col>:<row> starts the contact battle of that attacker / defender hex pair (TASK-094b debug preview) instead of a scenario
-#   SCREENSHOT_SCALE_PRESET=true puts units and scatter at real size (TASK-110); SCREENSHOT_MIN_DISTANCE=<0.05-7> lets SCREENSHOT_CAMERA / SCREENSHOT_FOCUS zoom closer than the game allows
+#   SCREENSHOT_SCALE_PRESET=true puts units and scatter at real size (TASK-110); SCREENSHOT_MIN_DISTANCE=<0.05-7> lets SCREENSHOT_CAMERA / SCREENSHOT_FOCUS zoom closer than the game allows (below 0.18)
 # Exit codes: 0 saved, 1 blank image / script error / failure, 2 no display or invalid arguments,
 #             124 timeout (60 s for the whole run; SCREENSHOT_TIME_LIMIT=<seconds> raises it, e.g. 180 for
 #             the Suwalki battle with SCREENSHOT_MEASURE_FRAMES), 127 Godot not found.

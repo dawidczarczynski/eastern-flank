@@ -122,6 +122,7 @@ func _ready() -> void:
 	_build_hud_root()
 	_build_bottom_left_stack()
 	await _next_frame()
+	_map_view.land_cover = BattleCover.for_battle(setup, scenario_name, MAP_SEED, state.grid)
 	_map_view.build(state.grid)
 	await _next_frame()
 	_objective_markers.name = "ObjectiveMarkers"
@@ -138,7 +139,7 @@ func _ready() -> void:
 	_salvo_fx_pool = SalvoFxPool.create(self, quality, _map_bounds(), _camera_rig)
 	_muzzle_flash = MuzzleFlash.create(self, quality)
 	_infantry_fire = InfantryFire.create(self, quality, _salvo_fx_pool)
-	_camera_rig.set_ground_query(_map_view.visible_ground_height)
+	_camera_rig.set_ground_query(_map_view.camera_ground_height)
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
 	_camera_rig.clicked.connect(_on_camera_clicked)
@@ -252,6 +253,7 @@ func _process(_delta: float) -> void:
 	_update_target_tag()
 	_map_view.set_camera_distance(_camera_rig.distance())
 	_map_view.set_camera_target(_camera_rig.target())
+	_layout_markers()
 	var camera := get_viewport().get_camera_3d()
 	if camera == null or camera.global_transform == _last_camera_transform:
 		return
@@ -420,6 +422,7 @@ func debug_focus_point(target: Vector2, yaw: float, distance: float) -> void:
 	_camera_rig.set_view(target, yaw, distance)
 	for view: UnitView in _unit_views.values():
 		view.refresh_label()  # _process is disabled in the screenshot tool
+	_layout_markers()
 	debug_build_grass()
 
 
@@ -505,6 +508,9 @@ func _on_camera_clicked(screen_position: Vector2, button: MouseButton) -> void:
 	if not _input_allowed():
 		return
 	var coord: Variant = _pick_hex(screen_position)
+	var on_marker := _marker_unit_at(screen_position)
+	if on_marker != null:
+		coord = on_marker.coord  # a click on a unit's marker is a click on its tile
 	if _fire_support_mode:
 		if button == MOUSE_BUTTON_RIGHT:
 			cancel_fire_support()
@@ -557,6 +563,34 @@ func _terrain_at(x: float, z: float) -> int:
 	var grid := _sim.state.grid
 	var coord := Hex.from_world(Vector3(x, 0.0, z), _map_view.hex_size)
 	return int(grid.get_terrain(coord)) if grid.has_tile(coord) else Terrain.Type.PLAINS
+
+
+## Overlap layout of the unit markers (TASK-111): a marker that would overlap one closer to the
+## camera moves up by its height (UnitLabel.overlap_shifts).
+func _layout_markers() -> void:
+	var views: Array[UnitView] = []
+	var rects: Array[Rect2] = []
+	var depths: Array[float] = []
+	for view: UnitView in _unit_views.values():
+		var rect := view.marker_rect()
+		if rect.has_area():
+			views.append(view)
+			rects.append(rect)
+			depths.append(view.distance_to_camera())
+	var shifts := UnitLabel.overlap_shifts(rects, depths)
+	for i in views.size():
+		views[i].set_marker_shift(shifts[i])
+
+
+## The living unit whose marker is under `screen_position` (the closest to the camera when markers
+## overlap), or null.
+func _marker_unit_at(screen_position: Vector2) -> Unit:
+	var best: UnitView = null
+	for view: UnitView in _unit_views.values():
+		if view.marker_hit(screen_position):
+			if best == null or view.distance_to_camera() < best.distance_to_camera():
+				best = view
+	return _sim.state.get_unit(best.unit_id) if best != null else null
 
 
 ## Returns the Vector2i of the tile under the cursor, or null.

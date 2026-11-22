@@ -1,6 +1,6 @@
 # TASK-136: Company drawn as a group of 3–4 real-size models
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (`UnitView`, `UnitModels`, wreck handling; core untouched)
 - **Depends on**: TASK-111, TASK-134 (soft: TASK-135)
 - **Sections**: GDD "Open questions" (Realistic scale – How a company is drawn), "Vision decisions"; ADR 0021

@@ -451,6 +451,17 @@ func visible_ground_height(x: float, z: float) -> float:
 	return maxf(_backdrop.height_at(x, z), TerrainSurface.WATER_SURFACE)
 
 
+## The ground the camera keeps its clearance above (TASK-111): visible_ground_height, and on the
+## playable rectangle also the finer surface the near terrain LOD (TerrainNear) draws, which can
+## rise above the coarser lattice between its vertices – at a 26 m close-up that matters – and
+## never below the water plane (WaterPlane), so the camera stays out of a lake.
+func camera_ground_height(x: float, z: float) -> float:
+	var h := maxf(visible_ground_height(x, z), TerrainSurface.WATER_SURFACE)
+	if _near != null and _lattice.rect().has_point(Vector2(x, z)):
+		h = maxf(h, _near.surface_height_at(x, z))
+	return h
+
+
 ## The tile under a pick ray, or null: rays that miss the map or hit the backdrop scenery pick
 ## nothing (the backdrop is not part of the TerrainSurface the ray is cast against).
 func pick_coord(origin: Vector3, direction: Vector3) -> Variant:
