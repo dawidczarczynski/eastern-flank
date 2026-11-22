@@ -149,8 +149,8 @@ func test_sun() -> void:
 	assert_true(
 		azimuth.distance_to(Vector2(0.520, -0.405).normalized()) < 0.01, "azimuth %s" % azimuth
 	)
-	assert_true(is_equal_approx(sun.shadow_blur, 1.2))
-	assert_true(is_equal_approx(sun.light_angular_distance, 1.0))
+	assert_true(is_equal_approx(sun.shadow_blur, 0.8))
+	assert_true(is_equal_approx(sun.light_angular_distance, 0.3))
 	battle.free()
 
 

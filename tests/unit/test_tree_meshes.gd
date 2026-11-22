@@ -172,3 +172,23 @@ func test_meshes_are_cached() -> void:
 	assert_true(first == TreeMeshes.lod0(&"oak", 1))
 	var simple := TreeMeshes.lod1(&"pine")
 	assert_true(simple == TreeMeshes.lod1(&"pine"))
+
+
+## Small bare twigs on the trunk below the crown (deciduous trees and pines; not spruce, scrub):
+## bark triangles beyond the trunk and the main branches, all under the crown and near the trunk.
+func test_trees_have_small_twigs_below_the_crown() -> void:
+	for species: StringName in [&"pine", &"birch", &"oak", &"alder"]:
+		for variant in TreeMeshes.VARIANTS:
+			var mesh := TreeMeshes.lod0(species, variant)
+			var bark := _arrays(mesh, TreeMeshes.PART_BARK)
+			var shape := TreeMeshes.shape(species, variant)
+			var low := 0.0
+			var vertices: PackedVector3Array = bark[Mesh.ARRAY_VERTEX]
+			var twig_tips := 0
+			var crown_min: Vector3 = shape["crown_min"]
+			for v in vertices:
+				if v.y > 0.03 and v.y < crown_min.y and Vector2(v.x, v.z).length() > 0.012:
+					twig_tips += 1
+					low = maxf(low, Vector2(v.x, v.z).length())
+			assert_true(twig_tips >= 8, "%s %d: %d twig vertices" % [species, variant, twig_tips])
+			assert_true(low < 0.07, "%s %d: twigs stay slim (%f)" % [species, variant, low])

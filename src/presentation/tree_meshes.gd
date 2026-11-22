@@ -44,7 +44,9 @@ const SEED_BASE := 6007
 ## trunk: [top height, base radius, top radius, lean]; branches: [count, start min, start max
 ## (share of the trunk height), elevation min, max (radians), length min, max]; lobes: [radius
 ## min, max, scale]; top lobe: [lift above the trunk top, radius]; cards: [count, size min, max];
-## droop: how much the cards hang (0 = facing outwards, 1 = vertical).
+## droop: how much the cards hang (0 = facing outwards, 1 = vertical); twigs (optional): [count,
+## lowest start (share of the trunk height), length min, max] of the small bare twigs on the trunk
+## below the crown (every other one forks once).
 const DECIDUOUS := {
 	&"birch":
 	{
@@ -54,6 +56,7 @@ const DECIDUOUS := {
 		"top": [0.02, 0.032],
 		"cards": [84, 0.042, 0.054],
 		"droop": 0.55,
+		"twigs": [10, 0.3, 0.014, 0.032],
 	},
 	&"oak":
 	{
@@ -63,6 +66,7 @@ const DECIDUOUS := {
 		"top": [0.035, 0.048],
 		"cards": [110, 0.055, 0.067],
 		"droop": 0.0,
+		"twigs": [12, 0.25, 0.018, 0.04],
 	},
 	&"alder":
 	{
@@ -72,6 +76,7 @@ const DECIDUOUS := {
 		"top": [0.025, 0.042],
 		"cards": [96, 0.05, 0.061],
 		"droop": 0.15,
+		"twigs": [10, 0.3, 0.014, 0.034],
 	},
 }
 ## Scrub (TASK-061), same layout as DECIDUOUS but a short trunk fanning into many low lobes:
@@ -113,6 +118,7 @@ const PINE := {
 	"tufts": [0.036, 0.044, Vector3(1.0, 0.42, 1.0)],
 	"top": [0.012, 0.04],
 	"cards": [64, 0.048, 0.06],
+	"twigs": [14, 0.3, 0.014, 0.036],
 }
 
 static var _cache: Dictionary = {}
@@ -430,6 +436,66 @@ static func _add_branch(s: Surface, from: Vector3, to: Vector3, r0: float, ao: f
 		s.tri(b, tip, b + 1, s.normals[b])
 
 
+## Small bare twigs on the trunk between `y_min` and `y_max` (LOD0 realism, a few triangles each):
+## thin 3-sided cones leaving the trunk level to slightly drooping, every other one with a short
+## fork. Own generator seeded from `seed_value`, so the rest of the tree is unchanged.
+static func _add_twigs(
+	s: Surface,
+	seed_value: int,
+	spec: Array,
+	top: float,
+	lean: Vector3,
+	trunk_radius: float,
+	y_max: float
+) -> void:
+	var y_min: float = top * float(spec[1])
+	if y_max <= y_min:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var count: int = spec[0]
+	var heading := rng.randf() * TAU
+	for i in count:
+		var y := lerpf(y_min, y_max, (i + rng.randf() * 0.7) / count)
+		var from := _lean(lean, y, top) + Vector3(0, y, 0)
+		heading += TAU * (0.618034 + rng.randf() * 0.12)
+		var elevation := lerpf(-0.35, 0.25, rng.randf())
+		var length := lerpf(float(spec[2]), float(spec[3]), rng.randf())
+		var dir := Vector3(
+			cos(heading) * cos(elevation), sin(elevation), sin(heading) * cos(elevation)
+		)
+		var r := trunk_radius * 0.22
+		_add_twig(s, from, from + dir * length, r)
+		if i % 2 == 0:
+			var fork_from := from + dir * length * 0.55
+			var fork_heading := heading + (0.7 if rng.randf() < 0.5 else -0.7)
+			var fork_dir := Vector3(
+				cos(fork_heading) * cos(elevation + 0.2),
+				sin(elevation + 0.2),
+				sin(fork_heading) * cos(elevation + 0.2)
+			)
+			_add_twig(s, fork_from, fork_from + fork_dir * length * 0.5, r * 0.7)
+
+
+## A twig: a 3-sided cone from a base ring at `from` to a point at `to` (3 triangles).
+static func _add_twig(s: Surface, from: Vector3, to: Vector3, radius: float) -> void:
+	var axis := (to - from).normalized()
+	var side := axis.cross(Vector3.UP)
+	if side.length() < 0.01:
+		side = axis.cross(Vector3.RIGHT)
+	side = side.normalized()
+	var other := axis.cross(side).normalized()
+	var length := from.distance_to(to)
+	var ring: Array[int] = []
+	for i in 3:
+		var a := TAU * i / 3.0
+		var d := side * cos(a) + other * sin(a)
+		ring.append(s.add(from + d * radius, d, Color(0.6, 0.0, 0.0), Vector2(i / 3.0, 0.0)))
+	var tip := s.add(to, axis, Color(0.6, 0.0, 0.0), Vector2(0.5, length * 12.0))
+	for i in 3:
+		s.tri(ring[i], ring[(i + 1) % 3], tip, s.normals[ring[i]])
+
+
 ## One leaf card: centre, the card's outward face normal, the axis the texture's v runs against
 ## (from v = 1 to v = 0), size and the bent-normal source. Vertices in corner order.
 static func _add_card(
@@ -521,6 +587,9 @@ static func _build_deciduous(
 		return clampf(
 			lerpf(0.5, 1.0, _smooth(0.15, 0.95, depth)) * lerpf(0.72, 1.0, height), 0.0, 1.0
 		)
+	if p.has("twigs"):
+		var twig_end := minf(crown_bottom, top * float(br[1])) - 0.004
+		_add_twigs(bark, rng.seed + 31, p["twigs"], top, lean, float(trunk[1]), twig_end)
 	var placed := 0
 	for li in lobes.size():
 		var lobe: Array = lobes[li]
@@ -666,6 +735,9 @@ static func _build_pine(rng: RandomNumberGenerator, bark: Surface, leaves: Surfa
 		var rel := clampf((v.y - low) / (top + 0.04 - low), 0.0, 1.0)
 		var out := clampf((v - crown_center).length() / 0.08, 0.0, 1.0)
 		return clampf(lerpf(0.5, 1.0, out) * lerpf(0.7, 1.0, rel), 0.0, 1.0)
+	_add_twigs(
+		bark, rng.seed + 31, PINE["twigs"], top, lean, float(trunk[1]), top * float(br[1]) - 0.004
+	)
 	var placed := 0
 	for ti in tufts.size():
 		var tuft: Array = tufts[ti]
