@@ -517,7 +517,8 @@ func _add_group(chunk: Vector2i, group: Dictionary) -> MultiMeshInstance3D:
 	return instance
 
 
-## The impostor node of a chunk (`true` preset): every species in one MultiMesh, no shadow.
+## The impostor node of a chunk (`true` preset): every species in one MultiMesh; it casts a shadow
+## on the map (the far backdrop does not), so single trees keep theirs past the full-tree range.
 func _add_impostors(chunk: Vector2i, group: Dictionary) -> MultiMeshInstance3D:
 	if _impostor_material == null:
 		_impostor_material = TreeImpostors.material(LookPreset.vegetation()["band_share"])
@@ -528,7 +529,11 @@ func _add_impostors(chunk: Vector2i, group: Dictionary) -> MultiMeshInstance3D:
 	instance.position = chunk_center(chunk)
 	instance.set_meta(&"species", group["species"])
 	instance.set_meta(&"backdrop", group["backdrop"])
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.cast_shadow = (
+		GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if group["backdrop"]
+		else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	)
 	add_child(instance)
 	(_nodes[Lod.IMPOSTOR] as Array).append(instance)
 	_local_transforms[instance] = group["buffer"]
