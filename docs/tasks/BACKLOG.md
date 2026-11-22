@@ -287,7 +287,15 @@ Tag `mvp` – the first complete playable Suwałki campaign for both sides: TASK
 
 Tag `battle-look` – the look of the tactical battle (terrain, vegetation, buildings, light, camera, effects; unit models are separate): TASK-049, TASK-050, TASK-051, TASK-052, TASK-053, TASK-054, TASK-055, TASK-056, TASK-057, TASK-058, TASK-059, TASK-060, TASK-061, TASK-062, TASK-063, TASK-064, TASK-065, TASK-066, TASK-108b, TASK-108c, TASK-108d, TASK-108e, TASK-108f, TASK-108g, TASK-108h, TASK-110, TASK-111, TASK-134, TASK-135, TASK-136, TASK-137, TASK-138, TASK-189, TASK-190, TASK-191, TASK-192, TASK-193, TASK-194, TASK-195, TASK-196, TASK-197, TASK-198, TASK-199, TASK-200, TASK-201, TASK-202, TASK-203, TASK-204
 
-Tag `continuous-space` – the tactical battle without hexes (ADR 0029, human 2026-11-22; turn-based orders stay, positions, movement and ranges become continuous; the operational layer is decided later in TASK-214): TASK-205, TASK-206, TASK-207, TASK-208, TASK-209, TASK-210, TASK-211, TASK-212, TASK-213, TASK-214. Order: 205 → (206 ∥ 207) → 208 → 209 ∥ 210 ∥ 212 → 211 → 213.
+Tag `continuous-space` – the tactical battle without hexes (ADR 0029, human 2026-11-22; turn-based orders stay, positions, movement and ranges become continuous; the operational layer is decided later in TASK-214): TASK-205, TASK-206, TASK-207, TASK-208, TASK-209, TASK-210, TASK-211, TASK-212, TASK-213, TASK-214.
+
+Recommended order of the open `continuous-space` tasks (2026-11-22; tasks on the same line can run in parallel, a later line needs the earlier ones):
+1. foundation: 205 (`TacticalMap`, `TacticalSpace`, beside the hex types, nothing switches);
+2. the pieces: 206 (navigation, paths, reachable area) ‖ 207 (ranges in metres, ray LOS);
+3. the cutover: 208 (unit positions, commands, stepped moves; needs 205–207; the point of no return, replays change);
+4. consumers: 209 (AI) ‖ 210 (view: click a point, free deployment) ‖ 212 (terrain look without the grid);
+5. overlays: 211 (smooth reach and range, movement along tracks; needs 208 + 210);
+6. close: 213 (remove the tactical hex code, docs) → 214 (operational layer decision, to refine with the human).
 
 **Epic: Baltic naval operations (TASK-132, decided 2026-11-10; topic "Baltic naval operations", not in the `mvp` tag, after the MVP).** NATO navies (Poland, Germany, Sweden, Finland, Denmark) against the Russian Baltic Fleet: mining, blockades, missile corvettes, reconnaissance, air strikes, anti-ship missiles, seaborne supply, amphibious landings and capturing ports. TASK-132 is the epic overview in status `idea`; refine it into child tasks (132a, 132b, …) that carry the `Topic` line of the epic and are never added to `mvp`. It builds on the finished operational core and political layer (092, 097, 114, 115, 118) and needs a maritime map layer first.
 
