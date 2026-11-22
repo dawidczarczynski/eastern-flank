@@ -1,6 +1,6 @@
 # TASK-190: Real-scale look (A): forest as one dark canopy, aerial perspective
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`LookPreset`)
 - **Depends on**: TASK-135
 - **Sections**: ARCHITECTURE "Real-scale vegetation"; look reference: Arma 3 Chernarus / Arma Reforger Everon aerial views (human, 2026-11-21)
