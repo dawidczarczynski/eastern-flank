@@ -33,6 +33,8 @@ var coarse_root := Node3D.new()
 var _grid: HexGrid
 var _hex_size := 1.0
 var _material: Material
+## The land-cover look (TASK-108g; null: the ground follows the hex types, as it always did).
+var _look: CoverLook
 ## Vector2i chunk -> MeshInstance3D.
 var _fine: Dictionary = {}
 ## Vector2i group -> {"node": MeshInstance3D, "arrays": merged vertex arrays, "indices":
@@ -45,9 +47,14 @@ var _holes: Dictionary = {}
 
 
 func _init(
-	grid: HexGrid, hex_size: float, terrain_lattice: TerrainLattice, material: Material
+	grid: HexGrid,
+	hex_size: float,
+	terrain_lattice: TerrainLattice,
+	material: Material,
+	look: CoverLook = null
 ) -> void:
 	_grid = grid
+	_look = look
 	_hex_size = hex_size
 	lattice = terrain_lattice
 	_material = material
@@ -343,9 +350,14 @@ func vertex_attributes(
 			var n := Vector3(-dx, 1.0, -dz).normalized()
 			normals_ring[b * rw + a] = n
 			var v := Vector3(lattice.x_of(ci), heights[hb * w + ha], lattice.z_of(cj))
-			var jittered := GroundNoise.jitter(v.x, v.z)
-			var jc := Hex.from_world(Vector3(jittered.x, 0.0, jittered.y), _hex_size)
-			var jittered_type := int(_grid.get_terrain(jc)) if _grid.has_tile(jc) else -1
+			var jittered_type := -1
+			if _look != null:
+				# The land cover under the vertex, also beyond the playable tiles (TASK-108g).
+				jittered_type = _look.terrain_at(v.x, v.z)
+			else:
+				var jittered := GroundNoise.jitter(v.x, v.z)
+				var jc := Hex.from_world(Vector3(jittered.x, 0.0, jittered.y), _hex_size)
+				jittered_type = int(_grid.get_terrain(jc)) if _grid.has_tile(jc) else -1
 			# The noises cost most of a vertex; forest, fields, villages and marsh ignore them.
 			var noise := (
 				MapView._splat_noise(v.x, v.z)

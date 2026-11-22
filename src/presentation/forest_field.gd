@@ -80,14 +80,16 @@ var _coverage_origin := Vector2i.ZERO
 
 ## Prepares the field for a map: `ground` is Callable(x, z) -> float (the drawn near surface,
 ## thread-safe), `lattice` the drawn terrain lattice (its heights decide which cells hold a tree
-## and carry the impostors), `area` the rectangle the forest may cover (the playable mesh).
+## and carry the impostors), `area` the rectangle the forest may cover (the playable mesh). `look`
+## (TASK-108g): the forest stands on the land-cover raster's forest instead of the forest hexes.
 func setup(
 	grid: HexGrid,
 	ground: Callable,
 	seed_value: int,
 	area: Rect2,
 	lattice: TerrainLattice,
-	parcels: ParcelMap = null
+	parcels: ParcelMap = null,
+	look: CoverLook = null
 ) -> void:
 	clear()
 	_grid = grid
@@ -95,7 +97,11 @@ func setup(
 	_seed = seed_value
 	_area = area
 	_values = LookPreset.vegetation()
-	_fill = ForestFill.new(grid, lattice.mesh_height_at, seed_value, area, parcels, _values)
+	var source: ForestMaskSource = null
+	if look != null:
+		var clearing_m := float(VegetationRanges.values(_values)["forest_clearing_m"])
+		source = LandCoverForestMaskSource.new(look, MapScale.to_units(clearing_m))
+	_fill = ForestFill.new(grid, lattice.mesh_height_at, seed_value, area, parcels, _values, source)
 	_max_full = 0.0
 	_max_impostor = 0.0
 	for species in TreeSpecies.all():

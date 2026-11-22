@@ -7,6 +7,7 @@
 // per-vertex value / saturation factors (darkened off-map margin, muted backdrop).
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
+#include "res://assets/shaders/forest_hash.gdshaderinc"
 
 const int LAYER_COUNT = 7;
 const int ROCK = 5;
@@ -83,6 +84,22 @@ uniform vec2 row_fade = vec2(0.3, 0.8);
 // Parcels fade out on ground steeper than this slope (1 - normal.y), from .. to.
 uniform vec2 parcel_slope = vec2(0.08, 0.14);
 
+// Land-cover raster (TASK-108g, ADR 0028; CoverLook): with cover_on the crops show only inside the
+// noisy outline of the FIELD cover, the GLSL twin of CoverLook.has_kind(FIELD) (same integer
+// hashes, ScatterPlanner.tile_seed via forest_hash.gdshaderinc). land_cover holds the raw Kind
+// codes (R8); cover_frame = (x, z of the centre of cell (0, 0), cell size, unused).
+uniform bool cover_on = false;
+uniform sampler2D land_cover : filter_nearest, repeat_disable, hint_default_black;
+uniform vec4 cover_frame = vec4(0.0, 0.0, 1.0, 0.0);
+// CoverLook constants (tests/unit/test_cover_look.gd compares them).
+const int COVER_FIELD = 2;
+const float COVER_NOISE_CELLS = 2.5;
+const float COVER_NOISE_FINE_CELLS = 0.9;
+const float COVER_NOISE_AMPLITUDE = 0.6;
+const float COVER_NOISE_FINE_AMPLITUDE = 0.3;
+const uint COVER_NOISE_SALT = 4234u; // 0x108A
+const uint COVER_FINE_SALT = 4235u; // 0x108B
+
 varying vec3 world_pos;
 varying vec3 world_normal;
 varying vec4 weights_a;
@@ -93,6 +110,48 @@ float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
 	return fract((p3.x + p3.y) * p3.z);
+}
+
+// CoverLook._lattice / _value_noise: integer-hashed lattice values, smoothly interpolated.
+float cover_lattice(ivec2 c, uint salt) {
+	uint h = forest_tile_seed(salt, c, COVER_NOISE_SALT);
+	return float(h & 16777215u) / 16777216.0;
+}
+
+float cover_value_noise(vec2 p, float spacing, uint salt) {
+	vec2 q = p / spacing;
+	vec2 i = floor(q);
+	vec2 f = q - i;
+	f = f * f * (3.0 - 2.0 * f);
+	ivec2 c = ivec2(i);
+	float a = mix(cover_lattice(c, salt), cover_lattice(c + ivec2(1, 0), salt), f.x);
+	float b = mix(cover_lattice(c + ivec2(0, 1), salt), cover_lattice(c + ivec2(1, 1), salt), f.x);
+	return mix(a, b, f.y);
+}
+
+// CoverLook.has_kind(FIELD, x, z).
+bool in_field_cover(vec2 xz) {
+	ivec2 size = textureSize(land_cover, 0);
+	float cell = cover_frame.z;
+	vec2 raw = (xz - cover_frame.xy) / cell;
+	if (any(lessThan(raw, vec2(-0.5))) || any(greaterThanEqual(raw, vec2(size) - 0.5))) {
+		return false; // beyond the raster: open land (CoverLook.world_rect)
+	}
+	vec2 uv = clamp(raw, vec2(0.0), vec2(size - 1));
+	ivec2 i = min(ivec2(floor(uv)), size - 1);
+	vec2 f = uv - vec2(i);
+	ivec2 j = min(i + 1, size - 1);
+	float w = 0.0;
+	w += int(texelFetch(land_cover, i, 0).r * 255.0 + 0.5) == COVER_FIELD ? (1.0 - f.x) * (1.0 - f.y) : 0.0;
+	w += int(texelFetch(land_cover, ivec2(j.x, i.y), 0).r * 255.0 + 0.5) == COVER_FIELD ? f.x * (1.0 - f.y) : 0.0;
+	w += int(texelFetch(land_cover, ivec2(i.x, j.y), 0).r * 255.0 + 0.5) == COVER_FIELD ? (1.0 - f.x) * f.y : 0.0;
+	w += int(texelFetch(land_cover, j, 0).r * 255.0 + 0.5) == COVER_FIELD ? f.x * f.y : 0.0;
+	if (w <= 0.0 || w >= 1.0) {
+		return w > 0.5;
+	}
+	float noise = (cover_value_noise(xz, cell * COVER_NOISE_CELLS, COVER_NOISE_SALT) - 0.5) * COVER_NOISE_AMPLITUDE
+		+ (cover_value_noise(xz, cell * COVER_NOISE_FINE_CELLS, COVER_FINE_SALT) - 0.5) * COVER_NOISE_FINE_AMPLITUDE;
+	return w + noise > 0.5;
 }
 
 float value_noise(vec2 p) {
@@ -318,6 +377,9 @@ void fragment() {
 		vec2 puv = (xz - parcel_rect.xy) * parcel_rect.zw;
 		vec4 pm = textureLod(parcel_map, clamp(puv, vec2(0.0), vec2(0.9999)), 0.0);
 		int kind = int(pm.r * 255.0 + 0.5);
+		if (cover_on && kind > 0 && !in_field_cover(xz)) {
+			kind = 0;
+		}
 		if (kind > 0 && kind < PARCEL_KINDS && puv.x >= 0.0 && puv.y >= 0.0 && puv.x < 1.0 && puv.y < 1.0) {
 			float g = pm.g * 255.0 + 0.5;
 			float rows_along_x = mod(floor(g), 2.0);

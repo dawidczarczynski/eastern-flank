@@ -11,6 +11,10 @@ extends RefCounted
 ## neighbouring plains and hills, and a field hex partly under forest stays mostly field). bake()
 ## paints the farmland parcels into a ParcelMap, minus the tiles that can never carry a field
 ## (forest, water, urban, marsh); the terrain shader draws the crop rows from that image.
+## With a land-cover raster (TASK-108g, `look`) the hex types are not read: the votes count the
+## FIELD cover, and the map keeps the look so that everything outside the field cover's noisy
+## outline reads (and draws) as no parcel – the farmland ends where the real fields do. That clip
+## is per point (CPU and shader), not baked: baking a 5 m image along the outlines cost seconds.
 ## Usage: var map := FieldParcels.bake(grid, hex_size, rect_units); map.kind_at(x, z)
 
 ## Parcel kinds, the values of the baked image's red channel. CROPS names them in this order.
@@ -141,8 +145,11 @@ static func bake(
 	hex_size: float,
 	rect_units: Rect2,
 	metres_per_pixel: float = DEFAULT_METRES_PER_PIXEL,
-	shares: Dictionary = {}
+	shares: Dictionary = {},
+	look: CoverLook = null
 ) -> ParcelMap:
+	if look != null:
+		return _bake_cover(look, rect_units, metres_per_pixel, shares)
 	var any_field := false
 	for c in grid.coords():
 		if grid.get_terrain(c) == Terrain.Type.FIELDS:
@@ -150,6 +157,27 @@ static func bake(
 			break
 	if not any_field:
 		return null
+	return _bake(grid, hex_size, null, rect_units, metres_per_pixel, shares)
+
+
+## bake() on a land-cover raster: no hex type is read.
+static func _bake_cover(
+	look: CoverLook, rect_units: Rect2, metres_per_pixel: float, shares: Dictionary
+) -> ParcelMap:
+	if not look.cover.cells().has(LandCover.Kind.FIELD):
+		return null
+	return _bake(null, 0.0, look, rect_units, metres_per_pixel, shares)
+
+
+## The parcels of bake(): the votes and the erasing read `look` when set, else `grid`'s types.
+static func _bake(
+	grid: HexGrid,
+	hex_size: float,
+	look: CoverLook,
+	rect_units: Rect2,
+	metres_per_pixel: float,
+	shares: Dictionary
+) -> ParcelMap:
 	if shares.is_empty():
 		shares = shares_of(LookPreset.fields())
 	var scale_m := MapScale.metres_per_unit
@@ -190,7 +218,14 @@ static func bake(
 					flags.append(
 						(
 							piece.intersects(rect_m)
-							and _field_share(grid, hex_size, piece, scale_m) >= FARMLAND_SHARE
+							and (
+								(
+									_field_share_cover(look, piece, scale_m)
+									if look != null
+									else _field_share(grid, hex_size, piece, scale_m)
+								)
+								>= FARMLAND_SHARE
+							)
 						)
 					)
 				_bridge_gaps(flags)
@@ -212,7 +247,11 @@ static func bake(
 							_pixels(balk, map.origin_m, metres_per_pixel, bounds),
 							Color(Kind.BALK / 255.0, green, 0.0)
 						)
-	_clear_forbidden(map, grid, hex_size, scale_m)
+	if look != null:
+		# The FIELD outline clips the parcels where they are read (ParcelMap.look, the shader).
+		map.look = look
+	else:
+		_clear_forbidden(map, grid, hex_size, scale_m)
 	return map
 
 
@@ -274,6 +313,20 @@ static func _field_share(grid: HexGrid, hex_size: float, rect: Rect2, scale_m: f
 			var z := (rect.position.y + (j + 0.5) * rect.size.y / nz) / scale_m
 			var c := Hex.from_world(Vector3(x, 0.0, z), hex_size)
 			if grid.has_tile(c) and grid.get_terrain(c) == Terrain.Type.FIELDS:
+				hits += 1
+	return float(hits) / (nx * nz)
+
+
+## Share of a parcel's lattice samples (metres) that lie on FIELD cover (raster cells).
+static func _field_share_cover(look: CoverLook, rect: Rect2, scale_m: float) -> float:
+	var nx := maxi(1, floori(rect.size.x / SAMPLE_SPACING_M))
+	var nz := maxi(1, floori(rect.size.y / SAMPLE_SPACING_M))
+	var hits := 0
+	for j in nz:
+		for i in nx:
+			var x := (rect.position.x + (i + 0.5) * rect.size.x / nx) / scale_m
+			var z := (rect.position.y + (j + 0.5) * rect.size.y / nz) / scale_m
+			if look.cover.class_at(x, z) == LandCover.Kind.FIELD:
 				hits += 1
 	return float(hits) / (nx * nz)
 

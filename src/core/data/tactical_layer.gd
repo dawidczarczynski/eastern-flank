@@ -38,12 +38,25 @@ const INDEX_FILE := "layer.tres"
 @export var exaggeration: float = 1.5
 ## Attribution of the source data (see data/maps/CREDITS).
 @export var sources: String
+## Land-cover raster of the whole layer (TASK-108g, ADR 0028): `land_cover_width` x
+## `land_cover_height` square cells of `land_cover_cell_m` metres, row 0 north; the centre of cell
+## (0, 0) (north-west) is at (`land_cover_origin_easting`, `land_cover_origin_northing`). Stored in
+## windows per chunk (TacticalChunk.cover). Cell size 0 = a layer without a raster.
+@export var land_cover_cell_m: float = 0.0
+@export var land_cover_width: int
+@export var land_cover_height: int
+@export var land_cover_origin_easting: float
+@export var land_cover_origin_northing: float
 
 ## Folder of the chunk files ("" for a layer built in memory).
 var _folder := ""
 ## Chunk index (Vector2i) -> decoded planes (PackedByteArray, TacticalChunk.PLANES planes).
 var _planes: Dictionary = {}
 var _chunk_sizes: Dictionary = {}  # chunk index -> Vector2i (width, height)
+## Chunk index (Vector2i) -> its TacticalChunk (kept for the compressed cover window) / the
+## decoded cover window (PackedByteArray, loaded on first use by region_land_cover).
+var _chunks: Dictionary = {}
+var _covers: Dictionary = {}
 
 
 ## The layer data/maps/<layer_id>/layer.tres; null when there is none or the id is not a plain name.
@@ -264,8 +277,135 @@ func _planes_at(tile: Vector2i) -> PackedByteArray:
 		):
 			planes = chunk.decode()
 			_chunk_sizes[key] = expected
+			_chunks[key] = chunk
 	_planes[key] = planes
 	return planes
+
+
+## Adds the chunk `key` of a layer built in memory (tests, hand-made layers) with its cover
+## window; its hex planes stay those of `from_grid`.
+func add_cover_chunk(key: Vector2i, chunk: TacticalChunk) -> void:
+	_chunks[key] = chunk
+	_covers.erase(key)
+
+
+## True when the layer has a land-cover raster (layers imported before TASK-108g have none).
+func has_land_cover() -> bool:
+	return land_cover_cell_m > 0.0 and land_cover_width > 0 and land_cover_height > 0
+
+
+## The land cover of the cut `region` (see `region_grid`) plus `margin` world units around it,
+## clamped to the raster, in the cut's world frame (local tile (0, 0) centred at world (0, 0)).
+## Null when the layer has no raster or the region is bad; cells of a missing chunk read OPEN.
+func region_land_cover(region: Rect2i, margin: float = 0.0) -> LandCover:
+	if not has_land_cover() or region_problem(region) != "":
+		return null
+	var m := metres_per_world_unit()
+	var c := land_cover_cell_m
+	var corner := Hex.to_world(
+		MapGenerator.offset_to_axial(region.position.x, region.position.y), TerrainField.HEX_SIZE
+	)
+	var corner_e := origin_easting + corner.x * m
+	var corner_n := origin_northing - corner.z * m
+	var half := Hex.SQRT3 * 0.5
+	var world := Rect2(
+		-half - margin,
+		-1.0 - margin,
+		Hex.SQRT3 * region.size.x + half + 2.0 * margin,
+		1.5 * (region.size.y - 1) + 2.0 + 2.0 * margin
+	)
+	var i0 := clampi(
+		floori((corner_e + world.position.x * m - land_cover_origin_easting) / c),
+		0,
+		land_cover_width - 1
+	)
+	var i1 := clampi(
+		ceili((corner_e + world.end.x * m - land_cover_origin_easting) / c),
+		i0,
+		land_cover_width - 1
+	)
+	var j0 := clampi(
+		floori((land_cover_origin_northing - corner_n + world.position.y * m) / c),
+		0,
+		land_cover_height - 1
+	)
+	var j1 := clampi(
+		ceili((land_cover_origin_northing - corner_n + world.end.y * m) / c),
+		j0,
+		land_cover_height - 1
+	)
+	var rect := Rect2i(i0, j0, i1 - i0 + 1, j1 - j0 + 1)
+	var cell_origin := Vector2(
+		(land_cover_origin_easting + i0 * c - corner_e) / m,
+		(corner_n - land_cover_origin_northing + j0 * c) / m
+	)
+	return LandCover.from_cells(_cover_cells(rect), rect.size.x, rect.size.y, cell_origin, c / m)
+
+
+## Cells of the global raster rectangle `rect`, row-major, row 0 north, gathered from the cover
+## windows of the chunks around it (OPEN where a chunk or its window is missing).
+func _cover_cells(rect: Rect2i) -> PackedByteArray:
+	var c := land_cover_cell_m
+	var keys: Array[Vector2i] = []
+	var low := Vector2i(1 << 30, 1 << 30)
+	var high := -low
+	# A window edge lies within a hex of its chunk's edge: two hexes of slack find every window.
+	var slack := Vector2i(2, 2)
+	var last_tile := Vector2i(width - 1, height - 1)
+	for corner: Vector2i in [rect.position, rect.end]:
+		var tile := projected_to_offset(
+			land_cover_origin_easting + corner.x * c, land_cover_origin_northing - corner.y * c
+		)
+		for t: Vector2i in [tile - slack, tile + slack]:
+			var key := _chunk_key(t.clamp(Vector2i.ZERO, last_tile))
+			low = low.min(key)
+			high = high.max(key)
+	for cy in range(low.y, high.y + 1):
+		for cx in range(low.x, high.x + 1):
+			keys.append(Vector2i(cx, cy))
+	# Windows overlapping the rectangle, sorted west to east, so each row is appended in order.
+	var windows: Array[Rect2i] = []
+	var cells: Array[PackedByteArray] = []
+	for key in keys:
+		_planes_at(key * chunk_size)
+		var chunk: TacticalChunk = _chunks.get(key)
+		if chunk == null or not chunk.cover_rect().intersects(rect):
+			continue
+		if not _covers.has(key):
+			_covers[key] = chunk.decode_cover()
+		var decoded: PackedByteArray = _covers[key]
+		if decoded.is_empty():
+			continue
+		windows.append(chunk.cover_rect())
+		cells.append(decoded)
+	var order: Array[int] = []
+	for k in windows.size():
+		order.append(k)
+	order.sort_custom(
+		func(a: int, b: int) -> bool: return windows[a].position.x < windows[b].position.x
+	)
+	var out := PackedByteArray()
+	var gap := PackedByteArray()
+	for y in range(rect.position.y, rect.end.y):
+		var x := rect.position.x
+		for k in order:
+			var w := windows[k]
+			if y < w.position.y or y >= w.end.y or w.end.x <= x or w.position.x >= rect.end.x:
+				continue
+			if w.position.x > x:
+				gap.resize(w.position.x - x)
+				gap.fill(LandCover.Kind.OPEN)
+				out.append_array(gap)
+				x = w.position.x
+			var end := mini(w.end.x, rect.end.x)
+			var base := (y - w.position.y) * w.size.x - w.position.x
+			out.append_array(cells[k].slice(base + x, base + end))
+			x = end
+		if x < rect.end.x:
+			gap.resize(rect.end.x - x)
+			gap.fill(LandCover.Kind.OPEN)
+			out.append_array(gap)
+	return out
 
 
 ## Chunks decoded so far (tests, the debug preview's load statistics).

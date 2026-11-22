@@ -72,6 +72,16 @@ const TREE_SEED_SALT := 0x7EE5
 ## 0.95, meadow scrub 0.92 + 0.14 companion offset): a chunk's items stand at most this far
 ## outside it.
 const TILE_REACH := 1.2
+## Land-cover raster path (TASK-108g, plan's `look`): tree candidates per hex (a quarter falls
+## outside the hex and is dropped, so ~FOREST_TREES stand on a forest hex), edge candidates per
+## hex, the offset (world units) at which an edge candidate looks for the other side of the forest
+## outline, the share of forest-side edge candidates that are young trees, and the slope (rise per
+## unit) from which rocks lie on the ground.
+const COVER_TREE_DRAWS := 40
+const COVER_EDGE_DRAWS := 32
+const COVER_EDGE_REACH := 0.12
+const COVER_EDGE_TREE_SHARE := 0.25
+const COVER_ROCK_SLOPE := 0.45
 
 
 ## `parcels` (TASK-108f) removes everything that stands on a farmland parcel.
@@ -82,13 +92,18 @@ const TILE_REACH := 1.2
 ## Tree: {position, scale, height_scale, yaw, conifer, k}. Rock: {position, scale, rotation}.
 ## Bush: {position, scale, height_scale, yaw, k}.
 ## `coords` limits the plan to those tiles (default: every tile of the grid, in grid order).
+## `look` (TASK-108g): the land-cover raster decides what stands where (`_plan_cover`) instead of
+## the hex types.
 static func plan(
 	grid: HexGrid,
 	surface: TerrainSurface,
 	seed_value: int,
 	parcels: ParcelMap = null,
-	coords: Array[Vector2i] = []
+	coords: Array[Vector2i] = [],
+	look: CoverLook = null
 ) -> Dictionary:
+	if look != null:
+		return _filtered(_plan_cover(grid, surface, seed_value, coords, look), grid, parcels)
 	var rng := RandomNumberGenerator.new()
 	var trees: Array[Dictionary] = []
 	var rocks: Array[Dictionary] = []
@@ -141,6 +156,11 @@ static func plan(
 		"ground_cover": ground_cover,
 		"meadow_scrub": meadow_scrub,
 	}
+	return _filtered(plan, grid, parcels)
+
+
+## `plan` without the items on farmland parcels, roads and rivers.
+static func _filtered(plan: Dictionary, grid: HexGrid, parcels: ParcelMap) -> Dictionary:
 	# Nothing stands on crop, ploughed and meadow parcels (TASK-108f; filtered afterwards, so the
 	# streams above are unchanged).
 	if parcels != null:
@@ -165,7 +185,12 @@ static func plan(
 ## a tile's items do not depend on what else is planned, so the chunks together give exactly the
 ## eager plan, in any order.
 static func plan_rect(
-	grid: HexGrid, surface: TerrainSurface, seed_value: int, rect: Rect2, parcels: ParcelMap = null
+	grid: HexGrid,
+	surface: TerrainSurface,
+	seed_value: int,
+	rect: Rect2,
+	parcels: ParcelMap = null,
+	look: CoverLook = null
 ) -> Dictionary:
 	var coords := coords_near(grid, rect)
 	if coords.is_empty():
@@ -173,7 +198,7 @@ static func plan_rect(
 		for key: String in PLAN_KEYS:
 			result[key] = [] as Array[Dictionary]
 		return result
-	return plan(grid, surface, seed_value, parcels, coords)
+	return plan(grid, surface, seed_value, parcels, coords, look)
 
 
 ## Whether world point `p` lies in `rect` (XZ), the end edges excluded (so every point belongs to
@@ -512,6 +537,258 @@ static func _plan_rocks(
 				}
 			)
 		)
+
+
+## plan() on a land-cover raster (TASK-108g): every tile plans the same candidates, spread over
+## the whole hex (so neighbouring tiles tile the ground without seams), and the cover at each
+## candidate decides what stands there – trees on forest (noisy soft edge), a few on open land,
+## edge plants along the forest outline, rocks where the ground is steep. The hex type is never
+## read, so a forest covering a hex only partly gets trees only on that part.
+static func _plan_cover(
+	grid: HexGrid,
+	surface: TerrainSurface,
+	seed_value: int,
+	coords: Array[Vector2i],
+	look: CoverLook
+) -> Dictionary:
+	var plan := {}
+	for key: String in PLAN_KEYS:
+		plan[key] = [] as Array[Dictionary]
+	var rng := RandomNumberGenerator.new()
+	var meadow := LookPreset.meadow()
+	for c in coords if not coords.is_empty() else grid.coords():
+		var center := Hex.to_world(c, TerrainField.HEX_SIZE)
+		rng.seed = tile_seed(seed_value, c, TREE_SEED_SALT)
+		_plan_trees_cover(plan["trees"], surface, rng, center, look)
+		rng.seed = tile_seed(seed_value, c, BUSH_SEED_SALT)
+		_plan_bushes_cover(plan["bushes"], plan["rocks"], surface, rng, center, look)
+		rng.seed = tile_seed(seed_value, c, EDGE_SEED_SALT)
+		_plan_edges_cover(plan, surface, rng, center, look)
+		rng.seed = tile_seed(seed_value, c, MEADOW_SEED_SALT)
+		_plan_meadow_cover(plan["meadow_scrub"], surface, rng, center, meadow, look)
+	return plan
+
+
+## A uniform point of the pointy-top hex of size 1 around `center` (two draws, always), or
+## Vector2.INF when the draw falls in the corners of the bounding box (about a quarter).
+static func _hex_point_cover(rng: RandomNumberGenerator, center: Vector3) -> Vector2:
+	var dx := (rng.randf() * 2.0 - 1.0) * Hex.SQRT3 * 0.5
+	var dz := rng.randf() * 2.0 - 1.0
+	if absf(dz) > 1.0 - absf(dx) / Hex.SQRT3:
+		return Vector2.INF
+	return Vector2(center.x + dx, center.z + dz)
+
+
+## Trees of one tile: COVER_TREE_DRAWS candidates over the hex, kept on forest (and a few on
+## open land). Six draws per candidate, always.
+static func _plan_trees_cover(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	look: CoverLook
+) -> void:
+	var open_keep := float(PLAINS_TREES) / FOREST_TREES * PLAINS_TREE_CHANCE
+	for i in COVER_TREE_DRAWS:
+		var p := _hex_point_cover(rng, center)
+		var s := 0.7 + rng.randf() * 0.6
+		var conifer_roll := rng.randf()
+		var k := rng.randf()
+		var keep := rng.randf()
+		if p == Vector2.INF or p.distance_to(Vector2(center.x, center.z)) < CLEARING_RADIUS:
+			continue
+		var terrain := look.terrain_at(p.x, p.y)
+		if terrain == Terrain.Type.WATER or terrain == Terrain.Type.URBAN:
+			continue
+		if terrain != Terrain.Type.FOREST and keep >= open_keep:
+			continue
+		var y := surface.ground_height(p.x, p.y)
+		if y < MIN_TREE_GROUND:
+			continue
+		var chance := CONIFER_CHANCE_HIGH if y > HIGH_GROUND else CONIFER_CHANCE_LOW
+		(
+			out
+			. append(
+				{
+					"position": Vector3(p.x, y - TREE_SINK, p.y),
+					"scale": s,
+					"height_scale": s * (0.9 + k * 0.3),
+					"yaw": k * 6.0,
+					"conifer": conifer_roll < chance,
+					"k": k,
+				}
+			)
+		)
+
+
+## Bushes of one tile (all on forest, a share on open land) and rocks where the ground is steep.
+## Five draws per bush candidate and four per rock candidate, always.
+static func _plan_bushes_cover(
+	bushes: Array[Dictionary],
+	rocks: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	look: CoverLook
+) -> void:
+	var open_keep := float(BUSHES_PLAINS) / BUSHES_FOREST
+	for i in BUSHES_FOREST + 2:
+		var p := _hex_point_cover(rng, center)
+		var s := BUSH_SCALE_MIN + rng.randf() * BUSH_SCALE_RANGE
+		var k := rng.randf()
+		var keep := rng.randf()
+		if p == Vector2.INF:
+			continue
+		var terrain := look.terrain_at(p.x, p.y)
+		if terrain == Terrain.Type.WATER or (terrain != Terrain.Type.FOREST and keep >= open_keep):
+			continue
+		var y := surface.ground_height(p.x, p.y)
+		if y < MIN_TREE_GROUND:
+			continue
+		(
+			bushes
+			. append(
+				{
+					"position": Vector3(p.x, y - BUSH_SINK * s, p.y),
+					"scale": s,
+					"height_scale": BUSH_HEIGHT * s,
+					"yaw": k * 6.0,
+					"k": k,
+				}
+			)
+		)
+	for i in ROCKS_MOUNTAIN:
+		var p := _hex_point_cover(rng, center)
+		var s := 0.5 + rng.randf() * 1.2
+		if p == Vector2.INF or GrassPlanner.slope(surface, p.x, p.y) < COVER_ROCK_SLOPE:
+			continue
+		if look.terrain_at(p.x, p.y) == Terrain.Type.WATER:
+			continue
+		(
+			rocks
+			. append(
+				{
+					"position": Vector3(p.x, surface.ground_height(p.x, p.y), p.y),
+					"scale": s,
+					"rotation": Vector3(s, 3.0 * s, 0.0),
+				}
+			)
+		)
+
+
+## Ground cover over the tile (dense on forest, sparse on open land) and the forest edge: shrubs
+## on both sides of the forest outline (a candidate is on the edge when the forest test differs
+## COVER_EDGE_REACH away), young trees on its forest side. Fixed draws per candidate.
+static func _plan_edges_cover(
+	plan: Dictionary,
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	look: CoverLook
+) -> void:
+	var cover_keep := float(GROUND_COVER_OPEN) / GROUND_COVER_FOREST
+	for i in GROUND_COVER_FOREST + 3:
+		var p := _hex_point_cover(rng, center)
+		var s := GROUND_COVER_SCALE.x + rng.randf() * (GROUND_COVER_SCALE.y - GROUND_COVER_SCALE.x)
+		var k := rng.randf()
+		if p == Vector2.INF:
+			continue
+		var terrain := look.terrain_at(p.x, p.y)
+		if terrain == Terrain.Type.WATER or (terrain != Terrain.Type.FOREST and k >= cover_keep):
+			continue
+		_append_scrub(plan["ground_cover"], surface, _at(p), 0.0, 0.0, s, k, UNDERGROWTH)
+	for i in COVER_EDGE_DRAWS:
+		var p := _hex_point_cover(rng, center)
+		var s_roll := rng.randf()
+		var k := rng.randf()
+		var tree_roll := rng.randf()
+		if p == Vector2.INF:
+			continue
+		var forest := look.is_forest(p.x, p.y)
+		var r := COVER_EDGE_REACH
+		if (
+			look.is_forest(p.x + r, p.y) == forest
+			and look.is_forest(p.x - r, p.y) == forest
+			and look.is_forest(p.x, p.y + r) == forest
+			and look.is_forest(p.x, p.y - r) == forest
+		):
+			continue
+		if not forest and look.terrain_at(p.x, p.y) == Terrain.Type.WATER:
+			continue
+		if forest and tree_roll < COVER_EDGE_TREE_SHARE:
+			var s := EDGE_TREE_SCALE.x + s_roll * (EDGE_TREE_SCALE.y - EDGE_TREE_SCALE.x)
+			var y := surface.ground_height(p.x, p.y)
+			if y < MIN_TREE_GROUND:
+				continue
+			var chance := CONIFER_CHANCE_HIGH if y > HIGH_GROUND else CONIFER_CHANCE_LOW
+			(
+				plan["young_trees"]
+				. append(
+					{
+						"position": Vector3(p.x, y - TREE_SINK, p.y),
+						"scale": s,
+						"height_scale": s * (0.9 + k * 0.3),
+						"yaw": k * 6.0,
+						"conifer": tree_roll < COVER_EDGE_TREE_SHARE * chance,
+						"k": k,
+					}
+				)
+			)
+			continue
+		var scales := EDGE_FOREST_SHRUB_SCALE if forest else EDGE_OPEN_SHRUB_SCALE
+		var s := scales.x + s_roll * (scales.y - scales.x)
+		_append_scrub(plan["edge_shrubs"], surface, _at(p), 0.0, 0.0, s, k, SHRUB)
+
+
+## A thorny thicket on the open ground of the tile (plan_tile_meadow's numbers and look), placed
+## by the cover at the shrub: none on forest, water or villages.
+static func _plan_meadow_cover(
+	out: Array[Dictionary],
+	surface: TerrainSurface,
+	rng: RandomNumberGenerator,
+	center: Vector3,
+	meadow: Dictionary,
+	look: CoverLook
+) -> void:
+	var chance := rng.randf()
+	var angle := rng.randf() * TAU
+	var u := rng.randf()
+	var shrub_scale: Vector2 = meadow["scrub_shrub_scale"]
+	var scale_k := rng.randf()
+	var k := rng.randf()
+	var companions: Array = []
+	var offsets: Vector2 = meadow["scrub_companion_offset"]
+	var scales: Vector2 = meadow["scrub_companion_scale"]
+	for i in int(meadow["scrub_companions"]):
+		var a := rng.randf() * TAU
+		var o := offsets.x + rng.randf() * (offsets.y - offsets.x)
+		var s := scales.x + rng.randf() * (scales.y - scales.x)
+		companions.append([a, o, s, rng.randf()])
+	if chance >= float(meadow["scrub_chance_plains"]):
+		return
+	var radius: Vector2 = meadow["scrub_radius"]
+	var r := radius.x + sqrt(u) * (radius.y - radius.x)
+	var shrub_at := Vector3(center.x + cos(angle) * r, 0.0, center.z + sin(angle) * r)
+	var terrain := look.terrain_at(shrub_at.x, shrub_at.z)
+	if terrain not in [Terrain.Type.PLAINS, Terrain.Type.FIELDS, Terrain.Type.MARSH]:
+		return
+	var s0 := shrub_scale.x + scale_k * (shrub_scale.y - shrub_scale.x)
+	_append_scrub(out, surface, center, angle, r, s0, k, SHRUB)
+	for companion: Array in companions:
+		_append_scrub(
+			out,
+			surface,
+			shrub_at,
+			companion[0],
+			companion[1],
+			companion[2],
+			companion[3],
+			UNDERGROWTH
+		)
+
+
+static func _at(p: Vector2) -> Vector3:
+	return Vector3(p.x, 0.0, p.y)
 
 
 ## Hedgerow trees and shrubs on the balks of some farmland strips (TASK-108f), by position hash

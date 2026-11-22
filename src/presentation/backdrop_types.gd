@@ -4,6 +4,9 @@ extends RefCounted
 ## the map tile nearest to a point, and the type shares along the border of the playable mesh
 ## that the backdrop ground and canopy blend. Both are cached: every ring vertex beyond a border
 ## vertex asks for the same shares (TASK-083).
+## With a land-cover raster (TASK-108g, `look`) the backdrop instead continues the real land cover
+## beyond the cut wherever the raster reaches (`shares_at`, `forest_at`, `ring_type`); beyond it,
+## and on maps without a raster, it copies the border tiles as before.
 
 ## Border points (offsets in hex sizes) whose tile types the backdrop averages.
 const SAMPLES: Array[Vector2] = [
@@ -16,11 +19,18 @@ var _mesh_origin := Vector2.ZERO
 var _mesh_step := Vector2.ONE
 var _nearest_cache: Dictionary = {}
 var _shares_cache: Dictionary = {}
+var _look: CoverLook
+var _cover_rect := Rect2()
 
 
 ## `mesh_origin` and `mesh_step` describe the playable terrain mesh grid (MapView's TerrainLattice).
-func _init(grid: HexGrid, hex_size: float, mesh_origin: Vector2, mesh_step: Vector2) -> void:
+func _init(
+	grid: HexGrid, hex_size: float, mesh_origin: Vector2, mesh_step: Vector2, look: CoverLook = null
+) -> void:
 	_grid = grid
+	_look = look
+	if look != null:
+		_cover_rect = look.world_rect()
 	_hex_size = hex_size
 	_mesh_origin = mesh_origin
 	_mesh_step = mesh_step
@@ -44,6 +54,80 @@ func border_shares(ca: int, cb: int) -> Dictionary:
 			counts[type] = counts[type] / float(SAMPLES.size())
 		_shares_cache[key] = counts
 	return _shares_cache[key]
+
+
+## The terrain look shares of the backdrop vertex at world (x, z) beyond border vertex (ca, cb):
+## the land cover there ({type: 1.0}) inside the raster, else border_shares(ca, cb).
+func shares_at(x: float, z: float, ca: int, cb: int) -> Dictionary:
+	if _look != null and _cover_rect.has_point(Vector2(x, z)):
+		return {_look.terrain_at(x, z): 1.0}
+	return border_shares(ca, cb)
+
+
+## Forest share (0..1) of the backdrop canopy at world (x, z) beyond border vertex (ca, cb): the
+## soft forest of the land cover inside the raster, else the forest share of border_shares.
+func forest_at(x: float, z: float, ca: int, cb: int) -> float:
+	if _look != null and _cover_rect.has_point(Vector2(x, z)):
+		return _look.forest_k(x, z)
+	return border_shares(ca, cb).get(Terrain.Type.FOREST, 0.0)
+
+
+## Terrain type of a virtual backdrop tile at `p` whose nearest playable border point is `border`:
+## the land cover at `p` inside the raster, else nearest_tile_type(border).
+func ring_type(p: Vector2, border: Vector2) -> int:
+	if _look != null and _cover_rect.has_point(p):
+		return _look.terrain_at(p.x, p.y)
+	return nearest_tile_type(border)
+
+
+## MapView's backdrop vertex callback (BackdropMesh.build_mesh): TerrainSplat weights followed by
+## the value and saturation factors. At the seam it equals the playable margin (off-map plains,
+## MapView.OFF_MAP_VALUE); over MapView.BACKDROP_FADE units it blends into the terrain of
+## shares_at with the muted backdrop look, so the playable edge reads without a hard line.
+func backdrop_vertex(
+	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
+) -> PackedFloat32Array:
+	var v := Vector3(x, h, z)
+	var t := TerrainNoise.smooth(0.0, MapView.BACKDROP_FADE, distance)
+	var shares := shares_at(x, z, ca, cb)
+	# The noises and the splats a vertex does not show are skipped (TASK-072b: tens of thousands
+	# of ring vertices on a large map); the weights are the same.
+	var noisy := t < 1.0
+	for type: int in shares:
+		noisy = noisy or TerrainSplat.uses_noise(type)
+	var noise := MapView._splat_noise(x, z) if noisy else Vector2.ZERO
+	var seam := MapView._splat(-1, normal_y, v, noise) if t < 1.0 else PackedFloat32Array()
+	var land := PackedFloat32Array()
+	land.resize(TerrainSplat.LAYER_COUNT)
+	if t > 0.0:
+		for type: int in shares:
+			var share: float = shares[type]
+			var w := MapView._splat(type, normal_y, v, noise)
+			for layer in TerrainSplat.LAYER_COUNT:
+				land[layer] += w[layer] * share
+	if t >= 1.0:
+		seam = land
+	elif t <= 0.0:
+		land = seam
+	var result := PackedFloat32Array()
+	for layer in TerrainSplat.LAYER_COUNT:
+		result.append(lerpf(seam[layer], land[layer], t))
+	result.append(lerpf(MapView.OFF_MAP_VALUE, MapView.BACKDROP_VALUE, t))
+	result.append(lerpf(1.0, MapView.BACKDROP_SATURATION, t))
+	return result
+
+
+## BackdropMesh vertex callback of the canopy: forest cover in the first value (the rest is
+## unused padding of the shared vertex layout).
+func canopy_vertex(
+	x: float, z: float, _h: float, _normal_y: float, distance: float, ca: int, cb: int
+) -> PackedFloat32Array:
+	var cover := forest_at(x, z, ca, cb)
+	cover *= TerrainNoise.smooth(BackdropCanopy.FADE_FROM, BackdropCanopy.FADE_TO, distance)
+	var result := PackedFloat32Array()
+	result.resize(TerrainSplat.LAYER_COUNT + 2)
+	result[0] = cover
+	return result
 
 
 ## Terrain type of the map tile nearest to world point `p` (cached per hex it falls in). Searches

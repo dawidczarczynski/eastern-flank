@@ -1943,6 +1943,47 @@ class TacticalLayerTest(unittest.TestCase):
         self.assertIn("height = 12", corner)
         self.assertEqual(len(self._planes(a / "chunk_2_1.tres")), 5 * 4 * 12)
 
+    @staticmethod
+    def _fields(path: Path) -> dict:
+        return dict(line.split(" = ", 1) for line in path.read_text(encoding="utf-8").splitlines() if " = " in line)
+
+    def test_the_chunks_tile_the_land_cover_raster(self) -> None:
+        out = self._import("r")
+        index = self._fields(out / "layer.tres")
+        self.assertEqual(float(index["land_cover_cell_m"]), 16.0)
+        width, height = int(index["land_cover_width"]), int(index["land_cover_height"])
+        layout = import_map.HexLayout.centred(36, 28, 250.0, *import_map.to_utm(54.5, 22.5, 34))
+        min_e, min_n, max_e, max_n = layout.bounds()
+        self.assertEqual(width, int((max_e - min_e) // 16.0) + 1)
+        self.assertEqual(height, int((max_n - min_n) // 16.0) + 1)
+        raster = [bytearray(width) for _ in range(height)]
+        filled = 0
+        for cx in range(3):
+            for cy in range(2):
+                chunk = self._fields(out / ("chunk_%d_%d.tres" % (cx, cy)))
+                i0, j0 = int(chunk["cover_column"]), int(chunk["cover_row"])
+                w, h = int(chunk["cover_width"]), int(chunk["cover_height"])
+                cells = zlib.decompress(base64.b64decode(chunk["cover"].split('"')[1]))
+                self.assertEqual(len(cells), w * h)
+                for j in range(h):
+                    raster[j0 + j][i0:i0 + w] = cells[j * w:(j + 1) * w]
+                filled += w * h
+                # the window holds the cells of the chunk's hexes, give or take a hex corner
+                centre_e, centre_n = layout.centre(cx * 16 + 2, cy * 16 + 2)
+                self.assertTrue(i0 <= (centre_e - min_e) / 16.0 < i0 + w)
+                self.assertTrue(j0 <= (min_n + (height - 1) * 16.0 - centre_n) / 16.0 < j0 + h)
+        self.assertEqual(filled, width * height, "the windows tile the raster without overlap")
+        top_n = min_n + (height - 1) * 16.0
+
+        def at(lat: float, lon: float) -> str:
+            e, n = import_map.to_utm(lat, lon, 34)
+            return import_map.LAND_COVER[raster[int(round((top_n - n) / 16.0))][int(round((e - min_e) / 16.0))]]
+
+        self.assertEqual(at(54.4880, 22.5000), "F", "the forest")
+        self.assertEqual(at(54.475, 22.5625), "W", "the lake")
+        self.assertEqual(at(54.5085, 22.4300), "W", "the sea filled from the coast")
+        self.assertEqual(at(54.501, 22.4925), "A", "farmland of the lu1 tiles")
+
     def test_layer_classification(self) -> None:
         out = self._import("c")
         terrain, roads, rivers = bytearray(), bytearray(), bytearray()
@@ -2003,14 +2044,90 @@ class TacticalLayerTest(unittest.TestCase):
         self.assertEqual(slow, fast)
         self.assertGreater(sum(map(sum, fast)), 0)
 
-    def test_hex_pattern_lies_inside_the_hex(self) -> None:
-        points = import_map._hex_pattern(250.0, 50.0)
-        self.assertIn((0.0, 0.0), points)
-        self.assertTrue(19 <= len(points) <= 25, len(points))
-        layout = import_map.HexLayout(3, 3, 250.0, 0.0, 0.0)
-        centre = layout.centre(1, 1)
-        for de, dn in points:
-            self.assertEqual(layout.tile_at(centre[0] + de, centre[1] + dn), (1, 1))
+
+class LandCoverRasterTest(unittest.TestCase):
+    """The land-cover raster (TASK-108g, ADR 0028): sub-classes, cell counts per hex, the raster in the outputs."""
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_sub_classes_count_as_their_parent(self) -> None:
+        cls = import_map.cover_class
+        self.assertEqual(cls({"landuse": "orchard"}), "O")
+        self.assertEqual(cls({"natural": "scrub"}), "S")
+        self.assertEqual(cls({"natural": "heath"}), "S")
+        self.assertEqual(cls({"landuse": "quarry"}), "B")
+        counts = [0] * len(import_map.LAND_COVER)
+        for char, n in (("A", 2), ("O", 3), ("G", 1), ("S", 4), ("B", 5), ("F", 6)):
+            counts[import_map.LAND_COVER.index(char)] = n
+        folded = import_map.fold_counts(counts)
+        self.assertEqual(folded[import_map.COVER_CLASSES.index("A")], 5)
+        self.assertEqual(folded[import_map.COVER_CLASSES.index("G")], 10)
+        self.assertEqual(folded[import_map.COVER_CLASSES.index("F")], 6)
+        self.assertEqual(import_map.LAND_COVER[:7], import_map.COVER_CLASSES, "codes 0-6 are the cover classes")
+
+    def test_a_parent_wins_over_the_sub_classes_as_before(self) -> None:
+        square = [[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0)]]
+        for first, second, kept in (("O", "A", "O"), ("A", "O", "O"), ("O", "U", "U"), ("S", "A", "A"),
+                                    ("B", "G", "B"), ("F", "O", "F")):  # fmt: skip
+            for fill in (import_map._scanline_fill, import_map._scanline_fill_fast):
+                grid = [bytearray(12) for _ in range(12)]
+                fill(grid, import_map.LAND_COVER.index(first), square, 0.0, 0.0, 1.0)
+                fill(grid, import_map.LAND_COVER.index(second), square, 0.0, 0.0, 1.0)
+                self.assertEqual(grid[5][5], import_map.LAND_COVER.index(kept), (first, second, fill.__name__))
+
+    def test_cell_counts_are_the_cells_whose_centre_lies_in_the_hex(self) -> None:
+        layout = import_map.HexLayout(4, 4, 250.0, 1000.0, 2000.0)
+        min_e, min_n, max_e, max_n = layout.bounds()
+        step = 16.0
+        cols = int((max_e - min_e) // step) + 1
+        rows = int((max_n - min_n) // step) + 1
+        cover = [bytearray((i * 7 + j * 3) % 10 for i in range(cols)) for j in range(rows)]
+        for col, row in ((1, 1), (2, 2), (1, 2)):
+            expected = [0] * len(import_map.LAND_COVER)
+            for j in range(rows):
+                for i in range(cols):
+                    if layout.tile_at(min_e + i * step, min_n + j * step) == (col, row):
+                        expected[cover[j][i]] += 1
+            got = import_map.cell_counts(cover, *layout.centre(col, row), 250.0, min_e, min_n, step)
+            self.assertEqual(got, expected, (col, row))
+            self.assertTrue(200 <= sum(got) <= 225, sum(got))  # 54 127 m2 / 256 m2 = 212 cells
+
+    def test_the_tactical_sample_stores_the_raster_and_keeps_its_hex_types(self) -> None:
+        out = self.dir / "s.tres"
+        import_map.run(SAMPLE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE, "--out=%s" % out])
+        text = out.read_text(encoding="utf-8")
+        fields = dict(line.split(" = ", 1) for line in text.splitlines() if " = " in line)
+        width, height = int(fields["land_cover_width"]), int(fields["land_cover_height"])
+        self.assertEqual(float(fields["land_cover_cell_m"]), 16.0)
+        cells = zlib.decompress(base64.b64decode(fields["land_cover"].split('"')[1]))
+        self.assertEqual(len(cells), width * height)
+        layout = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34))
+        min_e, min_n, max_e, max_n = layout.bounds()
+        self.assertAlmostEqual(float(fields["land_cover_origin_easting"]), min_e, places=2)
+        self.assertAlmostEqual(float(fields["land_cover_origin_northing"]), min_n + (height - 1) * 16.0, places=2)
+
+        def at(lat: float, lon: float) -> str:
+            e, n = import_map.to_utm(lat, lon, 34)
+            i = int(round((e - min_e) / 16.0))
+            j = int(round((min_n + (height - 1) * 16.0 - n) / 16.0))
+            return import_map.LAND_COVER[cells[j * width + i]]
+
+        self.assertEqual(at(54.2050, 22.8900), "F", "the forest")
+        self.assertNotEqual(at(54.2027, 22.8945), "F", "its clearing")
+        old = self.dir / "old.tres"
+        import_map.run(SAMPLE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                      "--cover-cell=0", "--out=%s" % old])  # fmt: skip
+        old_text = old.read_text(encoding="utf-8")
+        self.assertNotIn("land_cover", old_text)
+        self.assertEqual(_arrays(text)["terrain_rows"], _arrays(old_text)["terrain_rows"],
+                         "the hex majority of the raster gives the lattice's hex types")  # fmt: skip
+
+    def test_operational_maps_have_no_raster(self) -> None:
+        self.assertNotIn("land_cover", SAMPLE_OP_MAP.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

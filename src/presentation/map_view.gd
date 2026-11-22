@@ -109,9 +109,13 @@ const GRASS_LAYER_MASK := 1 << (GRASS_VISUAL_LAYER - 1)
 
 ## Graphics quality switches (GraphicsQuality.features), set by BattleController before use.
 var quality: Dictionary = {}
+## The land cover of the map (TASK-108g, LandCover.for_map), set before build(); null or without a
+## raster: the look follows the hex types. `_look` is its CoverLook for this build.
+var land_cover: LandCover
 ## Chunk plans and the coarse terrain run on the worker threads; off: on the caller's thread,
 ## same result.
 var threads := true
+var _look: CoverLook
 var _grid: HexGrid
 var _surface: TerrainSurface
 ## The terrain lattice (its origin, cell size and cell counts are kept as _mesh_* for the
@@ -220,6 +224,7 @@ func build(grid: HexGrid) -> void:
 	_chunks.threads = threads
 	_vegetation.reset(_chunks, quality.get("small_chunk_rings", false), threads)
 	_grid = grid
+	_look = CoverLook.make(land_cover)
 	_surface = TerrainSurface.new(grid)
 	_shape_cache.clear()
 	_clear_children(_tiles_root)
@@ -237,7 +242,9 @@ func build(grid: HexGrid) -> void:
 	_parcels = null
 	var bake_rect := rect.grow(PARCEL_MARGIN)
 	var baked: Array = [null]
-	var bake := func() -> void: baked[0] = FieldParcels.bake(grid, hex_size, bake_rect)
+	var bake := func() -> void:
+		var mpp := FieldParcels.DEFAULT_METRES_PER_PIXEL
+		baked[0] = FieldParcels.bake(grid, hex_size, bake_rect, mpp, {}, _look)
 	var bake_task := -1
 	if threads:
 		bake_task = WorkerThreadPool.add_task(bake, true, "Farmland parcels")
@@ -251,7 +258,7 @@ func build(grid: HexGrid) -> void:
 	_mesh_origin = _lattice.origin
 	_mesh_step = Vector2.ONE * TerrainLattice.STEP
 	_mesh_cells = _lattice.cells
-	_terrain = TerrainChunks.new(grid, hex_size, _lattice, _terrain_material())
+	_terrain = TerrainChunks.new(grid, hex_size, _lattice, _terrain_material(), _look)
 	_tiles_root.add_child(_terrain.coarse_root)
 	_tiles_root.add_child(_terrain.fine_root)
 	_terrain.build_all_coarse(threads)
@@ -290,7 +297,8 @@ func build(grid: HexGrid) -> void:
 			playable,
 			_trees,
 			ring,
-			ring_surface
+			ring_surface,
+			_look
 		)
 		for parent in _foliage.parents():
 			_tiles_root.add_child(parent)
@@ -301,7 +309,7 @@ func build(grid: HexGrid) -> void:
 		if VisualScale.is_true_size():
 			_foliage.ground = vegetation_ground_height
 		var shell := _vegetation.build_forest(
-			grid, vegetation_ground_height, _lattice, SCATTER_SEED, _lattice.rect(), _parcels
+			grid, vegetation_ground_height, _lattice, SCATTER_SEED, _lattice.rect(), _parcels, _look
 		)
 		if shell != null:
 			_tiles_root.add_child(shell)
@@ -320,7 +328,8 @@ func build(grid: HexGrid) -> void:
 		_grass_color,
 		GrassPlanner.INSTANCE_BUDGET,
 		_parcels,
-		PI * grass_free * grass_free
+		PI * grass_free * grass_free,
+		_look
 	)
 	if _grass.is_active():
 		var grass_layer := _grass.chunk_layer(_chunks.invalidate)
@@ -503,12 +512,14 @@ func _terrain_material() -> ShaderMaterial:
 
 ## The non-playable scenery ring around `rect` (the playable mesh), see BackdropMesh.
 func _build_backdrop(rect: Rect2) -> MeshInstance3D:
-	_backdrop_types = BackdropTypes.new(_grid, hex_size, _mesh_origin, _mesh_step)
+	_backdrop_types = BackdropTypes.new(_grid, hex_size, _mesh_origin, _mesh_step, _look)
 	_backdrop = BackdropMesh.new(rect, _mesh_cells, _lattice.height, BACKDROP_WIDTH, DETAIL_TILE)
 	# The vertex callbacks run on the worker threads: fill the shares they read first.
 	for key in _backdrop.border_keys():
 		_backdrop_types.border_shares(key.x, key.y)
-	var mesh := _backdrop.build_mesh(_backdrop_vertex, TerrainGround.add_surface, threads)
+	var mesh := _backdrop.build_mesh(
+		_backdrop_types.backdrop_vertex, TerrainGround.add_surface, threads
+	)
 	mesh.surface_set_material(0, _terrain_material())
 	var instance := MeshInstance3D.new()
 	instance.name = "Backdrop"
@@ -518,68 +529,20 @@ func _build_backdrop(rect: Rect2) -> MeshInstance3D:
 	return instance
 
 
-## Backdrop vertex: TerrainSplat weights followed by the value and saturation factors. At the
-## seam it equals the playable margin (off-map plains, OFF_MAP_VALUE); over BACKDROP_FADE units
-## it blends into the nearest border tile's terrain with the muted backdrop look, so the
-## playable edge reads without a hard line.
-func _backdrop_vertex(
-	x: float, z: float, h: float, normal_y: float, distance: float, ca: int, cb: int
-) -> PackedFloat32Array:
-	var v := Vector3(x, h, z)
-	var t := TerrainNoise.smooth(0.0, BACKDROP_FADE, distance)
-	var shares := _backdrop_types.border_shares(ca, cb)
-	# The noises and the splats a vertex does not show are skipped (TASK-072b: tens of thousands
-	# of ring vertices on a large map); the weights are the same.
-	var noisy := t < 1.0
-	for type: int in shares:
-		noisy = noisy or TerrainSplat.uses_noise(type)
-	var noise := _splat_noise(x, z) if noisy else Vector2.ZERO
-	var seam := _splat(-1, normal_y, v, noise) if t < 1.0 else PackedFloat32Array()
-	var land := PackedFloat32Array()
-	land.resize(TerrainSplat.LAYER_COUNT)
-	if t > 0.0:
-		for type: int in shares:
-			var share: float = shares[type]
-			var w := _splat(type, normal_y, v, noise)
-			for layer in TerrainSplat.LAYER_COUNT:
-				land[layer] += w[layer] * share
-	if t >= 1.0:
-		seam = land
-	elif t <= 0.0:
-		land = seam
-	var result := PackedFloat32Array()
-	for layer in TerrainSplat.LAYER_COUNT:
-		result.append(lerpf(seam[layer], land[layer], t))
-	result.append(lerpf(OFF_MAP_VALUE, BACKDROP_VALUE, t))
-	result.append(lerpf(1.0, BACKDROP_SATURATION, t))
-	return result
-
-
 ## Distant forest shell over the backdrop lattice: the forest share of the nearest border tiles
 ## (the same samples as the backdrop ground) faded in with the distance from the playable mesh,
 ## drawn by canopy.gdshader as crowns.
 func _build_backdrop_canopy() -> MeshInstance3D:
 	var lift := VisualScale.tree_scale() * BackdropCanopy.HEIGHT
-	var mesh := _backdrop.build_mesh(_canopy_vertex, BackdropCanopy.add_surface.bind(lift), threads)
+	var mesh := _backdrop.build_mesh(
+		_backdrop_types.canopy_vertex, BackdropCanopy.add_surface.bind(lift), threads
+	)
 	mesh.surface_set_material(0, BackdropCanopy.material())
 	var instance := MeshInstance3D.new()
 	instance.name = "BackdropCanopy"
 	instance.mesh = mesh
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return instance
-
-
-## BackdropMesh vertex callback of the canopy: forest cover in the first value (the rest is
-## unused padding of the shared vertex layout).
-func _canopy_vertex(
-	_x: float, _z: float, _h: float, _normal_y: float, distance: float, ca: int, cb: int
-) -> PackedFloat32Array:
-	var cover: float = _backdrop_types.border_shares(ca, cb).get(Terrain.Type.FOREST, 0.0)
-	cover *= TerrainNoise.smooth(BackdropCanopy.FADE_FROM, BackdropCanopy.FADE_TO, distance)
-	var result := PackedFloat32Array()
-	result.resize(TerrainSplat.LAYER_COUNT + 2)
-	result[0] = cover
-	return result
 
 
 ## The virtual tiles of the backdrop scatter (FoliageChunks): a tile ring around the map that
@@ -596,7 +559,7 @@ func _backdrop_ring(inner: Rect2) -> HexGrid:
 		if _grid.has_tile(c) or inner.has_point(p):
 			continue
 		var border := BackdropHeights.nearest_border_point(inner, p.x, p.y)
-		ring.set_terrain(c, _backdrop_types.nearest_tile_type(border) as Terrain.Type)
+		ring.set_terrain(c, _backdrop_types.ring_type(p, border) as Terrain.Type)
 	return ring
 
 
@@ -661,7 +624,11 @@ func _grass_color(p: Vector3) -> Color:
 	var averages := _layer_averages
 	var slope := GrassPlanner.slope(_surface, p.x, p.z)
 	var normal_y := 1.0 / sqrt(1.0 + slope * slope)
-	var terrain := _grid.get_terrain(Hex.from_world(p, hex_size))
+	var terrain := (
+		_look.terrain_at(p.x, p.z)
+		if _look != null
+		else _grid.get_terrain(Hex.from_world(p, hex_size))
+	)
 	var weights := _splat(terrain, normal_y, p, _splat_noise(p.x, p.z))
 	var color := Color(0, 0, 0)
 	for layer in TerrainSplat.LAYER_COUNT:

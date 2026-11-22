@@ -153,8 +153,18 @@ static func detail_texture() -> ImageTexture:
 ## the crop colours of LookPreset.fields(), or off for null (a map without fields).
 static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	material.set_shader_parameter(&"parcels_on", parcels != null)
+	material.set_shader_parameter(&"cover_on", parcels != null and parcels.look != null)
 	if parcels == null:
 		return
+	if parcels.look != null:
+		var cover := parcels.look.cover
+		var codes := Image.create_from_data(
+			cover.width, cover.height, false, Image.FORMAT_R8, cover.cells()
+		)
+		material.set_shader_parameter(&"land_cover", ImageTexture.create_from_image(codes))
+		material.set_shader_parameter(
+			&"cover_frame", Vector4(cover.origin.x, cover.origin.y, cover.cell_size, 0.0)
+		)
 	var look := LookPreset.fields()
 	var plant := PackedVector3Array()
 	var furrow := PackedVector3Array()

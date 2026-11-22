@@ -15,20 +15,26 @@ const NODE := "ForestShell"
 
 
 ## The shell over the forest tiles of `grid` within `rect`, or null without forest.
-## `height_fn` is Callable(x, z) -> float (the drawn ground).
-static func build_mesh(grid: HexGrid, rect: Rect2, height_fn: Callable, lift: float) -> ArrayMesh:
+## `height_fn` is Callable(x, z) -> float (the drawn ground). `look` (TASK-108g): the vertex cover
+## is the land-cover raster's soft forest share instead of the forest tiles.
+static func build_mesh(
+	grid: HexGrid, rect: Rect2, height_fn: Callable, lift: float, look: CoverLook = null
+) -> ArrayMesh:
 	var cells := Vector2i((rect.size / STEP).ceil())
 	var row := cells.x + 1
-	var cover := PackedByteArray()
+	var cover := PackedFloat32Array()
 	cover.resize(row * (cells.y + 1))
 	var any := false
 	for j in cells.y + 1:
 		for i in row:
 			var p := Vector3(rect.position.x + i * STEP, 0.0, rect.position.y + j * STEP)
-			var c := Hex.from_world(p, TerrainField.HEX_SIZE)
-			if grid.has_tile(c) and grid.get_terrain(c) == Terrain.Type.FOREST:
-				cover[j * row + i] = 1
-				any = true
+			if look != null:
+				cover[j * row + i] = look.forest_k(p.x, p.z)
+			else:
+				var c := Hex.from_world(p, TerrainField.HEX_SIZE)
+				if grid.has_tile(c) and grid.get_terrain(c) == Terrain.Type.FOREST:
+					cover[j * row + i] = 1.0
+			any = any or cover[j * row + i] > 0.0
 	if not any:
 		return null
 	var vertices := PackedVector3Array()
@@ -43,7 +49,7 @@ static func build_mesh(grid: HexGrid, rect: Rect2, height_fn: Callable, lift: fl
 			]
 			var touches := false
 			for k in corners:
-				touches = touches or cover[k] == 1
+				touches = touches or cover[k] > 0.0
 			if not touches:
 				continue
 			var ids: Array[int] = []
@@ -72,11 +78,13 @@ static func build_mesh(grid: HexGrid, rect: Rect2, height_fn: Callable, lift: fl
 ## The shell node for the active look: canopy material in the species colours, the crown cell and
 ## the fade-in band of LookPreset.vegetation() (a share of the shortest species' impostor range),
 ## no shadow. Null without forest.
-static func build(grid: HexGrid, rect: Rect2, height_fn: Callable) -> MeshInstance3D:
+static func build(
+	grid: HexGrid, rect: Rect2, height_fn: Callable, look: CoverLook = null
+) -> MeshInstance3D:
 	var values := LookPreset.vegetation()
 	var tree_m: float = VisualScale.TRUE_HEIGHTS_M[&"tree"]
 	var lift := MapScale.to_units(tree_m * float(values["shell_height_share"]))
-	var mesh := build_mesh(grid, rect, height_fn, lift)
+	var mesh := build_mesh(grid, rect, height_fn, lift, look)
 	if mesh == null:
 		return null
 	var material := BackdropCanopy.material()

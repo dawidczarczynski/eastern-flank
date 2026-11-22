@@ -113,6 +113,18 @@ const RELIEF_FLAT := 180
 @export var elevation: PackedFloat32Array
 ## Attribution of the source data (see data/maps/CREDITS).
 @export var sources: String
+## Land-cover raster of a tactical map (TASK-108g, ADR 0028 "Sub-hex land cover"): zlib of
+## `land_cover_width` x `land_cover_height` LandCover.Kind bytes, square cells of
+## `land_cover_cell_m` metres, row 0 north; the centre of cell (0, 0) (north-west) is at
+## (`land_cover_origin_easting`, `land_cover_origin_northing`). The hex terrain is derived from it
+## by the importer; only the view reads it (LandCover.from_imported). Empty = none (operational
+## and older maps).
+@export var land_cover_cell_m: float = 0.0
+@export var land_cover_width: int
+@export var land_cover_height: int
+@export var land_cover_origin_easting: float
+@export var land_cover_origin_northing: float
+@export var land_cover: PackedByteArray
 
 ## Graphic layers for drawing the operational map (TASK-126; GDD "Operational map", map
 ## principle): images of the importer's sample lattice, finer than the hexes and never read by a

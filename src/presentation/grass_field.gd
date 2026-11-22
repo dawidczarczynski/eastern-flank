@@ -34,6 +34,8 @@ var clearing_listeners: Array[Callable] = []
 
 var _grid: HexGrid
 var _parcels: ParcelMap
+## The land-cover look of the last setup (TASK-108g), or null: the clumps follow the hex types.
+var _look: CoverLook
 var _surface: TerrainSurface
 var _density := 0.0
 ## Callable(position: Vector3) -> Color: the linear ground colour under a clump (evaluated once
@@ -73,7 +75,8 @@ func setup(
 	color_of: Callable,
 	budget: int = GrassPlanner.INSTANCE_BUDGET,
 	parcels: ParcelMap = null,
-	live_area := INF
+	live_area := INF,
+	look: CoverLook = null
 ) -> void:
 	for child in get_children():
 		remove_child(child)
@@ -82,6 +85,7 @@ func setup(
 	_surface = surface
 	_color_of = color_of
 	_parcels = parcels
+	_look = look
 	_map_rect = map_rect
 	_chunks.clear()
 	_flower_chunks.clear()
@@ -173,6 +177,7 @@ func clump_look() -> Dictionary:
 		"reeds": _reed_material,
 		"meadow": _meadow,
 		"parcels": _parcels,
+		"cover": _look,
 	}
 
 
@@ -283,9 +288,11 @@ func plan_chunk(chunk: Vector2i) -> Dictionary:
 	if _density <= 0.0:
 		return {}
 	var flowers := GrassPlanner.plan_flowers(
-		chunk, _grid, _surface, SEED, _density, _meadow, _parcels
+		chunk, _grid, _surface, SEED, _density, _meadow, _parcels, _look
 	)
-	var all := GrassPlanner.plan_chunk(chunk, _grid, _surface, SEED, _density, _meadow, _parcels)
+	var all := GrassPlanner.plan_chunk(
+		chunk, _grid, _surface, SEED, _density, _meadow, _parcels, _look
+	)
 	var clumps: Array = []
 	var reeds: Array = []
 	for g: Dictionary in all:

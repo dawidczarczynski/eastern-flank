@@ -48,7 +48,8 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool) -> void:
 	grass_near.clear()
 
 
-## The forest of `grid` over `rect`; returns the canopy shell node to add (null without forest).
+## The forest of `grid` (or of the land-cover `look`, TASK-108g) over `rect`; returns the canopy
+## shell node to add (null without forest).
 ## `ground` is MapView.vegetation_ground_height (thread-safe: the full trees), `lattice` the drawn
 ## terrain lattice (the GPU-placed impostors and the shell, ADR 0027).
 func build_forest(
@@ -57,14 +58,15 @@ func build_forest(
 	lattice: TerrainLattice,
 	seed_value: int,
 	rect: Rect2,
-	parcels: ParcelMap
+	parcels: ParcelMap,
+	look: CoverLook = null
 ) -> MeshInstance3D:
 	if not _active:
 		return null
-	forest.setup(grid, ground, seed_value, rect, lattice, parcels)
+	forest.setup(grid, ground, seed_value, rect, lattice, parcels, look)
 	_main.register(forest.impostor_layer())
 	chunks.register(forest.full_layer())
-	var shell := ForestShell.build(grid, rect, lattice.mesh_height_at)
+	var shell := ForestShell.build(grid, rect, lattice.mesh_height_at, look)
 	if shell != null:
 		forest.bind_shell(shell.mesh.surface_get_material(0) as ShaderMaterial)
 	return shell

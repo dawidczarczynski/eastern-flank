@@ -13,7 +13,7 @@ https://www.openstreetmap.org/copyright – downloaded through the Overpass API
 (https://overpass-api.de).
 
 The hex maps are a derivative database of OpenStreetMap data (land use / natural areas reduced
-to one terrain and cover class per hex, roads and waterways reduced to links between
+to one terrain and cover class per hex and, for the tactical maps, a 16 m land-cover raster, roads and waterways reduced to links between
 neighbouring hexes). In line with the ODbL share-alike clause, the terrain
 and cover data of every map listed below is made available under the ODbL 1.0 as well, and
 anyone can rebuild it from OpenStreetMap with tools/import_map.py and the command given below.
@@ -37,6 +37,8 @@ of 250 m, UTM 34N. Real data, downloaded 2026-10-31:
   (a re-download gets today's OpenStreetMap, so the result may differ from the committed file)
   Re-imported 2026-10-31 (TASK-108: fields / urban / marsh, road and river links) offline from
   the same cached inputs with --offline added to the command above.
+  Re-imported 2026-11-22 (TASK-108g: 16 m land-cover raster, hex types counted on its cells)
+  offline from the same cached inputs, same command with --offline.
 
 suwalki_theatre.tres – the operational theatre around the Suwalki Gap (north-east Poland, the
 Kaliningrad oblast, southern Lithuania, western Belarus), 68x64 hexes of 5 km, UTM 34N for the
@@ -75,6 +77,8 @@ meadows, grass, grassland, heath, scrub - for the fields terrain). Imported 2026
   Rebuild: tools/import_map.py --profile=layer --center=54.20,22.888 --size=1370x1288
            --name=suwalki_tactical --display-name="Suwalki Gap theatre (tactical layer)"
            --out=data/maps/suwalki_tactical
+  (re-imported 2026-11-22 offline from the same cache for TASK-108g: 16 m land-cover raster in
+  every chunk, hex types counted on its cells)
   (the committed layer was built with --offline added, after the lu1 tiles were downloaded;
   a re-download gets today's OpenStreetMap, so the result may differ from the committed files)
 

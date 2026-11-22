@@ -3,12 +3,16 @@ extends RefCounted
 ## The baked farmland parcels of a map (TASK-108f, FieldParcels.bake): an RG8 image with the
 ## parcel kind (FieldParcels.Kind) in red and the row orientation / parcel id in green, covering
 ## a world rectangle at `metres_per_pixel`. The terrain shader samples it as a texture; the grass
-## planner reads the kind per position.
+## planner reads the kind per position. With a land-cover raster (TASK-108g, `look`) a parcel only
+## shows inside the noisy outline of the FIELD cover: kind_at reads NONE elsewhere, and the shader
+## cuts the crops along the same outline (TerrainGround.set_parcels, terrain.gdshader).
 
 var image: Image
 ## World position (x, z) in metres of the image's top-left corner.
 var origin_m := Vector2.ZERO
 var metres_per_pixel := 5.0
+## The land-cover look whose FIELD cover clips the parcels, or null (the image is final).
+var look: CoverLook
 var _texture: ImageTexture
 
 
@@ -22,7 +26,12 @@ func kind_at_metres(x_m: float, z_m: float) -> int:
 	var py := floori((z_m - origin_m.y) / metres_per_pixel)
 	if px < 0 or py < 0 or px >= image.get_width() or py >= image.get_height():
 		return 0  # FieldParcels.NONE
-	return roundi(image.get_pixel(px, py).r * 255.0)
+	var kind := roundi(image.get_pixel(px, py).r * 255.0)
+	if kind != 0 and look != null:
+		var m := MapScale.metres_per_unit
+		if not look.has_kind(LandCover.Kind.FIELD, x_m / m, z_m / m):
+			return 0
+	return kind
 
 
 ## Whether trees, bushes, rocks and thickets are kept off world position (x, z) (world units):

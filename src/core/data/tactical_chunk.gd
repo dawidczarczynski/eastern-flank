@@ -6,6 +6,10 @@ extends Resource
 ## terrain (Terrain.Type), road link mask, river link mask (bit i = towards Hex.DIRECTIONS[i]),
 ## then the DEM height as uint16 (TacticalLayer.elevation_offset_m / elevation_step_m) low bytes
 ## and high bytes.
+## `cover` (TASK-108g, ADR 0028) is zlib of this chunk's window of the layer's land-cover raster:
+## cells `cover_column` .. + `cover_width` - 1 x north rows `cover_row` .. + `cover_height` - 1
+## of the whole raster, one LandCover.Kind byte each, row-major, row 0 north. The windows of all
+## chunks tile the raster without overlap. Empty in layers imported before the raster.
 
 ## Planes in `data` (decoded).
 const PLANES := 5
@@ -16,6 +20,11 @@ const PLANES := 5
 @export var width: int
 @export var height: int
 @export var data: PackedByteArray
+@export var cover_column: int
+@export var cover_row: int
+@export var cover_width: int
+@export var cover_height: int
+@export var cover: PackedByteArray
 
 
 ## The decoded planes (PLANES * width * height bytes); empty when `data` is malformed.
@@ -25,3 +34,18 @@ func decode() -> PackedByteArray:
 		return PackedByteArray()
 	var planes := data.decompress(size, FileAccess.COMPRESSION_DEFLATE)
 	return planes if planes.size() == size else PackedByteArray()
+
+
+## Raster cells of this chunk's cover window (cover_width x cover_height, global cells).
+func cover_rect() -> Rect2i:
+	return Rect2i(cover_column, cover_row, cover_width, cover_height)
+
+
+## The decoded cover window (cover_width * cover_height bytes); empty when there is none or it is
+## malformed.
+func decode_cover() -> PackedByteArray:
+	var size := cover_width * cover_height
+	if size <= 0 or cover.is_empty():
+		return PackedByteArray()
+	var cells := cover.decompress(size, FileAccess.COMPRESSION_DEFLATE)
+	return cells if cells.size() == size else PackedByteArray()

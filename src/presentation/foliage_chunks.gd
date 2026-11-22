@@ -28,6 +28,8 @@ var _trees: TreeField
 ## Virtual backdrop tiles and the ground they stand on (null: no backdrop scatter).
 var _ring: HexGrid
 var _ring_surface: TerrainSurface
+## The land-cover look (TASK-108g), or null: the scatter follows the hex types.
+var _look: CoverLook
 var _parents: Dictionary = {}
 var _crown_material: StandardMaterial3D
 var _rock_material: StandardMaterial3D
@@ -49,9 +51,11 @@ func _init(
 	playable: Rect2,
 	trees: TreeField,
 	ring: HexGrid = null,
-	ring_surface: TerrainSurface = null
+	ring_surface: TerrainSurface = null,
+	look: CoverLook = null
 ) -> void:
 	_grid = grid
+	_look = look
 	_surface = surface
 	_parcels = parcels
 	_seed = seed_value
@@ -138,7 +142,7 @@ func source(chunk: Vector2i, consumer: StringName) -> Dictionary:
 
 func _plan_source(chunk: Vector2i) -> Dictionary:
 	var rect := Rect2(Vector2(chunk) * TreeField.CHUNK_SIZE, Vector2.ONE * TreeField.CHUNK_SIZE)
-	var map := ScatterPlanner.plan_rect(_grid, _surface, _seed, rect, _parcels)
+	var map := ScatterPlanner.plan_rect(_grid, _surface, _seed, rect, _parcels, _look)
 	var hedges := ScatterPlanner.plan_hedges(_grid, _surface, _parcels, rect)
 	(map["trees"] as Array).append_array(hedges["trees"])
 	(map["edge_shrubs"] as Array).append_array(hedges["edge_shrubs"])
@@ -146,7 +150,7 @@ func _plan_source(chunk: Vector2i) -> Dictionary:
 	for key: String in ScatterPlanner.PLAN_KEYS:
 		backdrop[key] = []
 	if _ring != null and not _inner.encloses(rect):
-		backdrop = ScatterPlanner.plan_rect(_ring, _ring_surface, _seed, rect, _parcels)
+		backdrop = ScatterPlanner.plan_rect(_ring, _ring_surface, _seed, rect, _parcels, _look)
 		# Far away: the ground cover is not worth its triangles.
 		backdrop["ground_cover"] = []
 		# Deterministic per-position thinning (no spatial pattern from the plan order).
@@ -246,9 +250,11 @@ func plan_trees(chunk: Vector2i) -> Dictionary:
 	return TreeField.plan_chunk(chunk, lists[0], lists[1], _playable, ground, is_forest)
 
 
-## Whether `position` lies on a forest tile of the map (its trees' impostors end at the canopy
-## shell, TASK-135). Pure.
+## Whether `position` lies on a forest tile of the map, or on the forest cover with a land-cover
+## raster (its trees' impostors end at the canopy shell, TASK-135). Pure.
 func is_forest(position: Vector3) -> bool:
+	if _look != null:
+		return _look.is_forest(position.x, position.z)
 	var coord := Hex.from_world(position, TerrainField.HEX_SIZE)
 	return _grid.has_tile(coord) and _grid.get_terrain(coord) == Terrain.Type.FOREST
 

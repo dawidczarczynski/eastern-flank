@@ -37,7 +37,25 @@ const SUWALKI_087_TERRAIN := [
 ]
 ## Checksums of the TASK-087 elevation arrays: [sum, sum of |v| * (i % 7 + 1)].
 const SUWALKI_087_ELEVATION_M := [148024.6, 591194.7]
-const SUWALKI_087_ELEVATION := [499.81, 2071.341]
+# Game elevation checksums of the TASK-108g re-import (land-cover raster; the DEM metres are those
+# of TASK-087, the sums moved only because four hexes became water).
+const SUWALKI_108G_ELEVATION := [496.594, 2068.146]
+# Hexes (col, row) whose forest / water type changed in the TASK-108g re-import, where the hex type
+# became the majority of the 16 m land-cover cells: every one within ~0.05 of a classify threshold
+# (50 / 50 forest share, water vs forest dominance).
+const SUWALKI_108G_CHANGED := [
+	Vector2i(1, 1),
+	Vector2i(3, 1),
+	Vector2i(18, 2),
+	Vector2i(17, 3),
+	Vector2i(18, 3),
+	Vector2i(20, 7),
+	Vector2i(1, 10),
+	Vector2i(8, 11),
+	Vector2i(15, 12),
+	Vector2i(21, 13),
+	Vector2i(20, 15),
+]
 
 
 func _sample() -> ImportedMap:
@@ -437,7 +455,9 @@ func test_suwalki_keeps_forest_water_and_elevation_of_task_087() -> void:
 		for col in map.width:
 			var old: String = SUWALKI_087_TERRAIN[row][col]
 			var now := map.terrain_rows[row][col]
-			if old == "F" or old == "W":
+			if SUWALKI_108G_CHANGED.has(Vector2i(col, row)):
+				assert_true(now != old, "%d,%d is a known threshold change" % [col, row])
+			elif old == "F" or old == "W":
 				assert_eq(now, old, "%d,%d" % [col, row])
 			else:
 				assert_true("PHAUM".contains(now), "%d,%d: %s was %s" % [col, row, now, old])
@@ -445,8 +465,8 @@ func test_suwalki_keeps_forest_water_and_elevation_of_task_087() -> void:
 	_near(metres[0], SUWALKI_087_ELEVATION_M[0], "elevation_m sum", 0.5)
 	_near(metres[1], SUWALKI_087_ELEVATION_M[1], "elevation_m weighted", 2.0)
 	var game := _checksums(map.elevation)
-	_near(game[0], SUWALKI_087_ELEVATION[0], "elevation sum", 0.01)
-	_near(game[1], SUWALKI_087_ELEVATION[1], "elevation weighted", 0.05)
+	_near(game[0], SUWALKI_108G_ELEVATION[0], "elevation sum", 0.01)
+	_near(game[1], SUWALKI_108G_ELEVATION[1], "elevation weighted", 0.05)
 
 
 func test_suwalki_has_roads_and_rivers() -> void:

@@ -22,8 +22,9 @@ Missing cache files are downloaded unless `--offline`; `--dem` / `--osm` read th
 cache (tests use the committed fixtures in tools/import_map_fixtures/).
 
 Method (ADR 0018): a lattice of sample points every `SAMPLE_M` metres covers the map; each point gets the DEM
-height (bilinear) and an OSM cover class (polygons rasterised by scanline, higher `COVER_CLASSES` priority wins).
-Per hex (`classify`, TASK-108 / ADR 0019): the dominant group of its points (water / forest / open, ties prefer open,
+height (bilinear) and an OSM cover class (polygons rasterised by scanline, the later `LAND_COVER_PRIORITY` class wins).
+The cover counts of a tactical hex come from the land-cover raster below (the cells inside the hex), its heights
+from the lattice points. Per hex (`classify`, TASK-108 / ADR 0019): the dominant group of its points (water / forest / open, ties prefer open,
 then forest) makes WATER or FOREST; an open hex is URBAN when built-up cover reaches `--urban-share` of its points,
 MARSH when wetland reaches `--marsh-share`, HILLS when its relief (90th - 10th percentile of its heights) reaches
 `--hills-relief` metres, FIELDS when farmland is its largest open cover class, else PLAINS.
@@ -78,14 +79,22 @@ cover unfiltered, relief with a fixed adaptive filter rule, zlib level 9), base6
 is computed exactly as without them (`Settings.layers`).
 
 Tactical layer (`--profile=layer`, TASK-094b; ADR 0018 "Tactical layer"): the tactical terrain of a whole theatre for
-contact battles, from the operational inputs (op1 OSM tiles, GLO-90, sea fill): 250 m hexes, a 50 m cover lattice
-(`_scanline_fill_fast`), per hex the cover classes of the `_hex_pattern` points and the DEM at the centre and six
-points `LAYER_DEM_RADIUS_M` around it, the tactical `classify` (hills from `LAYER_HILLS_RELIEF`). The op1 tiles have
-no farmland or grass, so the layer also reads land-use tiles `<cache>/osm/lu1_<lat>_<lon>_<deg>.json` (`landuse_query`:
-the A / G areas of the tactical tag table, same grid, fetched like the op1 tiles with `LANDUSE_PAUSE_S` between
-downloads): FIELDS where farmland is the largest open class, as in the tactical profile. Written into the folder
-`--out` as `layer.tres` (TacticalLayer) and one zlib-compressed
-`chunk_<cx>_<cy>.tres` (TacticalChunk) per `LAYER_CHUNK` square (`write_layer`).
+contact battles, from the operational inputs (op1 OSM tiles, GLO-90, sea fill): 250 m hexes, a land-cover raster of
+`--cover-cell` (16 m) cells (`_scanline_fill_fast`), per hex the counts of the raster cells inside it (`cell_counts`)
+and the DEM at the centre and six points `LAYER_DEM_RADIUS_M` around it, the tactical `classify` (hills from
+`LAYER_HILLS_RELIEF`); the sea is flood-filled on the `--sample` (50 m) lattice and copied into the raster. The op1
+tiles have no farmland or grass, so the layer also reads land-use tiles `<cache>/osm/lu1_<lat>_<lon>_<deg>.json`
+(`landuse_query`: the A / G areas of the tactical tag table, same grid, fetched like the op1 tiles with
+`LANDUSE_PAUSE_S` between downloads): FIELDS where farmland is the largest open class, as in the tactical profile.
+Written into the folder `--out` as `layer.tres` (TacticalLayer) and one zlib-compressed `chunk_<cx>_<cy>.tres`
+(TacticalChunk) per `LAYER_CHUNK` square (`write_layer`), each with its window of the raster (`cover_windows`).
+
+Land-cover raster (TASK-108g, ADR 0028 "Sub-hex land cover; hexes are mechanics only"): tactical maps and the
+tactical layer keep the rasterised OSM areas as one LAND_COVER code per `--cover-cell` cell (0-6 the COVER_CLASSES,
+7 orchard, 8 scrub / heath, 9 bare ground; the sub-classes count as their parent in the hex rules), row 0 north,
+zlib in `land_cover` (ImportedMap) or per chunk in `cover` (TacticalChunk). The hex terrain is classified from the
+counts of the raster cells inside each hex, so the view can draw the real outlines and the rules still see one type
+per hex. Operational maps have no raster.
 
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
@@ -106,6 +115,7 @@ import zlib
 from array import array
 from collections import deque
 from itertools import accumulate
+from operator import itemgetter
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -135,6 +145,16 @@ SOURCES_GLO90 = SOURCES.replace("GLO-30 DEM", "GLO-90 DEM").replace("WorldDEM-30
 COVER_CLASSES = ".GAUFMW"  # . unmapped, G grass/meadow/scrub, A fields, U urban, F forest, M marsh, W water
 OPEN, FOREST, WATER = "open", "forest", "water"
 TERRAIN_CHARS = {"plains": "P", "forest": "F", "hills": "H", "water": "W", "fields": "A", "urban": "U", "marsh": "M"}
+# Land-cover raster (TASK-108g, ADR 0028 "Sub-hex land cover"): the stored cell codes. 0-6 are the COVER_CLASSES;
+# 7-9 are finer classes of the open ground that count as their parent class (LAND_COVER_PARENT) in every per-hex
+# rule. Overlapping areas keep the class that comes later in LAND_COVER_PRIORITY (the COVER_CLASSES order with the
+# sub-classes right after their parent), so the parents win exactly as before.
+LAND_COVER = ".GAUFMWOSB"  # + O orchard / vineyard / nursery, S scrub / heath, B bare (quarry, landfill, brownfield)
+LAND_COVER_PARENT = ".GAUFMWAGG"
+LAND_COVER_PRIORITY = ".GSBAOUFMW"
+COVER_PRIORITY = [LAND_COVER_PRIORITY.index(c) for c in LAND_COVER]
+PARENT_CODES = bytes(COVER_CLASSES.index(LAND_COVER_PARENT[k]) if k < len(LAND_COVER) else k for k in range(256))
+COVER_CELL_M = 16.0  # cell of the land-cover raster of tactical maps and the tactical layer
 URBAN_SHARE = 0.20  # a village core (~1 ha) of the 5.4 ha hex
 MARSH_SHARE = 0.25
 
@@ -150,17 +170,17 @@ ROAD, RIVER = "road", "river"
 
 _TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
     # (tag key, {value: class}); "*" matches any value. First match in this order wins for one element.
-    ("natural", {"water": "W", "bay": "W", "wetland": "M", "wood": "F", "grassland": "G", "heath": "G", "scrub": "G"}),
+    ("natural", {"water": "W", "bay": "W", "wetland": "M", "wood": "F", "grassland": "G", "heath": "S", "scrub": "S"}),
     ("waterway", {"riverbank": "W", "dock": "W"}),
     ("water", {"*": "W"}),
     ("landuse", {
         "reservoir": "W", "basin": "W", "forest": "F",
         "residential": "U", "commercial": "U", "industrial": "U", "retail": "U", "farmyard": "U",
         "garages": "U", "construction": "U", "railway": "U", "military": "U",
-        "farmland": "A", "orchard": "A", "vineyard": "A", "allotments": "A", "plant_nursery": "A",
+        "farmland": "A", "orchard": "O", "vineyard": "O", "allotments": "A", "plant_nursery": "O",
         "greenhouse_horticulture": "A",
         "meadow": "G", "grass": "G", "village_green": "G", "recreation_ground": "G", "cemetery": "G",
-        "brownfield": "G", "greenfield": "G", "quarry": "G", "landfill": "G",
+        "brownfield": "B", "greenfield": "G", "quarry": "B", "landfill": "B",
     }),
 ]  # fmt: skip
 
@@ -178,7 +198,8 @@ _OP_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
 # Tactical layer land use (follow-up of TASK-094b): the open cover classes the op1 tiles lack (A fields, G grass),
 # with exactly the tactical tag mapping (`_TAG_CLASSES` restricted to A / G), fetched in their own `lu1` tiles.
 _LANDUSE_TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
-    (key, {v: c for v, c in values.items() if c in "AG"}) for key, values in _TAG_CLASSES if key in ("natural", "landuse")
+    (key, {v: c for v, c in values.items() if LAND_COVER_PARENT[LAND_COVER.index(c)] in "AG"})
+    for key, values in _TAG_CLASSES if key in ("natural", "landuse")
 ]
 LANDUSE_QUERY_VERSION = "lu1"
 LANDUSE_PAUSE_S = 5.0  # between two land-use tile downloads: the public Overpass server is shared
@@ -260,7 +281,7 @@ class Settings:
                  countries: Sequence[Tuple[str, float, float]] = (),
                  default_countries: Sequence[Tuple[str, float, float]] = (),
                  layers: Optional[bool] = None, relief_z: float = RELIEF_Z,
-                 relief_step: int = RELIEF_STEP) -> None:  # fmt: skip
+                 relief_step: int = RELIEF_STEP, cover_m: Optional[float] = None) -> None:  # fmt: skip
         operational = profile is OPERATIONAL
         self.profile = profile
         self.sample_m = sample_m if sample_m is not None else profile.sample_m
@@ -279,6 +300,8 @@ class Settings:
         self.layers = operational if layers is None else layers  # graphic layers (TASK-126): operational maps
         self.relief_z = relief_z
         self.relief_step = relief_step
+        # Land-cover raster cell (TASK-108g): tactical maps and the tactical layer; 0 = none (operational maps).
+        self.cover_m = cover_m if cover_m is not None else (0.0 if operational else COVER_CELL_M)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -638,7 +661,7 @@ def osm_areas(osm: dict, table: Optional[list] = None) -> List[Tuple[str, List[L
         if cls and len(refs) >= 4 and refs[0] == refs[-1]:
             rings = rings_of([refs])
             if rings:
-                areas.append((COVER_CLASSES.index(cls), 0, way_id, cls, rings))
+                areas.append((COVER_PRIORITY[LAND_COVER.index(cls)], 0, way_id, cls, rings))
     for rel in sorted(relations, key=lambda r: r["id"]):
         tags = rel.get("tags", {})
         cls = cover_class(tags, table)
@@ -647,7 +670,7 @@ def osm_areas(osm: dict, table: Optional[list] = None) -> List[Tuple[str, List[L
         members = [ways[m["ref"]]["nodes"] for m in rel.get("members", []) if m.get("type") == "way" and m.get("ref") in ways]
         rings = rings_of(_assemble_rings(members))
         if rings:
-            areas.append((COVER_CLASSES.index(cls), 1, rel["id"], cls, rings))
+            areas.append((COVER_PRIORITY[LAND_COVER.index(cls)], 1, rel["id"], cls, rings))
     areas.sort(key=lambda a: a[:3])
     return [(a[3], a[4]) for a in areas]
 
@@ -972,7 +995,8 @@ class HexLayout:
 def _scanline_fill(grid: List[bytearray], value: int, rings: List[List[Tuple[float, float]]],
                    min_e: float, min_n: float, step: float) -> None:  # fmt: skip
     """Raises lattice points (row j at N = min_n + j*step, column i at E = min_e + i*step) inside the rings
-    (even-odd) to `value`: a point keeps the highest class of all areas covering it, whatever the order the areas
+    (even-odd) to `value` (a LAND_COVER code): a point keeps the class of all areas covering it that comes last in
+    LAND_COVER_PRIORITY, whatever the order the areas
     come in (idempotent, so areas that appear in several OSM tiles may be filled again)."""
     rows = len(grid)
     cols = len(grid[0]) if rows else 0
@@ -1000,7 +1024,7 @@ def _scanline_fill(grid: List[bytearray], value: int, rings: List[List[Tuple[flo
             i0 = max(0, int(math.ceil((xs[k] - min_e) / step)))
             i1 = min(cols - 1, int(math.floor((xs[k + 1] - min_e) / step)))
             for i in range(i0, i1 + 1):
-                if row[i] < value:
+                if COVER_PRIORITY[row[i]] < COVER_PRIORITY[value]:
                     row[i] = value
 
 
@@ -1054,6 +1078,52 @@ def classify_operational(counts: Sequence[int], relief: float, water_share: floa
     if relief >= hills_relief:
         return "hills"
     return "plains"
+
+
+def fold_counts(counts: Sequence[int]) -> List[int]:
+    """Counts per LAND_COVER code -> counts per COVER_CLASSES index (each sub-class added to its parent)."""
+    folded = [0] * len(COVER_CLASSES)
+    for code, count in enumerate(counts):
+        folded[PARENT_CODES[code]] += count
+    return folded
+
+
+def cell_counts(cover: List[bytearray], e: float, n: float, spacing: float, min_e: float, min_n: float,
+                step: float) -> List[int]:  # fmt: skip
+    """Counts per LAND_COVER code of the raster cells (lattice points of `cover`, `step` apart, row j at N = min_n +
+    j * step) whose centre lies inside the pointy-top hex of `spacing` centred at (e, n): the hex's share of every
+    class, read as whole row runs."""
+    counts = [0] * len(LAND_COVER)
+    radius = spacing / SQRT3
+    half_w = spacing / 2.0
+    rows = len(cover)
+    cols = len(cover[0]) if rows else 0
+    j0 = max(0, int(math.floor((n - radius - min_n) / step)) + 1)
+    j1 = min(rows - 1, int(math.ceil((n + radius - min_n) / step)) - 1)
+    for j in range(j0, j1 + 1):
+        dn = abs(min_n + j * step - n)
+        hw = half_w if dn <= radius / 2.0 else SQRT3 * (radius - dn)
+        if hw <= 0.0:
+            continue
+        i0 = max(0, int(math.floor((e - hw - min_e) / step)) + 1)
+        i1 = min(cols - 1, int(math.ceil((e + hw - min_e) / step)) - 1)
+        if i0 > i1:
+            continue
+        run = cover[j][i0 : i1 + 1]
+        first = run[0]
+        if run.count(first) == len(run):
+            counts[first] += len(run)
+        else:
+            for code in set(run):
+                counts[code] += run.count(code)
+    return counts
+
+
+def raster_rows(cover: List[bytearray], i0: int, i1: int, j0: int, j1: int) -> bytes:
+    """Cells of columns i0 .. i1 - 1 and north rows j0 .. j1 - 1 of the lattice `cover` (south row first), row-major,
+    row 0 north: one window of the stored land-cover raster."""
+    rows = len(cover)
+    return b"".join(bytes(cover[rows - 1 - j][i0:i1]) for j in range(j0, j1))
 
 
 def dominant_group(counts: Sequence[int]) -> str:
@@ -1605,6 +1675,11 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     cols = int(math.floor((max_e - min_e) / step)) + 1
     rows = int(math.floor((max_n - min_n) / step)) + 1
     cover = [bytearray(cols) for _ in range(rows)]
+    fine_step = settings.cover_m
+    fine: List[bytearray] = []
+    if fine_step > 0.0:  # the land-cover raster (TASK-108g): the hex classes are counted on it
+        fine = [bytearray(int(math.floor((max_e - min_e) / fine_step)) + 1)
+                for _ in range(int(math.floor((max_n - min_n) / fine_step)) + 1)]  # fmt: skip
     links: Dict[str, set] = {ROAD: set(), RIVER: set()}
     coastlines: Dict[int, List[Tuple[float, float]]] = {}
     sources = osm if isinstance(osm, list) else [osm]
@@ -1623,7 +1698,9 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         data = _load_osm(source)
         for cls, rings in osm_areas(data, profile.tag_classes):
             projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
-            _scanline_fill(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, step)
+            _scanline_fill(cover, LAND_COVER.index(cls), projected, min_e, min_n, step)
+            if fine:
+                _scanline_fill_fast(fine, LAND_COVER.index(cls), projected, min_e, min_n, fine_step)
         for kind, line in osm_lines(data, profile):
             links[kind].update(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m))
         if operational:
@@ -1649,6 +1726,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     sea_points = 0
     if seeds:
         sea_points = fill_sea(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step)
+        if fine:
+            fill_sea(fine, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, fine_step)
     owner = bytearray()
     drawn: List[List[Tuple[float, float]]] = []
     if country_seeds:
@@ -1693,10 +1772,14 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             points = samples.get((col, row), [])
             if not points:
                 raise ValueError("hex %d,%d has no sample points (hex smaller than the lattice step?)" % (col, row))
-            counts = [0] * len(COVER_CLASSES)
-            for _, c in points:
-                counts[c] += 1
-            open_heights = sorted(h for h, c in points if COVER_CLASSES[c] not in "FUW")
+            if fine:
+                counts = fold_counts(cell_counts(fine, *layout.centre(col, row), layout.spacing, min_e, min_n,
+                                                 fine_step))  # fmt: skip
+            else:
+                counts = [0] * len(COVER_CLASSES)
+                for _, c in points:
+                    counts[PARENT_CODES[c]] += 1
+            open_heights = sorted(h for h, c in points if LAND_COVER_PARENT[c] not in "FUW")
             all_heights = sorted(h for h, _ in points)
             group = dominant_group(counts)
             if len(open_heights) >= len(points) / 4.0:
@@ -1746,7 +1829,13 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     if operational:
         for kind, key in ((ROAD, "road"), (RIVER, "river")):
             lines_out[key] = drawn_lines(layout, line_ways[kind], kind)
+    land_cover = None
+    if fine:
+        land_cover = {"width": len(fine[0]), "height": len(fine), "cell_m": fine_step, "origin_e": min_e,
+                      "origin_n": min_n + (len(fine) - 1) * fine_step,
+                      "cells": raster_rows(fine, 0, len(fine[0]), 0, len(fine))}  # fmt: skip
     return {"tiles": tiles, "reference_m": low, "drawn_lines": lines_out, "vertical_scale": scale, "sea_points": sea_points,
+            "land_cover": land_cover,
             "countries": [iso for iso, _, _ in country_seeds], "border_lines": drawn, "layers": layers,
             "places": select_places(found_places, layout, zone)}  # fmt: skip
 
@@ -1755,7 +1844,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
 # Tactical layer of a whole theatre (TASK-094b, ADR 0018 "Tactical layer"): 250 m hexes everywhere, in chunks.
 
 
-_RAISE_TABLES = [bytes(max(v, k) for k in range(256)) for v in range(256)]
+_RAISE_TABLES = [bytes(k if k >= len(LAND_COVER) or v >= len(LAND_COVER) or COVER_PRIORITY[k] >= COVER_PRIORITY[v]
+                       else v for k in range(256)) for v in range(256)]  # fmt: skip
 
 
 def _scanline_fill_fast(grid: List[bytearray], value: int, rings: List[List[Tuple[float, float]]],
@@ -1804,35 +1894,19 @@ def _scanline_fill_fast(grid: List[bytearray], value: int, rings: List[List[Tupl
                 row[i0 : i1 + 1] = row[i0 : i1 + 1].translate(table)
 
 
-def _hex_pattern(spacing: float, step: float) -> List[Tuple[float, float]]:
-    """Offsets (east, north metres) of a triangular lattice of `step` inside a pointy-top hex of `spacing`
-    (flat-to-flat east-west), the centre included: the cover sample points of one tactical-layer hex."""
-    half_w = spacing / 2.0 - 1e-6
-    radius = spacing / SQRT3 - 1e-6
-    dz = step * SQRT3 / 2.0
-    points = []
-    reach = int(radius / dz) + 1
-    for j in range(-reach, reach + 1):
-        n = j * dz
-        shift = 0.5 if j % 2 else 0.0
-        for i in range(-reach - 1, reach + 2):
-            e = (i + shift) * step
-            if abs(e) < half_w and abs(n) < radius - abs(e) / SQRT3:
-                points.append((e, n))
-    return points
-
-
 def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Settings,
                 landuse: Sequence[object] = ()) -> dict:  # fmt: skip
     """Per-hex terrain, road / river links and DEM height (metres) of a theatre-wide tactical layout, as flat
-    row-major arrays (`terrain` LAYER_TERRAIN_CODES, `road`, `river` link masks, `metres`). Same inputs as the
-    operational profile (OSM tiles loaded one at a time, the sea filled from the coastline); per hex the cover
-    classes of `_hex_pattern` points of the `settings.sample_m` lattice and the DEM at the centre and six points
-    LAYER_DEM_RADIUS_M around it give `classify` (the tactical rules) and the height (open points, or all minus
-    the canopy for a forest hex). The `landuse` tiles (`landuse_query`) add the fields and grass areas with
-    `_LANDUSE_TAG_CLASSES`; every point keeps its highest cover class, so the tile order does not matter and fields
-    never cover forest, urban, marsh or water. Nothing per lattice point is kept besides the cover lattice."""
-    step = settings.sample_m
+    row-major arrays (`terrain` LAYER_TERRAIN_CODES, `road`, `river` link masks, `metres`), plus the land-cover
+    raster (`cover`: the lattice of `settings.cover_m` cells, south row first, LAND_COVER codes; `cover_min_e`,
+    `cover_min_n`, `cover_step`). Same inputs as the operational profile (OSM tiles loaded one at a time, the sea
+    filled from the coastline on a `settings.sample_m` lattice and copied into the raster); per hex the counts of
+    the raster cells inside it (`cell_counts`) and the DEM at the centre and six points LAYER_DEM_RADIUS_M around
+    it give `classify` (the tactical rules) and the height (open points, or all minus the canopy for a forest hex).
+    The `landuse` tiles (`landuse_query`) add the fields and grass areas with `_LANDUSE_TAG_CLASSES`; every cell
+    keeps its class of highest LAND_COVER_PRIORITY, so the tile order does not matter and fields never cover
+    forest, urban, marsh or water."""
+    step = settings.cover_m if settings.cover_m > 0.0 else settings.sample_m
     min_e, min_n, max_e, max_n = layout.bounds()
     cols = int(math.floor((max_e - min_e) / step)) + 1
     rows = int(math.floor((max_n - min_n) / step)) + 1
@@ -1847,7 +1921,7 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
         data = _load_osm(source)
         for cls, rings in osm_areas(data, table):
             projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
-            _scanline_fill_fast(cover, COVER_CLASSES.index(cls), projected, min_e, min_n, step)
+            _scanline_fill_fast(cover, LAND_COVER.index(cls), projected, min_e, min_n, step)
         for kind, line in osm_lines(data, settings.profile):
             projected_line = [to_utm(lat, lon, zone) for lat, lon in line]
             links[kind].update(line_links(layout, projected_line, settings.profile.line_step_m))
@@ -1861,16 +1935,15 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
             seeds.append((e, n))
     sea_points = 0
     if seeds:
-        sea_points = fill_sea(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step)
+        sea_points = _fill_sea_coarse(cover, [coastlines[k] for k in sorted(coastlines)], seeds, min_e, min_n, step,
+                                      max(step, settings.sample_m))  # fmt: skip
     width, height = layout.width, layout.height
-    pattern = [((de / step), (dn / step)) for de, dn in _hex_pattern(layout.spacing, step)]
     ring = [(0.0, 0.0)] + [(LAYER_DEM_RADIUS_M * math.cos(math.radians(30 + 60 * k)),
                             LAYER_DEM_RADIUS_M * math.sin(math.radians(30 + 60 * k))) for k in range(6)]  # fmt: skip
     terrain = bytearray(width * height)
     metres = array("f", bytes(4 * width * height))
     reliefs = array("f", bytes(4 * width * height))  # open hexes' relief, for tuning --hills-relief
-    closed = {COVER_CLASSES.index(c) for c in "FUW"}
-    n_classes = len(COVER_CLASSES)
+    closed = {k for k in range(len(LAND_COVER)) if LAND_COVER_PARENT[k] in "FUW"}
     for row in range(height):
         if row % 128 == 0:
             print("layer row %d/%d" % (row, height), file=sys.stderr)
@@ -1878,9 +1951,7 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
             e, n = layout.centre(col, row)
             fi = (e - min_e) / step + 0.5
             fj = (n - min_n) / step + 0.5
-            counts = [0] * n_classes
-            for di, dj in pattern:
-                counts[cover[int(fj + dj)][int(fi + di)]] += 1
+            counts = fold_counts(cell_counts(cover, e, n, layout.spacing, min_e, min_n, step))
             lat, lon = from_utm(e, n, zone)
             lat_e, lon_e = from_utm(e + 100.0, n, zone)
             lat_n, lon_n = from_utm(e, n + 100.0, zone)
@@ -1905,7 +1976,6 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
             terrain[row * width + col] = LAYER_TERRAIN_CODES[kind]
             metres[row * width + col] = mean
             reliefs[row * width + col] = relief
-    del cover
     masks = {}
     water = LAYER_TERRAIN_CODES["water"]
     for kind in (ROAD, RIVER):
@@ -1918,7 +1988,40 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
                 mask[row * width + col] |= 1 << HEX_DIRECTIONS.index((dst[0] - src[0], dst[1] - src[1]))
         masks[kind] = mask
     return {"terrain": terrain, "road": masks[ROAD], "river": masks[RIVER], "metres": metres, "relief": reliefs,
-            "sea_points": sea_points}  # fmt: skip
+            "sea_points": sea_points, "cover": cover if settings.cover_m > 0.0 else None, "cover_min_e": min_e,
+            "cover_min_n": min_n,
+            "cover_step": step}  # fmt: skip
+
+
+def _fill_sea_coarse(cover: List[bytearray], coastlines: Sequence[Sequence[Tuple[float, float]]],
+                     seeds: Sequence[Tuple[float, float]], min_e: float, min_n: float, step: float,
+                     coarse_step: float) -> int:  # fmt: skip
+    """`fill_sea` on a `coarse_step` lattice over the same origin (a theatre's sea at 16 m cells would be tens of
+    millions of flood-fill steps), copied into `cover` (each cell takes the sea of its nearest coarse point).
+    Returns the number of coarse points reached."""
+    if coarse_step <= step:
+        return fill_sea(cover, coastlines, seeds, min_e, min_n, step)
+    rows, cols = len(cover), len(cover[0])
+    coarse_rows = int(math.floor((rows - 1) * step / coarse_step)) + 1
+    coarse_cols = int(math.floor((cols - 1) * step / coarse_step)) + 1
+    sea = [bytearray(coarse_cols) for _ in range(coarse_rows)]
+    reached = fill_sea(sea, coastlines, seeds, min_e, min_n, coarse_step)
+    water = LAND_COVER.index("W")
+    mark = bytes(1 if k == water else 0 for k in range(256))
+    pick = itemgetter(*[min(coarse_cols - 1, int(round(i * step / coarse_step))) for i in range(cols)])
+    for j in range(rows):
+        source = sea[min(coarse_rows - 1, int(round(j * step / coarse_step)))]
+        if water not in source:
+            continue
+        row_mask = bytes(pick(source.translate(mark)))
+        row = cover[j]
+        a = row_mask.find(1)
+        while a >= 0:
+            b = row_mask.find(0, a)
+            b = cols if b < 0 else b
+            row[a:b] = bytes([water]) * (b - a)
+            a = row_mask.find(1, b)
+    return reached
 
 
 def layer_chunk_bytes(result: dict, width: int, x0: int, y0: int, w: int, h: int) -> bytes:
@@ -1937,6 +2040,27 @@ def layer_chunk_bytes(result: dict, width: int, x0: int, y0: int, w: int, h: int
             low.append(v & 0xFF)
             high.append(v >> 8)
     return zlib.compress(bytes(terrain + road + river + low + high), 9)
+
+
+def cover_windows(layout: HexLayout, result: dict) -> Tuple[List[int], List[int]]:
+    """Raster tiling of the layer's land cover (TASK-108g): the first cell column of every chunk column and the
+    first north cell row of every chunk row, plus the raster's width / height at the end. Chunk column cx starts at
+    the west edge of hex column cx * LAYER_CHUNK, chunk row cy halfway between hex rows cy * LAYER_CHUNK - 1 and
+    cy * LAYER_CHUNK; the windows tile the raster without overlap, so chunk (cx, cy) stores cells (columns[cx] ..
+    columns[cx + 1] - 1) x (rows[cy] .. rows[cy + 1] - 1)."""
+    cover, step = result["cover"], result["cover_step"]
+    min_e, min_n = result["cover_min_e"], result["cover_min_n"]
+    width, height = len(cover[0]), len(cover)
+    top_n = min_n + (height - 1) * step
+    m = layout.metres_per_unit
+    columns, rows = [0], [0]
+    for c in range(LAYER_CHUNK, layout.width, LAYER_CHUNK):
+        edge = layout.origin_e + (c - 0.5) * layout.spacing
+        columns.append(min(width, max(0, int(math.ceil((edge - min_e) / step - 1e-9)))))
+    for r in range(LAYER_CHUNK, layout.height, LAYER_CHUNK):
+        edge = layout.origin_n - (1.5 * r - 0.75) * m
+        rows.append(min(height, max(0, int(math.ceil((top_n - edge) / step - 1e-9)))))
+    return columns + [width], rows + [height]
 
 
 def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, zone: int, result: dict,
@@ -1972,6 +2096,18 @@ def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, 
         "sources = %s" % _string(sources),
         "",
     ]
+    columns: List[int] = []
+    cover_rows: List[int] = []
+    if result.get("cover") is not None:
+        columns, cover_rows = cover_windows(layout, result)
+        top_n = result["cover_min_n"] + (len(result["cover"]) - 1) * result["cover_step"]
+        lines[-1:-1] = [
+            "land_cover_cell_m = %s" % _f(result["cover_step"], 1),
+            "land_cover_width = %d" % columns[-1],
+            "land_cover_height = %d" % cover_rows[-1],
+            "land_cover_origin_easting = %s" % _f(result["cover_min_e"], 3),
+            "land_cover_origin_northing = %s" % _f(top_n, 3),
+        ]
     index = out_dir / "layer.tres"
     with open(index, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
@@ -1995,6 +2131,17 @@ def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, 
                 'data = PackedByteArray("%s")' % base64.b64encode(data).decode("ascii"),
                 "",
             ]
+            if columns:
+                kx, ky = cx // LAYER_CHUNK, cy // LAYER_CHUNK
+                i0, i1, j0, j1 = columns[kx], columns[kx + 1], cover_rows[ky], cover_rows[ky + 1]
+                cells = zlib.compress(raster_rows(result["cover"], i0, i1, j0, j1), 9)
+                chunk[-1:-1] = [
+                    "cover_column = %d" % i0,
+                    "cover_row = %d" % j0,
+                    "cover_width = %d" % (i1 - i0),
+                    "cover_height = %d" % (j1 - j0),
+                    'cover = PackedByteArray("%s")' % base64.b64encode(cells).decode("ascii"),
+                ]
             path = out_dir / ("chunk_%d_%d.tres" % (cx // LAYER_CHUNK, cy // LAYER_CHUNK))
             with open(path, "w", encoding="utf-8", newline="\n") as out:
                 out.write("\n".join(chunk))
@@ -2084,6 +2231,18 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
                                                                    for p in places),  # fmt: skip
             "place_ranks = PackedInt32Array(%s)" % ", ".join(str(p["rank"]) for p in places),
         ]
+    land_cover = result.get("land_cover")
+    if land_cover:
+        at = lines.index("sources = %s" % _string(sources))
+        lines[at:at] = [
+            "land_cover_cell_m = %s" % _f(land_cover["cell_m"], 1),
+            "land_cover_width = %d" % land_cover["width"],
+            "land_cover_height = %d" % land_cover["height"],
+            "land_cover_origin_easting = %s" % _f(land_cover["origin_e"], 3),
+            "land_cover_origin_northing = %s" % _f(land_cover["origin_n"], 3),
+            'land_cover = PackedByteArray("%s")' % base64.b64encode(zlib.compress(land_cover["cells"], 9)).decode(
+                "ascii"),
+        ]  # fmt: skip
     layers = result.get("layers")
     if layers:
         at = lines.index("sources = %s" % _string(sources)) + 1
@@ -2357,6 +2516,9 @@ def run(argv: Sequence[str]) -> Path:
                         help="vertical exaggeration of the relief layer's hillshade (operational, TASK-126)")  # fmt: skip
     parser.add_argument("--relief-step", type=int, default=RELIEF_STEP,
                         help="lattice points per relief pixel (operational, TASK-126; 2 = 500 m)")  # fmt: skip
+    parser.add_argument("--cover-cell", type=float,
+                        help="metres of a land-cover raster cell (tactical / layer, TASK-108g; default %.0f, "
+                             "0 = no raster)" % COVER_CELL_M)  # fmt: skip
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
     try:
@@ -2432,7 +2594,7 @@ def run(argv: Sequence[str]) -> Path:
                         [_pair(s, ",", float) for s in args.sea_seed],
                         OP_SEA_SEEDS if profile in (OPERATIONAL, LAYER) and not args.sea_seed else (),
                         countries, OP_COUNTRIES if profile is OPERATIONAL and not countries else (),
-                        relief_z=args.relief_z, relief_step=args.relief_step)  # fmt: skip
+                        relief_z=args.relief_z, relief_step=args.relief_step, cover_m=args.cover_cell)  # fmt: skip
     out = Path(args.out)
     sources = SOURCES_GLO90 if dem_kind == "glo90" else SOURCES
     if profile is LAYER:

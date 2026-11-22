@@ -65,7 +65,8 @@ static func slope(surface: TerrainSurface, x: float, z: float) -> float:
 ## chunk. `meadow` is LookPreset.meadow() (empty = the active one); the kind and the bare-patch
 ## thinning use deterministic noises and position hashes, never extra stream draws. `parcels`
 ## (TASK-108f) thins the clumps on crop parcels (LookPreset.fields() "grass_keep"), after the
-## draws, so nothing else moves.
+## draws, so nothing else moves. `look` (TASK-108g): the land-cover raster gives the ground type of
+## every clump instead of its hex (`_terrain_cover`).
 static func plan_chunk(
 	chunk: Vector2i,
 	grid: HexGrid,
@@ -73,7 +74,8 @@ static func plan_chunk(
 	seed_value: int,
 	density: float,
 	meadow: Dictionary = {},
-	parcels: ParcelMap = null
+	parcels: ParcelMap = null,
+	look: CoverLook = null
 ) -> Array:
 	var result: Array = []
 	if density <= 0.0:
@@ -93,7 +95,7 @@ static func plan_chunk(
 		var tint := rng.randf()
 		var accept := rng.randf()
 		var clump := clump_at(
-			x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow, parcels, keeps
+			x, z, yaw, scale_k, tint, accept, false, grid, surface, meadow, parcels, keeps, look
 		)
 		if not clump.is_empty():
 			result.append(clump)
@@ -110,7 +112,7 @@ static func plan_chunk(
 			var scale_k := extra_rng.randf()
 			var tint := extra_rng.randf()
 			var clump := clump_at(
-				x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow, parcels, keeps
+				x, z, yaw, scale_k, tint, 0.0, true, grid, surface, meadow, parcels, keeps, look
 			)
 			if not clump.is_empty():
 				result.append(clump)
@@ -131,12 +133,13 @@ static func clump_at(
 	surface: TerrainSurface,
 	meadow: Dictionary,
 	parcels: ParcelMap = null,
-	keeps: PackedFloat32Array = PackedFloat32Array()
+	keeps: PackedFloat32Array = PackedFloat32Array(),
+	look: CoverLook = null
 ) -> Dictionary:
 	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	if not grid.has_tile(coord):
 		return {}
-	var terrain := grid.get_terrain(coord)
+	var terrain := _terrain_cover(look, x, z) if look != null else grid.get_terrain(coord)
 	if extra and terrain != Terrain.Type.MARSH:
 		return {}
 	var keep := 1.0 if extra else density_of(terrain) / PLAINS_DENSITY
@@ -149,11 +152,12 @@ static func clump_at(
 	var y := surface.ground_height(x, z)
 	if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
 		return {}
-	if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
+	# With a raster there is no hills type: every steep slope stays bare.
+	if (look != null or terrain == Terrain.Type.HILLS) and slope(surface, x, z) > MAX_SLOPE:
 		return {}
 	if not FeatureRibbonPlanner.is_clear(grid, x, z):
 		return {}
-	var kind := _kind_at(x, z, coord, terrain, grid, meadow)
+	var kind := _kind_at(x, z, coord, terrain, grid, meadow, look)
 	return {
 		"position": Vector3(x, y, z),
 		"yaw": yaw,
@@ -213,6 +217,23 @@ static func bare_k(x: float, z: float) -> float:
 static func hash01(x: float, z: float, salt: int) -> float:
 	var s := sin(x * 127.1 + z * 311.7 + salt * 183.31 + salt * salt * 0.37) * 43758.5453
 	return s - floor(s)
+
+
+## The ground type (Terrain.Type) the land-cover raster shows at (x, z) (CoverLook.terrain_at).
+static func _terrain_cover(look: CoverLook, x: float, z: float) -> Terrain.Type:
+	return look.terrain_at(x, z) as Terrain.Type
+
+
+## Whether open ground at (x, z) lies within `band` of the forest outline of the land-cover raster
+## (the nettle band of forest_edge_distance): forest at one of eight points `band` away.
+static func _near_forest_cover(look: CoverLook, x: float, z: float, band: float) -> bool:
+	if look.is_forest(x, z):
+		return false
+	for k in 8:
+		var a := k * TAU / 8.0
+		if look.is_forest(x + cos(a) * band, z + sin(a) * band):
+			return true
+	return false
 
 
 ## Distance from (x, z) to the nearest centre of a forest neighbour of the hex containing the
@@ -316,7 +337,8 @@ static func plan_flowers(
 	seed_value: int,
 	density: float,
 	meadow: Dictionary = {},
-	parcels: ParcelMap = null
+	parcels: ParcelMap = null,
+	look: CoverLook = null
 ) -> Array:
 	var result: Array = []
 	if meadow.is_empty():
@@ -343,7 +365,7 @@ static func plan_flowers(
 		var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 		if not grid.has_tile(coord):
 			continue
-		var terrain := grid.get_terrain(coord)
+		var terrain := _terrain_cover(look, x, z) if look != null else grid.get_terrain(coord)
 		var threshold_factor := 1.0
 		if terrain == Terrain.Type.HILLS:
 			threshold_factor = 0.5
@@ -362,7 +384,7 @@ static func plan_flowers(
 		var y := surface.ground_height(x, z)
 		if y <= TerrainSurface.WATER_SURFACE + SHORE_BAND:
 			continue
-		if terrain == Terrain.Type.HILLS and slope(surface, x, z) > MAX_SLOPE:
+		if (look != null or terrain == Terrain.Type.HILLS) and slope(surface, x, z) > MAX_SLOPE:
 			continue
 		if not FeatureRibbonPlanner.is_clear(grid, x, z):
 			continue
@@ -422,7 +444,13 @@ static func is_reed(
 
 
 static func _kind_at(
-	x: float, z: float, coord: Vector2i, terrain: Terrain.Type, grid: HexGrid, meadow: Dictionary
+	x: float,
+	z: float,
+	coord: Vector2i,
+	terrain: Terrain.Type,
+	grid: HexGrid,
+	meadow: Dictionary,
+	look: CoverLook = null
 ) -> int:
 	var centre := Hex.to_world(coord, TerrainField.HEX_SIZE)
 	var centre_distance := Vector2(x - centre.x, z - centre.z).length()
@@ -433,7 +461,13 @@ static func _kind_at(
 	if terrain == Terrain.Type.FOREST:
 		return Kind.SHORT
 	var dry_value := dry_k(x, z)
-	var in_edge := forest_edge_distance(x, z, grid) <= float(meadow["edge_band"])
+	var band := float(meadow["edge_band"])
+	# edge_band is measured from a forest hex centre: the band reaches band - inradius off its edge.
+	var in_edge := (
+		_near_forest_cover(look, x, z, band - Hex.SQRT3 * 0.5)
+		if look != null
+		else forest_edge_distance(x, z, grid) <= band
+	)
 	var tall := tall_k(terrain, GroundNoise.patch_k(x, z, meadow), in_edge, meadow)
 	var h1 := hash01(x, z, 1)
 	var h2 := hash01(x, z, 2)

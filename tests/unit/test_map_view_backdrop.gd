@@ -122,8 +122,8 @@ func test_backdrop_vertices_carry_weights_summing_to_one() -> void:
 func test_backdrop_look_fades_from_the_margin_to_muted() -> void:
 	var x := 3.0
 	var z := 4.0
-	var seam: PackedFloat32Array = _view._backdrop_vertex(x, z, 0.5, 1.0, 0.0, 0, 0)
-	var far: PackedFloat32Array = _view._backdrop_vertex(
+	var seam: PackedFloat32Array = _view._backdrop_types.backdrop_vertex(x, z, 0.5, 1.0, 0.0, 0, 0)
+	var far: PackedFloat32Array = _view._backdrop_types.backdrop_vertex(
 		x, z, 0.5, 1.0, MapView.BACKDROP_FADE + 1.0, 0, 0
 	)
 	var layers := TerrainSplat.LAYER_COUNT

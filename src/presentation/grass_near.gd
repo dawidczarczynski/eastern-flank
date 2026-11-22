@@ -75,6 +75,7 @@ func plan_items(chunk: Vector2i) -> Array:
 	var look := _grass.clump_look()
 	var meadow: Dictionary = look["meadow"]
 	var parcels: ParcelMap = look["parcels"]
+	var cover: CoverLook = look["cover"]
 	var keeps := GrassPlanner.parcel_keeps(parcels)
 	var a := _spacing
 	var first := Vector2i((rect.position / a).floor())
@@ -98,7 +99,8 @@ func plan_items(chunk: Vector2i) -> Array:
 				_surface,
 				meadow,
 				parcels,
-				keeps
+				keeps,
+				cover
 			)
 			if not clump.is_empty():
 				result.append(clump)
