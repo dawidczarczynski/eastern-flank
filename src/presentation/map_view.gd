@@ -283,10 +283,7 @@ func build(grid: HexGrid) -> void:
 		_near_on = TerrainNear.wanted(_camera_distance, false)
 		_chunks.set_enabled(TerrainNear.LAYER, _near_on)
 	_tiles_root.add_child(_build_backdrop(_lattice.rect()))
-	for kind: FeatureRibbonPlanner.Kind in FeatureRibbonPlanner.Kind.values():
-		var ribbon := FeatureRibbons.build(_grid, kind, _drape, _terrain_material())
-		if ribbon != null:
-			_tiles_root.add_child(ribbon)
+	FeatureRibbons.add_to(_tiles_root, _grid, _ribbon_drape, _terrain_material(), quality, false)
 	if bake_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(bake_task)
 	_parcels = baked[0]
@@ -919,6 +916,13 @@ func _tile_shape(c: Vector2i, shape: Vector2) -> PackedVector3Array:
 		)
 		per_tile[c] = _drape(flat, 0.0)
 	return per_tile[c]
+
+
+## Ribbon and bridge points: the exact ground (TerrainSurface), which the near terrain LOD draws
+## close up; the coarse mesh seen from afar can rise above it, so the ribbon shaders pull the
+## ribbon towards the camera in depth instead of lifting the geometry.
+func _ribbon_drape(points: PackedVector2Array, lift: float) -> PackedVector3Array:
+	return OverlayGeometry.drape_with(points, _surface.ground_height, lift)
 
 
 ## Overlay points follow the drawn mesh (_mesh_ground_height), not TerrainSurface.ground_height:

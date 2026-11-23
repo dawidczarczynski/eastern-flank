@@ -97,6 +97,8 @@ static func features(level: Level) -> Dictionary:
 		"fabric": high,
 		# Short OmniLight3D pulses of a rocket salvo (TASK-075): launcher flash and impact flash.
 		"fx_lights": high,
+		# Ripples drifting downstream on real-terrain rivers (TASK-108c); LOW keeps them still.
+		"river_flow": high,
 	}
 
 

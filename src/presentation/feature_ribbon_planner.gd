@@ -26,7 +26,6 @@ extends RefCounted
 enum Kind { ROAD, RIVER }
 const _KINDS: Array[Kind] = [Kind.ROAD, Kind.RIVER]
 const _NO_ENTRY: Array = []
-
 ## Centre to side midpoint: half the distance between neighbouring centres (√3/2 · HEX_SIZE).
 const HALF_SEGMENT := Hex.SQRT3 / 2.0 * TerrainField.HEX_SIZE
 ## Road look in metres (TASK-108b), converted with MapScale: a 5 m carriageway with a 2.5 m worn
@@ -35,31 +34,58 @@ const ROAD_CARRIAGEWAY_M := 5.0
 const ROAD_VERGE_M := 2.5
 ## Scatter keeps this far (metres) from a road ribbon's edge.
 const ROAD_CLEARANCE_M := 3.0
-const RIVER_WIDTH := 0.15
+## River look in metres (TASK-108c), converted with MapScale: 8 m of water (one width for every
+## rule river, the importer stores no class) and a 3 m muddy bank band on each side; the ribbon is
+## water + 2 banks wide and `across` 0 / ±1 runs from the centreline to the bank's outer edge.
+const RIVER_WATER_M := 8.0
+const RIVER_BANK_M := 3.0
+## Chain ends whose drawn ground differs by less than this (metres of height) have no slope to
+## flow down: the river flows from its source, else from the smaller (x, z).
+const FLOW_TIE_M := 1.5
+## Bridges (TASK-108c): metres.
+const BRIDGE_ABUTMENT_M := 4.0
+const BRIDGE_MAX_SPAN_M := 40.0
+const BRIDGE_WIDTH_M := 7.0
+## Two crossings closer than this are one bridge.
+const BRIDGE_MERGE_M := 10.0
 ## River width varies by ± this share along its course (low-frequency noise).
 const RIVER_WIDTH_VARIATION := 0.25
-## A river narrows to this share of its width towards a dead-end source, over SOURCE_TAPER.
+## A river narrows to this share of its width towards a dead-end source, over SOURCE_TAPER_M.
 const RIVER_SOURCE_WIDTH := 0.4
-const SOURCE_TAPER := 1.2
-## Sideways meander of a river: amplitude (world units) and wavelength of the noise.
-const RIVER_MEANDER := 0.07
-const MEANDER_WAVELENGTH := 1.7
+const SOURCE_TAPER_M := 173.0
+## Largest sideways meander of a river line in metres (a main swing of a few river widths over
+## ~320 m plus a smaller, faster wobble); all noise wavelengths are metres too (MapScale).
+const RIVER_MEANDER_M := 32.0
+const MEANDER_MAIN_M := 24.5
+const MEANDER_FINE_M := 7.5
+const MEANDER_WAVELENGTH_M := 317.0
+const MEANDER_FINE_WAVELENGTH_M := 108.0
 const MEANDER_SEED := 61.0
+const MEANDER_FINE_SEED := 83.0
+## Independent per-side irregularity of the water edge (share of the water half width) and of the
+## bank band (share of the bank width); two noise scales in metres.
+const WATER_EDGE_VARIATION := 0.25
+const BANK_VARIATION := 0.5
+const EDGE_WAVELENGTH_M := 130.0
+const EDGE_FINE_WAVELENGTH_M := 40.0
+const EDGE_SEEDS := [101.0, 113.0, 127.0, 139.0]
+## Metres over which a river's end at a confluence (the tributary side) or its source fades out
+## so the water merges into the body of water instead of ending in a flat slab.
+const JUNCTION_FADE_M := 9.0
+const SOURCE_FADE_M := 12.0
 const WIDTH_SEED := 67.0
-const WIDTH_WAVELENGTH := 2.3
-## Trees, rocks, bushes and grass keep this much space (world units) beyond a river's half width.
-const RIVER_CLEARANCE := 0.04
+const WIDTH_WAVELENGTH_M := 332.0
 const ROAD_COLOR := Color("#8a7f6a")
+## Fallback (no river shader) look of the river.
 const RIVER_COLOR := Color("#3d5a66")
-## The river catches a little light (slight specular); the road is matt (roughness 1).
 const RIVER_ROUGHNESS := 0.35
 const RIVER_SPECULAR := 0.7
 ## Lift above the drawn terrain mesh (below the grid lines and overlays); a road lies a little
 ## higher than a river, so it reads as crossing it (no depth fighting where they overlap).
-const LIFT := 0.02
-const ROAD_LIFT := 0.024
+const LIFT_M := 0.25
+const ROAD_LIFT_M := 0.3
 ## Centreline sample spacing (world units); the ribbon follows the terrain mesh between samples.
-const SAMPLE_STEP := 0.06
+const SAMPLE_STEP := 0.03
 ## Bézier handle length as a share of the piece's chord (1/3 = Catmull-Rom-like).
 const HANDLE := 0.36
 ## A centreline crosses a side at most this far from the side normal.
@@ -67,7 +93,7 @@ const MAX_CROSSING_ANGLE := 0.8727  # 50°
 ## Sides of a junction / dead-end disc.
 const DISC_SIDES := 12
 ## The meander fades out within this distance of a confluence (spoke end).
-const JUNCTION_CALM := 0.6
+const JUNCTION_CALM_M := 130.0
 ## Meander and width noise keep this far from the hex walls a piece does not cross.
 const WALL_MARGIN := 0.06
 
@@ -82,9 +108,25 @@ static func links(grid: HexGrid, c: Vector2i, kind: Kind) -> int:
 	return grid.road_links(c) if kind == Kind.ROAD else grid.river_links(c)
 
 
-## Nominal width of a ribbon of `kind` (rivers vary around it).
+## Nominal width of the whole ribbon of `kind` (rivers: water plus both banks, the water varies
+## around it).
 static func width(kind: Kind) -> float:
-	return road_width() if kind == Kind.ROAD else RIVER_WIDTH
+	return road_width() if kind == Kind.ROAD else river_width()
+
+
+## Nominal river ribbon (water plus two bank bands) in world units.
+static func river_width() -> float:
+	return MapScale.to_units(RIVER_WATER_M + 2.0 * RIVER_BANK_M)
+
+
+## Nominal water width of a river in world units.
+static func water_width() -> float:
+	return MapScale.to_units(RIVER_WATER_M)
+
+
+## Width of one bank band in world units.
+static func bank_width() -> float:
+	return MapScale.to_units(RIVER_BANK_M)
 
 
 ## Whole road ribbon (carriageway plus both verges) in world units.
@@ -98,17 +140,26 @@ static func carriageway_across() -> float:
 
 
 ## Space scatter keeps beyond the edge of a ribbon of `kind`, in world units.
-static func clearance(kind: Kind) -> float:
-	return MapScale.to_units(ROAD_CLEARANCE_M) if kind == Kind.ROAD else RIVER_CLEARANCE
+static func clearance(_kind: Kind) -> float:
+	return MapScale.to_units(ROAD_CLEARANCE_M)
+
+
+static func meander_limit() -> float:
+	return MapScale.to_units(RIVER_MEANDER_M)
 
 
 static func lift(kind: Kind) -> float:
-	return ROAD_LIFT if kind == Kind.ROAD else LIFT
+	return MapScale.to_units(ROAD_LIFT_M if kind == Kind.ROAD else LIFT_M)
 
 
 ## Largest half width a ribbon of `kind` reaches anywhere.
 static func max_half_width(kind: Kind) -> float:
-	return width(kind) / 2.0 * (1.0 + (RIVER_WIDTH_VARIATION if kind == Kind.RIVER else 0.0))
+	if kind == Kind.ROAD:
+		return width(kind) / 2.0
+	return (
+		water_width() / 2.0 * (1.0 + RIVER_WIDTH_VARIATION) * (1.0 + WATER_EDGE_VARIATION)
+		+ bank_width() * (1.0 + BANK_VARIATION)
+	)
 
 
 ## Centrelines (world XZ) of `kind`, one polyline per chain; a closed loop repeats its first point
@@ -117,7 +168,8 @@ static func lines(grid: HexGrid, kind: Kind) -> Array[PackedVector2Array]:
 	return _plan(grid, kind)["lines"]
 
 
-## Half width at every centreline vertex, parallel to `lines`.
+## Half width of the whole ribbon (rivers: water + bank) at every centreline vertex, parallel to
+## `lines`.
 static func half_widths(grid: HexGrid, kind: Kind) -> Array[PackedFloat32Array]:
 	return _plan(grid, kind)["half_widths"]
 
@@ -132,19 +184,61 @@ static func discs(grid: HexGrid, kind: Kind) -> PackedVector3Array:
 ## across: PackedFloat32Array (-1 / +1 on the two outer edges, 0 on the centreline; discs 0 at the
 ## centre and 1 on the rim), across_dirs: PackedVector2Array (unit world direction a vertex moves
 ## to widen the ribbon, ZERO on the centreline)} – one strip per centreline (neighbouring quads
-## share their corner points) plus the discs.
+## share their corner points) plus the discs. Rivers add `along` (PackedFloat32Array: metres of
+## arc length from the upstream end, see `flows`) and `water_edge` (the `across` value where the
+## water ends and the bank starts, per vertex and side) and `fade` (opacity factor 0..1: 0 at a
+## source and where a tributary ends on the through river, so the water merges instead of ending
+## in a flat slab). Tributary strips come last, drawn over the through river.
 static func mesh(grid: HexGrid, kind: Kind) -> Dictionary:
 	var points := PackedVector2Array()
 	var indices := PackedInt32Array()
 	var across := PackedFloat32Array()
 	var dirs := PackedVector2Array()
+	var plan := _plan(grid, kind)
 	var all_lines := lines(grid, kind)
-	var widths := half_widths(grid, kind)
-	for i in all_lines.size():
-		_append_strip(points, indices, all_lines[i], widths[i], across, dirs)
+	var outer: Array[PackedVector2Array] = plan["outer"]
+	var edges: Array[PackedVector2Array] = plan["edges"]
+	var late: Array[bool] = plan["late"]
+	# Tributaries (lines ending at a confluence) come last: they draw over the through river.
+	var order: Array[int] = []
+	for pass_late in [false, true]:
+		for i in all_lines.size():
+			if kind == Kind.RIVER and late[i] == pass_late or kind == Kind.ROAD and not pass_late:
+				order.append(i)
+	for i in order:
+		_append_strip(points, indices, all_lines[i], outer[i], across, dirs)
 	for disc in discs(grid, kind):
 		_append_disc(points, indices, Vector2(disc.x, disc.y), disc.z, across, dirs)
-	return {"points": points, "indices": indices, "across": across, "across_dirs": dirs}
+	var result := {"points": points, "indices": indices, "across": across, "across_dirs": dirs}
+	if kind == Kind.RIVER:
+		var along := PackedFloat32Array()
+		var edge := PackedFloat32Array()
+		var fade := PackedFloat32Array()
+		var flow_along := flows(grid)
+		var flow_fade: Array[PackedFloat32Array] = plan["fade"]
+		for i in order:
+			for k in all_lines[i].size():
+				# Vertex order of a strip: left, right.
+				edge.append_array(PackedFloat32Array([edges[i][k].x, edges[i][k].y]))
+				along.append_array(PackedFloat32Array([flow_along[i][k], flow_along[i][k]]))
+				fade.append_array(PackedFloat32Array([flow_fade[i][k], flow_fade[i][k]]))
+		# Strips come first (two vertices per sample, none for a one-point line), discs after.
+		along.resize(points.size())
+		edge.resize(points.size())
+		fade.resize(points.size())
+		result["along"] = along
+		result["water_edge"] = edge
+		result["fade"] = fade
+	return result
+
+
+## Arc length in metres from the upstream end at every river centreline vertex, parallel to
+## `lines(grid, RIVER)`. Every river line is stored downstream-first (a river chain flows from its
+## end with the higher drawn ground to the lower; within FLOW_TIE_M of each other: from a
+## dead-end source, else from the smaller (x, z); loops keep their point order), so this rises
+## monotonically from 0.
+static func flows(grid: HexGrid) -> Array[PackedFloat32Array]:
+	return _plan(grid, Kind.RIVER)["along"]
 
 
 ## The same triangles as flat point triples (`mesh` expanded).
@@ -154,6 +248,40 @@ static func triangles(grid: HexGrid, kind: Kind) -> PackedVector2Array:
 	var result := PackedVector2Array()
 	for index: int in indexed["indices"]:
 		result.append(points[index])
+	return result
+
+
+## Bridge sites (TASK-108c, see BridgeSites): one per place where a drawn road centreline crosses
+## a drawn river centreline, overlapping decks merged; empty when either kind has no links.
+static func bridges(grid: HexGrid) -> Array[Dictionary]:
+	return BridgeSites.find(grid)
+
+
+## Span of a bridge over `water_m` of water crossed at an angle whose sine is `sin_angle`.
+static func bridge_span_m(water_m: float, sin_angle: float) -> float:
+	return BridgeSites.span_m(water_m, sin_angle)
+
+
+## The river centreline segments owned by tile `coord` (their midpoint lies in it, so every
+## segment belongs to exactly one tile): [{a: Vector2, b: Vector2, half: float}] with the half
+## width of the whole ribbon (the widest side). Empty without rivers. Pure, cached index.
+static func river_segments(grid: HexGrid, coord: Vector2i) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not grid.has_links():
+		return result
+	var entry: Array = (clearance_index(grid)[Kind.RIVER] as Dictionary).get(coord, _NO_ENTRY)
+	if entry.is_empty():
+		return result
+	var pairs: PackedVector2Array = entry[0]
+	var halves: PackedFloat32Array = entry[1]
+	for i in halves.size():
+		var a := pairs[2 * i]
+		var b := pairs[2 * i + 1]
+		if a == b:
+			continue
+		var mid := (a + b) * 0.5
+		if Hex.from_world(Vector3(mid.x, 0.0, mid.y), TerrainField.HEX_SIZE) == coord:
+			result.append({"a": a, "b": b, "half": halves[i]})
 	return result
 
 
@@ -173,7 +301,7 @@ static func edge_distance(grid: HexGrid, kind: Kind, x: float, z: float) -> floa
 static func has_ribbons(grid: HexGrid, coord: Vector2i) -> bool:
 	if not grid.has_links():
 		return false
-	var index := _clearance_index(grid)
+	var index := clearance_index(grid)
 	for kind: Kind in _KINDS:
 		if (index[kind] as Dictionary).has(coord):
 			return true
@@ -187,7 +315,7 @@ static func is_clear(grid: HexGrid, x: float, z: float) -> bool:
 		return true
 	# Called per grass candidate: the edge_distance(kind) < clearance(kind) rule with one index
 	# and tile lookup, the segment distance inlined, squared, and an early exit.
-	var index := _clearance_index(grid)
+	var index := clearance_index(grid)
 	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	for kind: Kind in _KINDS:
 		var entry: Array = (index[kind] as Dictionary).get(coord, _NO_ENTRY)
@@ -230,7 +358,7 @@ static func without_ribbons(grid: HexGrid, items: Array) -> Array:
 static func _nearest(grid: HexGrid, kind: Kind, x: float, z: float, to_edge: bool) -> float:
 	if not grid.has_links():
 		return INF
-	var tiles: Dictionary = _clearance_index(grid)[kind]
+	var tiles: Dictionary = clearance_index(grid)[kind]
 	var coord := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	if not tiles.has(coord):
 		return INF
@@ -248,7 +376,7 @@ static func _nearest(grid: HexGrid, kind: Kind, x: float, z: float, to_edge: boo
 ## Kind -> {tile -> [segment pairs, half width per segment]}: every centreline piece and disc
 ## (as a zero-length segment) registered in the tile of its midpoint and that tile's neighbours
 ## (a point within reach of a piece is always in one of them); cached per grid and links_version.
-static func _clearance_index(grid: HexGrid) -> Dictionary:
+static func clearance_index(grid: HexGrid) -> Dictionary:
 	if (
 		grid.get_instance_id() == _index_grid
 		and grid.links_version() == _index_version
@@ -263,31 +391,44 @@ static func _clearance_index(grid: HexGrid) -> Dictionary:
 		var tiles: Dictionary = {}
 		var all_lines := lines(grid, kind)
 		var widths := half_widths(grid, kind)
+		var plan_water: Array[PackedFloat32Array] = _plan(grid, kind)["water"]
 		for li in all_lines.size():
 			var line := all_lines[li]
 			var w := widths[li]
+			var water: PackedFloat32Array = (
+				plan_water[li] if kind == Kind.RIVER else PackedFloat32Array()
+			)
+			if water.is_empty():
+				water.resize(line.size())
 			for i in line.size() - 1:
-				_register(tiles, line[i], line[i + 1], maxf(w[i], w[i + 1]))
+				_register(
+					tiles, line[i], line[i + 1], maxf(w[i], w[i + 1]), maxf(water[i], water[i + 1])
+				)
 		for disc in discs(grid, kind):
 			var c := Vector2(disc.x, disc.y)
-			_register(tiles, c, c, disc.z)
+			_register(tiles, c, c, disc.z, 0.0)
 		_index[kind] = tiles
 	return _index
 
 
-static func _register(tiles: Dictionary, a: Vector2, b: Vector2, half: float) -> void:
+static func _register(tiles: Dictionary, a: Vector2, b: Vector2, half: float, water: float) -> void:
 	var mid := (a + b) * 0.5
 	var coord := Hex.from_world(Vector3(mid.x, 0.0, mid.y), TerrainField.HEX_SIZE)
 	for t: Vector2i in [coord] + Hex.neighbors(coord):
 		# Packed arrays are values: modify copies and store them back.
-		var entry: Array = tiles.get_or_add(t, [PackedVector2Array(), PackedFloat32Array()])
+		var entry: Array = tiles.get_or_add(
+			t, [PackedVector2Array(), PackedFloat32Array(), PackedFloat32Array()]
+		)
 		var pairs: PackedVector2Array = entry[0]
 		var halves: PackedFloat32Array = entry[1]
+		var waters: PackedFloat32Array = entry[2]
 		pairs.append(a)
 		pairs.append(b)
 		halves.append(half)
+		waters.append(water)
 		entry[0] = pairs
 		entry[1] = halves
+		entry[2] = waters
 
 
 # --- plan: pieces, chains, curves ---
@@ -312,6 +453,13 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 	var result_lines: Array[PackedVector2Array] = []
 	var result_widths: Array[PackedFloat32Array] = []
 	var result_discs := PackedVector3Array()
+	var result_along: Array[PackedFloat32Array] = []
+	var result_outer: Array[PackedVector2Array] = []
+	var result_edges: Array[PackedVector2Array] = []
+	var result_water: Array[PackedFloat32Array] = []
+	var result_fade: Array[PackedFloat32Array] = []
+	var result_late: Array[bool] = []
+	var surface: TerrainSurface = TerrainSurface.new(grid) if kind == Kind.RIVER else null
 	var pieces := _pieces(grid, kind)
 	# Port (tile, dir) -> index of the piece that owns it.
 	var owner := {}
@@ -369,11 +517,37 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 			for s in range(0 if k == 0 else 1, n + 1):
 				line.append(_bezier(bez, float(s) / n))
 				tiles.append(Vector2(tile))
-		var widths := _widths(line, chain, pieces, kind)
+		var sides := RiverShape.sides(line, chain, pieces, kind)
 		if kind == Kind.RIVER:
-			line = _meander(line, tiles, junctions)
+			line = RiverShape.meander(line, tiles, junctions)
+			var ends_source := [
+				pieces[chain[0]["piece"]]["kind"] == &"dead",
+				chain.size() > 1 and pieces[chain[-1]["piece"]]["kind"] == &"dead"
+			]
+			# Which ends fade out: a tributary's confluence end (the spoke) and a source.
+			var fades := [
+				RiverShape.end_fade_m(chain[0], pieces, junctions, ends_source[0]),
+				(
+					RiverShape.end_fade_m(chain[-1], pieces, junctions, ends_source[1])
+					if chain.size() > 1
+					else 0.0
+				)
+			]
+			# A lone spoke has its confluence at the end its walk direction points to.
+			if chain.size() == 1 and fades[0] == JUNCTION_FADE_M and not chain[0]["reversed"]:
+				fades = [0.0, JUNCTION_FADE_M]
+			if not _flows_forward(line, ends_source[0], ends_source[1], surface):
+				line = _reversed(line)
+				sides = RiverShape.reversed_sides(sides)
+				fades.reverse()
+			result_along.append(arc_length_m(line))
+			result_fade.append(RiverShape.fade(line, fades[0], fades[1]))
+			result_late.append(fades[0] == JUNCTION_FADE_M or fades[1] == JUNCTION_FADE_M)
 		result_lines.append(line)
-		result_widths.append(widths)
+		result_widths.append(sides["half"])
+		result_outer.append(sides["outer"])
+		result_edges.append(sides["edge"])
+		result_water.append(sides["water"])
 	if kind == Kind.ROAD:
 		for piece: Dictionary in pieces:
 			if piece["kind"] == &"dead":
@@ -382,7 +556,17 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 		for tile: Vector2i in junctions:
 			var m: Vector2 = junctions[tile]
 			result_discs.append(Vector3(m.x, m.y, road_width() / 2.0))
-	return {"lines": result_lines, "half_widths": result_widths, "discs": result_discs}
+	return {
+		"lines": result_lines,
+		"half_widths": result_widths,
+		"discs": result_discs,
+		"along": result_along,
+		"outer": result_outer,
+		"edges": result_edges,
+		"water": result_water,
+		"fade": result_fade,
+		"late": result_late,
+	}
 
 
 ## Pieces of every linked tile (tiles sorted, so the result does not depend on insertion order):
@@ -586,89 +770,47 @@ static func _bezier(bez: Array, t: float) -> Vector2:
 	return p0 * (u * u * u) + p1 * (3.0 * u * u * t) + p2 * (3.0 * u * t * t) + p3 * (t * t * t)
 
 
-## Half widths along a chain's samples: roads constant; rivers vary with world-position noise
-## and narrow towards a dead-end source.
-static func _widths(
-	line: PackedVector2Array, chain: Array, pieces: Array, kind: Kind
-) -> PackedFloat32Array:
-	var result := PackedFloat32Array()
-	result.resize(line.size())
-	var half := width(kind) / 2.0
-	if kind == Kind.ROAD:
-		result.fill(half)
-		return result
-	var start_source: bool = pieces[chain[0]["piece"]]["kind"] == &"dead"
-	var end_source: bool = chain.size() > 1 and pieces[chain[-1]["piece"]]["kind"] == &"dead"
-	var along := PackedFloat32Array()
-	along.resize(line.size())
-	for i in range(1, line.size()):
-		along[i] = along[i - 1] + line[i].distance_to(line[i - 1])
-	var total := along[line.size() - 1] if line.size() > 0 else 0.0
-	for i in line.size():
-		var p := line[i]
-		var noise := TerrainNoise.value_noise(
-			p.x / WIDTH_WAVELENGTH, p.y / WIDTH_WAVELENGTH, WIDTH_SEED
-		)
-		var w := half * (1.0 + RIVER_WIDTH_VARIATION * (2.0 * noise - 1.0))
-		var taper := 1.0
-		if start_source:
-			taper = minf(taper, _taper(along[i]))
-		if end_source:
-			taper = minf(taper, _taper(total - along[i]))
-		result[i] = w * taper
+## Whether a river line's point order is already downstream (see `flows`): towards the lower
+## drawn ground, on a tie from a dead-end source, else from the smaller (x, z). Loops keep it.
+static func _flows_forward(
+	line: PackedVector2Array, start_source: bool, end_source: bool, surface: TerrainSurface
+) -> bool:
+	var first := line[0]
+	var last := line[line.size() - 1]
+	if first.is_equal_approx(last):
+		return true
+	var h0 := surface.ground_height(first.x, first.y)
+	var h1 := surface.ground_height(last.x, last.y)
+	if absf(h0 - h1) >= MapScale.to_units(FLOW_TIE_M):
+		return h0 > h1
+	if start_source != end_source:
+		return start_source
+	return first.x < last.x or (first.x == last.x and first.y <= last.y)
+
+
+static func _reversed(line: PackedVector2Array) -> PackedVector2Array:
+	var result := line.duplicate()
+	result.reverse()
 	return result
 
 
-static func _taper(distance_from_source: float) -> float:
-	return lerpf(
-		RIVER_SOURCE_WIDTH, 1.0, TerrainNoise.smooth(0.0, SOURCE_TAPER, distance_from_source)
-	)
+static func reversed_floats(values: PackedFloat32Array) -> PackedFloat32Array:
+	var result := values.duplicate()
+	result.reverse()
+	return result
 
 
-## The river's sideways meander: every sample moves along its normal by low-frequency noise of
-## its world position, limited so it keeps WALL_MARGIN from the walls of its hex that the piece
-## does not cross (the crossing sides may slide a little along the side).
-static func _meander(
-	line: PackedVector2Array, tiles: PackedVector2Array, junctions: Dictionary
-) -> PackedVector2Array:
-	var result := PackedVector2Array()
+## Arc length in metres from the first point of `line` to every point.
+static func arc_length_m(line: PackedVector2Array) -> PackedFloat32Array:
+	var result := PackedFloat32Array()
 	result.resize(line.size())
-	var count := line.size()
-	var closed := count > 2 and line[0].is_equal_approx(line[count - 1])
-	for i in count:
-		var p := line[i]
-		var dir := _direction(line, i, closed)
-		var normal := Vector2(-dir.y, dir.x)
-		var noise := TerrainNoise.value_noise(
-			p.x / MEANDER_WAVELENGTH, p.y / MEANDER_WAVELENGTH, MEANDER_SEED
-		)
-		var offset := RIVER_MEANDER * (2.0 * noise - 1.0)
-		var tile := Vector2i(tiles[i])
-		# Calm at confluences, so a tributary still ends on the main river's centreline (a
-		# junction within JUNCTION_CALM lies in the sample's tile or a neighbour).
-		if not junctions.is_empty():
-			for t: Vector2i in [tile] + Hex.neighbors(tile):
-				if junctions.has(t):
-					var d := p.distance_to(junctions[t])
-					if d < JUNCTION_CALM:
-						offset *= TerrainNoise.smooth(0.05, JUNCTION_CALM, d)
-		# Pull the offset back while the moved point comes closer to a wall than WALL_MARGIN
-		# (or than the unmoved point already is).
-		var keep := minf(_hex_margin_loose(p, tile), WALL_MARGIN)
-		for _k in 6:
-			if _hex_margin_loose(p + normal * offset, tile) >= keep - 1e-6:
-				break
-			offset *= 0.5
-		if _hex_margin_loose(p + normal * offset, tile) < keep - 1e-6:
-			offset = 0.0
-		result[i] = p + normal * offset
-	if closed:
-		result[count - 1] = result[0]
+	for i in range(1, line.size()):
+		result[i] = result[i - 1] + MapScale.metres_per_unit * line[i].distance_to(line[i - 1])
 	return result
 
 
 ## Unit direction of a polyline at vertex `i` (from its neighbours).
-static func _direction(line: PackedVector2Array, i: int, closed: bool) -> Vector2:
+static func direction(line: PackedVector2Array, i: int, closed: bool) -> Vector2:
 	var count := line.size()
 	var prev := i - 1
 	var next := i + 1
@@ -693,7 +835,7 @@ static func _hex_margin(p: Vector2, tile: Vector2i) -> float:
 ## Like _hex_margin, but measured to the hex corners' circle where the point is near a side
 ## midpoint: a sample on (or next to) a side it crosses is not held at that side. In practice:
 ## the distance to the nearest wall among those whose midpoint is farther than 0.45 from `p`.
-static func _hex_margin_loose(p: Vector2, tile: Vector2i) -> float:
+static func hex_margin_loose(p: Vector2, tile: Vector2i) -> float:
 	var local := p - _centre(tile)
 	var reach := -INF
 	for dir in 6:
@@ -729,7 +871,7 @@ static func _append_strip(
 	points: PackedVector2Array,
 	indices: PackedInt32Array,
 	line: PackedVector2Array,
-	halves: PackedFloat32Array,
+	halves: PackedVector2Array,
 	across: PackedFloat32Array,
 	dirs: PackedVector2Array
 ) -> void:
@@ -739,10 +881,10 @@ static func _append_strip(
 	var closed := count > 2 and line[0].is_equal_approx(line[count - 1])
 	var base := points.size()
 	for i in count:
-		var dir := _direction(line, i, closed)
+		var dir := direction(line, i, closed)
 		var normal := Vector2(-dir.y, dir.x)
-		points.append(line[i] + normal * halves[i])  # left: base + 2 i
-		points.append(line[i] - normal * halves[i])  # right: base + 2 i + 1
+		points.append(line[i] + normal * halves[i].x)  # left: base + 2 i
+		points.append(line[i] - normal * halves[i].y)  # right: base + 2 i + 1
 		across.append(1.0)
 		across.append(-1.0)
 		dirs.append(normal)

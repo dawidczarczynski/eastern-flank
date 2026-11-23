@@ -149,6 +149,10 @@ func _plan_source(chunk: Vector2i) -> Dictionary:
 	var hedges := ScatterPlanner.plan_hedges(_grid, _surface, _parcels, rect)
 	(map["trees"] as Array).append_array(hedges["trees"])
 	(map["edge_shrubs"] as Array).append_array(hedges["edge_shrubs"])
+	# Riparian belt of shrubs and alders along rivers (empty on maps without rivers).
+	var riparian := RiparianPlanner.plan(_grid, _surface, _parcels, rect, _look)
+	(map["trees"] as Array).append_array(riparian["trees"])
+	(map["edge_shrubs"] as Array).append_array(riparian["edge_shrubs"])
 	# Real tree features (TASK-199b; true preset only, the list is empty otherwise).
 	(map["trees"] as Array).append_array(
 		TreeFeatures.plan(_grid, _surface, _seed, rect, _parcels, _look, tree_features)

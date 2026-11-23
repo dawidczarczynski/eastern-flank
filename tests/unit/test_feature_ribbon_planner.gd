@@ -94,7 +94,7 @@ func test_an_off_map_link_ends_on_the_border_side_midpoint() -> void:
 		assert_eq(lines.size(), 1)
 		var line := lines[0]
 		# The river's meander may shift its ends a little (sideways).
-		var slack := EPSILON if kind == KIND_ROAD else FeatureRibbonPlanner.RIVER_MEANDER
+		var slack := EPSILON if kind == KIND_ROAD else FeatureRibbonPlanner.meander_limit()
 		var start := line[0].distance_to(_centre(Vector2i(1, 0)))
 		var end := line[line.size() - 1].distance_to(_side_midpoint(Vector2i(1, 0), 0))
 		assert_true(start <= slack, "kind %d from the dead-end centre (%f)" % [kind, start])
@@ -182,7 +182,7 @@ func test_rivers_meander_gently_and_vary_in_width() -> void:
 		deviation = maxf(deviation, road[i].distance_to(river[i]))
 	assert_true(deviation > 0.02, "the river meanders (%f)" % deviation)
 	assert_true(
-		deviation <= FeatureRibbonPlanner.RIVER_MEANDER + EPSILON, "gently (%f)" % deviation
+		deviation <= FeatureRibbonPlanner.meander_limit() + EPSILON, "gently (%f)" % deviation
 	)
 	var widths := FeatureRibbonPlanner.half_widths(river_grid, KIND_RIVER)[0]
 	var lo := INF

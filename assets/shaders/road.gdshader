@@ -17,6 +17,10 @@ uniform vec3 layer_tint[6];
 uniform float half_width = 0.035;
 uniform float carriageway = 0.5;
 uniform float min_px = 1.5;
+// Depth pull towards the camera along the view ray (world units): a base plus a share of the
+// distance. The ribbon lies on the exact ground, the coarse far terrain mesh can be above it.
+uniform float pull_base = 0.003;
+uniform float pull_per_distance = 0.004;
 uniform float rut_across = 0.25;
 uniform float rut_width = 0.09;
 uniform float rut_darkening = 0.45;
@@ -37,6 +41,11 @@ void vertex() {
 	VERTEX.xz += CUSTOM0.xy * abs(UV.y) * half_width * (widen - 1.0);
 	across = UV.y;
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// Pull towards the camera along the view ray: same screen position, nearer depth.
+	vec4 pulled = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	float dist = length(pulled.xyz);
+	pulled.xyz -= pulled.xyz / max(dist, 0.001) * (pull_base + pull_per_distance * dist);
+	POSITION = PROJECTION_MATRIX * pulled;
 }
 
 vec3 ground(int layer, vec2 xz) {

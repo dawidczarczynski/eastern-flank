@@ -191,3 +191,14 @@ func test_low_turns_the_uniform_fabric_off() -> void:
 	assert_true(uniform.get_shader_parameter(&"mask_ao") > 0.0)
 	GraphicsQuality.apply_materials(GraphicsQuality.features(HIGH))
 	assert_eq(uniform.get_shader_parameter(&"fabric"), ModelParts.CAMO_UNIFORM["fabric"])
+
+
+## TASK-108c: the river's ripples drift on HIGH only; the river material follows the switch.
+func test_river_flow_switch_drives_the_river_material() -> void:
+	assert_true(GraphicsQuality.features(HIGH)["river_flow"])
+	assert_false(GraphicsQuality.features(LOW)["river_flow"])
+	var ground := ShaderMaterial.new()
+	assert_true(
+		FeatureRibbons.river_material(ground, true).get_shader_parameter(&"flow_speed") > 0.0
+	)
+	assert_eq(FeatureRibbons.river_material(ground, false).get_shader_parameter(&"flow_speed"), 0.0)
