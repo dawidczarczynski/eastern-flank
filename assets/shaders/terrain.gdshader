@@ -13,8 +13,8 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 
 const int LAYER_COUNT = 7;
 const int ROCK = 5;
-// Farmland parcels (TASK-108f): kinds of FieldParcels.Kind, 9 entries (none, 7 crops, balk).
-const int PARCEL_KINDS = 9;
+// Farmland parcels (TASK-108f): kinds of FieldParcels.Kind, 10 entries (none, 7 crops, balk, rape).
+const int PARCEL_KINDS = 10;
 // Layers below this weight are not sampled.
 const float WEIGHT_EPSILON = 0.004;
 
@@ -76,15 +76,34 @@ uniform sampler2D parcel_map : filter_nearest, repeat_disable, hint_default_blac
 uniform vec4 parcel_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform float metres_per_unit = 144.34;
 // Per kind: plant and furrow colour (linear) and (row spacing in m, plant width fraction).
-uniform vec3 crop_plant[9];
-uniform vec3 crop_furrow[9];
-uniform vec2 crop_row[9];
+uniform vec3 crop_plant[10];
+uniform vec3 crop_furrow[10];
+uniform vec2 crop_row[10];
 uniform float parcel_brightness = 0.12;
 uniform float parcel_hue = 0.07;
 // Rows fade to the average colour as one row spans this many pixels (from .. to).
 uniform vec2 row_fade = vec2(0.3, 0.8);
 // Parcels fade out on ground steeper than this slope (1 - normal.y), from .. to.
 uniform vec2 parcel_slope = vec2(0.08, 0.14);
+// `true` farmland look (TASK-200, CropLook twins; off for `balanced`: nothing below runs). Per kind
+// the harvest-state colour (linear) and whether the parcel keeps the ground (grass) look.
+uniform bool crop_true = false;
+uniform vec3 crop_harvest[10];
+uniform float crop_ground[10];
+// Satellite tint share and the mip level that reads the layer over about one parcel.
+uniform float crop_tint = 0.5;
+uniform float crop_tint_lod = 4.0;
+uniform float crop_saturation = 1.2;
+// Mottling inside a parcel: strength and noise frequency (per world unit, period >= 20 m).
+uniform float crop_mottle = 0.2;
+uniform float crop_mottle_frequency = 2.0;
+uniform float harvest_share = 0.3;
+// Rows full below .x and gone from .y (camera distance in metres).
+uniform vec2 row_distance_m = vec2(50.0, 150.0);
+// Headland: width in parcel-map uv (x, z), brightness factor, and the camera distance (m) it fades by.
+uniform vec2 headland_uv = vec2(0.0);
+uniform float headland_dark = 0.78;
+uniform float headland_fade_m = 300.0;
 
 // Land-cover raster (TASK-108g, ADR 0028; CoverLook): with cover_on the crops show only inside the
 // noisy outline of the FIELD cover, the GLSL twin of CoverLook.has_kind(FIELD) (same integer
@@ -281,6 +300,12 @@ vec3 triplanar_detail(float repeat, vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out v
 	return normalize(nx.zyx * blend.x + ny.xzy * blend.y + nz.xyz * blend.z);
 }
 
+// 1 when the parcel map holds a balk (kind 8) at `puv`, else 0 (the headland lies next to it).
+float parcel_balk(vec2 puv) {
+	float k = textureLod(parcel_map, clamp(puv, vec2(0.0), vec2(0.9999)), 0.0).r * 255.0;
+	return step(7.5, k) * step(k, 8.5);
+}
+
 void fragment() {
 	vec2 xz = world_pos.xz;
 	vec3 dpx = dFdx(world_pos);
@@ -400,15 +425,52 @@ void fragment() {
 			float edge = clamp(ft * 2.0, 0.03, 0.5);
 			float plant = 1.0 - smoothstep(row.y - edge, row.y + edge, dist);
 			plant = mix(plant, row.y, smoothstep(row_fade.x, row_fade.y, ft));
-			vec3 crop = mix(crop_furrow[kind], crop_plant[kind], plant);
+			vec3 plant_colour = crop_plant[kind];
+			vec3 furrow_colour = crop_furrow[kind];
+			float view_m = view_distance * metres_per_unit;
+			bool is_balk = kind == 8;
+			if (crop_true) {
+				// Rows only up to row_distance_m (no moire), the harvest-state tone on a share of
+				// the parcels of each kind.
+				plant = mix(row.y, plant, 1.0 - smoothstep(row_distance_m.x, row_distance_m.y, view_m));
+				if (!is_balk && fract(pid * 13.7 + 0.31) < harvest_share) {
+					plant_colour = mix(plant_colour, crop_harvest[kind], 0.85);
+					furrow_colour = mix(furrow_colour, crop_harvest[kind] * 0.85, 0.85);
+				}
+			}
+			vec3 crop = mix(furrow_colour, plant_colour, plant);
 			// Per-parcel brightness / hue variation and a soft patchiness inside the parcel.
 			float hue = (fract(pid * 7.31 + 0.17) * 2.0 - 1.0) * parcel_hue;
 			crop *= (1.0 + (pid * 2.0 - 1.0) * parcel_brightness) * vec3(1.0 + hue, 1.0, 1.0 - hue);
-			crop *= 1.0 + 0.12 * (value_noise(xz * 9.0) - 0.5);
+			if (crop_true) {
+				// Stronger colour, tinted towards the satellite layer at the parcel's own scale,
+				// mottled by a large-scale noise, a darker headland strip next to the balks.
+				crop = mix(vec3(dot(crop, vec3(0.2126, 0.7152, 0.0722))), crop, crop_saturation);
+				if (satellite_on && !is_balk) {
+					vec2 suv = (xz - satellite_rect.xy) * satellite_rect.zw;
+					vec3 layer = textureLod(satellite_map, clamp(suv, vec2(0.0), vec2(1.0)), crop_tint_lod).rgb;
+					crop = mix(crop, satellite_hue(crop, layer), crop_tint * satellite.a);
+				}
+				float mottle = value_noise(xz * crop_mottle_frequency) * 0.65 + value_noise(xz * crop_mottle_frequency * 2.3 + 11.0) * 0.35;
+				crop *= 1.0 + crop_mottle * (2.0 * mottle - 1.0);
+				if (!is_balk && view_m < headland_fade_m) {
+					float next_to_balk = max(
+							max(parcel_balk(puv + vec2(headland_uv.x, 0.0)), parcel_balk(puv - vec2(headland_uv.x, 0.0))),
+							max(parcel_balk(puv + vec2(0.0, headland_uv.y)), parcel_balk(puv - vec2(0.0, headland_uv.y))));
+					float fade = 1.0 - smoothstep(0.5 * headland_fade_m, headland_fade_m, view_m);
+					crop *= mix(1.0, headland_dark, next_to_balk * fade);
+				}
+			} else {
+				crop *= 1.0 + 0.12 * (value_noise(xz * 9.0) - 0.5);
+			}
 			// Not on steep, rocky or muddy ground.
 			float cover = 1.0 - smoothstep(parcel_slope.x, parcel_slope.y, 1.0 - wn.y);
 			cover *= 1.0 - smoothstep(0.2, 0.6, w[3]);
 			cover *= 1.0 - smoothstep(0.1, 0.4, w[ROCK]);
+			// Meadow / fallow keep the grass ground look under the `true` look.
+			if (crop_true && crop_ground[kind] > 0.5) {
+				cover = 0.0;
+			}
 			albedo = mix(albedo, crop, cover);
 		}
 	}

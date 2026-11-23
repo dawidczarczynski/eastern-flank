@@ -53,7 +53,7 @@ func test_crop_shares_by_area_over_many_regions() -> void:
 				total += rect.get_area()
 	for k in FieldParcels.CROP_KINDS:
 		var share: float = areas.get(k, 0.0) / total
-		var wanted: float = SHARES[FieldParcels.CROPS[k]]
+		var wanted: float = SHARES.get(FieldParcels.CROPS[k], 0.0)
 		assert_true(
 			absf(share - wanted) < 0.07, "%s: %.2f vs %.2f" % [FieldParcels.CROPS[k], share, wanted]
 		)

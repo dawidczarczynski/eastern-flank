@@ -147,6 +147,15 @@ static func apply(material: ShaderMaterial, colour: SatelliteColour) -> void:
 	material.set_shader_parameter(&"satellite_gain", values["gain"])
 	material.set_shader_parameter(&"satellite_saturation", values["saturation"])
 	material.set_shader_parameter(&"satellite_canopy_hue", values["canopy_hue"])
+	material.set_shader_parameter(&"crop_tint_lod", tint_lod(colour))
+
+
+## The mip level of the layer that averages it over about one farmland parcel
+## (LookPreset.fields() tint_blur_m), for the parcel tint of TerrainGround (TASK-200).
+static func tint_lod(colour: SatelliteColour) -> float:
+	var cell_m := colour.rect.size.x * MapScale.metres_per_unit / colour.image.get_width()
+	var blur_m: float = LookPreset.fields().get("tint_blur_m", cell_m)
+	return maxf(log(blur_m / cell_m) / log(2.0), 0.0)
 
 
 ## satellite_far: how far the layer has taken over at a view distance of `distance_m`.

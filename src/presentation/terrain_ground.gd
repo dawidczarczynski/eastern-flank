@@ -169,6 +169,8 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	var plant := PackedVector3Array()
 	var furrow := PackedVector3Array()
 	var rows := PackedVector2Array()
+	var harvest := PackedVector3Array()
+	var ground := PackedFloat32Array()
 	for k in FieldParcels.CROPS.size():
 		var entry: Dictionary = look["balk"]
 		if k in FieldParcels.CROP_KINDS:
@@ -176,6 +178,8 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 		plant.append(_linear(entry["plant"]))
 		furrow.append(_linear(entry["furrow"]))
 		rows.append(Vector2(entry.get("spacing_m", 1000.0), entry.get("plant_frac", 1.0)))
+		harvest.append(_linear(entry.get("harvest", entry["plant"])))
+		ground.append(1.0 if entry.get("ground_look", false) else 0.0)
 	material.set_shader_parameter(&"parcel_map", parcels.texture())
 	var rect := parcels.rect_units()
 	material.set_shader_parameter(
@@ -186,12 +190,46 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	material.set_shader_parameter(&"crop_plant", plant)
 	material.set_shader_parameter(&"crop_furrow", furrow)
 	material.set_shader_parameter(&"crop_row", rows)
+	_set_true_look(material, look, rect, harvest, ground)
 	material.set_shader_parameter(&"parcel_brightness", look["parcel_brightness"])
 	material.set_shader_parameter(&"parcel_hue", look["parcel_hue"])
 	material.set_shader_parameter(&"row_fade", Vector2(look["row_fade_from"], look["row_fade_to"]))
 	# Same limit as the grass: ground steeper than GrassPlanner.MAX_SLOPE stays bare.
 	var steep := 1.0 - 1.0 / sqrt(1.0 + GrassPlanner.MAX_SLOPE * GrassPlanner.MAX_SLOPE)
 	material.set_shader_parameter(&"parcel_slope", Vector2(steep * 0.75, steep * 1.3))
+
+
+## The `true` farmland look of TASK-200 (CropLook twins): off for `balanced`, where the shader
+## branches stay out and the parcels render as before. Distances in metres through MapScale.
+static func _set_true_look(
+	material: ShaderMaterial,
+	look: Dictionary,
+	rect: Rect2,
+	harvest: PackedVector3Array,
+	ground: PackedFloat32Array
+) -> void:
+	var on := VisualScale.is_true_size()
+	material.set_shader_parameter(&"crop_true", on)
+	if not on:
+		return
+	material.set_shader_parameter(&"crop_harvest", harvest)
+	material.set_shader_parameter(&"crop_ground", ground)
+	material.set_shader_parameter(&"crop_tint", look["tint"])
+	material.set_shader_parameter(&"crop_saturation", look["saturation"])
+	material.set_shader_parameter(&"crop_mottle", look["mottle"])
+	material.set_shader_parameter(
+		&"crop_mottle_frequency", 1.0 / MapScale.to_units(look["mottle_period_m"])
+	)
+	material.set_shader_parameter(&"harvest_share", look["harvest_share"])
+	material.set_shader_parameter(
+		&"row_distance_m", Vector2(look["row_full_m"], look["row_zero_m"])
+	)
+	var headland := MapScale.to_units(look["headland_m"])
+	material.set_shader_parameter(
+		&"headland_uv", Vector2(headland / rect.size.x, headland / rect.size.y)
+	)
+	material.set_shader_parameter(&"headland_dark", look["headland_dark"])
+	material.set_shader_parameter(&"headland_fade_m", look["headland_fade_m"])
 
 
 static func _linear(color: Color) -> Vector3:

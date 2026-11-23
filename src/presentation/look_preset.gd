@@ -79,6 +79,16 @@ const FIELDS_DEFAULT := {
 			"plant_frac": 0.5,
 			"grass_keep": 1.0,
 		},
+		# Rape (TASK-200) has no share here: only the `true` look (CropCatalog) grows it.
+		&"rape":
+		{
+			"share": 0.0,
+			"plant": Color("#c8b030"),
+			"furrow": Color("#8a8a2a"),
+			"spacing_m": 8.0,
+			"plant_frac": 0.6,
+			"grass_keep": 0.0,
+		},
 	},
 	"balk": {"plant": Color("#4b6230"), "furrow": Color("#4b6230")},
 	# Per-parcel brightness variation (+- fraction) and hue shift (+- fraction of red / blue).
@@ -87,6 +97,37 @@ const FIELDS_DEFAULT := {
 	# Row stripes fade to the crop's average colour as one row spans this many screen pixels.
 	"row_fade_from": 0.3,
 	"row_fade_to": 0.8,
+}
+
+## Farmland look under the `true` VisualScale preset (TASK-200; `balanced` never reads it), merged
+## over FIELDS_DEFAULT by fields() together with the crops of the CropCatalog (colours, row
+## spacing, harvest tone, shares). Distances in metres (MapScale converts them):
+## - distinct_neighbours: no two parcels sharing an edge get the same crop (FieldParcels).
+## - tint: how far the parcel colour is taken towards the satellite colour layer's hue (luminance
+##   kept); tint_blur_m: the layer is read over this size (about a parcel, a mip level) so the
+##   whole parcel gets one tint.
+## - saturation: crop colour saturation factor; mottle / mottle_period_m: large-scale brightness
+##   noise inside a parcel (period at least 20 m).
+## - row_full_m / row_zero_m: the crop rows are at full strength below the first camera distance
+##   and gone at the second (no moiré beyond); harvest_share: share of the parcels of a kind drawn
+##   in their harvest-state tone.
+## - headland_m / headland_dark / headland_fade_m: the darker strip along every parcel edge (next
+##   to the balk), its brightness factor and the camera distance it fades out by.
+const REAL_SIZE_FIELDS := {
+	"distinct_neighbours": true,
+	"tint": 0.5,
+	"tint_blur_m": 160.0,
+	"saturation": 1.2,
+	"mottle": 0.2,
+	"mottle_period_m": 60.0,
+	"row_full_m": 50.0,
+	"row_zero_m": 150.0,
+	"harvest_share": 0.3,
+	"headland_m": 6.0,
+	"headland_dark": 0.78,
+	"headland_fade_m": 300.0,
+	# The balk is a pale dry-grass strip, lighter than every crop.
+	"balk": {"plant": Color("#d4cd8c"), "furrow": Color("#c4bd7c")},
 }
 
 ## Real-scale vegetation (TASK-135, ADR 0026): used only under the `true` VisualScale preset
@@ -656,7 +697,28 @@ static func apply_to_sun(light: DirectionalLight3D, env: Environment) -> void:
 static func fields() -> Dictionary:
 	var merged := FIELDS_DEFAULT.duplicate(true)
 	merged.merge((_active.get("fields", {}) as Dictionary).duplicate(true), true)
+	if VisualScale.is_true_size():
+		merged.merge(REAL_SIZE_FIELDS.duplicate(true), true)
+		_merge_catalog(merged["crops"])
 	return merged
+
+
+## The shares and colours of the CropCatalog over `crops`; the older kinds the catalog does not
+## list (maize, potato) get share 0.
+static func _merge_catalog(crops: Dictionary) -> void:
+	for name: StringName in crops:
+		(crops[name] as Dictionary)["share"] = 0.0
+	for kind in CropCatalog.load_default().kinds:
+		crops[kind.kind_name] = {
+			"share": kind.weight,
+			"plant": kind.colour,
+			"furrow": kind.furrow,
+			"spacing_m": kind.row_spacing_m,
+			"plant_frac": kind.plant_frac,
+			"grass_keep": kind.grass_keep,
+			"harvest": kind.harvest_tone,
+			"ground_look": kind.ground_look,
+		}
 
 
 ## Satellite colour blend values of the active preset (a copy): SATELLITE_DEFAULT with the

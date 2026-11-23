@@ -18,14 +18,32 @@ extends RefCounted
 ## Usage: var map := FieldParcels.bake(grid, hex_size, rect_units); map.kind_at(x, z)
 
 ## Parcel kinds, the values of the baked image's red channel. CROPS names them in this order.
-enum Kind { NONE, WHEAT, MAIZE, POTATO, GREEN, STUBBLE, PLOUGHED, MEADOW, BALK }
+## RAPE (TASK-200) comes last so the values of the older kinds, and the `balanced` look with a
+## rape share of 0, stay as they were.
+enum Kind { NONE, WHEAT, MAIZE, POTATO, GREEN, STUBBLE, PLOUGHED, MEADOW, BALK, RAPE }
 ## Names of the kinds (LookPreset.fields() "crops" keys; BALK has its own entry).
 const CROPS: Array[StringName] = [
-	&"", &"wheat", &"maize", &"potato", &"green", &"stubble", &"ploughed", &"meadow", &"balk"
+	&"",
+	&"wheat",
+	&"maize",
+	&"potato",
+	&"green",
+	&"stubble",
+	&"ploughed",
+	&"meadow",
+	&"balk",
+	&"rape"
 ]
 ## Kinds that are drawn from the "crops" look data (all but NONE and BALK).
 const CROP_KINDS: Array[int] = [
-	Kind.WHEAT, Kind.MAIZE, Kind.POTATO, Kind.GREEN, Kind.STUBBLE, Kind.PLOUGHED, Kind.MEADOW
+	Kind.WHEAT,
+	Kind.MAIZE,
+	Kind.POTATO,
+	Kind.GREEN,
+	Kind.STUBBLE,
+	Kind.PLOUGHED,
+	Kind.MEADOW,
+	Kind.RAPE
 ]
 
 const BLOCK_M := 2500.0
@@ -58,11 +76,11 @@ static func kind(x_m: float, z_m: float, shares: Dictionary = {}) -> int:
 	var parcel := parcel_at(x_m, z_m)
 	if parcel["balk"]:
 		return Kind.BALK
-	return crop_of(parcel["key"], shares)
+	return crop_for(parcel, shares)
 
 
 ## The parcel under (x_m, z_m): {key, along_x (rows run along x), balk (on the balk strip),
-## id (0-127, for per-parcel variation)}.
+## id (0-127, for per-parcel variation), bx, bz, strip, part (the parcel's place in its region)}.
 static func parcel_at(x_m: float, z_m: float) -> Dictionary:
 	var bx := floori(x_m / BLOCK_M)
 	var bz := floori(z_m / BLOCK_M)
@@ -84,23 +102,90 @@ static func parcel_at(x_m: float, z_m: float) -> Dictionary:
 		"along_x": along_x,
 		"balk": u - float(strip["start"]) < BALK_M or v - v0 < BALK_M or v1 - v < BALK_M,
 		"id": (key >> 8) & 127,
+		"bx": bx,
+		"bz": bz,
+		"strip": strip["index"],
+		"part": part,
 	}
 
 
 ## The crop kind of the parcel with `key`, by the cumulative `shares` in CROP_KINDS order.
 static func crop_of(key: int, shares: Dictionary = {}) -> int:
-	if shares.is_empty():
-		shares = shares_of(LookPreset.fields())
+	return _pick(key, _shares_or_look(shares), [])
+
+
+## The crop of a parcel dictionary (parcel_at / parcels_of_block): crop_of(key), or with the
+## look's distinct_neighbours rule (TASK-200, `true` preset) the neighbour-aware assignment.
+static func crop_for(parcel: Dictionary, shares: Dictionary = {}) -> int:
+	if not distinct_neighbours():
+		return crop_of(parcel["key"], shares)
+	var crops := block_crops(parcel["bx"], parcel["bz"], shares)
+	return crops[parcel["strip"]][parcel["part"]]
+
+
+## Whether the active look gives neighbouring parcels different crops (`true` preset).
+static func distinct_neighbours() -> bool:
+	return bool(LookPreset.fields().get("distinct_neighbours", false))
+
+
+## The crops of region (bx, bz) as [[part 0, part 1 (-1 if the strip is not cut)], ...] per strip,
+## chosen so that no two parcels sharing an edge inside the region have the same crop: a strip
+## avoids the crops of the previous strip's parcels it touches, and its second part avoids its
+## first. Deterministic from the parcel hash (never GameState.rng), same weights as crop_of.
+## Parcels of neighbouring regions are separated by the hedge balk and not constrained.
+static func block_crops(bx: int, bz: int, shares: Dictionary = {}) -> Array:
+	shares = _shares_or_look(shares)
+	var edges := _edges(bx, bz)
+	var result: Array = []
+	var prev_spans: Array[Vector2] = []
+	var prev_crops: Array[int] = []
+	for k in edges.size() - 1:
+		var cut := _cut(bx, bz, k)
+		var spans: Array[Vector2] = [Vector2(0.0, BLOCK_M)]
+		if cut > 0.0:
+			spans = [Vector2(0.0, cut), Vector2(cut, BLOCK_M)]
+		var crops: Array[int] = []
+		for part in spans.size():
+			var banned: Array[int] = []
+			for i in prev_spans.size():
+				if prev_spans[i].x < spans[part].y and spans[part].x < prev_spans[i].y:
+					banned.append(prev_crops[i])
+			if part == 1:
+				banned.append(crops[0])
+			crops.append(_pick(_hash(bx, bz, 5 + k, part), shares, banned))
+		result.append([crops[0], crops[1] if crops.size() > 1 else -1])
+		prev_spans = spans
+		prev_crops = crops
+	return result
+
+
+static func _shares_or_look(shares: Dictionary) -> Dictionary:
+	return shares if not shares.is_empty() else shares_of(LookPreset.fields())
+
+
+## The crop of the parcel `key` by the cumulative `shares`, leaving out the `banned` kinds (unless
+## that leaves nothing).
+static func _pick(key: int, shares: Dictionary, banned: Array) -> int:
 	var roll := _unit(_hash(key, 7, 0, 0))
 	var total := 0.0
 	for k in CROP_KINDS:
-		total += float(shares.get(CROPS[k], 0.0))
+		if not banned.has(k):
+			total += float(shares.get(CROPS[k], 0.0))
+	if total <= 0.0:
+		return (
+			_pick(key, shares, []) if not banned.is_empty() else CROP_KINDS[CROP_KINDS.size() - 1]
+		)
 	var acc := 0.0
+	var last := CROP_KINDS[0]
 	for k in CROP_KINDS:
-		acc += float(shares.get(CROPS[k], 0.0)) / total
+		var share := 0.0 if banned.has(k) else float(shares.get(CROPS[k], 0.0))
+		if share <= 0.0:
+			continue
+		last = k
+		acc += share / total
 		if roll < acc:
 			return k
-	return CROP_KINDS[CROP_KINDS.size() - 1]
+	return last
 
 
 ## {kind name: share} from a LookPreset.fields() dictionary.
@@ -111,7 +196,8 @@ static func shares_of(look: Dictionary) -> Dictionary:
 	return shares
 
 
-## Every parcel of the BLOCK_M region (bx, bz): [{rect: Rect2 in metres, key, along_x}], one per
+## Every parcel of the BLOCK_M region (bx, bz): [{rect: Rect2 in metres, key, along_x, bx, bz,
+## strip, part}], one per
 ## strip
 ## and part (the balk is the first BALK_M of the rect across its length axis).
 static func parcels_of_block(bx: int, bz: int) -> Array:
@@ -133,7 +219,20 @@ static func parcels_of_block(bx: int, bz: int) -> Array:
 				Vector2(v1 - v0, u1 - u0) if along_x else Vector2(u1 - u0, v1 - v0)
 			)
 			rect.position += Vector2(bx, bz) * BLOCK_M
-			result.append({"rect": rect, "key": _hash(bx, bz, 5 + k, part), "along_x": along_x})
+			(
+				result
+				. append(
+					{
+						"rect": rect,
+						"key": _hash(bx, bz, 5 + k, part),
+						"along_x": along_x,
+						"bx": bx,
+						"bz": bz,
+						"strip": k,
+						"part": part,
+					}
+				)
+			)
 	return result
 
 
@@ -197,7 +296,7 @@ static func _bake(
 				var rect: Rect2 = parcel["rect"]
 				if not rect.intersects(rect_m):
 					continue
-				var crop := crop_of(parcel["key"], shares)
+				var crop := crop_for(parcel, shares)
 				var along_x: bool = parcel["along_x"]
 				var green := float(((parcel["key"] >> 8) & 127) * 2 + (1 if along_x else 0)) / 255.0
 				# Long strips are judged per SEGMENT_M piece, so a strip runs as far as the farmland
