@@ -59,6 +59,10 @@ const ACTION_MAP_OPTIONS := &"map_options"
 const MENU_SCENE := "res://scenes/ui/main_menu.tscn"
 const DEFAULT_MAP := &"suwalki_theatre"
 const CARD_OFFSET := Vector2(18, 18)
+## Devtools terrain viewer (user argument): the bare map, no units and no HUD; a click on a hex
+## opens that hex's terrain as the battle scene draws it (TerrainViewController).
+const TERRAIN_VIEWER_ARG := "--terrain-viewer"
+const TERRAIN_VIEW_SCENE := "res://scenes/battle/terrain_view.tscn"
 ## How fast the pitch follows its target (1 / s, exponential).
 const PITCH_SMOOTHING := 14.0
 const DEFAULT_OPERATION := &"suwalki_gap"
@@ -70,6 +74,10 @@ const PANEL_MARGIN := Vector2(16, 16)
 const PANEL_FADE := 0.12  # s, the formation panel fading in on a new dock
 ## Viewport size assumed outside the scene tree (headless tests).
 const FALLBACK_VIEWPORT := Vector2(1280, 720)
+
+## Set by the main menu's DEVTOOLS page (TERRAIN VIEWER) and kept across the scene changes
+## between the picker and the terrain view; the main menu clears it.
+static var terrain_viewer_session := false
 
 ## Which map to open (the Operation button uses the default).
 var map_id: StringName = DEFAULT_MAP
@@ -86,6 +94,8 @@ var ai_side := -1
 var ai_turn: Callable = OperationalAiTurn.play
 ## False: _ready only sets up the scene and the caller runs build_now() (headless tests).
 var auto_build := true
+## The terrain viewer without the command-line argument (screenshot tool, tests).
+var terrain_viewer := false
 ## True once the map is built (the loading notice shows for a frame first).
 var is_built := false
 ## Milliseconds the build took (reported by the screenshot / measure tools).
@@ -242,6 +252,8 @@ func build_now() -> bool:
 	_build_operation(definition)
 	_build_camera()
 	_build_hud()
+	if _terrain_viewer():
+		_apply_terrain_viewer()
 	if _resumed:
 		_resume()
 	build_ms = Time.get_ticks_msec() - start
@@ -292,7 +304,7 @@ func _tick_journal(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not is_built:
+	if not is_built or _terrain_viewer_key(event):
 		return
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo:
@@ -2755,6 +2767,65 @@ func _build_hud() -> void:
 		contact_debug()
 
 
+func _terrain_viewer() -> bool:
+	return (
+		terrain_viewer
+		or terrain_viewer_session
+		or OS.get_cmdline_user_args().has(TERRAIN_VIEWER_ARG)
+	)
+
+
+## The terrain viewer shows the map alone: the operation keeps no side playing, the HUD, the
+## counters, the front line and every order overlay are hidden (place names stay), and a hint
+## says what to do.
+func _apply_terrain_viewer() -> void:
+	ai_side = -1
+	_hud.hide()
+	for child in _counter_layer.get_children():
+		if child != _places and child is CanvasItem:
+			(child as CanvasItem).hide()
+	for node: Node3D in [_control, _reach, _front, _order_ribbon, _fresh_ribbon, _route_ribbon]:
+		node.hide()
+	var layer := CanvasLayer.new()
+	layer.name = "TerrainViewerHint"
+	layer.layer = 3
+	var label := Label.new()
+	label.text = "TERRAIN VIEWER  ·  click a hex to see its terrain  ·  G grid  ·  Esc menu"
+	label.position = Vector2(16, 12)
+	label.add_theme_color_override(&"font_color", Color.WHITE)
+	label.add_theme_color_override(&"font_shadow_color", Color(0, 0, 0, 0.85))
+	layer.add_child(label)
+	layer.add_child(FpsOverlay.new())  # shown when the DEVTOOLS FPS OVERLAY switch is on
+	add_child(layer)
+
+
+## In the terrain viewer every key is taken here (true): Esc leaves, G toggles the grid, the rest
+## does nothing. False for mouse events and outside the viewer.
+func _terrain_viewer_key(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key == null or not _terrain_viewer():
+		return false
+	if not key.pressed or key.echo:
+		return true
+	match key.keycode:
+		KEY_ESCAPE:
+			_return_to_menu()
+		KEY_G:
+			toggle_grid()
+	return true
+
+
+## A click on hex `c` in the terrain viewer: its terrain opens in the battle scene's renderer.
+func _open_terrain_view(c: Vector2i) -> void:
+	if not _view.has_tile(c) or _simulation == null:
+		return
+	var setup := TerrainViewSetup.build(_simulation.state.map_id, c)
+	if setup == null:
+		return
+	BattleOptions.pending_setup = setup
+	SceneLoader.open(get_tree(), TERRAIN_VIEW_SCENE, setup.operation_name)
+
+
 ## The right tabbed dock (TASK-174a): the strike panel and the journal move into it.
 func _build_right_dock() -> void:
 	_dock_view = StaffMapRightDockView.new()
@@ -3353,6 +3424,9 @@ func _hover_ring() -> void:
 
 ## A click taken by the debug contact picker or the open strike mode; true then.
 func _mode_click(screen: Vector2) -> bool:
+	if _terrain_viewer():
+		_open_terrain_view(hex_at_screen(screen))
+		return true
 	if _contact_debug != null and _contact_debug.click(hex_at_screen(screen)):
 		return true
 	if _strike != null and _strike.is_open():

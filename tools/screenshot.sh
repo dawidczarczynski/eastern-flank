@@ -10,6 +10,8 @@
 #   --linux   render with the Linux Godot (under WSLg: software OpenGL, Compatibility look, no SSAO)
 #   SCREENSHOT_SCENE=menu|catalog|staff_map renders the main menu / unit catalog / operational staff map instead of the battle (staff map options: SCREENSHOT_STAFF_MAP, header of tools/screenshot.gd) (see the header of tools/screenshot.gd)
 #   SCREENSHOT_RESOLUTION=<W>x<H> window and PNG size (default 1280x720)
+#   SCREENSHOT_SCENE=terrain_view SCREENSHOT_TERRAIN=<col>:<row> renders the devtools terrain viewer at that operational hex (no units, no HUD)
+#   SCREENSHOT_MENU_PAGE=devtools (with SCREENSHOT_SCENE=menu) opens that page of the main menu
 #   SCREENSHOT_SCENARIO=objective_battle starts that scenario (Scenario.NAMES) instead of the default battle
 #   SCREENSHOT_CONTACT=<col>:<row>:<col>:<row> starts the contact battle of that attacker / defender hex pair (TASK-094b debug preview) instead of a scenario
 #   SCREENSHOT_SCALE_PRESET=true puts units and scatter at real size (TASK-110); SCREENSHOT_MIN_DISTANCE=<0.05-7> lets SCREENSHOT_CAMERA / SCREENSHOT_FOCUS zoom closer than the game allows (below 0.18)
@@ -102,7 +104,7 @@ if [[ -n "$godot_win" ]]; then
 			win_args+=("$arg")
 		fi
 	done
-	GODOT_WIN_ENV="SCREENSHOT_SELECT_UNIT SCREENSHOT_HOVER_UNIT SCREENSHOT_CAMERA SCREENSHOT_PITCH_OFFSET SCREENSHOT_SCALE_PRESET SCREENSHOT_MIN_DISTANCE SCREENSHOT_LOOK SCREENSHOT_MARKS SCREENSHOT_WRECK SCREENSHOT_FOCUS SCREENSHOT_MEASURE_FRAMES SCREENSHOT_PROFILE SCREENSHOT_NOTICE SCREENSHOT_SHOTS SCREENSHOT_SCENE SCREENSHOT_LOCALE SCREENSHOT_CATALOG SCREENSHOT_SALVO SCREENSHOT_ARENA SCREENSHOT_FOV SCREENSHOT_MOVE SCREENSHOT_SCENARIO SCREENSHOT_STAFF_MAP SCREENSHOT_CONTACT SCREENSHOT_RESOLUTION" \
+	GODOT_WIN_ENV="SCREENSHOT_SELECT_UNIT SCREENSHOT_HOVER_UNIT SCREENSHOT_CAMERA SCREENSHOT_PITCH_OFFSET SCREENSHOT_SCALE_PRESET SCREENSHOT_MIN_DISTANCE SCREENSHOT_LOOK SCREENSHOT_MARKS SCREENSHOT_WRECK SCREENSHOT_FOCUS SCREENSHOT_MEASURE_FRAMES SCREENSHOT_PROFILE SCREENSHOT_NOTICE SCREENSHOT_SHOTS SCREENSHOT_SCENE SCREENSHOT_LOCALE SCREENSHOT_CATALOG SCREENSHOT_SALVO SCREENSHOT_ARENA SCREENSHOT_FOV SCREENSHOT_MOVE SCREENSHOT_SCENARIO SCREENSHOT_STAFF_MAP SCREENSHOT_CONTACT SCREENSHOT_TERRAIN SCREENSHOT_MENU_PAGE SCREENSHOT_RESOLUTION" \
 		run_windows_godot "$godot_win" "$remaining" "$output" "$errors" "$project_dir" \
 		--resolution "$resolution" --script res://tools/screenshot.gd -- "${win_args[@]}"
 	status=$?

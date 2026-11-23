@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Runs the game with the Windows build of Godot (from WSL), so it renders on the GPU –
 # under WSLg with an old Mesa the Linux build falls back to software rendering (llvmpipe).
-# Usage: tools/run_windows.sh [--editor] [--import] [--local] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]
+# Usage: tools/run_windows.sh [--editor] [--import] [--local] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug] [--terrain-viewer]
 #   --quality  force the graphics quality (default: auto-detected, HIGH on the GPU); passed as a user argument
 #   --scenario start the battle with that scenario (default_battle, objective_battle, command_points_battle, fire_support_battle, suwalki_battle); a user argument
 #   --scene   open a scene directly: staff_map, battle, menu, arena (as in run.sh)
 #   --side    the side the staff map is viewed as: nato (default) or russia; a user argument
+#   --terrain-viewer  with --scene=staff_map: the bare map; click a hex to view its terrain, no units / HUD; a user argument
 #   --debug   debug mode: the F9 panel on the staff map; a user argument
 #   --editor  open the editor instead of the game
 #   --import  refresh the class cache with the Linux Godot first (only needed after adding a
@@ -38,7 +39,7 @@ for arg in "$@"; do
 	case "$arg" in
 	--editor) editor=(--editor) ;;
 	--local) local_copy=1 ;;
-	--quality=* | --scenario=* | --side=* | --debug) user_args+=("$arg") ;;
+	--quality=* | --scenario=* | --side=* | --debug | --terrain-viewer) user_args+=("$arg") ;;
 	--scene=*)
 		case "${arg#--scene=}" in
 		staff_map) scene_path=(res://scenes/operational/staff_map.tscn) ;;
@@ -53,7 +54,7 @@ for arg in "$@"; do
 		"$linux_godot" --headless --path . --import >/dev/null 2>&1 || true
 		;;
 	*)
-		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug]" >&2
+		echo "Unknown argument: $arg. Usage: tools/run_windows.sh [--editor] [--import] [--quality=low|high] [--scenario=<name>] [--scene=<name>] [--side=<id>] [--debug] [--terrain-viewer]" >&2
 		exit 2
 		;;
 	esac

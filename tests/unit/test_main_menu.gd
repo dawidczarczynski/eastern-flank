@@ -156,6 +156,7 @@ func test_devtools_page_exists_only_in_a_debug_run() -> void:
 	debug_menu.devtools_button().pressed.emit()
 	assert_eq(debug_menu.page(), "devtools")
 	assert_eq(debug_menu.arena_button().text, "ARENA")
+	assert_eq(debug_menu.terrain_button().text, "TERRAIN VIEWER")
 	debug_menu.devtools_back_button().pressed.emit()
 	assert_eq(debug_menu.page(), "main")
 	debug_menu.free()

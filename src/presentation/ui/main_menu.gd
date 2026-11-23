@@ -35,10 +35,15 @@ var _devtools: Button  # main page, debug only: opens the devtools page
 var _devtools_page: Control
 var _devtools_title: Label
 var _arena_button: Button
-var _quality_button: Button  # devtools: cycles the arena's graphics quality (Auto / LOW / HIGH)
-var _scale_button: Button
-var _look_button: Button
-var _fps_button: Button
+var _terrain_button: Button  # devtools: the bare staff map; a click on a hex shows its terrain
+## Devtools switches (toggle rows): graphics quality (Auto / LOW / HIGH, lit when forced), true
+## unit size, look preset (lit when not the default) and the FPS overlay.
+var _quality_row: StaffMapWindow.ToggleRow
+var _scale_row: StaffMapWindow.ToggleRow
+var _look_row: StaffMapWindow.ToggleRow
+var _fps_row: StaffMapWindow.ToggleRow
+var _tools_caption: Label
+var _switches_caption: Label
 var _devtools_back: Button
 var _settings: Button
 var _backdrop: MenuBackdrop
@@ -68,6 +73,7 @@ func _ready() -> void:
 	GameSettings.apply_saved(settings_path)
 	_sound = GameSettings.load_sound(settings_path)
 	SoundMix.apply(_sound)
+	StaffMap.terrain_viewer_session = false
 	Session.abandon()  # the menu is outside any campaign (TASK-094c); Continue loads a save
 	_build()
 	refresh_texts()
@@ -356,12 +362,18 @@ func _build_settings(column: VBoxContainer) -> void:
 func _build_devtools(column: VBoxContainer) -> void:
 	_devtools_title = MenuStyle.label("", HudTheme.display(700, 4), 28, UiPalette.HUD_TEXT)
 	column.add_child(_devtools_title)
+	_tools_caption = MenuStyle.caption("Tools")
+	column.add_child(_tools_caption)
 	_arena_button = _add_button(column, _on_arena_pressed)
-	# Switches of the arena (TASK-186b): kept in DevTunables, they count once the arena is open.
-	_quality_button = _add_button(column, _on_quality_pressed)
-	_scale_button = _add_button(column, _on_scale_pressed)
-	_look_button = _add_button(column, _on_look_pressed)
-	_fps_button = _add_button(column, _on_fps_pressed)
+	_terrain_button = _add_button(column, _on_terrain_pressed)
+	column.add_child(_spacer(6.0))
+	# Switches (TASK-186b): kept in DevTunables, they count once the arena is open.
+	_switches_caption = MenuStyle.caption("Switches")
+	column.add_child(_switches_caption)
+	_quality_row = _add_switch(column, "Graphics quality", _on_quality_pressed)
+	_scale_row = _add_switch(column, "True unit size", _on_scale_pressed)
+	_look_row = _add_switch(column, "Look preset", _on_look_pressed)
+	_fps_row = _add_switch(column, "FPS overlay", _on_fps_pressed)
 	add_child(FpsOverlay.new())
 	column.add_child(_spacer(10.0))
 	_devtools_back = _add_button(column, show_page.bind("main"))
@@ -394,14 +406,29 @@ func _on_fps_pressed() -> void:
 
 func _refresh_devtools_switches() -> void:
 	var quality_names := ["AUTO", "LOW", "HIGH"]
-	_quality_button.text = "QUALITY: %s" % quality_names[DevTunables.quality_choice]
-	_scale_button.text = "SCALE: %s" % ("TRUE SIZE" if DevTunables.true_size else "CURRENT")
-	_look_button.text = "LOOK: %s" % String(DevTunables.look_name).to_upper()
-	_fps_button.text = "FPS OVERLAY: %s" % ("ON" if DevTunables.fps_overlay else "OFF")
+	_quality_row.set_value(
+		DevTunables.quality_choice != DevTunables.QualityChoice.AUTO,
+		quality_names[DevTunables.quality_choice]
+	)
+	_scale_row.set_on(DevTunables.true_size)
+	_look_row.set_value(
+		DevTunables.look_name != LookPreset.DEFAULT_PRESET, String(DevTunables.look_name).to_upper()
+	)
+	_fps_row.set_on(DevTunables.fps_overlay)
 
 
 func _on_arena_pressed() -> void:
 	get_tree().change_scene_to_file(ARENA_SCENE)
+
+
+## The staff map without units or HUD: a click on a hex opens its terrain (StaffMap picker).
+func _on_terrain_pressed() -> void:
+	StaffMap.terrain_viewer_session = true
+	get_tree().change_scene_to_file(STAFF_MAP_SCENE)
+
+
+func terrain_button() -> Button:
+	return _terrain_button
 
 
 func devtools_button() -> Button:
@@ -421,6 +448,14 @@ func _add_button(parent: Control, handler: Callable) -> Button:
 	b.pressed.connect(handler)
 	parent.add_child(b)
 	return b
+
+
+## A devtools switch: the HUD toggle row (box, name, state word) without a key cap.
+func _add_switch(parent: Control, label: String, handler: Callable) -> StaffMapWindow.ToggleRow:
+	var row := StaffMapWindow.toggle_row(label.to_upper(), "")
+	row.pressed.connect(handler)
+	parent.add_child(row)
+	return row
 
 
 func _add_slider(parent: Control, value: float, handler: Callable) -> HSlider:
@@ -454,6 +489,9 @@ func refresh_texts() -> void:
 		_devtools.text = "DEVTOOLS"
 		_devtools_title.text = "DEVTOOLS"
 		_arena_button.text = "ARENA"
+		_terrain_button.text = "TERRAIN VIEWER"
+		_tools_caption.text = "TOOLS"
+		_switches_caption.text = "SWITCHES"
 		_refresh_devtools_switches()
 		_devtools_back.text = "‹ " + tr("Back").to_upper()
 	_scenario_title.text = tr("Start scenario").to_upper()

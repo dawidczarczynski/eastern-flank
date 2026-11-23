@@ -142,6 +142,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StrikeRules` – Pure deep-strike rules of the operational layer (TASK-097a, GDD "Deep strikes"): the stoc… (`strike_rules.gd`)
 - `SupportRules` – Pure rules of outside support (TASK-121, GDD "Outside support"): when a package can be (`support_rules.gd`)
 - `SupportState` – Dynamic state of one support package in an operation (TASK-121). Changed only by (`support_state.gd`)
+- `TerrainViewSetup` – The devtools terrain viewer (docs/TOOLS.md): a BattleSetup that is only a piece of real (`terrain_view_setup.gd`)
 
 ## src/presentation/
 
@@ -241,6 +242,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `TerrainPanelModel` – Pure model of the bottom-left terrain panel. Returns untranslated English strings; (`terrain_panel_model.gd`)
 - `TerrainSplat` – Pure per-vertex ground layer weights for the terrain shader (TASK-055): which of the seven (`terrain_splat.gd`)
 - `TerrainTextures` – The seven CC0 ground layers of the terrain shader (TASK-055, credits in (`terrain_textures.gd`)
+- `TerrainViewController` – Devtools terrain viewer (docs/TOOLS.md, not part of the game): the battle scene's terrain… (`terrain_view_controller.gd`)
 - `TracerPlan` – Pure timing and layout of an infantry attack's fire (TASK-188b): which rounds are tracers… (`tracer_plan.gd`)
 - `TreeField` – The trees of a MapView (TASK-060): the planned trees (ScatterPlanner, map and backdrop) a… (`tree_field.gd`)
 - `TreeImpostors` – Impostors of real-scale trees and scrub (TASK-135, ADR 0026): one camera-facing quad per… (`tree_impostors.gd`)

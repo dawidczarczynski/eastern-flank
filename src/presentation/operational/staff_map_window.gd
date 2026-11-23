@@ -133,15 +133,26 @@ class ToggleRow:
 		_state.name = "State"
 		_state.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(_state)
-		var cap := KeyCap.new(key_text)
-		cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(cap)
+		if key_text != "":  # a row without a key (the main menu's devtools switches)
+			var cap := KeyCap.new(key_text)
+			cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			row.add_child(cap)
 		set_on(false)
 
 	## Lights or dims the row without emitting.
 	func set_on(on: bool) -> void:
 		set_pressed_no_signal(on)
 		_state.text = _text_on if on else _text_off
+		_style_state(on)
+
+	## Like set_on, with `text` as the state word (a switch with more than two values: lit when
+	## it is not at its default).
+	func set_value(on: bool, text: String) -> void:
+		set_pressed_no_signal(on)
+		_state.text = text
+		_style_state(on)
+
+	func _style_state(on: bool) -> void:
 		_state.add_theme_color_override(
 			&"font_color", UiPalette.AMBER if on else UiPalette.HUD_MUTED
 		)

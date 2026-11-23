@@ -9,6 +9,7 @@ const ScreenshotImage := preload("res://tools/screenshot_image.gd")
 const PerfProfile := preload("res://tools/perf_profile.gd")
 const SCENE_PATH := "res://scenes/battle/battle.tscn"
 const ARENA_SCENE_PATH := "res://scenes/battle/arena.tscn"
+const TERRAIN_VIEW_SCENE_PATH := "res://scenes/battle/terrain_view.tscn"
 const MENU_SCENE_PATH := "res://scenes/ui/main_menu.tscn"
 const CATALOG_SCENE_PATH := "res://scenes/ui/unit_catalog.tscn"
 const STAFF_MAP_SCENE_PATH := "res://scenes/operational/staff_map.tscn"
@@ -79,16 +80,22 @@ func _initialize() -> void:
 			pass
 		"arena":
 			scene_path = ARENA_SCENE_PATH
+		"terrain_view":
+			scene_path = TERRAIN_VIEW_SCENE_PATH
 		_:
 			_fail(
 				(
-					"unknown SCREENSHOT_SCENE '%s' (battle, menu, catalog, staff_map or arena)"
+					"unknown SCREENSHOT_SCENE '%s' (battle, menu, catalog, staff_map, arena or terrain_view)"
 					% scene_name
 				),
 				2
 			)
 			return
-	_is_battle = scene_path == SCENE_PATH or scene_path == ARENA_SCENE_PATH
+	_is_battle = (
+		scene_path == SCENE_PATH
+		or scene_path == ARENA_SCENE_PATH
+		or scene_path == TERRAIN_VIEW_SCENE_PATH
+	)
 	_is_staff_map = scene_path == STAFF_MAP_SCENE_PATH
 	var scene: PackedScene = load(scene_path)
 	if scene == null:
@@ -100,6 +107,9 @@ func _initialize() -> void:
 	if battle_problem != "":
 		_fail(battle_problem, 2)
 		return
+	var menu_page := OS.get_environment("SCREENSHOT_MENU_PAGE")
+	if menu_page == "devtools":
+		_battle.set("debug", true)  # the devtools page exists only in a debug run
 	root.add_child(_battle)
 	if locale != "":
 		TranslationServer.set_locale(locale)
@@ -123,6 +133,9 @@ func _process(_delta: float) -> bool:
 		_apply_staff_map_state(OS.get_environment("SCREENSHOT_STAFF_MAP"))
 	if _first_frame and not _is_battle:
 		_first_frame = false
+		var menu_page := OS.get_environment("SCREENSHOT_MENU_PAGE")
+		if menu_page != "" and _battle.has_method("show_page"):
+			_battle.call("show_page", menu_page)
 		if _battle.has_method("select_unit"):
 			_apply_catalog_state(_catalog_spec)
 	if _first_frame and _is_battle:
@@ -369,6 +382,9 @@ func _fail(message: String, exit_code: int) -> void:
 ## SCREENSHOT_SCENARIO=<one of Scenario.NAMES> starts that scenario (like the game's
 ## `--scenario=` user argument), e.g. the TASK-088 objective markers and turn
 ## limit: SCREENSHOT_SCENARIO=objective_battle tools/screenshot.sh .screenshots/objectives.png
+## SCREENSHOT_SCENE=terrain_view SCREENSHOT_TERRAIN=<col>:<row> renders the devtools terrain
+## viewer at that operational hex; SCREENSHOT_SCENE=staff_map SCREENSHOT_TERRAIN=1 its picker.
+## SCREENSHOT_SCENE=menu SCREENSHOT_MENU_PAGE=<page> opens that menu page (devtools: a debug menu).
 ## SCREENSHOT_SCENE=<battle|menu|catalog|staff_map> renders another scene (default battle);
 ## SCREENSHOT_LOCALE=<pl|en> switches the language first.
 ## SCREENSHOT_CATALOG=<unit id>[:<animation>[+<animation>...][:<yaw>,<pitch>,<distance>]] picks
@@ -469,6 +485,15 @@ func _apply_battle_start() -> String:
 		if not _is_battle or scenario not in Scenario.NAMES:
 			return "unknown SCREENSHOT_SCENARIO '%s' (%s)" % [scenario, ", ".join(Scenario.NAMES)]
 		_battle.set("scenario_name", scenario)
+	var terrain := OS.get_environment("SCREENSHOT_TERRAIN")
+	if terrain != "" and _is_staff_map:
+		_battle.set("terrain_viewer", true)  # the bare map of the terrain viewer's picker
+	elif terrain != "" and _battle is TerrainViewController:
+		var parts := terrain.split(":")
+		if parts.size() != 2:
+			return "invalid SCREENSHOT_TERRAIN '%s' (<col>:<row>)" % terrain
+		var hex := MapGenerator.offset_to_axial(parts[0].to_int(), parts[1].to_int())
+		_battle.set("setup", TerrainViewSetup.build(StaffMap.DEFAULT_MAP, hex))
 	var contact := OS.get_environment("SCREENSHOT_CONTACT")
 	if contact != "":
 		var setup := _contact_setup(contact) if _is_battle else null
