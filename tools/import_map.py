@@ -96,6 +96,10 @@ zlib in `land_cover` (ImportedMap) or per chunk in `cover` (TacticalChunk). The 
 counts of the raster cells inside each hex, so the view can draw the real outlines and the rules still see one type
 per hex. Operational maps have no raster.
 
+Field parcels (TASK-215a, ADR 0032; tactical only, opt-in `--parcels`): the real farmland / meadow / orchard polygons
+split by roads, tracks, hedges and fences (tools/import_map_parcels.py; splitters from `<cache>/osm/pc1_<bbox>.json`
+or `--parcel-osm`), written as the `parcel_*` fields. Without the flag the output is unchanged.
+
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
 """
@@ -121,6 +125,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import import_map_colour as colour  # noqa: E402
+import import_map_parcels as parcels  # noqa: E402
 
 DEFAULT_CACHE = Path(os.path.expanduser("~/.cache/eastern-flank/maps"))
 DEM_URL = "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif"
@@ -2268,6 +2273,8 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
         at = lines.index("sources = %s" % _string(sources)) + 1
         lines[at:at] = colour_fields(colour) + [
             'colour_jpg = PackedByteArray("%s")' % base64.b64encode(colour["jpg"]).decode("ascii")]
+    if result.get("parcels"):
+        lines[-1:-1] = parcels.parcel_fields(result["parcels"])
     layers = result.get("layers")
     if layers:
         at = lines.index("sources = %s" % _string(sources)) + 1
@@ -2288,6 +2295,34 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="\n") as out:
         out.write("\n".join(lines))
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Field parcels (TASK-215a, ADR 0032; tools/import_map_parcels.py).
+
+PARCEL_TAG_TABLE = [("landuse", {"farmland": "A", "meadow": "G", "orchard": "O"})]
+PARCEL_LANDUSE_BY_CLASS = {"A": "farmland", "G": "meadow", "O": "orchard"}
+
+
+def map_parcels(layout: HexLayout, zone: int, osm: dict, splitter_osm: dict) -> List[dict]:
+    """The parcels (`parcels.build_parcels`) of every farmland / meadow / orchard area of the land-cover answer that
+    reaches into the map's hexes, cut by the splitters of both answers; vertices in whole metres east / south of tile
+    (0, 0)'s centre. Parcels wholly outside the hexes are dropped."""
+    def project(lat: float, lon: float) -> Tuple[float, float]:
+        e, n = to_utm(lat, lon, zone)
+        return e - layout.origin_e, n - layout.origin_n
+
+    min_e, min_n, max_e, max_n = layout.bounds()
+    x0, x1, y0, y1 = min_e - layout.origin_e, max_e - layout.origin_e, min_n - layout.origin_n, max_n - layout.origin_n
+    areas = []
+    for cls, rings in osm_areas(osm, PARCEL_TAG_TABLE):
+        local = [[project(lat, lon) for lat, lon in ring] for ring in rings]
+        xs, ys = [p[0] for r in local for p in r], [p[1] for r in local for p in r]
+        if max(xs) >= x0 and min(xs) <= x1 and max(ys) >= y0 and min(ys) <= y1:
+            areas.append((PARCEL_LANDUSE_BY_CLASS[cls], local))
+    found = parcels.build_parcels(areas, parcels.osm_splitters([osm, splitter_osm], project))
+    return [p for p in found if max(x for x, _ in p["rings"][0]) >= x0 and min(x for x, _ in p["rings"][0]) <= x1
+            and max(-z for _, z in p["rings"][0]) >= y0 and min(-z for _, z in p["rings"][0]) <= y1]  # fmt: skip
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2615,10 +2650,15 @@ def run(argv: Sequence[str]) -> Path:
                             colour.COLOUR_CELL_TACTICAL_M, colour.COLOUR_CELL_LAYER_M))  # fmt: skip
     parser.add_argument("--colour-quality", type=int, default=colour.COLOUR_QUALITY, help="JPEG quality (1-100)")
     parser.add_argument("--s2-manifest", help="Sentinel-2 scene manifest instead of the cache (band files next to it)")
+    parser.add_argument("--parcels", action="store_true",
+                        help="add the real field parcel polygons (tactical only, TASK-215a, ADR 0032)")
+    parser.add_argument("--parcel-osm", help="Overpass JSON of the parcel splitters instead of the cache")
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
     if args.colour and profile is OPERATIONAL:
         parser.error("--colour needs --profile=tactical or layer")
+    if args.parcels and profile is not TACTICAL:
+        parser.error("--parcels needs --profile=tactical")
     try:
         countries = parse_countries(args.countries)
     except ValueError as error:
@@ -2686,6 +2726,10 @@ def run(argv: Sequence[str]) -> Path:
     place_files = None
     if profile is OPERATIONAL and not args.osm:
         place_files = places_tile_paths(cache, south, west, north, east, args.offline, args.tile_deg)
+    parcel_osm = None
+    if args.parcels:
+        parcel_osm = Path(args.parcel_osm) if args.parcel_osm else parcels.parcel_osm_path(
+            cache, south, west, north, east, args.offline, _fetch_answer)  # fmt: skip
     downloaded = time.time()
     settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
                         args.urban_share, args.forest_share, args.marsh_share,
@@ -2722,6 +2766,9 @@ def run(argv: Sequence[str]) -> Path:
         result["colour"] = raster
         print("Colour layer: %dx%d px of %.0f m from %s; %.2f MB" % (raster["width"], raster["height"], colour_cell,
               ", ".join(raster["scenes"]), len(raster["jpg"]) / 1e6))  # fmt: skip
+    if parcel_osm is not None:
+        result["parcels"] = map_parcels(layout, zone, _load_osm(osm), _load_osm(parcel_osm))
+        print(parcels.parcel_stats(result["parcels"]))
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():

@@ -238,34 +238,41 @@ static func parcels_of_block(bx: int, bz: int) -> Array:
 
 ## Bakes the farmland of `grid` (hex size `hex_size`) over `rect_units` (world units) into a
 ## ParcelMap, or returns null when the grid has no FIELDS tile (then the terrain shader stays
-## off). `shares` as in kind().
+## off). `shares` as in kind(). `real` (TASK-215b, the `true` look of a map with parcel polygons)
+## paints the real parcels over the strips (RealParcels.paint: the image becomes RGB8); without
+## it the result is exactly what it was before.
 static func bake(
 	grid: HexGrid,
 	hex_size: float,
 	rect_units: Rect2,
 	metres_per_pixel: float = DEFAULT_METRES_PER_PIXEL,
 	shares: Dictionary = {},
-	look: CoverLook = null
+	look: CoverLook = null,
+	real: RealParcels = null
 ) -> ParcelMap:
 	if look != null:
-		return _bake_cover(look, rect_units, metres_per_pixel, shares)
-	var any_field := false
+		return _bake_cover(look, rect_units, metres_per_pixel, shares, real)
+	var any_field := real != null
 	for c in grid.coords():
 		if grid.get_terrain(c) == Terrain.Type.FIELDS:
 			any_field = true
 			break
 	if not any_field:
 		return null
-	return _bake(grid, hex_size, null, rect_units, metres_per_pixel, shares)
+	return _bake(grid, hex_size, null, rect_units, metres_per_pixel, shares, real)
 
 
 ## bake() on a land-cover raster: no hex type is read.
 static func _bake_cover(
-	look: CoverLook, rect_units: Rect2, metres_per_pixel: float, shares: Dictionary
+	look: CoverLook,
+	rect_units: Rect2,
+	metres_per_pixel: float,
+	shares: Dictionary,
+	real: RealParcels
 ) -> ParcelMap:
-	if not look.cover.cells().has(LandCover.Kind.FIELD):
+	if real == null and not look.cover.cells().has(LandCover.Kind.FIELD):
 		return null
-	return _bake(null, 0.0, look, rect_units, metres_per_pixel, shares)
+	return _bake(null, 0.0, look, rect_units, metres_per_pixel, shares, real)
 
 
 ## The parcels of bake(): the votes and the erasing read `look` when set, else `grid`'s types.
@@ -275,7 +282,8 @@ static func _bake(
 	look: CoverLook,
 	rect_units: Rect2,
 	metres_per_pixel: float,
-	shares: Dictionary
+	shares: Dictionary,
+	real: RealParcels = null
 ) -> ParcelMap:
 	if shares.is_empty():
 		shares = shares_of(LookPreset.fields())
@@ -290,7 +298,9 @@ static func _bake(
 	var rect_m := Rect2(map.origin_m, Vector2(width, height) * metres_per_pixel)
 	var first := Vector2i((rect_m.position / BLOCK_M).floor())
 	var last := Vector2i((rect_m.end / BLOCK_M).floor())
-	for bx in range(first.x, last.x + 1):
+	# The real parcels' fill covers all open land: no strips under it (TASK-215b).
+	var strips := real == null or not real.fill_on
+	for bx in range(first.x, last.x + 1 if strips else first.x):
 		for bz in range(first.y, last.y + 1):
 			for parcel: Dictionary in parcels_of_block(bx, bz):
 				var rect: Rect2 = parcel["rect"]
@@ -346,6 +356,9 @@ static func _bake(
 							_pixels(balk, map.origin_m, metres_per_pixel, bounds),
 							Color(Kind.BALK / 255.0, green, 0.0)
 						)
+	if real != null:
+		# The real parcels (TASK-215b) over the strips; the strips stay where no polygon is.
+		real.paint(map, shares, look)
 	if look != null:
 		# The FIELD outline clips the parcels where they are read (ParcelMap.look, the shader).
 		map.look = look
@@ -428,6 +441,28 @@ static func _field_share_cover(look: CoverLook, rect: Rect2, scale_m: float) -> 
 			if look.cover.class_at(x, z) == LandCover.Kind.FIELD:
 				hits += 1
 	return float(hits) / (nx * nz)
+
+
+## The blue value of a real parcel's pixel (RealParcels.paint) for rows in the direction
+## `angle` (radians, [0, PI)): 1..254; 0 marks a strip pixel.
+static func angle_code(angle: float) -> int:
+	return 1 + clampi(floori(fposmod(angle, PI) / PI * 254.0), 0, 253)
+
+
+## The row direction (radians) a blue value of angle_code stands for (the shader's twin).
+static func code_angle(code: int) -> float:
+	return (code - 0.5) / 254.0 * PI
+
+
+## Integer hash of four ints (32 bits), the parcels' only source of "randomness".
+static func hash4(a: int, b: int, c: int, d: int) -> int:
+	return _hash(a, b, c, d)
+
+
+## The crop kind of `key` by the cumulative `shares`, leaving out the `banned` kinds when any
+## share is left (crop_of's rule).
+static func pick(key: int, shares: Dictionary, banned: Array) -> int:
+	return _pick(key, shares, banned)
 
 
 ## Pixels whose centre lies inside `rect` (metres), clipped to `bounds`.

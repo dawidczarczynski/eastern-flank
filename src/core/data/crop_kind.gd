@@ -17,6 +17,10 @@ extends Resource
 @export var harvest_tone: Color = Color.WHITE
 ## Weight of the kind in the region mix (the weights are normalised).
 @export var weight: float = 1.0
+## Coarse stripes along the rows (tramlines, swaths, furrow bands; TASK-215b): their period in
+## real metres (0 = none) and the brightness swing, readable at mid zoom where the rows are not.
+@export var stripe_m: float = 0.0
+@export_range(0.0, 0.5) var stripe_contrast: float = 0.0
 ## The parcel keeps the grass ground look instead of a crop colour (meadow / fallow).
 @export var ground_look: bool = false
 ## Grass clump keep factor on the parcel (GrassPlanner): 0 on every crop, 1 on meadow.

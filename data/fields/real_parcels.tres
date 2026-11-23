@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="RealParcelLook" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/core/data/real_parcel_look.gd" id="1_look"]
+
+[resource]
+script = ExtResource("1_look")
+large_parcel_ha = 5.0
+fill_cell_m = 650.0
+fill_jitter = 0.35
+fill_target_ha = 4.0
+fill_size_spread = 0.6
+min_parcel_ha = 0.15
+system_hedge_share = 0.7
+split_hedge_share = 0.3
+track_m = 7.0
+hedge_step_m = 12.0
+hedge_gap_chance = 0.2
+hedge_tree_chance = 0.7
+satellite_hue = 0.15
+crop_tint = 0.12
+crop_saturation = 1.2

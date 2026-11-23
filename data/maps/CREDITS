@@ -57,6 +57,12 @@ of 250 m, UTM 34N. Real data, downloaded 2026-10-31:
   offline from the same cached inputs, same command with --offline.
   Colour layer added 2026-11-22 (TASK-192a): same command with --colour (10 m, JPEG quality 85);
   Sentinel-2 scene S2B_T34UFF_20240824T094545_L2A (2024-08-24); the hex data is unchanged.
+  Field parcels added 2026-11-23 (TASK-215a, ADR 0032): same command with --colour --parcels
+  (and --offline once cached); the farmland / meadow / orchard areas of the OSM extract above, split
+  by the roads, tracks, hedges, tree rows, fences and walls of a second Overpass answer for the same
+  bbox (cache file pc1_54.20580_22.81264_54.26417_22.94746.json, downloaded 2026-11-23). Map data
+  (c) OpenStreetMap contributors, ODbL 1.0; the parcel polygons are a derivative database of it and
+  are available under the ODbL 1.0 as well. The hex data and the colour layer are unchanged.
 
 suwalki_theatre.tres – the operational theatre around the Suwalki Gap (north-east Poland, the
 Kaliningrad oblast, southern Lithuania, western Belarus), 68x64 hexes of 5 km, UTM 34N for the
@@ -112,5 +118,5 @@ meadows, grass, grassland, heath, scrub - for the fields terrain). Imported 2026
   (the committed layer was built with --offline added, after the lu1 tiles were downloaded;
   a re-download gets today's OpenStreetMap, so the result may differ from the committed files)
 
-The test maps tests/fixtures/maps/sample_map.tres, sample_colour_map.tres, sample_layer/ and
-sample_op_map.tres are built from SYNTHETIC fixtures (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.
+The test maps tests/fixtures/maps/sample_map.tres, sample_colour_map.tres, sample_parcel_map.tres,
+sample_layer/ and sample_op_map.tres are built from SYNTHETIC fixtures (tools/import_map_fixtures/, see tools/test_import_map.py) – no real data.

@@ -1,0 +1,98 @@
+{
+ "elements": [
+  {
+   "id": 5001,
+   "lat": 54.1972,
+   "lon": 22.906,
+   "type": "node"
+  },
+  {
+   "id": 5002,
+   "lat": 54.1974,
+   "lon": 22.915,
+   "type": "node"
+  },
+  {
+   "id": 101,
+   "nodes": [
+    5001,
+    5002
+   ],
+   "tags": {
+    "barrier": "hedge"
+   },
+   "type": "way"
+  },
+  {
+   "id": 5003,
+   "lat": 54.201,
+   "lon": 22.9088,
+   "type": "node"
+  },
+  {
+   "id": 5004,
+   "lat": 54.1935,
+   "lon": 22.9083,
+   "type": "node"
+  },
+  {
+   "id": 102,
+   "nodes": [
+    5003,
+    5004
+   ],
+   "tags": {
+    "highway": "track"
+   },
+   "type": "way"
+  },
+  {
+   "id": 5005,
+   "lat": 54.1945,
+   "lon": 22.914,
+   "type": "node"
+  },
+  {
+   "id": 5006,
+   "lat": 54.2,
+   "lon": 22.914,
+   "type": "node"
+  },
+  {
+   "id": 103,
+   "nodes": [
+    5005,
+    5006
+   ],
+   "tags": {
+    "barrier": "fence"
+   },
+   "type": "way"
+  },
+  {
+   "id": 5007,
+   "lat": 54.195,
+   "lon": 22.9075,
+   "type": "node"
+  },
+  {
+   "id": 5008,
+   "lat": 54.196,
+   "lon": 22.9085,
+   "type": "node"
+  },
+  {
+   "id": 104,
+   "nodes": [
+    5007,
+    5008
+   ],
+   "tags": {
+    "natural": "tree_row"
+   },
+   "type": "way"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

@@ -115,6 +115,9 @@ var land_cover: LandCover
 ## The satellite colour layer of the map (TASK-192b, BattleCover.colour_for_battle), set before
 ## build(); null (no layer, or not the `true` VisualScale preset): the textured look only.
 var satellite: SatelliteColour
+## The real field parcels of the map (TASK-215b, BattleCover.parcels_for_battle), set before
+## build(); null (no polygons, or not the `true` VisualScale preset): the procedural strips only.
+var real_parcels: RealParcels
 ## Chunk plans and the coarse terrain run on the worker threads; off: on the caller's thread,
 ## same result.
 var threads := true
@@ -247,9 +250,10 @@ func build(grid: HexGrid) -> void:
 	_parcels = null
 	var bake_rect := rect.grow(PARCEL_MARGIN)
 	var baked: Array = [null]
+	var real := real_parcels
 	var bake := func() -> void:
 		var mpp := FieldParcels.DEFAULT_METRES_PER_PIXEL
-		baked[0] = FieldParcels.bake(grid, hex_size, bake_rect, mpp, {}, _look)
+		baked[0] = FieldParcels.bake(grid, hex_size, bake_rect, mpp, {}, _look, real)
 	var bake_task := -1
 	if threads:
 		bake_task = WorkerThreadPool.add_task(bake, true, "Farmland parcels")

@@ -153,6 +153,21 @@ static func detail_texture() -> ImageTexture:
 ## the crop colours of LookPreset.fields(), or off for null (a map without fields).
 static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	material.set_shader_parameter(&"parcels_on", parcels != null)
+	var edges := parcels.edges_texture() if parcels != null else null
+	material.set_shader_parameter(&"parcel_edges_on", edges != null)
+	material.set_shader_parameter(&"parcel_real", edges != null)
+	if edges != null:
+		material.set_shader_parameter(&"parcel_edges", edges)
+		material.set_shader_parameter(&"parcel_mpp", parcels.metres_per_pixel)
+		material.set_shader_parameter(
+			&"parcel_balk_half_m",
+			Vector4(
+				0.0,
+				RealParcels.balk_half_m(1),
+				RealParcels.balk_half_m(2),
+				RealParcels.balk_half_m(3)
+			)
+		)
 	material.set_shader_parameter(&"cover_on", parcels != null and parcels.look != null)
 	if parcels == null:
 		return
@@ -171,6 +186,7 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	var rows := PackedVector2Array()
 	var harvest := PackedVector3Array()
 	var ground := PackedFloat32Array()
+	var stripes := PackedVector2Array()
 	for k in FieldParcels.CROPS.size():
 		var entry: Dictionary = look["balk"]
 		if k in FieldParcels.CROP_KINDS:
@@ -180,6 +196,7 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 		rows.append(Vector2(entry.get("spacing_m", 1000.0), entry.get("plant_frac", 1.0)))
 		harvest.append(_linear(entry.get("harvest", entry["plant"])))
 		ground.append(1.0 if entry.get("ground_look", false) else 0.0)
+		stripes.append(Vector2(entry.get("stripe_m", 0.0), entry.get("stripe_contrast", 0.0)))
 	material.set_shader_parameter(&"parcel_map", parcels.texture())
 	var rect := parcels.rect_units()
 	material.set_shader_parameter(
@@ -190,6 +207,7 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	material.set_shader_parameter(&"crop_plant", plant)
 	material.set_shader_parameter(&"crop_furrow", furrow)
 	material.set_shader_parameter(&"crop_row", rows)
+	material.set_shader_parameter(&"crop_stripe", stripes)
 	_set_true_look(material, look, rect, harvest, ground)
 	material.set_shader_parameter(&"parcel_brightness", look["parcel_brightness"])
 	material.set_shader_parameter(&"parcel_hue", look["parcel_hue"])
@@ -197,6 +215,12 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	# Same limit as the grass: ground steeper than GrassPlanner.MAX_SLOPE stays bare.
 	var steep := 1.0 - 1.0 / sqrt(1.0 + GrassPlanner.MAX_SLOPE * GrassPlanner.MAX_SLOPE)
 	material.set_shader_parameter(&"parcel_slope", Vector2(steep * 0.75, steep * 1.3))
+	if edges != null and VisualScale.is_true_size():
+		# Real parcels (TASK-215b): strong own colours, only a little of the satellite's hue.
+		var real_look := RealParcelLook.load_default()
+		material.set_shader_parameter(&"crop_tint", real_look.crop_tint)
+		material.set_shader_parameter(&"crop_saturation", real_look.crop_saturation)
+		material.set_shader_parameter(&"parcel_satellite_hue", real_look.satellite_hue)
 
 
 ## The `true` farmland look of TASK-200 (CropLook twins): off for `balanced`, where the shader
@@ -228,6 +252,7 @@ static func _set_true_look(
 	material.set_shader_parameter(
 		&"headland_uv", Vector2(headland / rect.size.x, headland / rect.size.y)
 	)
+	material.set_shader_parameter(&"headland_m", look["headland_m"])
 	material.set_shader_parameter(&"headland_dark", look["headland_dark"])
 	material.set_shader_parameter(&"headland_fade_m", look["headland_fade_m"])
 

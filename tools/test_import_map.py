@@ -539,6 +539,9 @@ def make_fixtures() -> None:
         import_map.run(ColourLayerTest.ARGS + ["--out=%s" % SAMPLE_LAYER])
     finally:
         import_map.LAYER_CHUNK = chunk
+    PARCEL_OSM_FIXTURE.write_text(json.dumps(fixture_parcel_osm(), indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    import_map.run(SAMPLE_PARCEL_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                         "--parcel-osm=%s" % PARCEL_OSM_FIXTURE, "--out=%s" % SAMPLE_PARCEL_MAP])
     for case in COUNTRY_CASES:
         (FIXTURES / ("country_%s.json" % case)).write_text(json.dumps(fixture_country_osm(case), indent=1, sort_keys=True) + "\n",
                                                            encoding="utf-8")  # fmt: skip
@@ -2497,6 +2500,235 @@ class ColourLayerTest(unittest.TestCase):
         for name in sorted(f.name for f in SAMPLE_LAYER.iterdir()):
             text = (SAMPLE_LAYER / name).read_text(encoding="utf-8")
             self.assertIn("colour_cell_m = 40.0" if name == "layer.tres" else "colour_jpg = PackedByteArray", text)
+
+
+# Field parcels (TASK-215a, ADR 0032): OSM farmland / meadow / orchard areas split by tracks, hedges and fences.
+SAMPLE_PARCEL_MAP = REPO / "tests" / "fixtures" / "maps" / "sample_parcel_map.tres"
+PARCEL_OSM_FIXTURE = FIXTURES / "sample_parcel_osm.json"
+SAMPLE_PARCEL_ARGS = ["--center=54.2,22.9", "--size=6x5", "--hex=250", "--name=sample_parcel_map",
+                      "--display-name=Sample with parcels (synthetic)", "--parcels"]  # fmt: skip
+
+
+def fixture_parcel_osm() -> dict:
+    """Synthetic answer of `parcel_query` for the sample map: splitters of the farmland way 7 of `fixture_osm`
+    (54.1945-54.2000 N, 22.9070-22.9140 E; its secondary road way 9 crosses it too): a hedge across it west to east,
+    a track across it north to south, a fence only along its east edge and a tree row ending inside it."""
+    elements = []
+    next_node = [5000]
+
+    def line(points: list) -> list:
+        ids = []
+        for lat, lon in points:
+            next_node[0] += 1
+            elements.append({"type": "node", "id": next_node[0], "lat": lat, "lon": lon})
+            ids.append(next_node[0])
+        return ids
+
+    elements.append({"type": "way", "id": 101, "nodes": line([(54.1972, 22.9060), (54.1974, 22.9150)]),
+                     "tags": {"barrier": "hedge"}})  # fmt: skip
+    elements.append({"type": "way", "id": 102, "nodes": line([(54.2010, 22.9088), (54.1935, 22.9083)]),
+                     "tags": {"highway": "track"}})  # fmt: skip
+    elements.append({"type": "way", "id": 103, "nodes": line([(54.1945, 22.9140), (54.2000, 22.9140)]),
+                     "tags": {"barrier": "fence"}})  # fmt: skip
+    elements.append({"type": "way", "id": 104, "nodes": line([(54.1950, 22.9075), (54.1960, 22.9085)]),
+                     "tags": {"natural": "tree_row"}})  # fmt: skip
+    return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
+
+
+def _ring_area(ring: list) -> float:
+    return 0.5 * sum(ring[k - 1][0] * ring[k][1] - ring[k][0] * ring[k - 1][1] for k in range(len(ring)))
+
+
+def _parcel_area(parcel: dict) -> float:
+    return abs(_ring_area(parcel["rings"][0])) - sum(abs(_ring_area(r)) for r in parcel["rings"][1:])
+
+
+def _box(x0: float, y0: float, x1: float, y1: float) -> list:
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+
+class ParcelSplitTest(unittest.TestCase):
+    """`import_map.parcels.build_parcels`: local metres in (x east, y north), parcels out in whole metres (x, z south)."""
+
+    def _build(self, rings: list, splitters: list, landuse: str = "farmland") -> list:
+        return import_map.parcels.build_parcels([(landuse, rings)], splitters)
+
+    def test_a_40_ha_field_crossed_by_a_track_becomes_two_parcels(self) -> None:
+        field = _box(0.0, 0.0, 800.0, 500.0)  # 40 ha
+        track = ("track", [(310.0, -50.0), (290.0, 550.0)])
+        parcels = self._build([field], [track])
+        self.assertEqual(len(parcels), 2)
+        total = sum(_parcel_area(p) for p in parcels)
+        self.assertAlmostEqual(total / 400000.0, 1.0, delta=0.01)
+        for parcel in parcels:
+            self.assertEqual(parcel["landuse"], "farmland")
+            self.assertEqual(len(parcel["rings"]), 1)
+            self.assertEqual(parcel["kinds"][0].count("track"), 1, "the cut edge lies on the track")
+            self.assertEqual(len(parcel["kinds"][0]), len(parcel["rings"][0]), "one kind per edge")
+
+    def test_vertices_are_whole_metres_x_east_z_south(self) -> None:
+        parcels = self._build([_box(10.4, 20.0, 110.0, 120.6)], [])
+        self.assertEqual(len(parcels), 1)
+        ring = parcels[0]["rings"][0]
+        self.assertTrue(all(isinstance(v, int) for p in ring for v in p))
+        self.assertEqual(sorted(ring), [(10, -121), (10, -20), (110, -121), (110, -20)])
+
+    def test_a_hole_stays_out_of_the_parcel(self) -> None:
+        field = _box(0.0, 0.0, 600.0, 600.0)
+        wood = _box(200.0, 200.0, 300.0, 300.0)
+        parcels = self._build([field, wood], [])
+        self.assertEqual(len(parcels), 1)
+        self.assertEqual(len(parcels[0]["rings"]), 2)
+        self.assertAlmostEqual(_parcel_area(parcels[0]), 360000.0 - 10000.0, delta=1.0)
+        outer, hole = parcels[0]["rings"]
+        self.assertLess(_ring_area(outer) * _ring_area(hole), 0.0, "the hole runs the other way round")
+
+    def test_a_track_beside_the_hole_splits_and_the_hole_goes_to_its_side(self) -> None:
+        field = _box(0.0, 0.0, 600.0, 600.0)
+        wood = _box(400.0, 200.0, 500.0, 300.0)
+        parcels = self._build([field, wood], [("track", [(300.0, -20.0), (300.0, 620.0)])])
+        self.assertEqual(sorted(len(p["rings"]) for p in parcels), [1, 2])
+        self.assertAlmostEqual(sum(_parcel_area(p) for p in parcels), 360000.0 - 10000.0, delta=1.0)
+
+    def test_a_track_through_the_hole_splits_the_field_around_it(self) -> None:
+        field = _box(0.0, 0.0, 600.0, 600.0)
+        wood = _box(250.0, 250.0, 350.0, 350.0)
+        parcels = self._build([field, wood], [("track", [(300.0, -20.0), (300.0, 620.0)])])
+        self.assertEqual(len(parcels), 2)
+        self.assertTrue(all(len(p["rings"]) == 1 for p in parcels))
+        self.assertAlmostEqual(sum(_parcel_area(p) for p in parcels), 360000.0 - 10000.0, delta=1.0)
+
+    def test_a_hedge_along_an_edge_does_not_split_and_marks_the_edge(self) -> None:
+        field = _box(0.0, 0.0, 400.0, 300.0)
+        for hedge in ([(-20.0, 300.0), (420.0, 300.0)], [(-20.0, 302.0), (420.0, 302.0)],
+                      [(-20.0, 298.5), (180.0, 301.5), (420.0, 298.5)]):  # fmt: skip
+            parcels = self._build([field], [("hedge", hedge)])
+            self.assertEqual(len(parcels), 1, hedge)
+            ring, kinds = parcels[0]["rings"][0], parcels[0]["kinds"][0]
+            north = [k for k in range(len(ring)) if ring[k][1] == -300 and ring[(k + 1) % len(ring)][1] == -300]
+            self.assertEqual(len(north), 1, hedge)
+            self.assertEqual(kinds[north[0]], "hedge", hedge)
+            self.assertEqual(sorted(kinds).count("plain"), len(kinds) - 1, hedge)
+
+    def test_a_hedge_across_the_field_splits_it(self) -> None:
+        field = _box(0.0, 0.0, 400.0, 300.0)
+        parcels = self._build([field], [("hedge", [(-10.0, 150.0), (410.0, 160.0)])])
+        self.assertEqual(len(parcels), 2)
+        for parcel in parcels:
+            self.assertEqual(parcel["kinds"][0].count("hedge"), 1)
+            self.assertEqual(parcel["kinds"][0].count("plain"), 3)
+
+    def test_a_line_ending_inside_does_not_split(self) -> None:
+        field = _box(0.0, 0.0, 400.0, 300.0)
+        parcels = self._build([field], [("track", [(200.0, -10.0), (200.0, 200.0)]),
+                                        ("hedge", [(50.0, 50.0), (150.0, 100.0)])])  # fmt: skip
+        self.assertEqual(len(parcels), 1)
+        self.assertEqual(len(parcels[0]["rings"][0]), 4, "no vertex added where the track enters")
+
+    def test_two_crossing_tracks_make_four_parcels_and_a_fence_cuts_plain(self) -> None:
+        field = _box(0.0, 0.0, 400.0, 300.0)
+        parcels = self._build([field], [("track", [(200.0, -10.0), (200.0, 310.0)]),
+                                        ("track", [(-10.0, 150.0), (410.0, 150.0)])])  # fmt: skip
+        self.assertEqual(len(parcels), 4)
+        self.assertAlmostEqual(sum(_parcel_area(p) for p in parcels), 120000.0, delta=1.0)
+        fenced = self._build([field], [("plain", [(200.0, -10.0), (200.0, 310.0)])])
+        self.assertEqual(len(fenced), 2)
+        self.assertTrue(all(set(p["kinds"][0]) == {"plain"} for p in fenced))
+
+    def test_a_track_through_a_shared_vertex_and_along_an_edge(self) -> None:
+        # the track comes in along the south edge, turns at the corner (200, 0) and leaves through the top
+        field = [(0.0, 0.0), (200.0, 0.0), (400.0, 0.0), (400.0, 300.0), (0.0, 300.0)]
+        parcels = self._build([field], [("track", [(-10.0, 0.0), (200.0, 0.0), (200.0, 310.0)])])
+        self.assertEqual(len(parcels), 2)
+        self.assertEqual(sorted(p["kinds"][0].count("track") for p in parcels), [1, 2],
+                         "the cut, and the south edge of the west parcel only")  # fmt: skip
+
+    def test_slivers_between_parallel_lines_are_dropped(self) -> None:
+        field = _box(0.0, 0.0, 400.0, 300.0)
+        parcels = self._build([field], [("track", [(200.0, -10.0), (200.0, 310.0)]),
+                                        ("hedge", [(203.0, -10.0), (203.0, 310.0)])])  # fmt: skip
+        self.assertEqual(len(parcels), 2)
+
+    def test_order_and_values_do_not_depend_on_the_input_order(self) -> None:
+        a = _box(0.0, 0.0, 400.0, 300.0)
+        b = _box(500.0, 0.0, 900.0, 300.0)
+        lines = [("track", [(200.0, -10.0), (200.0, 310.0)]), ("hedge", [(700.0, -10.0), (700.0, 310.0)])]
+        one = import_map.parcels.build_parcels([("farmland", [a]), ("meadow", [b])], lines)
+        two = import_map.parcels.build_parcels([("meadow", [b]), ("farmland", [a])], list(reversed(lines)))
+        self.assertEqual(one, two)
+        self.assertEqual([p["landuse"] for p in one].count("meadow"), 2)
+
+    def test_splitter_kinds_from_tags(self) -> None:
+        kind = import_map.parcels.splitter_kind
+        self.assertEqual(kind({"highway": "track"}), "track")
+        self.assertEqual(kind({"highway": "service"}), "track")
+        self.assertEqual(kind({"highway": "unclassified"}), "track")
+        self.assertEqual(kind({"barrier": "hedge"}), "hedge")
+        self.assertEqual(kind({"natural": "tree_row"}), "hedge")
+        self.assertEqual(kind({"barrier": "fence"}), "plain")
+        self.assertEqual(kind({"barrier": "wall"}), "plain")
+        self.assertIsNone(kind({"highway": "footway"}))
+        self.assertIsNone(kind({"waterway": "stream"}))
+        self.assertIsNone(kind({"highway": "track", "area": "yes"}))
+
+    def test_query_asks_for_the_splitters(self) -> None:
+        query = import_map.parcels.parcel_query(54.0, 22.0, 54.1, 22.1)
+        for text in ("hedge", "tree_row", "fence", "wall", "track", "service", "unclassified", "residential"):
+            self.assertIn(text, query)
+
+
+class ParcelMapTest(unittest.TestCase):
+    """The parcel fields of a tactical map from the synthetic fixtures (`--parcels`)."""
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _import(self, name: str, *extra: str) -> Path:
+        out = self.dir / name
+        import_map.run(SAMPLE_PARCEL_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                             "--parcel-osm=%s" % PARCEL_OSM_FIXTURE, "--out=%s" % out] + list(extra))  # fmt: skip
+        return out
+
+    def test_byte_identical_and_matches_the_committed_sample(self) -> None:
+        a, b = self._import("a.tres"), self._import("b.tres")
+        self.assertEqual(a.read_bytes(), b.read_bytes())
+        self.assertEqual(a.read_text(encoding="utf-8"), SAMPLE_PARCEL_MAP.read_text(encoding="utf-8"),
+                         "re-run tools/test_import_map.py --make-fixtures")  # fmt: skip
+
+    def test_committed_parcel_fixture_is_current(self) -> None:
+        self.assertEqual(json.loads(PARCEL_OSM_FIXTURE.read_text(encoding="utf-8")),
+                         json.loads(json.dumps(fixture_parcel_osm())))  # fmt: skip
+
+    def test_only_parcel_lines_are_added(self) -> None:
+        with_parcels = self._import("p.tres").read_text(encoding="utf-8").splitlines()
+        plain = SAMPLE_MAP.read_text(encoding="utf-8").splitlines()
+        added = [line for line in with_parcels if line not in plain]
+        self.assertTrue(added)
+        self.assertTrue(all(line.startswith("parcel_") or line.startswith("id = ") or line.startswith("display_name = ")
+                            for line in added), added)  # fmt: skip
+        self.assertEqual([line for line in plain if line not in with_parcels and not line.startswith(("id = ",
+                          "display_name = "))], [])  # fmt: skip
+
+    def test_the_farmland_is_cut_into_eight_with_edge_kinds(self) -> None:
+        fields = dict(line.split(" = ", 1) for line in self._import("g.tres").read_text(encoding="utf-8").splitlines()
+                      if line.startswith("parcel_"))  # fmt: skip
+        landuse = base64.b64decode(fields["parcel_landuse_codes"][len('PackedByteArray("') : -2])
+        # three strips between the secondary road (way 9) and the hedge, cut by the track; the track of
+        # `fixture_osm` (way 12) cuts the two north-east pieces once more and ends south of the hedge (no cut there)
+        self.assertEqual(list(landuse), [0] * 8, "eight farmland parcels")
+        rings = [int(v) for v in fields["parcel_rings"][len("PackedInt32Array(") : -1].split(", ")]
+        self.assertEqual(rings, [1] * 8)
+        kinds = base64.b64decode(fields["parcel_edge_codes"][len('PackedByteArray("') : -2])
+        self.assertIn(import_map.parcels.EDGE_KINDS.index("hedge"), kinds)
+        self.assertIn(import_map.parcels.EDGE_KINDS.index("track"), kinds)
+        self.assertIn(import_map.parcels.EDGE_KINDS.index("plain"), kinds)
+
+    def test_offline_without_the_parcel_cache_fails(self) -> None:
+        with self.assertRaises(SystemExit):
+            import_map.parcels.parcel_osm_path(self.dir, 54.0, 22.0, 54.1, 22.1, True)
 
 
 if __name__ == "__main__":

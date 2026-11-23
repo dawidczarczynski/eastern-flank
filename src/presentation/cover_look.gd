@@ -20,6 +20,16 @@ const NOISE_FINE_AMPLITUDE := 0.3
 const SOFT_EDGE := 0.2
 const NOISE_SALT := 0x108A
 const FINE_SALT := 0x108B
+## The cover Kinds a real field parcel (TASK-215b) shows on, as bits (1 << Kind): open land,
+## grass, field, orchard, scrub and bare ground, not forest, water, villages or marsh.
+const PARCEL_KINDS_MASK := (
+	(1 << LandCover.Kind.OPEN)
+	| (1 << LandCover.Kind.GRASS)
+	| (1 << LandCover.Kind.FIELD)
+	| (1 << LandCover.Kind.ORCHARD)
+	| (1 << LandCover.Kind.SCRUB)
+	| (1 << LandCover.Kind.BARE)
+)
 
 var cover: LandCover
 var _cells := PackedByteArray()
@@ -101,6 +111,41 @@ func kind_weight(kind: int, x: float, z: float) -> float:
 	if _cells[j2 * _width + i2] == kind:
 		w += fu * fv
 	return w
+
+
+## Bilinear weight (0..1) of the cover Kinds whose bits are set in `mask` (1 << Kind) at world
+## (x, z), as kind_weight; beyond the raster the OPEN bit decides.
+func kinds_weight(mask: int, x: float, z: float) -> float:
+	if not _rect.has_point(Vector2(x, z)):
+		return 1.0 if (mask & (1 << LandCover.Kind.OPEN)) != 0 else 0.0
+	var u := clampf((x - _origin.x) * _inverse_cell, 0.0, _width - 1)
+	var v := clampf((z - _origin.y) * _inverse_cell, 0.0, _height - 1)
+	var i := mini(floori(u), _width - 1)
+	var j := mini(floori(v), _height - 1)
+	var fu := u - i
+	var fv := v - j
+	var i2 := mini(i + 1, _width - 1)
+	var j2 := mini(j + 1, _height - 1)
+	var w := 0.0
+	if (mask & (1 << _cells[j * _width + i])) != 0:
+		w += (1.0 - fu) * (1.0 - fv)
+	if (mask & (1 << _cells[j * _width + i2])) != 0:
+		w += fu * (1.0 - fv)
+	if (mask & (1 << _cells[j2 * _width + i])) != 0:
+		w += (1.0 - fu) * fv
+	if (mask & (1 << _cells[j2 * _width + i2])) != 0:
+		w += fu * fv
+	return w
+
+
+## Whether a real field parcel shows at world (x, z) (TASK-215b): inside the noisy outline of
+## the PARCEL_KINDS_MASK kinds, i.e. not under the forest, water, village or marsh a separate
+## OSM area maps over the farmland. The shader's twin is in_cover(xz, COVER_PARCEL_MASK).
+func allows_parcel(x: float, z: float) -> bool:
+	var w := kinds_weight(PARCEL_KINDS_MASK, x, z)
+	if w <= 0.0 or w >= 1.0:
+		return w > 0.5
+	return w + edge_noise(x, z) > 0.5
 
 
 ## Whether world (x, z) lies inside the noisy outline of the cover Kind `kind` (as is_forest).

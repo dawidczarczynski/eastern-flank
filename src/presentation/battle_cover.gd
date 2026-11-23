@@ -30,6 +30,20 @@ static func colour_for_battle(
 	return SatelliteColour.for_map(where[0], where[1], MARGIN)
 
 
+## The real field parcels (TASK-215b, RealParcels) of the battle's imported map; null when the map
+## has no parcel polygons (generated maps, tactical layers) or the `true` VisualScale preset is
+## off (`balanced` keeps the procedural strips).
+static func parcels_for_battle(
+	setup: BattleSetup, scenario_name: String, seed_value: int
+) -> RealParcels:
+	var where := battle_map(setup, scenario_name, seed_value)
+	if not VisualScale.is_true_size() or where[0] == BattleSetup.MAP_GENERATED_RIVER:
+		return null
+	if TacticalLayer.find(where[0]) != null:
+		return null
+	return RealParcels.from_imported(ImportedMap.find(where[0]))
+
+
 ## [map id (StringName), map region (Rect2i)] of the battle of `setup` or of the scenario.
 static func battle_map(setup: BattleSetup, scenario_name: String, seed_value: int) -> Array:
 	var map_id := BattleSetup.MAP_GENERATED_RIVER

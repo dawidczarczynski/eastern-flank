@@ -49,6 +49,12 @@ const COVER_WATER := 6
 const WATER_VALUE := 255
 ## `relief` value of flat ground (255 * sin 45°: the sun stands 45° high in the north-west).
 const RELIEF_FLAT := 180
+## Edge kinds of a parcel edge (`parcel_edge_kinds`, TASK-215a): what runs along it.
+const PARCEL_EDGE_PLAIN := 0
+const PARCEL_EDGE_TRACK := 1
+const PARCEL_EDGE_HEDGE := 2
+## Land use of a parcel by its `parcel_landuse_codes` value.
+const PARCEL_LANDUSES: Array[StringName] = [&"farmland", &"meadow", &"orchard"]
 
 @export var id: StringName
 @export var display_name: String
@@ -163,9 +169,28 @@ const RELIEF_FLAT := 180
 ## 8-bit PNG: hillshade of the DEM (RELIEF_FLAT on flat ground, brighter facing the north-west).
 @export var layer_relief_png: PackedByteArray
 
+## Real field parcels of a tactical map (TASK-215a, ADR 0032 "Real field parcel boundaries"): the
+## OSM farmland / meadow / orchard polygons split by roads, tracks, hedges, tree rows and fences.
+## Vertices in whole metres east (x) and south (z) of tile (0, 0)'s centre, the frame of `sample`.
+## Parcel i has `parcel_rings[i]` rings (the first the outer one, counter-clockwise seen from above
+## with north up; then its holes, the other way round); ring r has `parcel_ring_sizes[r]` vertices,
+## stored in `parcel_points` as x, z pairs, in parcel and ring order; `parcel_edge_codes` has one
+## PARCEL_EDGE_* per vertex (the edge from it to the next vertex of its ring). Only the view reads
+## them. Empty = none (operational and older maps). Read them with `parcel_count`,
+## `parcel_polygon`, `parcel_edge_kinds` and `parcel_landuse`.
+@export var parcel_landuse_codes: PackedByteArray
+@export var parcel_rings: PackedInt32Array
+@export var parcel_ring_sizes: PackedInt32Array
+@export var parcel_points: PackedInt32Array
+@export var parcel_edge_codes: PackedByteArray
+
 ## The decoded colour layer (first use decodes it, then it is kept).
 var _colour: ColourRaster
 var _colour_tried := false
+## First ring of each parcel and first vertex of each ring (plus one past the end), built on the
+## first parcel read.
+var _parcel_first_ring := PackedInt32Array()
+var _ring_first_point := PackedInt32Array()
 
 
 ## The map data/maps/<map_id>.tres; null when there is none (or the id is not a plain name).
@@ -195,7 +220,10 @@ func problem() -> String:
 	var country_problem := _countries_problem()
 	if country_problem != "":
 		return country_problem
-	return _places_problem()
+	var places_problem := _places_problem()
+	if places_problem != "":
+		return places_problem
+	return _parcels_problem()
 
 
 func _size_problem() -> String:
@@ -596,3 +624,87 @@ func colour_raster() -> ColourRaster:
 func sample(x_m: float, z_m: float) -> Color:
 	var raster := colour_raster()
 	return raster.sample(x_m, z_m) if raster != null else Color(0.0, 0.0, 0.0, 0.0)
+
+
+## True when the map carries field parcels (TASK-215a).
+func has_parcels() -> bool:
+	return not parcel_rings.is_empty()
+
+
+func parcel_count() -> int:
+	return parcel_rings.size()
+
+
+## Parcel `index` as rings of metres (Vector2(x east, z south) of tile (0, 0)'s centre): the outer
+## ring first, then its holes; a ring is not closed (its last vertex joins the first).
+func parcel_polygon(index: int) -> Array[PackedVector2Array]:
+	_index_parcels()
+	var rings: Array[PackedVector2Array] = []
+	for ring in range(_parcel_first_ring[index], _parcel_first_ring[index + 1]):
+		var points := PackedVector2Array()
+		for k in range(_ring_first_point[ring], _ring_first_point[ring + 1]):
+			points.append(Vector2(parcel_points[2 * k], parcel_points[2 * k + 1]))
+		rings.append(points)
+	return rings
+
+
+## PARCEL_EDGE_* of every edge of parcel `index`, per ring like `parcel_polygon` (edge k runs from
+## vertex k to the next one).
+func parcel_edge_kinds(index: int) -> Array[PackedByteArray]:
+	_index_parcels()
+	var kinds: Array[PackedByteArray] = []
+	for ring in range(_parcel_first_ring[index], _parcel_first_ring[index + 1]):
+		kinds.append(parcel_edge_codes.slice(_ring_first_point[ring], _ring_first_point[ring + 1]))
+	return kinds
+
+
+## &"farmland", &"meadow" or &"orchard".
+func parcel_landuse(index: int) -> StringName:
+	return PARCEL_LANDUSES[parcel_landuse_codes[index]]
+
+
+func _index_parcels() -> void:
+	if _parcel_first_ring.size() == parcel_rings.size() + 1:
+		return
+	_parcel_first_ring = PackedInt32Array([0])
+	for count in parcel_rings:
+		_parcel_first_ring.append(_parcel_first_ring[-1] + count)
+	_ring_first_point = PackedInt32Array([0])
+	for size in parcel_ring_sizes:
+		_ring_first_point.append(_ring_first_point[-1] + size)
+
+
+## The parcel arrays agree in length; every parcel has a ring, every ring three vertices; codes
+## known.
+func _parcels_problem() -> String:
+	var count := parcel_rings.size()
+	if parcel_landuse_codes.size() != count:
+		return "%d parcel landuse codes for %d parcels" % [parcel_landuse_codes.size(), count]
+	var rings := 0
+	for n in parcel_rings:
+		if n < 1:
+			return "a parcel without rings"
+		rings += n
+	if parcel_ring_sizes.size() != rings:
+		return "%d parcel ring sizes for %d rings" % [parcel_ring_sizes.size(), rings]
+	return _parcel_points_problem()
+
+
+func _parcel_points_problem() -> String:
+	var points := 0
+	for n in parcel_ring_sizes:
+		if n < 3:
+			return "a parcel ring with %d vertices" % n
+		points += n
+	if parcel_points.size() != 2 * points or parcel_edge_codes.size() != points:
+		return (
+			"%d parcel coordinates and %d edge kinds for %d vertices"
+			% [parcel_points.size(), parcel_edge_codes.size(), points]
+		)
+	for code in parcel_edge_codes:
+		if code > PARCEL_EDGE_HEDGE:
+			return "unknown parcel edge kind %d" % code
+	for code in parcel_landuse_codes:
+		if code >= PARCEL_LANDUSES.size():
+			return "unknown parcel landuse %d" % code
+	return ""

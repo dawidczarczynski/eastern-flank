@@ -791,6 +791,75 @@ static func _at(p: Vector2) -> Vector3:
 	return Vector3(p.x, 0.0, p.y)
 
 
+## Tree lines along the real parcels' hedges (TASK-215b, ParcelMap.hedge_lines): an item every
+## RealParcelLook.hedge_step_m on the hedge balk (none where the land cover masks it), by hash of
+## the line and step; appended to `trees` / `shrubs` in plan_hedges' format.
+static func _plan_parcel_hedges(
+	surface: TerrainSurface,
+	parcels: ParcelMap,
+	area: Rect2,
+	within: Rect2,
+	trees: Array[Dictionary],
+	shrubs: Array[Dictionary]
+) -> void:
+	var lines := parcels.hedge_lines()
+	if lines.is_empty():
+		return
+	var settings := RealParcelLook.load_default()
+	var scale_m := MapScale.metres_per_unit
+	var limited := within.has_area()
+	var reach := area.grow(FieldParcels.BALK_M)
+	for j in lines.size():
+		var line := lines[j]
+		for k in line.size() - 1:
+			var a := line[k]
+			var b := line[k + 1]
+			if not reach.intersects(Rect2(a, Vector2.ZERO).expand(b)):
+				continue
+			var length := a.distance_to(b)
+			var dir := (b - a) / maxf(length, 1e-6)
+			var side := Vector2(-dir.y, dir.x)
+			var steps := floori(length / settings.hedge_step_m)
+			for i in steps:
+				var h1 := FieldParcels.unit_hash(j, k, i, 21)
+				var h2 := FieldParcels.unit_hash(j, k, i, 22)
+				var h3 := FieldParcels.unit_hash(j, k, i, 23)
+				if h3 < settings.hedge_gap_chance:
+					continue
+				var p := (
+					a
+					+ dir * (i + 0.3 + 0.4 * h1) * settings.hedge_step_m
+					+ side * (h2 - 0.5) * 0.4 * FieldParcels.BALK_M
+				)
+				if not area.has_point(p):
+					continue
+				if parcels.kind_at_metres(p.x, p.y) != FieldParcels.Kind.BALK:
+					continue
+				var x := p.x / scale_m
+				var z := p.y / scale_m
+				if limited and not in_rect(Vector3(x, 0.0, z), within):
+					continue
+				var y := surface.ground_height(x, z)
+				if y < MIN_TREE_GROUND:
+					continue
+				var h4 := FieldParcels.unit_hash(j, k, i, 24)
+				var is_tree := h4 < settings.hedge_tree_chance
+				var s := (0.55 + 0.4 * h1) if is_tree else (0.8 + 0.5 * h2)
+				var item := {
+					"position": Vector3(x, y - TREE_SINK, z),
+					"scale": s,
+					"height_scale": s * (0.9 + h2 * 0.3),
+					"yaw": h1 * 6.0,
+					"conifer": false,
+					"k": h4,
+				}
+				if is_tree:
+					trees.append(item)
+				else:
+					item["species"] = SHRUB
+					shrubs.append(item)
+
+
 ## Hedgerow trees and shrubs on the balks of some farmland strips (TASK-108f), by position hash
 ## (no RNG stream): {"trees": [...], "edge_shrubs": [...]} in the formats of plan(), for the
 ## playable map only (the planned ring around it has no parcels of its own).
@@ -842,7 +911,11 @@ static func plan_hedges(
 					var across := line + (h2 - 0.5) * 0.6 * FieldParcels.BALK_M
 					var x_m := along if along_x else across
 					var z_m := across if along_x else along
-					if parcels.kind_at_metres(x_m, z_m) != FieldParcels.Kind.BALK:
+					if (
+						parcels.kind_at_metres(x_m, z_m) != FieldParcels.Kind.BALK
+						or parcels.is_real_at_metres(x_m, z_m)
+					):
+						# Only a strip's balk (a real parcel's hedge balk is TASK-199's).
 						continue
 					var x := x_m / scale_m
 					var z := z_m / scale_m
@@ -866,6 +939,7 @@ static func plan_hedges(
 					else:
 						tree["species"] = SHRUB
 						shrubs.append(tree)
+	_plan_parcel_hedges(surface, parcels, area, within, trees, shrubs)
 	if grid.has_links():
 		var kept_trees: Array[Dictionary] = []
 		kept_trees.assign(FeatureRibbonPlanner.without_ribbons(grid, trees))

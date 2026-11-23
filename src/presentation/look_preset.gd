@@ -718,6 +718,8 @@ static func _merge_catalog(crops: Dictionary) -> void:
 			"grass_keep": kind.grass_keep,
 			"harvest": kind.harvest_tone,
 			"ground_look": kind.ground_look,
+			"stripe_m": kind.stripe_m,
+			"stripe_contrast": kind.stripe_contrast,
 		}
 
 

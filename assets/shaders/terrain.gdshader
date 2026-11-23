@@ -69,11 +69,32 @@ uniform float bed_darkening = 0.6;
 uniform float bed_depth = 0.6;
 
 // Farmland parcel map (FieldParcels.bake, RG8): kind in red, parcel id * 2 + row orientation
-// (1 = rows run along x) in green. parcel_rect = (x, z, 1 / width, 1 / height) in world units.
+// (1 = rows run along x) in green. With real parcels (TASK-215b, RGB8) blue > 0 marks a real
+// parcel: blue - 1 is its row direction (FieldParcels.angle_code) and the land cover masks it by
+// COVER_PARCEL_MASK instead of the FIELD outline. parcel_rect = (x, z, 1 / width, 1 / height) in world units.
 // Off (the default battle) when the map has no fields.
 uniform bool parcels_on = false;
+// Real parcels (TASK-215b): the exact edges (RealParcels.edge_image, RGB8 like parcel_map): per
+// texel near an edge its line (red: 1 + angle code, green: signed distance of the texel centre,
+// +-PARCEL_EDGE_RANGE_M metres over the coarser PARCEL_EDGE_TEXEL texels, blue: 1 + edge kind), so edges are the straight polygon edges at
+// every zoom instead of 5 m texel steps; balk half width (metres) per blue code.
+uniform bool parcel_edges_on = false;
+uniform sampler2D parcel_edges : filter_nearest, repeat_disable, hint_default_black;
+uniform vec4 parcel_balk_half_m = vec4(0.0, 0.0, 3.5, 5.0);
+// Real parcels (TASK-215b) show: on a real parcel the satellite layer only lends this share of its
+// hue (at the crop's own luminance) at every distance instead of taking over far away, so the
+// parcels keep their edges and contrast (RealParcelLook.satellite_hue).
+uniform bool parcel_real = false;
+uniform float parcel_satellite_hue = 0.15;
+// Per kind: coarse stripes along the rows (period in m, brightness swing; CropKind.stripe_m).
+uniform vec2 crop_stripe[10];
+// RealParcels.EDGE_TEXEL / EDGE_RANGE_M.
+const float PARCEL_EDGE_TEXEL = 2.0;
+const float PARCEL_EDGE_RANGE_M = 15.0;
 uniform sampler2D parcel_map : filter_nearest, repeat_disable, hint_default_black;
 uniform vec4 parcel_rect = vec4(0.0, 0.0, 1.0, 1.0);
+// Metres per parcel map texel.
+uniform float parcel_mpp = 5.0;
 uniform float metres_per_unit = 144.34;
 // Per kind: plant and furrow colour (linear) and (row spacing in m, plant width fraction).
 uniform vec3 crop_plant[10];
@@ -103,6 +124,8 @@ uniform vec2 row_distance_m = vec2(50.0, 150.0);
 // Headland: width in parcel-map uv (x, z), brightness factor, and the camera distance (m) it fades by.
 uniform vec2 headland_uv = vec2(0.0);
 uniform float headland_dark = 0.78;
+// The headland width in metres (real parcels: measured from the exact edge).
+uniform float headland_m = 6.0;
 uniform float headland_fade_m = 300.0;
 
 // Land-cover raster (TASK-108g, ADR 0028; CoverLook): with cover_on the crops show only inside the
@@ -114,6 +137,8 @@ uniform sampler2D land_cover : filter_nearest, repeat_disable, hint_default_blac
 uniform vec4 cover_frame = vec4(0.0, 0.0, 1.0, 0.0);
 // CoverLook constants (tests/unit/test_cover_look.gd compares them).
 const int COVER_FIELD = 2;
+// CoverLook.PARCEL_KINDS_MASK: the kinds a real parcel (TASK-215b) shows on.
+const int COVER_PARCEL_MASK = 903;
 const float COVER_NOISE_CELLS = 2.5;
 const float COVER_NOISE_FINE_CELLS = 0.9;
 const float COVER_NOISE_AMPLITUDE = 0.6;
@@ -150,29 +175,35 @@ float cover_value_noise(vec2 p, float spacing, uint salt) {
 	return mix(a, b, f.y);
 }
 
-// CoverLook.has_kind(FIELD, x, z).
-bool in_field_cover(vec2 xz) {
+// CoverLook.kinds_weight / has_kind for the cover Kinds whose bits (1 << Kind) are set in `mask`:
+// inside their noisy outline. Beyond the raster the OPEN bit decides (CoverLook.world_rect).
+bool in_cover(vec2 xz, int mask) {
 	ivec2 size = textureSize(land_cover, 0);
 	float cell = cover_frame.z;
 	vec2 raw = (xz - cover_frame.xy) / cell;
 	if (any(lessThan(raw, vec2(-0.5))) || any(greaterThanEqual(raw, vec2(size) - 0.5))) {
-		return false; // beyond the raster: open land (CoverLook.world_rect)
+		return (mask & 1) != 0;
 	}
 	vec2 uv = clamp(raw, vec2(0.0), vec2(size - 1));
 	ivec2 i = min(ivec2(floor(uv)), size - 1);
 	vec2 f = uv - vec2(i);
 	ivec2 j = min(i + 1, size - 1);
 	float w = 0.0;
-	w += int(texelFetch(land_cover, i, 0).r * 255.0 + 0.5) == COVER_FIELD ? (1.0 - f.x) * (1.0 - f.y) : 0.0;
-	w += int(texelFetch(land_cover, ivec2(j.x, i.y), 0).r * 255.0 + 0.5) == COVER_FIELD ? f.x * (1.0 - f.y) : 0.0;
-	w += int(texelFetch(land_cover, ivec2(i.x, j.y), 0).r * 255.0 + 0.5) == COVER_FIELD ? (1.0 - f.x) * f.y : 0.0;
-	w += int(texelFetch(land_cover, j, 0).r * 255.0 + 0.5) == COVER_FIELD ? f.x * f.y : 0.0;
+	w += ((mask >> int(texelFetch(land_cover, i, 0).r * 255.0 + 0.5)) & 1) != 0 ? (1.0 - f.x) * (1.0 - f.y) : 0.0;
+	w += ((mask >> int(texelFetch(land_cover, ivec2(j.x, i.y), 0).r * 255.0 + 0.5)) & 1) != 0 ? f.x * (1.0 - f.y) : 0.0;
+	w += ((mask >> int(texelFetch(land_cover, ivec2(i.x, j.y), 0).r * 255.0 + 0.5)) & 1) != 0 ? (1.0 - f.x) * f.y : 0.0;
+	w += ((mask >> int(texelFetch(land_cover, j, 0).r * 255.0 + 0.5)) & 1) != 0 ? f.x * f.y : 0.0;
 	if (w <= 0.0 || w >= 1.0) {
 		return w > 0.5;
 	}
 	float noise = (cover_value_noise(xz, cell * COVER_NOISE_CELLS, COVER_NOISE_SALT) - 0.5) * COVER_NOISE_AMPLITUDE
 		+ (cover_value_noise(xz, cell * COVER_NOISE_FINE_CELLS, COVER_FINE_SALT) - 0.5) * COVER_NOISE_FINE_AMPLITUDE;
 	return w + noise > 0.5;
+}
+
+// CoverLook.has_kind(FIELD, x, z).
+bool in_field_cover(vec2 xz) {
+	return in_cover(xz, 1 << COVER_FIELD);
 }
 
 float value_noise(vec2 p) {
@@ -300,6 +331,38 @@ vec3 triplanar_detail(float repeat, vec3 pos, vec3 dpx, vec3 dpy, vec3 wn, out v
 	return normalize(nx.zyx * blend.x + ny.xzy * blend.y + nz.xyz * blend.z);
 }
 
+// ParcelMap.label_at_metres: the parcel map's texel at `puv` (`pm`, already sampled), or next to
+// a real parcel edge the texel 1.5 texels beyond the exact edge line on the point's side, BALK
+// within the balk half width of a track / hedge edge. `edge_m`: metres from the edge (beyond its
+// balk), large when no edge is near.
+vec4 parcel_label(vec2 puv, vec4 pm, out float edge_m) {
+	edge_m = 1e6;
+	ivec2 size = textureSize(parcel_map, 0);
+	ivec2 e_size = textureSize(parcel_edges, 0);
+	vec2 p = clamp(puv, vec2(0.0), vec2(0.9999)) * vec2(size) * parcel_mpp;
+	float edge_mpp = parcel_mpp * PARCEL_EDGE_TEXEL;
+	ivec2 i = clamp(ivec2(floor(p / edge_mpp)), ivec2(0), e_size - 1);
+	vec4 e = texelFetch(parcel_edges, i, 0);
+	float code = floor(e.r * 255.0 + 0.5);
+	if (code < 0.5) {
+		return pm;
+	}
+	float a = (code - 0.5) / 254.0 * PI;
+	vec2 normal_dir = vec2(-sin(a), cos(a));
+	float d = dot(p - (vec2(i) + 0.5) * edge_mpp, normal_dir) + (e.g * 2.0 - 1.0) * PARCEL_EDGE_RANGE_M;
+	float side = d >= 0.0 ? 1.0 : -1.0;
+	vec2 q_m = p - normal_dir * d + normal_dir * side * 1.5 * parcel_mpp;
+	ivec2 q = clamp(ivec2(floor(q_m / parcel_mpp)), ivec2(0), size - 1);
+	vec4 label = texelFetch(parcel_map, q, 0);
+	int kind = int(e.b * 255.0 + 0.5);
+	float half_m = parcel_balk_half_m[clamp(kind, 0, 3)];
+	edge_m = abs(d) - half_m;
+	if (abs(d) < half_m) {
+		label = vec4(8.0 / 255.0, label.g, max(label.b, 1.0 / 255.0), label.a);
+	}
+	return label;
+}
+
 // 1 when the parcel map holds a balk (kind 8) at `puv`, else 0 (the headland lies next to it).
 float parcel_balk(vec2 puv) {
 	float k = textureLod(parcel_map, clamp(puv, vec2(0.0), vec2(0.9999)), 0.0).r * 255.0;
@@ -402,14 +465,22 @@ void fragment() {
 	rough_ao /= total;
 	n = normalize(vec3(n.xy * normal_strength, max(n.z, 1e-3)));
 
+	// How much of the colour is a real parcel's own (parcel_satellite_hue applies there).
+	float parcel_keep = 0.0;
 	if (parcels_on) {
 		// World-space derivatives before any divergent branch.
 		vec2 xz_m = xz * metres_per_unit;
 		vec2 fw_m = fwidth(xz_m);
 		vec2 puv = (xz - parcel_rect.xy) * parcel_rect.zw;
 		vec4 pm = textureLod(parcel_map, clamp(puv, vec2(0.0), vec2(0.9999)), 0.0);
+		float edge_m = 1e6;
+		if (parcel_edges_on) {
+			pm = parcel_label(puv, pm, edge_m);
+		}
 		int kind = int(pm.r * 255.0 + 0.5);
-		if (cover_on && kind > 0 && !in_field_cover(xz)) {
+		float angle_code = floor(pm.b * 255.0 + 0.5);
+		bool real_parcel = angle_code > 0.5;
+		if (cover_on && kind > 0 && !(real_parcel ? in_cover(xz, COVER_PARCEL_MASK) : in_field_cover(xz))) {
 			kind = 0;
 		}
 		if (kind > 0 && kind < PARCEL_KINDS && puv.x >= 0.0 && puv.y >= 0.0 && puv.x < 1.0 && puv.y < 1.0) {
@@ -418,6 +489,13 @@ void fragment() {
 			float pid = floor(g * 0.5) / 127.0;
 			float across = mix(xz_m.x, xz_m.y, rows_along_x);
 			float across_px = mix(fw_m.x, fw_m.y, rows_along_x);
+			if (real_parcel) {
+				// FieldParcels.code_angle: rows along (cos a, sin a), measured across them.
+				float a = (angle_code - 0.5) / 254.0 * PI;
+				vec2 normal_dir = vec2(-sin(a), cos(a));
+				across = dot(xz_m, normal_dir);
+				across_px = abs(normal_dir.x) * fw_m.x + abs(normal_dir.y) * fw_m.y;
+			}
 			vec2 row = crop_row[kind];
 			float t = across / row.x;
 			float ft = across_px / row.x;
@@ -446,6 +524,15 @@ void fragment() {
 				// Stronger colour, tinted towards the satellite layer at the parcel's own scale,
 				// mottled by a large-scale noise, a darker headland strip next to the balks.
 				crop = mix(vec3(dot(crop, vec3(0.2126, 0.7152, 0.0722))), crop, crop_saturation);
+				vec2 stripe = crop_stripe[kind];
+				float stripe_w = across_px / max(stripe.x, 1e-3);
+				if (stripe.x > 0.0 && !is_balk && stripe_w < 0.5) {
+					// Coarse stripes along the rows (tramlines, swaths), faded where under ~2 px.
+					float wave = abs(fract(across / stripe.x) - 0.5) * 2.0;
+					float band = smoothstep(0.55 - stripe_w, 0.55 + stripe_w, wave);
+					float keep = 1.0 - smoothstep(0.25, 0.5, stripe_w);
+					crop *= 1.0 + stripe.y * (2.0 * band - 1.0) * keep;
+				}
 				if (satellite_on && !is_balk) {
 					vec2 suv = (xz - satellite_rect.xy) * satellite_rect.zw;
 					vec3 layer = textureLod(satellite_map, clamp(suv, vec2(0.0), vec2(1.0)), crop_tint_lod).rgb;
@@ -454,9 +541,15 @@ void fragment() {
 				float mottle = value_noise(xz * crop_mottle_frequency) * 0.65 + value_noise(xz * crop_mottle_frequency * 2.3 + 11.0) * 0.35;
 				crop *= 1.0 + crop_mottle * (2.0 * mottle - 1.0);
 				if (!is_balk && view_m < headland_fade_m) {
-					float next_to_balk = max(
-							max(parcel_balk(puv + vec2(headland_uv.x, 0.0)), parcel_balk(puv - vec2(headland_uv.x, 0.0))),
-							max(parcel_balk(puv + vec2(0.0, headland_uv.y)), parcel_balk(puv - vec2(0.0, headland_uv.y))));
+					float next_to_balk = 0.0;
+					if (real_parcel) {
+						// Along every exact edge of a real parcel (plain edges too).
+						next_to_balk = edge_m < headland_m ? 1.0 : 0.0;
+					} else {
+						next_to_balk = max(
+								max(parcel_balk(puv + vec2(headland_uv.x, 0.0)), parcel_balk(puv - vec2(headland_uv.x, 0.0))),
+								max(parcel_balk(puv + vec2(0.0, headland_uv.y)), parcel_balk(puv - vec2(0.0, headland_uv.y))));
+					}
 					float fade = 1.0 - smoothstep(0.5 * headland_fade_m, headland_fade_m, view_m);
 					crop *= mix(1.0, headland_dark, next_to_balk * fade);
 				}
@@ -472,6 +565,9 @@ void fragment() {
 				cover = 0.0;
 			}
 			albedo = mix(albedo, crop, cover);
+			if (real_parcel && parcel_real) {
+				parcel_keep = cover;
+			}
 		}
 	}
 
@@ -496,7 +592,14 @@ void fragment() {
 	albedo *= 1.0 + macro_brightness * (2.0 * macro - 1.0);
 	// Satellite colour: a luminance-preserving tint near the camera, the layer itself far away.
 	if (satellite_on) {
-		albedo = satellite_ground(albedo, satellite, view_distance);
+		vec3 ground_colour = satellite_ground(albedo, satellite, view_distance);
+		if (parcel_keep > 0.0) {
+			// A real parcel keeps its own colour and edges; the 10 m layer would blur them.
+			vec3 own = mix(albedo, satellite_hue(albedo, satellite.rgb), parcel_satellite_hue * satellite.a);
+			albedo = mix(ground_colour, own, parcel_keep);
+		} else {
+			albedo = ground_colour;
+		}
 	}
 	float lum = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
 	albedo = mix(vec3(lum), albedo, vertex_tint.y) * vertex_tint.x;
