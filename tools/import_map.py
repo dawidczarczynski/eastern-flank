@@ -100,6 +100,10 @@ Field parcels (TASK-215a, ADR 0032; tactical only, opt-in `--parcels`): the real
 split by roads, tracks, hedges and fences (tools/import_map_parcels.py; splitters from `<cache>/osm/pc1_<bbox>.json`
 or `--parcel-osm`), written as the `parcel_*` fields. Without the flag the output is unchanged.
 
+Tree features (TASK-199a; tactical only, opt-in `--trees`): the real single trees, tree rows, orchards and farmyards
+(tools/import_map_trees.py; from `<cache>/osm/tr1_<bbox>.json` or `--tree-osm`), written as the `tree_*`,
+`orchard_*` and `farmyard_*` fields after the parcels. Without the flag the output is unchanged.
+
 Output: a Godot text resource of class ImportedMap (src/core/data/imported_map.gd). The same inputs give a
 byte-identical file: elements are processed in sorted order and every number is written with fixed decimals.
 """
@@ -126,6 +130,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import import_map_colour as colour  # noqa: E402
 import import_map_parcels as parcels  # noqa: E402
+import import_map_trees as trees  # noqa: E402
 
 DEFAULT_CACHE = Path(os.path.expanduser("~/.cache/eastern-flank/maps"))
 DEM_URL = "https://copernicus-dem-30m.s3.amazonaws.com/{name}/{name}.tif"
@@ -2275,6 +2280,8 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
             'colour_jpg = PackedByteArray("%s")' % base64.b64encode(colour["jpg"]).decode("ascii")]
     if result.get("parcels"):
         lines[-1:-1] = parcels.parcel_fields(result["parcels"])
+    if result.get("trees"):
+        lines[-1:-1] = trees.tree_fields(result["trees"])
     layers = result.get("layers")
     if layers:
         at = lines.index("sources = %s" % _string(sources)) + 1
@@ -2323,6 +2330,36 @@ def map_parcels(layout: HexLayout, zone: int, osm: dict, splitter_osm: dict) -> 
     found = parcels.build_parcels(areas, parcels.osm_splitters([osm, splitter_osm], project))
     return [p for p in found if max(x for x, _ in p["rings"][0]) >= x0 and min(x for x, _ in p["rings"][0]) <= x1
             and max(-z for _, z in p["rings"][0]) >= y0 and min(-z for _, z in p["rings"][0]) <= y1]  # fmt: skip
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Tree features (TASK-199a; tools/import_map_trees.py).
+
+TREE_TAG_TABLE = [("landuse", {"orchard": "O", "farmyard": "U"})]
+TREE_AREA_BY_CLASS = {"O": "orchard", "U": "farmyard"}
+
+
+def map_trees(layout: HexLayout, zone: int, tree_osm: dict) -> dict:
+    """The tree features (`trees.build_tree_features`) of the tree answer that reach into the map's hexes; vertices
+    in whole metres east / south of tile (0, 0)'s centre."""
+    def project(lat: float, lon: float) -> Tuple[float, float]:
+        e, n = to_utm(lat, lon, zone)
+        return e - layout.origin_e, n - layout.origin_n
+
+    min_e, min_n, max_e, max_n = layout.bounds()
+    rect = (min_e - layout.origin_e, min_n - layout.origin_n, max_e - layout.origin_e, max_n - layout.origin_n)
+    areas = [(TREE_AREA_BY_CLASS[cls], [[project(lat, lon) for lat, lon in ring] for ring in rings])
+             for cls, rings in osm_areas(tree_osm, TREE_TAG_TABLE)]  # fmt: skip
+    return trees.build_tree_features(trees.osm_tree_points(tree_osm, project), trees.osm_tree_rows(tree_osm, project),
+                                     areas, rect)  # fmt: skip
+
+
+def tree_stats(layout: HexLayout, result: dict) -> str:
+    def in_forest(x: int, z: int) -> bool:
+        tile = layout.tile_at(layout.origin_e + x, layout.origin_n - z)
+        return tile is not None and result["tiles"][tile]["terrain"] == "forest"
+
+    return trees.tree_stats(result["trees"], in_forest)
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -2653,12 +2690,17 @@ def run(argv: Sequence[str]) -> Path:
     parser.add_argument("--parcels", action="store_true",
                         help="add the real field parcel polygons (tactical only, TASK-215a, ADR 0032)")
     parser.add_argument("--parcel-osm", help="Overpass JSON of the parcel splitters instead of the cache")
+    parser.add_argument("--trees", action="store_true",
+                        help="add the real trees, tree rows, orchards and farmyards (tactical only, TASK-199a)")
+    parser.add_argument("--tree-osm", help="Overpass JSON of the tree features instead of the cache")
     args = parser.parse_args(argv)
     profile = PROFILES[args.profile]
     if args.colour and profile is OPERATIONAL:
         parser.error("--colour needs --profile=tactical or layer")
     if args.parcels and profile is not TACTICAL:
         parser.error("--parcels needs --profile=tactical")
+    if args.trees and profile is not TACTICAL:
+        parser.error("--trees needs --profile=tactical")
     try:
         countries = parse_countries(args.countries)
     except ValueError as error:
@@ -2730,6 +2772,10 @@ def run(argv: Sequence[str]) -> Path:
     if args.parcels:
         parcel_osm = Path(args.parcel_osm) if args.parcel_osm else parcels.parcel_osm_path(
             cache, south, west, north, east, args.offline, _fetch_answer)  # fmt: skip
+    tree_osm = None
+    if args.trees:
+        tree_osm = Path(args.tree_osm) if args.tree_osm else trees.tree_osm_path(
+            cache, south, west, north, east, args.offline, _fetch_answer)  # fmt: skip
     downloaded = time.time()
     settings = Settings(profile, args.sample, args.hills_relief, args.canopy, args.exaggeration, args.water_share,
                         args.urban_share, args.forest_share, args.marsh_share,
@@ -2769,6 +2815,9 @@ def run(argv: Sequence[str]) -> Path:
     if parcel_osm is not None:
         result["parcels"] = map_parcels(layout, zone, _load_osm(osm), _load_osm(parcel_osm))
         print(parcels.parcel_stats(result["parcels"]))
+    if tree_osm is not None:
+        result["trees"] = map_trees(layout, zone, _load_osm(tree_osm))
+        print(tree_stats(layout, result))
     write_tres(out, args.name, args.display_name or args.name, layout, zone, result, map_bbox, sources)
     counts: Dict[str, int] = {}
     for t in result["tiles"].values():

@@ -1,0 +1,244 @@
+{
+ "elements": [
+  {
+   "id": 7001,
+   "lat": 54.2,
+   "lon": 22.899,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7002,
+   "lat": 54.2002,
+   "lon": 22.8993,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7003,
+   "lat": 54.2004,
+   "lon": 22.8996,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7004,
+   "lat": 54.2006,
+   "lon": 22.899900000000002,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7005,
+   "lat": 54.2008,
+   "lon": 22.9002,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7006,
+   "lat": 54.20000449155588,
+   "lon": 22.899,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7007,
+   "lat": 54.21,
+   "lon": 22.9,
+   "tags": {
+    "natural": "tree"
+   },
+   "type": "node"
+  },
+  {
+   "id": 7008,
+   "lat": 54.198,
+   "lon": 22.895,
+   "type": "node"
+  },
+  {
+   "id": 7009,
+   "lat": 54.19802,
+   "lon": 22.89538,
+   "type": "node"
+  },
+  {
+   "id": 7010,
+   "lat": 54.19804,
+   "lon": 22.89577,
+   "type": "node"
+  },
+  {
+   "id": 7011,
+   "lat": 54.19802,
+   "lon": 22.89615,
+   "type": "node"
+  },
+  {
+   "id": 7012,
+   "lat": 54.198,
+   "lon": 22.89653,
+   "type": "node"
+  },
+  {
+   "id": 201,
+   "nodes": [
+    7008,
+    7009,
+    7010,
+    7011,
+    7012
+   ],
+   "tags": {
+    "natural": "tree_row"
+   },
+   "type": "way"
+  },
+  {
+   "id": 7013,
+   "lat": 54.2015,
+   "lon": 22.904,
+   "type": "node"
+  },
+  {
+   "id": 7014,
+   "lat": 54.2015,
+   "lon": 22.905,
+   "type": "node"
+  },
+  {
+   "id": 7015,
+   "lat": 54.202,
+   "lon": 22.905,
+   "type": "node"
+  },
+  {
+   "id": 7016,
+   "lat": 54.202,
+   "lon": 22.904,
+   "type": "node"
+  },
+  {
+   "id": 202,
+   "nodes": [
+    7013,
+    7014,
+    7015,
+    7016,
+    7013
+   ],
+   "tags": {
+    "landuse": "orchard"
+   },
+   "type": "way"
+  },
+  {
+   "id": 7017,
+   "lat": 54.1975,
+   "lon": 22.903,
+   "type": "node"
+  },
+  {
+   "id": 7018,
+   "lat": 54.1975,
+   "lon": 22.905,
+   "type": "node"
+  },
+  {
+   "id": 7019,
+   "lat": 54.1985,
+   "lon": 22.905,
+   "type": "node"
+  },
+  {
+   "id": 7020,
+   "lat": 54.1985,
+   "lon": 22.903,
+   "type": "node"
+  },
+  {
+   "id": 203,
+   "nodes": [
+    7017,
+    7018,
+    7019,
+    7020,
+    7017
+   ],
+   "tags": {
+    "landuse": "farmyard"
+   },
+   "type": "way"
+  },
+  {
+   "id": 7021,
+   "lat": 54.1979,
+   "lon": 22.9038,
+   "type": "node"
+  },
+  {
+   "id": 7022,
+   "lat": 54.1979,
+   "lon": 22.9042,
+   "type": "node"
+  },
+  {
+   "id": 7023,
+   "lat": 54.1981,
+   "lon": 22.9042,
+   "type": "node"
+  },
+  {
+   "id": 7024,
+   "lat": 54.1981,
+   "lon": 22.9038,
+   "type": "node"
+  },
+  {
+   "id": 204,
+   "nodes": [
+    7021,
+    7022,
+    7023,
+    7024,
+    7021
+   ],
+   "type": "way"
+  },
+  {
+   "id": 301,
+   "members": [
+    {
+     "ref": 203,
+     "role": "outer",
+     "type": "way"
+    },
+    {
+     "ref": 204,
+     "role": "inner",
+     "type": "way"
+    }
+   ],
+   "tags": {
+    "landuse": "farmyard",
+    "type": "multipolygon"
+   },
+   "type": "relation"
+  }
+ ],
+ "generator": "synthetic fixture (tools/test_import_map.py)",
+ "version": 0.6
+}

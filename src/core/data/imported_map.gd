@@ -184,6 +184,23 @@ const PARCEL_LANDUSES: Array[StringName] = [&"farmland", &"meadow", &"orchard"]
 @export var parcel_points: PackedInt32Array
 @export var parcel_edge_codes: PackedByteArray
 
+## Real tree features of a tactical map (TASK-199a, `--trees`): OSM single trees, tree rows,
+## orchards and farmyards, in whole metres east (x) and south (z) of tile (0, 0)'s centre like the
+## parcels. `tree_points` holds x, z pairs; tree row i has `tree_row_sizes[i]` vertices in
+## `tree_row_points`; orchards and farmyards are polygons stored like the parcels (`*_rings` rings
+## per polygon, the outer one first and counter-clockwise north up, `*_ring_sizes` vertices per
+## ring, `*_points` x, z pairs). Only the view reads them. Empty = none (operational and older
+## maps). Read them with `tree_point`, `tree_row_polyline`, `orchard_polygon`, `farmyard_polygon`.
+@export var tree_points: PackedInt32Array
+@export var tree_row_sizes: PackedInt32Array
+@export var tree_row_points: PackedInt32Array
+@export var orchard_rings: PackedInt32Array
+@export var orchard_ring_sizes: PackedInt32Array
+@export var orchard_points: PackedInt32Array
+@export var farmyard_rings: PackedInt32Array
+@export var farmyard_ring_sizes: PackedInt32Array
+@export var farmyard_points: PackedInt32Array
+
 ## The decoded colour layer (first use decodes it, then it is kept).
 var _colour: ColourRaster
 var _colour_tried := false
@@ -191,6 +208,10 @@ var _colour_tried := false
 ## first parcel read.
 var _parcel_first_ring := PackedInt32Array()
 var _ring_first_point := PackedInt32Array()
+## First vertex of each tree row (plus one past the end), and per area kind (&"orchard",
+## &"farmyard") [first ring per polygon, first vertex per ring], built on the first read.
+var _row_first_point := PackedInt32Array()
+var _area_index := {}
 
 
 ## The map data/maps/<map_id>.tres; null when there is none (or the id is not a plain name).
@@ -223,7 +244,8 @@ func problem() -> String:
 	var places_problem := _places_problem()
 	if places_problem != "":
 		return places_problem
-	return _parcels_problem()
+	var parcels_problem := _parcels_problem()
+	return parcels_problem if parcels_problem != "" else _trees_problem()
 
 
 func _size_problem() -> String:
@@ -707,4 +729,124 @@ func _parcel_points_problem() -> String:
 	for code in parcel_landuse_codes:
 		if code >= PARCEL_LANDUSES.size():
 			return "unknown parcel landuse %d" % code
+	return ""
+
+
+## True when the map carries tree features (TASK-199a).
+func has_tree_features() -> bool:
+	return not (
+		tree_points.is_empty()
+		and tree_row_sizes.is_empty()
+		and orchard_rings.is_empty()
+		and farmyard_rings.is_empty()
+	)
+
+
+func tree_point_count() -> int:
+	return tree_points.size() / 2
+
+
+## Single tree `index` in metres (Vector2(x east, z south) of tile (0, 0)'s centre).
+func tree_point(index: int) -> Vector2:
+	return Vector2(tree_points[2 * index], tree_points[2 * index + 1])
+
+
+func tree_row_count() -> int:
+	return tree_row_sizes.size()
+
+
+## Tree row `index` as an open polyline of metres (frame of `tree_point`).
+func tree_row_polyline(index: int) -> PackedVector2Array:
+	if _row_first_point.size() != tree_row_sizes.size() + 1:
+		_row_first_point = _first_offsets(tree_row_sizes)
+	var points := PackedVector2Array()
+	for k in range(_row_first_point[index], _row_first_point[index + 1]):
+		points.append(Vector2(tree_row_points[2 * k], tree_row_points[2 * k + 1]))
+	return points
+
+
+func orchard_count() -> int:
+	return orchard_rings.size()
+
+
+## Orchard `index` as rings of metres like `parcel_polygon`: the outer ring, then its holes.
+func orchard_polygon(index: int) -> Array[PackedVector2Array]:
+	return _area_polygon(&"orchard", orchard_rings, orchard_ring_sizes, orchard_points, index)
+
+
+func farmyard_count() -> int:
+	return farmyard_rings.size()
+
+
+## Farmyard `index` as rings of metres like `parcel_polygon`: the outer ring, then its holes.
+func farmyard_polygon(index: int) -> Array[PackedVector2Array]:
+	return _area_polygon(&"farmyard", farmyard_rings, farmyard_ring_sizes, farmyard_points, index)
+
+
+func _area_polygon(
+	kind: StringName,
+	rings: PackedInt32Array,
+	sizes: PackedInt32Array,
+	points: PackedInt32Array,
+	index: int
+) -> Array[PackedVector2Array]:
+	var offsets: Array = _area_index.get(kind, [])
+	if offsets.is_empty() or (offsets[0] as PackedInt32Array).size() != rings.size() + 1:
+		offsets = [_first_offsets(rings), _first_offsets(sizes)]
+		_area_index[kind] = offsets
+	var first_ring: PackedInt32Array = offsets[0]
+	var first_point: PackedInt32Array = offsets[1]
+	var polygon: Array[PackedVector2Array] = []
+	for ring in range(first_ring[index], first_ring[index + 1]):
+		var ring_points := PackedVector2Array()
+		for k in range(first_point[ring], first_point[ring + 1]):
+			ring_points.append(Vector2(points[2 * k], points[2 * k + 1]))
+		polygon.append(ring_points)
+	return polygon
+
+
+## 0 and the running sums of `counts` (the first item of each group, plus one past the end).
+static func _first_offsets(counts: PackedInt32Array) -> PackedInt32Array:
+	var offsets := PackedInt32Array([0])
+	for count in counts:
+		offsets.append(offsets[-1] + count)
+	return offsets
+
+
+## The tree arrays agree in length: x, z pairs; every row two vertices; polygons like the parcels.
+func _trees_problem() -> String:
+	if tree_points.size() % 2 != 0:
+		return "%d tree point coordinates (not pairs)" % tree_points.size()
+	var row_points := 0
+	for n in tree_row_sizes:
+		if n < 2:
+			return "a tree row with %d vertices" % n
+		row_points += n
+	if tree_row_points.size() != 2 * row_points:
+		return "%d tree row coordinates for %d vertices" % [tree_row_points.size(), row_points]
+	var orchard_problem := _area_problem(
+		"orchard", orchard_rings, orchard_ring_sizes, orchard_points
+	)
+	if orchard_problem != "":
+		return orchard_problem
+	return _area_problem("farmyard", farmyard_rings, farmyard_ring_sizes, farmyard_points)
+
+
+static func _area_problem(
+	kind: String, rings: PackedInt32Array, sizes: PackedInt32Array, points: PackedInt32Array
+) -> String:
+	var ring_count := 0
+	for n in rings:
+		if n < 1:
+			return "a %s without rings" % kind
+		ring_count += n
+	if sizes.size() != ring_count:
+		return "%d %s ring sizes for %d rings" % [sizes.size(), kind, ring_count]
+	var point_count := 0
+	for n in sizes:
+		if n < 3:
+			return "a %s ring with %d vertices" % [kind, n]
+		point_count += n
+	if points.size() != 2 * point_count:
+		return "%d %s coordinates for %d vertices" % [points.size(), kind, point_count]
 	return ""

@@ -21,6 +21,7 @@ import tempfile
 import unittest
 import zlib
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import import_map  # noqa: E402
@@ -542,6 +543,9 @@ def make_fixtures() -> None:
     PARCEL_OSM_FIXTURE.write_text(json.dumps(fixture_parcel_osm(), indent=1, sort_keys=True) + "\n", encoding="utf-8")
     import_map.run(SAMPLE_PARCEL_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
                                          "--parcel-osm=%s" % PARCEL_OSM_FIXTURE, "--out=%s" % SAMPLE_PARCEL_MAP])
+    TREE_OSM_FIXTURE.write_text(json.dumps(fixture_tree_osm(), indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    import_map.run(SAMPLE_TREE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                       "--tree-osm=%s" % TREE_OSM_FIXTURE, "--out=%s" % SAMPLE_TREE_MAP])
     for case in COUNTRY_CASES:
         (FIXTURES / ("country_%s.json" % case)).write_text(json.dumps(fixture_country_osm(case), indent=1, sort_keys=True) + "\n",
                                                            encoding="utf-8")  # fmt: skip
@@ -2729,6 +2733,229 @@ class ParcelMapTest(unittest.TestCase):
     def test_offline_without_the_parcel_cache_fails(self) -> None:
         with self.assertRaises(SystemExit):
             import_map.parcels.parcel_osm_path(self.dir, 54.0, 22.0, 54.1, 22.1, True)
+
+
+# Tree features (TASK-199a): OSM single trees, tree rows, orchards and farmyards.
+SAMPLE_TREE_MAP = REPO / "tests" / "fixtures" / "maps" / "sample_tree_map.tres"
+TREE_OSM_FIXTURE = FIXTURES / "sample_tree_osm.json"
+SAMPLE_TREE_ARGS = ["--center=54.2,22.9", "--size=6x5", "--hex=250", "--name=sample_tree_map",
+                    "--display-name=Sample with trees (synthetic)", "--trees"]  # fmt: skip
+TREE_FIXTURE_TREES = [(54.2000 + k * 0.0002, 22.8990 + k * 0.0003) for k in range(5)]
+TREE_FIXTURE_ROW = [(54.19800, 22.89500), (54.19802, 22.89538), (54.19804, 22.89577), (54.19802, 22.89615),
+                    (54.19800, 22.89653)]  # fmt: skip (~100 m west to east, bowed 4.5 m north)
+TREE_FIXTURE_ORCHARD = [(54.2015, 22.9040), (54.2015, 22.9050), (54.2020, 22.9050), (54.2020, 22.9040)]
+TREE_FIXTURE_FARMYARD = [(54.1975, 22.9030), (54.1975, 22.9050), (54.1985, 22.9050), (54.1985, 22.9030)]
+TREE_FIXTURE_YARD_HOLE = [(54.1979, 22.9038), (54.1979, 22.9042), (54.1981, 22.9042), (54.1981, 22.9038)]
+
+
+def fixture_tree_osm() -> dict:
+    """Synthetic answer of `tree_query` for the sample map: five single trees (one mapped twice, 0.5 m apart), a tree
+    north of the map, a ~100 m tree row, an orchard (closed way) and a farmyard with a hole (a multipolygon whose
+    outer way is tagged farmyard as well, so it must be stored once)."""
+    elements = []
+    next_node = [7000]
+
+    def node(lat: float, lon: float, tags: Optional[dict] = None) -> int:
+        next_node[0] += 1
+        element = {"type": "node", "id": next_node[0], "lat": lat, "lon": lon}
+        if tags:
+            element["tags"] = tags
+        elements.append(element)
+        return next_node[0]
+
+    def ring(points: list) -> list:
+        ids = [node(lat, lon) for lat, lon in points]
+        return ids + ids[:1]
+
+    tree = {"natural": "tree"}
+    for lat, lon in TREE_FIXTURE_TREES:
+        node(lat, lon, tree)
+    node(TREE_FIXTURE_TREES[0][0] + 0.5 / 111320.0, TREE_FIXTURE_TREES[0][1], tree)  # the first tree again
+    node(54.2100, 22.9000, tree)  # ~1.1 km north of the centre: off the map
+    elements.append({"type": "way", "id": 201, "nodes": [node(lat, lon) for lat, lon in TREE_FIXTURE_ROW],
+                     "tags": {"natural": "tree_row"}})  # fmt: skip
+    elements.append({"type": "way", "id": 202, "nodes": ring(TREE_FIXTURE_ORCHARD), "tags": {"landuse": "orchard"}})
+    elements.append({"type": "way", "id": 203, "nodes": ring(TREE_FIXTURE_FARMYARD), "tags": {"landuse": "farmyard"}})
+    elements.append({"type": "way", "id": 204, "nodes": ring(TREE_FIXTURE_YARD_HOLE)})
+    elements.append({"type": "relation", "id": 301, "tags": {"type": "multipolygon", "landuse": "farmyard"},
+                     "members": [{"type": "way", "ref": 203, "role": "outer"},
+                                 {"type": "way", "ref": 204, "role": "inner"}]})  # fmt: skip
+    return {"version": 0.6, "generator": "synthetic fixture (tools/test_import_map.py)", "elements": elements}
+
+
+def _local_rings(points: list) -> list:
+    """The fixture's lat / lon points in the sample map's local metres (x east, y north of tile (0, 0)'s centre)."""
+    layout = import_map.HexLayout.centred(6, 5, 250.0, *import_map.to_utm(54.2, 22.9, 34))
+    out = []
+    for lat, lon in points:
+        e, n = import_map.to_utm(lat, lon, 34)
+        out.append((e - layout.origin_e, n - layout.origin_n))
+    return out
+
+
+class TreeFeaturesTest(unittest.TestCase):
+    """`import_map.trees.build_tree_features`: local metres in (x east, y north), whole metres out (x, z south)."""
+
+    RECT = (0.0, 0.0, 1000.0, 1000.0)
+
+    def _build(self, points: list = (), rows: list = (), areas: list = ()) -> dict:
+        return import_map.trees.build_tree_features(list(points), list(rows), list(areas), self.RECT)
+
+    def test_points_inside_are_kept_in_whole_metres_and_outside_dropped(self) -> None:
+        points = [(100.4, 200.6), (300.0, 300.0), (500.5, 10.2), (700.0, 900.0), (999.0, 1.0), (1200.0, 500.0)]
+        found = self._build(points)["points"]
+        self.assertEqual(len(found), 5)
+        self.assertIn((100, -201), found)
+        self.assertTrue(all(isinstance(v, int) for p in found for v in p))
+        self.assertNotIn((1200, -500), found)
+
+    def test_points_closer_than_a_metre_are_merged(self) -> None:
+        self.assertEqual(len(self._build([(100.0, 100.0), (100.5, 100.0)])["points"]), 1)
+        self.assertEqual(len(self._build([(100.0, 100.0), (100.3, 100.4)])["points"]), 1)
+        self.assertEqual(len(self._build([(100.0, 100.0), (101.5, 100.0)])["points"]), 2)
+
+    def test_a_tree_row_keeps_its_shape_and_length(self) -> None:
+        row = [(100.0, 100.0), (125.0, 102.5), (150.0, 104.0), (175.0, 102.5), (200.0, 100.0)]
+        rows = self._build(rows=[row])["rows"]
+        self.assertEqual(len(rows), 1)
+        stored = [(x, -z) for x, z in rows[0]]
+        for p in row:
+            nearest = min(import_map.parcels._segment_distance(p, stored[k], stored[k + 1]) for k in range(len(stored) - 1))
+            self.assertLessEqual(nearest, 1.5, "vertex %s within the 1 m simplification (+ rounding)" % (p,))
+        length = import_map.trees.polyline_length(row)
+        self.assertAlmostEqual(import_map.trees.polyline_length(stored) / length, 1.0, delta=0.01)
+
+    def test_a_straight_row_drops_its_middle_vertices(self) -> None:
+        rows = self._build(rows=[[(100.0, 100.0), (150.0, 100.3), (200.0, 100.0)]])["rows"]
+        self.assertEqual(rows, [[(100, -100), (200, -100)]])
+
+    def test_a_row_reaching_the_map_is_kept_whole_and_one_outside_dropped(self) -> None:
+        rows = self._build(rows=[[(900.0, 500.0), (1100.0, 500.0)], [(1200.0, 500.0), (1300.0, 500.0)]])["rows"]
+        self.assertEqual(rows, [[(900, -500), (1100, -500)]])
+
+    def test_polygons_keep_outer_ring_and_hole_and_their_area(self) -> None:
+        orchard = [_box(100.0, 100.0, 180.0, 160.0)]
+        yard = [_box(300.0, 300.0, 420.0, 410.0), _box(340.0, 340.0, 370.0, 365.0)]
+        found = self._build(areas=[("orchard", orchard), ("farmyard", yard)])
+        self.assertEqual(len(found["orchard"]), 1)
+        self.assertEqual(len(found["farmyard"]), 1)
+        self.assertEqual(len(found["orchard"][0]), 1)
+        self.assertEqual(len(found["farmyard"][0]), 2, "outer ring and hole")
+        self.assertAlmostEqual(import_map.trees.polygon_area(found["orchard"][0]) / 4800.0, 1.0, delta=0.01)
+        self.assertAlmostEqual(import_map.trees.polygon_area(found["farmyard"][0]) / (13200.0 - 750.0), 1.0, delta=0.01)
+        outer, hole = found["farmyard"][0]
+        self.assertLess(_ring_area(outer), 0.0, "counter-clockwise seen from above with north up (x, z south)")
+        self.assertGreater(_ring_area(hole), 0.0, "the hole runs the other way round")
+
+    def test_a_polygon_tagged_twice_is_stored_once_with_its_hole(self) -> None:
+        outer = _box(300.0, 300.0, 420.0, 410.0)
+        hole = _box(340.0, 340.0, 370.0, 365.0)
+        for areas in ([("farmyard", [outer]), ("farmyard", [outer, hole])],
+                      [("farmyard", [outer, hole]), ("farmyard", [list(reversed(outer))])]):  # fmt: skip
+            found = self._build(areas=areas)["farmyard"]
+            self.assertEqual(len(found), 1)
+            self.assertEqual(len(found[0]), 2)
+
+    def test_two_outer_rings_are_two_polygons(self) -> None:
+        found = self._build(areas=[("orchard", [_box(0.0, 0.0, 50.0, 50.0), _box(100.0, 0.0, 150.0, 50.0)])])
+        self.assertEqual(len(found["orchard"]), 2)
+
+    def test_a_polygon_off_the_map_is_dropped(self) -> None:
+        self.assertEqual(self._build(areas=[("orchard", [_box(1100.0, 0.0, 1150.0, 50.0)])])["orchard"], [])
+
+    def test_order_does_not_depend_on_the_input_order(self) -> None:
+        points = [(10.0, 20.0), (500.0, 30.0), (40.0, 600.0)]
+        rows = [[(0.0, 0.0), (100.0, 0.0)], [(200.0, 0.0), (200.0, 100.0)]]
+        areas = [("orchard", [_box(0.0, 0.0, 50.0, 50.0)]), ("orchard", [_box(100.0, 0.0, 150.0, 50.0)])]
+        one = self._build(points, rows, areas)
+        two = self._build(list(reversed(points)), [list(reversed(r)) for r in reversed(rows)], list(reversed(areas)))
+        self.assertEqual(one, two)
+
+    def test_query_asks_for_the_four_kinds(self) -> None:
+        query = import_map.trees.tree_query(54.0, 22.0, 54.1, 22.1)
+        for text in ('node["natural"="tree"]', "tree_row", "orchard", "farmyard"):
+            self.assertIn(text, query)
+
+    def test_offline_without_the_tree_cache_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as folder, self.assertRaises(SystemExit):
+            import_map.trees.tree_osm_path(Path(folder), 54.0, 22.0, 54.1, 22.1, True)
+
+
+class TreeMapTest(unittest.TestCase):
+    """The tree fields of a tactical map from the synthetic fixtures (`--trees`)."""
+
+    def setUp(self) -> None:
+        self.dir = Path(tempfile.mkdtemp())
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def _import(self, name: str) -> Path:
+        out = self.dir / name
+        import_map.run(SAMPLE_TREE_ARGS + ["--offline", "--dem=%s" % DEM_FIXTURE, "--osm=%s" % OSM_FIXTURE,
+                                           "--tree-osm=%s" % TREE_OSM_FIXTURE, "--out=%s" % out])  # fmt: skip
+        return out
+
+    def _fields(self) -> dict:
+        text = self._import("f.tres").read_text(encoding="utf-8")
+        return {k: [int(v) for v in vs.split(", ") if v] for k, vs in _arrays(text).items()
+                if k.startswith(("tree_", "orchard_", "farmyard_"))}  # fmt: skip
+
+    def test_byte_identical_and_matches_the_committed_sample(self) -> None:
+        a, b = self._import("a.tres"), self._import("b.tres")
+        self.assertEqual(a.read_bytes(), b.read_bytes())
+        self.assertEqual(a.read_text(encoding="utf-8"), SAMPLE_TREE_MAP.read_text(encoding="utf-8"),
+                         "re-run tools/test_import_map.py --make-fixtures")  # fmt: skip
+
+    def test_committed_tree_fixture_is_current(self) -> None:
+        self.assertEqual(json.loads(TREE_OSM_FIXTURE.read_text(encoding="utf-8")),
+                         json.loads(json.dumps(fixture_tree_osm())))  # fmt: skip
+
+    def test_only_tree_lines_are_added(self) -> None:
+        with_trees = self._import("t.tres").read_text(encoding="utf-8").splitlines()
+        plain = SAMPLE_MAP.read_text(encoding="utf-8").splitlines()
+        added = [line for line in with_trees if line not in plain]
+        self.assertEqual(len([line for line in added if line.startswith(("tree_", "orchard_", "farmyard_"))]), 9)
+        self.assertTrue(all(line.startswith(("tree_", "orchard_", "farmyard_", "id = ", "display_name = "))
+                            for line in added), added)  # fmt: skip
+        self.assertEqual([line for line in plain if line not in with_trees and not line.startswith(("id = ",
+                          "display_name = "))], [])  # fmt: skip
+
+    def test_five_trees_in_whole_metres_the_twin_merged_and_the_far_one_dropped(self) -> None:
+        points = self._fields()["tree_points"]
+        self.assertEqual(len(points), 10, "five trees")
+        stored = [(points[k], -points[k + 1]) for k in range(0, len(points), 2)]
+        for p in _local_rings(TREE_FIXTURE_TREES):
+            self.assertLessEqual(min(math.hypot(p[0] - q[0], p[1] - q[1]) for q in stored), 0.75, p)
+
+    def test_the_tree_row_keeps_its_length(self) -> None:
+        fields = self._fields()
+        self.assertEqual(fields["tree_row_sizes"][0], len(fields["tree_row_points"]) // 2)
+        self.assertEqual(len(fields["tree_row_sizes"]), 1)
+        stored = [(fields["tree_row_points"][k], -fields["tree_row_points"][k + 1])
+                  for k in range(0, len(fields["tree_row_points"]), 2)]  # fmt: skip
+        original = _local_rings(TREE_FIXTURE_ROW)
+        self.assertAlmostEqual(import_map.trees.polyline_length(stored) / import_map.trees.polyline_length(original), 1.0,
+                               delta=0.01)  # fmt: skip
+        self.assertGreater(len(stored), 2, "the bow keeps its middle vertices")
+
+    def test_orchard_and_farmyard_with_hole_stored_once_with_their_area(self) -> None:
+        fields = self._fields()
+        self.assertEqual(fields["orchard_rings"], [1])
+        self.assertEqual(fields["farmyard_rings"], [2], "one farmyard (way and multipolygon) with its hole")
+        for kind, polygon in (("orchard", [TREE_FIXTURE_ORCHARD]), ("farmyard", [TREE_FIXTURE_FARMYARD,
+                                                                                  TREE_FIXTURE_YARD_HOLE])):  # fmt: skip
+            original = import_map.trees.polygon_area([_local_rings(r) for r in polygon])
+            values, rings, at = fields["%s_points" % kind], [], 0
+            for size in fields["%s_ring_sizes" % kind]:
+                rings.append([(values[2 * k], values[2 * k + 1]) for k in range(at, at + size)])
+                at += size
+            self.assertAlmostEqual(import_map.trees.polygon_area(rings) / original, 1.0, delta=0.01, msg=kind)
+
+    def test_trees_need_the_tactical_profile(self) -> None:
+        with self.assertRaises(SystemExit):
+            import_map.run(["--profile=operational", "--center=54.5,22.5", "--size=2x2", "--name=x", "--trees",
+                            "--out=%s" % (self.dir / "x.tres")])  # fmt: skip
 
 
 if __name__ == "__main__":

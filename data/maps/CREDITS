@@ -63,6 +63,12 @@ of 250 m, UTM 34N. Real data, downloaded 2026-10-31:
   bbox (cache file pc1_54.20580_22.81264_54.26417_22.94746.json, downloaded 2026-11-23). Map data
   (c) OpenStreetMap contributors, ODbL 1.0; the parcel polygons are a derivative database of it and
   are available under the ODbL 1.0 as well. The hex data and the colour layer are unchanged.
+  Tree features added 2026-11-23 (TASK-199a): same command with --colour --parcels --trees (and
+  --offline once cached); the single trees (natural=tree), tree rows (natural=tree_row), orchards
+  and farmyards (landuse=orchard|farmyard) of a third Overpass answer for the same bbox (cache file
+  tr1_54.20580_22.81264_54.26417_22.94746.json, downloaded 2026-11-23), in whole metres. Map data
+  (c) OpenStreetMap contributors, ODbL 1.0; the tree features are a derivative database of it and
+  are available under the ODbL 1.0 as well. The hex data, colour layer and parcels are unchanged.
 
 suwalki_theatre.tres – the operational theatre around the Suwalki Gap (north-east Poland, the
 Kaliningrad oblast, southern Lithuania, western Belarus), 68x64 hexes of 5 km, UTM 34N for the
