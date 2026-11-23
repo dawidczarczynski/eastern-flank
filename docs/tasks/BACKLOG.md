@@ -279,7 +279,7 @@ Recommended order of the open `battle-look` tasks (2026-11-21; tasks on the same
 1. finish what is open: 190 (playtest) → 189 (forest on the GPU; its mask source is swappable);
 2. foundations: 108g (land-cover raster: shapes without hexes) ‖ 111 (close camera 0.18 – it frames every later check; priority vs. the operational loop is the human's call);
 3. light and tone: 191 (impostor / canopy lighting; needs 189) → 201a (real-scale shadows, sun) → 201b (cloud shadows, grade);
-4. open country: 192a (satellite colour layer data: importer + loaders; needs 190 + 108g) → 192b (terrain and canopy colour blend; needs 192a) → 200 (field crops; same terrain shader, so after 192b) ‖ 199 (trees, hedges) ‖ 108c (river water, bridges) ‖ 202 (roads) ‖ 204 (map edge and backdrop: needs 108g + 190, best after 192b so the ring gets the same colour);
+4. open country: 192a (satellite colour layer data: importer + loaders; needs 190 + 108g) → 192b (terrain and canopy colour blend; needs 192a) → 200 (field crops; same terrain shader, so after 192b) → 215 (real parcel boundaries; needs 200, best before 199 so hedges follow the real edges) ‖ 199 (trees, hedges; after 215 if possible) ‖ 108c (river water, bridges) ‖ 202 (roads) ‖ 204 (map edge and backdrop: needs 108g + 190, best after 192b so the ring gets the same colour);
 5. buildings: 193 (OSM import; can start any time, it only touches the tools) → 194 → 195 → 196 → 197 ‖ 198 (after 195, best after 196);
 6. units close up: 136 (company groups; needs 111) → 137 (effects, decals) ‖ 063 (markings, any time) ‖ 203 (grid default);
 7. last: 138 (`true` becomes the default; needs 111, 134–137; README screenshot).
