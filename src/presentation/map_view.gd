@@ -112,6 +112,9 @@ var quality: Dictionary = {}
 ## The land cover of the map (TASK-108g, LandCover.for_map), set before build(); null or without a
 ## raster: the look follows the hex types. `_look` is its CoverLook for this build.
 var land_cover: LandCover
+## The satellite colour layer of the map (TASK-192b, BattleCover.colour_for_battle), set before
+## build(); null (no layer, or not the `true` VisualScale preset): the textured look only.
+var satellite: SatelliteColour
 ## Chunk plans and the coarse terrain run on the worker threads; off: on the caller's thread,
 ## same result.
 var threads := true
@@ -314,6 +317,7 @@ func build(grid: HexGrid) -> void:
 			grid, vegetation_ground_height, _lattice, SCATTER_SEED, _lattice.rect(), _parcels, _look
 		)
 		if shell != null:
+			SatelliteColour.apply(shell.mesh.surface_get_material(0) as ShaderMaterial, satellite)
 			_tiles_root.add_child(shell)
 	_tiles_root.add_child(WaterPlane.build(rect, DETAIL_SIZE))
 	Wind.setup(quality.get("wind", true))
@@ -509,6 +513,7 @@ func _terrain_material() -> ShaderMaterial:
 	if _ground_material == null:
 		_ground_material = TerrainGround.material(quality)
 		TerrainGround.set_parcels(_ground_material, _parcels)
+		SatelliteColour.apply(_ground_material, satellite)
 	return _ground_material
 
 
@@ -539,7 +544,9 @@ func _build_backdrop_canopy() -> MeshInstance3D:
 	var mesh := _backdrop.build_mesh(
 		_backdrop_types.canopy_vertex, BackdropCanopy.add_surface.bind(lift), threads
 	)
-	mesh.surface_set_material(0, BackdropCanopy.material())
+	var canopy := BackdropCanopy.material()
+	SatelliteColour.apply(canopy, satellite)
+	mesh.surface_set_material(0, canopy)
 	var instance := MeshInstance3D.new()
 	instance.name = "BackdropCanopy"
 	instance.mesh = mesh

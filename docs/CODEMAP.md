@@ -221,6 +221,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `SalvoFxPool` – Pooled effects of rocket salvos (TASK-075), the HIGH implementation of SalvoEffects: (`salvo_fx_pool.gd`)
 - `SalvoTiming` – Pure timing of a rocket launcher's ripple salvo (TASK-074): how many rockets, how far apa… (`salvo_timing.gd`)
 - `SalvoTrail` – One rocket's smoke trail (TASK-075): a thin camera-facing ribbon through the points the r… (`salvo_trail.gd`)
+- `SatelliteColour` – The satellite colour layer of a battle (TASK-192b, ADR 0031) as the terrain and canopy sh… (`satellite_colour.gd`)
 - `ScatterChunks` – Bushes and rocks of a MapView as chunked MultiMeshes (TASK-108 performance): one (`scatter_chunks.gd`)
 - `ScatterPlanner` – Pure placement planner for cosmetic scatter: trees on forest/plains tiles, rocks on hills (`scatter_planner.gd`)
 - `SceneLoader` – Opens a heavy scene without freezing the window: the loading screen goes up at once, the (`scene_loader.gd`)

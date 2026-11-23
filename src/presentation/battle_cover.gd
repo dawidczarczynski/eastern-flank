@@ -17,6 +17,21 @@ const MARGIN := MapView.EXTENT + MapView.BACKDROP_WIDTH + 2.0
 static func for_battle(
 	setup: BattleSetup, scenario_name: String, seed_value: int, grid: HexGrid
 ) -> LandCover:
+	var where := battle_map(setup, scenario_name, seed_value)
+	return LandCover.for_map(where[0], where[1], grid, MARGIN)
+
+
+## The satellite colour layer (TASK-192b, SatelliteColour) of the same battle and margin; null
+## when its map has none or the `true` VisualScale preset is off.
+static func colour_for_battle(
+	setup: BattleSetup, scenario_name: String, seed_value: int
+) -> SatelliteColour:
+	var where := battle_map(setup, scenario_name, seed_value)
+	return SatelliteColour.for_map(where[0], where[1], MARGIN)
+
+
+## [map id (StringName), map region (Rect2i)] of the battle of `setup` or of the scenario.
+static func battle_map(setup: BattleSetup, scenario_name: String, seed_value: int) -> Array:
 	var map_id := BattleSetup.MAP_GENERATED_RIVER
 	var region := Rect2i()
 	if setup != null:
@@ -29,4 +44,4 @@ static func for_battle(
 		if contact != null:
 			map_id = contact.map_id
 			region = contact.map_region
-	return LandCover.for_map(map_id, region, grid, MARGIN)
+	return [map_id, region]

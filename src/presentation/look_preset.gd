@@ -212,6 +212,24 @@ const REAL_SIZE_SUN := {
 const CLOUDS_DEFAULT := {"strength": 0.0, "scale_m": 2600.0, "speed_m": 22.0, "height_m": 2000.0}
 const REAL_SIZE_CLOUDS := {"strength": 0.55}
 
+## Satellite colour layer blend (TASK-192b, ADR 0031; SatelliteColour, `true` VisualScale preset
+## only): near the camera the ground keeps its splat / parcel textures with a luminance-preserving
+## tint of `near_tint` towards the layer's colour; the layer takes over between blend_start_m and
+## blend_end_m of view distance (metres, through MapScale). edge_m: the layer fades out over this
+## width inside its raster's edge (beyond it the textured look shows). gain / saturation: applied
+## to the layer's linear colour before the blend. canopy_hue: share of the layer's hue the forest
+## canopy shells take (their own brightness and dome lighting stay). A preset's "satellite" entry
+## is merged over it by satellite().
+const SATELLITE_DEFAULT := {
+	"near_tint": 0.25,
+	"blend_start_m": 300.0,
+	"blend_end_m": 1500.0,
+	"edge_m": 150.0,
+	"gain": 1.0,
+	"saturation": 1.0,
+	"canopy_hue": 1.0,
+}
+
 ## The colour grade under the `true` VisualScale preset (look reference: Arma 3 / Reforger aerial
 ## views, TASK-190): fuller colour than the muted looks, a little more contrast, cool blue-ish
 ## shadows and warm highlights (the late-afternoon sun), the greens kept natural. Merged over the
@@ -638,6 +656,14 @@ static func apply_to_sun(light: DirectionalLight3D, env: Environment) -> void:
 static func fields() -> Dictionary:
 	var merged := FIELDS_DEFAULT.duplicate(true)
 	merged.merge((_active.get("fields", {}) as Dictionary).duplicate(true), true)
+	return merged
+
+
+## Satellite colour blend values of the active preset (a copy): SATELLITE_DEFAULT with the
+## preset's "satellite" entry merged in (used only under the `true` VisualScale preset).
+static func satellite() -> Dictionary:
+	var merged := SATELLITE_DEFAULT.duplicate(true)
+	merged.merge((_active.get("satellite", {}) as Dictionary).duplicate(true), true)
 	return merged
 
 

@@ -9,6 +9,7 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_schlick_ggx;
 #include "res://assets/shaders/forest_hash.gdshaderinc"
 #include "res://assets/shaders/cloud_shadow.gdshaderinc"
+#include "res://assets/shaders/satellite_colour.gdshaderinc"
 
 const int LAYER_COUNT = 7;
 const int ROCK = 5;
@@ -300,6 +301,11 @@ void fragment() {
 	// Real-size texture close up, the far pattern beyond (both only inside the cross-fade band).
 	float view_distance = length(world_pos - CAMERA_POSITION_WORLD);
 	float scale_far = smoothstep(scale_fade.x, scale_fade.y, view_distance);
+	// Satellite colour layer (TASK-192b): sampled here, in uniform control flow.
+	vec4 satellite = vec4(0.0);
+	if (satellite_on) {
+		satellite = satellite_sample(xz);
+	}
 
 	// First the albedo / height of every layer with a weight: the heights decide which layers
 	// survive the height blending.
@@ -426,6 +432,10 @@ void fragment() {
 	// Macro brightness, then the per-vertex value / saturation (off-map margin, backdrop).
 	float macro = value_noise(xz * macro_frequency) * 0.65 + value_noise(xz * macro_frequency * 2.7 + 17.0) * 0.35;
 	albedo *= 1.0 + macro_brightness * (2.0 * macro - 1.0);
+	// Satellite colour: a luminance-preserving tint near the camera, the layer itself far away.
+	if (satellite_on) {
+		albedo = satellite_ground(albedo, satellite, view_distance);
+	}
 	float lum = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
 	albedo = mix(vec3(lum), albedo, vertex_tint.y) * vertex_tint.x;
 	albedo *= mix(1.0, 1.0 - bed_darkening, smoothstep(0.0, bed_depth, water_level - world_pos.y));

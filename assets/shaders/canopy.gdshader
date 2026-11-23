@@ -10,6 +10,7 @@ render_mode specular_disabled;
 // fades in crown by crown with the camera distance over `near_fade`, where the tree impostors end.
 
 #include "res://assets/shaders/cloud_shadow.gdshaderinc"
+#include "res://assets/shaders/satellite_colour.gdshaderinc"
 
 uniform vec3 pine_color : source_color = vec3(0.25, 0.38, 0.25);
 uniform vec3 spruce_color : source_color = vec3(0.19, 0.31, 0.23);
@@ -42,6 +43,9 @@ uniform float use_coverage = 0.0;
 uniform sampler2D coverage : filter_nearest, repeat_disable;
 uniform vec2 coverage_origin = vec2(0.0);
 uniform vec2 coverage_extent = vec2(1.0);
+// Satellite colour layer (TASK-192b, satellite_colour.gdshaderinc): share of the layer's hue the
+// crowns take, at their own luminance (the dome shading and brightness stay).
+uniform float satellite_canopy_hue = 1.0;
 
 varying vec2 world_xz;
 varying vec3 world_position;
@@ -81,6 +85,11 @@ void vertex() {
 }
 
 void fragment() {
+	// Satellite colour layer (TASK-192b): sampled before any discard (uniform control flow).
+	vec4 satellite = vec4(0.0);
+	if (satellite_on) {
+		satellite = satellite_sample(world_xz);
+	}
 	vec2 p = world_xz / crown_cell;
 	vec2 base = floor(p);
 	float best = 8.0;
@@ -150,6 +159,10 @@ void fragment() {
 		ground_n = normalize(mix(ground_n, to_camera, view_share));
 		vec3 n_world = normalize(ground_n + vec3(outward.x, 0.0, outward.y) * slope * 1.3);
 		NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
+	}
+	if (satellite_on) {
+		float w = satellite_weight(distance(world_position, main_camera)) * satellite.a * satellite_canopy_hue;
+		color = mix(color, satellite_hue(color, satellite.rgb), w);
 	}
 	// Dome shading: bright crown top, dark gaps between crowns.
 	float dome = clamp(1.0 - best / 0.8, 0.0, 1.0);
