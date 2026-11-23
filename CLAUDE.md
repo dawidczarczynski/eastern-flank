@@ -36,6 +36,8 @@ Vision: docs/VISION.md · Game design: docs/GDD.md · Player manual: docs/MANUAL
 ## Performance budget
 
 - The game must hold **60 FPS** on the target GPU (HIGH quality, focused window). Never trade frame rate for visuals: a new effect, shader or scatter layer that drops below 60 FPS must be optimised or put behind a quality level, not accepted.
+- **Per-instance work goes to the GPU, not the CPU.** Anything that scales with map area or instance count (grass, crops, shrubs, other scatter: placement jitter, kind, height, tint, culling) is hash-placed in a shader around the camera (TASK-217 framework), not planned per instance in GDScript and uploaded as MultiMesh data. CPU planning on `WorkerThreadPool` is for what the GPU cannot do (game-rule queries, geometry that needs mesh building) and must stay cheap. Measured: CPU grass planning was ~25 s of the ~45 s battle chunk prebuild. Keep a GDScript reference of the shader hash for tests. A new vegetation or scatter layer that needs a per-chunk CPU plan above ~20 ms needs a justification in its task file.
+- **Loading is measured, not guessed.** Before optimising load time, time the stages (`ChunkManager.stats()` gives plan/build ms per layer). Behind a loading screen use `ChunkManager.loading = true` (all cores, one batch, high priority); in play keep the spared-cores batches.
 - `FramePacing` caps a focused window at 60 FPS and a background one at 5 FPS (src/presentation/frame_pacing.gd) – keep it so an idle game stays quiet.
 
 ## Godot files (.tscn / .tres)

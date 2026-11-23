@@ -38,6 +38,10 @@ const PRIORITY_RANKS := 16
 ## Plans on the WorkerThreadPool (off: on the main thread, inside the budget).
 var threads := true
 var budget_usec := DEFAULT_BUDGET_USEC
+## Behind a loading screen: process() plans the whole queue as one batch on every core, so the
+## workers never wait for the frame loop (the play batches are small and polled once per frame –
+## with ~270 ms grass plans that kept one or two cores busy and made the prebuild ~2x slower).
+var loading := false
 ## Main-thread time for instant-layer builds per scan and per process() (the nearest always runs).
 var instant_budget_usec := DEFAULT_INSTANT_BUDGET_USEC
 
@@ -218,7 +222,7 @@ func process() -> void:
 		_free_queued(started + budget_usec / 2)
 	if threads:
 		_collect_batch(false)
-		_start_batch(false)
+		_start_batch(loading, loading)
 	elif _ready.is_empty() and not _pending.is_empty():
 		_plan_now(1)
 	var first := true
@@ -450,17 +454,17 @@ func _plan_now(count: int) -> void:
 ## Starts planning the nearest pending jobs on the worker threads. In play (`all_threads` off) a
 ## batch uses at most PLAY_THREADS_SPARED fewer threads than there are cores, at normal priority:
 ## four busy workers starved the main and render threads into 80–140 ms frames while panning.
-func _start_batch(all_threads: bool) -> void:
+func _start_batch(all_threads: bool, unlimited := false) -> void:
 	if _batch_task >= 0 or not _batch.is_empty() or _pending.is_empty():
 		return
 	var workers := -1 if all_threads else maxi(1, OS.get_processor_count() - PLAY_THREADS_SPARED)
 	var threads_used := OS.get_processor_count() if workers < 0 else workers
 	var budget := float(BATCH_USEC_PER_WORKER * threads_used)
 	var estimate := 0.0
-	while not _pending.is_empty() and _batch.size() < BATCH_SIZE:
+	while not _pending.is_empty() and (unlimited or _batch.size() < BATCH_SIZE):
 		var next: Vector3i = _pending.back()
 		var cost := _plan_cost[next.x]
-		if not _batch.is_empty() and estimate + cost > budget:
+		if not unlimited and not _batch.is_empty() and estimate + cost > budget:
 			break
 		estimate += cost
 		_batch.append(_pending.pop_back())

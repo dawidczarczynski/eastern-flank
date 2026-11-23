@@ -376,3 +376,20 @@ func test_instant_builds_are_budgeted_nearest_first() -> void:
 		frames += 1
 	assert_eq(stub.live.size(), total)
 	assert_true(manager.is_settled())
+
+
+func test_loading_mode_plans_the_whole_queue_in_one_batch_and_builds_the_same_chunks() -> void:
+	var stub := Stub.new()
+	var manager := _manager(stub)
+	manager.loading = true
+	manager.update(Vector2.ZERO)
+	var wanted := _expected(
+		manager.layer(&"stub"), Vector2.ZERO, _rings(20.0).build_radius(&"stub")
+	)
+	assert_true(wanted.size() > ChunkManager.BATCH_SIZE, "more jobs than a play batch holds")
+	var frames := 0
+	while not manager.is_settled() and frames < 2000:
+		manager.process()
+		frames += 1
+	assert_true(manager.is_settled(), "settled through process()")
+	assert_eq(stub.live.keys().size(), wanted.size())

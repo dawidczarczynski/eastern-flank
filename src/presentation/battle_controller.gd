@@ -201,9 +201,11 @@ func _prebuild_chunks() -> void:
 	var chunks := _map_view.chunks()
 	var budget := chunks.budget_usec
 	chunks.budget_usec = PREBUILD_CHUNK_BUDGET_USEC
+	chunks.loading = true
 	while not chunks.is_settled():
 		chunks.process()
 		await _next_frame()
+	chunks.loading = false
 	chunks.budget_usec = budget
 
 
