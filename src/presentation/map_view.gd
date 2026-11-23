@@ -118,6 +118,9 @@ var satellite: SatelliteColour
 ## The real field parcels of the map (TASK-215b, BattleCover.parcels_for_battle), set before
 ## build(); null (no polygons, or not the `true` VisualScale preset): the procedural strips only.
 var real_parcels: RealParcels
+## The OSM tree features of the map (TASK-199b, BattleCover.tree_features_for_battle), set before
+## build(); null (none, or not the `true` VisualScale preset).
+var tree_features: TreeFeatureSet
 ## Chunk plans and the coarse terrain run on the worker threads; off: on the caller's thread,
 ## same result.
 var threads := true
@@ -309,6 +312,7 @@ func build(grid: HexGrid) -> void:
 			ring_surface,
 			_look
 		)
+		_foliage.tree_features = tree_features
 		for parent in _foliage.parents():
 			_tiles_root.add_child(parent)
 		_chunks.register(_foliage.scatter_layer())

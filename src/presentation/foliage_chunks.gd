@@ -16,6 +16,9 @@ const LAYER_COUNT := 2
 ## Real scale (TASK-135): Callable(x, z) -> the drawn near surface height the map trees stand on
 ## (unset: their planned height).
 var ground := Callable()
+## Real tree features (TASK-199b, TreeFeatureSet, BattleCover.tree_features_for_battle): the OSM
+## trees of the map, or null; the rule fill of TreeFeatures needs none. Set before the first plan.
+var tree_features: TreeFeatureSet
 
 var _grid: HexGrid
 var _surface: TerrainSurface
@@ -146,6 +149,10 @@ func _plan_source(chunk: Vector2i) -> Dictionary:
 	var hedges := ScatterPlanner.plan_hedges(_grid, _surface, _parcels, rect)
 	(map["trees"] as Array).append_array(hedges["trees"])
 	(map["edge_shrubs"] as Array).append_array(hedges["edge_shrubs"])
+	# Real tree features (TASK-199b; true preset only, the list is empty otherwise).
+	(map["trees"] as Array).append_array(
+		TreeFeatures.plan(_grid, _surface, _seed, rect, _parcels, _look, tree_features)
+	)
 	var backdrop := {}
 	for key: String in ScatterPlanner.PLAN_KEYS:
 		backdrop[key] = []

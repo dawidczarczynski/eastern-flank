@@ -1,6 +1,6 @@
 # TASK-199b: Real tree features (B): solitary trees, tree lines, copses and orchards in the open country
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (`ScatterPlanner` meadow features, `TreeField`)
 - **Depends on**: TASK-199a, TASK-135, TASK-108g (soft: TASK-215b, TASK-195)
 - **Sections**: ARCHITECTURE "Trees", "Terrain rendering"; look reference (TASK-190); read in code: `scatter_planner.gd` (`plan_tile_meadow`, `_plan_parcel_hedges`, `plan_hedges`), `tree_field.gd`, `forest_fill.gd`, `real_scale_vegetation.gd`, `land_cover.gd`, `parcel_map.gd`, `imported_map.gd`
@@ -48,4 +48,12 @@ None.
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- **Code**: `TreeFeatureSet` (`src/presentation/tree_feature_set.gd`: the OSM points / rows / orchard / farmyard polygons of `ImportedMap` in view metres, with bounds) and `TreeFeatures` (`src/presentation/tree_features.gd`, pure static, hash-only: `plan(grid, surface, seed, rect, parcels, look, features)` returns ScatterPlanner-format trees for one chunk rectangle, `[]` on every preset but `true`). Wiring: `BattleCover.tree_features_for_battle` -> `MapView.tree_features` -> `FoliageChunks.tree_features`; `FoliageChunks._plan_source` appends the list to the map `trees` (the existing `trees` layer, so no new draw calls, same TreeField / impostor path as the hedges). Tests: `tests/unit/test_tree_features.gd` (16).
+- **OSM**: points exactly at their position; rows a tree every 5..10 m, at most 0.6 m off the polyline; orchards a lattice along the polygon's long axis (`RealParcels.long_axis`), row and tree spacing 5..8 m per orchard, small trees (scale 0.26..0.34 = ~6 m); a farmyard gets with hash probability 0.3 a block of 3..6 x 3..5 trees wholly inside the polygon (holes respected).
+- **Rule fill** (all independent of the chunk: a tile's / road piece's result is a pure function of the map, chunks add up to the eager plan - tested): roadside lines (80 m pieces, exactly one in four by hash, one side, 3.3..5.7 m +- 0.3 from the centre line, a tree every 6..12 m = 25 % of a road's length); solitary trees per open hex (PLAINS / FIELDS / HILLS, 0..3, cumulative 0.70 / 0.90 / 0.97; only where a parcel edge or hex edge lies within 15 m - `TreeFeatures.near_boundary`); copses (HILLS / MARSH hexes, chance 0.06, 5..30 trees, at most one per hex, sunflower layout).
+- **Filters**: nothing in forest, on water, on URBAN, outside the grid or below `MIN_TREE_GROUND`; the rule fill keeps the full scatter clearance from roads / rivers, the OSM trees and roadside lines only stay off the 5 m carriageway / river bank (the road ribbon is 10 m wide with 2.5 m verges, so a roadside line at 3.3..5.7 m stands on the verge / just beyond it). Building mask (TASK-195) does not exist: no building test (skipped as the task says). Heights: the planned surface height, replaced by the near-surface height through `FoliageChunks.ground` under `true`, like every map tree.
+- **Growth**: the test fixture (FIELDS with 12 % hills, 14 % marsh, real parcels) adds <= 20 % of the existing plan + hedges (the copse chance and the solitary distribution were tuned for it: first values gave 42 %).
+- **Frame budget** (Suwalki battle, `true`, `SCREENSHOT_CAMERA=1,-40,5`, `SCREENSHOT_MEASURE_FRAMES=120`, Windows GPU): feature off 18.72 ms / 2501 draws / 13 756 k tris; on 20.88 ms and 19.04 ms (two runs) / 2501 draws / 14 140 k tris (+384 k tris, +2.8 %). Draw calls are unchanged; the frame-time delta is +0.3 ms in the second run but +2.2 ms in the first, so the 0.5 ms criterion is NOT proven (run-to-run noise ~2 ms on this machine; the baseline is already above 16.7 ms here). The human should check the FPS on the target GPU.
+- **Screenshots** (`.screenshots/t199_z1.2.png`, `t199_z5.png`, `t199_z24.png`, camera on unit 1): at 5 and 24 single trees and small dark copses in the fields are visible (I did not see a tree on a road or in water in these shots, but did not check each one); at 1.2 the camera ended in a forest, so open-country trees are only visible at the edges. NOT compared with the TASK-190 look reference side by side; the Suwalki sample has only 15 OSM trees and no orchard in the shown area, so OSM rows and orchards were verified by tests only, not seen.
+- **Not done**: the optional hedge-height tuning (TASK-215b hedges unchanged).
+

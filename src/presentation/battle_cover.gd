@@ -44,6 +44,19 @@ static func parcels_for_battle(
 	return RealParcels.from_imported(ImportedMap.find(where[0]))
 
 
+## The OSM tree features (TASK-199b, TreeFeatureSet) of the battle's imported map; null when the map
+## has none or the `true` VisualScale preset is off.
+static func tree_features_for_battle(
+	setup: BattleSetup, scenario_name: String, seed_value: int
+) -> TreeFeatureSet:
+	var where := battle_map(setup, scenario_name, seed_value)
+	if not VisualScale.is_true_size() or where[0] == BattleSetup.MAP_GENERATED_RIVER:
+		return null
+	if TacticalLayer.find(where[0]) != null:
+		return null
+	return TreeFeatureSet.from_imported(ImportedMap.find(where[0]))
+
+
 ## [map id (StringName), map region (Rect2i)] of the battle of `setup` or of the scenario.
 static func battle_map(setup: BattleSetup, scenario_name: String, seed_value: int) -> Array:
 	var map_id := BattleSetup.MAP_GENERATED_RIVER

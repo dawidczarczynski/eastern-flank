@@ -125,6 +125,7 @@ func _ready() -> void:
 	_map_view.land_cover = BattleCover.for_battle(setup, scenario_name, MAP_SEED, state.grid)
 	_map_view.satellite = BattleCover.colour_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.real_parcels = BattleCover.parcels_for_battle(setup, scenario_name, MAP_SEED)
+	_map_view.tree_features = BattleCover.tree_features_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.build(state.grid)
 	await _next_frame()
 	_objective_markers.name = "ObjectiveMarkers"
