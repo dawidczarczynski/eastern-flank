@@ -151,7 +151,15 @@ static func detail_texture() -> ImageTexture:
 
 ## Turns the farmland parcels of the shader on with the baked `parcels` (FieldParcels.bake) and
 ## the crop colours of LookPreset.fields(), or off for null (a map without fields).
-static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
+## `quality` (GraphicsQuality.features): "crop_rows_max_m" (0 = none) caps how far the crop rows
+## reach. Under `true` the parcels also get their crop keep-off mask on (TASK-217c): the plant
+## planners read it instead of resolving a kind per plant.
+static func set_parcels(
+	material: ShaderMaterial, parcels: ParcelMap, quality: Dictionary = {}
+) -> void:
+	var row_cap_m := float(quality.get("crop_rows_max_m", 0.0))
+	if parcels != null:
+		parcels.crop_mask_on = VisualScale.is_true_size()
 	material.set_shader_parameter(&"parcels_on", parcels != null)
 	var edges := parcels.edges_texture() if parcels != null else null
 	material.set_shader_parameter(&"parcel_edges_on", edges != null)
@@ -208,7 +216,7 @@ static func set_parcels(material: ShaderMaterial, parcels: ParcelMap) -> void:
 	material.set_shader_parameter(&"crop_furrow", furrow)
 	material.set_shader_parameter(&"crop_row", rows)
 	material.set_shader_parameter(&"crop_stripe", stripes)
-	_set_true_look(material, look, rect, harvest, ground)
+	_set_true_look(material, look, rect, harvest, ground, row_cap_m)
 	material.set_shader_parameter(&"parcel_brightness", look["parcel_brightness"])
 	material.set_shader_parameter(&"parcel_hue", look["parcel_hue"])
 	material.set_shader_parameter(&"row_fade", Vector2(look["row_fade_from"], look["row_fade_to"]))
@@ -230,7 +238,8 @@ static func _set_true_look(
 	look: Dictionary,
 	rect: Rect2,
 	harvest: PackedVector3Array,
-	ground: PackedFloat32Array
+	ground: PackedFloat32Array,
+	row_cap_m := 0.0
 ) -> void:
 	var on := VisualScale.is_true_size()
 	material.set_shader_parameter(&"crop_true", on)
@@ -245,9 +254,7 @@ static func _set_true_look(
 		&"crop_mottle_frequency", 1.0 / MapScale.to_units(look["mottle_period_m"])
 	)
 	material.set_shader_parameter(&"harvest_share", look["harvest_share"])
-	material.set_shader_parameter(
-		&"row_distance_m", Vector2(look["row_full_m"], look["row_zero_m"])
-	)
+	material.set_shader_parameter(&"row_distance_m", CropLook.row_distances(look, row_cap_m))
 	var headland := MapScale.to_units(look["headland_m"])
 	material.set_shader_parameter(
 		&"headland_uv", Vector2(headland / rect.size.x, headland / rect.size.y)

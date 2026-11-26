@@ -146,7 +146,12 @@ static func clump_at(
 	if terrain != Terrain.Type.FOREST and meadow["bare_thinning"] > 0.0:
 		keep *= 1.0 - float(meadow["bare_thinning"]) * bare_k(x, z)
 	if parcels != null and not extra:
-		keep *= keeps[parcels.kind_at(x, z)]
+		if parcels.crop_mask_on:
+			# `true` (TASK-217c): the crop keep-off mask, no per-clump kind lookup, no grass_keep.
+			if parcels.blocks_tall_grass(x, z):
+				return {}
+		else:
+			keep *= keeps[parcels.kind_at(x, z)]
 	if accept >= keep:
 		return {}
 	var y := surface.ground_height(x, z)
@@ -173,7 +178,7 @@ static func parcel_keeps(parcels: ParcelMap) -> PackedFloat32Array:
 	var keeps := PackedFloat32Array()
 	keeps.resize(FieldParcels.CROPS.size())
 	keeps.fill(1.0)
-	if parcels == null:
+	if parcels == null or parcels.crop_mask_on:
 		return keeps
 	var crops: Dictionary = LookPreset.fields()["crops"]
 	for k in FieldParcels.CROP_KINDS:

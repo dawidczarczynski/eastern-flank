@@ -1,6 +1,6 @@
 # TASK-217c: Crops as shader-only rows, no CPU crop planning
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: presentation (terrain shader, `CropLook`, `GrassPlanner` / `ScatterPlanner` crop filters)
 - **Depends on**: TASK-217a (masks / keep-off textures), TASK-200 (crops, done); soft: TASK-217b
 - **Sections**: ARCHITECTURE "Terrain rendering"; the ADR written by 217a; TASK-200 implementation notes; code (grep CODEMAP): `CropLook`, `CropKind`, `CropCatalog`, `ParcelMap`, `FieldParcels`, `terrain.gdshader`, `GrassPlanner` (`grass_keep`), `ScatterPlanner` (crop parcel filter)
@@ -50,4 +50,15 @@ No change (cosmetic).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+Audit: TASK-200 already drew the rows in `terrain.gdshader` (metres via `metres_per_unit`, row strength by `row_distance_m`, per-kind tables from `CropCatalog` through `LookPreset.fields()` / `TerrainGround.set_parcels`); no crop MultiMesh exists. What remained CPU-side per plant: `GrassPlanner.clump_at` multiplying by `grass_keep[kind_at]` and `ScatterPlanner._filtered` (and ForestFill / RiparianPlanner) calling `ParcelMap.blocks_standing` = a `kind_at` (image read + cover-clip query) per plant.
+
+Done (`true` only):
+- `ParcelMap.crop_mask_on` + `mask_at`: the crop keep-off mask, built lazily in 64x64-pixel blocks (mutex-guarded, worker-thread safe) from `kind_at_metres` at the pixel centres, so the land-cover clipping is baked in. `blocks_standing` / `blocks_tall_grass` read it when on. `MapView` turns it on after the bake under `true`.
+- `GrassPlanner.clump_at` rejects via `blocks_tall_grass` under the mask and never reads `grass_keep` (`parcel_keeps` returns all 1.0 then); `ScatterPlanner._filtered` is unchanged in code and goes through the mask. `balanced`: mask off, old path untouched.
+- `CropLook.row_distances(values, cap_m)` and `GraphicsQuality` feature `crop_rows_max_m` (HIGH 0 = LookPreset values 50 / 150 m, LOW 50 m: rows off beyond 50 m, plain colour); `TerrainGround.set_parcels(..., row_cap_m)`. There is no MEDIUM level in `GraphicsQuality` (only LOW / HIGH).
+- Tests: `tests/unit/test_crop_shader_only.gd`.
+
+Gaps / assumptions:
+- The mask samples pixel centres (5 m ParcelMap pixels), so at a parcel edge it can differ by up to one pixel from the old exact per-point `kind_at` (real-parcel edge refinement). The grass `true` path is still CPU-planned until 217b; this task only replaced its crop thinning.
+- Frame cost: NOT measured. GPU time cannot be measured headless here, so no ms numbers are claimed; TASK-200's +0.10 ms is the only figure. No shader code was changed, so the term is unchanged on HIGH; LOW only shortens the row range. To be measured in the playtest on the RX 580 (crops on vs off).
+- Per-instance cost: no per-plant kind lookup remains under `true`; the mask build costs one `kind_at_metres` per pixel of each touched 320 m block, once.

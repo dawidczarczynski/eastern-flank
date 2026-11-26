@@ -162,7 +162,8 @@ static func plan(
 ## `plan` without the items on farmland parcels, roads and rivers.
 static func _filtered(plan: Dictionary, grid: HexGrid, parcels: ParcelMap) -> Dictionary:
 	# Nothing stands on crop, ploughed and meadow parcels (TASK-108f; filtered afterwards, so the
-	# streams above are unchanged).
+	# streams above are unchanged). Under `true` ParcelMap.blocks_standing reads the crop keep-off
+	# mask (TASK-217c): no kind lookup per item.
 	if parcels != null:
 		for key: String in plan:
 			var kept: Array[Dictionary] = []

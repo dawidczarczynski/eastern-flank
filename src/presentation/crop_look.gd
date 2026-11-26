@@ -18,6 +18,19 @@ static func row_strength(distance_m: float, values: Dictionary) -> float:
 	return 1.0 - smoothstep(values["row_full_m"], values["row_zero_m"], distance_m)
 
 
+## The (full, zero) camera distances in metres of the crop rows: the preset's row_full_m /
+## row_zero_m, with the zero distance capped at `cap_m` when that is > 0 (GraphicsQuality
+## "crop_rows_max_m": LOW draws no rows beyond it, only the plain parcel colour). The full distance
+## stays below the zero one so the shader's smoothstep keeps a ramp.
+static func row_distances(values: Dictionary, cap_m := 0.0) -> Vector2:
+	var zero := float(values["row_zero_m"])
+	var full := float(values["row_full_m"])
+	if cap_m > 0.0 and cap_m < zero:
+		zero = cap_m
+		full = minf(full, 0.5 * cap_m)
+	return Vector2(full, zero)
+
+
 ## The headland darkening factor at `edge_distance_m` from a parcel edge and a camera distance of
 ## `distance_m`: headland_dark inside the strip (headland_m wide), 1 outside, fading out with the
 ## camera distance (by headland_fade_m).

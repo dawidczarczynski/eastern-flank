@@ -288,7 +288,7 @@ func build(grid: HexGrid) -> void:
 	if bake_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(bake_task)
 	_parcels = baked[0]
-	TerrainGround.set_parcels(_terrain_material(), _parcels)
+	TerrainGround.set_parcels(_terrain_material(), _parcels, quality)
 	_trees.clear()
 	_foliage = null
 	if quality.get("foliage", true):
@@ -518,7 +518,7 @@ static func _splat(type: int, normal_y: float, v: Vector3, noise: Vector2) -> Pa
 func _terrain_material() -> ShaderMaterial:
 	if _ground_material == null:
 		_ground_material = TerrainGround.material(quality)
-		TerrainGround.set_parcels(_ground_material, _parcels)
+		TerrainGround.set_parcels(_ground_material, _parcels, quality)
 		SatelliteColour.apply(_ground_material, satellite)
 	return _ground_material
 

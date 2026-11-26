@@ -79,6 +79,10 @@ static func features(level: Level) -> Dictionary:
 		# GPU-placed shrubs (TASK-217a, `true` VisualScale preset only): how far shrubs are drawn
 		# (metres; LookPreset.vegetation() shrub_impostor_range_m caps it). LOW keeps them close.
 		"shrub_range_m": 600.0 if high else 150.0,
+		# Farmland rows of the terrain shader (TASK-217c): HIGH follows LookPreset.fields()
+		# (0 = no cap), LOW draws none beyond this many metres (plain parcel colour). Crops are
+		# shader-only: no level builds a crop instance.
+		"crop_rows_max_m": 0.0 if high else 50.0,
 		# Chunked world (TASK-072b): LOW builds within smaller rings (ChunkRings.low_quality_factor).
 		"small_chunk_rings": not high,
 		# Terrain shader (TASK-055): the rotated second texture scale against tiling, the

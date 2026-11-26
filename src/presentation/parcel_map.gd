@@ -11,6 +11,12 @@ extends RefCounted
 ## the land cover where it can carry no field (CoverLook.allows_parcel: forest, water, villages,
 ## marsh) instead of by the FIELD outline. Blue 0 (or RG8) is a procedural strip as before.
 
+## Crop mask bits: nothing tall may stand (every parcel but balk / none), no tall grass (crops,
+## not the meadow), and the block size in pixels.
+const MASK_STANDING := 1
+const MASK_GRASS := 2
+const MASK_BLOCK := 64
+
 var image: Image
 ## World position (x, z) in metres of the image's top-left corner.
 var origin_m := Vector2.ZERO
@@ -24,8 +30,15 @@ var real_crops := PackedInt32Array()
 var real_neighbours: Array[PackedInt32Array] = []
 ## The exact real parcel edges (RealParcels.edge_image, same size as `image`), or null.
 var edges: Image
+## The crop keep-off mask (TASK-217c; the `true` preset): when on, blocks_standing and
+## blocks_tall_grass read per-pixel bytes built once per block of MASK_BLOCK pixels (from
+## kind_at_metres at the pixel centres, so the cover clipping is baked in) instead of resolving the
+## kind of every single plant. Off (`balanced`): the old per-point kind lookups.
+var crop_mask_on := false
 var _edges_texture: ImageTexture
 var _texture: ImageTexture
+var _mask_blocks: Dictionary = {}
+var _mask_mutex := Mutex.new()
 
 
 func size_px() -> Vector2i:
@@ -111,14 +124,53 @@ func hedge_lines() -> Array[PackedVector2Array]:
 ## Whether trees, bushes, rocks and thickets are kept off world position (x, z) (world units):
 ## on every parcel kind except the balk (hedgerow strip) and unpainted ground.
 func blocks_standing(x: float, z: float) -> bool:
+	if crop_mask_on:
+		return (mask_at(x, z) & MASK_STANDING) != 0
 	var kind := kind_at(x, z)
 	return kind != 0 and kind != 8  # FieldParcels.Kind.NONE / BALK
 
 
 ## Whether tall grass is kept off (x, z): crop parcels, not meadows, balks or unpainted ground.
 func blocks_tall_grass(x: float, z: float) -> bool:
+	if crop_mask_on:
+		return (mask_at(x, z) & MASK_GRASS) != 0
 	var kind := kind_at(x, z)
 	return kind != 0 and kind != 8 and kind != 7  # NONE / BALK / MEADOW
+
+
+## The keep-off bits (MASK_STANDING, MASK_GRASS) of the crop mask at world position (x, z) in
+## world units; 0 outside the image. Pure and thread-safe (blocks are built on first use).
+func mask_at(x: float, z: float) -> int:
+	var m := MapScale.metres_per_unit
+	var px := floori((x * m - origin_m.x) / metres_per_pixel)
+	var py := floori((z * m - origin_m.y) / metres_per_pixel)
+	if px < 0 or py < 0 or px >= image.get_width() or py >= image.get_height():
+		return 0
+	var bx := px / MASK_BLOCK
+	var by := py / MASK_BLOCK
+	var key := by * 65536 + bx
+	_mask_mutex.lock()
+	var block: PackedByteArray = _mask_blocks.get(key, PackedByteArray())
+	if block.is_empty():
+		block = _build_mask_block(bx, by)
+		_mask_blocks[key] = block
+	_mask_mutex.unlock()
+	return block[(py - by * MASK_BLOCK) * MASK_BLOCK + (px - bx * MASK_BLOCK)]
+
+
+func _build_mask_block(bx: int, by: int) -> PackedByteArray:
+	var block := PackedByteArray()
+	block.resize(MASK_BLOCK * MASK_BLOCK)
+	for j in MASK_BLOCK:
+		for i in MASK_BLOCK:
+			var x_m := origin_m.x + ((bx * MASK_BLOCK + i) + 0.5) * metres_per_pixel
+			var z_m := origin_m.y + ((by * MASK_BLOCK + j) + 0.5) * metres_per_pixel
+			var kind := kind_at_metres(x_m, z_m)
+			var bits := 0
+			if kind != 0 and kind != 8:  # FieldParcels.Kind.NONE / BALK
+				bits = MASK_STANDING if kind == 7 else MASK_STANDING | MASK_GRASS
+			block[j * MASK_BLOCK + i] = bits
+	return block
 
 
 ## Kind at world position (x, z) in world units.
