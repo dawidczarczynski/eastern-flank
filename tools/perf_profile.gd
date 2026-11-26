@@ -38,6 +38,9 @@ func _init(root: Window, battle: Node, only: String = "") -> void:
 	_add_hide("terrain", ["Terrain", "TerrainFar"])
 	_add_hide("units", ["Units"])
 	_add_hide("HUD", ["HUD"])
+	# The GPU-placed full forest trees (TASK-221): the nodes of ForestField's full layer.
+	_cases.append({"name": "forest full trees", "apply": _hide_forest_full})
+	_cases.append({"name": "forest full tree shadows", "apply": _forest_full_shadows_off})
 	_cases.append({"name": "all shadows (sun)", "apply": _sun_shadows_off})
 	_cases.append({"name": "tree shadows", "apply": _shadows_off.bind("Trees")})
 	_cases.append({"name": "unit shadows", "apply": _shadows_off.bind("Units")})
@@ -112,6 +115,34 @@ func _hide(node_names: Array[String]) -> void:
 			continue
 		node.set("visible", false)
 		_undo.append(node.set.bind("visible", true))
+
+
+func _forest_full_nodes() -> Array[Node]:
+	var forest := _battle.find_child("Forest", true, false)
+	var result: Array[Node] = []
+	if forest != null:
+		for child in forest.get_children():
+			if String(child.name).begins_with("ForestFull_"):
+				result.append(child)
+	return result
+
+
+func _hide_forest_full() -> void:
+	for node in _forest_full_nodes():
+		if bool(node.get("visible")):
+			node.set("visible", false)
+			_undo.append(node.set.bind("visible", true))
+
+
+func _forest_full_shadows_off() -> void:
+	for node in _forest_full_nodes():
+		var geometry := node as GeometryInstance3D
+		if (
+			geometry != null
+			and geometry.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		):
+			_undo.append(geometry.set.bind("cast_shadow", geometry.cast_shadow))
+			geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _shadows_off(node_name: String) -> void:

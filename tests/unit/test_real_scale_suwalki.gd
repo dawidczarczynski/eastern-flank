@@ -76,9 +76,46 @@ func test_full_dense_trees_stand_on_the_near_surface() -> void:
 	var forest := _view.vegetation().forest
 	var points := PackedVector3Array()
 	for node in forest.full_nodes():
-		points.append_array(forest.instance_positions(node))
+		for tree in forest.full_trees(node.get_meta(&"chunk")):
+			points.append(tree["position"])
 	var sink := TreeField.sink(&"pine", LookPreset.vegetation())
-	_assert_on_surface(_offsets(points, sink), "dense trees", 500)
+	_assert_on_surface(_offsets(points, sink), "dense trees", 100)
+
+
+## TASK-221: the full trees read the shared near-height window (the drawn near mesh): their base
+## is the window's height, within the sink tolerance of both the drawn mesh and the surface the CPU
+## trees used to stand on (TerrainSurface through vegetation_ground_height).
+func test_full_trees_read_the_shared_near_height_window() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var forest := _view.vegetation().forest
+	var cache := _view.vegetation().shrubs.near_heights()
+	assert_true(cache != null, "a near-height window")
+	cache.update(_target)
+	for node in forest.full_nodes():
+		var material := node.multimesh.mesh.surface_get_material(0) as ShaderMaterial
+		assert_true(
+			material.get_shader_parameter(&"use_near"), "the full trees stand on the near mesh"
+		)
+		break
+	var checked := 0
+	var worst := 0.0
+	for node in forest.full_nodes():
+		for tree in forest.full_trees(node.get_meta(&"chunk")):
+			var p: Vector3 = tree["position"]
+			if Vector2(p.x, p.z).distance_to(_target) > NEAR_REACH:
+				continue
+			var cached := cache.height_at(p.x, p.z)
+			if is_nan(cached):
+				continue
+			var surface := _view.vegetation_ground_height(p.x, p.z)
+			worst = maxf(worst, absf(cached - surface))
+			checked += 1
+	assert_true(checked > 100, "%d trees checked" % checked)
+	var sink_m := float(LookPreset.vegetation()["tree_sink_m"])
+	assert_true(
+		worst * MapScale.metres_per_unit < maxf(sink_m, 0.1),
+		"worst %.3f m" % (worst * MapScale.metres_per_unit)
+	)
 
 
 func test_planned_trees_and_ground_cover_stand_on_the_near_surface() -> void:
@@ -154,7 +191,7 @@ func test_a_camera_jump_shows_the_grass_within_the_ring_in_the_first_frame() -> 
 
 
 ## TASK-189 (ADR 0027): after a ~2 km camera jump every impostor chunk within 1 km exists after
-## the first frame (the GPU-placed layer builds in the scan), and the full trees follow.
+## the first frame (the GPU-placed layer builds in the scan), and so does every full tree chunk.
 func test_a_camera_jump_shows_the_impostors_within_1_km_in_the_first_frame() -> void:
 	VisualScale.apply(VisualScale.TRUE_PRESET)
 	var forest := _view.vegetation().forest
@@ -196,42 +233,34 @@ func test_a_camera_jump_shows_the_impostors_within_1_km_in_the_first_frame() -> 
 			expected += 1
 			assert_true(built.has(chunk), "impostor chunk %s after one frame" % chunk)
 	assert_true(expected > 10, "%d forest chunks within 1 km" % expected)
-	# The full trees around the camera (worker plans) follow within seconds.
+	# The full trees around the camera are GPU-placed too (TASK-221): every full chunk within the
+	# build ring exists after the first frame, nothing is planned.
 	var camera_chunks := _view.vegetation().chunks
 	var full_layer := camera_chunks.layer(ForestField.FULL_LAYER)
 	var position := _view.vegetation().camera_position
 	var centre := Vector2(position.x, position.z)
 	var build := camera_chunks.build_radius(ForestField.FULL_LAYER)
-	var wanted: Array[Vector2i] = []
-	for x in range(floori(centre.x - build) - 1, floori(centre.x + build) + 1):
-		for z in range(floori(centre.y - build) - 1, floori(centre.y + build) + 1):
+	var wanted := 0
+	var size := full_layer.chunk_size
+	for x in range(floori((centre.x - build) / size) - 1, floori((centre.x + build) / size) + 1):
+		for z in range(
+			floori((centre.y - build) / size) - 1, floori((centre.y + build) / size) + 1
+		):
 			var chunk := Vector2i(x, z)
 			if (
 				full_layer.distance_to(chunk, centre) <= build
 				and full_layer.chunk_rect(chunk).intersects(full_layer.area)
 			):
-				wanted.append(chunk)
-	assert_true(wanted.size() > 4, "%d full chunks wanted" % wanted.size())
-	# Frames of ~16 ms: the full trees are there within 2 s of play on 4 cores (measured ~70
-	# frames); the bound leaves room for a loaded test machine.
-	var missing := wanted.size()
-	var frames := 1
-	while missing > 0 and frames < 600:
-		_view._process(0.016)
-		OS.delay_usec(16000)
-		frames += 1
-		missing = 0
-		for chunk in wanted:
-			if not camera_chunks.is_live(ForestField.FULL_LAYER, chunk):
-				missing += 1
-	print(
-		(
-			"Forest jump: target update %.1f ms, first frame %.1f ms, full trees after %d frames"
-			% [scan_ms, first_ms, frames]
-		)
-	)
-	assert_eq(missing, 0, "every full chunk around the camera built")
-	assert_true(frames <= 360, "full trees after %d frames" % frames)
+				wanted += 1
+				assert_true(
+					camera_chunks.is_live(ForestField.FULL_LAYER, chunk),
+					"full chunk %s after one frame" % chunk
+				)
+	assert_true(wanted > 10, "%d full chunks wanted" % wanted)
+	assert_true(forest.full_nodes().size() > 4, "%d full tree nodes" % forest.full_nodes().size())
+	var stats: Dictionary = camera_chunks.stats()[ForestField.FULL_LAYER]
+	assert_eq(stats["plan_ms"], 0.0, "no plan time")
+	print("Forest jump: target update %.1f ms, first frame %.1f ms" % [scan_ms, first_ms])
 	# Back to the shared view of the other tests.
 	_view.set_camera_target(_target)
 	var back := _view.vegetation_ground_height(_target.x, _target.y)

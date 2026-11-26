@@ -76,35 +76,46 @@ void vertex() {
 	leaf = COLOR.b;
 	ao = COLOR.r;
 #ifdef PLACED_VEGETATION
-	// GPU-placed plants (TASK-217a, shrub_mesh.gdshader): the including shader derives the plant
-	// of this instance's cell (placed_instance) – its variation (as INSTANCE_CUSTOM), base colour,
-	// world origin and the model-to-world basis (and its normal basis). The MultiMesh holds
-	// identity instances, so the vertices are placed here.
+	// GPU-placed plants (TASK-217a, shrub_mesh.gdshader; TASK-221, forest_tree.gdshader): the
+	// including shader derives the plant of this instance's cell (placed_instance) – its variation
+	// (as INSTANCE_CUSTOM), base colour, world origin and the model-to-world basis (and its normal
+	// basis); `tag` is the vertex colour's alpha (a mesh made of several models says which one a
+	// vertex belongs to). The MultiMesh holds identity instances, so the vertices are placed here.
 	vec4 custom;
 	vec3 base_color;
 	vec3 origin;
 	mat3 placed;
 	mat3 placed_normal;
 	bool placed_alive = placed_instance(
-		INSTANCE_ID, MAIN_CAM_INV_VIEW_MATRIX, custom, base_color, origin, placed, placed_normal
+		INSTANCE_ID, MAIN_CAM_INV_VIEW_MATRIX, COLOR.a, custom, base_color, origin, placed, placed_normal
 	);
-	vec3 hsv = rgb_to_hsv(base_color);
-	hsv.x = fract(hsv.x - custom.r);
-	hsv.y = clamp(hsv.y * custom.b, 0.0, 1.0);
-	hsv.z *= custom.g;
-	tint = hsv_to_rgb(hsv);
-	float camera_distance = distance(origin, MAIN_CAM_INV_VIEW_MATRIX[3].xyz);
-	float h = clamp(VERTEX.y / tree_height, 0.0, 1.2);
-	vec3 world = origin + placed * VERTEX;
-	float wind_mask = clamp((wind_distance - camera_distance) / wind_fade, 0.0, 1.0);
-	if (wind_mask > 0.0) {
-		vec3 offset = wind_offset(origin, h, custom.a * 6.2831853);
-		offset += wind_flutter(origin, COLOR.g + custom.a) * leaf;
-		world += offset * (wind_mask * tree_wind_scale);
+	if (placed_alive) {
+#ifdef PLACED_LEAF_COLOR
+		// The species' own colour (the material's), shifted by the tree's variation.
+		base_color = leaf_color;
+#endif
+		vec3 hsv = rgb_to_hsv(base_color);
+		hsv.x = fract(hsv.x - custom.r);
+		hsv.y = clamp(hsv.y * custom.b, 0.0, 1.0);
+		hsv.z *= custom.g;
+		tint = hsv_to_rgb(hsv);
+		float camera_distance = distance(origin, MAIN_CAM_INV_VIEW_MATRIX[3].xyz);
+		float h = clamp(VERTEX.y / tree_height, 0.0, 1.2);
+		vec3 world = origin + placed * VERTEX;
+		float wind_mask = clamp((wind_distance - camera_distance) / wind_fade, 0.0, 1.0);
+		if (wind_mask > 0.0) {
+			vec3 offset = wind_offset(origin, h, custom.a * 6.2831853);
+			offset += wind_flutter(origin, COLOR.g + custom.a) * leaf;
+			world += offset * (wind_mask * tree_wind_scale);
+		}
+		NORMAL = normalize(placed_normal * NORMAL);
+		VERTEX = world - NODE_POSITION_WORLD;
+	} else {
+		// A cell without a plant (or drawn by another LOD or surface) collapses to a point (no
+		// pixels), without the colour and wind work.
+		tint = vec3(0.0);
+		VERTEX = vec3(0.0);
 	}
-	NORMAL = normalize(placed_normal * NORMAL);
-	// A cell without a plant (or drawn by another LOD) collapses to a point (no pixels).
-	VERTEX = placed_alive ? world - NODE_POSITION_WORLD : vec3(0.0);
 #else
 	// Hue shift / value / saturation in sRGB-like HSV of the (linear) species colour.
 	vec3 hsv = rgb_to_hsv(leaf_color);

@@ -1,8 +1,9 @@
 class_name RealScaleVegetation
 extends RefCounted
 ## MapView's real-scale vegetation (TASK-135, ADR 0026; `true` VisualScale preset only): the dense
-## forest (ForestField: full trees around the camera, impostors around the camera target, the
-## ForestShell canopy beyond), the GPU-placed shrubs and near grass (ShrubField, GpuGrassField) and
+## forest (ForestField: GPU-placed full trees around the camera and impostors around the camera
+## target, the ForestShell canopy beyond), the GPU-placed shrubs and near grass (ShrubField,
+## GpuGrassField) and
 ## the second, camera-centred ChunkManager that carries the layers following the camera rather than
 ## its target. The near layers (full trees, near grass, impostors) are switched off while the camera
 ## is higher above the ground than they reach (with hysteresis), so a zoomed-out view plans and
@@ -31,6 +32,9 @@ var _active := false
 var _on: Dictionary = {}
 var _shrubs_on := false
 var _grass_on := false
+## The drawn near heights the GPU-placed trees, shrubs and grass stand on (TASK-217a): one window
+## on the camera target, shared (null: no near terrain, everything stands on the lattice).
+var _near_heights: NearHeightCache
 ## GraphicsQuality features of the build (the shrubs' range).
 var _quality: Dictionary = {}
 
@@ -58,15 +62,14 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool, quality := {}) 
 	shrubs.clear()
 	_shrubs_on = false
 	_grass_on = false
+	_near_heights = null
 
 
 ## The forest of `grid` (or of the land-cover `look`, TASK-108g) over `rect`; returns the canopy
 ## shell node to add (null without forest).
-## `ground` is MapView.vegetation_ground_height (thread-safe: the full trees), `lattice` the drawn
-## terrain lattice (the GPU-placed impostors and the shell, ADR 0027).
+## `lattice` is the drawn terrain lattice (the GPU-placed trees, impostors and the shell, ADR 0027).
 func build_forest(
 	grid: HexGrid,
-	ground: Callable,
 	lattice: TerrainLattice,
 	seed_value: int,
 	rect: Rect2,
@@ -75,7 +78,8 @@ func build_forest(
 ) -> MeshInstance3D:
 	if not _active:
 		return null
-	forest.setup(grid, ground, seed_value, rect, lattice, parcels, look)
+	forest.setup(grid, seed_value, rect, lattice, parcels, look)
+	forest.use_near_heights(_near_window(lattice))
 	_main.register(forest.impostor_layer())
 	chunks.register(forest.full_layer())
 	build_shrubs(
@@ -101,13 +105,20 @@ func build_shrubs(
 	if not _active:
 		return
 	shrubs.setup(grid, lattice, seed_value, rect, parcels, land_cover, forest.fill(), quality)
-	var near_layer := _main.layer(TerrainNear.LAYER)
-	if near_layer != null and near_layer.build_chunk.get_object() is TerrainNear:
-		var near := near_layer.build_chunk.get_object() as TerrainNear
-		shrubs.use_near_heights(NearHeightCache.new(near, near_layer, lattice.origin))
+	shrubs.use_near_heights(_near_window(lattice))
 	chunks.register(shrubs.near_layer())
 	chunks.register(shrubs.impostor_layer())
 	_shrubs_on = true
+
+
+## The shared near-height window (null without a near terrain layer), made on first use.
+func _near_window(lattice: TerrainLattice) -> NearHeightCache:
+	if _near_heights == null:
+		var near_layer := _main.layer(TerrainNear.LAYER)
+		if near_layer != null and near_layer.build_chunk.get_object() is TerrainNear:
+			var near := near_layer.build_chunk.get_object() as TerrainNear
+			_near_heights = NearHeightCache.new(near, near_layer, lattice.origin)
+	return _near_heights
 
 
 ## The near grass (TASK-217b): over the maps of the shrubs (build_shrubs runs first: their masks,
@@ -146,8 +157,7 @@ func set_camera(position: Vector3, gap: float) -> void:
 
 func process() -> void:
 	chunks.process()
-	if _shrubs_on and _main.has_target():
-		shrubs.update_near(_main.target())
+	_update_near()
 
 
 ## Builds every camera-centred chunk now (loading screen, tests, screenshots).
@@ -156,8 +166,13 @@ func finish() -> void:
 		return
 	chunks.finish_all()
 	forest.update(camera_position)
-	if _shrubs_on and _main.has_target():
-		shrubs.update_near(_main.target())
+	_update_near()
+
+
+## The near-height window follows the camera target (once a frame; a no-op when nothing changed).
+func _update_near() -> void:
+	if _near_heights != null and _main.has_target():
+		_near_heights.update(_main.target())
 
 
 func is_settled() -> bool:

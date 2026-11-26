@@ -10,16 +10,16 @@ extends RefCounted
 ## random number generator, no draws from ScatterPlanner's streams or GameState.rng; chunks in any
 ## order give the same forest.
 ##
-## This is the reference implementation: the full trees (ForestField's CPU-planned LOD0 layer) and
-## the tests use it, and assets/shaders/forest_hash.gdshaderinc + forest_impostor.gdshader compute
-## the same trees on the GPU for the impostors (same constants, uint32 arithmetic – the GDScript
+## This is the reference implementation: the tests use it, and the shaders forest_hash.gdshaderinc
+## + forest_impostor.gdshader (the impostors) and forest_tree.gdshader (the full LOD0 trees,
+## TASK-221) compute the same trees on the GPU (same constants, uint32 arithmetic – the GDScript
 ## hashes mask to 32 bits after every multiply). Change both together (tests/unit/test_forest_fill
 ## fixes the values of a few cells and compares the constants).
 ##
 ## Every decision reads the same data on both sides – the stand mask texel and the drawn lattice
 ## height (`lattice`, TerrainLattice.mesh_height_at – the shader's height texture) for the shore
 ## and the conifer share – so the CPU and the GPU agree on which cells hold a tree; only the drawn
-## base height differs: the full trees stand on the near surface (plan_rect's `ground`), the
+## base height differs: the full trees stand on the near surface (ForestField.drawn_ground), the
 ## impostors on the lattice, sunk a little.
 
 const POINT_SALT := 0xF0E5
@@ -144,6 +144,11 @@ func cells_of(rect: Rect2) -> Rect2i:
 	)
 	var end := Vector2i(ceili(rect.end.x / spacing - 0.5), ceili(rect.end.y / spacing - 0.5))
 	return Rect2i(first, end - first)
+
+
+## The drawn lattice height at (x, z) (the shader's `heights` texture).
+func lattice_height(x: float, z: float) -> float:
+	return _lattice.call(x, z)
 
 
 ## The jittered point (world XZ) of a cell.

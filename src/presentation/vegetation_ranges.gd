@@ -70,22 +70,3 @@ static func band(distance: float, v: Dictionary = {}) -> Vector2:
 ## species: the mixed-forest mean).
 static func species_height_m(species: StringName) -> float:
 	return VisualScale.TRUE_HEIGHTS_M.get(species, VisualScale.TRUE_HEIGHTS_M[&"tree"])
-
-
-## The full-tree budget (farthest dropped first): `chunks` holds one Vector2(nearest distance from
-## the camera, full-tree count) per chunk; taken nearest first while the summed count stays at or
-## below `cap`. Returns the distance from which full trees are dropped – the nearest distance of
-## the first chunk that does not fit, INF when all fit. Chunks at or beyond it are hidden and
-## their trees drawn as impostors; every tree beyond it as well (the shaders' lod cap).
-static func budget_reach(chunks: Array[Vector2], cap: int) -> float:
-	var keys := PackedInt64Array()
-	for i in chunks.size():
-		keys.append((roundi(chunks[i].x * 1.0e6) << 20) | i)
-	keys.sort()
-	var total := 0
-	for key in keys:
-		var chunk := chunks[key & 0xFFFFF]
-		total += int(chunk.y)
-		if total > cap:
-			return chunk.x
-	return INF

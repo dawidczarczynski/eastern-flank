@@ -17,8 +17,11 @@ uniform float bake_elevation = 0.26;
 uniform float rows = 1.0;
 uniform float views = 8.0;
 uniform float band_share = 0.08;
-// The full-tree budget's reach (ForestField): from here on no full tree is drawn.
+// The nearest full-tree chunk that is not built (ForestField): from here on no full tree is drawn.
 uniform float full_reach = 1.0e9;
+// The GPU full trees' range (ForestField, `full_tree_range_m`): each tree is a full tree up to its
+// own point of the band around it, whatever its species' full band says.
+uniform float full_cap = 1.0e9;
 // The picture spans `vertical_span` tree heights from `below_base` of a height below the base.
 uniform float below_base = 0.12;
 uniform float vertical_span = 1.25;
@@ -42,7 +45,10 @@ varying vec3 basis_z;
 // the full-tree budget) and its impostor band, at its own point of the bands (`phase`).
 bool impostor_in_band(float camera_distance, float full_centre, float out_centre, float phase) {
 	float lod_from = min(
-		mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase),
+		min(
+			mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase),
+			mix(full_cap * (1.0 - band_share), full_cap * (1.0 + band_share), phase)
+		),
 		full_reach
 	);
 	float lod_to = mix(out_centre * (1.0 - band_share), out_centre * (1.0 + band_share), phase);

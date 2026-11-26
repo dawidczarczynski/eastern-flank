@@ -320,7 +320,7 @@ func build(grid: HexGrid) -> void:
 		if VisualScale.is_true_size():
 			_foliage.ground = vegetation_ground_height
 		var shell := _vegetation.build_forest(
-			grid, vegetation_ground_height, _lattice, SCATTER_SEED, _lattice.rect(), _parcels, _look
+			grid, _lattice, SCATTER_SEED, _lattice.rect(), _parcels, _look
 		)
 		if shell != null:
 			SatelliteColour.apply(shell.mesh.surface_get_material(0) as ShaderMaterial, satellite)

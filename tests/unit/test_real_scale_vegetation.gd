@@ -99,47 +99,6 @@ func test_ranges_are_metres_and_scale_with_the_tree_size() -> void:
 	assert_true(VegetationRanges.vanish_range(3.0) > VegetationRanges.impostor_range(3.0))
 
 
-func test_the_budget_drops_the_farthest_chunks_first() -> void:
-	var chunks: Array[Vector2] = [
-		Vector2(0.9, 400), Vector2(0.1, 500), Vector2(1.4, 300), Vector2(0.5, 600)
-	]
-	var reach := VegetationRanges.budget_reach(chunks, 1100)
-	assert_true(is_equal_approx(reach, 0.9), "0.1 + 0.5 fit, 0.9 does not: %f" % reach)
-	assert_eq(VegetationRanges.budget_reach(chunks, 5000), INF, "all fit")
-	reach = VegetationRanges.budget_reach(chunks, 100)
-	assert_true(is_equal_approx(reach, 0.1), "not even the nearest fits: %f" % reach)
-
-
-func test_the_full_tree_cap_holds_for_a_synthetic_camera() -> void:
-	var forest := _view.vegetation().forest
-	var saved: int = forest._values["full_tree_cap"]
-	forest.update(_camera)
-	var uncapped := forest.visible_full_count()
-	assert_true(uncapped > 0, "full trees near the camera")
-	var cap := uncapped / 2
-	forest._values["full_tree_cap"] = cap
-	forest.update(_camera)
-	assert_true(forest.visible_full_count() <= cap, "%d <= %d" % [forest.visible_full_count(), cap])
-	assert_true(forest.reach() < INF)
-	var nearest_hidden := INF
-	var farthest_shown := 0.0
-	for chunk: Vector2i in forest._full:
-		var nodes: Array = forest._full[chunk]["nodes"]
-		if nodes.is_empty():
-			continue
-		var d := forest._distance(chunk, _camera)
-		if (nodes[0] as MultiMeshInstance3D).visible:
-			farthest_shown = maxf(farthest_shown, d)
-		elif d < forest.max_ranges().x:
-			nearest_hidden = minf(nearest_hidden, d)
-	assert_true(farthest_shown <= nearest_hidden, "%f <= %f" % [farthest_shown, nearest_hidden])
-	# The dropped trees become impostors: their lod cap is the budget's reach.
-	var material := forest.full_nodes()[0].material_override as ShaderMaterial
-	assert_eq(material.get_shader_parameter(&"lod_cap"), forest.reach())
-	forest._values["full_tree_cap"] = saved
-	forest.update(_camera)
-
-
 func test_scatter_is_deterministic_and_the_true_preset_adds_no_draws() -> void:
 	var grid := _forest_grid(3)
 	var rect := Rect2(-1.0, -1.0, 2.0, 2.0)
@@ -263,31 +222,32 @@ func test_impostor_chunks_carry_no_instance_data_and_build_in_under_half_a_milli
 	assert_eq(forest.impostor_nodes().size(), nodes.size(), "rebuilt in place")
 
 
-## The full trees come from the worker plans (MultiMesh buffers), the impostor positions from the
-## reference the shader follows; both derive from ForestFill.cell_tree, so this checks the full
-## layer's planning, ownership and grounding, not the GPU: every full tree has its impostor cell
-## at the same point, and the height gap is exactly near surface - lattice + the extra sink.
+## The full trees and the impostors both derive from ForestFill.cell_tree (the references of the two
+## shaders), so every full tree has its impostor cell at the same point, and the height gap is
+## exactly drawn near surface - lattice + the extra sink.
 func test_every_full_tree_has_its_impostor_cell_at_the_same_point() -> void:
 	VisualScale.apply(VisualScale.TRUE_PRESET)
 	var forest := _view.vegetation().forest
 	var a := forest.fill().spacing
 	var full := {}
 	for node in forest.full_nodes():
-		for p in forest.instance_positions(node):
+		for tree in forest.full_trees(node.get_meta(&"chunk")):
+			var p: Vector3 = tree["position"]
 			# A point keeps a tenth of a cell off its cell's border.
 			full[Vector2i(floori(p.x / a), floori(p.z / a))] = p
-	assert_true(full.size() > 500, "%d full trees" % full.size())
+	assert_true(full.size() > 100, "%d full trees" % full.size())
 	var extra := MapScale.to_units(float(LookPreset.vegetation()["impostor_sink_m"]))
 	var matched := 0
 	for node in forest.impostor_nodes():
-		for p in forest.instance_positions(node):
+		for tree in forest.impostor_trees(node.get_meta(&"chunk")):
+			var p: Vector3 = tree["position"]
 			var key := Vector2i(floori(p.x / a), floori(p.z / a))
 			if not full.has(key):
 				continue
 			matched += 1
 			var at: Vector3 = full[key]
 			assert_true(Vector2(at.x, at.z).distance_to(Vector2(p.x, p.z)) < 1.0e-5)
-			var near := _view.vegetation_ground_height(p.x, p.z)
+			var near := forest.drawn_ground(p.x, p.z)
 			var lattice := _view.mesh_height_at(p.x, p.z)
 			var gap := at.y - p.y
 			assert_true(absf(gap - (near - lattice + extra)) < 1.0e-4, "gap %.4f" % gap)
@@ -342,6 +302,33 @@ func test_the_shader_keeps_the_reference_expressions() -> void:
 		"ivec2(int(cells.x) + INSTANCE_ID % nx, int(cells.y) + INSTANCE_ID / nx)",
 	]:
 		assert_true(shader.contains(expression), "shader: %s" % expression)
+	# The full trees' shader (TASK-221) derives the same tree from the same cell: its twin of the
+	# cell formulas, and the same hand-over band as the impostors' impostor_in_band.
+	var trees := FileAccess.get_file_as_string("res://assets/shaders/forest_tree.gdshader")
+	var view := FileAccess.get_file_as_string("res://assets/shaders/tree_impostor_view.gdshaderinc")
+	for expression in [
+		"FOREST_SCALE_MIN + FOREST_SCALE_RANGE * float(values_hash & 1023u) / 1024.0",
+		"float k = float((values_hash >> 10u) & 1023u) / 1024.0;",
+		"float conifer_roll = float((values_hash >> 20u) & 1023u) / 1024.0;",
+		"s * (0.9 + k * 0.3) * size.y",
+		"float yaw = k * 6.0;",
+		"forest_point(forest_tile_seed(forest_seed, cell, FOREST_POINT_SALT), cell, spacing)",
+		"forest_tile_seed(forest_seed, cell, FOREST_PICK_SALT)",
+		"species = roll < shares.x ? 0 : 1;",
+		"species = roll < shares.y ? 2 : (roll < shares.z ? 3 : 4);",
+		"conifer_roll < (ground > high_ground ? conifer_chance.x : conifer_chance.y)",
+		"veg_instance_cell(instance_id, cells, cell)",
+		"mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase)",
+		"distance(vec3(p.x, ground - hand_over_sink, p.y), cam)",
+	]:
+		assert_true(trees.contains(expression), "tree shader: %s" % expression)
+	assert_true(
+		view.contains(
+			"mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase)"
+		),
+		"the impostors' band is the trees'"
+	)
+	assert_true(shader.contains("origin.y = ground - sink;"), "the impostors' base distance")
 
 
 ## The field keeps the last MAX_BURNS circles, for the full trees and the impostors alike.

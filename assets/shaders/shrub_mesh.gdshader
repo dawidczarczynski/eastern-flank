@@ -27,7 +27,7 @@ uniform vec4 burns[128];
 uniform int burn_count;
 
 bool placed_instance(
-	int instance_id, mat4 main_cam, out vec4 custom, out vec3 base_color, out vec3 origin,
+	int instance_id, mat4 main_cam, float tag, out vec4 custom, out vec3 base_color, out vec3 origin,
 	out mat3 placed, out mat3 placed_normal
 ) {
 	custom = vec4(0.0, 1.0, 1.0, 0.0);

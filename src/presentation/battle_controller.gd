@@ -220,6 +220,9 @@ func _warm_up() -> void:
 	while not warm_up.is_settled() and Time.get_ticks_msec() < deadline:
 		await _next_frame()
 		warm_up.add_frame(get_process_delta_time())
+	if VisualScale.is_true_size():
+		# The camera-centred layers (full trees, shrubs, grass) are built by the frames above.
+		print("Camera chunk layers: %s" % _map_view.vegetation().chunks.stats())
 
 
 ## Throttles the frame rate while the window is in the background.

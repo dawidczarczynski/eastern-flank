@@ -6,7 +6,6 @@
 script = ExtResource("1_rings")
 reach_m = {
 &"forest": 1300.0,
-&"forest_full": 170.0,
 &"grass": 1925.0,
 &"grass_near": 110.0,
 &"grid": 4040.0,
