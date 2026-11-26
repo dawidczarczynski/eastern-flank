@@ -2011,21 +2011,21 @@
    }
   },
   "TASK-108c": {
-   "active_hours": 0.15,
-   "cost": 2.1415,
+   "active_hours": 3.69,
+   "cost": 20.555,
    "first": "2026-11-11T23:01:42.632Z",
-   "last": "2026-11-11T23:10:42.122Z",
-   "main_cost": 0.176,
+   "last": "2026-11-23T19:45:03.678Z",
+   "main_cost": 1.9527,
    "models": [
     "claude-sonnet-5-5"
    ],
    "orchestrator": "sonnet",
-   "sessions": 1,
+   "sessions": 2,
    "tokens": {
-    "cache_read": 2907101,
-    "cache_write": 151540,
-    "input": 72,
-    "output": 46726
+    "cache_read": 45138929,
+    "cache_write": 940700,
+    "input": 664,
+    "output": 232245
    }
   },
   "TASK-108d": {
@@ -3092,6 +3092,43 @@
     "output": 191293
    }
   },
+  "TASK-199a": {
+   "active_hours": 0.41,
+   "cost": 4.8957,
+   "first": "2026-11-23T14:20:22.117Z",
+   "last": "2026-11-23T14:44:41.245Z",
+   "main_cost": 0.3141,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 5578253,
+    "cache_write": 189533,
+    "input": 120,
+    "output": 45232
+   }
+  },
+  "TASK-199b": {
+   "active_hours": 1.4,
+   "cost": 4.5095,
+   "first": "2026-11-23T14:48:26.638Z",
+   "last": "2026-11-23T16:12:08.540Z",
+   "main_cost": 0.5083,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 8913564,
+    "cache_write": 210523,
+    "input": 172,
+    "output": 69699
+   }
+  },
   "TASK-201a": {
    "active_hours": 1.03,
    "cost": 8.2547,
@@ -3127,6 +3164,25 @@
     "cache_write": 89250,
     "input": 104,
     "output": 23516
+   }
+  },
+  "TASK-215a": {
+   "active_hours": 4.13,
+   "cost": 54.3056,
+   "first": "2026-11-23T10:03:07.709Z",
+   "last": "2026-11-23T14:11:07.718Z",
+   "main_cost": 1.6757,
+   "models": [
+    "claude-opus-5-5",
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 61363447,
+    "cache_write": 2792569,
+    "input": 756,
+    "output": 300237
    }
   }
  },
