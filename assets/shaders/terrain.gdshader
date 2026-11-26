@@ -63,6 +63,18 @@ uniform vec2 detail_fade = vec2(4.0, 6.0);
 uniform float detail_albedo = 0.3;
 uniform vec3 detail_dry = vec3(1.1, 1.0, 0.78);
 uniform float detail_normal = 0.7;
+// Grass tone (TASK-217b, TerrainGround.set_grass_tone; `true` preset only, off otherwise): on grass
+// ground (grass and dry-grass layers, no crop) beyond the GPU grass ring a cheap grass-coloured
+// mottle replaces the clumps: it ramps in over grass_tone_ramp (view distance, world units: none
+// below x, full beyond y), the mottle pulls the colour towards grass_tone_colour by grass_tone_mix
+// and varies the brightness by +-grass_tone_contrast at two scales (grass_tone_cells, metres),
+// each faded out once a pixel covers half of its cell.
+uniform bool grass_tone_on = false;
+uniform vec2 grass_tone_ramp = vec2(10.0, 50.0);
+uniform vec3 grass_tone_colour = vec3(0.9, 1.06, 0.86);
+uniform float grass_tone_mix = 0.5;
+uniform float grass_tone_contrast = 0.18;
+uniform vec2 grass_tone_cells = vec2(1.2, 6.0);
 // Lake and river beds darken with depth below the water level.
 uniform float water_level = 0.0;
 uniform float bed_darkening = 0.6;
@@ -467,6 +479,8 @@ void fragment() {
 
 	// How much of the colour is a real parcel's own (parcel_satellite_hue applies there).
 	float parcel_keep = 0.0;
+	// How much a crop parcel covers the grass ground here (the grass tone stays off it).
+	float crop_cover = 0.0;
 	if (parcels_on) {
 		// World-space derivatives before any divergent branch.
 		vec2 xz_m = xz * metres_per_unit;
@@ -565,6 +579,7 @@ void fragment() {
 				cover = 0.0;
 			}
 			albedo = mix(albedo, crop, cover);
+			crop_cover = cover;
 			if (real_parcel && parcel_real) {
 				parcel_keep = cover;
 			}
@@ -600,6 +615,20 @@ void fragment() {
 		} else {
 			albedo = ground_colour;
 		}
+	}
+	if (grass_tone_on) {
+		float ramp = smoothstep(grass_tone_ramp.x, grass_tone_ramp.y, view_distance);
+		float grassy = clamp(w[0] + w[1], 0.0, 1.0) * (1.0 - crop_cover);
+		float foot_m = length(fwidth(xz)) * metres_per_unit;
+		vec2 cells_u = grass_tone_cells / metres_per_unit;
+		float coarse = value_noise(xz / cells_u.y);
+		float fine = value_noise(xz / cells_u.x);
+		float fine_k = 1.0 - smoothstep(0.25, 0.5, foot_m / grass_tone_cells.x);
+		float coarse_k = 1.0 - smoothstep(0.25, 0.5, foot_m / grass_tone_cells.y);
+		float mottle = (2.0 * coarse - 1.0) * coarse_k * 0.6 + (2.0 * fine - 1.0) * fine_k * 0.4;
+		vec3 toned = albedo * (1.0 + grass_tone_contrast * mottle);
+		toned = mix(toned, toned * grass_tone_colour, grass_tone_mix);
+		albedo = mix(albedo, toned, ramp * grassy);
 	}
 	float lum = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
 	albedo = mix(vec3(lum), albedo, vertex_tint.y) * vertex_tint.x;

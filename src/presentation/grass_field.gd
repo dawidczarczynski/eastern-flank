@@ -29,9 +29,6 @@ const SHADER := preload("res://assets/shaders/grass.gdshader")
 const STRIDE := 16
 const KINDS: Array[String] = ["grass", "flowers", "reeds"]
 
-## Callable(rect: Rect2) per listener, called by add_clearing (GrassNear rebuilds its chunks).
-var clearing_listeners: Array[Callable] = []
-
 var _grid: HexGrid
 var _parcels: ParcelMap
 ## The land-cover look of the last setup (TASK-108g), or null: the clumps follow the hex types.
@@ -93,7 +90,8 @@ func setup(
 	_clearings.clear()
 	_instances = 0
 	_density = 0.0
-	if requested <= 0.0:
+	# `true` (TASK-217b): the grass is GPU-placed (GpuGrassField), nothing is planned here.
+	if requested <= 0.0 or VisualScale.is_true_size():
 		return
 	var estimate := _estimate(requested)
 	var map_area := (
@@ -168,19 +166,6 @@ static func max_clump_height() -> float:
 	)
 
 
-## What GrassNear draws its clumps with (TASK-135): {"mesh": the clump mesh, "grass" / "reeds":
-## the materials, "meadow": LookPreset.meadow() of the last setup, "parcels": the ParcelMap}.
-func clump_look() -> Dictionary:
-	return {
-		"mesh": _mesh,
-		"grass": _material,
-		"reeds": _reed_material,
-		"meadow": _meadow,
-		"parcels": _parcels,
-		"cover": _look,
-	}
-
-
 func is_active() -> bool:
 	return _density > 0.0
 
@@ -197,8 +182,6 @@ func add_clearing(center: Vector2, radius: float) -> void:
 	if _density <= 0.0:
 		return
 	var area := Rect2(center - Vector2.ONE * radius, Vector2.ONE * 2.0 * radius)
-	for listener in clearing_listeners:
-		listener.call(area)
 	if _invalidate.is_valid():
 		_invalidate.call(&"grass", area)
 		return

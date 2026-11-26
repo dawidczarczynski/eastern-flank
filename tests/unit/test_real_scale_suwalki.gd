@@ -96,22 +96,61 @@ func test_planned_trees_and_ground_cover_stand_on_the_near_surface() -> void:
 	_assert_on_surface(offsets, "planned trees and ground cover", 30)
 
 
-func test_grass_stands_on_the_near_surface() -> void:
+func test_the_gpu_grass_reads_the_drawn_near_heights() -> void:
 	VisualScale.apply(VisualScale.TRUE_PRESET)
-	var near := _view.vegetation().grass_near
-	var points := PackedVector3Array()
-	for node in near.nodes():
-		points.append_array(near.instance_positions(node))
-	_assert_on_surface(_offsets(points, 0.0), "near grass", 1000)
-	# The far grass layer stands on the same surface (its plans, within the near reach).
-	var far := PackedVector3Array()
-	var rect := Rect2(_target - Vector2.ONE * NEAR_REACH, Vector2.ONE * 2.0 * NEAR_REACH)
-	for chunk in GrassPlanner.chunks_covering(rect):
-		var plan := _view.grass().plan_chunk(chunk)
-		for kind: String in ["grass", "reeds"]:
-			for item: Dictionary in plan[kind]["items"]:
-				far.append(item["position"])
-	_assert_on_surface(_offsets(far, 0.0), "grass", 20)
+	var grass := _view.vegetation().grass
+	assert_true(grass.is_built(), "the grass layer exists (its chunks wait for a low camera)")
+	var cache := _view.vegetation().shrubs.near_heights()
+	assert_true(cache != null, "the near height window exists")
+	for m in grass.materials():
+		assert_true(m.get_shader_parameter(&"use_near"), "the grass stands on the drawn near mesh")
+	assert_eq(_view.grass().instance_count(), 0, "no CPU grass under true")
+
+
+static func _gap(rect: Rect2, point: Vector2) -> float:
+	return point.distance_to(point.clamp(rect.position, rect.end))
+
+
+## TASK-217b: after a ~2 km camera jump every GPU grass chunk within the ring exists after the
+## first frame (instant layer: no worker plan), and none is built beyond the ring.
+func test_a_camera_jump_shows_the_grass_within_the_ring_in_the_first_frame() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var grass := _view.vegetation().grass
+	var grid := ImportedMap.find(Scenario.SUWALKI_MAP_ID).to_grid()
+	var jump := MapScale.to_units(2000.0)
+	var target := Vector2.INF
+	for c in grid.coords():
+		if grid.get_terrain(c) != Terrain.Type.PLAINS:
+			continue
+		var w := Hex.to_world(c, _view.hex_size)
+		var p := Vector2(w.x + 0.1, w.z - 0.1)
+		if absf(p.distance_to(_target) - jump) < absf(target.distance_to(_target) - jump):
+			target = p
+	assert_true(absf(target.distance_to(_target) - jump) < 1.0, "open land ~2 km away")
+	var ground := _view.vegetation_ground_height(target.x, target.y)
+	_view.set_camera_target(target)
+	_view.set_camera_position(Vector3(target.x, ground + 0.003, target.y))
+	_view._process(0.016)
+	var ring := grass.ring()
+	var layer := grass.layer()
+	var built := {}
+	for node in grass.nodes():
+		built[node.get_meta(&"chunk")] = true
+	var expected := 0
+	var size := GpuGrassField.CHUNK
+	for x in range(floori((target.x - ring) / size) - 1, floori((target.x + ring) / size) + 2):
+		for z in range(floori((target.y - ring) / size) - 1, floori((target.y + ring) / size) + 2):
+			var chunk := Vector2i(x, z)
+			var inside := layer.chunk_rect(chunk).intersects(layer.area)
+			if _gap(layer.chunk_rect(chunk), target) <= ring and inside:
+				expected += 1
+				assert_true(built.has(chunk), "grass chunk %s after one frame" % chunk)
+	assert_true(expected >= 4, "%d grass chunks within the ring" % expected)
+	for chunk: Vector2i in built:
+		assert_true(
+			_gap(layer.chunk_rect(chunk), target) <= ring + size,
+			"no chunk beyond the ring + a chunk: %s" % chunk
+		)
 
 
 ## TASK-189 (ADR 0027): after a ~2 km camera jump every impostor chunk within 1 km exists after

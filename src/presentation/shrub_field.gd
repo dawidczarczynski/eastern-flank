@@ -47,6 +47,8 @@ var _impostor_multimesh: MultiMesh
 var _heights := PackedFloat32Array()
 var _height_origin := Vector2.ZERO
 var _height_size := Vector2i.ZERO
+var _height_texture: ImageTexture
+var _lattice: TerrainLattice
 var _burns: Array[Vector3] = []
 ## The drawn near heights (null: the shrubs stand on the lattice everywhere).
 var _near_heights: NearHeightCache
@@ -95,8 +97,9 @@ func setup_with(
 	_heights = heights.get_data().to_float32_array()
 	_height_origin = lattice.origin
 	_height_size = heights.get_size()
-	var height_texture := ImageTexture.create_from_image(heights)
-	_setup_materials(lattice, height_texture)
+	_lattice = lattice
+	_height_texture = ImageTexture.create_from_image(heights)
+	_setup_materials(lattice, _height_texture)
 	_near = _layer(NEAR_LAYER, NEAR_CHUNK, masks.area, float(_values["shrub_mesh_range_m"]))
 	_near.name_prefix = "ShrubsNear"
 	_near.multimesh_for = _near_multimesh
@@ -158,6 +161,34 @@ func _setup_materials(lattice: TerrainLattice, heights: ImageTexture) -> void:
 	_impostor_material.set_shader_parameter(&"source_sizes", source_sizes)
 	_impostor_material.set_shader_parameter(&"source_leaf", leaves)
 	_impostor_material.set_shader_parameter(&"impostor_reach", _impostor_reach)
+
+
+## Binds the lattice heights (the drawn terrain lattice, as the shrubs read it) to a material that
+## includes shrub_rules.gdshaderinc (the GPU grass, TASK-217b): heights, height_origin,
+## height_step, height_cells, water_surface.
+func bind_terrain(m: ShaderMaterial) -> void:
+	m.set_shader_parameter(&"heights", _height_texture)
+	m.set_shader_parameter(&"height_origin", _lattice.origin)
+	m.set_shader_parameter(&"height_step", TerrainLattice.STEP)
+	m.set_shader_parameter(&"height_cells", _lattice.cells)
+	m.set_shader_parameter(&"water_surface", TerrainSurface.WATER_SURFACE)
+
+
+## The drawn terrain lattice of the last setup (null before).
+func lattice() -> TerrainLattice:
+	return _lattice
+
+
+## Lowest (x) and highest (y) lattice height over `rect`.
+func height_range(rect: Rect2) -> Vector2:
+	return GpuVegetationLayer.height_span(
+		_heights,
+		_height_origin,
+		_height_size,
+		TerrainLattice.STEP,
+		rect,
+		TerrainSurface.WATER_SURFACE
+	)
 
 
 func _bind_common(
@@ -269,6 +300,8 @@ func clear() -> void:
 	_mesh_materials.clear()
 	_burns.clear()
 	_near_heights = null
+	_height_texture = null
+	_lattice = null
 
 
 ## Shrubs near the camera target stand on the drawn near terrain (TASK-217a): `cache` follows

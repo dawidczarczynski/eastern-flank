@@ -187,7 +187,7 @@ func _ready() -> void:
 	_trees.name = "Trees"
 	add_child(_trees)
 	add_child(_vegetation.forest)
-	add_child(_vegetation.grass_near)
+	add_child(_vegetation.grass)
 	add_child(_vegetation.shrubs)
 	for overlay in [
 		_reach_line,
@@ -350,9 +350,7 @@ func build(grid: HexGrid) -> void:
 			grass_prepare.call()
 			_prime_grass_colors()
 		_chunks.register(grass_layer)
-	_vegetation.build_grass(
-		_grass, grid, BackdropSurface.new(grid, grass_ground), playable, _prime_grass_colors
-	)
+	_vegetation.build_grass(SCATTER_SEED, _parcels, satellite)
 	_grid_lines = _build_grid_lines()
 	_tiles_root.add_child(_grid_lines)
 	_chunks.register(
@@ -520,6 +518,7 @@ func _terrain_material() -> ShaderMaterial:
 		_ground_material = TerrainGround.material(quality)
 		TerrainGround.set_parcels(_ground_material, _parcels, quality)
 		SatelliteColour.apply(_ground_material, satellite)
+		TerrainGround.set_grass_tone(_ground_material)
 	return _ground_material
 
 

@@ -267,3 +267,17 @@ static func _set_true_look(
 static func _linear(color: Color) -> Vector3:
 	var c := color.srgb_to_linear()
 	return Vector3(c.r, c.g, c.b)
+
+
+## Turns the far grass tone of a terrain material on (TASK-217b; the `true` VisualScale preset on
+## every quality level, the GPU grass beyond its ring) with LookPreset.vegetation()'s ring, or off
+## (the `balanced` shader output is then unchanged). The tone ramps in from half the grass ring to
+## beyond it.
+static func set_grass_tone(material: ShaderMaterial) -> void:
+	var on := VisualScale.is_true_size()
+	material.set_shader_parameter(&"grass_tone_on", on)
+	if not on:
+		return
+	var ring := MapScale.to_units(float(LookPreset.vegetation()["grass_range_m"]))
+	material.set_shader_parameter(&"grass_tone_ramp", Vector2(ring * 0.5, ring * 1.5))
+	material.set_shader_parameter(&"metres_per_unit", MapScale.metres_per_unit)

@@ -32,6 +32,8 @@ var material: Material
 var bounds := Callable()
 var visibility_end := 0.0
 var cast_shadow := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+## The nodes' render layers (VisualInstance3D.layers).
+var layers := 1
 ## Planning order on the manager (ChunkLayer.priority).
 var priority := 0
 
@@ -71,6 +73,7 @@ func build_chunk(chunk: Vector2i, _plan: Variant = null) -> void:
 		node.material_override = material
 	node.position = Vector3(rect.position.x, 0.0, rect.position.y)
 	node.cast_shadow = cast_shadow
+	node.layers = layers
 	if visibility_end > 0.0:
 		node.visibility_range_end = visibility_end
 	if bounds.is_valid():

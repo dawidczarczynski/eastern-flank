@@ -2,9 +2,9 @@ class_name RealScaleVegetation
 extends RefCounted
 ## MapView's real-scale vegetation (TASK-135, ADR 0026; `true` VisualScale preset only): the dense
 ## forest (ForestField: full trees around the camera, impostors around the camera target, the
-## ForestShell canopy beyond), the real-density grass near the camera (GrassNear) and the second,
-## camera-centred ChunkManager that carries the layers following the camera rather than its
-## target. The near layers (full trees, near grass, impostors) are switched off while the camera
+## ForestShell canopy beyond), the GPU-placed shrubs and near grass (ShrubField, GpuGrassField) and
+## the second, camera-centred ChunkManager that carries the layers following the camera rather than
+## its target. The near layers (full trees, near grass, impostors) are switched off while the camera
 ## is higher above the ground than they reach (with hysteresis), so a zoomed-out view plans and
 ## draws none of them.
 
@@ -17,9 +17,10 @@ const LAYER_OFF := 2.5
 const LAYER_ON := 2.0
 
 var forest := ForestField.new()
-var grass_near := GrassNear.new()
 ## GPU-placed shrubs (TASK-217a, ADR 0033): two instant layers on the camera manager.
 var shrubs := ShrubField.new()
+## GPU-placed near grass (TASK-217b, ADR 0033): one instant layer on the camera manager, HIGH only.
+var grass := GpuGrassField.new()
 var chunks := ChunkManager.new()
 ## The last camera position (INF: none yet).
 var camera_position := Vector3.INF
@@ -29,13 +30,14 @@ var _active := false
 ## Layer id -> whether it is on.
 var _on: Dictionary = {}
 var _shrubs_on := false
+var _grass_on := false
 ## GraphicsQuality features of the build (the shrubs' range).
 var _quality: Dictionary = {}
 
 
 func _init() -> void:
 	forest.name = "Forest"
-	grass_near.name = "GrassNear"
+	grass.name = "Grass"
 	shrubs.name = "Shrubs"
 
 
@@ -52,9 +54,10 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool, quality := {}) 
 	_active = VisualScale.is_true_size()
 	camera_position = Vector3.INF
 	forest.clear()
-	grass_near.clear()
+	grass.clear()
 	shrubs.clear()
 	_shrubs_on = false
+	_grass_on = false
 
 
 ## The forest of `grid` (or of the land-cover `look`, TASK-108g) over `rect`; returns the canopy
@@ -107,24 +110,19 @@ func build_shrubs(
 	_shrubs_on = true
 
 
-## The near grass on `grass`'s look (an active GrassField), standing on `surface`; `prime` runs
-## before its plans (the ground colours the grass buffers read).
-func build_grass(
-	grass: GrassField, grid: HexGrid, surface: TerrainSurface, area: Rect2, prime: Callable
-) -> void:
-	grass.clearing_listeners.clear()
-	if not _active or not grass.is_active():
+## The near grass (TASK-217b): over the maps of the shrubs (build_shrubs runs first: their masks,
+## lattice heights and drawn near heights are the grass's), coloured by the ground textures'
+## layers and the map's satellite colour layer (or null). None on a quality without "gpu_grass".
+func build_grass(seed_value: int, parcels: ParcelMap, satellite: SatelliteColour) -> void:
+	if not _active or not _shrubs_on or not _quality.get("gpu_grass", true):
 		return
-	grass_near.setup(grass, grid, surface, area)
-	var layer := grass_near.chunk_layer()
-	var near_prepare := layer.prepare
-	layer.prepare = func() -> void:
-		near_prepare.call()
-		prime.call()
-	chunks.register(layer)
-	grass.clearing_listeners.append(
-		func(rect: Rect2) -> void: chunks.invalidate(GrassNear.LAYER, rect)
+	var averages: Array = (
+		TerrainTextures.arrays(TerrainGround.texture_size(_quality))["average_colors"]
 	)
+	var ground: Array = [averages[TerrainSplat.GRASS], averages[TerrainSplat.DRY_GRASS]]
+	if grass.setup(shrubs, seed_value, parcels, ground, satellite, _quality):
+		chunks.register(grass.chunk_layer())
+		_grass_on = true
 
 
 ## The camera is at `position`, `gap` above the ground under it.
@@ -135,7 +133,8 @@ func set_camera(position: Vector3, gap: float) -> void:
 	chunks.update(Vector2(position.x, position.z))
 	var ranges := forest.max_ranges()
 	_switch(chunks, ForestField.FULL_LAYER, gap, ranges.x)
-	_switch(chunks, GrassNear.LAYER, gap, grass_near.draw_range())
+	if _grass_on:
+		_switch(chunks, GpuGrassField.LAYER, gap, grass.ring())
 	if _shrubs_on:
 		var shrub_ranges := shrubs.ranges_m()
 		_switch(chunks, ShrubField.NEAR_LAYER, gap, MapScale.to_units(shrub_ranges.x))
@@ -169,6 +168,8 @@ func burn(center: Vector2, radius: float) -> void:
 	forest.burn(center, radius)
 	if _shrubs_on:
 		shrubs.burn(center, radius)
+	if _grass_on:
+		grass.burn(center, radius)
 
 
 func _switch(manager: ChunkManager, id: StringName, gap: float, reach: float) -> void:

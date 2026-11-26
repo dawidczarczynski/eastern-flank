@@ -147,8 +147,9 @@ const REAL_SIZE_FIELDS := {
 ##   impostor_sink_m: how much deeper the GPU-placed forest impostors sink (they stand on the
 ##   coarser lattice, TASK-189); impostor_thin_from_m / impostor_thin_widen: beyond this camera
 ##   distance the impostors keep every other tree, crowns this much wider.
-## - near_grass_range_m / near_grass_per_m2: GrassNear draws real-density grass (clumps per m² on
-##   meadow; other terrain by GrassPlanner's density ratio) within this range of the camera.
+## - grass_range_m / grass_cell_m: the GPU-placed near grass (GpuGrassField, TASK-217b) within this
+##   ring of the camera (30-50 m; beyond it the terrain shader's grass tone), one clump at most per
+##   grid cell of grass_cell_m (0.8 m: ~110-156 clumps per 100 m² of meadow).
 ## - shell_fade: the canopy shell fades in over (from, to) x the reference impostor range;
 ##   shell_height_share: shell lift as a share of the mean tree height; shell_crown_m: crown
 ##   pattern cell of the shell; shell_brightness: its albedo factor (to meet the impostors' tone);
@@ -174,8 +175,8 @@ const VEGETATION_DEFAULT := {
 	"impostor_sink_m": 0.5,
 	"impostor_thin_from_m": 900.0,
 	"impostor_thin_widen": 1.4,
-	"near_grass_range_m": 100.0,
-	"near_grass_per_m2": 1.2,
+	"grass_range_m": 40.0,
+	"grass_cell_m": 0.8,
 	"shell_fade": Vector2(0.72, 0.95),
 	"shell_height_share": 0.8,
 	"shell_crown_m": 9.0,

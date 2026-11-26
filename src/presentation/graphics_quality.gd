@@ -79,6 +79,10 @@ static func features(level: Level) -> Dictionary:
 		# GPU-placed shrubs (TASK-217a, `true` VisualScale preset only): how far shrubs are drawn
 		# (metres; LookPreset.vegetation() shrub_impostor_range_m caps it). LOW keeps them close.
 		"shrub_range_m": 600.0 if high else 150.0,
+		# GPU-placed near grass (TASK-217b, `true` VisualScale preset only): the clump layer within
+		# LookPreset.vegetation() grass_range_m of the camera. LOW builds none (there is no MEDIUM
+		# level); the terrain shader's far grass tone stays on every level.
+		"gpu_grass": high,
 		# Farmland rows of the terrain shader (TASK-217c): HIGH follows LookPreset.fields()
 		# (0 = no cap), LOW draws none beyond this many metres (plain parcel colour). Crops are
 		# shader-only: no level builds a crop instance.

@@ -79,7 +79,7 @@ func test_balanced_draws_no_real_scale_forest() -> void:
 	view.finish_chunks()
 	assert_eq(view.vegetation().forest.full_nodes().size(), 0)
 	assert_eq(view.vegetation().forest.impostor_nodes().size(), 0)
-	assert_eq(view.vegetation().grass_near.nodes().size(), 0)
+	assert_eq(view.vegetation().grass.nodes().size(), 0)
 	assert_eq(view.trees().impostor_nodes().size(), 0)
 	assert_true(view.find_child(ForestShell.NODE, true, false) == null, "no canopy shell")
 	assert_true(view.trees().lod1_nodes().size() > 0, "the balanced LODs as before")
@@ -218,32 +218,15 @@ func test_real_size_broadleaf_cards_carry_small_leaves() -> void:
 	assert_true(opaque > disc * 0.45, "a dense crown card: %d of %d" % [opaque, int(disc)])
 
 
-func test_near_grass_is_real_size_within_100_m_of_the_camera() -> void:
+func test_near_grass_is_gpu_placed_within_the_ring_and_the_cpu_grass_plans_nothing() -> void:
 	VisualScale.apply(VisualScale.TRUE_PRESET)
-	var near := _view.vegetation().grass_near
-	var nodes := near.nodes()
-	assert_true(nodes.size() > 0, "near grass is built around the camera")
-	var range_m := near.draw_range() * MapScale.metres_per_unit
-	assert_true(absf(range_m - 100.0) < 0.01, "%.1f m" % range_m)
-	var card_m := GrassField.CARD_HEIGHT * VisualScale.grass_scale() * MapScale.metres_per_unit
-	var count := 0
-	for node in nodes:
-		assert_true(is_equal_approx(node.visibility_range_end, near.draw_range()))
-		var buffer: PackedFloat32Array = near._buffers[node]
-		for k in range(0, buffer.size(), GrassField.STRIDE):
-			var height_m := Vector3(buffer[k + 1], buffer[k + 5], buffer[k + 9]).length() * card_m
-			assert_true(height_m >= 0.3 and height_m <= 1.5, "%.2f m clump" % height_m)
-			count += 1
-	# Real density: about near_grass_per_m2 clumps per m² of forest floor x its density share.
-	var area_m2 := 0.0
-	for node in nodes:
-		area_m2 += pow(GrassNear.CHUNK * MapScale.metres_per_unit, 2.0)
-	var expected: float = (
-		float(LookPreset.vegetation()["near_grass_per_m2"])
-		* GrassPlanner.FOREST_DENSITY
-		/ GrassPlanner.PLAINS_DENSITY
-	)
-	assert_true(count / area_m2 > expected * 0.5, "%.3f clumps per m²" % (count / area_m2))
+	var grass := _view.vegetation().grass
+	assert_true(grass.is_built(), "the GPU grass layer exists under true on HIGH")
+	assert_true(grass.nodes().size() > 0, "near grass is built around the camera")
+	assert_eq(grass.ring_m(), 40.0)
+	assert_eq(_view.grass().instance_count(), 0, "no CPU grass instance under true")
+	assert_false(_view.grass().is_active())
+	assert_eq(_view.grass().chunk_nodes().size(), 0)
 
 
 ## TASK-189 (ADR 0027): an impostor chunk is one node sharing one MultiMesh without instance
