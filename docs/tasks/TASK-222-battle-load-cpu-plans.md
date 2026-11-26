@@ -16,6 +16,7 @@ Cut the time of `_prebuild_chunks` (the loading screen) by removing the work tha
 - First step is to time the stages **inside** `_plan_source` (plan_rect by part, plan_hedges, RiparianPlanner, TreeFeatures, backdrop ring) and write the table in Implementation notes; decide from numbers, not guesses. (The `scatter` and `trees` layers share one cached source plan, so their two totals may count the same work, or a duplicated compute if two jobs race: check that too.)
 - Then move **everything that can be done on the GPU** to the GPU (CLAUDE.md default): open-ground thickets, meadow scrub, orchards, tree lines, rocks, hedges and riparian belts as hash-placed cells like TASK-217a/b. Anything left on the CPU needs a written reason in Implementation notes (what the GPU cannot do); only hand-placed objects from map data (OSM solitary trees, a few hundred) may stay a CPU list, planned from the feature list, not from per-cell sampling.
 - Result must stay deterministic and identical in look; `balanced` untouched.
+- Includes the CPU lists `TreeField` still plans under `true`: `trees`, `young_trees`, `edge_shrubs`, `ground_cover` and `meadow_scrub` from `ScatterPlanner` (all per-instance, none from map data except the OSM features): move them to GPU layers or drop them where the shrub layer already covers them.
 - **[ASSUMPTION]** Target: prebuild <= 8 s on the same machine; the human may change it.
 
 ## Acceptance criteria (testable)

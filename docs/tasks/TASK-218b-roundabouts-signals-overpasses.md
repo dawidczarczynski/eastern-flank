@@ -16,7 +16,7 @@ Junctions look like real ones: a simple roundabout in towns, traffic lights at m
 - **[ASSUMPTION]** Roundabout: a junction of roads of class ≤ 3 inside a settlement with ≥ 4 links gets an island disc (8 m radius), a ring ribbon and 4 yield signs; a T-junction does not. "Rozjazdy" is read as junctions; full motorway interchanges with slip roads are a follow-up.
 - **[ASSUMPTION]** Traffic lights: only where class 2 crosses class ≤ 3 in a settlement; one set per crossing (a pole with a light head at each arm). No light emission animation beyond a static colour (one emissive material, no per-instance lights).
 - **[ASSUMPTION]** Overpass: where a class-1 ribbon crosses a lower-class ribbon, the lower road is raised: deck 5.5 m above the class-1 surface, 24 m long, 9 m wide, 2 pillars + abutments, parapets (concrete), approach ramps 30 m each side at ≤ 8 % grade with embankment shoulders; the class-1 road stays at terrain height. Two class ≤ 3 roads crossing stay at grade. Reuse bridge-site finding and the deck mesh builder from `bridges.gd` where it fits.
-- Performance as in 218a (< 20 ms planning per chunk, shared meshes, MultiMesh where repeated); overpasses are few and may be plain meshes.
+- GPU-first as in 218a (repeated items placed in the shader; only junction / crossing sites come from the CPU); performance as in 218a (shared meshes, MultiMesh where repeated); overpasses are few and may be plain meshes.
 
 ## Acceptance criteria (testable)
 

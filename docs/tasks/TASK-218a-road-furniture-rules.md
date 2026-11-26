@@ -30,7 +30,8 @@ Roads carry the furniture their class implies: expressways have guardrails and n
 
 - **[ASSUMPTION]** "Settlement" = the tile or a neighbour is a built-up hex (reuse the village / building test).
 - **[ASSUMPTION]** Signs: flat plates with pictograms from one small atlas (speed limits 30/50/70/90/120, give-way, stop, pedestrian crossing, warning triangle, town name plate); no readable text beyond numbers.
-- Performance: furniture scales with road length, not map area, so CPU planning is allowed but stays < 20 ms per chunk (TASK-217 rule). One MultiMesh per kind per chunk, shared meshes (< 300 triangles), visibility range per kind (signs / lights 250 m, barriers 400 m, screens 600 m), no per-instance lights.
+- **GPU-first (CLAUDE.md, decided 2026-11-26):** the repeated furniture (guardrails, posts, signs, lights, screens, edge marks) is **placed by the GPU**, not planned per instance on the CPU: the CPU only extracts the few things that need game / map data (centre lines, class, junction / bridge / settlement sites, building spans) into a small texture or buffer per map; a MultiMesh without instance data and a vertex shader derive each item from its index (spacing and offset per class from the rule resource as uniforms), with a GDScript reference of the hash and rule for tests (ADR 0027 / 0033 pattern). A CPU per-chunk plan above ~20 ms, or any per-instance CPU list, needs a written reason in Implementation notes.
+- Performance: furniture scales with road length, not map area; a CPU plan, where one remains, stays < 20 ms per chunk (TASK-217 rule). One MultiMesh per kind per chunk, shared meshes (< 300 triangles), visibility range per kind (signs / lights 250 m, barriers 400 m, screens 600 m), no per-instance lights.
 
 ## Acceptance criteria (testable)
 

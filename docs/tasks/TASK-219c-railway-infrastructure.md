@@ -25,7 +25,7 @@ Railways look like working lines: electrified lines carry masts and wire, signal
 | Fences / posts: wire fence both sides in settlements, boundary posts every 100 m in open land | main and secondary lines |
 | Culverts: concrete portal under an embankment where a river or ditch crosses | where a river link crosses an embankment tile |
 
-- **[ASSUMPTION]** Reuse the road-furniture machinery: one MultiMesh per kind per chunk, shared meshes (< 300 triangles), visibility ranges (masts / signals 300 m, platforms 600 m), deterministic hash placement, planning < 20 ms per chunk. Wires are drawn as one thin ribbon per chunk, not per span.
+- **[ASSUMPTION]** Reuse the road-furniture machinery: one MultiMesh per kind per chunk, shared meshes (< 300 triangles), visibility ranges (masts / signals 300 m, platforms 600 m), deterministic hash placement **on the GPU** (GPU-first as in 218a: masts, sleeper-side items and wires derive from the track centre-line texture in the shader; the CPU only supplies the track lines and station / crossing sites). Wires are drawn as one thin ribbon per chunk, not per span.
 - Level crossings change the road ribbon (panels) in the 219b / TASK-202 ribbon planner through a small hook, no change to the rail geometry.
 
 ## Acceptance criteria (testable)
