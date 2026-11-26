@@ -1,6 +1,6 @@
 # TASK-217c: Crops as shader-only rows, no CPU crop planning
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (terrain shader, `CropLook`, `GrassPlanner` / `ScatterPlanner` crop filters)
 - **Depends on**: TASK-217a (masks / keep-off textures), TASK-200 (crops, done); soft: TASK-217b
 - **Sections**: ARCHITECTURE "Terrain rendering"; the ADR written by 217a; TASK-200 implementation notes; code (grep CODEMAP): `CropLook`, `CropKind`, `CropCatalog`, `ParcelMap`, `FieldParcels`, `terrain.gdshader`, `GrassPlanner` (`grass_keep`), `ScatterPlanner` (crop parcel filter)

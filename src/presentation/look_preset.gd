@@ -183,6 +183,13 @@ const VEGETATION_DEFAULT := {
 	"shell_view_share": 0.55,
 	"impostor_albedo": 1.08,
 	"impostor_slope_share": 0.6,
+	# GPU-placed shrubs (TASK-217a, ADR 0033): grid cell (one shrub at most), the real mesh up to
+	# shrub_mesh_range_m, impostors from there to shrub_impostor_range_m (capped by the quality's
+	# shrub_range_m), nothing beyond; the base sinks shrub_sink_m into the lattice ground.
+	"shrub_cell_m": 2.5,
+	"shrub_mesh_range_m": 60.0,
+	"shrub_impostor_range_m": 600.0,
+	"shrub_sink_m": 0.1,
 }
 
 ## Leaf colours under the `true` VisualScale preset, for every look (TASK-135 playtest): at real

@@ -200,3 +200,120 @@ func test_a_camera_jump_shows_the_impostors_within_1_km_in_the_first_frame() -> 
 		Vector3(_target.x, back, _target.y) + CameraMath.camera_offset(0.7, 1.2)
 	)
 	_view.finish_chunks(_target)
+
+
+## TASK-217a (ADR 0033): after a ~2 km camera jump every shrub chunk (near meshes and impostors)
+## within 600 m of the camera exists after the first frame: the GPU-placed layers build in the
+## scan and in process(), nothing is planned.
+func test_a_camera_jump_shows_the_shrubs_within_600_m_in_the_first_frame() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var jump := MapScale.to_units(2000.0)
+	var target := _target + Vector2(jump, 0.0)
+	var rect := _view.vegetation().shrubs.masks.area
+	if not rect.has_point(target):
+		target = _target - Vector2(jump, 0.0)
+	var ground := _view.vegetation_ground_height(target.x, target.y)
+	var started := Time.get_ticks_usec()
+	_view.set_camera_target(target)
+	_view.set_camera_position(
+		Vector3(target.x, ground, target.y) + CameraMath.camera_offset(0.7, 1.2)
+	)
+	_view._process(0.016)
+	var first_ms := (Time.get_ticks_usec() - started) / 1000.0
+	var camera_chunks := _view.vegetation().chunks
+	var position := _view.vegetation().camera_position
+	var centre := Vector2(position.x, position.z)
+	var reach := MapScale.to_units(600.0)
+	var expected := 0
+	for id: StringName in [ShrubField.NEAR_LAYER, ShrubField.IMPOSTOR_LAYER]:
+		var layer := camera_chunks.layer(id)
+		var wanted := minf(reach, camera_chunks.build_radius(id))
+		var first := layer.chunk_at(centre.x - wanted, centre.y - wanted)
+		var last := layer.chunk_at(centre.x + wanted, centre.y + wanted)
+		for x in range(first.x, last.x + 1):
+			for z in range(first.y, last.y + 1):
+				var chunk := Vector2i(x, z)
+				if layer.distance_to(chunk, centre) > wanted:
+					continue
+				if not layer.chunk_rect(chunk).intersects(layer.area):
+					continue
+				expected += 1
+				assert_true(
+					camera_chunks.is_live(id, chunk), "%s chunk %s after one frame" % [id, chunk]
+				)
+	print("Shrub jump: first frame %.1f ms, %d chunks within 600 m" % [first_ms, expected])
+	assert_true(expected > 20, "%d shrub chunks within 600 m" % expected)
+	_view.set_camera_target(_target)
+	var back := _view.vegetation_ground_height(_target.x, _target.y)
+	_view.set_camera_position(
+		Vector3(_target.x, back, _target.y) + CameraMath.camera_offset(0.7, 1.2)
+	)
+	_view.finish_chunks(_target)
+
+
+## TASK-217a: on a map with rivers the riparian planner still plans shrubs, but under `true` the
+## scatter chunks take none of them (the GPU shrubs stand on the banks instead); its alders stay.
+func test_riparian_shrubs_are_left_to_the_gpu_layer() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var foliage := _view.foliage()
+	assert_true(foliage.gpu_shrubs)
+	var grid := ImportedMap.find(Scenario.SUWALKI_MAP_ID).to_grid()
+	var checked := 0
+	for line in FeatureRibbonPlanner.lines(grid, FeatureRibbonPlanner.Kind.RIVER):
+		var p := line[line.size() / 2]
+		var chunk := Vector2i((p / TreeField.CHUNK_SIZE).floor())
+		var rect := Rect2(Vector2(chunk) * TreeField.CHUNK_SIZE, Vector2.ONE * TreeField.CHUNK_SIZE)
+		var riparian := RiparianPlanner.plan(grid, _view.surface(), null, rect)
+		if (riparian["edge_shrubs"] as Array).is_empty():
+			continue
+		var plan := foliage._plan_source(chunk)
+		assert_eq((plan["map"]["edge_shrubs"] as Array).size(), 0, "chunk %s" % chunk)
+		assert_eq((plan["map"]["bushes"] as Array).size(), 0, "chunk %s" % chunk)
+		checked += 1
+		if checked >= 2:
+			break
+	assert_true(checked > 0, "a chunk with riparian shrubs")
+
+
+## TASK-217a: the shrub masks of the whole map are built once at load, cheaply (no per-shrub work).
+func test_the_shrub_masks_build_once_and_fast() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var shrubs := _view.vegetation().shrubs
+	var started := Time.get_ticks_usec()
+	var masks := VegetationMasks.from_map(
+		_view._grid,
+		shrubs.masks.area,
+		_view.vegetation().forest.fill(),
+		_view.land_cover,
+		_view._parcels
+	)
+	var ms := (Time.get_ticks_usec() - started) / 1000.0
+	print("Shrub masks: %d x %d texels in %.0f ms" % [masks.size.x, masks.size.y, ms])
+	assert_eq(masks.habitat_image().get_data(), shrubs.masks.habitat_image().get_data())
+	assert_true(ms < 3000.0, "masks built in %.0f ms" % ms)
+
+
+## TASK-217a: the shrubs near the camera target stand on the drawn near terrain (the near-height
+## window the shaders read), not on the lattice: the window's height equals the drawn near mesh.
+func test_shrubs_stand_on_the_drawn_near_terrain() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var shrubs := _view.vegetation().shrubs
+	var cache := shrubs.near_heights()
+	assert_true(cache != null, "a near-height window")
+	cache.update(_target)
+	var rules := shrubs.rules
+	var rect := Rect2(_target - Vector2.ONE * NEAR_REACH, Vector2.ONE * 2.0 * NEAR_REACH)
+	var checked := 0
+	var worst := 0.0
+	for shrub in rules.plan_rect(rect.grow(-NEAR_REACH * 0.5)):
+		var p: Vector3 = shrub["position"]
+		var drawn := _view.terrain_near().drawn_height_at(p.x, p.z)
+		var cached := cache.height_at(p.x, p.z)
+		if is_nan(drawn) or is_nan(cached):
+			continue
+		worst = maxf(worst, absf(drawn - cached))
+		checked += 1
+	assert_true(checked > 50, "%d shrubs checked" % checked)
+	assert_true(
+		worst * MapScale.metres_per_unit < 0.1, "worst %.3f m" % (worst * MapScale.metres_per_unit)
+	)

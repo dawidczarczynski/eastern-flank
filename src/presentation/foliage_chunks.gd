@@ -12,6 +12,8 @@ extends RefCounted
 
 const SCATTER_NODES: Array[String] = ["Bushes", "Rocks", "BackdropBushes", "BackdropRocks"]
 const LAYER_COUNT := 2
+## The ScatterPlanner plan keys of the shrub sources the GPU shrubs replace (gpu_shrubs).
+const SHRUB_KEYS: Array[String] = ["bushes", "edge_shrubs", "meadow_scrub"]
 
 ## Real scale (TASK-135): Callable(x, z) -> the drawn near surface height the map trees stand on
 ## (unset: their planned height).
@@ -19,6 +21,11 @@ var ground := Callable()
 ## Real tree features (TASK-199b, TreeFeatureSet, BattleCover.tree_features_for_battle): the OSM
 ## trees of the map, or null; the rule fill of TreeFeatures needs none. Set before the first plan.
 var tree_features: TreeFeatureSet
+## The GPU-placed shrubs draw every shrub (TASK-217a, ShrubField; the `true` preset): the CPU
+## shrub sources plan none – ScatterChunks' bushes, the forest-edge shrubs and open-ground
+## thickets of ScatterPlanner, the hedge shrubs (plan_hedges) and the riparian shrubs
+## (RiparianPlanner); their trees stay. On under `true` (MapView builds the ShrubField there).
+var gpu_shrubs := VisualScale.is_true_size()
 
 var _grid: HexGrid
 var _surface: TerrainSurface
@@ -146,13 +153,16 @@ func source(chunk: Vector2i, consumer: StringName) -> Dictionary:
 func _plan_source(chunk: Vector2i) -> Dictionary:
 	var rect := Rect2(Vector2(chunk) * TreeField.CHUNK_SIZE, Vector2.ONE * TreeField.CHUNK_SIZE)
 	var map := ScatterPlanner.plan_rect(_grid, _surface, _seed, rect, _parcels, _look)
+	if gpu_shrubs:
+		_drop_shrubs(map)
 	var hedges := ScatterPlanner.plan_hedges(_grid, _surface, _parcels, rect)
 	(map["trees"] as Array).append_array(hedges["trees"])
-	(map["edge_shrubs"] as Array).append_array(hedges["edge_shrubs"])
 	# Riparian belt of shrubs and alders along rivers (empty on maps without rivers).
 	var riparian := RiparianPlanner.plan(_grid, _surface, _parcels, rect, _look)
 	(map["trees"] as Array).append_array(riparian["trees"])
-	(map["edge_shrubs"] as Array).append_array(riparian["edge_shrubs"])
+	if not gpu_shrubs:
+		(map["edge_shrubs"] as Array).append_array(hedges["edge_shrubs"])
+		(map["edge_shrubs"] as Array).append_array(riparian["edge_shrubs"])
 	# Real tree features (TASK-199b; true preset only, the list is empty otherwise).
 	(map["trees"] as Array).append_array(
 		TreeFeatures.plan(_grid, _surface, _seed, rect, _parcels, _look, tree_features)
@@ -182,7 +192,16 @@ func _plan_source(chunk: Vector2i) -> Dictionary:
 				):
 					kept.append(item)
 			backdrop[key] = kept
+	if gpu_shrubs:
+		_drop_shrubs(backdrop)
 	return {"map": map, "backdrop": backdrop}
+
+
+## Empties the shrub lists of a ScatterPlanner plan (the GPU shrubs stand there instead).
+static func _drop_shrubs(plan: Dictionary) -> void:
+	for key: String in SHRUB_KEYS:
+		if plan.has(key):
+			plan[key] = []
 
 
 ## Bush and rock instances of `chunk` per node name: {name: [Array[Transform3D], colours]}.

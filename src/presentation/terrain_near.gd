@@ -282,6 +282,21 @@ func built_chunks() -> Array[Vector2i]:
 	return result
 
 
+## The drawn vertex heights of a built chunk ((CELLS + 1)^2, row-major from its first vertex, as
+## drawn_height_at reads them), or empty when it is not built (TASK-217a: NearHeightCache).
+func chunk_heights(chunk: Vector2i) -> PackedFloat32Array:
+	var result := PackedFloat32Array()
+	var entry: Dictionary = _built.get(chunk, {})
+	if entry.is_empty():
+		return result
+	var vertices: PackedVector3Array = (entry["arrays"] as Array)[Mesh.ARRAY_VERTEX]
+	var count := (CELLS + 1) * (CELLS + 1)
+	result.resize(count)
+	for k in count:
+		result[k] = vertices[k].y
+	return result
+
+
 ## Whether edge `edge` of built chunk `chunk` uses the surface heights (its neighbour is built).
 func edge_is_raw(chunk: Vector2i, edge: int) -> bool:
 	return (_built[chunk]["raw"] as Array)[edge]

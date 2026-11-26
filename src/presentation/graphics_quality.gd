@@ -76,6 +76,9 @@ static func features(level: Level) -> Dictionary:
 		# Moving cloud shadows (TASK-201b): a noise lookup per pixel in the world shaders.
 		"clouds": high,
 		"backdrop_scatter": high,
+		# GPU-placed shrubs (TASK-217a, `true` VisualScale preset only): how far shrubs are drawn
+		# (metres; LookPreset.vegetation() shrub_impostor_range_m caps it). LOW keeps them close.
+		"shrub_range_m": 600.0 if high else 150.0,
 		# Chunked world (TASK-072b): LOW builds within smaller rings (ChunkRings.low_quality_factor).
 		"small_chunk_rings": not high,
 		# Terrain shader (TASK-055): the rotated second texture scale against tiling, the

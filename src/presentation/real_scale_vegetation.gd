@@ -18,6 +18,8 @@ const LAYER_ON := 2.0
 
 var forest := ForestField.new()
 var grass_near := GrassNear.new()
+## GPU-placed shrubs (TASK-217a, ADR 0033): two instant layers on the camera manager.
+var shrubs := ShrubField.new()
 var chunks := ChunkManager.new()
 ## The last camera position (INF: none yet).
 var camera_position := Vector3.INF
@@ -26,16 +28,21 @@ var _main: ChunkManager
 var _active := false
 ## Layer id -> whether it is on.
 var _on: Dictionary = {}
+var _shrubs_on := false
+## GraphicsQuality features of the build (the shrubs' range).
+var _quality: Dictionary = {}
 
 
 func _init() -> void:
 	forest.name = "Forest"
 	grass_near.name = "GrassNear"
+	shrubs.name = "Shrubs"
 
 
 ## A new build: a fresh camera manager (same rings and threading as `main`); nothing is active
 ## until build_forest / build_grass.
-func reset(main: ChunkManager, low_quality: bool, threads: bool) -> void:
+func reset(main: ChunkManager, low_quality: bool, threads: bool, quality := {}) -> void:
+	_quality = quality
 	chunks.reset()
 	chunks = ChunkManager.new(ChunkRings.load_default(), low_quality)
 	chunks.threads = threads
@@ -46,6 +53,8 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool) -> void:
 	camera_position = Vector3.INF
 	forest.clear()
 	grass_near.clear()
+	shrubs.clear()
+	_shrubs_on = false
 
 
 ## The forest of `grid` (or of the land-cover `look`, TASK-108g) over `rect`; returns the canopy
@@ -66,10 +75,36 @@ func build_forest(
 	forest.setup(grid, ground, seed_value, rect, lattice, parcels, look)
 	_main.register(forest.impostor_layer())
 	chunks.register(forest.full_layer())
+	build_shrubs(
+		grid, lattice, seed_value, rect, parcels, look.cover if look != null else null, _quality
+	)
 	var shell := ForestShell.build(grid, rect, lattice.mesh_height_at, look)
 	if shell != null:
 		forest.bind_shell(shell.mesh.surface_get_material(0) as ShaderMaterial)
 	return shell
+
+
+## The shrubs of `grid` over `rect` (TASK-217a; build_forest calls it after the forest, whose
+## stand mask gives the forest edges); `quality` the GraphicsQuality features.
+func build_shrubs(
+	grid: HexGrid,
+	lattice: TerrainLattice,
+	seed_value: int,
+	rect: Rect2,
+	parcels: ParcelMap,
+	land_cover: LandCover,
+	quality: Dictionary
+) -> void:
+	if not _active:
+		return
+	shrubs.setup(grid, lattice, seed_value, rect, parcels, land_cover, forest.fill(), quality)
+	var near_layer := _main.layer(TerrainNear.LAYER)
+	if near_layer != null and near_layer.build_chunk.get_object() is TerrainNear:
+		var near := near_layer.build_chunk.get_object() as TerrainNear
+		shrubs.use_near_heights(NearHeightCache.new(near, near_layer, lattice.origin))
+	chunks.register(shrubs.near_layer())
+	chunks.register(shrubs.impostor_layer())
+	_shrubs_on = true
 
 
 ## The near grass on `grass`'s look (an active GrassField), standing on `surface`; `prime` runs
@@ -101,6 +136,10 @@ func set_camera(position: Vector3, gap: float) -> void:
 	var ranges := forest.max_ranges()
 	_switch(chunks, ForestField.FULL_LAYER, gap, ranges.x)
 	_switch(chunks, GrassNear.LAYER, gap, grass_near.draw_range())
+	if _shrubs_on:
+		var shrub_ranges := shrubs.ranges_m()
+		_switch(chunks, ShrubField.NEAR_LAYER, gap, MapScale.to_units(shrub_ranges.x))
+		_switch(chunks, ShrubField.IMPOSTOR_LAYER, gap, MapScale.to_units(shrub_ranges.y))
 	# The impostors stay built at any height: they cost nothing drawn beyond their range
 	# (visibility range).
 	forest.update(position)
@@ -108,6 +147,8 @@ func set_camera(position: Vector3, gap: float) -> void:
 
 func process() -> void:
 	chunks.process()
+	if _shrubs_on and _main.has_target():
+		shrubs.update_near(_main.target())
 
 
 ## Builds every camera-centred chunk now (loading screen, tests, screenshots).
@@ -116,6 +157,8 @@ func finish() -> void:
 		return
 	chunks.finish_all()
 	forest.update(camera_position)
+	if _shrubs_on and _main.has_target():
+		shrubs.update_near(_main.target())
 
 
 func is_settled() -> bool:
@@ -124,6 +167,8 @@ func is_settled() -> bool:
 
 func burn(center: Vector2, radius: float) -> void:
 	forest.burn(center, radius)
+	if _shrubs_on:
+		shrubs.burn(center, radius)
 
 
 func _switch(manager: ChunkManager, id: StringName, gap: float, reach: float) -> void:

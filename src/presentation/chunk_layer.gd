@@ -34,6 +34,10 @@ var instant := false
 ## lower one (nearest first within a priority). The full trees (TASK-189) go before the near grass:
 ## a missing full chunk is drawn as impostors meanwhile, but only once it is planned.
 var priority := 0
+## Draw reach in metres that replaces the layer's ChunkRings entry when > 0 (TASK-217a: the shrub
+## layers' reach comes from LookPreset.vegetation() and the quality level, not from the rings
+## file). Not scaled by the LOW rings factor: the owner already picked the reach for the level.
+var reach_m := 0.0
 
 
 func _init(

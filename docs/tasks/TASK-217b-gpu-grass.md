@@ -1,6 +1,6 @@
 # TASK-217b: GPU-placed near grass (clump cards) + cheap far grass tone
 
-- **Status**: blocked
+- **Status**: ready
 - **Layers**: presentation (grass layer on the TASK-217a framework, grass shader, terrain shader detail)
 - **Depends on**: TASK-217a (framework), TASK-189, TASK-191, TASK-200
 - **Sections**: ARCHITECTURE "Real-scale vegetation", "Chunked lazy world"; the ADR written by 217a; code (grep CODEMAP): `GrassField`, `GrassNear`, `GrassPlanner`, `GrassMesh`, `GrassTexture`, `Wind`, `ParcelMap`, `terrain.gdshader`

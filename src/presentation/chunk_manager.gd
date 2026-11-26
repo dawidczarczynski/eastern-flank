@@ -115,6 +115,9 @@ func layers() -> Array[ChunkLayer]:
 func build_radius(id: StringName) -> float:
 	if _disabled.has(id):
 		return 0.0
+	var own := _own_reach(id)
+	if own > 0.0:
+		return own * _rings.build_factor
 	return _rings.build_radius(id, _low_quality)
 
 
@@ -122,7 +125,18 @@ func build_radius(id: StringName) -> float:
 func free_radius(id: StringName) -> float:
 	if _disabled.has(id):
 		return -1.0
+	var own := _own_reach(id)
+	if own > 0.0:
+		return own * _rings.build_factor * _rings.free_factor
 	return _rings.free_radius(id, _low_quality)
+
+
+## A layer's own reach (ChunkLayer.reach_m, world units), 0 when the rings decide.
+func _own_reach(id: StringName) -> float:
+	var l := layer(id)
+	if l == null or l.reach_m <= 0.0:
+		return 0.0
+	return MapScale.to_units(l.reach_m)
 
 
 ## Switches layer `id` on or off (TASK-134: the near terrain only while the camera is close). Off,

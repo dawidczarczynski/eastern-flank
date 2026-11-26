@@ -188,6 +188,7 @@ func _ready() -> void:
 	add_child(_trees)
 	add_child(_vegetation.forest)
 	add_child(_vegetation.grass_near)
+	add_child(_vegetation.shrubs)
 	for overlay in [
 		_reach_line,
 		_dim,
@@ -233,7 +234,7 @@ func build(grid: HexGrid) -> void:
 	_chunks.reset()
 	_chunks = ChunkManager.new(ChunkRings.load_default(), quality.get("small_chunk_rings", false))
 	_chunks.threads = threads
-	_vegetation.reset(_chunks, quality.get("small_chunk_rings", false), threads)
+	_vegetation.reset(_chunks, quality.get("small_chunk_rings", false), threads, quality)
 	_grid = grid
 	_look = CoverLook.make(land_cover)
 	_surface = TerrainSurface.new(grid)
