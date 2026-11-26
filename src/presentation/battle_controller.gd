@@ -202,11 +202,13 @@ func _prebuild_chunks() -> void:
 	var budget := chunks.budget_usec
 	chunks.budget_usec = PREBUILD_CHUNK_BUDGET_USEC
 	chunks.loading = true
+	var started := Time.get_ticks_msec()
 	while not chunks.is_settled():
 		chunks.process()
 		await _next_frame()
 	chunks.loading = false
 	chunks.budget_usec = budget
+	print("Chunk prebuild: %d ms; per layer %s" % [Time.get_ticks_msec() - started, chunks.stats()])
 
 
 ## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
