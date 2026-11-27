@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://dq46ewnnk5q8i"
+path="res://.godot/imported/forest_cells.glsl-dfa3f7624b09fb762b17b68a9a6ccca0.res"
+
+[deps]
+
+source_file="res://assets/shaders/forest_cells.glsl"
+dest_files=["res://.godot/imported/forest_cells.glsl-dfa3f7624b09fb762b17b68a9a6ccca0.res"]
+
+[params]
+

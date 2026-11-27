@@ -183,6 +183,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `FoliageMeshes` – Pure procedural foliage geometry (TASK-028): lumpy lobed deciduous crowns, jagged tiered (`foliage_meshes.gd`)
 - `ForestField` – The dense real-scale forest (TASK-135, ADR 0026; only under the `true` VisualScale preset… (`forest_field.gd`)
 - `ForestFill` – The dense trees of the real-scale forest (TASK-135, ADR 0026; GPU placement TASK-189, ADR (`forest_fill.gd`)
+- `ForestFullTrees` – The full 3D trees of the real-scale forest, compacted on the GPU (TASK-221 follow-up, ADR… (`forest_full_trees.gd`)
 - `ForestMaskSource` – Where the real-scale forest may stand (TASK-189, ADR 0027): the one interface between the… (`forest_mask_source.gd`)
 - `ForestShell` – The canopy shell of the real-scale forest (TASK-135, ADR 0026; `true` VisualScale preset… (`forest_shell.gd`)
 - `FpsOverlay` – Devtools FPS overlay (TASK-186b): a corner label "NN FPS  X.X ms", refreshed at most 4 ti… (`fps_overlay.gd`)

@@ -77,7 +77,7 @@ func test_balanced_draws_no_real_scale_forest() -> void:
 	)
 	view.set_camera_position(view.center() + Vector3(0.0, 1.0, 1.0))
 	view.finish_chunks()
-	assert_eq(view.vegetation().forest.full_nodes().size(), 0)
+	assert_true(view.vegetation().forest.full_trees_field() == null, "no full trees")
 	assert_eq(view.vegetation().forest.impostor_nodes().size(), 0)
 	assert_eq(view.vegetation().grass.nodes().size(), 0)
 	assert_eq(view.trees().impostor_nodes().size(), 0)
@@ -230,11 +230,10 @@ func test_every_full_tree_has_its_impostor_cell_at_the_same_point() -> void:
 	var forest := _view.vegetation().forest
 	var a := forest.fill().spacing
 	var full := {}
-	for node in forest.full_nodes():
-		for tree in forest.full_trees(node.get_meta(&"chunk")):
-			var p: Vector3 = tree["position"]
-			# A point keeps a tenth of a cell off its cell's border.
-			full[Vector2i(floori(p.x / a), floori(p.z / a))] = p
+	for tree in forest.full_trees_around(_view.vegetation().camera_position):
+		var p: Vector3 = tree["position"]
+		# A point keeps a tenth of a cell off its cell's border.
+		full[Vector2i(floori(p.x / a), floori(p.z / a))] = p
 	assert_true(full.size() > 100, "%d full trees" % full.size())
 	var extra := MapScale.to_units(float(LookPreset.vegetation()["impostor_sink_m"]))
 	var matched := 0
@@ -304,7 +303,7 @@ func test_the_shader_keeps_the_reference_expressions() -> void:
 		assert_true(shader.contains(expression), "shader: %s" % expression)
 	# The full trees' shader (TASK-221) derives the same tree from the same cell: its twin of the
 	# cell formulas, and the same hand-over band as the impostors' impostor_in_band.
-	var trees := FileAccess.get_file_as_string("res://assets/shaders/forest_tree.gdshader")
+	var trees := FileAccess.get_file_as_string("res://assets/shaders/forest_cells.glsl")
 	var view := FileAccess.get_file_as_string("res://assets/shaders/tree_impostor_view.gdshaderinc")
 	for expression in [
 		"FOREST_SCALE_MIN + FOREST_SCALE_RANGE * float(values_hash & 1023u) / 1024.0",
@@ -312,16 +311,15 @@ func test_the_shader_keeps_the_reference_expressions() -> void:
 		"float conifer_roll = float((values_hash >> 20u) & 1023u) / 1024.0;",
 		"s * (0.9 + k * 0.3) * size.y",
 		"float yaw = k * 6.0;",
-		"forest_point(forest_tile_seed(forest_seed, cell, FOREST_POINT_SALT), cell, spacing)",
-		"forest_tile_seed(forest_seed, cell, FOREST_PICK_SALT)",
-		"species = roll < shares.x ? 0 : 1;",
-		"species = roll < shares.y ? 2 : (roll < shares.z ? 3 : 4);",
-		"conifer_roll < (ground > high_ground ? conifer_chance.x : conifer_chance.y)",
-		"veg_instance_cell(instance_id, cells, cell)",
-		"mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase)",
-		"distance(vec3(p.x, ground - hand_over_sink, p.y), cam)",
+		"forest_point(forest_tile_seed(seed, cell, FOREST_POINT_SALT), cell, spacing)",
+		"forest_tile_seed(seed, cell, FOREST_PICK_SALT)",
+		"species = roll < P.shares.x ? 0 : 1;",
+		"species = roll < P.shares.y ? 2 : (roll < P.shares.z ? 3 : 4);",
+		"conifer_roll < (ground > P.ground.y ? P.conifer.x : P.conifer.y)",
+		"mix(centre * (1.0 - band), centre * (1.0 + band), phase)",
+		"distance(vec3(p.x, ground - P.height.w, p.y), cam)",
 	]:
-		assert_true(trees.contains(expression), "tree shader: %s" % expression)
+		assert_true(trees.contains(expression), "compute shader: %s" % expression)
 	assert_true(
 		view.contains(
 			"mix(full_centre * (1.0 - band_share), full_centre * (1.0 + band_share), phase)"

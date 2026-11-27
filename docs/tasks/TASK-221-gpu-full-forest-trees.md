@@ -70,3 +70,8 @@ Implemented as specified (ADR 0027 amendment), with one forced deviation (the ra
 
 **NOT measured**: the old CPU path's GPU cost for the same view (no baseline run), the 60 FPS total in a normal (non-in-forest) camera, GPU cost at other camera heights, D3D12 behaviour of the hash jitter for the full trees was only checked by eye (trees stand on their cells in the screenshots). Headless tests cannot run the shader: parity is the reference + fixed values + expression checks.
 
+**Follow-up after the playtest (compute compaction, ADR 0027 amendment 2)**
+- The 45 m range left the forest full 3D only at the closest zoom; the human chose compaction (option 1). The full trees are now compacted by `forest_cells.glsl` into 15 per-model MultiMeshes (`ForestFullTrees`), the range cap is 150 m (`full_tree_range_m`), the `forest_full` chunk layer is gone. Details in the ADR.
+- Also fixed: the impostor flicker while panning (the full chunks' build ring now outlasts the manager's rescan lag; that layer no longer exists).
+- Measured on the RX 580 (HIGH, 1280x720, Suwalki, forest edge in view): compute + draw of the full trees ~0.3 ms (`tools/perf.sh --only="forest full"`); before the draw count limit the unused instance slots cost ~7.8 ms (8.8 M triangles submitted). **Not measured**: the worst case of a camera standing inside a forest (all trees within 150 m real), D3D12 stalls of `buffer_get_data_async`, shadows of trees outside the view.
+

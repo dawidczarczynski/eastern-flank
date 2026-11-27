@@ -1,63 +1,30 @@
 class_name ForestField
 extends Node3D
 ## The dense real-scale forest (TASK-135, ADR 0026; only under the `true` VisualScale preset): the
-## ForestFill trees (with ScatterPlanner's planned trees ~2 000 per forest hex) as two GPU-placed
-## chunk layers of MapView, both `instant` (nothing is planned on the CPU, a chunk exists the frame
-## its ring reaches it).
+## ForestFill trees (with ScatterPlanner's planned trees ~2 000 per forest hex), drawn two ways:
 ##
-## - "forest_full" (FULL_CHUNK chunks, on MapView's camera-centred ChunkManager; TASK-221, ADR 0027
-##   amendment): the full 3D trees (TreeMeshes LOD0). A chunk is one MultiMeshInstance3D sharing
-##   one MultiMesh of identity instances without instance data (one per fill cell), its cell range
-##   an instance uniform; the shared mesh has one surface per species (the three variant models
-##   merged, the variant in the vertex colour's alpha) and assets/shaders/forest_tree.gdshader
-##   derives every tree from its cell as ForestFill.cell_tree does – the very tree of its impostor –
-##   standing on the drawn near surface (NearHeightCache), drawn up to its own point of its species'
-##   full range (VegetationRanges, scaled by the species' height), the same per-tree hand-over band
-##   as TreeField. The reference of the shader is full_trees().
+## - The full 3D trees (TASK-221, ADR 0027 amendment 2): ForestFullTrees. A compute pass derives
+##   the tree of every cell around the camera every frame, exactly as the impostors do (the same
+##   point, species, variant, size, yaw and colour: assets/shaders/forest_cells.glsl, the reference
+##   of which is full_trees_around), and appends the ones inside their species' full range
+##   (VegetationRanges, scaled by the species' height, `full_tree_range_m` at most) to the lists of
+##   15 MultiMeshes, one per model. Nothing is planned on the CPU; a tree costs the vertices of its
+##   own model. Each tree is drawn up to its own point of the per-tree hand-over band (band_share),
+##   the impostors take it from there, judged by the distance of the impostor's base so exactly one
+##   of the two draws it.
 ## - "forest" (IMPOSTOR_CHUNK chunks, on the camera-target ChunkManager): GPU-placed impostors
-##   (TASK-189, ADR 0027), the same pattern: assets/shaders/forest_impostor.gdshader derives every
-##   tree from its cell, from the full range to the impostor range, where the canopy shell
-##   (ForestShell) takes over.
+##   (TASK-189, ADR 0027), `instant` chunks of MapView: assets/shaders/forest_impostor.gdshader
+##   derives every tree from its cell, from the full range to the impostor range, where the canopy
+##   shell (ForestShell) takes over.
 ##
-## Where a full chunk is not built (beyond the layer's build ring, or not yet), update() caps the
-## full range at the nearest such chunk: the materials' `full_reach` and the impostors' `full_reach`
-## are that distance, so the trees beyond it are drawn as impostors, tree by tree, with no gap and
-## no double draw. There is no tree budget: a cell's cost is its vertices, so the ring
-## (data/visuals/chunk_rings.tres `forest_full`) and the species' ranges are the cost limit.
+## Without a RenderingDevice (headless, Compatibility) there are no full trees: the impostors take
+## the trees from the camera on.
 
-const FULL_LAYER := &"forest_full"
 const IMPOSTOR_LAYER := &"forest"
-## Full chunk size (world units): 18 m at the default scale, so the ring of `full_tree_range_m`
-## wastes few cells (a cell costs the vertices of every species' model, see forest_tree.gdshader).
-const FULL_CHUNK := 0.125
+## Key of the full trees' on / off state in RealScaleVegetation (they are not a chunk layer).
+const FULL_TREES := &"forest_full"
 const IMPOSTOR_CHUNK := 2.0
-const NO_CAP := 1.0e9
-const SHADER_TREE := preload("res://assets/shaders/forest_tree.gdshader")
-## The map uniforms the full-tree materials share with the impostor material (ForestFill.bind and
-## the lattice), copied from it so the textures exist once.
-const SHARED_UNIFORMS: Array[StringName] = [
-	&"forest_seed",
-	&"spacing",
-	&"min_ground",
-	&"high_ground",
-	&"conifer_chance",
-	&"shares",
-	&"autumn_share",
-	&"fill_area",
-	&"forest_mask",
-	&"mask_per_unit",
-	&"use_parcels",
-	&"parcels",
-	&"parcel_origin_m",
-	&"parcel_metres_per_pixel",
-	&"metres_per_unit",
-	&"heights",
-	&"height_origin",
-	&"height_step",
-	&"height_cells",
-	&"water_surface",
-]
-## The drawn near surface lies up to ~3 m off the lattice the chunks' bounds are built from (m).
+## The drawn near surface lies up to ~3 m off the lattice the full trees' bounds are built from (m).
 const HEIGHT_SLACK_M := 4.0
 ## Tallest height scale of a tree (ForestFill: scale 1.2 x height factor 1.2) and widest crown
 ## scale.
@@ -72,24 +39,17 @@ var _fill: ForestFill
 var _seed := 0
 var _area := Rect2()
 var _values: Dictionary = {}
-## The largest full band end of any species (world units): chunks farther away hold no full tree.
+## The largest full band end of any species (world units), at most the range cap's band.
 var _max_full := 0.0
 var _max_impostor := 0.0
 ## The GPU full trees' range (world units, the centre of their band).
 var _full_cap := 0.0
-## The GPU-placed full-tree layer (null before setup) and the full chunks the manager has built –
-## also those without forest, which have no node.
-var _full: GpuVegetationLayer
-## The shared MultiMesh of every full chunk (identity instances, one per cell of the largest chunk).
-var _full_multimesh: MultiMesh
-var _full_built: Dictionary = {}
-## Per species (TreeSpecies.all() order): the material of its surface of the shared full mesh.
-var _tree_materials: Array[ShaderMaterial] = []
+## The full trees' compute field (null before setup) and per species (TreeSpecies.all() order) the
+## centre of its full band (world units).
+var _full: ForestFullTrees
+var _species_centres := PackedFloat32Array()
 ## The drawn near heights the full trees stand on (null: they stand on the lattice).
 var _near_heights: NearHeightCache
-## Tallest full tree above its base and its widest crown (world units), for the chunks' bounds.
-var _tree_top := 0.0
-var _tree_width := 0.0
 ## Vector2i impostor chunk -> MultiMeshInstance3D (only chunks with forest on the stand mask).
 var _impostors: Dictionary = {}
 ## Impostor chunks whose cells can hold a tree (the stand mask) -> true.
@@ -105,8 +65,6 @@ var _height_size := Vector2i.ZERO
 var _tallest := 0.0
 var _widest := 0.0
 var _impostor_material: ShaderMaterial
-var _reach := INF
-var _applied_cap := -1.0
 var _camera := Vector3.INF
 var _burns: Array[Vector3] = []
 ## Built impostor chunks as a mask over the area (one pixel per chunk, 255 = built) for the canopy
@@ -164,8 +122,6 @@ func setup(
 	_coverage = Image.create(cells.x, cells.y, false, Image.FORMAT_L8)
 	_coverage_texture = ImageTexture.create_from_image(_coverage)
 	_coverage_dirty = false
-	_applied_cap = -1.0
-	_set_reach(INF)
 
 
 ## The impostor material with the map's textures and tables, the shared MultiMesh and the impostor
@@ -238,104 +194,51 @@ func _impostor_sink() -> float:
 	return TreeField.sink(&"pine", _values) + MapScale.to_units(float(_values["impostor_sink_m"]))
 
 
-## The full trees (TASK-221): one material per species on the shared mesh (one surface per
-## species, ForestField._species_mesh), the shared MultiMesh of identity instances and the layer.
-## Needs the impostor material (_setup_impostors): its map uniforms are shared.
+## The full trees (TASK-221 and ADR 0027 amendment 2): the compute field (ForestFullTrees) that
+## appends the trees of the cells around the camera to the lists of 15 MultiMeshes, one per model.
+## Needs the impostor material (_setup_impostors): its map uniforms are the compute pass's.
 func _setup_full_trees() -> void:
 	TreeField.prime_sizes()
-	_tree_materials.clear()
-	var species_list := TreeSpecies.all()
-	var mesh := ArrayMesh.new()
-	_tree_top = 0.0
-	_tree_width = 0.0
-	for n in species_list.size():
-		var species := species_list[n]
-		var m := TreeField.new_material(species, TreeField.Lod.NEAR)
-		m.shader = SHADER_TREE
-		for uniform in SHARED_UNIFORMS:
-			m.set_shader_parameter(uniform, _impostor_material.get_shader_parameter(uniform))
-		m.set_shader_parameter(&"placed_species", n)
-		var scales := PackedVector2Array()
+	var data: Array = []
+	var top := 0.0
+	_species_centres.clear()
+	for species in TreeSpecies.all():
+		var scales: Array = []
 		for variant in TreeMeshes.VARIANTS:
 			var factors := _variant_scale(species, variant, _values)
 			scales.append(factors)
 			var model := TreeField.model_size(species, variant)
-			_tree_top = maxf(_tree_top, model.y * factors.y * MAX_HEIGHT_SCALE)
-			_tree_width = maxf(_tree_width, maxf(model.x, model.z) * factors.x * MAX_WIDTH_SCALE)
-		m.set_shader_parameter(&"variant_scale", scales)
-		m.set_shader_parameter(&"sink", TreeField.sink(&"pine", _values))
-		m.set_shader_parameter(
-			&"full_centre",
-			VegetationRanges.full_range(VegetationRanges.species_height_m(species), _values)
+			top = maxf(top, model.y * factors.y * MAX_HEIGHT_SCALE)
+		var centre := VegetationRanges.full_range(
+			VegetationRanges.species_height_m(species), _values
 		)
-		m.set_shader_parameter(&"band_share", float(_values["band_share"]))
-		m.set_shader_parameter(&"full_cap", _full_cap)
-		m.set_shader_parameter(&"hand_over_sink", _impostor_sink())
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _species_arrays(species))
-		mesh.surface_set_material(n, m)
-		_tree_materials.append(m)
-	_full_multimesh = GpuVegetationLayer.identity_multimesh(
-		mesh, VegetationHash.max_cells(FULL_CHUNK, _fill.spacing)
+		_species_centres.append(centre)
+		data.append({"centre": centre, "scales": scales})
+	_full = ForestFullTrees.new()
+	_full.setup(
+		self,
+		_impostor_material,
+		data,
+		_full_cap,
+		float(_values["band_share"]),
+		TreeField.sink(&"pine", _values),
+		_impostor_sink(),
+		_height_span(_area),
+		top,
+		MapScale.to_units(HEIGHT_SLACK_M)
 	)
-	_full = GpuVegetationLayer.new()
-	_full.id = FULL_LAYER
-	_full.chunk_size = FULL_CHUNK
-	_full.area = _area
-	_full.spacing = _fill.spacing
-	_full.parent = self
-	_full.name_prefix = "ForestFull"
-	_full.multimesh_for = _full_multimesh_for
-	_full.bounds = _full_bounds
-	_full.visibility_end = _max_full + FULL_CHUNK
-	# The build ring (reach x the rings' build factor) is 1.5 x the range cap and its band: the
-	# manager rescans only after the camera moved a quarter of the ring (RESCAN_FRACTION), so a ring
-	# just covering the range left unbuilt chunks inside it, the full reach dropped to their
-	# distance and the impostors came and went with the camera.
-	_full.reach_m = _max_full * MapScale.metres_per_unit
-	_full.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	_full.priority = 1
-	_full_built.clear()
-	_push_burns()
+	_full.use_near_heights(_near_heights)
+	if not _full.gpu():
+		# No compute pass here: the impostors take the trees from the camera on.
+		_impostor_material.set_shader_parameter(&"full_cap", 0.0)
 
 
-## The surface arrays of a species' full-tree mesh: its LOD0 variant models one after the other in
-## one surface, the vertex colour's alpha holding the variant (variant / (VARIANTS - 1): the
-## shader's `tag`).
-static func _species_arrays(species: StringName) -> Array:
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var colors := PackedColorArray()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	for variant in TreeMeshes.VARIANTS:
-		var arrays := TreeMeshes.lod0(species, variant).surface_get_arrays(0)
-		var first := vertices.size()
-		var tag := float(variant) / float(TreeMeshes.VARIANTS - 1)
-		for c in arrays[Mesh.ARRAY_COLOR] as PackedColorArray:
-			colors.append(Color(c.r, c.g, c.b, tag))
-		vertices.append_array(arrays[Mesh.ARRAY_VERTEX])
-		normals.append_array(arrays[Mesh.ARRAY_NORMAL])
-		uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])
-		for index in arrays[Mesh.ARRAY_INDEX] as PackedInt32Array:
-			indices.append(first + index)
-	var result := []
-	result.resize(Mesh.ARRAY_MAX)
-	result[Mesh.ARRAY_VERTEX] = vertices
-	result[Mesh.ARRAY_NORMAL] = normals
-	result[Mesh.ARRAY_COLOR] = colors
-	result[Mesh.ARRAY_TEX_UV] = uvs
-	result[Mesh.ARRAY_INDEX] = indices
-	return result
-
-
-## The full trees stand on the drawn near surface of `cache` (bound to every species' material);
-## null: on the lattice. update_near() keeps the cache's window on the camera target.
+## The full trees stand on the drawn near surface of `cache` (null: on the lattice).
+## update_near() keeps the cache's window on the camera target.
 func use_near_heights(cache: NearHeightCache) -> void:
 	_near_heights = cache
-	if cache == null:
-		return
-	for m in _tree_materials:
-		cache.bind(m)
+	if _full != null:
+		_full.use_near_heights(cache)
 
 
 ## The base height of a full tree at (x, z) as the shader reads it: the near window's drawn
@@ -346,38 +249,6 @@ func drawn_ground(x: float, z: float) -> float:
 		if not is_nan(h):
 			return h
 	return _fill.lattice_height(x, z)
-
-
-## The shared MultiMesh of a full chunk, null for a chunk without forest (nothing can stand there).
-func _full_multimesh_for(chunk: Vector2i) -> MultiMesh:
-	var rect := _chunk_rect(chunk, FULL_CHUNK)
-	if not rect.intersects(_area) or not _fill.mask_any(rect.grow(_fill.spacing)):
-		return null
-	return _full_multimesh
-
-
-## Culling bounds of a full chunk (node frame: origin at its corner): the lattice heights under it
-## plus the near surface's slack, the tallest tree and the widest crown (with the wind's sway).
-func _full_bounds(rect: Rect2) -> AABB:
-	var span := _height_span(rect)
-	var slack := MapScale.to_units(HEIGHT_SLACK_M)
-	var margin := _tree_width + slack
-	var bottom := span.x - slack - TreeField.sink(&"pine", _values)
-	var top := span.y + slack + _tree_top
-	return AABB(
-		Vector3(-margin, bottom, -margin),
-		Vector3(rect.size.x + 2.0 * margin, top - bottom, rect.size.y + 2.0 * margin)
-	)
-
-
-func _build_full(chunk: Vector2i, _plan: Variant) -> void:
-	_full_built[chunk] = true
-	_full.build_chunk(chunk)
-
-
-func _free_full(chunk: Vector2i) -> void:
-	_full_built.erase(chunk)
-	_full.free_chunk(chunk)
 
 
 ## Model-to-world scale of a species' variant at tree scale 1 as the full trees use it: x = z =
@@ -393,19 +264,41 @@ static func _variant_scale(species: StringName, variant: int, values: Dictionary
 	return Vector2(size * narrow, size)
 
 
-## The full chunk's trees by the GDScript reference of forest_tree.gdshader: ForestFill.cell_tree
-## of its cells, standing on drawn_ground() sunk by the tree sink, plus the model-to-world
-## `transform` the shader builds. Pure; tests.
-func full_trees(chunk: Vector2i) -> Array[Dictionary]:
+## The full trees around `camera` by the GDScript reference of forest_cells.glsl:
+## ForestFill.cell_tree of the cells in the compute window whose impostor-base distance is inside
+## the tree's own point of its species' band (capped by the range cap; the impostors' hand-over),
+## off the burnt circles,
+## standing on drawn_ground() sunk by the tree sink, plus the model-to-world `transform` the pass
+## builds. Pure; tests.
+func full_trees_around(camera: Vector3) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var cells := _fill.cells_of(_chunk_rect(chunk, FULL_CHUNK))
+	var reach := _full.reach()
+	var spacing := _fill.spacing
+	var first := Vector2i(
+		floori((camera.x - reach) / spacing - 0.5), floori((camera.z - reach) / spacing - 0.5)
+	)
+	var last := Vector2i(
+		ceili((camera.x + reach) / spacing - 0.5), ceili((camera.z + reach) / spacing - 0.5)
+	)
 	var sink := TreeField.sink(&"pine", _values)
-	for j in range(cells.position.y, cells.end.y):
-		for i in range(cells.position.x, cells.end.x):
+	var band := float(_values["band_share"])
+	var species_list := TreeSpecies.all()
+	for j in range(first.y, last.y + 1):
+		for i in range(first.x, last.x + 1):
 			var tree := _fill.cell_tree(Vector2i(i, j))
 			if tree.is_empty():
 				continue
 			var p: Vector3 = tree["position"]
+			var phase: float = (tree["custom"] as Color).a
+			var centre: float = _species_centres[species_list.find(tree["species"])]
+			var lod_to := minf(
+				lerpf(centre * (1.0 - band), centre * (1.0 + band), phase),
+				lerpf(_full_cap * (1.0 - band), _full_cap * (1.0 + band), phase)
+			)
+			if Vector3(p.x, p.y - _impostor_sink(), p.z).distance_to(camera) >= lod_to:
+				continue
+			if _is_burnt(p.x, p.z):
+				continue
 			tree["position"] = Vector3(p.x, drawn_ground(p.x, p.z), p.z)
 			tree["transform"] = _fill_transform(tree, tree, sink, _values)
 			tree["position"] = (tree["transform"] as Transform3D).origin
@@ -413,13 +306,21 @@ func full_trees(chunk: Vector2i) -> Array[Dictionary]:
 	return result
 
 
+func _is_burnt(x: float, z: float) -> bool:
+	for c in _burns:
+		if Vector2(x, z).distance_to(Vector2(c.x, c.z)) <= c.y:
+			return true
+	return false
+
+
 func clear() -> void:
 	for child in get_children():
 		remove_child(child)
 		child.free()
+	if _full != null:
+		_full.free_all()
 	_full = null
-	_full_built.clear()
-	_tree_materials.clear()
+	_species_centres.clear()
 	_near_heights = null
 	_impostors.clear()
 	_burns.clear()
@@ -434,19 +335,7 @@ func clear() -> void:
 	_coverage = null
 	_coverage_texture = null
 	_coverage_dirty = false
-	_reach = INF
-	_applied_cap = -1.0
 	_camera = Vector3.INF
-
-
-## The GPU-placed full trees: an instant layer (no plan, the chunk is built in the scan).
-func full_layer() -> ChunkLayer:
-	var result := _full.chunk_layer()
-	result.build_chunk = _build_full
-	result.free_chunk = _free_full
-	# Before the near grass on the camera manager (see ChunkLayer.priority).
-	result.priority = 1
-	return result
 
 
 ## The GPU-placed impostors: an instant layer (no plan, the chunk is built in the scan).
@@ -620,9 +509,8 @@ func bind_shell(material: ShaderMaterial) -> void:
 	)
 
 
-## The full range for a camera at `camera` (world): the nearest distance at which a full chunk is
-## missing becomes the reach of the full trees and the point the impostors start (see the class
-## comment). Main thread, every frame.
+## The camera is at `camera` (world): the compute pass of the full trees runs for it (main thread,
+## every frame).
 func update(camera: Vector3) -> void:
 	_camera = camera
 	if _grid == null:
@@ -630,53 +518,18 @@ func update(camera: Vector3) -> void:
 	if _coverage_dirty:
 		_coverage_dirty = false
 		_coverage_texture.update(_coverage)
-	_set_reach(_unbuilt_reach(camera))
+	_full.update(camera, _burns)
 
 
-## The nearest distance of a full chunk within the full range that is not built (its trees
-## would otherwise be drawn by neither LOD), INF if there is none.
-func _unbuilt_reach(camera: Vector3) -> float:
-	var result := INF
-	var first := Vector2i(
-		floori((camera.x - _max_full) / FULL_CHUNK), floori((camera.z - _max_full) / FULL_CHUNK)
-	)
-	var last := Vector2i(
-		floori((camera.x + _max_full) / FULL_CHUNK), floori((camera.z + _max_full) / FULL_CHUNK)
-	)
-	for x in range(first.x, last.x + 1):
-		for z in range(first.y, last.y + 1):
-			var chunk := Vector2i(x, z)
-			if _full_built.has(chunk) or not _chunk_rect(chunk, FULL_CHUNK).intersects(_area):
-				continue
-			var rect := _chunk_rect(chunk, FULL_CHUNK)
-			var flat := Vector2(camera.x, camera.z)
-			var d := flat.distance_to(flat.clamp(rect.position, rect.end))
-			if d < _max_full:
-				result = minf(result, d)
-	return result
+## Switches the GPU full trees on (the camera is low enough to see trees within their range) or off.
+func set_full_active(on: bool) -> void:
+	if _full != null:
+		_full.set_active(on)
 
 
-func _set_reach(reach: float) -> void:
-	var cap := minf(reach, NO_CAP)
-	_reach = reach
-	if is_equal_approx(cap, _applied_cap):
-		return
-	_applied_cap = cap
-	for material in _tree_materials:
-		material.set_shader_parameter(&"full_reach", cap)
-	if _impostor_material != null:
-		_impostor_material.set_shader_parameter(&"full_reach", cap)
-
-
-## The reach of the last update(): the full trees end here (INF: every full chunk in range is
-## built, each species ends at its own range).
-func reach() -> float:
-	return _reach
-
-
-## Full-tree nodes of the built chunks.
-func full_nodes() -> Array[MultiMeshInstance3D]:
-	return _full.nodes() if _full != null else ([] as Array[MultiMeshInstance3D])
+## The full trees' compute field (null before setup).
+func full_trees_field() -> ForestFullTrees:
+	return _full
 
 
 func impostor_nodes() -> Array[MultiMeshInstance3D]:
@@ -696,17 +549,15 @@ func burn(center: Vector2, radius: float) -> void:
 
 
 func _push_burns() -> void:
-	var materials: Array[ShaderMaterial] = _tree_materials.duplicate()
-	if _impostor_material != null:
-		materials.append(_impostor_material)
+	if _impostor_material == null:
+		return
 	var circles := PackedVector4Array()
 	circles.resize(MAX_BURNS)
 	for n in _burns.size():
 		var c := _burns[n]
 		circles[n] = Vector4(c.x, c.z, c.y, 0.0)
-	for m in materials:
-		m.set_shader_parameter(&"burns", circles)
-		m.set_shader_parameter(&"burn_count", _burns.size())
+	_impostor_material.set_shader_parameter(&"burns", circles)
+	_impostor_material.set_shader_parameter(&"burn_count", _burns.size())
 
 
 ## The burnt circles the impostor shader keeps free (x, z, radius), oldest first.

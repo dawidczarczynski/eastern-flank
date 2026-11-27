@@ -172,7 +172,7 @@ const VEGETATION_DEFAULT := {
 	"min_impostor_range_m": 100.0,
 	"vanish_angle": 0.002,
 	"band_share": 0.08,
-	"full_tree_range_m": 45.0,
+	"full_tree_range_m": 150.0,
 	"tree_sink_m": 0.3,
 	"scrub_sink_m": 0.05,
 	"impostor_sink_m": 0.5,

@@ -117,6 +117,14 @@ void vertex() {
 		VERTEX = vec3(0.0);
 	}
 #else
+#ifdef COMPACTED_TREES
+	// An unused slot of a compacted list (ForestFullTrees) has a zero basis: collapse it to a point
+	// before any colour or wind work.
+	if (dot(MODEL_MATRIX[0].xyz, MODEL_MATRIX[0].xyz) < 1.0e-12) {
+		tint = vec3(0.0);
+		VERTEX = vec3(0.0);
+	} else {
+#endif
 	// Hue shift / value / saturation in sRGB-like HSV of the (linear) species colour.
 	vec3 hsv = rgb_to_hsv(leaf_color);
 	hsv.x = fract(hsv.x - INSTANCE_CUSTOM.r);
@@ -141,6 +149,9 @@ void vertex() {
 		// Another LOD draws this tree: collapse it to a point (no pixels).
 		VERTEX = vec3(0.0);
 	}
+#ifdef COMPACTED_TREES
+	}
+#endif
 #endif
 }
 

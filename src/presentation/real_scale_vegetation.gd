@@ -81,7 +81,6 @@ func build_forest(
 	forest.setup(grid, seed_value, rect, lattice, parcels, look)
 	forest.use_near_heights(_near_window(lattice))
 	_main.register(forest.impostor_layer())
-	chunks.register(forest.full_layer())
 	build_shrubs(
 		grid, lattice, seed_value, rect, parcels, look.cover if look != null else null, _quality
 	)
@@ -143,7 +142,7 @@ func set_camera(position: Vector3, gap: float) -> void:
 		return
 	chunks.update(Vector2(position.x, position.z))
 	var ranges := forest.max_ranges()
-	_switch(chunks, ForestField.FULL_LAYER, gap, ranges.x)
+	_switch_full_trees(gap, ranges.x)
 	if _grass_on:
 		_switch(chunks, GpuGrassField.LAYER, gap, grass.ring())
 	if _shrubs_on:
@@ -185,6 +184,15 @@ func burn(center: Vector2, radius: float) -> void:
 		shrubs.burn(center, radius)
 	if _grass_on:
 		grass.burn(center, radius)
+
+
+## The GPU full trees (no chunk layer) run only while the camera is low enough to see trees within
+## their range (the same hysteresis as the chunk layers).
+func _switch_full_trees(gap: float, reach: float) -> void:
+	var on: bool = _on.get(ForestField.FULL_TREES, true)
+	on = gap < reach * (LAYER_OFF if on else LAYER_ON)
+	_on[ForestField.FULL_TREES] = on
+	forest.set_full_active(on)
 
 
 func _switch(manager: ChunkManager, id: StringName, gap: float, reach: float) -> void:
