@@ -132,6 +132,17 @@ func test_the_full_tree_mesh_tags_every_vertex_with_its_variant() -> void:
 			assert_true(index >= 0 and index < vertices.size())
 
 
+## The build ring outlasts the manager's rescan lag: a camera that moved a quarter of the ring since
+## the last scan still has every chunk of the full range built (else the full reach, and with it the
+## impostors' start, jumps about while the camera pans).
+func test_the_build_ring_covers_the_full_range_between_rescans() -> void:
+	var chunks := _view.vegetation().chunks
+	var build := chunks.build_radius(ForestField.FULL_LAYER)
+	var max_full := _view.vegetation().forest.max_ranges().x
+	var lag := build * ChunkManager.RESCAN_FRACTION
+	assert_true(build - lag >= max_full, "build %f lag %f range %f" % [build, lag, max_full])
+
+
 ## The full range ends where the nearest full chunk is not built: the reach of the materials and of
 ## the impostors (one value, so exactly one of the two draws every tree); INF where all are built.
 func test_the_full_reach_follows_the_unbuilt_chunks_and_caps_both_lods() -> void:

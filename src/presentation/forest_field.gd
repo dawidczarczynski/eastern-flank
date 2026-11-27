@@ -287,8 +287,11 @@ func _setup_full_trees() -> void:
 	_full.multimesh_for = _full_multimesh_for
 	_full.bounds = _full_bounds
 	_full.visibility_end = _max_full + FULL_CHUNK
-	# The build ring (reach x the rings' build factor) just covers the range cap and its band.
-	_full.reach_m = _max_full * MapScale.metres_per_unit / ChunkRings.load_default().build_factor
+	# The build ring (reach x the rings' build factor) is 1.5 x the range cap and its band: the
+	# manager rescans only after the camera moved a quarter of the ring (RESCAN_FRACTION), so a ring
+	# just covering the range left unbuilt chunks inside it, the full reach dropped to their
+	# distance and the impostors came and went with the camera.
+	_full.reach_m = _max_full * MapScale.metres_per_unit
 	_full.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	_full.priority = 1
 	_full_built.clear()
