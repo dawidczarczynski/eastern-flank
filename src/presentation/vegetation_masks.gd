@@ -58,6 +58,39 @@ static func from_map(
 	if fill != null:
 		inputs["forest"] = fill.mask_image()
 		inputs["forest_area"] = fill.area
+	inputs.merge(_ribbon_inputs(grid))
+	if parcels != null:
+		inputs["hedges"] = hedge_lines(parcels, rect)
+	return build(rect, inputs)
+
+
+## The masks of from_map when a worker thread painted the land cover and ribbons (`base`, make_base
+## of the same grid, rect and cover) and the forest stand mask is known (`stand`, with `blurred`:
+## blur_forest of it over `rect`): adds the hedges of `parcels` and the forest. Painting is
+## order-independent, so the bytes are those of from_map. Pure: safe on a worker thread. **Mutates
+## `base` and returns that same object.**
+static func complete(
+	base: VegetationMasks, rect: Rect2, parcels: ParcelMap, stand: Image, blurred: Image
+) -> VegetationMasks:
+	var inputs := {"forest": stand, "forest_area": rect, "forest_blurred": blurred}
+	if parcels != null:
+		inputs["hedges"] = hedge_lines(parcels, rect)
+	base._finish(inputs)
+	return base
+
+
+## The land cover and the ribbons of a map painted into a masks object (no forest, no hedges yet);
+## pass it to `complete`. Pure, safe on a worker thread once the ribbon caches are filled.
+static func make_base(grid: HexGrid, rect: Rect2, land_cover: LandCover) -> VegetationMasks:
+	var inputs := {"grid": grid, "cover": land_cover}
+	inputs.merge(_ribbon_inputs(grid))
+	var masks := VegetationMasks.new()
+	masks._paint_base(rect, inputs)
+	return masks
+
+
+static func _ribbon_inputs(grid: HexGrid) -> Dictionary:
+	var inputs := {}
 	if grid != null and grid.has_links():
 		for kind: FeatureRibbonPlanner.Kind in [
 			FeatureRibbonPlanner.Kind.ROAD, FeatureRibbonPlanner.Kind.RIVER
@@ -68,9 +101,7 @@ static func from_map(
 			for n in lines.size():
 				list.append([lines[n], halves[n]])
 			inputs["roads" if kind == FeatureRibbonPlanner.Kind.ROAD else "rivers"] = list
-	if parcels != null:
-		inputs["hedges"] = hedge_lines(parcels, rect)
-	return build(rect, inputs)
+	return inputs
 
 
 ## The masks over `rect` from raw inputs (all optional):
@@ -88,6 +119,12 @@ static func build(rect: Rect2, inputs: Dictionary) -> VegetationMasks:
 
 
 func _build(rect: Rect2, inputs: Dictionary) -> void:
+	_paint_base(rect, inputs)
+	_finish(inputs)
+
+
+## The land cover and the roads and rivers (the parts that need no parcels).
+func _paint_base(rect: Rect2, inputs: Dictionary) -> void:
 	area = rect
 	per_unit = MapScale.metres_per_unit / TEXEL_M
 	size = ForestMaskSource.mask_size(area, per_unit)
@@ -97,17 +134,6 @@ func _build(rect: Rect2, inputs: Dictionary) -> void:
 	)
 	var roadside := MapScale.to_units(ROADSIDE_M)
 	var bank := MapScale.to_units(BANK_M)
-	var half_texel := 0.5 / per_unit
-	# A hedge is one texel wide on average (texel centres within half a texel of the line); the
-	# line moves by a small odd fraction of a texel so that a line on a texel border never ties.
-	var tie_break := Vector2(0.0131, 0.0173) / per_unit
-	for line: PackedVector2Array in inputs.get("hedges", []):
-		var moved := PackedVector2Array()
-		for p in line:
-			moved.append(p + tie_break)
-		var widths := PackedFloat32Array()
-		widths.resize(line.size())
-		_paint_line(moved, widths, half_texel, Habitat.HEDGE, 0.0, Habitat.MEADOW)
 	for entry: Array in inputs.get("roads", []):
 		_paint_line(
 			entry[0],
@@ -119,8 +145,25 @@ func _build(rect: Rect2, inputs: Dictionary) -> void:
 		)
 	for entry: Array in inputs.get("rivers", []):
 		_paint_line(entry[0], entry[1], clearance, Habitat.KEEP_OFF, clearance + bank, Habitat.BANK)
+
+
+## The hedges, the images and the forest stand (what is left once the base is painted).
+func _finish(inputs: Dictionary) -> void:
+	var half_texel := 0.5 / per_unit
+	# A hedge is one texel wide on average (texel centres within half a texel of the line); the
+	# line moves by a small odd fraction of a texel so that a line on a texel border never ties.
+	var tie_break := Vector2(0.0131, 0.0173) / per_unit
+	for line: PackedVector2Array in inputs.get("hedges", []):
+		var moved := PackedVector2Array()
+		for p in line:
+			moved.append(p + tie_break)
+		var widths := PackedFloat32Array()
+		widths.resize(line.size())
+		_paint_line(moved, widths, half_texel, Habitat.HEDGE, 0.0, Habitat.MEADOW)
 	_habitat_image = Image.create_from_data(size.x, size.y, false, Image.FORMAT_L8, _habitat)
-	_forest_image = _forest_blur(inputs.get("forest"), inputs.get("forest_area", Rect2()))
+	_forest_image = inputs.get("forest_blurred")
+	if _forest_image == null:
+		_forest_image = blur_forest(area, inputs.get("forest"), inputs.get("forest_area", Rect2()))
 	_forest = _forest_image.get_data()
 
 
@@ -255,23 +298,25 @@ func _paint_segment(
 
 ## The forest stand on the texels (nearest), averaged over FOREST_BLUR-texel blocks and
 ## stretched back bilinearly; all 0 without a forest image.
-func _forest_blur(forest: Image, forest_area: Rect2) -> Image:
-	var image := Image.create(size.x, size.y, false, Image.FORMAT_L8)
+static func blur_forest(rect: Rect2, forest: Image, forest_area: Rect2) -> Image:
+	var texels_per_unit := MapScale.metres_per_unit / TEXEL_M
+	var full := ForestMaskSource.mask_size(rect, texels_per_unit)
+	var image := Image.create(full.x, full.y, false, Image.FORMAT_L8)
 	if forest == null or not forest_area.has_area():
 		return image
 	var target := Vector2i(
-		maxi(1, roundi(forest_area.size.x * per_unit)),
-		maxi(1, roundi(forest_area.size.y * per_unit))
+		maxi(1, roundi(forest_area.size.x * texels_per_unit)),
+		maxi(1, roundi(forest_area.size.y * texels_per_unit))
 	)
 	var stand := forest.duplicate() as Image
 	if stand.get_format() != Image.FORMAT_L8:
 		stand.convert(Image.FORMAT_L8)
 	stand.resize(target.x, target.y, Image.INTERPOLATE_NEAREST)
-	var at := Vector2i(((forest_area.position - area.position) * per_unit).round())
+	var at := Vector2i(((forest_area.position - rect.position) * texels_per_unit).round())
 	image.blit_rect(stand, Rect2i(Vector2i.ZERO, target), at)
-	var coarse := Vector2i(maxi(1, size.x / FOREST_BLUR), maxi(1, size.y / FOREST_BLUR))
+	var coarse := Vector2i(maxi(1, full.x / FOREST_BLUR), maxi(1, full.y / FOREST_BLUR))
 	image.resize(coarse.x, coarse.y, Image.INTERPOLATE_TRILINEAR)
-	image.resize(size.x, size.y, Image.INTERPOLATE_BILINEAR)
+	image.resize(full.x, full.y, Image.INTERPOLATE_BILINEAR)
 	return image
 
 

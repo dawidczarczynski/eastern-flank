@@ -130,6 +130,14 @@ func blocks_standing(x: float, z: float) -> bool:
 	return kind != 0 and kind != 8  # FieldParcels.Kind.NONE / BALK
 
 
+## blocks_standing by the exact per-point kind, never the crop mask: for planners that ask about
+## a few thousand items, where baking 64x64-pixel mask blocks (under one lock) costs far more than
+## the lookups (TASK-222). Same answer as the mask away from pixel edges.
+func blocks_standing_exact(x: float, z: float) -> bool:
+	var kind := kind_at(x, z)
+	return kind != 0 and kind != 8  # FieldParcels.Kind.NONE / BALK
+
+
 ## Whether tall grass is kept off (x, z): crop parcels, not meadows, balks or unpainted ground.
 func blocks_tall_grass(x: float, z: float) -> bool:
 	if crop_mask_on:

@@ -162,14 +162,15 @@ static func plan(
 ## `plan` without the items on farmland parcels, roads and rivers.
 static func _filtered(plan: Dictionary, grid: HexGrid, parcels: ParcelMap) -> Dictionary:
 	# Nothing stands on crop, ploughed and meadow parcels (TASK-108f; filtered afterwards, so the
-	# streams above are unchanged). Under `true` ParcelMap.blocks_standing reads the crop keep-off
-	# mask (TASK-217c): no kind lookup per item.
+	# streams above are unchanged). The exact per-point kind, not the crop keep-off mask
+	# (TASK-222): a plan asks about a few thousand items, the mask bakes 64x64-pixel blocks under
+	# one lock (~70 s of the 22 s Suwalki prebuild).
 	if parcels != null:
 		for key: String in plan:
 			var kept: Array[Dictionary] = []
 			for item: Dictionary in plan[key]:
 				var p: Vector3 = item["position"]
-				if not parcels.blocks_standing(p.x, p.z):
+				if not parcels.blocks_standing_exact(p.x, p.z):
 					kept.append(item)
 			plan[key] = kept
 	# Nothing grows on roads and rivers (filtered afterwards, so the streams above are unchanged).

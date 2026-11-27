@@ -75,7 +75,8 @@ func _init(
 	fill_area: Rect2,
 	parcels: ParcelMap = null,
 	v: Dictionary = {},
-	source: ForestMaskSource = null
+	source: ForestMaskSource = null,
+	stand_mask: Image = null
 ) -> void:
 	_grid = grid
 	_lattice = lattice
@@ -88,7 +89,12 @@ func _init(
 	_conifer_shares = _cumulative(TreeSpecies.CONIFERS)
 	_deciduous_shares = _cumulative(TreeSpecies.DECIDUOUS)
 	_autumn = LookPreset.autumn_share(TreeSpecies.AUTUMN_SHARE)
-	_build_mask(source if source != null else HexForestMaskSource.new(_clearing))
+	if stand_mask == null:
+		var made := source if source != null else HexForestMaskSource.new(_clearing)
+		stand_mask = stand_mask_of(made.build(grid, fill_area, MASK_PER_UNIT))
+	_mask = stand_mask
+	_mask_size = stand_mask.get_size()
+	_mask_bytes = stand_mask.get_data()
 
 
 ## Grid spacing (world units) that gives VegetationRanges.trees_per_hex() trees per forest hex
@@ -265,17 +271,18 @@ func mask_image() -> Image:
 	return _mask
 
 
-## Merges the source's forest and keep-off masks into the stand mask.
-func _build_mask(source: ForestMaskSource) -> void:
-	var masks := source.build(_grid, area, MASK_PER_UNIT)
+## The stand mask from a source's forest and keep-off masks (ForestMaskSource.build): the forest
+## minus the keep-off texels. Pure, safe on a worker thread (pass the result to _init as
+## `stand_mask`).
+static func stand_mask_of(masks: Dictionary) -> Image:
 	var forest: Image = masks["forest"]
 	var keep_off: PackedByteArray = (masks["keep_off"] as Image).get_data()
-	_mask_size = forest.get_size()
-	_mask_bytes = forest.get_data()
+	var size := forest.get_size()
+	var bytes := forest.get_data()
 	for k in keep_off.size():
 		if keep_off[k] > 127:
-			_mask_bytes[k] = 0
-	_mask = Image.create_from_data(_mask_size.x, _mask_size.y, false, Image.FORMAT_L8, _mask_bytes)
+			bytes[k] = 0
+	return Image.create_from_data(size.x, size.y, false, Image.FORMAT_L8, bytes)
 
 
 ## The shader inputs of the fill (forest_impostor.gdshader): seed, spacing, clearing, species
@@ -315,19 +322,17 @@ func bind(material: ShaderMaterial) -> void:
 static func height_image(lattice: TerrainLattice) -> Image:
 	var side := TerrainLattice.CELLS_PER_CHUNK + 1
 	var size := lattice.cells + Vector2i.ONE
-	var values := PackedFloat32Array()
-	values.resize(size.x * size.y)
+	lattice.finish_blocks()
+	var image := Image.create(size.x, size.y, false, Image.FORMAT_RF)
 	var counts := lattice.chunk_counts()
 	for cz in counts.y:
 		for cx in counts.x:
-			var block := lattice.block(Vector2i(cx, cz))
-			for b in side:
-				var j := cz * TerrainLattice.CELLS_PER_CHUNK + b
-				if j >= size.y:
-					break
-				for a in side:
-					var i := cx * TerrainLattice.CELLS_PER_CHUNK + a
-					if i >= size.x:
-						break
-					values[j * size.x + i] = block[b * side + a]
-	return Image.create_from_data(size.x, size.y, false, Image.FORMAT_RF, values.to_byte_array())
+			var origin := Vector2i(cx, cz) * TerrainLattice.CELLS_PER_CHUNK
+			var block := Image.create_from_data(
+				side, side, false, Image.FORMAT_RF, lattice.block(Vector2i(cx, cz)).to_byte_array()
+			)
+			# Blocks overlap by a vertex (the same height both ways); the last ones are clipped.
+			image.blit_rect(
+				block, Rect2i(Vector2i.ZERO, (size - origin).min(Vector2i(side, side))), origin
+			)
+	return image

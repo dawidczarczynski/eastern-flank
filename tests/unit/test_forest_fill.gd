@@ -205,3 +205,15 @@ func test_the_hex_mask_source_fills_forest_tiles_at_the_requested_resolution() -
 			var inward := p * (1.0 - texel_reach / maxf(p.length(), 1.0e-6))
 			assert_eq(Hex.from_world(inward, TerrainField.HEX_SIZE), Vector2i(0, 0), "%s" % p)
 		assert_true(Vector2(p.x, p.z).length() > 0.1 - texel_reach, "off the clearing")
+
+
+func test_a_stand_mask_made_elsewhere_is_the_fills_own() -> void:
+	# RealScaleVegetation.prepare builds the stand mask on a worker and hands it to the fill.
+	var grid := _forest(3)
+	var area := Rect2(-4.0, -4.0, 8.0, 8.0)
+	var own := ForestFill.new(grid, _flat, SEED, area)
+	var source := HexForestMaskSource.new(0.0)
+	var stand := ForestFill.stand_mask_of(source.build(grid, area, ForestFill.MASK_PER_UNIT))
+	var given := ForestFill.new(grid, _flat, SEED, area, null, {}, null, stand)
+	assert_eq(given.mask_image().get_data(), stand.get_data())
+	assert_eq(own.mask_image().get_size(), given.mask_image().get_size())

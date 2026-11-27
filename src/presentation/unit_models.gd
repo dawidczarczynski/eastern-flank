@@ -119,6 +119,16 @@ static func model_units_per_metre(definition_id: StringName) -> float:
 	return VisualScale.NOMINAL_MODEL_UNITS_PER_METRE
 
 
+## Starts compiling the model scripts of `definition_ids` (and what they preload) on loader threads,
+## so the later `load` in `build` finds them ready: the battle loading screen calls it before the
+## map is built, and the compile overlaps with that.
+static func request_scripts(definition_ids: Array) -> void:
+	for id: StringName in definition_ids:
+		var path: String = MODEL_PATH % id
+		if ResourceLoader.exists(path):
+			ResourceLoader.load_threaded_request(path)
+
+
 ## Whether a model file exists for the unit id.
 static func has_model(definition_id: StringName) -> bool:
 	return ResourceLoader.exists(MODEL_PATH % definition_id)

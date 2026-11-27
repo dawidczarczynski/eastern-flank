@@ -67,7 +67,7 @@ static func _off_parcels(items: Array[Dictionary], parcels: ParcelMap) -> Array[
 	var kept: Array[Dictionary] = []
 	for item in items:
 		var p: Vector3 = item["position"]
-		if not parcels.blocks_standing(p.x, p.z):
+		if not parcels.blocks_standing_exact(p.x, p.z):
 			kept.append(item)
 	return kept
 

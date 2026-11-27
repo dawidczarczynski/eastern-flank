@@ -276,6 +276,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `WarmUp` – Decides when the first slow frames of a freshly built scene are over (shader pipelines, (`warm_up.gd`)
 - `WaterPlane` – The translucent water plane of a MapView (TASK-056; moved out of MapView by TASK-135): one (`water_plane.gd`)
 - `Wind` – Global wind shader parameters (TASK-057), shared by grass and later trees / undergrowth (`wind.gd`)
+- `WorkerJob` – One piece of pure CPU work run on the WorkerThreadPool while the main thread does somethi… (`worker_job.gd`)
 - `WreckField` – Owner of all wrecks of a battle (TASK-065), a child of the Units node (same space as the… (`wreck_field.gd`)
 - `WreckLife` – Lifecycle bookkeeping of one wreck (TASK-065), no nodes: the smoke thins after the first (`wreck_life.gd`)
 - `WreckPlan` – Pure numbers of a destroyed vehicle's death playback and wreck (TASK-065): which units le… (`wreck_plan.gd`)

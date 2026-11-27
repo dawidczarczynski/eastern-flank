@@ -12,6 +12,8 @@ extends RefCounted
 
 const SCATTER_NODES: Array[String] = ["Bushes", "Rocks", "BackdropBushes", "BackdropRocks"]
 const LAYER_COUNT := 2
+## How long a layer waits for the other layer's plan of a chunk before planning it itself.
+const SOURCE_WAIT_MS := 60000
 ## The ScatterPlanner plan keys of the shrub sources the GPU shrubs replace (gpu_shrubs).
 const SHRUB_KEYS: Array[String] = ["bushes", "edge_shrubs", "meadow_scrub"]
 
@@ -46,6 +48,8 @@ var _rock_material: StandardMaterial3D
 var _mutex := Mutex.new()
 ## Vector2i chunk -> {"plan": {map, backdrop}, "taken": {layer: true}}.
 var _cache: Dictionary = {}
+## Vector2i chunks whose plan a job is computing right now.
+var _planning: Dictionary = {}
 ## Vector2i chunk -> Array[MultiMeshInstance3D] of the scatter layer.
 var _scatter_nodes: Dictionary = {}
 ## Burnt circles: Vector3(x, radius, z).
@@ -132,16 +136,41 @@ func burn(center: Vector2, radius: float) -> void:
 
 ## The map and backdrop plan of `chunk` for layer `consumer`, planned once for both layers.
 func source(chunk: Vector2i, consumer: StringName) -> Dictionary:
+	# One job computes a chunk's plan; the other layer's job for it waits for the result instead
+	# of planning the same chunk again (TASK-222: both layers' jobs start together, so nearly
+	# every chunk used to be planned twice).
+	var plan: Dictionary
+	var mine := false
 	_mutex.lock()
 	var entry: Variant = _cache.get(chunk)
+	if entry == null and not _planning.has(chunk):
+		_planning[chunk] = true
+		mine = true
 	_mutex.unlock()
-	var plan: Dictionary
-	if entry != null:
-		plan = (entry as Dictionary)["plan"]
-	else:
+	if mine:
 		plan = _plan_source(chunk)
+		_mutex.lock()
+		_cache[chunk] = {"plan": plan, "taken": {}}
+		_planning.erase(chunk)
+		_mutex.unlock()
+	else:
+		var deadline := Time.get_ticks_msec() + SOURCE_WAIT_MS
+		while entry == null:
+			OS.delay_usec(500)
+			_mutex.lock()
+			entry = _cache.get(chunk)
+			var owner_gone := not _planning.has(chunk)
+			_mutex.unlock()
+			if entry == null and (owner_gone or Time.get_ticks_msec() > deadline):
+				# The owner never stored a plan (it failed) or takes too long: plan it here.
+				plan = _plan_source(chunk)
+				_mutex.lock()
+				if not _cache.has(chunk):
+					_cache[chunk] = {"plan": plan, "taken": {}}
+				entry = _cache[chunk]
+				_mutex.unlock()
 	_mutex.lock()
-	var stored: Dictionary = _cache.get_or_add(chunk, {"plan": plan, "taken": {}})
+	var stored: Dictionary = _cache[chunk]
 	(stored["taken"] as Dictionary)[consumer] = true
 	plan = stored["plan"]
 	if (stored["taken"] as Dictionary).size() >= LAYER_COUNT:

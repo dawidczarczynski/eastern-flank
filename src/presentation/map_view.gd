@@ -213,7 +213,7 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		_chunks.wait()
-		_vegetation.chunks.wait()
+		_vegetation.wait()
 
 
 ## The hover ring pulses; geometry is only rebuilt in set_hover(). Chunks around the camera
@@ -268,6 +268,7 @@ func build(grid: HexGrid) -> void:
 	_surface.prime()
 	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
 	_lattice = TerrainLattice.new(rect, _surface)
+	_vegetation.prepare(grid, _lattice, _look, threads)
 	_mesh_origin = _lattice.origin
 	_mesh_step = Vector2.ONE * TerrainLattice.STEP
 	_mesh_cells = _lattice.cells

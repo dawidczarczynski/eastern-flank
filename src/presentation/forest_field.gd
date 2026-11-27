@@ -81,24 +81,33 @@ var _coverage_origin := Vector2i.ZERO
 ## hold a tree and carry the impostors), `area` the rectangle the forest may cover (the playable
 ## mesh). `look` (TASK-108g): the forest stands on the land-cover raster's forest instead of the
 ## forest hexes. The full trees stand on the drawn near surface once use_near_heights() is given.
+## `stand_mask`: ForestFill.stand_mask_of(mask_source(look).build(grid, area,
+## ForestFill.MASK_PER_UNIT)) when a worker made it already (RealScaleVegetation.prepare); null:
+## made here.
 func setup(
 	grid: HexGrid,
 	seed_value: int,
 	area: Rect2,
 	lattice: TerrainLattice,
 	parcels: ParcelMap = null,
-	look: CoverLook = null
+	look: CoverLook = null,
+	stand_mask: Image = null
 ) -> void:
 	clear()
 	_grid = grid
 	_seed = seed_value
 	_area = area
 	_values = LookPreset.vegetation()
-	var source: ForestMaskSource = null
-	if look != null:
-		var clearing_m := float(VegetationRanges.values(_values)["forest_clearing_m"])
-		source = LandCoverForestMaskSource.new(look, MapScale.to_units(clearing_m))
-	_fill = ForestFill.new(grid, lattice.mesh_height_at, seed_value, area, parcels, _values, source)
+	_fill = ForestFill.new(
+		grid,
+		lattice.mesh_height_at,
+		seed_value,
+		area,
+		parcels,
+		_values,
+		mask_source(look),
+		stand_mask
+	)
 	_max_full = 0.0
 	_max_impostor = 0.0
 	for species in TreeSpecies.all():
@@ -123,6 +132,15 @@ func setup(
 	_coverage = Image.create(cells.x, cells.y, false, Image.FORMAT_L8)
 	_coverage_texture = ImageTexture.create_from_image(_coverage)
 	_coverage_dirty = false
+
+
+## Where forest may stand on a map with land-cover `look` (null: the hex tiles, the ForestFill
+## default).
+static func mask_source(look: CoverLook) -> ForestMaskSource:
+	if look == null:
+		return null
+	var clearing_m := float(VegetationRanges.values(LookPreset.vegetation())["forest_clearing_m"])
+	return LandCoverForestMaskSource.new(look, MapScale.to_units(clearing_m))
 
 
 ## The impostor material with the map's textures and tables, the shared MultiMesh and the impostor

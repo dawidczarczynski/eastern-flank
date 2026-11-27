@@ -30,6 +30,8 @@ var _mutex := Mutex.new()
 var _blocks: Dictionary = {}
 ## Blocks a thread is computing right now -> true.
 var _computing: Dictionary = {}
+## Group task of warm_blocks_async, -1 when none.
+var _warm_task := -1
 ## Vector2i chunk -> height queries answered without its block.
 var _misses: Dictionary = {}
 
@@ -113,6 +115,36 @@ func block(chunk: Vector2i) -> PackedFloat32Array:
 	_computing.erase(chunk)
 	_mutex.unlock()
 	return heights
+
+
+## Starts computing every height block on worker threads (block() is thread-safe, a block asked for
+## meanwhile is waited for, not computed twice); `finish_blocks` joins them. The loading screen
+## starts it as soon as the lattice exists, the forest's height image (all blocks) then finds them
+## done.
+func warm_blocks_async() -> void:
+	if _warm_task >= 0:
+		return
+	var counts := chunk_counts()
+	var compute := func(index: int) -> void: block(Vector2i(index % counts.x, index / counts.x))
+	_warm_task = WorkerThreadPool.add_group_task(
+		compute, counts.x * counts.y, -1, false, "Terrain lattice blocks"
+	)
+
+
+## Waits for the task of `warm_blocks_async` (nothing when not started): a group task must be joined
+## before the lattice goes away.
+func wait_blocks() -> void:
+	if _warm_task >= 0:
+		WorkerThreadPool.wait_for_group_task_completion(_warm_task)
+		_warm_task = -1
+
+
+## Waits for `warm_blocks_async`; afterwards every block is cached.
+func finish_blocks() -> void:
+	var counts := chunk_counts()
+	wait_blocks()
+	for index in counts.x * counts.y:
+		block(Vector2i(index % counts.x, index / counts.x))
 
 
 ## Number of height blocks computed so far (statistics, tests).

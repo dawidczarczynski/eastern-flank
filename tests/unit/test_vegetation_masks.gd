@@ -83,3 +83,49 @@ func test_ribbons_are_kept_off_and_banks_and_hedges_marked() -> void:
 	assert_eq(masks.forest_at(ShrubFixture.u(700.0), ShrubFixture.u(300.0)), 0, "open land")
 	var edge := masks.forest_at(ShrubFixture.u(ShrubFixture.FOREST_EDGE_M), ShrubFixture.u(300.0))
 	assert_true(edge > ShrubRules.EDGE_FROM and edge < ShrubRules.EDGE_TO, "edge %d" % edge)
+
+
+func test_painting_the_base_first_and_the_hedges_later_gives_the_same_bytes() -> void:
+	# The loading screen paints the land cover and ribbons on a worker before the parcels exist
+	# (make_base) and adds the hedges and the forest later (complete): painting is order-independent.
+	var area := ShrubFixture.rect_u(Rect2(0.0, 0.0, 2000.0, 2000.0))
+	var inputs := ShrubFixture.fixture_inputs(area)
+	var whole := VegetationMasks.build(area, inputs)
+	var split := VegetationMasks.new()
+	split._paint_base(area, inputs)
+	split._finish(inputs)
+	assert_eq(split.habitat_image().get_data(), whole.habitat_image().get_data(), "habitat")
+	assert_eq(split.forest_image().get_data(), whole.forest_image().get_data(), "forest edge")
+	# The hex map path: make_base + complete equals from_map.
+	var grid := Fixtures.plains_grid(3)
+	grid.set_terrain(Vector2i(1, 0), Terrain.Type.FOREST)
+	grid.set_terrain(Vector2i(-1, 0), Terrain.Type.URBAN)
+	var rect := Rect2(-6.0, -6.0, 12.0, 12.0)
+	var flat := func(_x: float, _z: float) -> float: return 0.5
+	var fill := ForestFill.new(grid, flat, 7, rect)
+	var cover := LandCover.from_grid(grid)
+	var expected := VegetationMasks.from_map(grid, rect, fill, cover, null)
+	var base := VegetationMasks.make_base(grid, rect, cover)
+	var stand := fill.mask_image()
+	var done := VegetationMasks.complete(
+		base, rect, null, stand, VegetationMasks.blur_forest(rect, stand, rect)
+	)
+	assert_eq(done.habitat_image().get_data(), expected.habitat_image().get_data(), "habitat")
+	assert_eq(done.forest_image().get_data(), expected.forest_image().get_data(), "forest edge")
+
+
+func test_a_hedge_crossing_a_road_and_the_river_paints_the_same_in_two_steps() -> void:
+	var area := ShrubFixture.rect_u(Rect2(0.0, 0.0, 2000.0, 2000.0))
+	var inputs := ShrubFixture.fixture_inputs(area)
+	var x := ShrubFixture.u(900.0)
+	var across := PackedVector2Array(
+		[Vector2(x, ShrubFixture.u(100.0)), Vector2(x, ShrubFixture.u(1900.0))]
+	)
+	(inputs["hedges"] as Array).append(across)
+	var whole := VegetationMasks.build(area, inputs)
+	var split := VegetationMasks.new()
+	split._paint_base(area, inputs)
+	split._finish(inputs)
+	assert_eq(split.habitat_image().get_data(), whole.habitat_image().get_data())
+	var at_road := whole.habitat_at(x, ShrubFixture.u(ShrubFixture.ROAD_Z_M))
+	assert_eq(at_road, VegetationMasks.Habitat.KEEP_OFF, "the road stays keep-off under the hedge")

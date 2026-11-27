@@ -21,6 +21,23 @@ const NODE := "ForestShell"
 static func build_mesh(
 	grid: HexGrid, rect: Rect2, height_fn: Callable, lift: float, look: CoverLook = null
 ) -> ArrayMesh:
+	return mesh_of(build_arrays(grid, rect, height_fn, lift, look))
+
+
+## The mesh of `arrays` (build_arrays), null when empty.
+static func mesh_of(arrays: Array) -> ArrayMesh:
+	if arrays.is_empty():
+		return null
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+## The surface arrays of the shell mesh (empty without forest): pure data, safe on a worker
+## thread (`height_fn` and `look` must be).
+static func build_arrays(
+	grid: HexGrid, rect: Rect2, height_fn: Callable, lift: float, look: CoverLook = null
+) -> Array:
 	var cells := Vector2i((rect.size / STEP).ceil())
 	var row := cells.x + 1
 	var cover := PackedFloat32Array()
@@ -37,7 +54,7 @@ static func build_mesh(
 					cover[j * row + i] = 1.0
 			any = any or cover[j * row + i] > 0.0
 	if not any:
-		return null
+		return []
 	var vertices := PackedVector3Array()
 	var ground := PackedVector3Array()
 	var colors := PackedColorArray()
@@ -73,9 +90,14 @@ static func build_mesh(
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	return arrays
+
+
+## The shell's lift above the ground at full cover (world units), LookPreset.vegetation().
+static func lift_units() -> float:
+	var values := LookPreset.vegetation()
+	var tree_m: float = VisualScale.TRUE_HEIGHTS_M[&"tree"]
+	return MapScale.to_units(tree_m * float(values["shell_height_share"]))
 
 
 ## Vertex normals of the ground under the shell (the lift is left out: it would tilt the forest
@@ -100,13 +122,16 @@ static func ground_normals(
 ## The shell node for the active look: canopy material in the species colours, the crown cell and
 ## the fade-in band of LookPreset.vegetation() (a share of the shortest species' impostor range),
 ## no shadow. Null without forest.
+## `arrays`: the build_arrays of the same inputs when a worker made them already (null: made here).
 static func build(
-	grid: HexGrid, rect: Rect2, height_fn: Callable, look: CoverLook = null
+	grid: HexGrid, rect: Rect2, height_fn: Callable, look: CoverLook = null, arrays: Variant = null
 ) -> MeshInstance3D:
 	var values := LookPreset.vegetation()
-	var tree_m: float = VisualScale.TRUE_HEIGHTS_M[&"tree"]
-	var lift := MapScale.to_units(tree_m * float(values["shell_height_share"]))
-	var mesh := build_mesh(grid, rect, height_fn, lift, look)
+	var mesh: ArrayMesh
+	if arrays != null:
+		mesh = mesh_of(arrays)
+	else:
+		mesh = build_mesh(grid, rect, height_fn, lift_units(), look)
 	if mesh == null:
 		return null
 	var material := BackdropCanopy.material()

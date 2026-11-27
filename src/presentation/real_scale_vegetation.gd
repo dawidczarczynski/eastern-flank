@@ -37,6 +37,12 @@ var _grass_on := false
 ## The drawn near heights the GPU-placed trees, shrubs and grass stand on (TASK-217a): one window
 ## on the camera target, shared (null: no near terrain, everything stands on the lattice).
 var _near_heights: NearHeightCache
+## Worker jobs of prepare(), joined (and dropped) by build_forest.
+var _forest_masks: WorkerJob
+var _shell_arrays: WorkerJob
+var _shrub_base: WorkerJob
+var _shrub_masks: WorkerJob
+var _warm_lattice: TerrainLattice
 ## GraphicsQuality features of the build (the shrubs' range).
 var _quality: Dictionary = {}
 
@@ -50,6 +56,7 @@ func _init() -> void:
 ## A new build: a fresh camera manager (same rings and threading as `main`); nothing is active
 ## until build_forest / build_grass.
 func reset(main: ChunkManager, low_quality: bool, threads: bool, quality := {}) -> void:
+	wait()
 	_quality = quality
 	chunks.reset()
 	chunks = ChunkManager.new(ChunkRings.load_default(), low_quality)
@@ -67,6 +74,63 @@ func reset(main: ChunkManager, low_quality: bool, threads: bool, quality := {}) 
 	_near_heights = null
 
 
+## Joins every worker task this object started (the loading-screen jobs, the lattice warm-up, the
+## camera chunk planners) and drops the jobs; a view being rebuilt or freed calls it, so no task
+## outlives what it reads.
+func wait() -> void:
+	for job: WorkerJob in [_forest_masks, _shell_arrays, _shrub_base, _shrub_masks]:
+		if job != null:
+			job.discard()
+	_forest_masks = null
+	_shell_arrays = null
+	_shrub_base = null
+	_shrub_masks = null
+	if _warm_lattice != null:
+		_warm_lattice.wait_blocks()
+		_warm_lattice = null
+	chunks.wait()
+
+
+## Starts the background work of the loading screen: every height block of the lattice, and (when
+## the forest is built later, `look` a land-cover look) the parts of build_forest that need neither
+## the parcels nor the scene – the forest stand masks, the canopy shell mesh, the shrub masks' land
+## cover and ribbons – on worker threads while the main thread builds the terrain. Call once the
+## lattice exists and the ribbon caches are filled; build_forest joins the jobs (without this call
+## it makes everything itself). `threads` false (tests): no workers, nothing started.
+func prepare(grid: HexGrid, lattice: TerrainLattice, look: CoverLook, threads: bool) -> void:
+	wait()
+	if not threads or not _active:
+		return
+	_warm_lattice = lattice
+	lattice.warm_blocks_async()
+	if look == null or not _quality.get("foliage", true):
+		return
+	var rect := lattice.rect()
+	var source := ForestField.mask_source(look)
+	_forest_masks = WorkerJob.start(
+		func() -> Dictionary:
+			var stand := ForestFill.stand_mask_of(
+				source.build(grid, rect, ForestFill.MASK_PER_UNIT)
+			)
+			return {"stand": stand, "blurred": VegetationMasks.blur_forest(rect, stand, rect)},
+		true,
+		"Forest mask"
+	)
+	var lift := ForestShell.lift_units()
+	var height_fn := lattice.mesh_height_at
+	_shell_arrays = WorkerJob.start(
+		func() -> Array: return ForestShell.build_arrays(grid, rect, height_fn, lift, look),
+		true,
+		"Forest shell"
+	)
+	var cover: LandCover = look.cover if look != null else null
+	_shrub_base = WorkerJob.start(
+		func() -> VegetationMasks: return VegetationMasks.make_base(grid, rect, cover),
+		true,
+		"Shrub masks"
+	)
+
+
 ## The forest of `grid` (or of the land-cover `look`, TASK-108g) over `rect`; returns the canopy
 ## shell node to add (null without forest).
 ## `lattice` is the drawn terrain lattice (the GPU-placed trees, impostors and the shell, ADR 0027).
@@ -80,13 +144,34 @@ func build_forest(
 ) -> MeshInstance3D:
 	if not _active:
 		return null
-	forest.setup(grid, seed_value, rect, lattice, parcels, look)
+	var made: Variant = _forest_masks.result() if _forest_masks != null else null
+	if not made is Dictionary:
+		made = {}  # no job, or it failed: the field plans the mask itself
+	var stand: Image = made.get("stand")
+	if _shrub_base != null and stand != null and _shrub_base.result() is VegetationMasks:
+		# The hedges of the parcels (now baked) are painted on a worker while the forest sets up.
+		var base: VegetationMasks = _shrub_base.result()
+		var blurred: Image = made["blurred"]
+		_shrub_masks = WorkerJob.start(
+			func() -> VegetationMasks:
+				return VegetationMasks.complete(base, rect, parcels, stand, blurred),
+			true,
+			"Shrub masks"
+		)
+	forest.setup(grid, seed_value, rect, lattice, parcels, look, made.get("stand"))
 	forest.use_near_heights(_near_window(lattice))
 	_main.register(forest.impostor_layer())
 	build_shrubs(
 		grid, lattice, seed_value, rect, parcels, look.cover if look != null else null, _quality
 	)
-	var shell := ForestShell.build(grid, rect, lattice.mesh_height_at, look)
+	var arrays: Variant = _shell_arrays.result() if _shell_arrays != null else null
+	var shell := ForestShell.build(
+		grid, rect, lattice.mesh_height_at, look, arrays if arrays is Array else null
+	)
+	_forest_masks = null
+	_shell_arrays = null
+	_shrub_base = null
+	_shrub_masks = null
 	if shell != null:
 		forest.bind_shell(shell.mesh.surface_get_material(0) as ShaderMaterial)
 	return shell
@@ -105,7 +190,10 @@ func build_shrubs(
 ) -> void:
 	if not _active:
 		return
-	shrubs.setup(grid, lattice, seed_value, rect, parcels, land_cover, forest.fill(), quality)
+	var ready: VegetationMasks = _shrub_masks.result() if _shrub_masks != null else null
+	shrubs.setup(
+		grid, lattice, seed_value, rect, parcels, land_cover, forest.fill(), quality, ready
+	)
 	shrubs.use_near_heights(_near_window(lattice))
 	chunks.register(shrubs.near_layer())
 	chunks.register(shrubs.impostor_layer())

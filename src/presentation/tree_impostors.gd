@@ -54,6 +54,15 @@ const ELEVATION := 15.0
 ## Encoded normal of the flat silhouette cells (no renderer): towards the camera, a little up.
 const FLAT_NORMAL := Color(0.5, 0.75, 0.93, 1.0)
 
+## Version of the baked pictures. **Bump it by hand whenever the baked look changes in a way the
+## cache key cannot see**: the tree meshes' shape or materials (TreeMeshes, TreeField.new_material,
+## the foliage shaders it imports), the bake camera or the encoding. The key already covers the
+## constants above, the bake shader source, the leaf colours of the look and every model's size,
+## so tuning those invalidates the cache by itself. A stale cache shows old trees until bumped.
+const BAKE_VERSION := 1
+## The baked atlas images are kept here between runs (the bake is ~5 s of the battle loading).
+const CACHE_PATH := "user://impostor_atlas.cache"
+
 static var _atlas: ImageTexture
 static var _normal_atlas: ImageTexture
 static var _atlas_key := ""
@@ -88,12 +97,43 @@ static func prime() -> void:
 		var leaf: Color = _leaf[species]
 		_leaf_hsv[species] = Vector3(leaf.h, leaf.s, leaf.v)
 	var row_count := SPECIES.size() * TreeMeshes.VARIANTS
+	var size := Vector2i(CELL.x * VIEWS, CELL.y * row_count)
+	var cache_key := _cache_key(key)
+	# Without a renderer the atlas is the flat silhouettes: never mixed up with a cached bake.
+	var cached: Array[Image] = []
+	if _can_render():
+		cached = _read_cache(CACHE_PATH, cache_key, size)
+	var atlas: Image
+	var normals: Image
+	if cached.size() == 2:
+		atlas = cached[0]
+		normals = cached[1]
+		for r in row_count:
+			var species: StringName = SPECIES[r / TreeMeshes.VARIANTS]
+			var model := TreeField.model_size(species, r % TreeMeshes.VARIANTS)
+			(_rows.get_or_add(species, []) as Array).append([r, _width_factor(model)])
+	else:
+		var images := _bake_atlas(row_count, size)
+		atlas = images[0]
+		normals = images[1]
+		if images[2]:
+			_write_cache(CACHE_PATH, cache_key, atlas, normals)
+	for species in SPECIES:
+		_mean[species] = _mean_color(atlas, SPECIES.find(species) * TreeMeshes.VARIANTS)
+	atlas.generate_mipmaps()
+	normals.generate_mipmaps()
+	_atlas = ImageTexture.create_from_image(atlas)
+	_normal_atlas = ImageTexture.create_from_image(normals)
+
+
+## [albedo atlas, normal atlas, baked] of a fresh bake (flat silhouettes, baked false, where nothing
+## can be rendered). Fills `_rows`.
+static func _bake_atlas(row_count: int, size: Vector2i) -> Array:
 	var albedo_images := _bake_images(false)
 	var normal_images: Array[Image] = []
 	if albedo_images.size() == row_count * VIEWS:
 		normal_images = _bake_images(true)
 	var baked := normal_images.size() == row_count * VIEWS
-	var size := Vector2i(CELL.x * VIEWS, CELL.y * row_count)
 	var atlas := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	var normals := Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	for r in row_count:
@@ -109,21 +149,97 @@ static func prime() -> void:
 			var normal: Image = normal_images[r * VIEWS + v] if baked else flat_normal
 			atlas.blit_rect(cell, Rect2i(Vector2i.ZERO, CELL), at)
 			normals.blit_rect(normal, Rect2i(Vector2i.ZERO, CELL), at)
+	return [atlas, normals, baked]
+
+
+## Everything the baked pictures depend on, hashed (see BAKE_VERSION): `leaf_key` is the look's
+## leaf colours.
+static func _cache_key(leaf_key: String) -> String:
+	var parts: PackedStringArray = [
+		str(BAKE_VERSION),
+		str(CELL),
+		str(VIEWS),
+		str(SUPERSAMPLE),
+		str(ELEVATION),
+		str(VERTICAL_SPAN),
+		str(BELOW_BASE),
+		str(FILL_WIDTH),
+		str(TreeMeshes.VARIANTS),
+		leaf_key,
+		BAKE_SHADER.code,
+	]
 	for species in SPECIES:
-		_mean[species] = _mean_color(atlas, SPECIES.find(species) * TreeMeshes.VARIANTS)
-	atlas.generate_mipmaps()
-	normals.generate_mipmaps()
-	_atlas = ImageTexture.create_from_image(atlas)
-	_normal_atlas = ImageTexture.create_from_image(normals)
+		for variant in TreeMeshes.VARIANTS:
+			var mesh := TreeMeshes.lod0(species, variant)
+			var vertices := 0
+			for surface in mesh.get_surface_count():
+				vertices += mesh.surface_get_array_len(surface)
+			parts.append(
+				(
+					"%s:%d:%s:%d:%d"
+					% [species, variant, mesh.get_aabb(), vertices, mesh.get_surface_count()]
+				)
+			)
+		parts.append(str(TreeField.new_material(species, TreeField.Lod.NEAR).shader.code.hash()))
+	return "\n".join(parts).sha256_text()
+
+
+## The two atlas images (before mipmaps) stored under `key` with this `size`, or [] when the file is
+## missing, unreadable or from another key (the caller bakes then).
+static func _read_cache(path: String, key: String, size: Vector2i) -> Array[Image]:
+	var result: Array[Image] = []
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return result
+	if file.get_pascal_string() != key or file.get_32() != size.x or file.get_32() != size.y:
+		return result
+	var raw_size := size.x * size.y * 4
+	for i in 2:
+		var length := file.get_64()
+		if length <= 0 or length > file.get_length():
+			return [] as Array[Image]
+		var data := file.get_buffer(length).decompress(raw_size, FileAccess.COMPRESSION_ZSTD)
+		if data.size() != raw_size:
+			return [] as Array[Image]
+		result.append(Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBA8, data))
+	return result
+
+
+## Stores the two atlas images; a failure is silent (the next start bakes again). Written to a temp
+## file and renamed, so an interrupted write never leaves a file that passes for a cache.
+static func _write_cache(path: String, key: String, atlas: Image, normals: Image) -> void:
+	# Unique per process: two game instances starting together never interleave one file.
+	var temp := "%s.%d.tmp" % [path, OS.get_process_id()]
+	var file := FileAccess.open(temp, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_pascal_string(key)
+	file.store_32(atlas.get_width())
+	file.store_32(atlas.get_height())
+	for image in [atlas, normals]:
+		var packed := (image as Image).get_data().compress(FileAccess.COMPRESSION_ZSTD)
+		file.store_64(packed.size())
+		file.store_buffer(packed)
+	var ok := file.get_error() == OK
+	file.close()
+	if ok:
+		DirAccess.rename_absolute(temp, path)
+	else:
+		DirAccess.remove_absolute(temp)
+
+
+## Whether the bake can render (not headless, a scene tree to hold the viewports).
+static func _can_render() -> bool:
+	return Engine.get_main_loop() is SceneTree and DisplayServer.get_name() != "headless"
 
 
 ## The baked cells of one pass (`normal`: the encoded view-space normals, else the unlit albedo),
 ## row-major (species, variant) x view, or [] when nothing could be rendered.
 static func _bake_images(normal: bool) -> Array[Image]:
 	var result: Array[Image] = []
-	var loop := Engine.get_main_loop()
-	if not loop is SceneTree or DisplayServer.get_name() == "headless":
+	if not _can_render():
 		return result
+	var loop := Engine.get_main_loop()
 	# The foliage shaders read the wind globals (MapView sets them later): register them, still.
 	Wind.setup(false)
 	var root := (loop as SceneTree).root

@@ -76,11 +76,28 @@ func test_the_planners_make_no_per_plant_kind_lookup_under_the_mask() -> void:
 	var parcels := _spy(grid, true)
 	GrassPlanner.plan_chunk(Vector2i.ZERO, grid, surface, SEED, 1.0, {}, parcels)
 	GrassPlanner.plan_flowers(Vector2i.ZERO, grid, surface, SEED, 1.0, {}, parcels)
-	ScatterPlanner.plan(grid, surface, SEED, parcels)
 	assert_eq(parcels.kind_lookups, 0, "0 kind lookups with the mask")
 	var legacy := _spy(grid, false)
 	GrassPlanner.plan_chunk(Vector2i.ZERO, grid, surface, SEED, 1.0, {}, legacy)
 	assert_true(legacy.kind_lookups > 0, "balanced still looks the kind up per clump")
+
+
+func test_the_scatter_plan_asks_the_exact_kind_and_bakes_no_mask_block() -> void:
+	VisualScale.apply(VisualScale.TRUE_PRESET)
+	var grid := _fields_grid()
+	var surface := TerrainSurface.new(grid)
+	var parcels := _spy(grid, true)
+	var plan := ScatterPlanner.plan(grid, surface, SEED, parcels)
+	assert_true(parcels._mask_blocks.is_empty(), "no 64x64 mask block baked by a plan")
+	for key: String in plan:
+		for item: Dictionary in plan[key]:
+			var p: Vector3 = item["position"]
+			assert_false(parcels.blocks_standing_exact(p.x, p.z), "%s on a parcel" % key)
+	# The exact answer is the mask's, away from pixel edges.
+	for i in 40:
+		var x := -0.8 + i * 0.14
+		var z := 0.3 + i * 0.09
+		assert_eq(parcels.blocks_standing_exact(x, z), parcels.blocks_standing(x, z), "at %d" % i)
 
 
 func test_grass_does_not_read_grass_keep_under_the_mask() -> void:

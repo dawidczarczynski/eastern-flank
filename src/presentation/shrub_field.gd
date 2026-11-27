@@ -66,10 +66,13 @@ func setup(
 	parcels: ParcelMap,
 	land_cover: LandCover,
 	fill: ForestFill,
-	quality: Dictionary
+	quality: Dictionary,
+	ready_masks: VegetationMasks = null
 ) -> void:
 	clear()
-	masks = VegetationMasks.from_map(grid, area, fill, land_cover, parcels)
+	masks = ready_masks
+	if masks == null:
+		masks = VegetationMasks.from_map(grid, area, fill, land_cover, parcels)
 	setup_with(masks, lattice, seed_value, parcels, quality)
 
 

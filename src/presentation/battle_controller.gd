@@ -85,6 +85,8 @@ var _wrecks := WreckField.new()  # burnt-out hulks of destroyed vehicles (TASK-0
 var _objective_markers := ObjectiveMarkers.new()  # TASK-088 placeholder hex markers
 var _marks := GroundMarksView.new()  # ground decals (TASK-058), fed while animations play
 var _event_serial := 0  # played events so far: the view-local seed of the marks
+## Set by _prebuild_chunks (a coroutine started without await) when the chunks are built.
+var _prebuild_done := false
 
 @onready var _map_view: MapView = $MapView
 @onready var _units_root: Node3D = $Units
@@ -126,6 +128,10 @@ func _ready() -> void:
 	_map_view.satellite = BattleCover.colour_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.real_parcels = BattleCover.parcels_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.tree_features = BattleCover.tree_features_for_battle(setup, scenario_name, MAP_SEED)
+	var model_ids: Dictionary = {}
+	for unit: Unit in state.units.values():
+		model_ids[unit.definition.id] = true
+	UnitModels.request_scripts(model_ids.keys())
 	_map_view.build(state.grid)
 	await _next_frame()
 	_objective_markers.name = "ObjectiveMarkers"
@@ -146,12 +152,17 @@ func _ready() -> void:
 	var center := _map_view.center()
 	_camera_rig.set_target(Vector2(center.x, center.z))
 	_camera_rig.clicked.connect(_on_camera_clicked)
+	# The chunks plan on worker threads: start them first, so the unit views (main thread only) are
+	# built while the workers plan.
+	_prebuild_done = false
+	_prebuild_chunks.call()  # a coroutine: runs on in the background, sets _prebuild_done
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
 	await _next_frame()
 	_prerender_portraits(state)
 	await _next_frame()
-	await _prebuild_chunks()
+	while not _prebuild_done:
+		await _next_frame()
 	await _warm_up()
 	_refresh_hud()
 	_refresh_selection_ui()
@@ -206,9 +217,12 @@ func _prebuild_chunks() -> void:
 	while not chunks.is_settled():
 		chunks.process()
 		await _next_frame()
+		if not is_inside_tree():
+			return  # the scene was left mid-load (this coroutine runs un-awaited)
 	chunks.loading = false
 	chunks.budget_usec = budget
 	print("Chunk prebuild: %d ms; per layer %s" % [Time.get_ticks_msec() - started, chunks.stats()])
+	_prebuild_done = true
 
 
 ## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
