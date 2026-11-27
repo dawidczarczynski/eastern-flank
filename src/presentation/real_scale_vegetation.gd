@@ -25,6 +25,8 @@ var grass := GpuGrassField.new()
 var chunks := ChunkManager.new()
 ## The last camera position (INF: none yet).
 var camera_position := Vector3.INF
+## The camera height above the ground under it (set_camera).
+var _gap := 0.0
 
 var _main: ChunkManager
 var _active := false
@@ -135,9 +137,39 @@ func build_grass(seed_value: int, parcels: ParcelMap, satellite: SatelliteColour
 		_grass_on = true
 
 
+## The viewport (`size` pixels) of `camera` over the ground under it (set_camera's gap): the full
+## trees reach as far as the top of the picture, so they hand over to the impostors at the edge of
+## the screen or beyond.
+func set_view(camera: Camera3D, size: Vector2) -> void:
+	if _active:
+		var aspect := size.x / maxf(size.y, 1.0)
+		var ground := camera_position.y - _gap
+		forest.set_full_range(
+			far_view_distance_of(camera.global_transform, camera.fov, aspect, ground)
+		)
+
+
+## The distance from a camera (`transform`, vertical `fov` in degrees, `aspect` = width / height) to
+## the ground plane at height `ground` along the farthest of the rays through the top corners and
+## the top middle of the viewport, with a tenth of margin; INF when one of them does not reach the
+## ground (the view sees the horizon).
+static func far_view_distance_of(
+	transform: Transform3D, fov: float, aspect: float, ground: float
+) -> float:
+	var half := tan(deg_to_rad(fov) * 0.5)
+	var result := 0.0
+	for x in [-1.0, 0.0, 1.0]:
+		var ray := (transform.basis * Vector3(x * half * aspect, half, -1.0)).normalized()
+		if ray.y > -0.02:
+			return INF
+		result = maxf(result, (ground - transform.origin.y) / ray.y)
+	return result * 1.1
+
+
 ## The camera is at `position`, `gap` above the ground under it.
 func set_camera(position: Vector3, gap: float) -> void:
 	camera_position = position
+	_gap = gap
 	if not _active:
 		return
 	chunks.update(Vector2(position.x, position.z))

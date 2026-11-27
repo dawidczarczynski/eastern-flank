@@ -61,7 +61,7 @@ func test_one_multimesh_per_model_sized_by_its_list_capacity() -> void:
 		var species := TreeSpecies.all()[n / TreeMeshes.VARIANTS]
 		assert_true(multimesh.mesh == TreeMeshes.lod0(species, n % TreeMeshes.VARIANTS))
 		total += capacities[n]
-	var cells := PI * pow(field.reach() / _view.vegetation().forest.fill().spacing, 2.0)
+	var cells := PI * pow(field.reach_max() / _view.vegetation().forest.fill().spacing, 2.0)
 	assert_true(total > cells * 0.5, "%d instances for %d cells" % [total, cells])
 	assert_true(total < cells * 4.0, "%d instances for %d cells" % [total, cells])
 
@@ -140,3 +140,31 @@ func test_without_a_gpu_the_impostors_take_the_trees_from_the_camera() -> void:
 	var field := forest.full_trees_field()
 	var cap: float = forest._impostor_material.get_shader_parameter(&"full_cap")
 	assert_eq(cap == 0.0, not field.gpu())
+
+
+## The range follows the view's far edge, between the least range and the setup's most; the field's
+## reach and the impostors' cap follow it.
+func test_the_range_follows_the_view_and_is_clamped() -> void:
+	var forest := _view.vegetation().forest
+	var field := forest.full_trees_field()
+	var most := field.reach_max()
+	forest.set_full_range(INF)
+	assert_true(is_equal_approx(field.reach(), most))
+	forest.set_full_range(0.0)
+	var least := MapScale.to_units(ForestField.MIN_FULL_RANGE_M) * (1.0 + 0.08)
+	assert_true(is_equal_approx(field.reach(), least), "%f vs %f" % [field.reach(), least])
+	var cap := MapScale.to_units(100.0)
+	forest.set_full_range(cap)
+	assert_true(is_equal_approx(field.reach(), cap * 1.08))
+	forest.set_full_range(INF)
+
+
+## The far edge of the view: finite for a camera looking down, INF where it sees the horizon.
+func test_the_far_view_distance_is_the_ground_at_the_top_of_the_viewport() -> void:
+	var at := Vector3(0.0, 40.0, 0.0)
+	var down := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(-45.0)), at)
+	var far := RealScaleVegetation.far_view_distance_of(down, 50.0, 16.0 / 9.0, 0.0)
+	# The top edge looks 45 - 25 = 20 degrees below the horizon: 40 / sin(20 deg), plus a tenth.
+	assert_true(far > 40.0 / sin(deg_to_rad(20.0)) and far < INF, "%f" % far)
+	var level := Transform3D(Basis.IDENTITY, at)
+	assert_eq(RealScaleVegetation.far_view_distance_of(level, 50.0, 16.0 / 9.0, 0.0), INF)

@@ -24,6 +24,9 @@ const IMPOSTOR_LAYER := &"forest"
 ## Key of the full trees' on / off state in RealScaleVegetation (they are not a chunk layer).
 const FULL_TREES := &"forest_full"
 const IMPOSTOR_CHUNK := 2.0
+const NO_CAP := 1.0e9
+## The least range of the full trees (m), however near the view's far edge is.
+const MIN_FULL_RANGE_M := 45.0
 ## The drawn near surface lies up to ~3 m off the lattice the full trees' bounds are built from (m).
 const HEIGHT_SLACK_M := 4.0
 ## Tallest height scale of a tree (ForestFill: scale 1.2 x height factor 1.2) and widest crown
@@ -44,10 +47,8 @@ var _max_full := 0.0
 var _max_impostor := 0.0
 ## The GPU full trees' range (world units, the centre of their band).
 var _full_cap := 0.0
-## The full trees' compute field (null before setup) and per species (TreeSpecies.all() order) the
-## centre of its full band (world units).
+## The full trees' compute field (null before setup).
 var _full: ForestFullTrees
-var _species_centres := PackedFloat32Array()
 ## The drawn near heights the full trees stand on (null: they stand on the lattice).
 var _near_heights: NearHeightCache
 ## Vector2i impostor chunk -> MultiMeshInstance3D (only chunks with forest on the stand mask).
@@ -111,7 +112,7 @@ func setup(
 		)
 	# The GPU full trees end at their range cap (LookPreset `full_tree_range_m`): no chunk beyond.
 	_full_cap = MapScale.to_units(float(_values["full_tree_range_m"]))
-	_max_full = minf(_max_full, _full_cap * (1.0 + float(_values["band_share"])))
+	_max_full = _full_cap * (1.0 + float(_values["band_share"]))
 	_setup_impostors(lattice)
 	_setup_full_trees()
 	_coverage_origin = Vector2i(
@@ -201,7 +202,6 @@ func _setup_full_trees() -> void:
 	TreeField.prime_sizes()
 	var data: Array = []
 	var top := 0.0
-	_species_centres.clear()
 	for species in TreeSpecies.all():
 		var scales: Array = []
 		for variant in TreeMeshes.VARIANTS:
@@ -209,11 +209,7 @@ func _setup_full_trees() -> void:
 			scales.append(factors)
 			var model := TreeField.model_size(species, variant)
 			top = maxf(top, model.y * factors.y * MAX_HEIGHT_SCALE)
-		var centre := VegetationRanges.full_range(
-			VegetationRanges.species_height_m(species), _values
-		)
-		_species_centres.append(centre)
-		data.append({"centre": centre, "scales": scales})
+		data.append({"scales": scales})
 	_full = ForestFullTrees.new()
 	_full.setup(
 		self,
@@ -282,7 +278,6 @@ func full_trees_around(camera: Vector3) -> Array[Dictionary]:
 	)
 	var sink := TreeField.sink(&"pine", _values)
 	var band := float(_values["band_share"])
-	var species_list := TreeSpecies.all()
 	for j in range(first.y, last.y + 1):
 		for i in range(first.x, last.x + 1):
 			var tree := _fill.cell_tree(Vector2i(i, j))
@@ -290,11 +285,7 @@ func full_trees_around(camera: Vector3) -> Array[Dictionary]:
 				continue
 			var p: Vector3 = tree["position"]
 			var phase: float = (tree["custom"] as Color).a
-			var centre: float = _species_centres[species_list.find(tree["species"])]
-			var lod_to := minf(
-				lerpf(centre * (1.0 - band), centre * (1.0 + band), phase),
-				lerpf(_full_cap * (1.0 - band), _full_cap * (1.0 + band), phase)
-			)
+			var lod_to := lerpf(_full_cap * (1.0 - band), _full_cap * (1.0 + band), phase)
 			if Vector3(p.x, p.y - _impostor_sink(), p.z).distance_to(camera) >= lod_to:
 				continue
 			if _is_burnt(p.x, p.z):
@@ -320,7 +311,6 @@ func clear() -> void:
 	if _full != null:
 		_full.free_all()
 	_full = null
-	_species_centres.clear()
 	_near_heights = null
 	_impostors.clear()
 	_burns.clear()
@@ -384,8 +374,10 @@ func _impostor_species_data(species: StringName, crown: float) -> Array:
 		var model := TreeField.model_size(species, variant)
 		var natural := maxf(model.x, model.z) * size
 		sizes.append(Vector2(minf(natural, crown), model.y * size))
+	# With the GPU full trees the range is the view's (set_full_range), whatever the species: the
+	# impostors' own full range is out of the way.
 	return [
-		VegetationRanges.full_range(height_m, _values),
+		NO_CAP if ForestFullTrees.available() else VegetationRanges.full_range(height_m, _values),
 		VegetationRanges.impostor_range(height_m, _values),
 		sizes,
 	]
@@ -519,6 +511,23 @@ func update(camera: Vector3) -> void:
 		_coverage_dirty = false
 		_coverage_texture.update(_coverage)
 	_full.update(camera, _burns)
+
+
+## The full trees reach `distance` (world units: the far edge of the view, from the camera): the
+## range of the trees, clamped to [MIN_FULL_RANGE_M, `full_tree_range_m`]; each tree switches to its
+## impostor at its own point of the band around it, so the switch happens at the edge of the screen
+## or beyond. Main thread, every frame (a no-op when the range did not change).
+func set_full_range(distance: float) -> void:
+	if _full == null:
+		return
+	var low := MapScale.to_units(MIN_FULL_RANGE_M)
+	var cap := clampf(distance, low, MapScale.to_units(float(_values["full_tree_range_m"])))
+	if is_equal_approx(cap, _full_cap):
+		return
+	_full_cap = cap
+	_full.set_range(cap, low)
+	if _full.gpu():
+		_impostor_material.set_shader_parameter(&"full_cap", cap)
 
 
 ## Switches the GPU full trees on (the camera is low enough to see trees within their range) or off.

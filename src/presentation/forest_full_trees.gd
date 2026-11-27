@@ -62,19 +62,20 @@ var _near := ShaderMaterial.new()
 var _use_near := false
 var _nodes: Array[MultiMeshInstance3D] = []
 var _multimeshes: Array[MultiMesh] = []
-## Per species the centre of its full band, per model the model-to-world scale (x, z, y).
-var _centres := PackedFloat32Array()
+## Per model the model-to-world scale (x, z, y).
 var _scales := PackedVector2Array()
 var _capacity := PackedInt32Array()
 var _first := PackedInt32Array()
 var _total := 0
 var _spacing := 1.0
+## The range of the trees now (the centre of their band) and the most it can get (the lists'
+## capacity is sized for it): the view's far edge, see set_range().
 var _cap := 0.0
+var _cap_max := 0.0
 var _band := 0.08
 var _sink := 0.0
 var _hand_over_sink := 0.0
 ## The widest reach of any species (world units): the window around the camera.
-var _reach := 0.0
 var _bounds_y := Vector2.ZERO
 var _active := false
 var _gpu := false
@@ -128,9 +129,10 @@ static func species_shares(shares: Vector4, conifer_chance: Vector2) -> PackedFl
 
 
 ## Builds the nodes and buffers. `map` is the material ForestFill.bind and the lattice uniforms
-## went to; `species_data` per species (TreeSpecies.all() order): {"centre": full band centre,
-## "scales": Array of Vector2 per variant (x, z width scale, y height scale)}; `cap` the range cap
-## of the trees (centre of its band), `band` the band's half width (share), `sink` the base sink
+## went to; `species_data` per species (TreeSpecies.all() order): {"scales": Array of Vector2 per
+## variant (x, z width scale, y height scale)}; `cap` the most the range of the trees can get
+## (the centre of their band; set_range() moves it), `band` the band's half width (share), `sink`
+## the base sink
 ## of a full tree, `hand_over_sink` the impostor's, `span` the lowest / highest lattice height of
 ## the map, `top` the tallest tree above its base (world units).
 func setup(
@@ -149,6 +151,7 @@ func setup(
 	_parent = parent
 	_map = map
 	_cap = cap
+	_cap_max = cap
 	_band = band
 	_sink = sink
 	_hand_over_sink = hand_over_sink
@@ -167,19 +170,13 @@ func setup(
 	var shares: PackedFloat32Array = species_shares(
 		map.get_shader_parameter(&"shares"), map.get_shader_parameter(&"conifer_chance")
 	)
-	_centres.resize(8)
-	_centres.fill(0.0)
 	_scales.resize(MODELS)
 	_capacity.resize(MODELS)
 	_first.resize(MODELS)
-	_reach = 0.0
 	_total = 0
 	for s in species.size():
 		var data: Dictionary = species_data[s]
-		var centre: float = data["centre"]
-		_centres[s] = centre
-		var radius := minf(centre, cap) * (1.0 + band)
-		_reach = maxf(_reach, radius)
+		var radius := cap * (1.0 + band)
 		var material := TreeField.new_material(species[s], TreeField.Lod.NEAR)
 		material.shader = SHADER_TREE
 		# The compute pass decides the range (tree by tree, by the impostor's own band).
@@ -217,9 +214,13 @@ func gpu() -> bool:
 	return _gpu
 
 
-## The widest reach of any species, world units (the compute window's radius).
+## The reach of the trees now, world units (the compute window's radius); the widest it can get.
+func reach_max() -> float:
+	return _cap_max * (1.0 + _band)
+
+
 func reach() -> float:
-	return _reach
+	return _cap * (1.0 + _band)
 
 
 ## Capacities and first instances of the lists (tests).
@@ -236,6 +237,12 @@ func use_near_heights(cache: NearHeightCache) -> void:
 	_use_near = cache != null
 	if cache != null:
 		cache.bind(_near)
+
+
+## The trees' range now (world units): they are full trees up to it, the impostors beyond (each
+## tree at its own point of the band). Clamped to [`min_cap`, the setup's cap].
+func set_range(cap: float, min_cap: float) -> void:
+	_cap = clampf(cap, minf(min_cap, _cap_max), _cap_max)
 
 
 ## Switches the field on or off (off: nothing is computed, the nodes hide).
@@ -255,10 +262,10 @@ func update(camera: Vector3, burns: Array[Vector3]) -> void:
 	if not _gpu or not _active or _rd_failed or _nodes.is_empty():
 		return
 	var cells_first := Vector2i(
-		floori((camera.x - _reach) / _spacing - 0.5), floori((camera.z - _reach) / _spacing - 0.5)
+		floori((camera.x - reach()) / _spacing - 0.5), floori((camera.z - reach()) / _spacing - 0.5)
 	)
 	var cells_last := Vector2i(
-		ceili((camera.x + _reach) / _spacing - 0.5), ceili((camera.z + _reach) / _spacing - 0.5)
+		ceili((camera.x + reach()) / _spacing - 0.5), ceili((camera.z + reach()) / _spacing - 0.5)
 	)
 	var count := cells_last - cells_first + Vector2i.ONE
 	_limit_instances()
@@ -267,9 +274,10 @@ func update(camera: Vector3, burns: Array[Vector3]) -> void:
 	var params := _params(camera, cells_first, count, burns)
 	var groups := Vector2i(ceili(float(count.x) / GROUP), ceili(float(count.y) / GROUP))
 	RenderingServer.call_on_render_thread(_run.bind(params, groups))
+	var reach := reach()
 	var bounds := AABB(
-		Vector3(camera.x - _reach, _bounds_y.x, camera.z - _reach),
-		Vector3(2.0 * _reach, _bounds_y.y - _bounds_y.x, 2.0 * _reach)
+		Vector3(camera.x - reach, _bounds_y.x, camera.z - reach),
+		Vector3(2.0 * reach, _bounds_y.y - _bounds_y.x, 2.0 * reach)
 	)
 	for node in _nodes:
 		node.custom_aabb = bounds
@@ -351,12 +359,9 @@ func _params(
 	)
 	at = _f4(b, at, Vector4(parcel_origin.x, parcel_origin.y, parcel_step, _band))
 	at = _f4(b, at, Vector4(_cap, 0.0, 0.0, 0.0))
+	# Every species' full band is centred on the range (the view's far edge decides it).
 	for n in 2:
-		at = _f4(
-			b,
-			at,
-			Vector4(_centres[n * 4], _centres[n * 4 + 1], _centres[n * 4 + 2], _centres[n * 4 + 3])
-		)
+		at = _f4(b, at, Vector4(_cap, _cap, _cap, _cap))
 	for n in 8:
 		var a := _scales[n * 2] if n * 2 < MODELS else Vector2.ZERO
 		var c := _scales[n * 2 + 1] if n * 2 + 1 < MODELS else Vector2.ZERO

@@ -404,11 +404,11 @@ func set_camera_position(position: Vector3) -> void:
 
 
 func _follow_viewport_camera() -> void:
-	if not is_inside_tree():
-		return
-	var camera := get_viewport().get_camera_3d()
-	if camera != null and camera.global_position != _vegetation.camera_position:
-		set_camera_position(camera.global_position)
+	var camera := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if camera != null:
+		if camera.global_position != _vegetation.camera_position:
+			set_camera_position(camera.global_position)
+		_vegetation.set_view(camera, get_viewport().get_visible_rect().size)
 
 
 ## The drawn ground real-size vegetation stands on (TASK-135): the near terrain surface, else the

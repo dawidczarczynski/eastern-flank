@@ -78,8 +78,9 @@ void vertex() {
 		ground = lattice_height(p);
 		origin.y = ground - sink;
 		camera_distance = distance(origin, cam);
-		// The budget's reach may start impostors nearer than any species' full band.
-		float near_cull = min(cull.x, full_reach);
+		// The full trees' range cap (the view's far edge) starts the impostors nearer than any
+		// species' full band.
+		float near_cull = min(min(cull.x, full_reach), full_cap * (1.0 - band_share));
 		alive = camera_distance >= near_cull && camera_distance < cull.y && ground >= min_ground;
 	}
 	float thin_phase = float((point_hash * FOREST_UNIT_MULTIPLIER) >> 24u) / 256.0;

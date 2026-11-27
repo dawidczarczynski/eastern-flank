@@ -142,10 +142,11 @@ const REAL_SIZE_FIELDS := {
 ##   on forest tiles), floors min_full_range_m / min_impostor_range_m for small scrub; off-forest
 ##   items keep their impostor until they are under vanish_angle (radians, ~2 px at 720p);
 ##   band_share: half width of the per-tree hand-over band as a share of its distance.
-## - full_tree_range_m: the GPU-placed full trees of the dense forest (TASK-221) are drawn only this
-##   far from the camera (each tree at its own point of the band_share band; the impostors take
-##   over). A cell costs the vertices of every species' model whether it holds a tree or not
-##   (~7 300 vertices a cell: see ADR 0027), so this is the GPU cost limit.
+## - full_tree_range_m: the most the GPU-placed full trees of the dense forest (TASK-221) are drawn
+##   from the camera (each tree at its own point of the band_share band; the impostors take over).
+##   The range follows the far edge of the viewport (ForestField.set_full_range), at least 45 m,
+##   so a tree switches to its impostor at the edge of the screen or beyond; this caps it (the GPU
+##   cost limit: the trees really in range are drawn).
 ## - tree_sink_m / scrub_sink_m: how far a trunk / a shrub base sinks into the drawn ground;
 ##   impostor_sink_m: how much deeper the GPU-placed forest impostors sink (they stand on the
 ##   coarser lattice, TASK-189); impostor_thin_from_m / impostor_thin_widen: beyond this camera
@@ -172,7 +173,7 @@ const VEGETATION_DEFAULT := {
 	"min_impostor_range_m": 100.0,
 	"vanish_angle": 0.002,
 	"band_share": 0.08,
-	"full_tree_range_m": 150.0,
+	"full_tree_range_m": 250.0,
 	"tree_sink_m": 0.3,
 	"scrub_sink_m": 0.05,
 	"impostor_sink_m": 0.5,
