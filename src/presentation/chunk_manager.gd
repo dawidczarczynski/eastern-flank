@@ -212,6 +212,11 @@ func is_settled() -> bool:
 	)
 
 
+## Jobs still waiting to be built (queued, planning or planned); the loading bar's measure.
+func remaining() -> int:
+	return _pending.size() + _instant.size() + _batch.size() + _ready.size()
+
+
 ## The camera target moved: frees what fell out of the free rings and queues what came into the
 ## build rings (only after RESCAN_DISTANCE of movement, or when something asked for a rescan).
 func update(target: Vector2) -> void:

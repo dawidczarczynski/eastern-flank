@@ -1,14 +1,21 @@
 class_name LoadingScreen
 extends ColorRect
 ## Full-screen loading notice (HUD v3 "06 Notices"): `OPERACJA` amber, the operation name at
-## 34 px, a 220×6 hatch and a mono status line. The battle scene shows it while it builds and
-## calls finish() when done; finish() frees it at once. Blocks nothing after that.
+## 34 px, a 220×6 progress bar (amber hatch filling a dim track, never moving backwards) and a
+## mono status line. The battle scene shows it while it builds, reports set_progress() per stage
+## and calls finish() when done; finish() frees it at once. Blocks nothing after that.
 
 const NAME_SIZE := 34
 const HATCH_SIZE := Vector2(220, 6)
+const TRACK_ALPHA := 0.16
+## The share of the whole bar the scene load (SceneLoader) covers; the battle's own build
+## continues from here, so the hand-over does not make the bar jump back.
+const SCENE_LOAD_SHARE := 0.08
 
 var _operation: Label
 var _status: Label
+var _fill: Control
+var _progress := 0.0
 
 
 func _init() -> void:
@@ -32,10 +39,24 @@ func _init() -> void:
 	_operation = _label(HudTheme.display(700, 3), NAME_SIZE, UiPalette.HUD_TEXT)
 	_operation.name = "OperationName"
 	column.add_child(_operation)
-	var hatch := HatchBar.new(UiPalette.AMBER, HATCH_SIZE, true)
-	hatch.scrolling = true
-	hatch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(hatch)
+	var bar := Control.new()
+	bar.name = "ProgressBar"
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.custom_minimum_size = HATCH_SIZE
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(bar)
+	var track := ColorRect.new()
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.color = Color(UiPalette.AMBER, TRACK_ALPHA)
+	track.size = HATCH_SIZE
+	bar.add_child(track)
+	_fill = Control.new()
+	_fill.name = "Fill"
+	_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fill.clip_contents = true
+	_fill.size = Vector2(0.0, HATCH_SIZE.y)
+	bar.add_child(_fill)
+	_fill.add_child(HatchBar.new(UiPalette.AMBER, HATCH_SIZE, true))
 	_status = _label(HudTheme.mono(500, 1), 10, UiPalette.HUD_MUTED)
 	_status.name = "Status"
 	column.add_child(_status)
@@ -50,6 +71,17 @@ func set_operation(operation_name: String) -> void:
 ## `status` is a translation key.
 func set_status(status: String) -> void:
 	_status.text = tr(status).to_upper()
+
+
+## Fills the bar to `fraction` (0..1) of its width. The bar never moves backwards: a stage that
+## discovers more work than it counted just stalls it.
+func set_progress(fraction: float) -> void:
+	_progress = maxf(_progress, clampf(fraction, 0.0, 1.0))
+	_fill.size.x = HATCH_SIZE.x * _progress
+
+
+func progress() -> float:
+	return _progress
 
 
 func operation_text() -> String:

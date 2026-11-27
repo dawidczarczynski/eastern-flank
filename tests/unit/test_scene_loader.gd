@@ -53,3 +53,22 @@ func test_the_battle_scene_loads_through_the_loader() -> void:
 	assert_eq(got.size(), 1)
 	assert_true(got[0] is PackedScene)
 	loader.free()
+
+
+func test_loading_bar_fills_and_never_moves_backwards() -> void:
+	var screen := LoadingScreen.new()
+	assert_eq(screen.progress(), 0.0)
+	screen.set_progress(0.4)
+	screen.set_progress(0.2)
+	assert_eq(screen.progress(), 0.4)
+	screen.set_progress(7.0)
+	assert_eq(screen.progress(), 1.0, "clamped to the full bar")
+	screen.free()
+
+
+func test_loader_reports_the_scene_load_on_the_bar() -> void:
+	var loader := _loader(SMALL_RESOURCE)
+	loader.swap = func(_scene: Resource) -> void: pass
+	_poll_until_done(loader)
+	assert_eq(loader.screen().progress(), LoadingScreen.SCENE_LOAD_SHARE)
+	loader.free()

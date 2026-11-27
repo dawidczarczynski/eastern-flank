@@ -8,7 +8,7 @@ extends CanvasLayer
 ## this one stays for LINGER_FRAMES after the change to cover the hand-over.
 ## Usage: SceneLoader.open(get_tree(), Session.BATTLE_SCENE, setup.operation_name)
 
-const STATUS := "BUILDING THE BATTLEFIELD"
+const STATUS := "LOADING THE BATTLE SCENE"
 const LAYER := 100
 const LINGER_FRAMES := 2
 
@@ -59,9 +59,13 @@ func is_loading() -> bool:
 func poll() -> bool:
 	if not is_loading():
 		return true
-	var status := ResourceLoader.load_threaded_get_status(_path)
+	var progress: Array = []
+	var status := ResourceLoader.load_threaded_get_status(_path, progress)
 	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		if not progress.is_empty():
+			_screen.set_progress(float(progress[0]) * LoadingScreen.SCENE_LOAD_SHARE)
 		return false
+	_screen.set_progress(LoadingScreen.SCENE_LOAD_SHARE)
 	var scene: Resource = null
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		scene = ResourceLoader.load_threaded_get(_path)

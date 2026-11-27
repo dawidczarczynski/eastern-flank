@@ -25,6 +25,10 @@ const SLOT_PADDING_TOP := 9
 ## bar's centre zone does not shift when the strip replaces the terrain strip.
 const SLOT_WIDTH_SLACK := 12
 const WARM_UP_MAX_MS := 4000
+## Loading bar checkpoints (share of the bar; the scene load takes LoadingScreen.SCENE_LOAD_SHARE).
+const LOAD_AFTER_HUD := 0.11
+const LOAD_AFTER_MAP := 0.2
+const LOAD_AFTER_CHUNKS := 0.88
 ## Command.validate() reasons a click can hit -> toast (translation key).
 const REJECT_TOASTS := {
 	"unreachable": "CANNOT REACH THAT TILE",
@@ -114,6 +118,7 @@ func _ready() -> void:
 	loading.set_operation(state.operation_name)
 	loading.set_status("BUILDING THE BATTLEFIELD")
 	$HUD.add_child(loading)
+	loading.set_progress(LoadingScreen.SCENE_LOAD_SHARE)
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	_sim = GameSimulation.new(state)
@@ -123,6 +128,8 @@ func _ready() -> void:
 
 	_build_hud_root()
 	_build_bottom_left_stack()
+	loading.set_progress(LOAD_AFTER_HUD)
+	loading.set_status("BUILDING THE TERRAIN")
 	await _next_frame()
 	_map_view.land_cover = BattleCover.for_battle(setup, scenario_name, MAP_SEED, state.grid)
 	_map_view.satellite = BattleCover.colour_for_battle(setup, scenario_name, MAP_SEED)
@@ -133,6 +140,7 @@ func _ready() -> void:
 		model_ids[unit.definition.id] = true
 	UnitModels.request_scripts(model_ids.keys())
 	_map_view.build(state.grid)
+	loading.set_progress(LOAD_AFTER_MAP)
 	await _next_frame()
 	_objective_markers.name = "ObjectiveMarkers"
 	add_child(_objective_markers)
@@ -155,15 +163,19 @@ func _ready() -> void:
 	# The chunks plan on worker threads: start them first, so the unit views (main thread only) are
 	# built while the workers plan.
 	_prebuild_done = false
-	_prebuild_chunks.call()  # a coroutine: runs on in the background, sets _prebuild_done
+	_prebuild_chunks.call(loading)  # a coroutine: runs on in the background, sets _prebuild_done
+	loading.set_status("DEPLOYING UNITS")
 	for unit: Unit in state.units.values():
 		_create_unit_view(unit)
 	await _next_frame()
 	_prerender_portraits(state)
 	await _next_frame()
+	loading.set_status("PLACING FORESTS FIELDS AND BUILDINGS")
 	while not _prebuild_done:
 		await _next_frame()
-	await _warm_up()
+	loading.set_progress(LOAD_AFTER_CHUNKS)
+	loading.set_status("WARMING UP THE RENDERER")
+	await _warm_up(loading)
 	_refresh_hud()
 	_refresh_selection_ui()
 	loading.finish()
@@ -207,15 +219,19 @@ func _next_frame() -> void:
 ## Builds the world around the start camera (terrain, scatter, trees, grass, ... – the chunks the
 ## rings ask for, TASK-072b) behind the loading screen: planned on worker threads, built within a
 ## generous budget per frame, so the first seconds of the battle are not spent building it.
-func _prebuild_chunks() -> void:
+func _prebuild_chunks(loading: LoadingScreen) -> void:
 	_map_view.set_camera_target(_camera_rig.target())
 	var chunks := _map_view.chunks()
 	var budget := chunks.budget_usec
 	chunks.budget_usec = PREBUILD_CHUNK_BUDGET_USEC
 	chunks.loading = true
 	var started := Time.get_ticks_msec()
+	var most := 1  # the most jobs seen waiting: the scan may add more, so the total grows
 	while not chunks.is_settled():
 		chunks.process()
+		most = maxi(most, chunks.remaining())
+		var done := 1.0 - float(chunks.remaining()) / most
+		loading.set_progress(lerpf(LOAD_AFTER_MAP, LOAD_AFTER_CHUNKS, done))
 		await _next_frame()
 		if not is_inside_tree():
 			return  # the scene was left mid-load (this coroutine runs un-awaited)
@@ -228,12 +244,14 @@ func _prebuild_chunks() -> void:
 ## The first frames of the finished scene are slow (shader pipelines, texture uploads). They are
 ## rendered under the loading screen: wait until the frame time settles (WarmUp), or give up
 ## after a while.
-func _warm_up() -> void:
+func _warm_up(loading: LoadingScreen) -> void:
 	var warm_up := WarmUp.new()
 	var deadline := Time.get_ticks_msec() + WARM_UP_MAX_MS
 	while not warm_up.is_settled() and Time.get_ticks_msec() < deadline:
 		await _next_frame()
 		warm_up.add_frame(get_process_delta_time())
+		var elapsed := float(Time.get_ticks_msec() - deadline + WARM_UP_MAX_MS) / WARM_UP_MAX_MS
+		loading.set_progress(lerpf(LOAD_AFTER_CHUNKS, 1.0, minf(elapsed, 1.0) * 0.9))
 	if VisualScale.is_true_size():
 		# The camera-centred layers (full trees, shrubs, grass) are built by the frames above.
 		print("Camera chunk layers: %s" % _map_view.vegetation().chunks.stats())
@@ -465,6 +483,7 @@ func debug_notice(kind: String) -> void:
 			var loading := LoadingScreen.new()
 			loading.set_operation(_sim.state.operation_name)
 			loading.set_status("BUILDING THE BATTLEFIELD")
+			loading.set_progress(0.6)
 			loading.add_child(ScreenDecor.new())  # vignette: the blank-image check needs variation
 			$HUD.add_child(loading)
 		_:
