@@ -65,19 +65,14 @@ const TERRAIN_VIEWER_ARG := "--terrain-viewer"
 const TERRAIN_VIEW_SCENE := "res://scenes/battle/terrain_view.tscn"
 ## How fast the pitch follows its target (1 / s, exponential).
 const PITCH_SMOOTHING := 14.0
-const DEFAULT_OPERATION := &"suwalki_gap"
-## Campaign seed until the session carries one (TASK-094); nothing draws from the RNG yet.
-const DEFAULT_SEED := 1
+const DEFAULT_OPERATION := StaffMapDefaults.DEFAULT_OPERATION
+const DEFAULT_SEED := StaffMapDefaults.DEFAULT_SEED
 ## A left press released within this many pixels of travel is a click, not a drag.
 const CLICK_SLOP := 5.0
 const PANEL_MARGIN := Vector2(16, 16)
 const PANEL_FADE := 0.12  # s, the formation panel fading in on a new dock
 ## Viewport size assumed outside the scene tree (headless tests).
 const FALLBACK_VIEWPORT := Vector2(1280, 720)
-
-## Set by the main menu's DEVTOOLS page (TERRAIN VIEWER) and kept across the scene changes
-## between the picker and the terrain view; the main menu clears it.
-static var terrain_viewer_session := false
 
 ## Which map to open (the Operation button uses the default).
 var map_id: StringName = DEFAULT_MAP
@@ -2770,7 +2765,7 @@ func _build_hud() -> void:
 func _terrain_viewer() -> bool:
 	return (
 		terrain_viewer
-		or terrain_viewer_session
+		or StaffMapDefaults.terrain_viewer_session
 		or OS.get_cmdline_user_args().has(TERRAIN_VIEWER_ARG)
 	)
 

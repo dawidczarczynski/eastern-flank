@@ -358,6 +358,7 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `StaffMapDecisionsHud` – The POLITICS tab of the right dock (TASK-117, TASK-174b) behind a few calls: fills / hide… (`staff_map_decisions_hud.gd`)
 - `StaffMapDecisionsModel` – Pure view-model of the Decisions panel (TASK-117, docs/design/operational_map "Panels" –… (`staff_map_decisions_model.gd`)
 - `StaffMapDecisionsPanel` – The POLITICS tab of the right dock of the staff map (TASK-117, TASK-174b; docs/design/ (`staff_map_decisions_panel.gd`)
+- `StaffMapDefaults` – The few StaffMap values the main menu needs before the map exists. They live here so the… (`staff_map_defaults.gd`)
 - `StaffMapEndModel` – Texts of the end-of-operation notice (TASK-107b): headline for the viewer's side, the end… (`staff_map_end_model.gd`)
 - `StaffMapEndNotice` – Full-screen notice when the operation ends (TASK-115, TASK-140): "Operation over", the si… (`staff_map_end_notice.gd`)
 - `StaffMapEscalation` – Pure texts and colours of the escalation ladder on the staff map (TASK-115): the chip, the (`staff_map_escalation.gd`)

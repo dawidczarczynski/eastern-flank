@@ -14,6 +14,9 @@ const ARENA_SCENE := "res://scenes/battle/arena.tscn"
 const BUTTON_WIDTH := 340.0
 const EDGE_MARGIN := 64.0  # gap between the menu column and the screen edge
 const LOGO := preload("res://assets/branding/logo_light.png")
+const DEV_TUNABLES_SCRIPT := "res://src/presentation/dev_tunables.gd"
+const LOOK_PRESET_SCRIPT := "res://src/presentation/look_preset.gd"
+const FPS_OVERLAY_SCRIPT := "res://src/presentation/fps_overlay.gd"
 const SCENARIO_WIDTH := 860.0
 const PREVIEW_SIZE := Vector2(480, 340)
 
@@ -73,7 +76,7 @@ func _ready() -> void:
 	GameSettings.apply_saved(settings_path)
 	_sound = GameSettings.load_sound(settings_path)
 	SoundMix.apply(_sound)
-	StaffMap.terrain_viewer_session = false
+	StaffMapDefaults.terrain_viewer_session = false
 	Session.abandon()  # the menu is outside any campaign (TASK-094c); Continue loads a save
 	_build()
 	refresh_texts()
@@ -374,47 +377,55 @@ func _build_devtools(column: VBoxContainer) -> void:
 	_scale_row = _add_switch(column, "True unit size", _on_scale_pressed)
 	_look_row = _add_switch(column, "Look preset", _on_look_pressed)
 	_fps_row = _add_switch(column, "FPS overlay", _on_fps_pressed)
-	add_child(FpsOverlay.new())
+	add_child((load(FPS_OVERLAY_SCRIPT) as GDScript).new() as Label)
 	column.add_child(_spacer(10.0))
 	_devtools_back = _add_button(column, show_page.bind("main"))
 
 
 func _on_quality_pressed() -> void:
-	DevTunables.quality_choice = ((DevTunables.quality_choice + 1) % 3) as DevTunables.QualityChoice
+	var dev := _dev_tunables()
+	dev.quality_choice = (int(dev.quality_choice) + 1) % 3
 	_refresh_devtools_switches()
 
 
 func _on_scale_pressed() -> void:
-	DevTunables.true_size = not DevTunables.true_size
-	DevTunables.battle_overrides = true
-	DevTunables.apply_look()
+	var dev := _dev_tunables()
+	dev.true_size = not dev.true_size
+	dev.battle_overrides = true
+	dev.apply_look()
 	_refresh_devtools_switches()
 
 
 func _on_look_pressed() -> void:
-	var looks: Array = LookPreset.PRESETS.keys()
-	DevTunables.look_name = looks[(looks.find(DevTunables.look_name) + 1) % looks.size()]
-	DevTunables.battle_overrides = true
-	DevTunables.apply_look()
+	var dev := _dev_tunables()
+	var looks: Array = (load(LOOK_PRESET_SCRIPT) as GDScript).get("PRESETS").keys()
+	dev.look_name = looks[(looks.find(dev.look_name) + 1) % looks.size()]
+	dev.battle_overrides = true
+	dev.apply_look()
 	_refresh_devtools_switches()
 
 
 func _on_fps_pressed() -> void:
-	DevTunables.fps_overlay = not DevTunables.fps_overlay
+	var dev := _dev_tunables()
+	dev.fps_overlay = not dev.fps_overlay
 	_refresh_devtools_switches()
 
 
 func _refresh_devtools_switches() -> void:
+	var dev := _dev_tunables()
 	var quality_names := ["AUTO", "LOW", "HIGH"]
-	_quality_row.set_value(
-		DevTunables.quality_choice != DevTunables.QualityChoice.AUTO,
-		quality_names[DevTunables.quality_choice]
-	)
-	_scale_row.set_on(DevTunables.true_size)
-	_look_row.set_value(
-		DevTunables.look_name != LookPreset.DEFAULT_PRESET, String(DevTunables.look_name).to_upper()
-	)
-	_fps_row.set_on(DevTunables.fps_overlay)
+	var quality := int(dev.quality_choice)
+	_quality_row.set_value(quality != 0, quality_names[quality])  # 0 = DevTunables.QualityChoice.AUTO
+	_scale_row.set_on(dev.true_size)
+	var default_look: StringName = (load(LOOK_PRESET_SCRIPT) as GDScript).get("DEFAULT_PRESET")
+	_look_row.set_value(dev.look_name != default_look, String(dev.look_name).to_upper())
+	_fps_row.set_on(dev.fps_overlay)
+
+
+## DevTunables, LookPreset and FpsOverlay are only needed on the DEVTOOLS page. They are loaded by
+## path when used: naming them in this script would load the battle code with the menu (seconds).
+func _dev_tunables() -> GDScript:
+	return load(DEV_TUNABLES_SCRIPT) as GDScript
 
 
 func _on_arena_pressed() -> void:
@@ -423,7 +434,7 @@ func _on_arena_pressed() -> void:
 
 ## The staff map without units or HUD: a click on a hex opens its terrain (StaffMap picker).
 func _on_terrain_pressed() -> void:
-	StaffMap.terrain_viewer_session = true
+	StaffMapDefaults.terrain_viewer_session = true
 	get_tree().change_scene_to_file(STAFF_MAP_SCENE)
 
 
@@ -538,16 +549,16 @@ func _on_language_pressed() -> void:
 
 ## Operation: asks which side to command before the staff map opens (TASK-149).
 func _on_operation_pressed() -> void:
-	var definition := OperationDefinition.find(StaffMap.DEFAULT_OPERATION)
+	var definition := OperationDefinition.find(StaffMapDefaults.DEFAULT_OPERATION)
 	if definition == null or definition.sides.size() != 2:
-		push_warning("Main menu: no playable operation '%s'" % StaffMap.DEFAULT_OPERATION)
+		push_warning("Main menu: no playable operation '%s'" % StaffMapDefaults.DEFAULT_OPERATION)
 		get_tree().change_scene_to_file(STAFF_MAP_SCENE)
 		return
 	if side_from_args(OS.get_cmdline_user_args(), definition) != &"":
 		Session.chosen_side = side_from_args(OS.get_cmdline_user_args(), definition)
 		get_tree().change_scene_to_file(STAFF_MAP_SCENE)  # --side= skips the chooser
 		return
-	_side_select.present(definition, StaffMap.DEFAULT_SEED, get_viewport_rect().size)
+	_side_select.present(definition, StaffMapDefaults.DEFAULT_SEED, get_viewport_rect().size)
 	_side_overlay.show()
 	_side_select.card(0).grab_focus()
 	if is_inside_tree():  # fade 150 ms
