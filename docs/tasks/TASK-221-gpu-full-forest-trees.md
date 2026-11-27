@@ -1,6 +1,6 @@
 # TASK-221: Full 3D forest trees placed by the GPU
 
-- **Status**: to playtest
+- **Status**: done
 - **Layers**: presentation (`ForestField` full layer, new tree shader, `ForestFill` GDScript reference, `GpuVegetationLayer`, `NearHeightCache`)
 - **Depends on**: TASK-189 (GPU impostors, ADR 0027), TASK-217a (GPU vegetation framework, near height cache)
 - **Sections**: ADR 0027 decision 4 (the decision this task reverses), ADR 0033; code (grep CODEMAP): `ForestField`, `ForestFill`, `TreeMeshes`, `forest_impostor.gdshader`, `forest_hash.gdshaderinc`, `GpuVegetationLayer`, `NearHeightCache`, `VegetationRanges`
