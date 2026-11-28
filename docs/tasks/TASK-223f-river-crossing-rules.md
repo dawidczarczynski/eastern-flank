@@ -2,7 +2,7 @@
 
 - **Status**: idea
 - **Layers**: GDD (game-designer) → core rules + AI + presentation (path preview)
-- **Depends on**: TASK-223c (soft: TASK-220; the hex-free movement design – no task yet)
+- **Depends on**: TASK-223c, TASK-208 (soft: TASK-220, TASK-206)
 - **Sections**: ADR 0034 decision 6; GDD movement and terrain sections (to be listed when refined)
 - **Model**: opus
 - **Tags**: battle-look
@@ -13,7 +13,7 @@ Crossing a river is a real tactical decision: where, with what, and at what cost
 
 ## Acceptance criteria (testable)
 
-To be written in `/refine-task` after the hex-free movement design. Starting points from ADR 0034:
+To be written in `/refine-task` after TASK-208 (continuous movement, ADR 0029). Starting points from ADR 0034:
 - a move whose path crosses a reach's water is a crossing (`WaterNetwork.crossings_of`), no hex edges;
 - classes from the parameters: stream (slows), fordable (water depth ≤ the vehicle's fording depth, current below a limit), wide (bridge, engineers, amphibious only);
 - the exit bank's height and steepness can block leaving the water even at a ford;
@@ -29,7 +29,7 @@ To be written (game-designer).
 
 ## Out of scope
 
-- The hex-free movement system itself.
+- The continuous movement system itself (ADR 0029, TASK-205 … TASK-213).
 
 ## Implementation notes
 

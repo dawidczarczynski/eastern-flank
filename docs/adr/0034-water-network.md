@@ -15,7 +15,7 @@ Rivers will be a key tactical mechanic (crossing them), so they must look and be
 
 The look target (two reference frames from another game, not stored): a calm, flat, sky-reflecting water surface whose **shoreline is where the terrain cuts it**; an asymmetric valley – steep cut bank with exposed soil on the outer side of a bend, a low floodplain on the inner side; bank material by slope; a dark riparian belt of trees and scrub between water and fields; islands and side arms; bridges spanning the whole water width; from the gameplay camera the river reads at once as a barrier.
 
-The hex grid is being removed in favour of free movement within a unit's range (human decision 2026-11-28), so nothing in this model may depend on hexes.
+The hex grid is being removed in favour of free movement within a unit's range (ADR 0029, `continuous-space` TASK-205 … TASK-213; confirmed by the human 2026-11-28), so nothing in this model may depend on hexes.
 
 ## Decision
 
@@ -56,12 +56,12 @@ The hex grid is being removed in favour of free movement within a unit's range (
 
 ## Phases (TASK-223a … TASK-223g)
 
-Order: 223a and 223b in parallel → 223c → 223d → 223e → 223g; 223f after the hex-free movement design and 223c.
+Order: 223a and 223b in parallel → 223c → 223d → 223e → 223g; 223f after 223c and TASK-208 (continuous movement).
 
 1. TASK-223a: Validators + devtools overlay on the current data (measure).
 2. TASK-223b: Importer: real polylines with flow direction, water polygons, bridges, fords, lake levels; re-import Suwałki.
 3. TASK-223c: `WaterNetwork` build: surface profiles, junction levels.
 4. TASK-223d: Render heightfield + terrain conditioning (channel, banks, cut bank / floodplain, lake shores).
 5. TASK-223e: Rendering: per-body water meshes, bank materials, bridges.
-6. TASK-223f: Crossing rules (GDD by the game-designer, then implementation) – after the hex-free movement design.
+6. TASK-223f: Crossing rules (GDD by the game-designer, then implementation) – after TASK-208 (ADR 0029).
 7. TASK-223g: Riparian belt and details.
