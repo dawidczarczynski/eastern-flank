@@ -3185,6 +3185,24 @@
     "output": 300237
    }
   },
+  "TASK-216": {
+   "active_hours": 0.68,
+   "cost": 3.7096,
+   "first": "2026-11-27T15:10:04.908Z",
+   "last": "2026-11-27T15:50:55.271Z",
+   "main_cost": 0.5857,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 7139657,
+    "cache_write": 237538,
+    "input": 162,
+    "output": 45095
+   }
+  },
   "TASK-217a": {
    "active_hours": 1.68,
    "cost": 33.1621,
@@ -3256,6 +3274,24 @@
     "cache_write": 411048,
     "input": 322,
     "output": 140881
+   }
+  },
+  "TASK-222": {
+   "active_hours": 3.96,
+   "cost": 15.6298,
+   "first": "2026-11-27T09:48:36.763Z",
+   "last": "2026-11-27T13:45:57.731Z",
+   "main_cost": 2.0684,
+   "models": [
+    "claude-sonnet-5-5"
+   ],
+   "orchestrator": "sonnet",
+   "sessions": 1,
+   "tokens": {
+    "cache_read": 33978034,
+    "cache_write": 785212,
+    "input": 602,
+    "output": 166005
    }
   }
  },
