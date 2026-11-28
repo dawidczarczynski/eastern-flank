@@ -32,6 +32,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `MatchRecord` – A whole match as scenario + seed + executed commands (their `to_dict()` form). (`match_record.gd`)
 - `OrderRules` – Unit orders (TASK-081a, GDD "Unit orders"): which orders a unit has and whether one can be (`order_rules.gd`)
 - `Replay` – Rebuilds a match from a MatchRecord: the scenario's starting state from the seed, then ev… (`replay.gd`)
+- `RiverChannel` – The river bed in the terrain height (follow-up of TASK-216): the ground along every river (`river_channel.gd`)
+- `RiverWidths` – Real river widths from the land-cover raster (TASK-216 follow-up): OSM draws a big river… (`river_widths.gd`)
 - `Scenario` – Battle setups built headless from a seed (shared by the game, replays and AI simulations). (`scenario.gd`)
 - `StaffMapLayers` – Pure map -> draw data for the staff map (TASK-093a, TASK-125). Everything is in "hex unit… (`staff_map_layers.gd`)
 - `Terrain` – Terrain types. Each enum value maps to a TerrainDefinition in data/terrain/*.tres, (`terrain.gd`)

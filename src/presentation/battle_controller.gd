@@ -98,6 +98,8 @@ var _prebuild_done := false
 
 
 func _ready() -> void:
+	if VisualScale.applied_name() == VisualScale.DEFAULT_PRESET:  # not forced by a debug hook
+		VisualScale.apply(DevTunables.scale_preset())
 	Engine.max_fps = FramePacing.max_fps(true)
 	_setup_graphics_quality()
 	if setup == null and Session.in_battle():
@@ -132,6 +134,7 @@ func _ready() -> void:
 	loading.set_status("BUILDING THE TERRAIN")
 	await _next_frame()
 	_map_view.land_cover = BattleCover.for_battle(setup, scenario_name, MAP_SEED, state.grid)
+	RiverWidths.apply(state.grid, _map_view.land_cover)
 	_map_view.satellite = BattleCover.colour_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.real_parcels = BattleCover.parcels_for_battle(setup, scenario_name, MAP_SEED)
 	_map_view.tree_features = BattleCover.tree_features_for_battle(setup, scenario_name, MAP_SEED)

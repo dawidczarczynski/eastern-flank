@@ -10,6 +10,9 @@ extends Resource
 ## cells `cover_column` .. + `cover_width` - 1 x north rows `cover_row` .. + `cover_height` - 1
 ## of the whole raster, one LandCover.Kind byte each, row-major, row 0 north. The windows of all
 ## chunks tile the raster without overlap. Empty in layers imported before the raster.
+## `river_width` (TASK-216) is zlib of one more `width` x `height` plane: the water width in whole
+## metres of the river through each tile (0 = none / unknown). Empty in layers imported before
+## river widths and in chunks without a river: every river is then 8 m wide.
 ## `colour_jpg` (TASK-192a, ADR 0031) is a baseline JPEG of this chunk's window of the layer's
 ## satellite colour raster: pixels `colour_column` .. + `colour_width` - 1 x rows `colour_row` ..
 ## + `colour_height` - 1 of the whole raster (TacticalLayer.colour_*). Each window also holds the
@@ -25,6 +28,7 @@ const PLANES := 5
 @export var width: int
 @export var height: int
 @export var data: PackedByteArray
+@export var river_width: PackedByteArray
 @export var cover_column: int
 @export var cover_row: int
 @export var cover_width: int
@@ -44,6 +48,16 @@ func decode() -> PackedByteArray:
 		return PackedByteArray()
 	var planes := data.decompress(size, FileAccess.COMPRESSION_DEFLATE)
 	return planes if planes.size() == size else PackedByteArray()
+
+
+## The decoded river width plane (width * height bytes, metres); empty when there is none or it is
+## malformed.
+func decode_river_width() -> PackedByteArray:
+	var size := width * height
+	if size <= 0 or river_width.is_empty():
+		return PackedByteArray()
+	var metres := river_width.decompress(size, FileAccess.COMPRESSION_DEFLATE)
+	return metres if metres.size() == size else PackedByteArray()
 
 
 ## Raster cells of this chunk's cover window (cover_width x cover_height, global cells).

@@ -192,7 +192,7 @@ func test_rivers_meander_gently_and_vary_in_width() -> void:
 		hi = maxf(hi, w)
 	assert_true(hi - lo > 0.01, "width varies %f..%f" % [lo, hi])
 	assert_true(hi <= FeatureRibbonPlanner.max_half_width(KIND_RIVER) + EPSILON)
-	assert_true(widths[0] < 0.6 * hi, "narrow at the dead-end source")
+	assert_true(widths[0] < 0.7 * hi, "narrow at the dead-end source")
 	for w in FeatureRibbonPlanner.half_widths(road_grid, KIND_ROAD)[0]:
 		_near(w, FeatureRibbonPlanner.width(KIND_ROAD) / 2.0, "roads keep their width")
 

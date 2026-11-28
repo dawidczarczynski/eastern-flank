@@ -364,7 +364,9 @@ func vertex_attributes(
 				if TerrainSplat.uses_noise(jittered_type)
 				else Vector2.ZERO
 			)
-			var splat := MapView._splat(jittered_type, n.y, v, noise)
+			var splat := TerrainSplat.with_sand(
+				MapView._splat(jittered_type, n.y, v, noise), lattice.shore_at(v.x, v.z)
+			)
 			for layer in layers:
 				weights_ring[(b * rw + a) * layers + layer] = splat[layer]
 	var count := (nx + 1) * (nz + 1)

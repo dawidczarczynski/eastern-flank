@@ -11,6 +11,7 @@ func test_default_is_muted_summer() -> void:
 
 
 func test_current_preset_changes_nothing() -> void:
+	VisualScale.reset()  # the grade differs under true size, which devtools tests may leave applied
 	LookPreset.apply(&"current")
 	assert_eq(LookPreset.layer_tints(TerrainGround.LAYER_TINTS), TerrainGround.LAYER_TINTS)
 	assert_eq(LookPreset.leaf_color(&"pine", Color.RED), Color.RED)

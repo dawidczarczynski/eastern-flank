@@ -6,13 +6,30 @@ extends RefCounted
 ## every distance is metres converted with MapScale, every noise a function of world position.
 
 
+## The channel the rivers of `grid` are dug into (RiverChannel) over the undug ground of `surface`;
+## null on a grid without rivers.
+static func channel(grid: HexGrid, surface: TerrainSurface) -> RiverChannel:
+	if not grid.has_links():
+		return null
+	return RiverChannel.build(
+		FeatureRibbonPlanner.lines(grid, FeatureRibbonPlanner.Kind.RIVER),
+		FeatureRibbonPlanner.water_widths(grid),
+		surface.base_height_at
+	)
+
+
+## `water_m` is the chain's base water width in metres (TASK-216, constant along the chain).
 ## Per-sample cross-section of a chain: {half: widest side's half width (the ribbon's reach, used
 ## for clearance), outer: Vector2(left, right) half width of the whole ribbon, edge: Vector2(left,
 ## right) `across` where the water ends, water: whole water width}. Roads are constant; rivers
 ## vary with world-position noise (the water width, each side's water edge and bank band
 ## independently at two scales) and narrow towards a dead-end source (the banks keep theirs).
 static func sides(
-	line: PackedVector2Array, chain: Array, pieces: Array, kind: FeatureRibbonPlanner.Kind
+	line: PackedVector2Array,
+	chain: Array,
+	pieces: Array,
+	kind: FeatureRibbonPlanner.Kind,
+	water_m: float = FeatureRibbonPlanner.RIVER_WATER_M
 ) -> Dictionary:
 	var count := line.size()
 	var half := PackedFloat32Array()
@@ -28,8 +45,8 @@ static func sides(
 		outer.fill(Vector2.ONE * FeatureRibbonPlanner.width(kind) / 2.0)
 		edge.fill(Vector2.ONE * FeatureRibbonPlanner.carriageway_across())
 		return {"half": half, "outer": outer, "edge": edge, "water": water}
-	var base := FeatureRibbonPlanner.water_width() / 2.0
-	var bank := FeatureRibbonPlanner.bank_width()
+	var base := FeatureRibbonPlanner.water_width(water_m) / 2.0
+	var bank := FeatureRibbonPlanner.bank_width(water_m)
 	var start_source: bool = pieces[chain[0]["piece"]]["kind"] == &"dead"
 	var end_source: bool = chain.size() > 1 and pieces[chain[-1]["piece"]]["kind"] == &"dead"
 	var along := PackedFloat32Array()

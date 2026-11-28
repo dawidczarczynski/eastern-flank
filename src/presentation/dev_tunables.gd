@@ -81,7 +81,9 @@ const CAMERA_MAX_FACTOR := 2.0  # ... and the maximum doubled
 static var active := false
 
 static var quality_choice := QualityChoice.AUTO
-static var true_size := false
+## True size is the normal look of the game (rivers, forests, units at real scale); the devtools
+## page can switch it off.
+static var true_size := true
 ## Debug run: the devtools page's scale / look switches also apply to normal battles.
 static var battle_overrides := false
 static var look_name: StringName = LookPreset.DEFAULT_PRESET
@@ -105,9 +107,9 @@ static func quality_override() -> int:
 	return -1
 
 
-## VisualScale preset the arena should show (the default one outside the arena).
+## VisualScale preset to show: true size unless the devtools switch is off.
 static func scale_preset() -> StringName:
-	if (active or battle_overrides) and true_size:
+	if true_size:
 		return VisualScale.TRUE_PRESET
 	return VisualScale.DEFAULT_PRESET
 

@@ -76,6 +76,11 @@ func height(i: int, j: int) -> float:
 	return _raw(i, j)
 
 
+## Share 0..1 of sand shore at world (x, z) (a river bank, TerrainSurface.shore_at).
+func shore_at(x: float, z: float) -> float:
+	return _surface.shore_at(x, z)
+
+
 func _raw(i: int, j: int) -> float:
 	return _surface.height_at(x_of(i), z_of(j))
 

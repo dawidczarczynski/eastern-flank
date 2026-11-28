@@ -263,9 +263,9 @@ func build(grid: HexGrid) -> void:
 		bake_task = WorkerThreadPool.add_task(bake, true, "Farmland parcels")
 	else:
 		bake.call()
-	# The planners read the surface and the ribbon index from the worker threads: fill their lazy
-	# caches first.
+	# The planners read the surface, rivers and ribbon index from worker threads: fill the caches.
 	_surface.prime()
+	_surface.channel = RiverShape.channel(grid, _surface)
 	FeatureRibbonPlanner.is_clear(_grid, 0.0, 0.0)
 	_lattice = TerrainLattice.new(rect, _surface)
 	_vegetation.prepare(grid, _lattice, _look, threads)

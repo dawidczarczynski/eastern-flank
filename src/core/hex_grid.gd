@@ -4,6 +4,8 @@ extends RefCounted
 ## Map: a set of hex tiles with a terrain type and an elevation.
 
 const _INF := 1 << 30
+## River water width in metres where a map stores none (a lowland river, TASK-108c).
+const RIVER_WIDTH_DEFAULT_M := 8.0
 
 ## Continuous height field the map was generated from; null for hand-made/test grids.
 var field: TerrainField
@@ -20,6 +22,8 @@ var _elevation_m: Dictionary = {}  # Vector2i -> float, real height in metres (i
 ## maps have them; a missing entry is 0.
 var _road_links: Dictionary = {}  # Vector2i -> int
 var _river_links: Dictionary = {}  # Vector2i -> int
+## River water width in metres per river tile (TASK-216); a tile without an entry has the default.
+var _river_widths: Dictionary = {}  # Vector2i -> float
 var _links_version := 0
 
 
@@ -124,6 +128,20 @@ func set_river_links(c: Vector2i, mask: int) -> void:
 
 func river_links(c: Vector2i) -> int:
 	return _river_links.get(c, 0)
+
+
+## Water width in metres of the river through `c` (TASK-216, from the OSM width tag or class);
+## RIVER_WIDTH_DEFAULT_M for a tile without stored data (older maps). A width <= 0 clears it.
+func set_river_width_m(c: Vector2i, metres: float) -> void:
+	_links_version += 1
+	if metres <= 0.0:
+		_river_widths.erase(c)
+	else:
+		_river_widths[c] = metres
+
+
+func river_width_m(c: Vector2i) -> float:
+	return _river_widths.get(c, RIVER_WIDTH_DEFAULT_M)
 
 
 ## A river hex: a tile with at least one river link (entering it costs extra, TerrainFeatures).

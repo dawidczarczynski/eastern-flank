@@ -19,11 +19,16 @@ uniform float layer_repeat[6];
 uniform vec3 layer_tint[6];
 uniform sampler2D normal_map : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 
-// Water half width and the whole ribbon's half width (world units) the minimum on-screen width
-// widens, bank width in metres.
-uniform float water_half = 0.027;
-uniform float half_width = 0.049;
+// World units per metre and the bank width in metres. The water half width of a vertex (it varies
+// per river, TASK-216) follows from COLOR.r and the bank band: outer = bank / (1 - edge), water =
+// edge * outer; the minimum on-screen width widens the ribbon from that.
+uniform float units_per_m = 0.0069;
 uniform float bank_m = 3.0;
+// The bank band grows with the water: bank = bank_m + bank_k * water (metres), see half_m below.
+uniform float bank_k = 0.12;
+// Sandy shore: wet sand at the waterline, dry sand further out, the mud texture gives the detail.
+uniform vec4 wet_sand : source_color = vec4(0.36, 0.31, 0.22, 1.0);
+uniform vec4 dry_sand : source_color = vec4(0.62, 0.55, 0.40, 1.0);
 uniform float min_px = 1.5;
 // Depth pull towards the camera along the view ray (world units): a base plus a share of the
 // distance. The ribbon lies on the exact ground, the coarse far terrain mesh can be above it.
@@ -52,11 +57,12 @@ void vertex() {
 	vec4 view = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	float pixels_per_unit = PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y * 0.5 / max(-view.z, 0.01);
 	float wanted = 0.5 * min_px / pixels_per_unit;
-	float widen = max(1.0, wanted / water_half);
-	VERTEX.xz += CUSTOM0.xy * abs(UV.y) * half_width * (widen - 1.0);
+	half_m = bank_m / max(1.0 - (1.0 + bank_k) * COLOR.r, 0.005);
+	float water_half = COLOR.r * half_m * units_per_m;
+	float widen = max(1.0, wanted / max(water_half, 1e-5));
+	VERTEX.xz += CUSTOM0.xy * abs(UV.y) * half_m * units_per_m * (widen - 1.0);
 	river = vec3(UV.x, UV.y, COLOR.r);
 	end_fade = COLOR.g;
-	half_m = bank_m / max(1.0 - COLOR.r, 0.05);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// Pull towards the camera along the view ray: same screen position, nearer depth.
 	vec4 pulled = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -76,7 +82,9 @@ void fragment() {
 	vec3 water = mix(deep_color.rgb, shallow_color.rgb, smoothstep(0.0, 1.0, t));
 	float water_a = mix(deep_alpha, shallow_alpha, t);
 	// Wet mud: the mud layer, darkened.
-	vec3 mud = ground(MUD, world_pos.xz) * 0.8;
+	float shore = smoothstep(edge, 1.0, a);
+	float detail = dot(ground(MUD, world_pos.xz), vec3(0.333)) * 1.6 + 0.35;
+	vec3 mud = mix(wet_sand.rgb, dry_sand.rgb, smoothstep(0.0, 0.7, shore)) * detail;
 	float bank_a = 1.0 - smoothstep(edge, 1.0, a);
 	float in_water = 1.0 - smoothstep(edge - 0.04, edge + 0.02, a);
 	vec3 colour = mix(mud * cloud_shadow_factor(world_pos.xz), water, in_water);

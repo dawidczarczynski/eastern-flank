@@ -20,6 +20,8 @@ const _CORRECTION_NONE := 0.8
 ## hex edge at 0.866, so the neighbouring tiles' sides of a shared edge dip as well).
 const _WATER_CORRECTION_FULL := 0.5
 const _WATER_CORRECTION_NONE := 1.4
+## Lowest height a channel digs down to: never into the water plane of lakes and the sea.
+const _CHANNEL_FLOOR := 0.03
 ## Raycast: marching starts where the ray is at this height (nothing on the map is higher)...
 const _RAY_START_HEIGHT := 3.0
 ## ...in steps of this length, for at most this distance, then refines the hit by bisection.
@@ -29,6 +31,10 @@ const _RAY_BISECTION_STEPS := 8
 
 ## World offsets (XZ) of the neighbour centres in Hex.DIRECTIONS order (consecutive ones 60° apart).
 static var _neighbour_offsets: Array[Vector2] = []
+
+## The river bed dug into the ground (RiverChannel), set once before the surface is queried from
+## threads; null = no channels.
+var channel: RiverChannel
 
 var _grid: HexGrid
 ## Vector2i -> float (field height at the tile centre). Not invalidated: assumes
@@ -41,6 +47,19 @@ func _init(grid: HexGrid) -> void:
 
 
 func height_at(x: float, z: float) -> float:
+	var h := base_height_at(x, z)
+	if channel == null:
+		return h
+	return maxf(channel.carved_height(x, z, h), minf(h, _CHANNEL_FLOOR))
+
+
+## Share 0..1 of sand shore at (x, z) (RiverChannel.shore); 0 without channels.
+func shore_at(x: float, z: float) -> float:
+	return 0.0 if channel == null else channel.shore(x, z)
+
+
+## Height of the ground before the river channels are dug.
+func base_height_at(x: float, z: float) -> float:
 	var c := Hex.from_world(Vector3(x, 0.0, z), TerrainField.HEX_SIZE)
 	var on_map := _grid.has_tile(c)
 	if _grid.field == null:
@@ -84,7 +103,11 @@ func prime() -> void:
 
 ## Height that units, overlays and picking sit on: never below the water surface.
 func ground_height(x: float, z: float) -> float:
-	return maxf(height_at(x, z), WATER_SURFACE)
+	var h := maxf(height_at(x, z), WATER_SURFACE)
+	if channel == null:
+		return h
+	var level := channel.water_level(x, z)
+	return h if is_nan(level) else maxf(h, level)
 
 
 ## First point where the ray from `origin` along `direction` (need not be normalised)

@@ -67,6 +67,9 @@ var _chunk_sizes: Dictionary = {}  # chunk index -> Vector2i (width, height)
 ## decoded cover window (PackedByteArray, loaded on first use by region_land_cover).
 var _chunks: Dictionary = {}
 var _covers: Dictionary = {}
+## Chunk index (Vector2i) -> decoded river width plane (PackedByteArray, metres per tile; empty =
+## none), loaded on first use by `river_width_at`.
+var _river_widths: Dictionary = {}
 ## Chunk index (Vector2i) -> its decoded colour window (ColourRaster in global raster pixels, or
 ## null when it has none or does not decode).
 var _colours: Dictionary = {}
@@ -117,6 +120,8 @@ static func from_grid(
 			var n := w * h
 			var planes := PackedByteArray()
 			planes.resize(TacticalChunk.PLANES * n)
+			var widths := PackedByteArray()
+			widths.resize(n)
 			for r in h:
 				for c in w:
 					var axial := MapGenerator.offset_to_axial(cx + c, cy + r)
@@ -130,6 +135,8 @@ static func from_grid(
 					planes[i] = t
 					planes[n + i] = grid.road_links(axial)
 					planes[2 * n + i] = grid.river_links(axial)
+					if grid.river_links(axial) != 0:
+						widths[i] = clampi(roundi(grid.river_width_m(axial)), 1, 255)
 					var stored := clampi(
 						roundi((metres + layer.elevation_offset_m) / layer.elevation_step_m),
 						0,
@@ -139,6 +146,8 @@ static func from_grid(
 					planes[4 * n + i] = stored >> 8
 			@warning_ignore("integer_division")
 			var key := Vector2i(cx / chunk, cy / chunk)
+			if widths.count(0) != n:
+				layer._river_widths[key] = widths
 			layer._planes[key] = planes
 			layer._chunk_sizes[key] = Vector2i(w, h)
 	return layer
@@ -200,6 +209,19 @@ func road_links_at(tile: Vector2i) -> int:
 	return planes[_chunk_area(tile) + _index_in_chunk(tile)]
 
 
+## Water width in whole metres of the river through one offset tile (TASK-216); 0 when the layer
+## stores none (older layers, no river there, off the layer): readers then use the default.
+func river_width_at(tile: Vector2i) -> int:
+	if _planes_at(tile).is_empty():
+		return 0
+	var key := _chunk_key(tile)
+	if not _river_widths.has(key):
+		var chunk: TacticalChunk = _chunks.get(key)
+		_river_widths[key] = chunk.decode_river_width() if chunk != null else PackedByteArray()
+	var plane: PackedByteArray = _river_widths[key]
+	return 0 if plane.is_empty() else plane[_index_in_chunk(tile)]
+
+
 ## The cut `region` as a HexGrid in local coordinates: offset tile (c, r) of the cut = layer tile
 ## (region.position.x + c, region.position.y + r), so the battle map starts at (0, 0) like every
 ## other map. Terrain, road and river links (also those pointing out of the cut), real metres and
@@ -229,6 +251,9 @@ func region_grid(region: Rect2i) -> HexGrid:
 				grid.set_road_links(local, planes[n + i])
 			if planes[2 * n + i] != 0:
 				grid.set_river_links(local, planes[2 * n + i])
+				var metres_wide := river_width_at(tile)
+				if metres_wide > 0:
+					grid.set_river_width_m(local, float(metres_wide))
 			var stored := planes[3 * n + i] | (planes[4 * n + i] << 8)
 			var metres := stored * elevation_step_m - elevation_offset_m
 			grid.set_elevation_m(local, metres)

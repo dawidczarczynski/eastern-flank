@@ -745,6 +745,58 @@ class LineKindTest(unittest.TestCase):
         self.assertEqual([kind for kind, _ in lines], [import_map.RIVER, import_map.ROAD])
 
 
+class RiverWidthTest(unittest.TestCase):
+    """TASK-216: the water width in metres of a river way."""
+
+    def _width(self, **tags: str) -> int:
+        return import_map.river_width_m(tags)
+
+    def test_width_tag_forms(self) -> None:
+        self.assertEqual(self._width(waterway="river", width="12"), 12)
+        self.assertEqual(self._width(waterway="river", width="12 m"), 12)
+        self.assertEqual(self._width(waterway="river", width="12m"), 12)
+        self.assertEqual(self._width(waterway="river", width="12.4"), 12)
+        self.assertEqual(self._width(waterway="river", width="12,5"), 12)
+
+    def test_junk_and_negative_widths_fall_back_to_the_class(self) -> None:
+        self.assertEqual(self._width(waterway="river", width="abc"), 8)
+        self.assertEqual(self._width(waterway="stream", width="-3"), 3)
+        self.assertEqual(self._width(waterway="canal", width="0"), 10)
+        self.assertEqual(self._width(waterway="canal", width="nan"), 10)
+        self.assertEqual(self._width(waterway="river", width="inf"), 8)
+        self.assertEqual(self._width(waterway="river", width=""), 8)
+
+    def test_widths_are_clamped(self) -> None:
+        self.assertEqual(self._width(waterway="river", width="0.2"), 1)
+        self.assertEqual(self._width(waterway="river", width="400"), 60)
+
+    def test_class_defaults(self) -> None:
+        self.assertEqual(self._width(waterway="stream", name="X"), 3)
+        self.assertEqual(self._width(waterway="river"), 8)
+        self.assertEqual(self._width(waterway="canal"), 10)
+
+    def test_same_input_twice_is_identical(self) -> None:
+        tags = {"waterway": "river", "width": "17 m"}
+        self.assertEqual(import_map.river_width_m(tags), import_map.river_width_m(dict(tags)))
+
+    def test_tagged_lines_keep_the_tags_and_the_order(self) -> None:
+        tagged = import_map.osm_tagged_lines(fixture_osm())
+        self.assertEqual([kind for kind, _, _ in tagged], [import_map.RIVER, import_map.ROAD])
+        self.assertEqual(tagged[0][1].get("waterway"), "river")
+
+    def test_a_hex_takes_the_widest_link_that_touches_it(self) -> None:
+        layout = import_map.HexLayout(6, 6, 250.0, 600000.0, 6000000.0)
+        a = layout.axial(2, 2)
+        b = (a[0] + 1, a[1])
+        c = (a[0] + 2, a[1])
+        links = {(a, b): 3, (b, c): 12}
+        masks = import_map.store_links(layout, list(links), [])
+        widths = import_map.tile_river_widths(layout, links, masks)
+        self.assertEqual(widths[layout.offset(*a)], 3)
+        self.assertEqual(widths[layout.offset(*b)], 12)
+        self.assertEqual(widths[layout.offset(*c)], 12)
+
+
 class LineLinksTest(unittest.TestCase):
     def setUp(self) -> None:
         self.layout = import_map.HexLayout(6, 6, 250.0, 600000.0, 6000000.0)

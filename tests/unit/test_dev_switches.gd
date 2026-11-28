@@ -6,7 +6,7 @@ const Fixtures := preload("res://tests/fixtures.gd")
 func after_each() -> void:
 	DevTunables.deactivate()
 	DevTunables.quality_choice = DevTunables.QualityChoice.AUTO
-	DevTunables.true_size = false
+	DevTunables.true_size = true
 	DevTunables.look_name = LookPreset.DEFAULT_PRESET
 	DevTunables.grid_on = true
 	DevTunables.fps_overlay = false
@@ -18,7 +18,7 @@ func after_each() -> void:
 func test_defaults_are_todays_behaviour() -> void:
 	DevTunables.activate()
 	assert_eq(DevTunables.quality_override(), -1)
-	assert_eq(DevTunables.scale_preset(), VisualScale.DEFAULT_PRESET)
+	assert_eq(DevTunables.scale_preset(), VisualScale.TRUE_PRESET, "true size is on by default")
 	assert_eq(DevTunables.look_preset(), LookPreset.DEFAULT_PRESET)
 	assert_true(DevTunables.grid_enabled())
 	assert_false(DevTunables.fps_overlay)
@@ -28,12 +28,10 @@ func test_defaults_are_todays_behaviour() -> void:
 
 func test_overrides_count_only_while_active() -> void:
 	DevTunables.quality_choice = DevTunables.QualityChoice.LOW
-	DevTunables.true_size = true
 	DevTunables.look_name = &"overcast"
 	DevTunables.grid_on = false
 	DevTunables.unlock_camera = true
 	assert_eq(DevTunables.quality_override(), -1)
-	assert_eq(DevTunables.scale_preset(), VisualScale.DEFAULT_PRESET)
 	assert_eq(DevTunables.look_preset(), LookPreset.DEFAULT_PRESET)
 	assert_true(DevTunables.grid_enabled())
 	assert_eq(DevTunables.camera_min_distance(), CameraMath.MIN_DISTANCE)
@@ -61,12 +59,14 @@ func test_unlocking_the_camera_halves_the_minimum_and_doubles_the_maximum() -> v
 
 
 func test_leaving_restores_the_default_scale_and_look() -> void:
-	DevTunables.true_size = true
 	DevTunables.look_name = &"overcast"
 	DevTunables.activate()
 	assert_true(VisualScale.is_true_size())
 	DevTunables.deactivate()
-	assert_false(VisualScale.is_true_size())
+	assert_true(VisualScale.is_true_size(), "true size stays on outside the arena")
+	DevTunables.true_size = false
+	DevTunables.apply_look()
+	assert_false(VisualScale.is_true_size(), "the devtools switch turns it off")
 
 
 func test_fps_text_shows_frames_and_frame_time() -> void:

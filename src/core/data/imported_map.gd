@@ -84,6 +84,10 @@ const PARCEL_LANDUSES: Array[StringName] = [&"farmland", &"meadow", &"orchard"]
 @export var road_rows: PackedStringArray
 ## River links per tile, same encoding and storage rule; a tile with a link is a river hex.
 @export var river_rows: PackedStringArray
+## Water width in whole metres (1..63) of the river through each tile (TASK-216), one LINK_CHARS
+## character per tile like `river_rows` ("." = none); empty = no data, every river is
+## HexGrid.RIVER_WIDTH_DEFAULT_M wide (older maps).
+@export var river_width_rows: PackedStringArray
 ## ISO 3166 alpha-2 codes of the countries of an operational map (TASK-113), in the importer's
 ## `--countries` order; empty = no countries (tactical maps, old maps).
 @export var countries: PackedStringArray
@@ -238,9 +242,11 @@ func problem() -> String:
 		var links_problem := _links_problem(kind, road_rows if kind == "road" else river_rows)
 		if links_problem != "":
 			return links_problem
-	var country_problem := _countries_problem()
-	if country_problem != "":
-		return country_problem
+	var extra_problem := _river_widths_problem()
+	if extra_problem == "":
+		extra_problem = _countries_problem()
+	if extra_problem != "":
+		return extra_problem
 	var places_problem := _places_problem()
 	if places_problem != "":
 		return places_problem
@@ -419,6 +425,24 @@ func _links_problem(kind: String, rows: PackedStringArray) -> String:
 	return _links_storage_problem(kind, _decode(rows))
 
 
+## Shape of `river_width_rows` (empty is fine): one row per tile row, only LINK_CHARS characters.
+func _river_widths_problem() -> String:
+	if river_width_rows.is_empty():
+		return ""
+	if river_width_rows.size() != height:
+		return "%d river width rows, expected %d" % [river_width_rows.size(), height]
+	for row in height:
+		if river_width_rows[row].length() != width:
+			return (
+				"river width row %d has %d tiles, expected %d"
+				% [row, river_width_rows[row].length(), width]
+			)
+		for ch in river_width_rows[row]:
+			if not LINK_CHARS.contains(ch):
+				return "unknown river width '%s' in row %d" % [ch, row]
+	return ""
+
+
 ## The storage rule on decoded masks: no links on water; a link between two land tiles is
 ## stored on both.
 func _links_storage_problem(kind: String, masks: Dictionary) -> String:
@@ -475,6 +499,11 @@ func to_grid() -> HexGrid:
 		var rivers := _decode(river_rows)
 		for c: Vector2i in rivers:
 			grid.set_river_links(c, rivers[c])
+	if not river_width_rows.is_empty():
+		var widths := _decode(river_width_rows)
+		for c: Vector2i in widths:
+			if widths[c] > 0 and grid.river_links(c) != 0:
+				grid.set_river_width_m(c, float(widths[c]))
 	return grid
 
 

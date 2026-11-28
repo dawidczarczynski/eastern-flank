@@ -45,6 +45,10 @@ const GRAVEL_MAX := 0.45
 const SHORE_BAND := 0.12
 const SHORE_MUD_MAX := 0.7
 const SHORE_DIRT_MAX := 0.25
+## Sandy river shore: shares of the layers that make up the sand (the rest is mud).
+const SAND_DRY_GRASS := 0.35
+const SAND_GRAVEL := 0.4
+const SAND_SOIL := 0.15
 
 
 ## Seven weights summing to 1. `terrain` is a Terrain.Type, or -1 off the map (plains rules).
@@ -106,6 +110,21 @@ static func weights(
 	w[MUD] += mud
 	w[DIRT] += dirt
 	return w
+
+
+## `w` (weights) with `sand` (0..1) of a sandy river shore mixed in: dry grass, gravel, soil and a
+## little mud stand in for sand (no sand texture).
+static func with_sand(w: PackedFloat32Array, sand: float) -> PackedFloat32Array:
+	if sand <= 0.0:
+		return w
+	var result := w.duplicate()
+	for k in LAYER_COUNT:
+		result[k] = w[k] * (1.0 - sand)
+	result[DRY_GRASS] += sand * SAND_DRY_GRASS
+	result[GRAVEL] += sand * SAND_GRAVEL
+	result[SOIL] += sand * SAND_SOIL
+	result[MUD] += sand * (1.0 - SAND_DRY_GRASS - SAND_GRAVEL - SAND_SOIL)
+	return result
 
 
 ## One pass of neighbour averaging over a row-major vertex grid (`columns` x `rows`, LAYER_COUNT

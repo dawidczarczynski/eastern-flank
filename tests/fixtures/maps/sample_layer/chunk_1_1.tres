@@ -9,6 +9,7 @@ row = 16
 width = 16
 height = 12
 data = PackedByteArray("eNpjYQEBBhBgBQEGNMAIB3ThM2Phs8EBmM+GwmcgERgIcqIAkCGDAIigcpVoLC/EgF+9CNHyBw4dOXbi1JlzFy5duX7j1r0HR4+fPH32/MXLV6/fvH33/sPHRiZmFlY2dg5OLnfuPXj05Jm5pbWtvaOzq/uDh4+fPn/5GiLn5uHl8+TZi1dv3oF5nt6+/kC5t+8/fgYpBXEDg9+8+/DpyzeQSr+AoJCw9yDej18QudDwyOjPX7///P0XLBcRFRP3/cevP/8YmCD6IHL/GZlZwiIg+kByLGwcXCyDGrCyonFZUThAAADZeXgH")
+river_width = PackedByteArray("eNpjYAADDgYUgMaluTz5fAAlYABh")
 cover_column = 250
 cover_row = 219
 cover_width = 250

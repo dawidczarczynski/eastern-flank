@@ -62,6 +62,7 @@ func _initialize() -> void:
 	# Visual scale study (TASK-059): the preset must be active before the battle is built.
 	var scale_preset := OS.get_environment("SCREENSHOT_SCALE_PRESET")
 	if scale_preset != "":
+		DevTunables.true_size = scale_preset == "true"  # keeps _ready from re-applying true size
 		VisualScale.apply(StringName(scale_preset))
 	# Colour look study (TASK-071): likewise before the battle is built.
 	var look_preset := OS.get_environment("SCREENSHOT_LOOK")

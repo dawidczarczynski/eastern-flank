@@ -1,6 +1,6 @@
 # TASK-216: Real-scale look: river widths from OSM (class and `width` tag)
 
-- **Status**: ready
+- **Status**: to playtest
 - **Layers**: importer (`tools/import_map.py`, python tests) + data (map `.tres` / loaders of the river links) + presentation (`FeatureRibbonPlanner` per-river water width, `RiverShape`)
 - **Depends on**: TASK-108c
 - **Sections**: ARCHITECTURE "River water and bridges" (and the line-link data section; `tools/doc.py architecture` lists headings)
@@ -43,4 +43,9 @@ Rivers keep their real character: a small named stream is a few metres wide, a l
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Importer: `river_width_m(tags)` (width tag forms, junk ignored, clamp 1-60, class defaults 3/8/10); a hex takes its widest river link. Written as `river_width_rows` (.tres) and an optional `river_width` plane in tactical chunks; old data reads as 8 m (`HexGrid.RIVER_WIDTH_DEFAULT_M`).
+- Planner: one base water width per chain (lower median of its tiles); tributaries keep their own. `river.gdshader` derives the water half width per vertex.
+- Polygon-width measurement (second source) not done: tag / class only.
+- `data/maps/suwalki.tres` re-imported (links unchanged, 34 hexes, all 3 m streams). `suwalki_theatre.tres` and the tactical layer `suwalki_tactical` NOT re-imported (~15 min, commands in data/maps/CREDITS): they still show 8 m rivers.
+- Screenshots: one 3 m stream seen; no wide river in Suwalki, so no side-by-side comparison.
+- Realism pass (2026-11-28, to playtest): `RiverWidths` measures the real water width from the land-cover raster (shortest chord of the WATER cells, up to 140 m) at battle start, so no re-import is needed; `RiverChannel` digs the bed into `TerrainSurface` (flat bed, waterline, bank slope; water surface via `ground_height`); wider rivers get wider sandy banks (`bank = 3 m + 0.12 * water`, sand colours in `river.gdshader`, sand mixed into the terrain splat near the channel). Not done: confluence mouth shape, denser bank vegetation.

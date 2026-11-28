@@ -39,6 +39,9 @@ const ROAD_CLEARANCE_M := 3.0
 ## water + 2 banks wide and `across` 0 / ±1 runs from the centreline to the bank's outer edge.
 const RIVER_WATER_M := 8.0
 const RIVER_BANK_M := 3.0
+## The bank band grows with the water width (share of it, metres) up to BANK_MAX_M.
+const BANK_PER_WATER := 0.12
+const BANK_MAX_M := 20.0
 ## Chain ends whose drawn ground differs by less than this (metres of height) have no slope to
 ## flow down: the river flows from its source, else from the smaller (x, z).
 const FLOW_TIE_M := 1.5
@@ -119,14 +122,16 @@ static func river_width() -> float:
 	return MapScale.to_units(RIVER_WATER_M + 2.0 * RIVER_BANK_M)
 
 
-## Nominal water width of a river in world units.
-static func water_width() -> float:
-	return MapScale.to_units(RIVER_WATER_M)
+## Nominal water width in world units of a river `water_m` metres wide (the default river, when
+## the map stores no width).
+static func water_width(water_m: float = RIVER_WATER_M) -> float:
+	return MapScale.to_units(water_m)
 
 
-## Width of one bank band in world units.
-static func bank_width() -> float:
-	return MapScale.to_units(RIVER_BANK_M)
+## Width of one bank band in world units of a river `water_m` wide: a wide river has a broad
+## sandy shore (shoals and a beach), capped at BANK_MAX_M.
+static func bank_width(water_m: float = RIVER_WATER_M) -> float:
+	return MapScale.to_units(minf(RIVER_BANK_M + BANK_PER_WATER * water_m, BANK_MAX_M))
 
 
 ## Whole road ribbon (carriageway plus both verges) in world units.
@@ -152,13 +157,13 @@ static func lift(kind: Kind) -> float:
 	return MapScale.to_units(ROAD_LIFT_M if kind == Kind.ROAD else LIFT_M)
 
 
-## Largest half width a ribbon of `kind` reaches anywhere.
-static func max_half_width(kind: Kind) -> float:
+## Largest half width a ribbon of `kind` reaches anywhere (rivers: of one `water_m` metres wide).
+static func max_half_width(kind: Kind, water_m: float = RIVER_WATER_M) -> float:
 	if kind == Kind.ROAD:
 		return width(kind) / 2.0
 	return (
-		water_width() / 2.0 * (1.0 + RIVER_WIDTH_VARIATION) * (1.0 + WATER_EDGE_VARIATION)
-		+ bank_width() * (1.0 + BANK_VARIATION)
+		water_width(water_m) / 2.0 * (1.0 + RIVER_WIDTH_VARIATION) * (1.0 + WATER_EDGE_VARIATION)
+		+ bank_width(water_m) * (1.0 + BANK_VARIATION)
 	)
 
 
@@ -172,6 +177,18 @@ static func lines(grid: HexGrid, kind: Kind) -> Array[PackedVector2Array]:
 ## `lines`.
 static func half_widths(grid: HexGrid, kind: Kind) -> Array[PackedFloat32Array]:
 	return _plan(grid, kind)["half_widths"]
+
+
+## Base water width in metres of every river chain, parallel to `lines(grid, RIVER)`: the median
+## of the stored widths of the chain's tiles (HexGrid.river_width_m), constant along the chain.
+static func water_widths_m(grid: HexGrid) -> PackedFloat32Array:
+	return _plan(grid, Kind.RIVER)["base_water_m"]
+
+
+## Whole water width in world units at every vertex of every river line, parallel to
+## `lines(grid, RIVER)` (RiverChannel digs the bed from it).
+static func water_widths(grid: HexGrid) -> Array[PackedFloat32Array]:
+	return _plan(grid, Kind.RIVER)["water"]
 
 
 ## Junction and dead-end discs as Vector3(x, z, radius).
@@ -458,6 +475,7 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 	var result_edges: Array[PackedVector2Array] = []
 	var result_water: Array[PackedFloat32Array] = []
 	var result_fade: Array[PackedFloat32Array] = []
+	var result_base_water := PackedFloat32Array()
 	var result_late: Array[bool] = []
 	var surface: TerrainSurface = TerrainSurface.new(grid) if kind == Kind.RIVER else null
 	var pieces := _pieces(grid, kind)
@@ -517,7 +535,11 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 			for s in range(0 if k == 0 else 1, n + 1):
 				line.append(_bezier(bez, float(s) / n))
 				tiles.append(Vector2(tile))
-		var sides := RiverShape.sides(line, chain, pieces, kind)
+		var water_m := RIVER_WATER_M
+		if kind == Kind.RIVER:
+			water_m = _chain_water_m(grid, chain, pieces)
+			result_base_water.append(water_m)
+		var sides := RiverShape.sides(line, chain, pieces, kind, water_m)
 		if kind == Kind.RIVER:
 			line = RiverShape.meander(line, tiles, junctions)
 			var ends_source := [
@@ -566,7 +588,18 @@ static func _build_plan(grid: HexGrid, kind: Kind) -> Dictionary:
 		"water": result_water,
 		"fade": result_fade,
 		"late": result_late,
+		"base_water_m": result_base_water,
 	}
+
+
+## Base water width of a river chain in metres: the (lower) median of the stored widths of the
+## tiles it passes, so one wide tile at a confluence does not widen a tributary.
+static func _chain_water_m(grid: HexGrid, chain: Array, pieces: Array) -> float:
+	var widths: Array[float] = []
+	for step: Dictionary in chain:
+		widths.append(grid.river_width_m(pieces[step["piece"]]["tile"]))
+	widths.sort()
+	return widths[(widths.size() - 1) >> 1] if not widths.is_empty() else RIVER_WATER_M
 
 
 ## Pieces of every linked tile (tiles sorted, so the result does not depend on insertion order):

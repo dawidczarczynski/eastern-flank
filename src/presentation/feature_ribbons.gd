@@ -191,10 +191,9 @@ static func river_material(ground: ShaderMaterial, flow: bool) -> ShaderMaterial
 		result.set_shader_parameter(key, ground.get_shader_parameter(key))
 	result.set_shader_parameter(&"layer_repeat", ground.get_shader_parameter(&"layer_repeat_far"))
 	result.set_shader_parameter(&"normal_map", WaterPlane.normal_texture(RIVER_NORMAL_SIZE))
-	var kind := FeatureRibbonPlanner.Kind.RIVER
-	result.set_shader_parameter(&"water_half", FeatureRibbonPlanner.water_width() / 2.0)
-	result.set_shader_parameter(&"half_width", FeatureRibbonPlanner.width(kind) / 2.0)
+	result.set_shader_parameter(&"units_per_m", MapScale.to_units(1.0))
 	result.set_shader_parameter(&"bank_m", FeatureRibbonPlanner.RIVER_BANK_M)
+	result.set_shader_parameter(&"bank_k", FeatureRibbonPlanner.BANK_PER_WATER)
 	result.set_shader_parameter(&"flow_speed", RIVER_FLOW_SPEED_M if flow else 0.0)
 	return result
 

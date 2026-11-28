@@ -19,6 +19,7 @@ terrain_rows = PackedStringArray("WWWWPPPPPP", "WWWPHHPPPP", "WWPPPHPUUU", "PPPP
 cover_rows = PackedStringArray("WWWW......", "WWW.......", "WW......U.", ".......UU.", "........U.", "FFFFFFF...", ".FF.FFF...", "FFFFFMM.W.")
 road_rows = PackedStringArray("..........", "..........", "..........", "..........", "..........", "9999999999", "..........", "..........")
 river_rows = PackedStringArray(".......i..", "......y...", "......xc..", "......k...", "......i...", ".....y....", "......k...", ".....y....")
+river_width_rows = PackedStringArray(".......8..", "......8...", "......88..", "......8...", "......8...", ".....8....", "......8...", ".....8....")
 countries = PackedStringArray("PL", "LT")
 country_rows = PackedStringArray("....000001", "...0000011", "..00000011", "0000000111", "0000000011", "0000000111", "0000000011", "00000001.1")
 border_lines = Array[PackedVector2Array]([PackedVector2Array(11.921, 11.500, 12.152, 5.166, 14.326, -1.000)])

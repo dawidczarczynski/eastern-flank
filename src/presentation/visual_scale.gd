@@ -60,6 +60,7 @@ const TRUE_HEIGHTS_M := {
 }
 
 static var _active: Dictionary = PRESETS[DEFAULT_PRESET]
+static var _applied_name: StringName = DEFAULT_PRESET
 
 ## Model height (world units, scale 1) of a tree species' LOD0 variant, cached.
 static var _tree_heights: Dictionary = {}
@@ -77,6 +78,7 @@ static func preset(preset_name: StringName) -> Dictionary:
 
 ## Makes a preset the active one (unknown name -> the default).
 static func apply(preset_name: StringName) -> void:
+	_applied_name = preset_name
 	_active = preset(preset_name)
 
 
@@ -111,6 +113,11 @@ static func rock_scale() -> float:
 ## Grass clump size multiplier (TASK-057); follows the bush scale.
 static func grass_scale() -> float:
 	return _active["grass_scale"]
+
+
+## Name of the preset last applied (DEFAULT_PRESET until something applies one).
+static func applied_name() -> StringName:
+	return _applied_name
 
 
 ## Whether the active preset is `true` (1:1 of MapScale, TASK-110).

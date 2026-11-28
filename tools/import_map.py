@@ -180,6 +180,9 @@ RIVER_WATERWAYS = ("river", "canal")  # plus `stream` with a name; ditches, drai
 LINE_STEP_M = 10.0  # densification of road / river lines
 CLIP_M = 40.0  # a shorter stretch through a hex between two neighbouring hexes is a clipped corner
 ROAD, RIVER = "road", "river"
+# River water width in metres (TASK-216): the OSM `width` tag when valid, else by waterway class.
+RIVER_WIDTH_BY_CLASS = {"stream": 3.0, "river": 8.0, "canal": 10.0}
+RIVER_WIDTH_MIN_M, RIVER_WIDTH_MAX_M = 1.0, 60.0
 
 _TAG_CLASSES: List[Tuple[str, Dict[str, str]]] = [
     # (tag key, {value: class}); "*" matches any value. First match in this order wins for one element.
@@ -704,6 +707,35 @@ def line_kind(tags: Dict[str, str], profile: Optional[Profile] = None) -> Option
     return None
 
 
+def river_width_m(tags: Dict[str, str]) -> int:
+    """Water width in whole metres of a river way (TASK-216): the `width` tag when it holds a positive number
+    ("12", "12 m", "12.5", a decimal comma), clamped to RIVER_WIDTH_MIN_M..RIVER_WIDTH_MAX_M; junk, zero and
+    negative values fall back to the class default (stream 3, river 8, canal 10; anything else 8)."""
+    raw = tags.get("width", "").strip().lower().replace(",", ".")
+    if raw.endswith("m"):
+        raw = raw[:-1].strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        value = 0.0
+    if not (value > 0.0 and math.isfinite(value)):
+        value = RIVER_WIDTH_BY_CLASS.get(tags.get("waterway", ""), RIVER_WIDTH_BY_CLASS["river"])
+    return int(round(min(RIVER_WIDTH_MAX_M, max(RIVER_WIDTH_MIN_M, value))))
+
+
+def tile_river_widths(layout: "HexLayout", link_widths: Dict[tuple, int], masks: Dict[Tuple[int, int], int]
+                      ) -> Dict[Tuple[int, int], int]:  # fmt: skip
+    """(col, row) -> water width in metres of every river hex of `masks`: the widest river link that touches it
+    (both ends of a link), so a tributary joining a big river keeps the big one's width in that hex."""
+    widths: Dict[Tuple[int, int], int] = {}
+    for (a, b), width in sorted(link_widths.items()):
+        for end in (a, b):
+            tile = layout.offset(*end)
+            if masks.get(tile, 0):
+                widths[tile] = max(widths.get(tile, 0), width)
+    return widths
+
+
 def osm_coastlines(osm: dict) -> List[Tuple[int, List[Tuple[float, float]]]]:
     """(way id, [(lat, lon), ...]) of every `natural=coastline` way, sorted by id (land on the left, OSM rule)."""
     nodes: Dict[int, Tuple[float, float]] = {}
@@ -790,6 +822,12 @@ def select_places(places: Sequence[dict], layout: "HexLayout", zone: int) -> Lis
 
 def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, List[Tuple[float, float]]]]:
     """(ROAD or RIVER, [(lat, lon), ...]) of every road and river way, sorted by (kind, way id)."""
+    return [(kind, points) for kind, _, points in osm_tagged_lines(osm, profile)]
+
+
+def osm_tagged_lines(osm: dict, profile: Optional[Profile] = None
+                     ) -> List[Tuple[str, Dict[str, str], List[Tuple[float, float]]]]:  # fmt: skip
+    """`osm_lines` with the way's tags: (ROAD or RIVER, tags, [(lat, lon), ...]), sorted by (kind, way id)."""
     nodes: Dict[int, Tuple[float, float]] = {}
     ways = []
     for el in osm.get("elements", []):
@@ -802,9 +840,9 @@ def osm_lines(osm: dict, profile: Optional[Profile] = None) -> List[Tuple[str, L
         kind = line_kind(way.get("tags", {}), profile)
         points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
         if kind and len(points) >= 2:
-            lines.append((kind, way["id"], points))
+            lines.append((kind, way["id"], way.get("tags", {}), points))
     lines.sort(key=lambda line: line[:2])
-    return [(kind, points) for kind, _, points in lines]
+    return [(kind, tags, points) for kind, _, tags, points in lines]
 
 
 ROAD_CLASS_BY_HIGHWAY = {"motorway": 1, "trunk": 1, "primary": 2}  # drawn road class; the rest (secondary) is 3
@@ -1694,6 +1732,7 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
         fine = [bytearray(int(math.floor((max_e - min_e) / fine_step)) + 1)
                 for _ in range(int(math.floor((max_n - min_n) / fine_step)) + 1)]  # fmt: skip
     links: Dict[str, set] = {ROAD: set(), RIVER: set()}
+    link_widths: Dict[tuple, int] = {}  # river link -> water width in metres (TASK-216)
     coastlines: Dict[int, List[Tuple[float, float]]] = {}
     sources = osm if isinstance(osm, list) else [osm]
     country_seeds = [(iso, *to_utm(lat, lon, zone)) for iso, lat, lon in settings.countries]
@@ -1714,8 +1753,13 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
             _scanline_fill(cover, LAND_COVER.index(cls), projected, min_e, min_n, step)
             if fine:
                 _scanline_fill_fast(fine, LAND_COVER.index(cls), projected, min_e, min_n, fine_step)
-        for kind, line in osm_lines(data, profile):
-            links[kind].update(line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m))
+        for kind, tags, line in osm_tagged_lines(data, profile):
+            found = line_links(layout, [to_utm(lat, lon, zone) for lat, lon in line], profile.line_step_m)
+            links[kind].update(found)
+            if kind == RIVER:
+                width = river_width_m(tags)
+                for link in found:
+                    link_widths[link] = max(link_widths.get(link, 0), width)
         if operational:
             for kind, way_id, tags, line, ends in osm_line_ways(data, profile):
                 line_ways[kind][way_id] = (tags, [to_utm(lat, lon, zone) for lat, lon in line], ends)
@@ -1823,6 +1867,8 @@ def build_map(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: Opt
     for tile, t in tiles.items():
         t["road"] = masks[ROAD].get(tile, 0)
         t["river"] = masks[RIVER].get(tile, 0)
+    for tile, width in tile_river_widths(layout, link_widths, masks[RIVER]).items():
+        tiles[tile]["river_width"] = width
     land = [t["metres"] for t in tiles.values() if t["terrain"] != "water"]
     low = min(land) if land else 0.0
     high = max(land) if land else 0.0
@@ -1925,6 +1971,7 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
     rows = int(math.floor((max_n - min_n) / step)) + 1
     cover = [bytearray(cols) for _ in range(rows)]
     links: Dict[str, set] = {ROAD: set(), RIVER: set()}
+    link_widths: Dict[tuple, int] = {}  # river link -> water width in metres (TASK-216)
     coastlines: Dict[int, List[Tuple[float, float]]] = {}
     sources = [(s, settings.profile.tag_classes) for s in (osm if isinstance(osm, list) else [osm])]
     sources += [(s, _LANDUSE_TAG_CLASSES) for s in landuse]
@@ -1935,9 +1982,14 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
         for cls, rings in osm_areas(data, table):
             projected = [[to_utm(lat, lon, zone) for lat, lon in ring] for ring in rings]
             _scanline_fill_fast(cover, LAND_COVER.index(cls), projected, min_e, min_n, step)
-        for kind, line in osm_lines(data, settings.profile):
+        for kind, tags, line in osm_tagged_lines(data, settings.profile):
             projected_line = [to_utm(lat, lon, zone) for lat, lon in line]
-            links[kind].update(line_links(layout, projected_line, settings.profile.line_step_m))
+            found = line_links(layout, projected_line, settings.profile.line_step_m)
+            links[kind].update(found)
+            if kind == RIVER:
+                width = river_width_m(tags)
+                for link in found:
+                    link_widths[link] = max(link_widths.get(link, 0), width)
         for way_id, line in osm_coastlines(data):
             coastlines[way_id] = [to_utm(lat, lon, zone) for lat, lon in line]
         del data
@@ -2000,9 +2052,15 @@ def build_layer(layout: HexLayout, zone: int, dem: Dem, osm: object, settings: S
                     continue
                 mask[row * width + col] |= 1 << HEX_DIRECTIONS.index((dst[0] - src[0], dst[1] - src[1]))
         masks[kind] = mask
-    return {"terrain": terrain, "road": masks[ROAD], "river": masks[RIVER], "metres": metres, "relief": reliefs,
-            "sea_points": sea_points, "cover": cover if settings.cover_m > 0.0 else None, "cover_min_e": min_e,
-            "cover_min_n": min_n,
+    river_width = bytearray(width * height)  # metres per river hex, 0 = none (TacticalChunk.river_width)
+    for (a, b), metres_wide in sorted(link_widths.items()):
+        for end in (a, b):
+            col, row = layout.offset(*end)
+            if layout.on_map(col, row) and masks[RIVER][row * width + col]:
+                river_width[row * width + col] = max(river_width[row * width + col], metres_wide)
+    return {"terrain": terrain, "road": masks[ROAD], "river": masks[RIVER], "river_width": river_width,
+            "metres": metres, "relief": reliefs, "sea_points": sea_points,
+            "cover": cover if settings.cover_m > 0.0 else None, "cover_min_e": min_e, "cover_min_n": min_n,
             "cover_step": step}  # fmt: skip
 
 
@@ -2150,6 +2208,12 @@ def write_layer(out_dir: Path, name: str, display_name: str, layout: HexLayout, 
                 'data = PackedByteArray("%s")' % base64.b64encode(data).decode("ascii"),
                 "",
             ]
+            widths = bytearray()
+            for row in range(cy, cy + h):
+                widths += result["river_width"][row * layout.width + cx:row * layout.width + cx + w]
+            if any(widths):
+                chunk[-1:-1] = ['river_width = PackedByteArray("%s")' % base64.b64encode(
+                    zlib.compress(bytes(widths), 9)).decode("ascii")]  # fmt: skip
             if columns:
                 kx, ky = cx // LAYER_CHUNK, cy // LAYER_CHUNK
                 i0, i1, j0, j1 = columns[kx], columns[kx + 1], cover_rows[ky], cover_rows[ky + 1]
@@ -2230,6 +2294,11 @@ def write_tres(path: Path, name: str, display_name: str, layout: HexLayout, zone
         "sources = %s" % _string(sources),
         "",
     ]
+    if any(t.get("river_width") for t in tiles.values()):
+        at = lines.index("elevation_m = PackedFloat32Array(%s)" % ", ".join(metres))
+        lines[at:at] = ["river_width_rows = PackedStringArray(%s)" % ", ".join(
+            _string("".join(LINK_CHARS[tiles[(c, row)].get("river_width", 0)] for c in range(layout.width)))
+            for row in range(layout.height))]  # fmt: skip
     if result.get("countries"):
         country_rows = ["".join("." if tiles[(c, row)]["country"] == NO_COUNTRY else str(tiles[(c, row)]["country"])
                                 for c in range(layout.width)) for row in range(layout.height)]  # fmt: skip
