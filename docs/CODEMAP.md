@@ -41,6 +41,8 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `TerrainNoise` – Deterministic 2D noise, an exact port of the visual design's helpers (`terrain_noise.gd`)
 - `TerrainSurface` – Pure "height at any world point" query over a HexGrid (hex size TerrainField.HEX_SIZE). (`terrain_surface.gd`)
 - `Unit` – State of a single unit on the map. (`unit.gd`)
+- `WaterSample` – What WaterValidator (TASK-223a) reads: the rivers, lakes and bridges of a map in one smal… (`water_sample.gd`)
+- `WaterValidator` – The water ruleset of ADR 0034 decision 5 (TASK-223a): lists every error of the rivers, la… (`water_validator.gd`)
 
 ## src/core/commands/
 
@@ -276,7 +278,9 @@ Grep it (`class name`, a keyword) instead of exploring the tree; open the file f
 - `VisualScale` – Visual scale of units relative to trees, bushes and rocks (TASK-059). One place for the (`visual_scale.gd`)
 - `VolleyPlayback` – Tween steps of a rocket volley, shared by the battle (BattleController) and the unit cata… (`volley_playback.gd`)
 - `WarmUp` – Decides when the first slow frames of a freshly built scene are over (shader pipelines, (`warm_up.gd`)
+- `WaterErrorOverlay` – Devtools overlay "Water errors" (TASK-223a, ADR 0034): one pillar per WaterValidator viol… (`water_error_overlay.gd`)
 - `WaterPlane` – The translucent water plane of a MapView (TASK-056; moved out of MapView by TASK-135): one (`water_plane.gd`)
+- `WaterSampleAdapter` – Fills a WaterSample (TASK-223a) from today's water data: the river lines of FeatureRibbon… (`water_sample_adapter.gd`)
 - `Wind` – Global wind shader parameters (TASK-057), shared by grass and later trees / undergrowth (`wind.gd`)
 - `WorkerJob` – One piece of pure CPU work run on the WorkerThreadPool while the main thread does somethi… (`worker_job.gd`)
 - `WreckField` – Owner of all wrecks of a battle (TASK-065), a child of the Units node (same space as the… (`wreck_field.gd`)

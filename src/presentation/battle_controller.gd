@@ -143,6 +143,8 @@ func _ready() -> void:
 		model_ids[unit.definition.id] = true
 	UnitModels.request_scripts(model_ids.keys())
 	_map_view.build(state.grid)
+	if DevTunables.water_errors:
+		WaterErrorOverlay.create(self, $HUD, state.grid, _map_view.surface())
 	loading.set_progress(LOAD_AFTER_MAP)
 	await _next_frame()
 	_objective_markers.name = "ObjectiveMarkers"

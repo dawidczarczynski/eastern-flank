@@ -45,6 +45,7 @@ var _quality_row: StaffMapWindow.ToggleRow
 var _scale_row: StaffMapWindow.ToggleRow
 var _look_row: StaffMapWindow.ToggleRow
 var _fps_row: StaffMapWindow.ToggleRow
+var _water_row: StaffMapWindow.ToggleRow
 var _tools_caption: Label
 var _switches_caption: Label
 var _devtools_back: Button
@@ -377,6 +378,7 @@ func _build_devtools(column: VBoxContainer) -> void:
 	_scale_row = _add_switch(column, "True unit size", _on_scale_pressed)
 	_look_row = _add_switch(column, "Look preset", _on_look_pressed)
 	_fps_row = _add_switch(column, "FPS overlay", _on_fps_pressed)
+	_water_row = _add_switch(column, "Water errors", _on_water_pressed)
 	add_child((load(FPS_OVERLAY_SCRIPT) as GDScript).new() as Label)
 	column.add_child(_spacer(10.0))
 	_devtools_back = _add_button(column, show_page.bind("main"))
@@ -411,6 +413,12 @@ func _on_fps_pressed() -> void:
 	_refresh_devtools_switches()
 
 
+func _on_water_pressed() -> void:
+	var dev := _dev_tunables()
+	dev.water_errors = not dev.water_errors
+	_refresh_devtools_switches()
+
+
 func _refresh_devtools_switches() -> void:
 	var dev := _dev_tunables()
 	var quality_names := ["AUTO", "LOW", "HIGH"]
@@ -420,6 +428,7 @@ func _refresh_devtools_switches() -> void:
 	var default_look: StringName = (load(LOOK_PRESET_SCRIPT) as GDScript).get("DEFAULT_PRESET")
 	_look_row.set_value(dev.look_name != default_look, String(dev.look_name).to_upper())
 	_fps_row.set_on(dev.fps_overlay)
+	_water_row.set_on(dev.water_errors)
 
 
 ## DevTunables, LookPreset and FpsOverlay are only needed on the DEVTOOLS page. They are loaded by

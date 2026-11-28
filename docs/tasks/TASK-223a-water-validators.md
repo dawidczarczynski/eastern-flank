@@ -1,6 +1,6 @@
 # TASK-223a: Water network (1/7): validators and devtools overlay – measure the river and lake errors
 
-- **Status**: ready
+- **Status**: done
 - **Layers**: core (`WaterValidator`, pure) + presentation (devtools overlay) + tools
 - **Depends on**: –
 - **Sections**: ADR 0034 decision 5; ARCHITECTURE "River water and bridges"
@@ -33,4 +33,14 @@ None (devtools only).
 
 ## Implementation notes
 
-_Filled in by the agent when done._
+- Core: `WaterSample` (reaches downstream-ordered with width / level in metres, `ground` and `lake_at` callables, bridges) and `WaterValidator.check(sample)` – the nine rules, results grouped in `RULES` order. Tests: `tests/unit/test_water_validator.gd` (one hand-made river per rule, clean river, junction exemption of `width_jump`, determinism).
+- Adapter: `WaterSampleAdapter.build(grid, surface)` (presentation, it reads `FeatureRibbonPlanner`): river lines + widths, levels recomputed with `RiverChannel.levels` (downstream = lower end), ground = `TerrainSurface.height_at` (channel dug in), lakes = WATER tiles at the water plane, bridges from `BridgeSites`. Heights in metres = units × `MapScale.metres_per_unit` / `RiverChannel.VERTICAL` (the drawn relief is exaggerated ×2). Rivers narrower than 6 m have no channel and are left out. TASK-223c swaps the adapter for a `WaterNetwork` reader.
+- Definitions chosen: junction = a reach end within 15 m of another reach; lake = at the end or 60 m ahead of it; `dry_bed` / `shallow` checked at the centre of each vertex, `flooded_bank` 1.5 m beyond the water edge on both sides; `width_jump` compares each vertex with those up to 50 m upstream, one report per jump, skipped within 50 m of a junction; `bridge_short` against the width of the nearest reach.
+- Tool: `tools/water_report.sh` (+ `tools/water_report.gd`), widths from the land-cover raster like the battle (`RiverWidths.apply`). docs/TOOLS.md updated.
+- Devtools: DEVTOOLS page switch **Water errors** (`DevTunables.water_errors`); `BattleController` adds `WaterErrorOverlay` after `MapView.build` only when it is on (the validator does not run otherwise), so it works in the battle and the terrain viewer. One unshaded, no-depth-test pillar (40 m) per violation, coloured per rule, in one MultiMesh; the label under the mouse shows `rule value / limit`.
+- Review: confluence checked before the lake probe; bank probes in other water skipped; a bridge counts as over the water within half the width of the centre line. `dry_bed` is reported per vertex (one cause, many hits) – 223c may group runs like `width_jump`.
+- `tests/unit/test_salvo_fx.gd` now resets VisualScale / MapScale in `before_each`: the new test file reshuffled the shards and put it behind a test that leaves another scale active (pod length 0.03).
+- Measured 2026-11-28:
+  - `suwalki` battle map: 0 reaches (all its rivers are ≤ 3.8 m, no channel), 8 bridges, 0 violations.
+  - theatre hex 47,45 cut (`--map=suwalki_theatre --region=47:45`): 14 reaches, 5 bridges – `surface_rises` 0, `junction_step` 0, `lake_step` 1 (1.19 m step at 19.45, 23.23), `dry_bed` 1461 (mostly a constant 2.17 m: where the level is clamped to the water plane the channel stops at `TerrainSurface._CHANNEL_FLOOR` 0.03 above it), `flooded_bank` 376 (bank probes that land in another reach or a lake are skipped), `shallow` 11, `width_jump` 1, `bridge_short` 0, `steep_water` 106.
+  - `surface_rises` 0 is expected: the 2026-11-28 stop-gap makes `RiverChannel.levels` monotone. `junction_step` 0 may mean the ribbon chains do not end within 15 m of each other (tributaries fade out short of the main line), so check the confluences in the overlay.

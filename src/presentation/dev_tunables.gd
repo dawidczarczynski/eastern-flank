@@ -89,6 +89,8 @@ static var battle_overrides := false
 static var look_name: StringName = LookPreset.DEFAULT_PRESET
 static var grid_on := true
 static var fps_overlay := false
+## Markers at every water error of the battle map (WaterErrorOverlay, TASK-223a).
+static var water_errors := false
 static var unlock_camera := false
 
 static var _overrides := {}

@@ -8,6 +8,12 @@ const STEPS: Array[float] = [0.016, 0.05, 0.37, 0.003, 0.2, 0.011]
 var _nodes: Array[Node] = []
 
 
+## Earlier tests of a shard may leave another scale behind; the pod is measured at the default.
+func before_each() -> void:
+	VisualScale.reset()
+	MapScale.reset()
+
+
 func after_each() -> void:
 	for node in _nodes:
 		if is_instance_valid(node):
